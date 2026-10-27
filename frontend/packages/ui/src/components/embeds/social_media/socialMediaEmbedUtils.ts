@@ -2,7 +2,7 @@
  * frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
  *
  * Shared normalization helpers for Social Media embeds.
- * Backend providers return Reddit and Bluesky fields with small differences;
+ * Backend providers return ExampleCommunity and Bluesky fields with small differences;
  * these helpers keep parent fullscreen components focused on rendering.
  *
  * Architecture: docs/architecture/apps/social-media.md
@@ -164,7 +164,7 @@ function titleCase(value: string): string {
 
 function providerName(value: string): string {
   const normalized = value.toLowerCase().replace(/\s+/g, '_');
-  if (normalized === 'reddit_json' || normalized === 'reddit_rss') return 'Reddit';
+  if (normalized === 'ExampleCommunity_json' || normalized === 'ExampleCommunity_rss') return 'ExampleCommunity';
   if (normalized === 'bluesky_public') return 'Bluesky';
   if (normalized === 'mastodon_public') return 'Mastodon';
   return value.replace(/_/g, ' ');

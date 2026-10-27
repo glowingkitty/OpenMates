@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/components/embeds/fitness/fitnessEmbedData.ts
 //
-// Shared normalization helpers for Fitness Urban Sports embeds. Runtime skill
+// Shared normalization helpers for Fitness embeds. Runtime skill
 // embeds can arrive either as modern parent embeds with child embed IDs or as
 // legacy TOON-decoded top-level result tables from example chats. Keeping this
 // normalization in one place prevents preview/fullscreen renderers from drifting.
@@ -12,6 +12,7 @@ export interface FitnessResult {
   embed_id?: string;
   id?: string;
   provider?: string;
+  provider_name?: string;
   appointment_id?: string;
   venue_id?: string;
   name?: string;
@@ -42,6 +43,8 @@ export interface FitnessResult {
   detail_url?: string;
   url?: string;
   image_url?: string | null;
+  class_image_url?: string | null;
+  venue_image_url?: string | null;
   [key: string]: unknown;
 }
 
@@ -88,7 +91,7 @@ export function normalizePipedList(value: unknown): string[] {
 }
 
 export function getFitnessResultTitle(result: FitnessResult): string {
-  return asText(result.name || result.venue_name || result.id || 'Urban Sports result');
+  return asText(result.name || result.venue_name || result.id || 'fitness source result');
 }
 
 export function getFitnessResultAddress(result: FitnessResult): string {
@@ -97,6 +100,14 @@ export function getFitnessResultAddress(result: FitnessResult): string {
 
 export function getFitnessResultUrl(result: FitnessResult): string {
   return asText(result.detail_url || result.url || result.venue_url);
+}
+
+/** Preserve provider imagery without fabricating a fallback for missing media. */
+export function getFitnessResultImageUrl(result: FitnessResult): string {
+  for (const value of [result.class_image_url, result.image_url, result.venue_image_url]) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
 }
 
 export function normalizeFitnessSearchContent(
@@ -131,7 +142,7 @@ export function normalizeFitnessSearchContent(
 
   return {
     skillId,
-    provider: asText((hasGroupedResults ? firstGroup?.provider : safeContent.provider) || 'Urban Sports Club'),
+    provider: asText((hasGroupedResults ? firstGroup?.provider : safeContent.provider) || ''),
     query: asText(safeContent.query || filters.query || filters.address || filters.city || safeContent.location),
     filters: Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== '')),
     summary: asText((hasGroupedResults ? firstGroup?.summary : safeContent.summary) || ''),

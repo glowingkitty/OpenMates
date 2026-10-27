@@ -35,6 +35,7 @@ import {
   dailyInspirationStore,
   hasCompleteAuthenticatedDailySet,
   hasPublicSafeDailySet,
+  inspirationsMatchLanguage,
   type DailyInspiration,
   type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
@@ -241,7 +242,8 @@ export async function loadDefaultInspirations(
       && current.source !== "guest-onboarding"
       && current.source !== "none"
     ) {
-      if (hasCompleteAuthenticatedDailySet(current.inspirations)) {
+      if (hasCompleteAuthenticatedDailySet(current.inspirations)
+        && inspirationsMatchLanguage(current.inspirations, currentLangSync)) {
         console.debug(
           `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
         );
@@ -261,7 +263,8 @@ export async function loadDefaultInspirations(
     // ── Step 0: Load hardcoded defaults immediately ───────────────────────────
     // Show the banner from the very first frame. Authenticated fallback stays
     // visible until IndexedDB / server / WS data replaces it.
-    if (!isAuthenticated && current.inspirations.length === 0) {
+    if (!isAuthenticated && (current.inspirations.length === 0
+      || !inspirationsMatchLanguage(current.inspirations, currentLangSync))) {
       loadGuestOnboardingInspirations();
     }
 
@@ -274,7 +277,7 @@ export async function loadDefaultInspirations(
       const guestData = await guestResponse.json();
       if (get(authStore).isAuthenticated || (get(svelteLocaleStore) || "en") !== guestLang) return;
       const guestDefaults: DailyInspiration[] = Array.isArray(guestData.inspirations) ? guestData.inspirations : [];
-      if (!hasPublicSafeDailySet(guestDefaults)) {
+      if (!hasPublicSafeDailySet(guestDefaults) || !inspirationsMatchLanguage(guestDefaults, guestLang)) {
         console.warn(`${LOG_PREFIX} Rejected incomplete or promotional guest public defaults`);
         return;
       }
@@ -312,7 +315,8 @@ export async function loadDefaultInspirations(
           return;
         }
 
-        if (persisted.length > 0 && hasCompleteAuthenticatedDailySet(persisted)) {
+        if (persisted.length > 0 && hasCompleteAuthenticatedDailySet(persisted)
+          && inspirationsMatchLanguage(persisted, get(svelteLocaleStore) || "en")) {
           // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
           // If personalized data already landed, skip — it has is_opened / opened_chat_id state
           // that must not be overwritten by anything from this function.
@@ -402,7 +406,12 @@ export async function loadDefaultInspirations(
       console.debug(`${LOG_PREFIX} Auth ended while parsing public fallback — keeping guest onboarding`);
       return;
     }
+    if ((get(svelteLocaleStore) || "en") !== currentLang) return;
     const inspirations: DailyInspiration[] = data.inspirations || [];
+    if (!inspirationsMatchLanguage(inspirations, currentLang)) {
+      console.warn(`${LOG_PREFIX} Rejected defaults from a different content language`);
+      return;
+    }
 
     if (inspirations.length === 0) {
       console.debug(

@@ -1,0 +1,13 @@
+# Model API transport; logical model entries live under their model authors.
+provider_id: baseten
+name: Baseten
+description: Direct Baseten Model APIs
+privacy_policy: https://www.baseten.co/privacy-policy/ # verified 2026-10-25
+optional_keys:
+  - env_key: SECRET__BASETEN__API_KEY
+    vault_path: kv/data/providers/baseten
+    vault_key: api_key
+    description: Baseten Model API key
+    setup_url: https://app.baseten.co/settings/api_keys
+    docs_url: https://docs.baseten.co/inference/model-apis/overview
+models: []

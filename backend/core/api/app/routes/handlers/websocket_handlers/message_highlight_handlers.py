@@ -142,6 +142,19 @@ async def _impl_add(websocket, manager, directus_service, user_id, device_finger
         )
         return
 
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    import hashlib
+    try:
+        await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+            "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+            "chat_id": chat_id, "mode": "disqualify",
+        })
+    except Exception:
+        await manager.send_personal_message(message={"type": "error", "payload": {
+            "message": "Chat annotation is temporarily unavailable.", "chat_id": chat_id,
+        }}, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash)
+        return
+
     row = {
         "id": highlight_id,
         "chat_id": chat_id,

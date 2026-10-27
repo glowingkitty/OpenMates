@@ -1,0 +1,3304 @@
+{
+  "status": "complete",
+  "inference_host": "standalone Rust C ABI host; Python supervision only",
+  "exit_code": 0,
+  "stopped_by_supervisor": null,
+  "wall_seconds": 177.67486670054495,
+  "sampled_peak_rss_bytes": 87101440,
+  "affinity_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "workers": 1,
+  "threads_per_worker": 8,
+  "fast_gaps": 1,
+  "native_files": [
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75154720,
+      "sha256": "aef424a660681bea94eeda73ae94d267b5980ee8a894c2cd71fe6f3502ed69f5"
+    },
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    }
+  ],
+  "model_files": [
+    {
+      "file": "redact.tflite",
+      "bytes": 24529472,
+      "sha256": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27"
+    },
+    {
+      "file": "redact_tokenizer.bin",
+      "bytes": 391416,
+      "sha256": "81bc354dc99285e05b8f70edca9df3afbd83dfa4b0cea18d0448ab17ce58aae2"
+    },
+    {
+      "file": "labels.json",
+      "bytes": 3842,
+      "sha256": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a"
+    }
+  ],
+  "sdk_source_commit": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "build_receipt_sha256": "9cd8476a489b298eaf38e59d151e19ad877f8f96a18b7a4bb30a8f5a68a75f58",
+  "rust_source_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "binary_sha256": "cb6e28e374404ecdb4229b9736bd99c5eb37f0a0beee3d641c8c1ba269a8230b",
+  "supervisor_sha256": "784a4cde23d8b531c64c5c281a94b63bbc6eb0cdd61c8db11ed1da22f7e1ed52",
+  "fixture_generator_sha256": "203a2e6de56b20ac8c61250fb24d2cca60176fbeb87783499888500e0e70cafe",
+  "input_sha256": "5bfb80c9037e212abd4317b6b26088027092518080f3340e1827c456bdc99c4c",
+  "input_lengths": [
+    {
+      "id": "q:name-support",
+      "utf8_bytes": 59,
+      "utf16_units": 59,
+      "text_sha256": "71e9b69b5b8f8e93cb79487105dc25d81e751087ef41d6927022bec592635f3a",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-rare",
+      "utf8_bytes": 63,
+      "utf16_units": 63,
+      "text_sha256": "4c6f83a2ace719464d848e471f18e823d513d9ee5c4f988a7295ae00fba0149c",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-first-only",
+      "utf8_bytes": 51,
+      "utf16_units": 51,
+      "text_sha256": "2f413b10fb0a9d583a36a116d7ac82e9d2383d8f7c7020438992b04b4cb461c9",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-initials",
+      "utf8_bytes": 54,
+      "utf16_units": 54,
+      "text_sha256": "befeef08c62bbe990a816066677335ab2b0c45821a93e5999d0bfa4a0ba4962d",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-json",
+      "utf8_bytes": 53,
+      "utf16_units": 53,
+      "text_sha256": "a85b53d965631b0ad545820974c3f9d64aad3051c063e93d83a717bc46e7de62",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-code",
+      "utf8_bytes": 61,
+      "utf16_units": 61,
+      "text_sha256": "c09a0c03a84b599853bde2db59716bc3507fb7c02ff31eebfbef6192bdfd06d4",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-emoji",
+      "utf8_bytes": 63,
+      "utf16_units": 60,
+      "text_sha256": "f62463f21314ac0aaa3b336186c47fdcedfe60b9ef147918176bb80fc9f8e3fa",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-german",
+      "utf8_bytes": 63,
+      "utf16_units": 62,
+      "text_sha256": "27bd338f7d5964cdc6a1bdc1e6d945e3e706567d16cf78663926f738d3d7a79b",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-japanese",
+      "utf8_bytes": 87,
+      "utf16_units": 29,
+      "text_sha256": "dc90e8b6e0a7cf9a5e49ac5ab43dbe0c030584bb3fb22e1a75d9df6c338bb5b8",
+      "annotations": 1
+    },
+    {
+      "id": "q:name-arabic",
+      "utf8_bytes": 86,
+      "utf16_units": 47,
+      "text_sha256": "037394342b1c80e778b50d9cb554873868650117a043d280d14d105ecfe457f0",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-us",
+      "utf8_bytes": 74,
+      "utf16_units": 74,
+      "text_sha256": "52e9061e7a3fe546685669197969cd1d76f1994dbe33c2af5b2e8f0d828db712",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-uk",
+      "utf8_bytes": 52,
+      "utf16_units": 52,
+      "text_sha256": "2d319dd140febd91355399934dc86408ac3e88581577c61a55c84eba5b338b42",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-de",
+      "utf8_bytes": 55,
+      "utf16_units": 54,
+      "text_sha256": "45bb56b30bdaa82ec5ef5240040e59a5b5c971d1669e3a94337392052d460c41",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-json",
+      "utf8_bytes": 52,
+      "utf16_units": 52,
+      "text_sha256": "0d1212b9bd2613b7d6622560ee0dcfe74abf12ff512f0891c3dec4963b3c525f",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-multiline",
+      "utf8_bytes": 71,
+      "utf16_units": 71,
+      "text_sha256": "c9bc893c8d30e5c79e39e33e4b98de895146f0ad3bc6974e1387134d52ea3def",
+      "annotations": 1
+    },
+    {
+      "id": "q:address-context-only",
+      "utf8_bytes": 56,
+      "utf16_units": 56,
+      "text_sha256": "e5f9b2113357420d40a03656f2a01d732a3c0e3077e017707a446d228c2ace51",
+      "annotations": 1
+    },
+    {
+      "id": "q:email-simple",
+      "utf8_bytes": 48,
+      "utf16_units": 48,
+      "text_sha256": "63910542c48eb37bddb70a3b235f36e4727f07f5fbc668869fa2566b451054ba",
+      "annotations": 1
+    },
+    {
+      "id": "q:email-plus",
+      "utf8_bytes": 47,
+      "utf16_units": 47,
+      "text_sha256": "5a41e72affd7a07a5a489bab44b96b467d7815d41fe5d94551b18749a27732b3",
+      "annotations": 1
+    },
+    {
+      "id": "q:email-json",
+      "utf8_bytes": 52,
+      "utf16_units": 52,
+      "text_sha256": "65725ed5d520bc48f28223f6ef45ad54be6ad303dc31b8f81f3ccd2f08e5c94e",
+      "annotations": 1
+    },
+    {
+      "id": "q:email-unicode-context",
+      "utf8_bytes": 55,
+      "utf16_units": 33,
+      "text_sha256": "9244d81cc33b2b05553ea792aa5e6dc8478d7e3e6d934ea2ccf6d992fa81dd5a",
+      "annotations": 1
+    },
+    {
+      "id": "q:phone-us",
+      "utf8_bytes": 45,
+      "utf16_units": 45,
+      "text_sha256": "8fd9d9427b81e9698c629119cd89ac47511d0255dbb6070068f9974921078021",
+      "annotations": 1
+    },
+    {
+      "id": "q:phone-uk",
+      "utf8_bytes": 39,
+      "utf16_units": 39,
+      "text_sha256": "e78f65e2ccf4e10e896c1c536af78e5381d43c33a0347018fce469cbaec773d5",
+      "annotations": 1
+    },
+    {
+      "id": "q:phone-de",
+      "utf8_bytes": 44,
+      "utf16_units": 44,
+      "text_sha256": "9c73b731b0b8c50f4cf7485141a6aec8ae3196452ccf0ba84b94a7bb15409ec2",
+      "annotations": 1
+    },
+    {
+      "id": "q:phone-local",
+      "utf8_bytes": 45,
+      "utf16_units": 45,
+      "text_sha256": "3daf02988963e317a6ebfb747e48f00ae002c21ec2c62d617f328bcf91e8010d",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-github",
+      "utf8_bytes": 53,
+      "utf16_units": 53,
+      "text_sha256": "84466e6c12c3fdf022e6fa4b2977a1ed8a78ceb282c2b42a15d5ee0fe591d9c3",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-openai",
+      "utf8_bytes": 167,
+      "utf16_units": 167,
+      "text_sha256": "aff5b45830bd2a4b0b3a001affd4a09876511770511474c4d1e9bf1c878f7f98",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-aws",
+      "utf8_bytes": 38,
+      "utf16_units": 38,
+      "text_sha256": "26b03ae48893f2e74588c3ce614b623e72eba7b49ff40c7297c5ba6c6c2cd9ce",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-google",
+      "utf8_bytes": 59,
+      "utf16_units": 59,
+      "text_sha256": "bdf75bab84b763a14cb5b6e17dc07a9f1a366b62f060e46d92c2eb53553132d6",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-stripe",
+      "utf8_bytes": 50,
+      "utf16_units": 50,
+      "text_sha256": "0118a10c001b16849f407693b0ee49fbd17d1742fa5abf823c102f51b43993a0",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-slack",
+      "utf8_bytes": 67,
+      "utf16_units": 67,
+      "text_sha256": "f8fa8836b193a817149f90ecdc2e05a4b5c0ba22de2467d8f96f12370f92f035",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-bearer",
+      "utf8_bytes": 57,
+      "utf16_units": 57,
+      "text_sha256": "8ed756e33bea02b7ee61a755811c733b96cba4ed2223c42195c0941e8fedcf4c",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-opaque-context",
+      "utf8_bytes": 75,
+      "utf16_units": 75,
+      "text_sha256": "25973d469e51bfe74f1b550c9443461a8250ad541ff1a3792f86246f4144a4bf",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-passphrase",
+      "utf8_bytes": 60,
+      "utf16_units": 60,
+      "text_sha256": "d71e0c0711185fe70b2b02f9193b544c43f4af2eb9fad5d9831144a590ae9db7",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-json-unusual",
+      "utf8_bytes": 48,
+      "utf16_units": 48,
+      "text_sha256": "c3043ffa2ad7585f45cec071f4eb2a55341f93600b7bbf0754ad50d1c234320d",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-assignment",
+      "utf8_bytes": 42,
+      "utf16_units": 42,
+      "text_sha256": "9dc169c9e351f86c6ffd1402651158c33e8d7dec759154467e82552334575647",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-bare-unknown",
+      "utf8_bytes": 24,
+      "utf16_units": 24,
+      "text_sha256": "3a0ac8438d85b575e8d2dc41211b86aaf3ca1e0a8e0d5c9e47871b129349a3ff",
+      "annotations": 1
+    },
+    {
+      "id": "q:secret-split",
+      "utf8_bytes": 71,
+      "utf16_units": 71,
+      "text_sha256": "ba086a1828a2afc48cf53ffb5cd049a7fb66c10c861c30e7b4676ac7bb7792d9",
+      "annotations": 2
+    },
+    {
+      "id": "q:account-iban",
+      "utf8_bytes": 47,
+      "utf16_units": 47,
+      "text_sha256": "8d3faec713aee77113da7b18ff242bb73d4448a2a8ec8f230e76ae7e560961a1",
+      "annotations": 1
+    },
+    {
+      "id": "q:account-ssn",
+      "utf8_bytes": 33,
+      "utf16_units": 33,
+      "text_sha256": "73f568579bb790b604e80ff52bd1d2b8b6c3609afea96c68c9514d01e54a016d",
+      "annotations": 1
+    },
+    {
+      "id": "q:date-birth",
+      "utf8_bytes": 37,
+      "utf16_units": 37,
+      "text_sha256": "a5871772250a82eb06262bef3dab2ccc3e6488fb242b34d445c1726f0be1f5d1",
+      "annotations": 1
+    },
+    {
+      "id": "q:url-private",
+      "utf8_bytes": 85,
+      "utf16_units": 85,
+      "text_sha256": "f06fcad0beed18de2baab75019cf6288b3a20ef038315bc97d5c71c920c91392",
+      "annotations": 1
+    },
+    {
+      "id": "q:configured-person",
+      "utf8_bytes": 68,
+      "utf16_units": 68,
+      "text_sha256": "7caad4c47e9bfc70238a2b598b78962495d9fc9541f847cca8e803042c49635c",
+      "annotations": 2
+    },
+    {
+      "id": "q:mixed-support",
+      "utf8_bytes": 120,
+      "utf16_units": 120,
+      "text_sha256": "2ffd114c4296670d593968c32a1665af3eef245a81b6a893b3e41515180a7c76",
+      "annotations": 4
+    },
+    {
+      "id": "q:mixed-log",
+      "utf8_bytes": 117,
+      "utf16_units": 117,
+      "text_sha256": "4068161a9126b3da8d612c6df1d0e07aae3c7a4e320b9049ff462a3778e7338e",
+      "annotations": 2
+    },
+    {
+      "id": "q:negative-uuid",
+      "utf8_bytes": 57,
+      "utf16_units": 57,
+      "text_sha256": "cfad77aa31b577903ec08e70e58691f8c21225deb1881a259489246a0acad10f",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-hash",
+      "utf8_bytes": 71,
+      "utf16_units": 71,
+      "text_sha256": "413f66009f8494323d804b2357b452b38166d9321d0b54155735b7bd6673a5d0",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-function",
+      "utf8_bytes": 68,
+      "utf16_units": 68,
+      "text_sha256": "467c38c1b4b07f44318a480957daaf304b28f0ae122de0ea0542b538df47e882",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-public-name",
+      "utf8_bytes": 62,
+      "utf16_units": 62,
+      "text_sha256": "22e8c6591ed2744920cc5f1d7fac0ff9fa4e5df68ed0ff6a4af622a6ca96c9d0",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-library",
+      "utf8_bytes": 57,
+      "utf16_units": 57,
+      "text_sha256": "1e83c35e65f6540110c4de0e330129805d1bac753355bbff7ec409f312d275dd",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-public-url",
+      "utf8_bytes": 69,
+      "utf16_units": 69,
+      "text_sha256": "2d9d1e92fec43e2f37927f4550c0a9eae241f962ca2a378be0c1d70f820d1fbb",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-version",
+      "utf8_bytes": 67,
+      "utf16_units": 67,
+      "text_sha256": "701caf083d4fa5576ee2b397e7bc6ba9bb4f19bc401393eee92af3f6560fb607",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-timestamp",
+      "utf8_bytes": 63,
+      "utf16_units": 63,
+      "text_sha256": "3257db1f85f41e61bf4f1ef5f6baec8fb58933a23f0892d78dc0b66c6c3b35b3",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-placeholders",
+      "utf8_bytes": 62,
+      "utf16_units": 62,
+      "text_sha256": "a30a62234f329060a05bf1750af32e5a935871b45fc380eb746075d646782127",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-counts",
+      "utf8_bytes": 74,
+      "utf16_units": 74,
+      "text_sha256": "339abf0a9ba069eb63871400fdf767ec73dae1c05721019911607aa8616ae6fc",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-address-public",
+      "utf8_bytes": 69,
+      "utf16_units": 69,
+      "text_sha256": "31c4325c78d1960aa257f8d6ce0fdfc0f27b756ee8945ce5725ecd437082cc5c",
+      "annotations": 0
+    },
+    {
+      "id": "q:negative-branch",
+      "utf8_bytes": 75,
+      "utf16_units": 75,
+      "text_sha256": "7a84b95646df4a02c4b3b7768b4d08706637332d58b4a343fee876e8a7dfbddd",
+      "annotations": 0
+    },
+    {
+      "id": "q:window-2-name-support",
+      "utf8_bytes": 325,
+      "utf16_units": 325,
+      "text_sha256": "a7eea523ca19ce27bbde577181eed0666169bfa41971d4e0ef637cd7b328f067",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-name-support",
+      "utf8_bytes": 484,
+      "utf16_units": 484,
+      "text_sha256": "6d68344b5069b034611ef8b460fa31f66b49a8d75a61186ea2faca2591f79747",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-name-support",
+      "utf8_bytes": 802,
+      "utf16_units": 802,
+      "text_sha256": "e04d3ade9e940e8fdaa47a9382f51dec8e20cf997869b1ce4aa80b5b74044787",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-name-support",
+      "utf8_bytes": 1438,
+      "utf16_units": 1438,
+      "text_sha256": "1c4fe728310184949e399afcac22bcc161ad99c2b053b07c3b63326d78381d03",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-name-emoji",
+      "utf8_bytes": 329,
+      "utf16_units": 326,
+      "text_sha256": "ff747e2352bebe7ce67bd7348a2efc17db3583e220b518bf1a98f0575337d1dd",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-name-emoji",
+      "utf8_bytes": 488,
+      "utf16_units": 485,
+      "text_sha256": "1aed3cf06650c0ec9dfd78fedfaef0dd2e62313e03b23b5c19e360bf51d2a6d6",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-name-emoji",
+      "utf8_bytes": 806,
+      "utf16_units": 803,
+      "text_sha256": "faea0cc8d73ed08a39b3c1928531fafe8ea1385e74e27d0bbaed59053bec7b7a",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-name-emoji",
+      "utf8_bytes": 1442,
+      "utf16_units": 1439,
+      "text_sha256": "b4c8fb1682552b2080719e90335a57d882732676db2213c6e610d40345f3e160",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-name-german",
+      "utf8_bytes": 329,
+      "utf16_units": 328,
+      "text_sha256": "e5315408cb27262c3a2e814111087c8ea0eaccb02d349d31269efee3c978152b",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-name-german",
+      "utf8_bytes": 488,
+      "utf16_units": 487,
+      "text_sha256": "a7dd3cf7ecad60bdfe95eef9f4831f2ef8f61052547f88f9d2cc5b558f314540",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-name-german",
+      "utf8_bytes": 806,
+      "utf16_units": 805,
+      "text_sha256": "d38af6c5ee1866910110bc69719e72c661e082e2ef975ff7e2ab7b3d43e03ba6",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-name-german",
+      "utf8_bytes": 1442,
+      "utf16_units": 1441,
+      "text_sha256": "08286af547fd696ecfd198030e03756cdb5f6b78c9b2284144e2d3a6dc5a105f",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-address-us",
+      "utf8_bytes": 340,
+      "utf16_units": 340,
+      "text_sha256": "7aff02f3e6db636d741da4ecf7bf7950b85445f6b552ab501928a8621b607ef5",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-address-us",
+      "utf8_bytes": 499,
+      "utf16_units": 499,
+      "text_sha256": "4c82df4de585ac7ac08b74245b1e9245c53de0860335c4175aeb3305884b819f",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-address-us",
+      "utf8_bytes": 817,
+      "utf16_units": 817,
+      "text_sha256": "d25baf9db00ca3f2d64a7323e89cd3925039a62b82652926264baf8f36aebb75",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-address-us",
+      "utf8_bytes": 1453,
+      "utf16_units": 1453,
+      "text_sha256": "ca1c03e2f76988fdd0fc6429060a2348e7fec34948b93026a0f8f1590ed6dfa8",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-address-uk",
+      "utf8_bytes": 318,
+      "utf16_units": 318,
+      "text_sha256": "3259bb928fe68150c14009b055ed13771181c80cc8c0ca2e88485110c6f879bf",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-address-uk",
+      "utf8_bytes": 477,
+      "utf16_units": 477,
+      "text_sha256": "2f6eba6eed9048ddc7a2520693cb8da5753b7b8c60371924e9f81085619f7eb2",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-address-uk",
+      "utf8_bytes": 795,
+      "utf16_units": 795,
+      "text_sha256": "12bfbf6d65d70af6aa72ca2126491c5b48df6fd5597db717cf024b1a811a7b76",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-address-uk",
+      "utf8_bytes": 1431,
+      "utf16_units": 1431,
+      "text_sha256": "1236b8d3feb547b5a0be32616d7142363e366b6bb6887367356b9624714d54cc",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-address-de",
+      "utf8_bytes": 321,
+      "utf16_units": 320,
+      "text_sha256": "3dca7da2c66925d2553ea63de2d3095628241d1ca62c13004eb1722f5240b2f1",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-address-de",
+      "utf8_bytes": 480,
+      "utf16_units": 479,
+      "text_sha256": "76fe99bf217dba86aaaa1387e24ef90d4691bc11dfc9bcc4baa88dfdd5dc0d84",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-address-de",
+      "utf8_bytes": 798,
+      "utf16_units": 797,
+      "text_sha256": "3baa9f2946c87799059b0902b92247769c73f92667aeaab0fe2586c4e1735e41",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-address-de",
+      "utf8_bytes": 1434,
+      "utf16_units": 1433,
+      "text_sha256": "95dc4fa84c2a55ea997c442a9c01a762047a980bb3206963e9cb799b08bf7a06",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-email-plus",
+      "utf8_bytes": 313,
+      "utf16_units": 313,
+      "text_sha256": "cabdf522b30bb8cba598343d80a80adfdb5a0ad43bb927827a31e75efd772f21",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-email-plus",
+      "utf8_bytes": 472,
+      "utf16_units": 472,
+      "text_sha256": "40ee0de0cafcf2653ebd89b8ab4475dc51a68668a889d9a884ed36326cd1de26",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-email-plus",
+      "utf8_bytes": 790,
+      "utf16_units": 790,
+      "text_sha256": "ea48df2a34b095024b3740144042a8474a4d9ce932f679326eb00e93a22fed92",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-email-plus",
+      "utf8_bytes": 1426,
+      "utf16_units": 1426,
+      "text_sha256": "90d608005b6ced136caf84430c9cbeb744a1b58f650fd5563f5a7639f5801eb3",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-2-account-iban",
+      "utf8_bytes": 313,
+      "utf16_units": 313,
+      "text_sha256": "03622b91b4a49555c9135391b0f93d2f40d877104ac203a6512cdd02ab44a5ea",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-5-account-iban",
+      "utf8_bytes": 472,
+      "utf16_units": 472,
+      "text_sha256": "73021e0e09e1a6f66954c09db391516b2d151886859ec0e60b6583555087c096",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-11-account-iban",
+      "utf8_bytes": 790,
+      "utf16_units": 790,
+      "text_sha256": "a0b01199d070ec8adb54865c38fdeb9304c98514b765e8585910a76b621443ec",
+      "annotations": 1
+    },
+    {
+      "id": "q:window-23-account-iban",
+      "utf8_bytes": 1426,
+      "utf16_units": 1426,
+      "text_sha256": "a677c367c2fb6cac443976ac7cce5885774693eb6ad66ca1ec8042eb247f069f",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-en-80",
+      "utf8_bytes": 155,
+      "utf16_units": 155,
+      "text_sha256": "76d968be53e5da908e1987842117afa5a921482584e55bc8af9c803f1e93564f",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-en-100",
+      "utf8_bytes": 171,
+      "utf16_units": 171,
+      "text_sha256": "1c16857cca22f66de081653a155f31856b2bdf5a0b52a9a1574cfb21ecfeb2a2",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-en-115",
+      "utf8_bytes": 188,
+      "utf16_units": 188,
+      "text_sha256": "deb76a53b0af0b2ae6df49a6bc50da1a0fe8c5f12ac4c132c5d209919af222c5",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-en-135",
+      "utf8_bytes": 213,
+      "utf16_units": 213,
+      "text_sha256": "952be6d0a62ed22983a8c8dc6d8c2a9cbbd2385e138b364943593f4d1b5c0631",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-fr-80",
+      "utf8_bytes": 155,
+      "utf16_units": 154,
+      "text_sha256": "5327187a24dddea9c17e2892d229d24e2a2181adb769827eb4a152914d4d3083",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-fr-100",
+      "utf8_bytes": 171,
+      "utf16_units": 170,
+      "text_sha256": "8331343c4ef7f60719b95ea47734e9019defbf87aaebde54162c7f2e2676552a",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-fr-115",
+      "utf8_bytes": 188,
+      "utf16_units": 187,
+      "text_sha256": "03bd49e5d2ce5ffeb253d8f4ce95ebfce7fe339f1daada413c66bd230db116af",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-fr-135",
+      "utf8_bytes": 213,
+      "utf16_units": 212,
+      "text_sha256": "172dcd62c152f2698de9c7d1aab79c85c5b9e91556bce55acb6558a765694bea",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-de-80",
+      "utf8_bytes": 154,
+      "utf16_units": 152,
+      "text_sha256": "d254a9e365034d821767058660cd040c0d32a17a90f0c355cb74ad130583befc",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-de-100",
+      "utf8_bytes": 170,
+      "utf16_units": 168,
+      "text_sha256": "acc4f6f9ac763f6867b48908f5d5b8cd0aeb9b4bcf0dcf1b9f1440191b59e7d5",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-de-115",
+      "utf8_bytes": 187,
+      "utf16_units": 185,
+      "text_sha256": "4b58c3a843b98e29420e83ff37f9bc8857a33fa643c7c4723d126075a827c396",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-de-135",
+      "utf8_bytes": 212,
+      "utf16_units": 210,
+      "text_sha256": "e9e5a8ca72608e1dededebcd641230b35ec6c7f8cf578a7688cc88ec81f7c224",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-rare-80",
+      "utf8_bytes": 154,
+      "utf16_units": 154,
+      "text_sha256": "68c30d80a2549f24e605dc60ac59ab3e3549af4f2a08cde0eb2bd358a1738733",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-rare-100",
+      "utf8_bytes": 170,
+      "utf16_units": 170,
+      "text_sha256": "0946c68428bbd8a1753fdf150988baeb7454e99554890f40aac3610604090935",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-rare-115",
+      "utf8_bytes": 187,
+      "utf16_units": 187,
+      "text_sha256": "eb5ac0d6fcff573b74d1e9d37be9e703ea5515dcdcba78f910f6b3483a6fbabe",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-name-rare-135",
+      "utf8_bytes": 212,
+      "utf16_units": 212,
+      "text_sha256": "72bf51fa6b6cac1ea7e3724e75c4787db6472aa1a837ac3831aaa3047cb4cbd5",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-uk-80",
+      "utf8_bytes": 166,
+      "utf16_units": 166,
+      "text_sha256": "2b58e2106027c7ba8d92d4f7cf43580c2e8a50652371edbc773aefcc52c65d2c",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-uk-100",
+      "utf8_bytes": 182,
+      "utf16_units": 182,
+      "text_sha256": "265d9330e11e529fd32e12fddefd7afe95262195fda5b1e8017c336f72dcdc96",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-uk-115",
+      "utf8_bytes": 199,
+      "utf16_units": 199,
+      "text_sha256": "f65f666c38cb2ebee3e91fc9e19dd006b5266678a2c190743eb141150930849a",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-uk-135",
+      "utf8_bytes": 224,
+      "utf16_units": 224,
+      "text_sha256": "a4046da69f7b734b40a3718df125bf8132c6c35f312abbc8b55e64f726ed820c",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-de-80",
+      "utf8_bytes": 164,
+      "utf16_units": 162,
+      "text_sha256": "8a9a0074e00d28f9c5782ee915776ac099efec0d4c628f490e9a902f34afbfe3",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-de-100",
+      "utf8_bytes": 180,
+      "utf16_units": 178,
+      "text_sha256": "89bbf9b5e436d08630ae07272153a75fb4df6ad846312b4eb34dd37b72e77685",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-de-115",
+      "utf8_bytes": 197,
+      "utf16_units": 195,
+      "text_sha256": "9b831c70861dfa4b5bf20b1ba9dd32a7a7d7505de3c6433022ff089d10eb645e",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-address-de-135",
+      "utf8_bytes": 222,
+      "utf16_units": 220,
+      "text_sha256": "2f476d8203e379dc98bd24c8fcda3e017d14ef5670e8da38b642102cb6e4cda6",
+      "annotations": 1
+    },
+    {
+      "id": "q:boundary-negative-80",
+      "utf8_bytes": 158,
+      "utf16_units": 158,
+      "text_sha256": "a003a5f15e54dc00d3b76dae95324da2998a3efc2242b43175368e8d383c123b",
+      "annotations": 0
+    },
+    {
+      "id": "q:boundary-negative-100",
+      "utf8_bytes": 174,
+      "utf16_units": 174,
+      "text_sha256": "14ee409434bac22e926a5595f20df76031a99f090a915d7787d5113fe96ffac0",
+      "annotations": 0
+    },
+    {
+      "id": "q:boundary-negative-115",
+      "utf8_bytes": 191,
+      "utf16_units": 191,
+      "text_sha256": "4381177b423845f3f9d9c73744918598474d7aef8f91a417934287ca8d78b52b",
+      "annotations": 0
+    },
+    {
+      "id": "q:boundary-negative-135",
+      "utf8_bytes": 216,
+      "utf16_units": 216,
+      "text_sha256": "18d3368f2a922c1009ad7d2dfa022d13e002a6d5a6fc7f9e4bfa39668c7e4c8c",
+      "annotations": 0
+    },
+    {
+      "id": "q:large-prose-32768",
+      "utf8_bytes": 32800,
+      "utf16_units": 32734,
+      "text_sha256": "d786a8f10b9fbd19726d1af767cd89993994b20d14db235c24edbd6c86607fcc",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-markdown-32768",
+      "utf8_bytes": 32803,
+      "utf16_units": 32737,
+      "text_sha256": "ad06ca65c60a549189dee14edd6545329ca5db1a2a13152761448183b552a03e",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-32768",
+      "utf8_bytes": 33001,
+      "utf16_units": 32935,
+      "text_sha256": "7dfca32cd27d922a6ac0e2c71bab89155513cc1f15c61dcc1ccf57162fb23bdf",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-python-config-32768",
+      "utf8_bytes": 32914,
+      "utf16_units": 32848,
+      "text_sha256": "a94e76a829d3c22761ff040ac08e992cf6c2f300b675ae3bd33b347a2f45f2f4",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-32768-negative",
+      "utf8_bytes": 32883,
+      "utf16_units": 32883,
+      "text_sha256": "8e0bb6266434e4885a058d552cd77faef746400c7dfeecf9e9b523b44d58951f",
+      "annotations": 0
+    },
+    {
+      "id": "q:large-prose-131072",
+      "utf8_bytes": 131088,
+      "utf16_units": 131022,
+      "text_sha256": "0bc9e5c203a880df5895ce9f6334ec23b95305b413d50a9e2aba7220df16d2f1",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-markdown-131072",
+      "utf8_bytes": 131112,
+      "utf16_units": 131046,
+      "text_sha256": "af07c883c4b1b57f2803116401abca88ae91d52904bcbe3891638a6da22a3663",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-131072",
+      "utf8_bytes": 131083,
+      "utf16_units": 131017,
+      "text_sha256": "71f8869ed3577b2cde0bceda00b673307611d0c57a3b42391b498c6a1b5901d5",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-python-config-131072",
+      "utf8_bytes": 131176,
+      "utf16_units": 131110,
+      "text_sha256": "6a9975aee9698ebf51125bea6d2febcadb6431e66042e737a32c76212e4673eb",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-131072-negative",
+      "utf8_bytes": 131248,
+      "utf16_units": 131248,
+      "text_sha256": "09ca976283066035fb3622ba45ed72b768b1419f4c547a8564712cb400aca585",
+      "annotations": 0
+    },
+    {
+      "id": "q:stress-repetitive-27135",
+      "utf8_bytes": 27135,
+      "utf16_units": 27135,
+      "text_sha256": "6859e2543245248ff6957e5b72f3ed605c921f3cd08f6022224d02eb9c98f890",
+      "annotations": 0
+    }
+  ],
+  "patched_decoder": {
+    "status": "verified",
+    "version": "1.1.1",
+    "version_number": 16781313,
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "symbols": {
+      "BrotliDecoderVersion": {
+        "address": "0xef32b24e6c54",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      },
+      "BrotliDecoderDecompressStream": {
+        "address": "0xef32b24e56c0",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      }
+    },
+    "mapped_brotli_libraries": [
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+    ],
+    "curl_version": "libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.1 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.7",
+    "network": "libseccomp TSYNC deny installed before SDK library load; no HTTP perform",
+    "sdk_model_or_license_created": false,
+    "curl_init_cleanup": true
+  },
+  "timing_protocol": "One scan per case, fresh process; no repeatability claim or repeated-call cache credit",
+  "quality": [
+    {
+      "id": "q:name-support",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 25,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-rare",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 15,
+          "end": 29,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-first-only",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 18,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-initials",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 20,
+          "end": 35,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-json",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 18,
+          "end": 32,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-code",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-emoji",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-german",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 20,
+          "end": 32,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-japanese",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 7,
+          "end": 11,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:name-arabic",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 12,
+          "end": 22,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-us",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 30,
+          "end": 73,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-uk",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 19,
+          "end": 51,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-de",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 24,
+          "end": 53,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-json",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 20,
+          "end": 50,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-multiline",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 27,
+          "end": 71,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:address-context-only",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 10,
+          "end": 55,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:email-simple",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 24,
+          "end": 47,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:email-plus",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 20,
+          "end": 46,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:email-json",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 10,
+          "end": 34,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:email-unicode-context",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 7,
+          "end": 28,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:phone-us",
+      "occurrences": [
+        {
+          "label": "private_phone",
+          "start": 18,
+          "end": 35,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:phone-uk",
+      "occurrences": [
+        {
+          "label": "private_phone",
+          "start": 23,
+          "end": 38,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:phone-de",
+      "occurrences": [
+        {
+          "label": "private_phone",
+          "start": 27,
+          "end": 43,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:phone-local",
+      "occurrences": [
+        {
+          "label": "private_phone",
+          "start": 31,
+          "end": 44,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-github",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 13,
+          "end": 53,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-openai",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 15,
+          "end": 167,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-aws",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 18,
+          "end": 38,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-google",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 19,
+          "end": 59,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-stripe",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 18,
+          "end": 50,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-slack",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 12,
+          "end": 67,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-bearer",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 22,
+          "end": 57,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-opaque-context",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 50,
+          "end": 74,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-passphrase",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 36,
+          "end": 59,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-json-unusual",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 22,
+          "end": 46,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-assignment",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 16,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-bare-unknown",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 0,
+          "end": 24,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:secret-split",
+      "occurrences": [
+        {
+          "label": "secret",
+          "start": 46,
+          "end": 54,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "secret",
+          "start": 61,
+          "end": 69,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:account-iban",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 24,
+          "end": 46,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:account-ssn",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 21,
+          "end": 32,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:date-birth",
+      "occurrences": [
+        {
+          "label": "private_date",
+          "start": 20,
+          "end": 36,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:url-private",
+      "occurrences": [
+        {
+          "label": "private_url",
+          "start": 32,
+          "end": 84,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:configured-person",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 17,
+          "end": 31,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 56,
+          "end": 67,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:mixed-support",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 31,
+          "end": 63,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 71,
+          "end": 95,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 9,
+          "end": 21,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_phone",
+          "start": 104,
+          "end": 119,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:mixed-log",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 45,
+          "end": 70,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-uuid",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-hash",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-function",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-public-name",
+      "occurrences": [],
+      "negative_false_positive": true
+    },
+    {
+      "id": "q:negative-library",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-public-url",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-version",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-timestamp",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-placeholders",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-counts",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:negative-address-public",
+      "occurrences": [],
+      "negative_false_positive": true
+    },
+    {
+      "id": "q:negative-branch",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-name-support",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 119,
+          "end": 131,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-name-support",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 278,
+          "end": 290,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-name-support",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 596,
+          "end": 608,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-name-support",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 1232,
+          "end": 1244,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-name-emoji",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 133,
+          "end": 146,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-name-emoji",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 292,
+          "end": 305,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-name-emoji",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 610,
+          "end": 623,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-name-emoji",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 1246,
+          "end": 1259,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-name-german",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 126,
+          "end": 138,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-name-german",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 285,
+          "end": 297,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-name-german",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 603,
+          "end": 615,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-name-german",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 1239,
+          "end": 1251,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-address-us",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 136,
+          "end": 179,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-address-us",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 295,
+          "end": 338,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-address-us",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 613,
+          "end": 656,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-address-us",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 1249,
+          "end": 1292,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-address-uk",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 125,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-address-uk",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 284,
+          "end": 316,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-address-uk",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 602,
+          "end": 634,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-address-uk",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 1238,
+          "end": 1270,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-address-de",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 130,
+          "end": 159,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-address-de",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 289,
+          "end": 318,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-address-de",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 607,
+          "end": 636,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-address-de",
+      "occurrences": [
+        {
+          "label": "private_address",
+          "start": 1243,
+          "end": 1272,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-email-plus",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 126,
+          "end": 152,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-email-plus",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 285,
+          "end": 311,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-email-plus",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 603,
+          "end": 629,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-email-plus",
+      "occurrences": [
+        {
+          "label": "private_email",
+          "start": 1239,
+          "end": 1265,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-2-account-iban",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 130,
+          "end": 152,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-5-account-iban",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 289,
+          "end": 311,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-11-account-iban",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 607,
+          "end": 629,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:window-23-account-iban",
+      "occurrences": [
+        {
+          "label": "account_number",
+          "start": 1243,
+          "end": 1265,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-en-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 94,
+          "end": 106,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-en-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 110,
+          "end": 122,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-en-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 127,
+          "end": 139,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-en-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 152,
+          "end": 164,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-fr-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 96,
+          "end": 109,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-fr-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 112,
+          "end": 125,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-fr-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 129,
+          "end": 142,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-fr-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 154,
+          "end": 167,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-de-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 96,
+          "end": 107,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-de-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 112,
+          "end": 123,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-de-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 129,
+          "end": 140,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-de-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 154,
+          "end": 165,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-rare-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 93,
+          "end": 107,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-rare-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 109,
+          "end": 123,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-rare-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 126,
+          "end": 140,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-name-rare-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 151,
+          "end": 165,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-uk-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 102,
+          "end": 133,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-uk-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 118,
+          "end": 149,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-uk-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 135,
+          "end": 166,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-uk-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 160,
+          "end": 191,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-de-80",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 99,
+          "end": 129,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-de-100",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 115,
+          "end": 145,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-de-115",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 132,
+          "end": 162,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-address-de-135",
+      "occurrences": [
+        {
+          "label": "private_value",
+          "start": 157,
+          "end": 187,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-negative-80",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-negative-100",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-negative-115",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:boundary-negative-135",
+      "occurrences": [],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-prose-32768",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 640,
+          "end": 672,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 695,
+          "end": 721,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 748,
+          "end": 770,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 16429,
+          "end": 16441,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 16497,
+          "end": 16526,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 16536,
+          "end": 16557,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 16577,
+          "end": 16617,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 32128,
+          "end": 32141,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 32182,
+          "end": 32214,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 32237,
+          "end": 32263,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 32290,
+          "end": 32312,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-markdown-32768",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 640,
+          "end": 672,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 695,
+          "end": 721,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 748,
+          "end": 770,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 16493,
+          "end": 16505,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 16561,
+          "end": 16590,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 16600,
+          "end": 16621,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 16641,
+          "end": 16681,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 32157,
+          "end": 32170,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 32211,
+          "end": 32243,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 32266,
+          "end": 32292,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 32319,
+          "end": 32341,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-typescript-32768",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 643,
+          "end": 675,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 701,
+          "end": 727,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 757,
+          "end": 779,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 16630,
+          "end": 16642,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 16701,
+          "end": 16730,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 16743,
+          "end": 16764,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 16787,
+          "end": 16827,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 32169,
+          "end": 32182,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 32226,
+          "end": 32258,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 32284,
+          "end": 32310,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 32340,
+          "end": 32362,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-python-config-32768",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 29,
+          "end": 42,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 642,
+          "end": 674,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 699,
+          "end": 725,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 754,
+          "end": 776,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 16522,
+          "end": 16534,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 16592,
+          "end": 16621,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 16633,
+          "end": 16654,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 16676,
+          "end": 16716,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 32261,
+          "end": 32274,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 32317,
+          "end": 32349,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 32374,
+          "end": 32400,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 32429,
+          "end": 32451,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-typescript-32768-negative",
+      "occurrences": [],
+      "negative_false_positive": true
+    },
+    {
+      "id": "q:large-prose-131072",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 640,
+          "end": 672,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 695,
+          "end": 721,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 748,
+          "end": 770,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 65602,
+          "end": 65614,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 65670,
+          "end": 65699,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 65709,
+          "end": 65730,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 65750,
+          "end": 65790,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 130413,
+          "end": 130426,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 130467,
+          "end": 130499,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 130522,
+          "end": 130548,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 130575,
+          "end": 130597,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-markdown-131072",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 640,
+          "end": 672,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 695,
+          "end": 721,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 748,
+          "end": 770,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 65702,
+          "end": 65714,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 65770,
+          "end": 65799,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 65809,
+          "end": 65830,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 65850,
+          "end": 65890,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 130465,
+          "end": 130478,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 130519,
+          "end": 130551,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 130574,
+          "end": 130600,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 130627,
+          "end": 130649,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-typescript-131072",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 643,
+          "end": 675,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 701,
+          "end": 727,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 757,
+          "end": 779,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 65821,
+          "end": 65833,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 65892,
+          "end": 65921,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 65934,
+          "end": 65955,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 65978,
+          "end": 66018,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 130538,
+          "end": 130551,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 130595,
+          "end": 130627,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 130653,
+          "end": 130679,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 130709,
+          "end": 130731,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-python-config-131072",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 29,
+          "end": 42,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 642,
+          "end": 674,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 699,
+          "end": 725,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 754,
+          "end": 776,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 65604,
+          "end": 65616,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 65674,
+          "end": 65703,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 65715,
+          "end": 65736,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 65758,
+          "end": 65798,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 130526,
+          "end": 130539,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 130582,
+          "end": 130614,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 130639,
+          "end": 130665,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 130694,
+          "end": 130716,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-typescript-131072-negative",
+      "occurrences": [],
+      "negative_false_positive": true
+    },
+    {
+      "id": "q:stress-repetitive-27135",
+      "occurrences": [],
+      "negative_false_positive": false
+    }
+  ],
+  "result_sha256": "587ca2f8b249f9d98da1c967053fcf8177d97fb0628483df2707f62619cc7427"
+}

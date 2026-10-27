@@ -42,6 +42,7 @@ SOURCE_INPUTS = (
     "pnpm-lock.yaml",
     "apple/project.yml",
     "apple/LocalModelBridge",
+    "apple/WhistleBridge",
     # Pin Rust sources and packaging scripts without hashing Cargo build caches.
     "apple/PairOpaqueBridge/Cargo.toml",
     "apple/PairOpaqueBridge/Cargo.lock",
@@ -55,6 +56,7 @@ SOURCE_INPUTS = (
     "apple/OpenMates",
     "apple/OpenMatesShared",
     "apple/OpenMatesNotificationService",
+    "apple/OpenMatesNotificationContent",
     "apple/OpenMatesShareExtension",
     "apple/OpenMatesShareExtensionMacOS",
     "apple/OpenMatesWatch",
@@ -448,6 +450,42 @@ def run_logged(command: Sequence[str], log_path: Path, timeout: int = DEFAULT_TI
     raise ReleaseError(f"Command failed; bounded tail shown, full log: {log_path.relative_to(REPO_ROOT)}")
 
 
+def whistle_prepare_command() -> list[str]:
+    # Release builds always use the preparer's offline default. Fetching is an
+    # explicit, separate preparation command and is never an archive fallback.
+    return [sys.executable, "apple/WhistleBridge/prepare-build.py"]
+
+
+def prepare_whistle_inputs(release_dir: Path) -> None:
+    log_path = release_dir / "prepare-whistle.log"
+    print("stage=prepare-whistle status=started log=prepare-whistle.log")
+    try:
+        run_logged(whistle_prepare_command(), log_path, timeout=10 * 60)
+    except ReleaseError as error:
+        raise ReleaseError(
+            "Whistle offline preparation failed; inspect prepare-whistle.log. "
+            "Reconstruct the pinned cache explicitly with python3 apple/WhistleBridge/prepare-build.py --fetch before retrying."
+        ) from error
+    try:
+        result = json.loads(log_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ReleaseError("Whistle preparation did not produce a valid verification report") from error
+    platforms = ["iphoneos", "iphonesimulator", "watchos"]
+    packages = result.get("receipts") if isinstance(result, dict) else None
+    if (not isinstance(result, dict) or result.get("verified") is not True
+            or result.get("offline") is not True or result.get("platforms") != platforms
+            or not isinstance(packages, dict) or set(packages) != set(platforms)):
+        raise ReleaseError("Whistle offline preparation report is incomplete")
+    if any(not isinstance(packages[name], dict) or packages[name].get("platform") != name
+           or packages[name].get("nativeActivationAllowed") is not True for name in platforms):
+        raise ReleaseError("Whistle preparation report contains an invalid platform package")
+    inputs = {name: sha256_file(REPO_ROOT / "apple/WhistleBridge" / name) for name in
+              ("prepare-build.py", "prepare.py", "whistle-assets.lock.json")}
+    fingerprint = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode("utf-8")).hexdigest()
+    write_receipt(release_dir, "prepare-whistle", fingerprint, {"offline": True, "inputs": inputs, "packages": packages})
+    print("stage=prepare-whistle status=complete platforms=iphoneos,iphonesimulator,watchos")
+
+
 def generate_release_inputs(release_dir: Path) -> None:
     package = "frontend/packages/ui"
     commands = (
@@ -509,7 +547,9 @@ def archive_command(platform: str, release_dir: Path, build_number: int, team_id
         command[command.index(f"DEVELOPMENT_TEAM={team_id}"):command.index(f"DEVELOPMENT_TEAM={team_id}")] = credentials.xcode_arguments()
     if platform == "macos":
         # Limit concurrent universal-architecture Swift compiles on 8 GB Macs.
-        command.extend(["ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
+        # With signing disabled Xcode otherwise expands this to empty in Info.plist.
+        command.extend(["ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO",
+                        f"AppIdentifierPrefix={macos_app_identifier_prefix(team_id)}"])
     command.append("archive")
     return command
 
@@ -668,7 +708,72 @@ def signed_entitlements(bundle: Path) -> dict[str, object]:
     return value
 
 
-def validate_release_entitlements(path: Path, platform: str) -> None:
+def macos_app_identifier_prefix(team_id: str) -> str:
+    """This unsigned archive pipeline explicitly uses the configured team prefix.
+
+    App Identifier Prefix and Team ID can differ for other Apple accounts. Here
+    the same explicit prefix must feed Xcode Info.plist expansion and our ad hoc
+    entitlements; final signed entitlements are checked against that contract.
+    """
+    if not re.fullmatch(r"[A-Z0-9]+", team_id):
+        raise ReleaseError("macOS archive requires a concrete configured signing team")
+    return f"{team_id}."
+
+
+def validate_macos_shared_keychain(bundle: Path, entitlements: dict[str, object], team_id: str) -> None:
+    info = load_plist(bundle / "Contents" / "Info.plist")
+    prefix = macos_app_identifier_prefix(team_id)
+    expected = f"{prefix}{BUNDLE_ID}"
+    if info.get("OpenMatesKeychainAccessGroup") != expected:
+        raise ReleaseError(f"macOS {bundle.name} OpenMatesKeychainAccessGroup must equal {expected}")
+    granted = entitlements.get("keychain-access-groups")
+    if not isinstance(granted, list) or expected not in granted:
+        raise ReleaseError(f"macOS {bundle.name} configured shared keychain group is not granted by its entitlements")
+    # Ad hoc stamping has no signing-team entitlement; distribution signing does.
+    signed_team = entitlements.get("com.apple.developer.team-identifier")
+    if signed_team is not None and signed_team != team_id:
+        raise ReleaseError(f"macOS {bundle.name} signing team does not match the configured team")
+    signed_identifier = entitlements.get("com.apple.application-identifier")
+    if signed_identifier is not None and signed_identifier != f"{prefix}{info.get('CFBundleIdentifier')}":
+        raise ReleaseError(f"macOS {bundle.name} signed App Identifier Prefix does not match the archive configuration")
+
+
+def validate_ios_notification_extensions(app: Path, app_entitlements: dict[str, object]) -> None:
+    """Prove the source-bound archive contains usable private reply extensions."""
+    app_info = load_plist(app / "Info.plist")
+    group = app_info.get("OpenMatesKeychainAccessGroup")
+    app_grants = app_entitlements.get("keychain-access-groups")
+    if (not isinstance(group, str) or not group.endswith(f".{BUNDLE_ID}")
+            or "$" in group or not isinstance(app_grants, list) or group not in app_grants):
+        raise ReleaseError("iOS app is missing its resolved shared notification keychain group")
+    for name, suffix, point in (
+        ("OpenMatesNotificationService", "notification-service", "com.apple.usernotifications.service"),
+        ("OpenMatesNotificationContent", "notification-content", "com.apple.usernotifications.content-extension"),
+    ):
+        bundle = app / "PlugIns" / f"{name}.appex"
+        info = load_plist(bundle / "Info.plist")
+        require_equal(info.get("CFBundleIdentifier"), f"{BUNDLE_ID}.{suffix}", f"{name} bundle ID")
+        for key in ("CFBundleShortVersionString", "CFBundleVersion"):
+            require_equal(info.get(key), app_info.get(key), f"{name} {key}")
+        require_equal(info.get("OpenMatesKeychainAccessGroup"), group, f"{name} shared keychain group")
+        extension = info.get("NSExtension")
+        if not isinstance(extension, dict) or extension.get("NSExtensionPointIdentifier") != point:
+            raise ReleaseError(f"{name} has an invalid notification extension point")
+        if name == "OpenMatesNotificationContent":
+            attributes = extension.get("NSExtensionAttributes")
+            if (not isinstance(attributes, dict)
+                    or attributes.get("UNNotificationExtensionCategory") != "OPENMATES_CHAT_MESSAGE"
+                    or attributes.get("UNNotificationExtensionUserInteractionEnabled") is not True):
+                raise ReleaseError("iOS notification reply extension must be interactive and message-only")
+        signed = signed_entitlements(bundle)
+        grants = signed.get("keychain-access-groups")
+        groups = signed.get("com.apple.security.application-groups")
+        if (not isinstance(grants, list) or group not in grants
+                or not isinstance(groups, list) or "group.org.openmates.app.shared" not in groups):
+            raise ReleaseError(f"{name} is missing shared notification keychain or app-group entitlements")
+
+
+def validate_release_entitlements(path: Path, platform: str, team_id: str | None = None) -> None:
     app = path / "Products" / "Applications" / "OpenMates.app"
     entitlements = signed_entitlements(app)
     if platform == "ios":
@@ -677,6 +782,7 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
         if "webcredentials:openmates.org" not in associated or "group.org.openmates.app.shared" not in groups:
             raise ReleaseError("iOS archive is missing passkey or app-group entitlements")
         validate_shared_link_domains(associated)
+        validate_ios_notification_extensions(app, entitlements)
         return
     extension = app / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
     extension_entitlements = signed_entitlements(extension)
@@ -725,6 +831,10 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
             or notification_keychains[1] != notification_keychains[0].removesuffix(".notification-servicemacos")
             or notification_keychains[1] not in app_keychains):
         raise ReleaseError("macOS notification service archive is missing its scoped and shared keychain entitlements")
+    team_id = team_id if team_id is not None else read_project_settings().team_id
+    for bundle, signed in ((app, entitlements), (extension, extension_entitlements),
+                           (widget, widget_entitlements), (notification, notification_entitlements)):
+        validate_macos_shared_keychain(bundle, signed, team_id)
 
 
 def validate_shared_link_domains(associated: object) -> None:
@@ -735,11 +845,12 @@ def validate_shared_link_domains(associated: object) -> None:
 
 def validate_resumed_archive(
     path: Path, platform: str, version: str, build_number: int, receipt: dict[str, object],
+    team_id: str | None = None,
 ) -> dict[str, object]:
     identity = validate_archive(path, platform, version, build_number)
     if identity != receipt.get("archive_identity"):
         raise ReleaseError(f"{platform} archive changed after its receipt was written")
-    validate_release_entitlements(path, platform)
+    validate_release_entitlements(path, platform, team_id)
     return identity
 
 
@@ -747,7 +858,7 @@ def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> d
     """Expand Xcode build variables before ad hoc signing an unsigned archive."""
     variables = {
         "$(APS_ENVIRONMENT)": "production",
-        "$(AppIdentifierPrefix)": f"{team_id}.",
+        "$(AppIdentifierPrefix)": macos_app_identifier_prefix(team_id),
         "$(CFBundleIdentifier)": bundle_id,
         "$(OPENMATES_DEV_WEBCREDENTIALS)": "webcredentials:app.dev.openmates.org",
     }
@@ -855,8 +966,10 @@ def normalize_ios_onnx_packaging(path: Path, log_path: Path) -> dict[str, object
                             capture_output=True, text=True, check=False)
     minima = re.findall(r"(?m)^\s*minos ([0-9.]+)\s*$", result.stdout)
     platforms = re.findall(r"(?m)^\s*platform (\S+)\s*$", result.stdout)
-    if result.returncode or platforms != ["IOS"] or minima != ["17.0"]:
-        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0")
+    app_minimum = load_plist(app / "Info.plist").get("MinimumOSVersion")
+    supported_minimum = minima == ["17.0"] or (minima == ["26.2"] and app_minimum == "26.2")
+    if result.returncode or platforms != ["IOS"] or not supported_minimum:
+        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0 or app-matched 26.2")
     sections = {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")}
     before_entitlements = signed_entitlements(app)
     before_identity = archive_identity(path, "ios")
@@ -907,9 +1020,10 @@ def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> No
     )
     # Validate all identities before mutating a signature. Extensions keep their
     # own entitlements and must be signed before their containing app.
-    for bundle, bundle_id, _, _ in targets:
+    for bundle, bundle_id, source, _ in targets:
         if load_plist(bundle / "Contents" / "Info.plist").get("CFBundleIdentifier") != bundle_id:
             raise ReleaseError(f"macOS archive bundle identifiers do not match the signing targets: {bundle.name}")
+        validate_macos_shared_keychain(bundle, resolved_macos_entitlements(REPO_ROOT / source, team_id, bundle_id), team_id)
     commands = []
     framework = app / "Contents" / "Frameworks" / "onnxruntime.framework"
     for bundle, bundle_id, source, destination_name in targets:
@@ -984,11 +1098,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         export_sha = validate_export_options(export_options, settings.team_id)
         if args.dry_run:
             commands = [
+                ("prepare-whistle", whistle_prepare_command()),
                 ("generate-translations", ["npm", "--prefix", "frontend/packages/ui", "run", "build:translations"]),
                 ("generate-tokens", ["npm", "--prefix", "frontend/packages/ui", "run", "build:tokens"]),
                 ("archive-ios", archive_command("ios", release_dir, build_number, settings.team_id, credentials)),
-                ("archive-macos", archive_command("macos", release_dir, build_number, settings.team_id, credentials)),
                 ("upload-ios", export_command("ios", release_dir, export_options, credentials)),
+                ("archive-macos", archive_command("macos", release_dir, build_number, settings.team_id, credentials)),
                 ("upload-macos", export_command("macos", release_dir, export_options, credentials)),
             ]
             print_dry_run(commands, version, build_number)
@@ -997,6 +1112,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         _release_lock = acquire_release_lock(release_dir)
         ensure_disk_space(REPO_ROOT, args.min_free_gb)
         if not args.verify_only:
+            # Xcode/project external-path validation requires verified bundle
+            # and linker inputs to exist before source identity is collected.
+            prepare_whistle_inputs(release_dir)
             if prepare_build_keychain():
                 print("build_keychain=unlocked")
             generate_release_inputs(release_dir)
@@ -1019,6 +1137,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "Processing verification requires matching source-bound upload receipts for: "
                     + ", ".join(missing_receipts)
                 )
+            for platform in ("ios", "macos"):
+                validate_release_entitlements(archive_paths(release_dir)[platform], platform, settings.team_id)
             deadline = time.monotonic() + args.processing_timeout
             while True:
                 records = run_build_listing(credentials)
@@ -1058,43 +1178,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             path = archive_paths(release_dir)[platform]
             receipt = read_receipt(release_dir, stage, fingerprint)
             if receipt:
-                identity = validate_resumed_archive(path, platform, version, build_number, receipt)
+                identity = validate_resumed_archive(path, platform, version, build_number, receipt, settings.team_id)
                 identities[platform] = identity
                 print(f"stage={stage} status=resumed")
-                continue
-            if path.exists():
-                any_receipt = receipt_path(release_dir, stage).exists()
-                if any_receipt and args.rebuild_stale_archives:
-                    preserved = preserve_stale_archive(path, release_dir, platform)
-                    print(f"stage={stage} stale_archive_preserved={preserved.relative_to(REPO_ROOT)}")
-                    path = archive_paths(release_dir)[platform]
-                elif any_receipt:
-                    raise ReleaseError(f"{platform} archive receipt does not match current source; pass --rebuild-stale-archives")
-                elif args.rebuild_stale_archives:
-                    preserved = preserve_stale_archive(path, release_dir, platform)
-                    print(f"stage={stage} stale_archive_preserved={preserved.relative_to(REPO_ROOT)}")
-                else:
-                    raise ReleaseError(
-                        f"Unreceipted {platform} archive has no trusted source provenance; "
-                        "pass --rebuild-stale-archives"
-                    )
-            if not path.exists():
-                print(f"stage={stage} status=started log={platform}-archive.log")
-                run_logged(archive_command(platform, release_dir, build_number, settings.team_id, credentials), release_dir / f"{platform}-archive.log")
-                if platform == "macos":
-                    stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log", settings.team_id)
-                else:
-                    normalize_ios_onnx_packaging(path, release_dir / "ios-onnx-packaging.log")
-                if source_identity()["content_sha256"] != source["content_sha256"]:
-                    raise ReleaseError("Apple release source changed during archive creation")
-                identity = validate_archive(path, platform, version, build_number)
-            validate_release_entitlements(path, platform)
-            write_receipt(release_dir, stage, fingerprint, {"source": source, "archive_identity": identity})
-            identities[platform] = identity
-            print(f"stage={stage} status=complete")
+            else:
+                if path.exists():
+                    any_receipt = receipt_path(release_dir, stage).exists()
+                    if any_receipt and args.rebuild_stale_archives:
+                        preserved = preserve_stale_archive(path, release_dir, platform)
+                        print(f"stage={stage} stale_archive_preserved={preserved.relative_to(REPO_ROOT)}")
+                        path = archive_paths(release_dir)[platform]
+                    elif any_receipt:
+                        raise ReleaseError(f"{platform} archive receipt does not match current source; pass --rebuild-stale-archives")
+                    elif args.rebuild_stale_archives:
+                        preserved = preserve_stale_archive(path, release_dir, platform)
+                        print(f"stage={stage} stale_archive_preserved={preserved.relative_to(REPO_ROOT)}")
+                    else:
+                        raise ReleaseError(
+                            f"Unreceipted {platform} archive has no trusted source provenance; "
+                            "pass --rebuild-stale-archives"
+                        )
+                if not path.exists():
+                    print(f"stage={stage} status=started log={platform}-archive.log")
+                    run_logged(archive_command(platform, release_dir, build_number, settings.team_id, credentials), release_dir / f"{platform}-archive.log")
+                    if platform == "macos":
+                        stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log", settings.team_id)
+                    else:
+                        normalize_ios_onnx_packaging(path, release_dir / "ios-onnx-packaging.log")
+                    if source_identity()["content_sha256"] != source["content_sha256"]:
+                        raise ReleaseError("Apple release source changed during archive creation")
+                    identity = validate_archive(path, platform, version, build_number)
+                validate_release_entitlements(path, platform, settings.team_id)
+                write_receipt(release_dir, stage, fingerprint, {"source": source, "archive_identity": identity})
+                identities[platform] = identity
+                print(f"stage={stage} status=complete")
 
-        records = run_build_listing(credentials) if credentials else []
-        for platform in ("ios", "macos"):
+            # Publish iOS (including Watch) before starting the macOS archive.
+            records = run_build_listing(credentials) if credentials else []
             stage = f"upload-{platform}"
             existing = platform_record(records, version, build_number, platform) if credentials else None
             upload_receipt = read_receipt(release_dir, stage, fingerprint)
@@ -1129,7 +1249,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             refreshed_identity = validate_archive(
                 archive_paths(release_dir)[platform], platform, version, build_number,
             )
-            validate_release_entitlements(archive_paths(release_dir)[platform], platform)
+            validate_release_entitlements(archive_paths(release_dir)[platform], platform, settings.team_id)
             write_receipt(
                 release_dir, f"archive-{platform}", fingerprint,
                 {"source": source, "archive_identity": refreshed_identity},

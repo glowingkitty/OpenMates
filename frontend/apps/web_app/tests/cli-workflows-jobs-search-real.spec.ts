@@ -26,7 +26,7 @@ test.describe('Jobs Search in Workflows', () => {
 	test.setTimeout(300_000);
 
 	// contract-test: direct surface=cli assertions=workflows.actions.skill-contract,workflows.control.typed-data,workflows.control.for-each
-	test('runs JobTech and 80,000 Hours searches and exposes flat country fields to later loop checks', async ({ page }: { page: any }, testInfo: any) => {
+	test('runs JobTech and ExampleJobsB searches and exposes flat country fields to later loop checks', async ({ page }: { page: any }, testInfo: any) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const apiUrl = workflowApiUrl();
@@ -74,7 +74,7 @@ steps:
       requests:
         - id: impact
           query: research
-          provider: "80,000 Hours"
+          provider: "ExampleJobsB"
           limit: 2
   - id: each_impact_job
     for_each:
@@ -126,11 +126,11 @@ steps:
 			}
 			const impact = completedRun.node_runs.find((node: any) => node.node_id === 'impact_jobs')?.output_summary;
 			expect(impact?.success).toBe(true);
-			expect(impact?.providers).toEqual(['eighty_thousand_hours']);
+			expect(impact?.providers).toEqual(['ExampleJobsB']);
 			expect(impact?.results.length).toBeGreaterThan(0);
 			for (const job of impact.results) {
 				expect(job.country).toBe('DE');
-				expect(job.provider).toBe('eighty_thousand_hours');
+				expect(job.provider).toBe('ExampleJobsB');
 				expect(job.url).toMatch(/^https:\/\//);
 			}
 

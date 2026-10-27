@@ -36,11 +36,20 @@ test.describe('Feature availability', () => {
 		expect(disabled).not.toContain('app:workflows');
 		expect(disabled).not.toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
+		// Browse may be enabled on dev while the release configuration keeps it off.
+		expect(disabled.includes('embed:web:browse')).toBe(disabled.includes('skill:web:browse'));
 
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+		const metadataResponse = await page.request.get(`${apiUrl}/v1/apps/metadata`);
+		expect(metadataResponse.ok()).toBe(true);
+		const metadata = await metadataResponse.json();
+		const webSkillIds = (metadata.apps.web.skills ?? []).map((skill: { id: string }) => skill.id);
+		expect(webSkillIds).toContain('read');
+		expect(webSkillIds.includes('browse')).toBe(!disabled.includes('skill:web:browse'));
 		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);

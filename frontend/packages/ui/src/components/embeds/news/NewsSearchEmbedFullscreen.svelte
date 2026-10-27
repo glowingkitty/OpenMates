@@ -125,6 +125,7 @@
   appId="news"
   skillId="search"
   skillIconName="search"
+  {query}
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   {onClose}
@@ -150,6 +151,7 @@
       description={result.description}
       favicon={proxyImage(result.favicon_url, MAX_WIDTH_FAVICON)}
       image={result.thumbnail}
+      publicationDate={result.page_age}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}

@@ -36,7 +36,7 @@
   let {
     id,
     query = '',
-    provider = 'Printables',
+    provider = '',
     status,
     results = [],
     resultCount,

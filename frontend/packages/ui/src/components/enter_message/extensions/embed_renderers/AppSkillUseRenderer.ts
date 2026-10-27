@@ -43,6 +43,7 @@ import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
+import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
@@ -76,6 +77,7 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import DesignIconSearchEmbedPreview from "../../../embeds/design/DesignIconSearchEmbedPreview.svelte";
 import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
+import { extractSearchResultsFromContent } from "../../../embeds/embedPreviewHydration";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
@@ -150,6 +152,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
+    content.dataset.embedPreviewType = attrs.type;
 
     // CRITICAL: Extract app_id and skill_id from attrs FIRST
     // These are parsed from the JSON embed reference in embedParsing.ts
@@ -286,29 +289,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
 
       if (embedData) {
-        // CRITICAL FIX: Filter out error embeds with "superseded" message
-        // These are placeholder embeds that were replaced by multiple request-specific embeds
-        // They should not be rendered to avoid showing confusing error messages
-        if (embedData.status === "error") {
-          const errorContent = await decodeToonContent(embedData.content);
-          if (errorContent && errorContent.error) {
-            const errorMessage = errorContent.error;
-            if (
-              typeof errorMessage === "string" &&
-              errorMessage.includes("superseded")
-            ) {
-              console.debug(
-                "[AppSkillUseRenderer] Skipping superseded error embed:",
-                embedId,
-              );
-              // Don't render this embed - it was replaced by multiple specific embeds
-              disposeEmbedTree(content, false);
-              content.innerHTML = "";
-              return;
-            }
-          }
-        }
-
         // Decode TOON content (may be minimal for processing state)
         // Even in processing state, the content should have app_id and skill_id
         try {
@@ -415,14 +395,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
-    // Determine status. Decrypted content is authoritative when present: stored embed rows can
-    // retain a stale top-level error/processing status even after encrypted content finished.
-    // Then check knownErrorEmbeds (for error embeds that are intentionally never persisted to
-    // IndexedDB), then attrs.status, then 'processing'.
-    // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
-    // 1. embedData is null (error embeds are never stored by design)
-    // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
-    // 3. The error guard below never fires, and the card renders with 0 results as "Completed"
+    content.dataset.embedPreviewType = CHILD_TYPE_OVERRIDES[skillId] ? skillId : attrs.type;
+    content.dataset.embedPreviewRegistryKey = `app:${appId}:${skillId}`;
+
+    // Decrypted terminal status is authoritative; a failed execution remains a
+    // visible card. Resolver errors still provide a fallback for unavailable data.
     const statusEmbedId = attrs.contentRef?.replace("embed:", "") || "";
     const isKnownError = statusEmbedId
       ? isEmbedKnownError(statusEmbedId)
@@ -437,25 +414,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const hasFinishedDecodedContent =
       decodedStatus === "finished" ||
       (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
-      Boolean(decodedContent?.embed_ids);
+      normalizeEmbedIdList(decodedContent?.embed_ids).length > 0;
     const status =
-      (hasFinishedDecodedContent ? "finished" : decodedStatus) ||
+      (decodedStatus === "error" || decodedStatus === "cancelled"
+        ? decodedStatus : hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       (isKnownError ? "error" : null) ||
       attrs.status ||
       "processing";
-
-    // CRITICAL: Skip rendering error embeds - they should be hidden from users
-    // Failed skill executions should not be shown in the user experience
-    if (status === "error") {
-      console.debug(
-        `[AppSkillUseRenderer] Hiding error embed from user:`,
-        attrs.contentRef || attrs.id,
-      );
-      disposeEmbedTree(content, false);
-      content.innerHTML = "";
-      return;
-    }
 
     // CRITICAL: Merge query from multiple sources to ensure it's available for display
     // Priority: decodedContent > embedData > attrs
@@ -607,6 +573,23 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+      if (appId === "web" && skillId === "browse") {
+        const existing = mountedComponents.get(content);
+        if (existing) unmount(existing);
+        disposeEmbedTree(content, false);
+        content.innerHTML = "";
+        const component = mount(BrowseEmbedPreview, {
+          target: content,
+          props: {
+            id: attrs.contentRef?.replace("embed:", "") || "",
+            content: decodedContent ?? {},
+            status,
+            onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+          },
+        });
+        mountedComponents.set(content, component);
+        return;
       }
       if (appId === "hosting" && skillId === "search_domains") {
         const existingComponent = mountedComponents.get(content);
@@ -2175,7 +2158,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Doctolib";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -2326,7 +2309,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "Power converters";
-    const provider = decodedContent?.provider || "TI WEBENCH";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -2546,7 +2529,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render home search embed using Svelte component (home/search skill).
-   * Shows housing listings from ImmoScout24, Kleinanzeigen, and WG-Gesucht.
+   * Shows housing listings from stored housing providers.
    */
   private renderHomeSearchComponent(
     attrs: EmbedNodeAttributes,
@@ -2568,7 +2551,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const results = extractSearchResultsFromContent(decodedContent);
+    const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined;
+    const childEmbedIds = normalizeEmbedIdList(decodedContent?.embed_ids || embedData?.embed_ids);
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -2602,6 +2587,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           providers,
           status: status as "processing" | "finished" | "error",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId,
           isMobile: false,
@@ -2714,7 +2701,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Printables";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -4095,6 +4082,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           skillId: imageSkillId as "generate" | "generate_draft",
           prompt,
           model,
+          provider: decodedContent?.provider || "",
           s3BaseUrl,
           files,
           aesKey,
@@ -5828,8 +5816,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         appId,
         skillId,
         status: status as "processing" | "finished" | "error" | "cancelled",
-        provider: decodedContent?.provider || embedData?.provider || "",
-        resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+        provider: status === "error" ? "" : decodedContent?.provider || embedData?.provider || "",
+        resultCount: status !== "error" && typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
         previewImageUrl,
         taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
         isMobile: false,

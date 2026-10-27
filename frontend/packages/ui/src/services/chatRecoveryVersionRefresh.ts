@@ -1,5 +1,5 @@
 /** Read the persisted version after a completion's optimistic-version conflict. */
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import type { Chat } from "../types/chat";
 
 export async function refreshRecoveryChatVersion(chat: Chat): Promise<Chat | null> {
@@ -9,7 +9,7 @@ export async function refreshRecoveryChatVersion(chat: Chat): Promise<Chat | nul
     // The existing first-party window route authorizes this owner/Team and reads
     // Directus metadata. A local optimistic version can be ahead of persistence;
     // waiting only for a larger local version cannot repair that conflict.
-    const response = await fetch(getApiEndpoint(`/v1/chats/${encodeURIComponent(chat.chat_id)}/messages/window?${query}`), {
+    const response = await storageArchiveFetch(getApiEndpoint(`/v1/chats/${encodeURIComponent(chat.chat_id)}/messages/window?${query}`), {
       credentials: "include", cache: "no-store", signal: AbortSignal.timeout(5_000),
     });
     if (!response.ok) return null;

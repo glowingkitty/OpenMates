@@ -1,0 +1,4 @@
+module OMWhistleBridge {
+    header "OMWhistleBridge.h"
+    export *
+}

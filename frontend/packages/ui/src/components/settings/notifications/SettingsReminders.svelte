@@ -29,6 +29,7 @@
 	import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
 	import SettingsButton from '../elements/SettingsButton.svelte';
 	import SettingsInput from '../elements/SettingsInput.svelte';
+	import { buildReminderNotificationContext } from '../../../utils/reminderNotificationContext';
 	import { chatMetadataCache } from '../../../services/chatMetadataCache';
 	import { chatDB } from '../../../services/db';
 	import {
@@ -48,25 +49,30 @@
 	let chatTitle = $state<string | null>(null);
 	let chatCategory = $state<string | null>(null);
 	let chatIcon = $state<string | null>(null);
+	let chatSummary = $state<string | null>(null);
 
 	/** Load decrypted metadata for the context chat */
 	$effect(() => {
-		if (!contextChatId) {
-			chatTitle = null;
-			chatCategory = null;
-			chatIcon = null;
-			return;
+		const chatId = contextChatId;
+		let cancelled = false;
+		chatTitle = null;
+		chatCategory = null;
+		chatIcon = null;
+		chatSummary = null;
+		if (chatId) {
+			(async () => {
+				const chat = await chatDB.getChat(chatId);
+				if (!chat || cancelled) return;
+				const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+				if (meta && !cancelled) {
+					chatTitle = meta.title;
+					chatCategory = meta.category;
+					chatIcon = meta.icon;
+					chatSummary = meta.summary;
+				}
+			})();
 		}
-		(async () => {
-			const chat = await chatDB.getChat(contextChatId);
-			if (!chat) return;
-			const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-			if (meta) {
-				chatTitle = meta.title;
-				chatCategory = meta.category;
-				chatIcon = meta.icon;
-			}
-		})();
+		return () => { cancelled = true; };
 	});
 
 	let hasActiveChat = $derived(!!contextChatId && !!chatTitle);
@@ -232,6 +238,12 @@
 
 			if (targetType === 'existing_chat' && contextChatId) {
 				body.chat_id = contextChatId;
+				if (chatTitle) {
+					body.notification_context = buildReminderNotificationContext('chat', chatTitle, {
+						summary: chatSummary, category: chatCategory || 'general_knowledge',
+						icon: chatIcon || getFallbackIconForCategory(chatCategory || 'general_knowledge')
+					});
+				}
 			} else {
 				body.target_type = 'new_chat';
 				body.new_chat_title = prompt.slice(0, 50);
@@ -448,6 +460,8 @@
 		<SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
 	{/if}
 
+	<SettingsInfoBox type="info">{$text('reminder.settings.email_context_disclosure')}</SettingsInfoBox>
+
 	<SettingsButton
 		dataTestid="settings-button-primary"
 		disabled={whenPreset === 'custom' && (!date || !time) || (reminderMode === 'new_task' && !actionPrompt.trim())}
@@ -512,7 +526,7 @@
 	}
 
 	.chat-context:hover {
-		background: var(--color-grey-15);
+		background: var(--color-grey-20);
 	}
 
 	.category-circle {

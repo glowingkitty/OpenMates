@@ -1,6 +1,6 @@
 /** Preview mock data for WeatherDayEmbedFullscreen. */
 
-export default {
+const defaultProps = {
   data: {
     decodedContent: {
       date: '2026-06-03',
@@ -27,4 +27,10 @@ export default {
     embedData: {},
   },
   onClose: () => console.log('[Preview] Close weather day fullscreen'),
+};
+
+export default defaultProps;
+export const variants = {
+  missing: { data: { decodedContent: { date: '2026-06-03', location_name: 'Berlin' }, embedData: {} } },
+  zero: { data: { decodedContent: { ...defaultProps.data.decodedContent, temperature_min_c: 0, temperature_max_c: 0, precipitation_total_mm: 0, precipitation_probability_max_pct: 0, rain_hours: 0, wind_speed_max_kmh: 0, cloud_cover_avg_pct: 0, relative_humidity_avg_pct: 0, hourly: [{ time: '00:00', temperature_c: 0, precipitation_mm: 0, precipitation_probability_pct: 0, wind_speed_kmh: 0 }] }, embedData: {} } },
 };

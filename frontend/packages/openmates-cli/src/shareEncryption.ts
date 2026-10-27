@@ -35,7 +35,7 @@ export type ShareDuration =
   | 7776000; // 90 days
 
 // ── Base64 URL-safe helpers ────────────────────────────────────────────
-// Mirrors shareEncryption.ts base64UrlEncode / base64UrlDecode
+// Mirrors shareEncryption.ts base64UrlEncode
 
 function base64UrlEncode(data: Uint8Array): string {
   return Buffer.from(data)
@@ -43,12 +43,6 @@ function base64UrlEncode(data: Uint8Array): string {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-}
-
-function base64UrlDecode(str: string): Uint8Array {
-  let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (b64.length % 4) b64 += "=";
-  return new Uint8Array(Buffer.from(b64, "base64"));
 }
 
 // ── AES-GCM helpers ───────────────────────────────────────────────────

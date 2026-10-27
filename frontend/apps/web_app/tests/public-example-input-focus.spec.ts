@@ -7,7 +7,7 @@ for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity,message-input.actions.visibility
   test(`opening, reloading and switching public chats leaves input idle at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(getE2EDebugUrl('/#chat-id=example-example-chat-task-planning'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#chat-id=example-building-maintenance-email'), { waitUntil: 'domcontentloaded' });
     const field = page.getByTestId('message-field');
     const editor = page.getByTestId('message-editor').locator('.ProseMirror');
     const idle = async () => {
@@ -26,8 +26,8 @@ for (const width of [390, 1280]) {
     await expect(editor).toBeFocused();
     // Navigate without a pointer blur: the route transition must clear both DOM
     // focus and the expanded composer state itself.
-    await page.evaluate(() => { window.location.hash = 'chat-id=example-deutschlandticket-train-fare-breakdown'; });
-    await expect(page).toHaveURL(/chat-id=example-deutschlandticket-train-fare-breakdown/);
+    await page.evaluate(() => { window.location.hash = 'chat-id=example-gigantic-airplanes'; });
+    await expect(page).toHaveURL(/chat-id=example-gigantic-airplanes/);
     await idle();
     await field.click();
     await expect(editor).toBeFocused();

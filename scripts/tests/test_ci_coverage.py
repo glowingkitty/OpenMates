@@ -120,3 +120,102 @@ def test_live_weather_batches_cannot_relax_replay_network_isolation():
     with pytest.raises(ValueError, match="separate batch"):
         validate_runtime_batch(specs)
     validate_runtime_batch(["cli-workflows-rain-real.spec.ts", "workflows-ready-run-tasks.spec.ts"])
+
+
+def test_rust_session_targets_have_exact_dependency_classification():
+    import json
+    from pathlib import Path
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    component = "components/rust-core-session-harness.spec.ts"
+    browser = "rust-core-browser-session.spec.ts"
+    password = "rust-core-browser-password-entry.spec.ts"
+    allowed, held = partition([component, browser, password], manifest)
+    assert allowed == [component, browser, password]
+    assert held == {}
+    expected = {
+        "rust_core_session_harness": [component],
+        "rust_core_browser_session": [browser],
+        "rust_core_browser_password_entry": [password],
+    }
+    for name, specs in expected.items():
+        assert manifest["groups"][name]["execution"] == "e2e"
+        assert manifest["groups"][name]["specs"] == specs
+        assert manifest["groups"][name]["enabling_work"]
+    # Admission is exact, never a basename or prefix dependency exemption.
+    unknown = [
+        "rust-core-session-harness.spec.ts",
+        "components/rust-core-session-harness-extra.spec.ts",
+        "nested/components/rust-core-session-harness.spec.ts",
+        "rust-core-browser-session-extra.spec.ts",
+        "nested/rust-core-browser-session.spec.ts",
+        "rust-core-browser-password-entry-extra.spec.ts",
+        "nested/rust-core-browser-password-entry.spec.ts",
+    ]
+    allowed, held = partition(unknown, manifest)
+    assert allowed == []
+    assert set(held) == set(unknown)
+
+
+def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import COMPONENT_MARKER, execution_mode
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    component = "components/rust-core-session-harness.spec.ts"
+    browser = "rust-core-browser-session.spec.ts"
+    password = "rust-core-browser-password-entry.spec.ts"
+    assert execution_mode(component, COMPONENT_MARKER) == "component"
+    assert execution_mode(browser) == "e2e"
+    assert execution_mode(password) == "e2e"
+    component_dependency = manifest["groups"]["rust_core_session_harness"]["enabling_work"]
+    assert "Vite-only" in component_dependency
+    assert "No Rust or CLI build" in component_dependency
+    assert "account, backend services" in component_dependency
+    browser_dependency = manifest["groups"]["rust_core_browser_session"]["enabling_work"]
+    assert "runner-private accounts" in browser_dependency
+    assert "same job before Playwright" in browser_dependency
+    # Browser foreground send now requires explicit committed replay; component
+    # presentation and unrelated Workflow profiles remain independent.
+    assert browser in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    assert password in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    assert component not in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    for name in ("workflow_core", "workflow_weather"):
+        assert not {component, browser}.intersection(manifest["groups"].get(name, {}).get("specs", []))
+
+
+def test_native_bounded_read_has_exact_no_inference_classification():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import execution_mode
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    name = "cli-native-bounded-saved-read.spec.ts"
+    assert partition([name], manifest) == ([name], {})
+    assert execution_mode(name) == "e2e"
+    assert manifest["groups"]["native_bounded_saved_read"]["specs"] == [name]
+    for unknown in ("cli-native-bounded-saved-read-extra.spec.ts", "nested/" + name):
+        allowed, held = partition([unknown], manifest)
+        assert allowed == [] and unknown in held
+
+
+def test_production_rust_browser_targets_require_exact_built_isolated_profile():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import execution_mode
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    targets = ["rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts", "rust-core-production-local-cursor.spec.ts", "rust-core-production-saved-paging.spec.ts", "rust-core-ordinary-login-retention.spec.ts"]
+    allowed, held = partition(targets, manifest)
+    assert allowed == targets
+    assert held == {}
+    group = manifest["groups"]["rust_core_production_saved_reads"]
+    assert group["execution"] == "e2e"
+    assert group["specs"] == targets
+    for dependency in ("runner-private accounts", "same-source locked Rust/WASM", "fresh opt-in application build", "IndexedDB CryptoKeys", "no live inference"):
+        assert dependency in group["enabling_work"]
+    assert set(targets).issubset(manifest["groups"]["ai_committed_fixtures"]["specs"])
+    assert all(execution_mode(target) == "e2e" for target in targets)
+    unknown = ["nested/" + target for target in targets] + [target.replace(".spec.ts", "-extra.spec.ts") for target in targets]
+    assert partition(unknown, manifest)[0] == []
+    assert set(partition(unknown, manifest)[1]) == set(unknown)

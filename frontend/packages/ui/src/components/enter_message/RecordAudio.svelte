@@ -7,9 +7,7 @@
   - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
 
   ┌──────────────────────────────────────────────────────┐
-  │              Recording...                           │
-  │                                                      │
-  │  [00:01]                  [Cancel] [Finish]          │  ← controls row
+  │ [×]          Recording / transcript        [■] [↑]  │  ← compact composer
   └──────────────────────────────────────────────────────┘
 
   Finish / cancel behaviour:
@@ -30,6 +28,7 @@
     import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import CompactSendButton from './CompactSendButton.svelte';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
     import {
         startAudioRealtimeTranscription,
@@ -50,6 +49,7 @@
         overlayremoved: { recordingGeneration: number };
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
+        sendrequested: void;
     }>();
 
     // --- Props ---
@@ -61,8 +61,13 @@
         previewProcessing?: boolean;
         /** Text composers keep the overlay until corrected text is available. */
         retainUntilCorrection?: boolean;
+        /** Direct Send keeps processing visible through composer submission. */
+        retainUntilSend?: boolean;
+        compact?: boolean;
         correctionContext?: 'workflow';
         recordingGeneration?: number;
+        /** Only composers that handle sendrequested offer direct submission. */
+        allowSend?: boolean;
     }
     let {
         initialPosition,
@@ -71,8 +76,11 @@
         previewTranscript = null,
         previewProcessing = false,
         retainUntilCorrection = false,
+        retainUntilSend = false,
+        compact = false,
         correctionContext,
         recordingGeneration = 0,
+        allowSend = false,
     }: Props = $props();
     let overlayGeneration = 0;
 
@@ -84,6 +92,9 @@
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let isCancelled = false;
+    let sendRequested = $state(false);
+    let isCompact = $derived(compact || sendRequested);
+    let sendAdmissionStarted = $state(false);
     // A stop request and final cleanup are deliberately separate. Some browsers
     // can accept MediaRecorder.stop() without ever delivering `stop`; cancel must
     // still be able to escalate a pending finish and release the microphone.
@@ -91,6 +102,10 @@
     let finalized = $state(false);
     let finalizationCompleted = false;
     let overlayRemovalNotified = false;
+    // Teardown may read a pre-close reactive snapshot; notification is synchronous.
+    let overlayCloseNotified = false;
+    let resolveOverlayRemoval = () => {};
+    const overlayRemoved = new Promise<void>((resolve) => { resolveOverlayRemoval = resolve; });
     let stopFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     // Guard: ignore pointer-release events until the MediaRecorder has actually
     // started. Without this, a queued/bubbled mouseup from the original press
@@ -125,13 +140,10 @@
     let liveTranscript = $state('');
     let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
-    let liveTranscriptLineHeight = $state(0);
     let liveTranscriptLineCount = $state(1);
     let transcriptMeasurementFrame: number | null = null;
     let transcriptResizeObserver: ResizeObserver | null = null;
-    let liveTranscriptOffset = $derived(
-        Math.max(0, liveTranscriptLineCount - 1) * liveTranscriptLineHeight,
-    );
+    let liveTranscriptOffset = $state(0);
     let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
     let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
     let realtimeHandedOff = false;
@@ -146,7 +158,7 @@
         'enter_message.record_audio.making_more_concise',
     ];
     let isProcessing = $derived(
-        !overlayCloseRequested && (previewProcessing || (retainUntilCorrection && stopIntent === 'finish')),
+        !overlayCloseRequested && (previewProcessing || (retainUntilCorrection && (stopIntent === 'finish' || sendRequested))),
     );
 
     $effect(() => {
@@ -159,7 +171,8 @@
     });
 
     function closeOverlay() {
-        if (overlayCloseRequested) return;
+        if (overlayCloseNotified) return;
+        overlayCloseNotified = true;
         overlayCloseRequested = true;
         dispatch('close');
     }
@@ -209,13 +222,14 @@
 
     onDestroy(() => {
         notifyOverlayRemoved();
-        if (retainUntilCorrection && realtimeHandedOff && !overlayCloseRequested) {
+        if (retainUntilCorrection && realtimeHandedOff && !overlayCloseNotified) {
             try {
                 realtimeHandle?.cancel();
             } catch (error) {
                 logger.error('Failed to cancel transcript correction on destroy:', error);
             }
         }
+        overlayCloseNotified = true;
         overlayCloseRequested = true;
         logger.debug('Component destroying.');
         stopWaveform();
@@ -231,6 +245,7 @@
         if (overlayRemovalNotified) return;
         overlayRemovalNotified = true;
         dispatch('overlayremoved', { recordingGeneration: overlayGeneration });
+        resolveOverlayRemoval();
     }
 
     // --- Recording Logic ---
@@ -356,12 +371,17 @@
         if (!transcriptResizeObserver && typeof ResizeObserver !== 'undefined') {
             transcriptResizeObserver = new ResizeObserver(scheduleTranscriptMeasurement);
             transcriptResizeObserver.observe(viewport);
+            transcriptResizeObserver.observe(flow);
         }
 
         const lineHeight = Number.parseFloat(getComputedStyle(flow).lineHeight);
         if (!Number.isFinite(lineHeight) || lineHeight <= 0) return;
-        liveTranscriptLineHeight = lineHeight;
-        liveTranscriptLineCount = Math.max(1, Math.round(flow.scrollHeight / lineHeight));
+        // Keep fractional line geometry: scrollHeight rounds to integer pixels.
+        // Snap directly to the last line; animating this offset exposes clipped
+        // parts of two lines while a long transcript advances or reflows.
+        const height = flow.getBoundingClientRect().height;
+        liveTranscriptLineCount = Math.max(1, Math.round(height / lineHeight));
+        liveTranscriptOffset = Math.max(0, height - lineHeight);
     }
 
     function stopTranscriptMeasurement() {
@@ -463,7 +483,11 @@
             // The parent registers its correction await during audiorecorded.
             // It inserts the text before this later continuation closes the
             // overlay, then restores focus after overlayremoved.
-            void realtimeHandle.correction.then(closeOverlay, closeOverlay);
+            void realtimeHandle.correction.then(() => {
+                if (overlayCloseNotified) return;
+                if (retainUntilSend && sendRequested) sendAdmissionStarted = true;
+                else closeOverlay();
+            }, closeOverlay);
         } else {
             closeOverlay();
         }
@@ -633,7 +657,12 @@
 
     // --- Keyboard shortcuts ---
     function handleKeyDown(event: KeyboardEvent) {
+        // An open embed viewer owns its keyboard shortcuts while capture
+        // continues behind it. Also respect native editor/control handling.
+        if (event.defaultPrevented || document.querySelector('.unified-embed-fullscreen-overlay')) return;
         if (event.key === 'Enter') {
+            // Let focused controls perform their native keyboard activation.
+            if (event.target instanceof Element && event.target.closest('button')) return;
             event.preventDefault();
             stop();
         }
@@ -644,6 +673,20 @@
     }
 
     // --- Exported Methods (called by parent as fallback via bind:this) ---
+
+    function requestSend() {
+        if (!allowSend || sendRequested || stopIntent === 'cancel' || overlayCloseRequested) return;
+        sendRequested = true;
+        dispatch('sendrequested');
+        recordOverlayElement?.focus({ preventScroll: true });
+        stop();
+    }
+
+    /** Close after composer admission, waiting for actual overlay removal. */
+    export async function completeSend(): Promise<void> {
+        closeOverlay();
+        await overlayRemoved;
+    }
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
@@ -660,6 +703,7 @@
 
     /** Cancel the recording (no audiorecorded event). */
     export function cancel() {
+        if (sendAdmissionStarted) return;
         if (cancelPendingCorrection()) return;
         if (overlayCloseRequested) return;
         if (!readyForRelease) {
@@ -677,9 +721,20 @@
   pointer-events: none on the overlay itself so clicks/taps fall through to
   document-level listeners — no need to intercept on the div.
 -->
+{#snippet cancelButton()}
+    <button type="button" class="record-action-button cancel" data-testid="record-cancel-button" aria-label={$text('enter_message.record_audio.cancel')} disabled={sendAdmissionStarted} onclick={cancel}>
+        <span class="cancel-label">{$text('enter_message.record_audio.cancel')}</span>
+        <span class="clickable-icon icon_close cancel-icon" data-testid="record-cancel-icon" aria-hidden="true"></span>
+    </button>
+{/snippet}
+
 <div
     bind:this={recordOverlayElement}
     class="record-overlay"
+    class:compact={isCompact}
+    class:compact-processing={sendRequested}
+    class:with-send={allowSend}
+    class:has-transcript={!!liveTranscript.trim()}
     data-testid="record-overlay"
     data-recording-finalized={finalized}
     data-recording-processing={isProcessing}
@@ -688,6 +743,9 @@
     transition:fade={{ duration: 150 }}
     onoutroend={notifyOverlayRemoved}
 >
+    {#if isCompact}
+        {@render cancelButton()}
+    {/if}
     <div class="record-content">
         <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
@@ -704,7 +762,6 @@
                     <span
                         bind:this={liveTranscriptViewportElement}
                         class="live-transcript-viewport"
-                        class:has-previous-line={liveTranscriptLineCount > 1}
                         data-testid="recording-live-transcript"
                         data-line-count={liveTranscriptLineCount}
                         aria-live="polite"
@@ -752,12 +809,21 @@
         </div>
 
         <div class="record-action-buttons" data-testid="record-action-buttons">
-            <button type="button" class="record-action-button cancel" data-testid="record-cancel-button" onclick={cancel}>
-                {$text('enter_message.record_audio.cancel')}
+            {#if !isCompact}
+                {@render cancelButton()}
+            {/if}
+            <button type="button" class="record-action-button finish" data-testid="record-finish-button" aria-label={$text('enter_message.record_audio.finish')} disabled={isProcessing || finalized} onclick={stop}>
+                <span class="finish-label">{$text('enter_message.record_audio.finish')}</span>
+                <span class="finish-icon" data-testid="record-finish-icon" aria-hidden="true"></span>
             </button>
-            <button type="button" class="record-action-button finish" data-testid="record-finish-button" disabled={isProcessing || finalized} onclick={stop}>
-                {$text('enter_message.record_audio.finish')}
-            </button>
+            {#if allowSend}
+                <CompactSendButton
+                    testId="record-send-button"
+                    disabled={sendRequested || overlayCloseRequested}
+                    busy={sendRequested && isProcessing}
+                    onclick={requestSend}
+                />
+            {/if}
         </div>
     </div>
 </div>
@@ -767,6 +833,7 @@
     .record-overlay {
         position: absolute;
         inset: 0;
+        container-type: inline-size;
         min-height: 220px;
         border-radius: 24px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -779,6 +846,107 @@
         box-sizing: border-box;
         color: white;
         overflow: hidden;
+    }
+
+    .record-overlay.compact {
+        min-height: 48px;
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 40px;
+        gap: var(--spacing-2);
+        padding: 0 var(--spacing-4);
+    }
+
+    /* Balance the two right-hand actions so the preview stays centered. */
+    .record-overlay.compact.with-send[data-recording-processing='false'] {
+        grid-template-columns: calc(80px + var(--spacing-2)) minmax(0, 1fr) calc(80px + var(--spacing-2));
+    }
+
+    .compact .record-content {
+        grid-column: 2;
+        width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        justify-content: center;
+        gap: var(--spacing-2);
+    }
+
+    .compact .record-header {
+        min-width: 0;
+        flex: 1;
+        align-items: center;
+        text-align: center;
+    }
+
+    .compact .release-text {
+        font-size: var(--font-size-small);
+    }
+
+    .compact .record-controls {
+        grid-column: 3;
+        justify-self: end;
+        width: auto;
+        flex-wrap: nowrap;
+    }
+
+    .compact .record-shortcuts,
+    .compact:not(.has-transcript)[data-recording-processing='false'] .record-header,
+    .compact .live-transcript-placeholder,
+    .compact .timer-pill,
+    .compact.has-transcript .recording-waveform,
+    .compact[data-recording-processing='true'] .finish,
+    .compact-processing .timer-pill,
+    .compact-processing .finish,
+    .compact-processing .record-action-buttons :global([data-testid='record-send-button']) {
+        display: none;
+    }
+
+    .cancel-icon, .finish-icon { display: none; }
+
+    .compact .cancel-label, .compact .finish-label { display: none; }
+    .compact .cancel-icon {
+        display: block;
+        width: 20px;
+        height: 20px;
+        background: var(--color-font-button);
+    }
+    .compact .cancel,
+    .compact .finish {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+    }
+    .compact .cancel { justify-self: start; }
+    .compact .record-action-button.finish {
+        background: color-mix(in srgb, var(--color-font-button) 18%, transparent);
+    }
+    .compact .finish-icon {
+        display: block;
+        width: 16px;
+        height: 16px;
+        border-radius: var(--radius-1);
+        background: var(--color-font-button);
+    }
+    .compact .cancel:hover,
+    .compact .record-action-button.finish:hover {
+        background: color-mix(in srgb, var(--color-font-button) 28%, transparent);
+    }
+    .compact .cancel:active,
+    .compact .record-action-button.finish:active {
+        background: color-mix(in srgb, var(--color-font-button) 36%, transparent);
+    }
+    .compact .record-action-buttons { gap: var(--spacing-2); }
+    .compact .recording-waveform {
+        width: 100%;
+        height: 20px;
+        min-height: 20px;
+        flex: 1;
+        padding: 0;
+        gap: 1px;
+        -webkit-mask-image: linear-gradient(to right, transparent, currentColor var(--spacing-4));
+        mask-image: linear-gradient(to right, transparent, currentColor var(--spacing-4));
     }
 
     .record-overlay:focus,
@@ -826,13 +994,8 @@
     .live-transcript-viewport {
         display: block;
         width: 100%;
-        height: 1.3em;
+        height: 1lh;
         overflow: hidden;
-    }
-
-    .live-transcript-viewport.has-previous-line {
-        -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
-        mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
     }
 
     .live-transcript-flow {
@@ -840,8 +1003,7 @@
         width: 100%;
         line-height: 1.3;
         overflow-wrap: anywhere;
-        transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-        will-change: transform;
+        transition: none;
     }
 
     .processing-text {
@@ -854,7 +1016,7 @@
         50% { opacity: 0.6; }
     }
 
-    .record-action-button.finish:disabled {
+    .record-action-button:disabled {
         opacity: 0.5;
         cursor: default;
     }
@@ -905,12 +1067,14 @@
     .record-controls {
         width: 100%;
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: var(--spacing-4);
     }
 
     .timer-pill {
+        align-self: center;
         background-color: #ff4444;
         color: white;
         padding: 6px 14px;
@@ -932,6 +1096,9 @@
     }
 
     .record-action-button {
+        /* The control row owns spacing and sizing, including narrow composers. */
+        min-width: 0;
+        margin: 0;
         border: 0;
         border-radius: var(--radius-8);
         padding: var(--spacing-4) var(--spacing-8);
@@ -943,7 +1110,7 @@
     }
 
     .record-action-button.cancel {
-        background: rgba(255, 255, 255, 0.18);
+        background: color-mix(in srgb, var(--color-font-button) 18%, transparent);
     }
 
     .record-action-button.finish {
@@ -959,7 +1126,9 @@
         background: var(--color-button-primary-pressed);
     }
 
-    @media (max-width: 520px) {
+    @container (max-width: 520px) {
+        .compact[data-recording-processing='false'] .record-header { display: none; }
+        .compact.has-transcript .recording-waveform { display: flex; }
         .record-controls {
             align-items: stretch;
         }

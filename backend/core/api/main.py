@@ -34,9 +34,11 @@ from importlib import import_module  # noqa: E402
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import account_exports, account_imports, auth, chats, direct_chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
+from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
 from backend.core.api.app.routes import internal_health  # noqa: E402
+from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -52,7 +54,6 @@ from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API
 from backend.core.api.app.routes import openai_compat  # noqa: E402 # Canonical OpenAI-compatible API routes
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
 from backend.core.api.app.routes import audio_realtime  # noqa: E402 # Authenticated realtime audio transcription proxy
-from backend.core.api.app.routes import video_call_experiment  # noqa: E402 # First-party ephemeral call experiment
 from backend.core.api.app.routes import voice_call  # noqa: E402 # First-party chat-bound voice calls
 from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # Import Code notebook execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
@@ -704,7 +705,6 @@ async def lifespan(app: FastAPI):
 
     # --- Preload leaderboard data into cache ---
     # This ensures model rankings are available before first AI request
-    # If no leaderboard data exists, trigger generation asynchronously
     logger.info("Preloading leaderboard data into cache...")
     if hasattr(app.state, 'cache_service'):
         try:
@@ -714,17 +714,7 @@ async def lifespan(app: FastAPI):
                 ranked_count = len(leaderboard_data.get("rankings", []))
                 logger.info(f"Successfully preloaded leaderboard data with {ranked_count} ranked models.")
             else:
-                # No leaderboard data exists - trigger generation asynchronously
-                logger.warning("No leaderboard data available. Triggering initial leaderboard generation...")
-                try:
-                    task_result = celery_app.send_task(
-                        "leaderboard.update_daily",
-                        queue="leaderboard",
-                        kwargs={"category": "text"}
-                    )
-                    logger.info(f"Initial leaderboard generation task queued. Task ID: {task_result.id}")
-                except Exception as e_task:
-                    logger.warning(f"Failed to queue leaderboard generation task: {e_task}")
+                logger.info("No saved leaderboard data available; model selection will use configured defaults.")
         except Exception as e_leaderboard:
             logger.warning(f"Failed to preload leaderboard data during startup: {e_leaderboard}")
             # Don't fail startup - leaderboard is optional for model selection
@@ -1236,6 +1226,8 @@ def create_app() -> FastAPI:
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
     app.add_middleware(LoggingMiddleware)
+    from backend.core.api.app.middleware.ai_decide_body import AIDecideBodyLimitMiddleware
+    app.add_middleware(AIDecideBodyLimitMiddleware)
     from backend.core.api.app.services.storage_archive_client_compatibility import StorageArchiveClientCompatibilityMiddleware
     app.add_middleware(StorageArchiveClientCompatibilityMiddleware)
     app.add_middleware(SessionCookiePublicationMiddleware)
@@ -1374,6 +1366,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - web app only
     app.include_router(anonymous.router, include_in_schema=False)  # Anonymous free usage routes - official cloud only
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
+    app.include_router(reminder_email_preview.router, include_in_schema=False)  # Recipient-scoped private email image capability
     
     # Conditionally register payment-related routers (only if payment is enabled)
     # Note: We call is_payment_enabled() directly here because app.state.payment_enabled
@@ -1396,11 +1389,13 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
     app.include_router(internal_health.router, include_in_schema=False)
+    app.include_router(apps_workspace_requests.router, include_in_schema=False)
+    app.include_router(apps_workspace_recommendations.router, include_in_schema=False)
+    app.include_router(apps_workspace_public.router, include_in_schema=False)
     app.include_router(apps_workspace.router, include_in_schema=False)  # First-party encrypted Apps result library
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
     app.include_router(audio_realtime.router, include_in_schema=False)  # Realtime voice transcription - web app only
-    app.include_router(video_call_experiment.router, include_in_schema=False)  # Authenticated video-call experiment - web app only
     app.include_router(voice_call.router, include_in_schema=False)  # Authenticated personal-chat voice calls - web app only
     app.include_router(code_notebook_execution.router, include_in_schema=False)  # Code notebook execution - web app only
     app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only
@@ -1447,6 +1442,8 @@ def create_app() -> FastAPI:
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
+    from backend.core.api.app.routes import web_browse
+    app.include_router(web_browse.router, include_in_schema=False)  # Owner-only browser sessions, approved first-party devices
     app.include_router(developer_metadata_api.router, include_in_schema=True)  # Safe task/plan status metadata without encrypted fields
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified

@@ -16,7 +16,7 @@
   - Details section:
     - Favicon (rounded, top-left of title)
     - Title: page title or hostname
-    - Subtitle: "via Firecrawl: {wordCount} words"
+    - Subtitle: "{wordCount} words"
   - Basic infos bar:
     - Web app icon (gradient circle)
     - Text skill icon
@@ -220,7 +220,7 @@
   
   /**
    * Calculate total word count across all results
-   * Word count is used in the "via Firecrawl: X words" subtitle
+   * Word count is used in the "X words" subtitle
    */
   let totalWordCount = $derived(() => {
     let count = 0;
@@ -234,13 +234,13 @@
     return count;
   });
   
-  // Subtitle text: "via Firecrawl: X words" (matches Figma design)
+  // Subtitle text: "X words" (matches Figma design)
   let subtitleText = $derived(() => {
     const wordCount = totalWordCount();
     if (wordCount > 0) {
-      return `via Firecrawl:\n${wordCount.toLocaleString()} words`;
+      return `${wordCount.toLocaleString()} words`;
     }
-    return 'via Firecrawl';
+    return '';
   });
   
   // Skill icon name - "text" icon as per Figma design
@@ -319,7 +319,7 @@
         <div class="read-title">{displayTitle}</div>
       </div>
       
-      <!-- Subtitle: "via Firecrawl: X words" -->
+      <!-- Subtitle: "X words" -->
       <div class="read-subtitle">{subtitleText()}</div>
     </div>
   {/snippet}
@@ -389,7 +389,7 @@
     line-clamp: 3;
   }
   
-  /* Subtitle: "via Firecrawl: X words" */
+  /* Subtitle: "X words" */
   .read-subtitle {
     font-size: var(--font-size-small);
     font-weight: 700;

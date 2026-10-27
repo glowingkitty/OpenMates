@@ -1,0 +1,227 @@
+schema_version: 2
+id: reminder-email-redesign
+title: Identifiable reminder emails with rendered cards and exact targets
+status: implementing
+goal: >
+  Let's actually implement this properly and test it out. And also send me a
+  test notification email for both as well.
+references:
+  - task:f22a4b44-453b-4e6a-84e0-1b10c47abd02
+  - feature.notifications@2
+  - docs/architecture/reminder-email-redesign.md
+scope:
+  in:
+    - Approved newsletter shell, reminder bell and native workspace-style chat/embed preview images.
+    - Identifying subjects, exact title alt text, embed descriptions, notes and readable HTML/plain-text facts.
+    - Limited encrypted reminder snapshots, private image capabilities and explicit hide-content choices.
+    - Exact chat/child-embed navigation through login, cold storage and sync.
+    - Focused checks, isolated GitHub CI, scoped dev deployment and two authorized test emails.
+  out:
+    - Production activation, general notification preference redesign and unrelated mail templates.
+    - Browser rendering infrastructure, arbitrary remote-image fetching and full-chat server decryption.
+implementation_state:
+  subject_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
+  note: Email delivery/rendering, all 3 navigation cases and all 4 shared-guest cases passed isolated CI with verified cleanup. Final regression source 513231e4 differs from the primary tested application source 256e4162 only in test assertions, documentation and generated records; product inputs are byte-identical. Dev commit bc279722 is active; frontend readiness and setup-gated health passed, and both authorized live emails have provider-confirmed delivery. The root-owned Caddy startup file still needs the supplied operator command.
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-23'
+    reason: User explicitly authorized the related specification updates without another approval question.
+  plan:
+    status: approved
+    approved_at: '2026-10-23'
+    reason: User approved the rendered-card design, requested embed descriptions and authorized implementation, tests and both test emails in the existing chat.
+decisions:
+  - id: accepted-design-and-specification-updates
+    status: active
+    decision: Implement the approved newsletter shell with a reminder bell, rendered product-style cards and real-text descriptions, facts and notes.
+    reason: This records the accepted user design and explicit implementation/specification authorization; it does not start another approval round.
+    decided_at: '2026-10-23'
+  - id: bounded-static-rendering
+    status: active
+    decision: Use Pillow, CairoSVG, bundled product palettes/icons and existing licensed Lexend fonts for 600x400 PNGs.
+    reason: A bounded native card preserves the approved geometry without a browser fleet, HTML execution or network image fetches.
+    decided_at: '2026-10-23'
+  - id: private-image-capability
+    status: active
+    decision: Serve one encrypted reminder snapshot through an opaque recipient-held bearer capability expiring at most 90 days after its latest email delivery.
+    reason: The selected transactional path uses a first-party remote preview rather than relying on unverified inline Content-ID transport; origin access is scoped, revocable, rate-limited and redacted from logs.
+    decided_at: '2026-10-23'
+scenarios:
+  - id: S-1
+    title: Useful reminder email with or without images
+    given: [An eligible non-redacted chat or saved-item reminder has captured limited context.]
+    when: [The reminder email is rendered and opened in a desktop or narrow mobile inbox.]
+    then:
+      - Subject and body identify the target; available description, facts and saved note are real text.
+      - The rounded native preview and separate action share one exact destination and the preview alt text is the target title.
+      - HTML and plain-text content remain useful with images blocked or expired; explicit hide-content and legacy fallback remain effective.
+  - id: S-2
+    title: Durable private preview after temporary caches expire
+    given: [A reminder retains a bounded encrypted snapshot independently of temporary embed caches.]
+    when: [An email client fetches the preview capability or an invalid, expired or revoked variant.]
+    then:
+      - A valid capability returns only its authorized bounded PNG without fetching URLs or executing HTML.
+      - Wrong-token, expired, cancelled and deleted cases are uniformly unavailable without private output or content logging.
+  - id: S-3
+    title: Exact target survives startup and authentication
+    given: [An email action references a private chat or child embed with verified source context.]
+    when: [The action opens after authenticated reload or cold signed-out startup and required login/sync.]
+    then:
+      - The complete target survives and opens the referenced chat or child detail.
+      - Missing or inaccessible targets show a visible unavailable state and existing public/shared guest routes remain usable.
+  - id: S-4
+    title: Authorized dev delivery of both examples
+    given: [The scoped candidate has passed required checks and is deployed to dev.]
+    when: [One chat reminder and one event/embed reminder send to the user's verified configured address.]
+    then: [Both deliveries contain the approved design and readable details with their actual exact-target actions.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Chat and embed emails preserve target identity, descriptions, notes, facts, image alt text and HTML/plain-text actions, including blocked images, explicit redaction and legacy prompts.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-RENDER, T-ISOLATED]
+  - id: AC-2
+    scenario: S-2
+    text: Context remains bounded and encrypted beyond cache expiry; the preview enforces bearer scope, expiry/revocation, rate limits, safe native rendering and private diagnostics.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CONTEXT, T-RENDER, T-ISOLATED]
+  - id: AC-3
+    scenario: S-3
+    text: Actual captured email destinations preserve chat and child-embed identity across reload, cold login and sync, with visible unavailable targets and retained public/shared behavior.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-ISOLATED]
+  - id: AC-4
+    scenario: S-4
+    text: Scoped dev deployment completes and both authorized chat and event/embed test emails are delivered to the user's verified configured notification address.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-LIVE]
+tests:
+  - id: T-RENDER
+    type: pytest
+    file: backend/tests/test_reminder_notification_email_render.py
+    command: python -m pytest -q backend/tests/test_reminder_preview_renderer.py backend/tests/test_reminder_notification_email_render.py
+    assertions: [Readable escaped descriptions and notes, exact image/action URLs and alt titles, legacy/redacted behavior, bounded native PNGs without network or private logs.]
+    covers: [AC-1, AC-2]
+    red_phase: {required: false, expected: Source-confirmed defects already documented; no repeated reproduction required., evidence: {source: docs/architecture/reminder-email-redesign.md}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-10-23T16:42:06Z'
+        subject_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
+        command: Canonical .venv pytest for six reminder backend suites with existing renderer dependencies appended.
+        run_id: faf0-final-candidate-unit
+        result: 81 combined focused backend cases passed; log and exact source-file identity are retained in /tmp/faf0-final-unit-receipt-current.json.
+  - id: T-CONTEXT
+    type: pytest
+    file: backend/tests/test_reminder_notification_context.py
+    command: python -m pytest -q backend/tests/test_reminder_notification_context.py backend/tests/test_reminder_notification_setup.py backend/tests/test_reminder_email_notifications.py
+    assertions: [Snapshot validation and persistence, explicit content choice, fresh owner/source checks, private bearer expiry/revocation and redaction.]
+    covers: [AC-2]
+    red_phase: {required: false, expected: Existing source observations suffice., evidence: {source: docs/architecture/reminder-email-redesign.md}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-10-23T16:42:06Z'
+        subject_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
+        command: Canonical .venv pytest for six reminder backend suites with existing renderer dependencies appended.
+        run_id: faf0-final-candidate-unit
+        result: 81 combined focused backend cases passed; backend context/owner/persistence inputs are unchanged in the final candidate. Actual cache recovery, worker delivery and capability rejection also passed in isolated mail run 39968453003.
+  - id: T-ISOLATED
+    type: playwright
+    file: frontend/apps/web_app/tests/notification-email-links.spec.ts
+    command: sessions.py ci-source and ci_coordinator.py submit/wait for the scoped reminder/email suites
+    target: isolated GitHub runner
+    execution_environment: isolated_github_ci
+    assertions:
+      - Real reminder-to-email capture identifies chat/embed targets and preserves description, note, dates and opt-out.
+      - Captured links open the exact target through reload/cold login/sync and unavailable cases; private-preview access checks pass.
+      - Required focused frontend unit/lint/translation and route-allowlist checks pass on the candidate.
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: Source-confirmed failures already recorded., evidence: {source: docs/architecture/reminder-email-redesign.md}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-10-23T17:31:00Z'
+        subject_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
+        command: ci_coordinator.py submit/wait/result for notification-email-links.spec.ts and shared-chat-open.spec.ts
+        run_id: '39990431096'
+        execution_environment: isolated_github_ci
+        harness_commit: 1edab52b66150c5a88d492f456647376bd37f8b6
+        profile: e2e/web-laptop
+        artifacts:
+          - /home/superdev/projects/OpenMates/test-results/ci-runs/ca4a79702ac250e20036e17aa5725579aff9d94982d75c940e8f66f288f464f4/receipt.json
+          - /home/superdev/projects/OpenMates/test-results/ci-runs/2ad0a270ed3d4b6d64901b1891fc096a8b21603463887febaca8cd5043d78442/receipt.json
+          - /home/superdev/projects/OpenMates/test-results/ci-runs/f78739c850c9f12b078600b004091d869526cc7bf7e335946021d0067b7a15c9/receipt.json
+        result: All 3 reminder/navigation and all 4 shared-guest cases passed without skips or retries; cleanup verified. SMTP/cache/preview/responsive capture passed run 39968453003. Shared regression run 39993579945 uses test-only corrected source 513231e4; exact product-input equivalence is retained in /tmp/faf0-final-source-equivalence.json. Email inputs are unchanged from its proved source 6edecaf3.
+  - id: T-LIVE
+    type: manual
+    assertions: [Scoped dev deployment is healthy; the authorized chat and event/embed emails arrive at the user's verified configured address with useful text and exact actions.]
+    covers: [AC-4]
+    red_phase: {required: false, expected: No pre-change live send required., evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: Both deliveries confirmed after scoped dev deployment.
+      evidence:
+        status: passed
+        timestamp: '2026-10-23T18:07:50Z'
+        subject_commit: bc279722ec031cd9f24bf58e04550e0c49be9b1e
+        reason: Exactly one chat and one event email sent to the verified configured owner address; Brevo reports delivered for each exact accepted message ID. Both recipient-held public HTTPS previews returned PNG 600x400 before sending. Persistent destination/key recovery was validated with the owner's isolated CLI state; no account preferences or model defaults changed.
+        artifacts:
+          - /tmp/faf0-reminder-send-receipt.json
+          - /tmp/faf0-runtime-health-receipt.json
+          - /tmp/faf0-frontend-deploy-ready.json
+          - /tmp/faf0-parent-runtime-message.json
+# The single existing OpenMates Task remains the execution/status authority.
+tasks:
+  - id: TASK-4084
+    title: Implement and verify the approved reminder email redesign
+    status: blocked
+    phase: blocked
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
+    expected_files: [backend/apps/reminder, backend/core/api, frontend/packages/ui, frontend/apps/web_app, specifications/features/notifications]
+    verification_ids: [T-RENDER, T-CONTEXT, T-ISOLATED, T-LIVE]
+    dependencies: []
+    blockers: [Root operator must persist the working Caddy configuration with the supplied command.]
+    follow_up_tasks: []
+    ownership: {files: [Scoped session faf0 candidate], shared_files: []}
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-4084
+    approach: Implement the accepted native-card/email design and run focused local rendering/privacy tests and the translation build.
+    outcome: succeeded
+    recorded_at: '2026-10-23'
+    evidence: 33 renderer/email tests passed; 21 locale files rebuilt; compile and whitespace checks passed. This is not CI or delivery evidence.
+  - id: ATTEMPT-2
+    task_id: TASK-4084
+    approach: Run real Mailpit delivery and private-target navigation in isolated GitHub CI.
+    outcome: blocked
+    recorded_at: '2026-10-23'
+    evidence: First isolated runs retained in coordinator receipts bd10580f and 8cda116f. SMTP acceptance occurred, but the probe closed injected services through an unbound Celery cleanup; fixture cleanup is corrected. Browser failures are being resolved before final verification.
+handoff:
+  current_task_id: TASK-4084
+  next_action: Verify the root operator installed the supplied Caddy startup configuration, then close the Task. All application checks, dev activation and both delivered emails are complete.
+  command: sudo bash /home/superdev/projects/OpenMates/deployment/apply-caddy-config.sh /home/superdev/projects/OpenMates/deployment/dev_server/Caddyfile
+  expected_outcome: All four acceptance criteria have passing evidence; verify the remaining root-owned startup configuration before closing the operational handoff.
+  blocker:
+    reason: The working recipient-held image route is active, while /etc/caddy/Caddyfile remains root-owned and has not yet been verified against the deployed source.
+    next_action: Operator runs the exact supplied sudo apply-caddy-config.sh command on dev; then compare the startup file with deployment/dev_server/Caddyfile.
+  last_verified_commit: 256e41626964d2537f3883f8886b1d47a765d9ce

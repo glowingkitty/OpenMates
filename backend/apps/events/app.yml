@@ -1,13 +1,5 @@
 landing:
-  order: 0
-  capability:
-    type: skill
-    id: search
-  caption:
-    en: Find events
-    de: Finde Veranstaltungen
-  example_chat_id: example-ai-workshops-meetups-berlin
-
+  enabled: false
 name_translation_key: events
 description_translation_key: events.description
 icon_image: |
@@ -56,6 +48,9 @@ instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
+    authoring:
+      kind: events.event
+      schema_id: events.event
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use
@@ -74,80 +69,21 @@ embed_types:
     i18n_namespace: embeds.events.search
 skills:
   - id: search
+    default_enabled: false
     anonymous_access: inline
     name_translation_key: events.search
     description_translation_key: events.search.description
     icon_image: search.svg
-    preprocessor_hint: >
-      Search for local or online events, meetups, hackathons, conferences, workshops,
-      networking events, parties, concerts, or any community gathering. Use ONLY this
-      skill for event searches — do NOT additionally call web.search or any other
-      search skill for the same query.
-      Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs),
-      Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin),
-      and official event schedules for GPN24, 39C3, 38C3, and 37C3.
-      Use 'auto' provider for best coverage.
-      Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
-      or techno events. Use 'Siegessäule' when user asks about LGBTQ+ events in Berlin.
-      When searching for classical concerts in Berlin, set concert_tags to match the genre
-      (e.g. concert_tags: ["Piano"] for piano concerts, ["Chamber Music"] for chamber music,
-      ["Jazz"] for jazz, ["Organ"] for organ). Known tags: Piano, Chamber Music, Jazz, Organ,
-      Modern, Lunch Concerts, Singers, Children and Family, World.
-      Use the specific event provider name (GPN24, 39C3, 38C3, or 37C3) when the
-      user asks about official talks/workshops for that event. Set conference to the
-      requested event when known. By default, event schedule searches only current and
-      upcoming sessions; set past_events=true only when the user explicitly asks for
-      past events or older completed sessions.
-      When the user mentions a city or location, default to PHYSICAL (in-person) events.
-      When the user explicitly asks for online or virtual events, use ONLINE filter. A location is
-      optional for ONLINE searches; omit it unless the user supplied one. Location-free ONLINE
-      discovery uses only compatible providers and must never invent a city or coordinates.
-      Keep query focused on the event topic. Whenever the user states a purpose, intended audience,
-      networking goal, desired activity, or other preference that should change event ordering, put
-      it in relevance_criteria even if related words could also be added to query. Example: "Show me
-      AI events in Berlin where I can promote my AI software" should use query "AI", location
-      "Berlin", and relevance_criteria "Events where I can promote my AI software, network with
-      potential users, and potentially give a future talk." Omit relevance_criteria only for a
-      neutral event search fully expressed by query and structured fields; never invent a goal.
-      Always limit results to 10 (default) unless the user explicitly requests more.
-      Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
-      Do NOT fall back to web.search after this skill returns an error — report the
-      error to the user instead.
+    preprocessor_hint: >-
+      Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested
+      event. General city, concert and online event discovery are unavailable. Include past_events only when requested.
+      Never retry another source or fall back to web search.
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
     pricing:
       per_unit:
         credits: 30
     providers:
-      - name: Meetup
-        id: meetup
-        scope: global
-        no_api_key: true
-      - name: Luma
-        id: luma
-        scope: global
-        no_api_key: true
-      - name: Eventbrite
-        id: eventbrite
-        scope: global
-        no_api_key: true
-      - name: Resident Advisor
-        id: resident_advisor
-        scope: global
-        no_api_key: true
-        routing_description: Electronic music, DJs, clubs, raves, and nightlife events in supported cities.
-      - name: Siegessäule
-        id: siegessaeule
-        scope: city
-        region: Berlin
-        no_api_key: true
-        routing_description: Berlin LGBTQ+ and queer community events.
-      - name: Berlin Philharmonic
-        id: berlin_philharmonic
-        scope: city
-        region: Berlin
-        no_api_key: true
-        routing_description: Classical, orchestral, chamber, and piano concerts in Berlin.
       - name: GPN24
         id: pretalx
         scope: conference
@@ -164,7 +100,6 @@ skills:
         id: pretalx
         scope: conference
         no_api_key: true
-    # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
       - "Search events in another city"
@@ -183,39 +118,22 @@ skills:
           x-ui:
             basic: false
           type: string
-          description: >
-            The event provider to use. 'auto' (default) searches general sources
-            in parallel and adds relevant specialist sources for the topic and region.
-            Use a specific provider when the user asks about a particular platform/type:
-            'Eventbrite' for Eventbrite-only results,
-            'Resident Advisor' for electronic music/clubs,
-            'Siegessäule' for Berlin LGBTQ+ events,
-            'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.
+          description: >-
+            Official conference schedule provider; general event discovery is unavailable.
           enum:
-            - "auto"
-            - "Meetup"
-            - "Luma"
-            - "Eventbrite"
-            - "Resident Advisor"
-            - "Siegessäule"
-            - "Berlin Philharmonic"
-            - "GPN24"
-            - "39C3"
-            - "38C3"
-            - "37C3"
+            - auto
+            - pretalx
+            - GPN24
+            - 39C3
+            - 38C3
+            - 37C3
         requests:
           x-ui:
             basic: true
           type: array
-          description: |
-            REQUIRED: Array of event search request objects for parallel processing.
-            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
-            Example for single search: {"requests": [{"query": "AI", "location": "Berlin, Germany"}]}
-            Example for multiple searches: {"requests": [{"query": "AI", "location": "Berlin"}, {"query": "Python", "location": "Munich"}]}
-            Each object must contain 'query' and either 'location' (or lat/lon) for city searches,
-            event_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress
-            schedule searches. All other parameters are optional.
-            Note: The 'id' field is auto-generated if not provided.
+          description: >-
+            Array of official conference schedule searches. Set conference to GPN24, 39C3, 38C3 or 37C3, or name
+            the conference in query. General city and online discovery are unavailable. IDs are generated when omitted.
           items:
             type: object
             x-ui:
@@ -229,16 +147,15 @@ skills:
                 x-ui:
                   basic: true
                 type: string
-                description: >
-                  Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon',
-                  'startup', 'networking'). Do NOT include platform or app names such as
-                  'meetup', 'luma', or 'eventbrite' — these are stripped automatically
-                  and reduce result quality.
+                description: >-
+                  Optional session topic within the requested known conference. Omit for the full schedule.
               location:
                 x-ui:
                   basic: true
                 type: string
-                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
+                description: >-
+                  Optional location text retained for compatibility. A location alone does not enable event discovery;
+                  a known conference is required.
               lat:
                 x-ui:
                   basic: false
@@ -253,15 +170,20 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00'). An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's requested date range. If omitted, defaults to now."
+                description: "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00').
+                  An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's
+                  requested date range. If omitted, defaults to now."
               end_date:
                 x-ui:
                   basic: false
                 type: string
-                description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
+                description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper
+                  bound is applied."
               event_type:
                 type: string
-                description: "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote events. Omit only when user wants both types."
+                description: "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default
+                  for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote
+                  events. Omit only when user wants both types."
                 x-ui:
                   basic: false
                 enum:
@@ -271,13 +193,15 @@ skills:
                 x-ui:
                   basic: false
                 type: number
-                description: "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies to PHYSICAL events."
+                description: "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies
+                  to PHYSICAL events."
                 default: 25
               count:
                 x-ui:
                   basic: false
                 type: integer
-                description: "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user asks for more results."
+                description: "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user
+                  asks for more results."
                 minimum: 1
                 maximum: 50
                 default: 10
@@ -295,23 +219,20 @@ skills:
                   candidates (or the larger requested count) are scored against both the event topic
                   and this goal. Results with no credible relationship are omitted, so fewer than
                   count can be returned rather than padding the response with irrelevant events.
+                  When omitted, the query topic is still checked without expanding provider
+                  retrieval or changing the order of retained events.
               provider:
                 x-ui:
                   basic: false
                 type: string
-                description: "Provider for this request. Overrides the top-level provider when set."
+                description: "Official conference schedule provider; general event discovery is unavailable."
                 enum:
-                  - "auto"
-                  - "Meetup"
-                  - "Luma"
-                  - "Eventbrite"
-                  - "Resident Advisor"
-                  - "Siegessäule"
-                  - "Berlin Philharmonic"
-                  - "GPN24"
-                  - "39C3"
-                  - "38C3"
-                  - "37C3"
+                  - auto
+                  - pretalx
+                  - GPN24
+                  - 39C3
+                  - 38C3
+                  - 37C3
               providers:
                 x-ui:
                   basic: false
@@ -319,17 +240,8 @@ skills:
                 items:
                   type: string
                   enum:
-                    - "Meetup"
-                    - "Luma"
-                    - "Eventbrite"
-                    - "Resident Advisor"
-                    - "Siegessäule"
-                    - "Berlin Philharmonic"
-                    - "GPN24"
-                    - "39C3"
-                    - "38C3"
-                    - "37C3"
-                description: "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
+                    - pretalx
+                description: "Official conference schedule sources only."
               conference:
                 x-ui:
                   basic: false
@@ -344,7 +256,8 @@ skills:
                 x-ui:
                   basic: false
                 type: boolean
-                description: "Default false. Set true only when the user explicitly asks to include past/completed conference sessions."
+                description: "Default false. Set true only when the user explicitly asks to include past/completed
+                  conference sessions."
                 default: false
               concert_tags:
                 x-ui:
@@ -352,12 +265,8 @@ skills:
                 type: array
                 items:
                   type: string
-                description: >
-                  Optional tag filters for the Berlin Philharmonic provider.
-                  Use when the user asks about classical concerts in Berlin.
-                  Known values: Piano, Chamber Music, Jazz, Organ, Modern,
-                  Lunch Concerts, Singers, Children and Family, World.
-                  Ignored by all other providers.
+                description: >-
+                  Reserved tags; no concert source is configured.
       required:
         - requests
     workflow:
@@ -370,9 +279,10 @@ skills:
       test_allowed: true
       test_example_input:
         requests:
-          - query: OpenMates meetup Berlin
+          - query: security
             location: Berlin
             count: 3
+            conference: 39C3
       output_schema:
         type: object
         properties:
@@ -391,6 +301,14 @@ skills:
               basic: false
             type: string
             example: Example events provider
+            enum:
+              - auto
+              - pretalx
+              - GPN24
+              - 39C3
+              - 38C3
+              - 37C3
+            description: Official conference schedule provider; general event discovery is unavailable.
           results:
             x-ui:
               basic: true
@@ -412,7 +330,7 @@ skills:
                   x-ui:
                     basic: true
                   type: string
-                  example: AI community meetup
+                  example: AI community community gathering
                 url:
                   x-ui:
                     basic: true
@@ -428,11 +346,19 @@ skills:
                     basic: false
                   type: string
                   example: Example events provider
+                  enum:
+                    - auto
+                    - pretalx
+                    - GPN24
+                    - 39C3
+                    - 38C3
+                    - 37C3
+                  description: Official conference schedule provider; general event discovery is unavailable.
                 description:
                   x-ui:
                     basic: false
                   type: string
-                  example: An example meetup for people working with AI.
+                  example: An example community gathering for people working with AI.
                 date_start:
                   x-ui:
                     basic: true
@@ -457,13 +383,13 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 0
               example:
                 id: example-event
                 source_id: example-event
-                title: AI community meetup
+                title: AI community community gathering
                 url: https://example.invalid/events/ai
                 canonical_url: https://example.invalid/events/ai
                 provider: Example events provider
@@ -471,21 +397,21 @@ skills:
                 date_end: '2026-09-23T20:00:00+02:00'
                 location: Berlin
                 event_type: PHYSICAL
-                description: An example meetup for people working with AI.
+                description: Only known official conference schedules can be searched.
                 price_amount: 0
             example:
-            - id: example-event
-              source_id: example-event
-              title: AI community meetup
-              url: https://example.invalid/events/ai
-              canonical_url: https://example.invalid/events/ai
-              provider: Example events provider
-              date_start: '2026-09-23T18:00:00+02:00'
-              date_end: '2026-09-23T20:00:00+02:00'
-              location: Berlin
-              event_type: PHYSICAL
-              description: An example meetup for people working with AI.
-              price_amount: 0
+              - id: example-event
+                source_id: example-event
+                title: AI community community gathering
+                url: https://example.invalid/events/ai
+                canonical_url: https://example.invalid/events/ai
+                provider: Example events provider
+                date_start: '2026-09-23T18:00:00+02:00'
+                date_end: '2026-09-23T20:00:00+02:00'
+                location: Berlin
+                event_type: PHYSICAL
+                description: Only known official conference schedules can be searched.
+                price_amount: 0
           events:
             x-ui:
               basic: false
@@ -507,7 +433,7 @@ skills:
                   x-ui:
                     basic: false
                   type: string
-                  example: AI community meetup
+                  example: AI community community gathering
                 url:
                   x-ui:
                     basic: false
@@ -523,11 +449,19 @@ skills:
                     basic: false
                   type: string
                   example: Example events provider
+                  enum:
+                    - auto
+                    - pretalx
+                    - GPN24
+                    - 39C3
+                    - 38C3
+                    - 37C3
+                  description: Official conference schedule provider; general event discovery is unavailable.
                 description:
                   x-ui:
                     basic: false
                   type: string
-                  example: An example meetup for people working with AI.
+                  example: An example community gathering for people working with AI.
                 date_start:
                   x-ui:
                     basic: false
@@ -552,13 +486,13 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 0
               example:
                 id: example-event
                 source_id: example-event
-                title: AI community meetup
+                title: AI community community gathering
                 url: https://example.invalid/events/ai
                 canonical_url: https://example.invalid/events/ai
                 provider: Example events provider
@@ -566,21 +500,21 @@ skills:
                 date_end: '2026-09-23T20:00:00+02:00'
                 location: Berlin
                 event_type: PHYSICAL
-                description: An example meetup for people working with AI.
+                description: Only known official conference schedules can be searched.
                 price_amount: 0
             example:
-            - id: example-event
-              source_id: example-event
-              title: AI community meetup
-              url: https://example.invalid/events/ai
-              canonical_url: https://example.invalid/events/ai
-              provider: Example events provider
-              date_start: '2026-09-23T18:00:00+02:00'
-              date_end: '2026-09-23T20:00:00+02:00'
-              location: Berlin
-              event_type: PHYSICAL
-              description: An example meetup for people working with AI.
-              price_amount: 0
+              - id: example-event
+                source_id: example-event
+                title: AI community community gathering
+                url: https://example.invalid/events/ai
+                canonical_url: https://example.invalid/events/ai
+                provider: Example events provider
+                date_start: '2026-09-23T18:00:00+02:00'
+                date_end: '2026-09-23T20:00:00+02:00'
+                location: Berlin
+                event_type: PHYSICAL
+                description: Only known official conference schedules can be searched.
+                price_amount: 0
           warnings:
             x-ui:
               basic: false
@@ -594,15 +528,4 @@ skills:
             type: boolean
             example: false
 
-marketing_discovery:
-  skills:
-    search:
-      enabled: true
-      keywords:
-        - finding events across Meetup Luma platforms
-        - AI events workshops near me
-        - event discovery is fragmented
-      pain_points:
-        - users search many event platforms manually
-      demo_angles:
-        - show events search across providers
+    provider_required: true

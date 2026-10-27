@@ -104,6 +104,34 @@ def async_skill_deferred_index_key(user_id: str, chat_id: str) -> str:
     return f"{ASYNC_SKILL_DEFERRED_INDEX_KEY_PREFIX}:{user_id}:{chat_id}"
 
 
+def _isolated_capacity_replay_enabled() -> bool:
+    return (
+        os.getenv("OPENMATES_CI_ISOLATED") == "1"
+        and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true"
+        and os.getenv("SERVER_ENVIRONMENT", "production").lower() not in {"production", "prod"}
+    )
+
+
+def _capacity_scenario_in_history(request_data: AskSkillRequest) -> bool:
+    return any("STORAGE_CAPACITY_SCENARIO:" in str(message.content)
+               for message in request_data.message_history if message.role == "user")
+
+
+def _capacity_continuation_marker(context: dict[str, Any], request_data: AskSkillRequest) -> str | None:
+    marker = context.get("capacity_replay_marker")
+    if marker is None and not (
+        _isolated_capacity_replay_enabled() and _capacity_scenario_in_history(request_data)
+    ):
+        return None
+    if not _isolated_capacity_replay_enabled() or not isinstance(marker, str):
+        raise RuntimeError("Synthetic async continuation has no isolated replay context")
+    from backend.shared.testing.mock_context import resolve_live_marker_or_raise
+    validated = resolve_live_marker_or_raise(marker, request_data.user_id)
+    if not validated or validated.mode != "mock" or not validated.group_id.startswith("storage_capacity_"):
+        raise RuntimeError("Synthetic async continuation marker is invalid")
+    return marker
+
+
 async def cache_async_skill_continuation_context(
     *,
     cache_service: Any,
@@ -124,6 +152,16 @@ async def cache_async_skill_continuation_context(
     """Store the original ask context for a later async skill completion."""
     if not cache_service or not async_task_id:
         return
+
+    capacity_marker = None
+    if _isolated_capacity_replay_enabled():
+        from backend.apps.ai.sub_chat_orchestration import signed_capacity_replay_marker
+        # The ask task removed its marker before executing the tool. Carry only
+        # freshly signed authority from that task's verified replay ContextVar;
+        # request fields alone cannot enable replay on the resumed worker.
+        capacity_marker = signed_capacity_replay_marker(request_data, ttl_seconds=ttl_seconds)
+        if _capacity_scenario_in_history(request_data) and not capacity_marker:
+            raise RuntimeError("Synthetic async continuation requires active signed replay")
 
     if preprocessing_result is not None and not request_data.preprocessing_resume_ref:
         from backend.apps.ai.tasks.preprocessing_resume import store_preprocessing_resume
@@ -152,6 +190,8 @@ async def cache_async_skill_continuation_context(
                 "legacy_cutover_task_id", "root_legacy_cutover_task_id",
                 "root_turn_id", "root_user_message_id", "is_sub_chat",
                 "is_anonymous", "is_incognito", "is_external", "team_id_hash",
+                "voice_mode", "voice_call_id", "voice_turn_id", "voice_heard_boundary", "auto_speak_response",
+                "assistant_speech_lazy_dispatch", "assistant_response_source_revision",
             )
         }
         request_snapshot["message_history"] = []
@@ -167,6 +207,8 @@ async def cache_async_skill_continuation_context(
         "defer_until_initial_response_complete": defer_until_initial_response_complete,
         "same_turn_batch_id": same_turn_batch_id,
     }
+    if capacity_marker:
+        context["capacity_replay_marker"] = capacity_marker
     if inline_wait_deadline is not None:
         context["inline_wait_deadline"] = inline_wait_deadline
     stored = await cache_service.set(
@@ -224,16 +266,6 @@ async def dispatch_async_skill_continuation(
     selected_project_focus_candidates: Optional[list[dict[str, Any]]] = None,
 ) -> Optional[str]:
     """Dispatch a normal AI ask task to interpret completed async skill results."""
-    from backend.apps.ai.processing.voice_async_skills import (
-        active_voice_worker_context, settle_voice_async_completion,
-    )
-    voice = active_voice_worker_context.get()
-    if voice is not None:
-        # The original issued voice assistant already references this worker's
-        # canonical embed. Completion updates it through normal embed delivery.
-        await settle_voice_async_completion(context=voice, completed_results=completed_results,
-            result_status=result_status)
-        return None
     if not cache_service or not async_task_id:
         return None
 
@@ -370,6 +402,7 @@ async def dispatch_async_skill_continuation(
         return None
 
     original_request = AskSkillRequest(**request_payload)
+    capacity_marker = _capacity_continuation_marker(context, original_request)
     if context.get("requires_current_turn"):
         latest_user_turn = await cache_service.get(
             async_skill_latest_user_turn_key(
@@ -395,6 +428,12 @@ async def dispatch_async_skill_continuation(
         AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
         for message in original_request.message_history
     ]
+    if capacity_marker:
+        user_message = next((message for message in reversed(continuation_history)
+                             if message.role == "user" and message.sender_name != "async_tool_result"), None)
+        if user_message is None:
+            raise RuntimeError("Synthetic async continuation has no original user message")
+        user_message.content = f"{user_message.content} {capacity_marker}"
     private_project_completion = _private_project_completion(context)
     completed_message = _build_completed_tool_result_message(
         context=context, completed_results=completed_results,
@@ -429,6 +468,13 @@ async def dispatch_async_skill_continuation(
         current_user_content=original_request.current_user_content,
         chat_has_title=original_request.chat_has_title,
         current_chat_title=original_request.current_chat_title,
+        voice_mode=original_request.voice_mode,
+        voice_call_id=original_request.voice_call_id,
+        voice_turn_id=original_request.voice_turn_id,
+        voice_heard_boundary=original_request.voice_heard_boundary,
+        auto_speak_response=original_request.auto_speak_response,
+        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
+        assistant_response_source_revision=original_request.assistant_response_source_revision,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
@@ -801,6 +847,15 @@ async def dispatch_deferred_async_skill_continuations(
         if get_active_task and await get_active_task(chat_id):
             retained.append(str(async_task_id))
             continue
+        # Deferral outlives the preparation task: recheck the signed authority
+        # at the final queue boundary, including the exact prepared history.
+        deferred_request = AskSkillRequest(**request_payload)
+        capacity_marker = _capacity_continuation_marker(context, deferred_request)
+        if capacity_marker:
+            user_message = next((message for message in reversed(deferred_request.message_history)
+                                 if message.role == "user" and message.sender_name != "async_tool_result"), None)
+            if user_message is None or capacity_marker not in user_message.content:
+                raise RuntimeError("Synthetic deferred continuation lost its signed replay marker")
         app = _get_celery_app()
         result = app.send_task(
             name="apps.ai.tasks.skill_ask",

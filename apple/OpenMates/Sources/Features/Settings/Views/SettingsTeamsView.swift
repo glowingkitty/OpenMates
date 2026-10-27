@@ -1,3 +1,5 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/settings/SettingsTeams.svelte
 // CSS: frontend/packages/ui/src/styles/settings.css
@@ -94,7 +96,13 @@ struct SettingsTeamsView: View {
             if !fixture { Task { await controller.membershipChanged(TeamWorkspaceContext.shared.teams) } }
         }
         .onChange(of: selectedPhoto) { _, item in loadPhoto(item) }
-        .onChange(of: controller.accountDeleted) { _, deleted in if deleted { Task { await authManager.logout() } } }
+        .onChange(of: controller.accountDeleted) { _, deleted in
+            guard deleted, let deletionCleanup = controller.accountDeletionCleanup else { return }
+            Task {
+                guard deletionCleanup.eraseConfirmed(currentAccountID: authManager.currentUser?.id) else { return }
+                await authManager.logout()
+            }
+        }
         .onChange(of: controller.selectedID) { _, _ in
             inviteRecipient = ""
             photoGeneration = UUID(); preparingPhoto = false; selectedPhoto = nil; photoFailed = false

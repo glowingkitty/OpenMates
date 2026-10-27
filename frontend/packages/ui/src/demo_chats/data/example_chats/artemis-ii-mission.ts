@@ -114,7 +114,7 @@ skill_id: search`,
       content: `type: image_result
 title: ""
 source_page_url: "https://www.cbsnews.com/news/artemis-ii-moon-mission-highlights/"
-image_url: "https://substackcdn.com/image/fetch/$s_!u4dO!,f_auto,q_auto:good,fl_progressive:steep/https://substack-post-media.s3.amazonaws.com/public/images/cd3ef3db-7415-4a3e-a040-4d5b782ed0fd_1024x768.jpeg#"
+image_url: "https://substackcdn.com/image/fetch/$s_!u4dO!,f_auto,q_auto:good,fl_progressive:steep/https://example.com/public/images/cd3ef3db-7415-4a3e-a040-4d5b782ed0fd_1024x768.jpeg#"
 thumbnail_url: "https://imgs.search.brave.com/n4mw1gAlmoO6Io7_CKL2qRTzRRCUhk-zMhQaW1aVWnE/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9zdWJz/dGFja2Nkbi5jb20v/aW1hZ2UvZmV0Y2gv/JHNfIXU0ZE8hLGZf/YXV0byxxX2F1dG86/Z29vZCxmbF9wcm9n/cmVzc2l2ZTpzdGVl/cC9odHRwczovL3N1/YnN0YWNrLXBvc3Qt/bWVkaWEuczMuYW1h/em9uYXdzLmNvbS9w/dWJsaWMvaW1hZ2Vz/L2NkM2VmM2RiLTc0/MTUtNGEzZS1hMDQw/LTRkNWI3ODJlZDBm/ZF8xMDI0eDc2OC5q/cGVnIw"
 source: cbsnews.com
 favicon_url: "https://imgs.search.brave.com/WMJ84WFf8h1hcjjVVUUmzl0nnJIhOkOa5cdJGjXcdWk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNDUwNTNjY2I0/ZTJkMTA1NjkzNzQ3/Mzg4OGQ4ZDNmZjg0/YTFmYzhhZjBkMTU2/N2ZkNDA4MmZjZTM4/YTI3MTllMS93d3cu/Y2JzbmV3cy5jb20v"
@@ -215,13 +215,13 @@ skill_id: search`,
       type: "image_result",
       content: `type: image_result
 title: r/space - Mission Specialist 1 Christina Koch
-source_page_url: "https://reddit.com/r/space/comments/12godxq/nasas_artemis_ii_mission_crew_portraits"
+source_page_url: "https://example.com/fixture"
 image_url: "https://preview.redd.it/nasas-artemis-ii-mission-crew-portraits-v0-g7hpd7ndzvsa1.jpg?width=640&crop=smart&auto=webp&s=043a73790b8fa4ced6e0d80a31fcaf7d6726ae80"
 thumbnail_url: "https://imgs.search.brave.com/_t8cPb6u_zxaTdADy61_HS9z94igJhLtw6Uq_YykIv0/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9wcmV2/aWV3LnJlZGQuaXQv/bmFzYXMtYXJ0ZW1p/cy1paS1taXNzaW9u/LWNyZXctcG9ydHJh/aXRzLXYwLWc3aHBk/N25kenZzYTEuanBn/P3dpZHRoPTY0MCZj/cm9wPXNtYXJ0JmF1/dG89d2VicCZzPTA0/M2E3Mzc5MGI4ZmE0/Y2VkNmUwZDgwYTMx/ZmNhZjdkNjcyNmFl/ODA"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/DiurNUpQ5h2-rFXH9KlBTV1zV9w6-RtG9hXKYTZC59g/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYzhlM2VlYjdj/YTI5NGExYWNkZWQ1/MWVjNjMyMjQzZTE5/YmYxOTdiZjQ3YjRj/NzAxMjBhNGZkMmYw/NTE1OGY2YS9yZWRk/aXQuY29tLw"
 hash: 1bcb78754c0398d2
-embed_ref: reddit.com-00z
+embed_ref: ExampleCommunity.com-00z
 app_id: images
 skill_id: search`,
       parent_embed_id: "7b320fe9-2c21-4aff-92a7-0b3100a7419b",
@@ -551,7 +551,7 @@ profile_name: NASA +
 meta_url_favicon: "https://imgs.search.brave.com/Yfk_9jQJ5wXHVA6jmPYcioJpZZ7QBbIuYcxB6oLuJRU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMDM4NjliZDRl/MjBjZGJiNDE1NWI1/ZTE4MDZlNmNhN2Q1/Njc1NTc2ZWI1NjM1/YjAxMjlmNjgxOWUy/Y2VjYjFiYy9wbHVz/Lm5hc2EuZ292Lw"
 thumbnail_src: "https://imgs.search.brave.com/UGQLF1SH4dJIr9VXgsCZt7wc0JiL-4gJf7Q7lNKv9mM/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9wbHVz/Lm5hc2EuZ292L3dw/LWNvbnRlbnQvdXBs/b2Fkcy8yMDI2LzA0/L2FydGVtaXMtaWkt/cmVlbnRyeS1hbmQt/c3BsYXNoZG93bi1y/MS1ob3Jpem9udGFs/LXByb2dyYW0tdGls/ZS0xNi05LXdpdGhv/dXQtdGl0bGUuanBn"
 thumbnail_original: "https://plus.nasa.gov/wp-content/uploads/2026/04/artemis-ii-reentry-and-splashdown-r1-horizontal-program-tile-16-9-without-title.jpg"
-extra_snippets: "April 10, 2026 6:30 pm · Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m. EDT on Friday, […] 00 · Days · 00 · Hours · 00 · Min · 00 · Sec · This event has already occurred Open Video Player ·|April 10, 2026 6:30 pm · Watch Livestream · Facebook · Pinterest · Reddit · X · LinkedIn · Telegram · Email · WhatsApp · https://plus.nasa.gov/scheduled-video/nasas-artemis-ii-crew-comes-home-official-broadcast/Copy URL to clipboard> Share · Google Calendar · ICS File Add to Calendar · Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m.|Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m. EDT on Friday, April 10."
+extra_snippets: "April 10, 2026 6:30 pm · Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m. EDT on Friday, […] 00 · Days · 00 · Hours · 00 · Min · 00 · Sec · This event has already occurred Open Video Player ·|April 10, 2026 6:30 pm · Watch Livestream · Facebook · Pinterest · ExampleCommunity · X · LinkedIn · Telegram · Email · WhatsApp · https://plus.nasa.gov/scheduled-video/nasas-artemis-ii-crew-comes-home-official-broadcast/Copy URL to clipboard> Share · Google Calendar · ICS File Add to Calendar · Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m.|Around the Moon and back. Watch the Artemis II astronauts come home. NASA’s Artemis II mission is splashing down in the Pacific Ocean at about 8:07 p.m. EDT on Friday, April 10."
 hash: d7c848a2ec802c01
 embed_ref: plus.nasa.gov-Srx
 app_id: web

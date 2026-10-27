@@ -28,11 +28,14 @@
 -->
 
 <script lang="ts">
+  import { APPS_RESULTS_SAVE_CONTEXT, type AppsResultsSaveContext } from '../../services/appsWorkspaceContext';
+  import { text } from '../../i18n/translations';
+  const appsSave = getContext<AppsResultsSaveContext | undefined>(APPS_RESULTS_SAVE_CONTEXT);
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, tick, getContext } from 'svelte';
-  import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
+  import { EMBED_CHAT_CONTEXT, EMBED_FULLSCREEN_LIFETIME_CONTEXT, type EmbedChatContext, type EmbedFullscreenLifetimeContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { settingsMenuVisible } from '../Settings.svelte';
@@ -58,6 +61,7 @@
   const CHILD_EMBED_RETRY_DELAY_MS = 400;
   const CLOSE_FALLBACK_MS = 1000;
   const workspace = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
+  const fullscreenLifetime = getContext<EmbedFullscreenLifetimeContext | undefined>(EMBED_FULLSCREEN_LIFETIME_CONTEXT);
   let closeFallback: ReturnType<typeof setTimeout> | undefined;
   let closeCompleted = false;
   
@@ -135,6 +139,16 @@
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Optional embed-specific actions in the standard header menu. */
+    fixedBottom?: import('svelte').Snippet;
+    /** Result embeds float their composer over the content, as in the design references. */
+    floatingBottom?: boolean;
+    /** App landing pages fit one screen; result collections retain scrolling. */
+    contentLayout?: 'default' | 'app-home';
+    embedHeaderContent?: import('svelte').Snippet;
+    /** Primary embed action stays visible alongside privacy controls at all widths. */
+    headerPrimaryAction?: import('svelte').Snippet;
+    /** An open child panel may consume Escape before this fullscreen closes. */
+    escapeScope?: { consume: () => boolean };
     headerActions?: import('svelte').Snippet;
     headerActionCount?: number;
 
@@ -155,6 +169,7 @@
      * Shown bold and white, centered below the icon.
      */
     embedHeaderTitle?: string;
+    embedHeaderTitleTestId?: string;
     
     /**
      * Subtitle displayed below the title in the header banner.
@@ -163,6 +178,7 @@
     embedHeaderSubtitle?: string;
     /** Opt-in taller Apps workspace hero; regular embeds keep their existing banner. */
     embedHeaderPresentation?: 'embed' | 'apps';
+    embedHeaderCompact?: boolean;
     /** Keep regular embed icon navigation; Apps heroes can render the icon as decoration. */
     embedHeaderIconInteractive?: boolean;
     embedHeaderEyebrow?: string;
@@ -190,6 +206,7 @@
      * When empty/undefined, shows the app icon (icon_rounded class).
      */
     skillIconName?: string;
+    decorationIconName?: string;
 
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
     appIconName?: string;
@@ -366,7 +383,7 @@
     onEdit,
     editActive = false,
     contentBackgroundColor,
-    closeOnChatSelection = true,
+    closeOnChatSelection = fullscreenLifetime?.closeOnChatSelection ?? true,
     owningChatId,
     onCopy,
     onDownload,
@@ -379,13 +396,21 @@
     onShare,
     showShare = true,
     content,
+    fixedBottom,
+    floatingBottom = false,
+    contentLayout = 'default',
+    embedHeaderContent,
+    headerPrimaryAction,
+    escapeScope,
     headerActions,
     headerActionCount = 1,
     embedHeaderCta,
     // Embed header props
     embedHeaderTitle = '',
+    embedHeaderTitleTestId,
     embedHeaderSubtitle = '',
     embedHeaderPresentation = 'embed',
+    embedHeaderCompact = false,
     embedHeaderIconInteractive = true,
     embedHeaderEyebrow = '',
     embedHeaderFooter = '',
@@ -394,6 +419,7 @@
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
     skillIconName = '',
+    decorationIconName,
     appIconName = '',
     showSkillIcon = true,
     // Child embed loading props
@@ -1380,7 +1406,11 @@
 
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && isAnimatingIn) handleClose(); }} />
+<svelte:window onkeydown={(event) => {
+  if (event.key !== 'Escape' || !isAnimatingIn || event.defaultPrevented) return;
+  if (escapeScope?.consume()) { event.preventDefault(); return; }
+  handleClose();
+}} />
 
 <div
   class="unified-embed-fullscreen-overlay"
@@ -1395,7 +1425,7 @@
     <!-- ── Scrollable content area (header banner + embed content) ──
          Fills the full container height. EmbedTopBar overlays the top
          via position: absolute so no space is reserved for it here. -->
-    <div class="content-area" bind:this={contentAreaElement}>
+    <div class="content-area" class:app-home-content={contentLayout === 'app-home'} bind:this={contentAreaElement}>
 
       {#if $chatDebugStore.rawTextMode && $userProfile.is_admin}
         <div class="embed-debug-output selectable">
@@ -1419,18 +1449,24 @@
              EmbedTopBar floats above it as a transparent overlay.
              If a CTA is present it pokes out from the banner's bottom edge
              and the embed content must provide enough top spacing to clear it. -->
+        {#if embedHeaderContent}
+          {@render embedHeaderContent()}
+        {:else}
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
           presentation={embedHeaderPresentation}
+          compact={embedHeaderCompact}
           eyebrow={embedHeaderEyebrow}
           footer={embedHeaderFooter}
           providers={embedHeaderProviders}
           {appId}
           {skillIconName}
+          {decorationIconName}
           {appIconName}
           {showSkillIcon}
           onHeaderIconClick={embedHeaderIconInteractive ? handleEmbedHeaderIconClick : undefined}
           title={embedHeaderTitle}
+          titleTestId={embedHeaderTitleTestId}
           provenance={embedHeaderProvenance}
           subtitle={embedHeaderSubtitle}
           faviconUrl={embedHeaderFaviconUrl}
@@ -1443,6 +1479,7 @@
           onNavigateNext={handleNavigateNext}
         />
 
+        {/if}
         <!-- ── Embed-specific content ── -->
         {#if content}
           {@render content(childEmbedContext)}
@@ -1455,11 +1492,19 @@
 
     </div>
     <!-- end .content-area -->
+    {#if appsSave?.state}
+      <div class="apps-save-state" data-testid="apps-result-save-state" data-save-state={appsSave.state} role="status">
+        {$text(appsSave.state === 'error' ? 'apps_workspace.save_failed' : appsSave.state === 'saving' ? 'apps_workspace.saving' : 'apps_workspace.saved')}
+        {#if appsSave.state === 'error'}<button type="button" data-testid="apps-result-save-retry" onclick={() => appsSave.retry()}>{$text('apps_workspace.retry_save')}</button>{/if}
+      </div>
+    {/if}
+    {#if fixedBottom}<div class="fixed-bottom" class:floating-bottom={floatingBottom} data-testid="embed-fixed-bottom">{@render fixedBottom()}</div>{/if}
 
     <!-- ── Action buttons (transparent overlay, positioned over the header) ──
          position: absolute so it does not push the content area down.
          The gradient header is visible through the semi-transparent buttons. -->
     <EmbedTopBar
+      {headerPrimaryAction}
       {headerActions}
       {headerActionCount}
       {showChatButton}
@@ -1590,7 +1635,15 @@
      =========================================== */
 
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
+  .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
+  .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
+  .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
+  .fixed-bottom.floating-bottom { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, var(--embed-content-background)); pointer-events: none; }
+  .floating-bottom :global(.result-followup) { pointer-events: auto; }
+  .content-area.app-home-content { display: flex; flex-direction: column; overflow: hidden; }
+
   .content-area {
+    min-height: 0;
     flex: 1;
     background-color: var(--embed-content-background);
     overflow-y: auto;

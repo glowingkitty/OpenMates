@@ -8,6 +8,7 @@
 /** Default props — shows a finished flight connection card */
 const defaultProps = {
 	id: 'preview-travel-connection-1',
+	connection: { origin_country_code: 'DE', destination_country_code: 'GB', legs: [{ origin: 'Munich (MUC)', destination: 'London Heathrow (LHR)', departure: '2026-03-15T08:30:00', arrival: '2026-03-15T10:00:00', duration: '2h 30m', segments: [{ departure_is_daytime: true, arrival_is_daytime: true }] }], route_points: [{lat: 48.3537, lon: 11.775}, {lat: 51.47, lon: -0.4543}] },
 	price: '189.00',
 	currency: 'EUR',
 	transportMethod: 'airplane',
@@ -25,16 +26,47 @@ const defaultProps = {
 	isCheapest: true,
 	status: 'finished' as const,
 	isMobile: false,
-	onFullscreen: () => {}
+	onFullscreen: () => console.info('[Preview] travel/event result expanded')
 };
 
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  brokenCarrier: {
+    ...defaultProps, transportMethod: 'train', bookingProvider: 'Rail provider', carriers: ['Rail provider'], carrierCodes: [],
+    airlineLogo: '/missing-carrier-fixture.png',
+  },
+  roundTripItinerary: {
+    ...defaultProps,
+    tripType: 'round_trip',
+    connection: { origin_country_code: 'DE', destination_country_code: 'GB', legs: [
+      { origin: 'Munich (MUC)', destination: 'London Heathrow (LHR)', departure: '2026-03-15T08:30:00', arrival: '2026-03-15T10:00:00', duration: '2h 30m', segments: [{ departure_is_daytime: true, arrival_is_daytime: true }] },
+      { origin: 'London Heathrow (LHR)', destination: 'Munich (MUC)', departure: '2026-03-22T18:00:00', arrival: '2026-03-22T20:30:00', duration: '1h 30m', segments: [{ departure_is_daytime: false, arrival_is_daytime: false }] },
+    ], route_points: [{lat: 48.3537, lon: 11.775}, {lat: 51.47, lon: -0.4543}] },
+  },
+  trainRealtime: {
+    ...defaultProps, transportMethod: 'train', bookingProvider: 'Example Rail', airlineLogo: '/icons/server.svg',
+    origin: 'Berlin Central Station', destination: 'Hamburg Central Station',
+    departure: '2026-03-15T09:04:00+01:00', arrival: '2026-03-15T10:46:00+01:00', duration: '1h 42m',
+    connection: { legs: [{
+      origin: 'Berlin Central Station', destination: 'Hamburg Central Station',
+      departure: '2026-03-15T09:04:00+01:00', arrival: '2026-03-15T10:46:00+01:00',
+      segments: [{ departure_latitude: 52.525, departure_longitude: 13.369, arrival_latitude: 53.553, arrival_longitude: 10.007 }],
+    }] },
+    carriers: ['Example Rail'], carrierCodes: [], arrivalDelayMinutes: 12,
+    optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
+  },
+  baggageExcluded: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: false } },
+  baggageIncluded: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: true } },
+  baggageConflicting: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: true, checked_baggage_included: false } },
+  baggageUnknown: { ...defaultProps },
+  noRouteGeometry: { ...defaultProps, connection: {} },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
 	/** Multi-stop connection */
 	multiStop: {
 		...defaultProps,
+		connection: undefined,
 		id: 'preview-travel-connection-multistop',
 		price: '245.50',
 		destination: 'London Gatwick (LGW)',
@@ -77,9 +109,10 @@ export const variants = {
 		isMobile: true
 	},
 
-	/** Train connection with provider favicon and explicit times */
-	deutscheBahn: {
+	/** Train connection with stored source icon and explicit times */
+	exampleRail: {
 		...defaultProps,
+		connection: undefined,
 		id: 'preview-travel-connection-db',
 		transportMethod: 'train',
 		origin: 'Berlin Central Station',
@@ -87,15 +120,17 @@ export const variants = {
 		departure: '2026-03-15T09:04:00+01:00',
 		arrival: '2026-03-15T10:46:00+01:00',
 		duration: '1h 42m',
-		carriers: ['Deutsche Bahn'],
-		bookingProvider: 'Deutsche Bahn',
+		carriers: ['Example Rail'],
+		bookingProvider: 'Example Rail',
+		airlineLogo: '/icons/server.svg',
 		carrierCodes: []
 	},
 
-	/** Flix connection with provider favicon and explicit times */
-	flixTrain: {
+	/** ExampleCoach connection with stored source icon and explicit times */
+	ExampleCoach: {
 		...defaultProps,
-		id: 'preview-travel-connection-flix',
+		connection: undefined,
+		id: 'preview-travel-connection-ExampleCoach',
 		transportMethod: 'train',
 		origin: 'Berlin Central Station',
 		destination: 'Stuttgart Flughafen/Messe',
@@ -103,8 +138,8 @@ export const variants = {
 		arrival: '2026-03-15T14:22:00+01:00',
 		duration: '6h 45m',
 		stops: 1,
-		carriers: ['FlixTrain', 'FlixBus'],
-		bookingProvider: 'FlixBus / FlixTrain',
+		carriers: ['ExampleCoach', 'ExampleCoach'],
+		bookingProvider: 'ExampleCoach / ExampleCoach',
 		carrierCodes: []
 	}
 };

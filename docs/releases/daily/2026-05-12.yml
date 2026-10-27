@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -183,15 +163,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -353,7 +329,6 @@ sections:
     - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
     - frontend/packages/ui/src/i18n/sources/apps.yml
     - frontend/packages/ui/src/tokens/sources/gradients.yml
-    - frontend/packages/ui/static/icons/reddit.svg
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -463,15 +438,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -947,15 +918,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add native Apple embed parity previews'
@@ -969,15 +936,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: serve OG image asset'
@@ -1159,7 +1122,6 @@ sources:
     - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
     - frontend/packages/ui/src/i18n/sources/apps.yml
     - frontend/packages/ui/src/tokens/sources/gradients.yml
-    - frontend/packages/ui/static/icons/reddit.svg
     related_feature_ids: []
   - sha: 4977996f6de93d6aa26a86fc03c26db1d2428337
     short_sha: 4977996f6
@@ -1506,8 +1468,7 @@ llm_summary:
       - d1a53706b
       - 3c2fdb51b
     release_status: released_main
-  - text: The social media skill is now active, featuring restored card styling and Reddit icon support.
-    evidence:
+  - evidence:
       commits:
       - f0fc5d012
       - 1a019b539

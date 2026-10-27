@@ -1,3 +1,5 @@
+import { clearApplicationPreviewSessions, handleApplicationPreviewStatusUpdate } from "./applicationPreviewService";
+import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
@@ -79,7 +81,7 @@ import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import {
-  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, handleMetadataJobsAvailableImpl,
   prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
 } from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
@@ -99,6 +101,7 @@ import { chatMetadataCache } from "./chatMetadataCache";
 import { getTeam } from "./teamService";
 import {
   setProjectFileJobsCapabilityEnabled,
+  setChatMetadataRecoveryCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
 } from "../config/api";
 
@@ -186,6 +189,7 @@ export class ChatSynchronizationService extends EventTarget {
   private lastQueuedSnapshotChat: string | null = null;
   private queuedSnapshotSocketEpoch = 0;
   private pendingQueuedSnapshotSends = new Map<string, PendingQueuedSnapshotSend>();
+  private readonly outboundMessageSends = new OutboundMessageSends();
   private isSyncing = false;
   private serverChatOrder: string[] = [];
   private webSocketConnected = false;
@@ -584,7 +588,10 @@ export class ChatSynchronizationService extends EventTarget {
     });
     this.addEventListener('aiTaskEnded', (event) => {
       const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
-      if (detail?.status === 'completed' || !detail?.chatId || !detail?.userMessageId) return;
+      // Cancellation ends inference and playback, not encrypted persistence.
+      // A partial reply can still be sealing or awaiting its canonical ACK;
+      // keep successors fenced until that exact storage/recovery proof arrives.
+      if (detail?.status === 'completed' || detail?.status === 'cancelled' || !detail?.chatId || !detail?.userMessageId) return;
       failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
     });
     this.registerWebSocketHandlers();
@@ -666,8 +673,10 @@ export class ChatSynchronizationService extends EventTarget {
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
+      clearApplicationPreviewSessions();
       chatSyncActivity.clear();
       resetRecoveryLifecycleImpl();
+      setChatMetadataRecoveryCapabilityEnabled(false);
       console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
@@ -729,6 +738,7 @@ export class ChatSynchronizationService extends EventTarget {
       if (wasWebSocketConnected !== this.webSocketConnected) {
         this.queuedSnapshotSocketEpoch++;
         this.pendingQueuedSnapshotSends.clear();
+        this.outboundMessageSends.clear();
       }
       if (this.webSocketConnected) {
         // A default zero or a prior socket's status cannot authorize a local
@@ -1883,6 +1893,7 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; reason: string; message?: string },
       ),
     );
+    webSocketService.on("application_preview_status", handleApplicationPreviewStatusUpdate);
     webSocketService.on("embed_update", (payload) =>
       aiHandlers.handleEmbedUpdateImpl(
         this,
@@ -2082,6 +2093,10 @@ export class ChatSynchronizationService extends EventTarget {
     // Recovery availability can arrive immediately after connection establishment.
     // Register its already-loaded handler before any dynamic handler imports so an
     // available sealed completion is never dropped.
+    webSocketService.on("metadata_jobs_available", (payload) =>
+      handleMetadataJobsAvailableImpl(this, payload as Parameters<typeof handleMetadataJobsAvailableImpl>[1]),
+    );
+    setChatMetadataRecoveryCapabilityEnabled(true);
     webSocketService.on("recovery_jobs_available", (payload) =>
       handleRecoveryJobsAvailableImpl(
         this,
@@ -2285,12 +2300,6 @@ export class ChatSynchronizationService extends EventTarget {
           e,
         );
       }
-    });
-
-    webSocketService.on("voice_action_completed", (payload) => {
-      void import("./voiceCallActions").then(({ handleVoiceActionCompleted }) =>
-        handleVoiceActionCompleted(this, payload),
-      ).catch(() => { console.warn("[ChatSyncService] Committed voice action could not be persisted"); });
     });
 
     webSocketService.on("ai_message_ready", (payload) =>
@@ -2985,6 +2994,31 @@ export class ChatSynchronizationService extends EventTarget {
     newLocalChat?: boolean,
     earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
   ): Promise<void> {
+    const current = this.queuedSnapshotScope(message.chat_id);
+    const contentIdentity = () => JSON.stringify([message.role, message.content, message.created_at,
+      message.sender_name, message.category]);
+    const send = (holdUntil: (completion: Promise<void>, canonicalContent?: string) => void) => this.sendNewMessageCore(
+      message, encryptedSuggestionToDelete, connectedAccountContext, projectFocusIntent,
+      newLocalChat, earlyEmptyConnectedAccounts, (completion) => holdUntil(completion, contentIdentity()),
+    );
+    if (!current) return send(() => undefined);
+    return this.outboundMessageSends.run(
+      JSON.stringify([current.workspace, current.teamId, current.teamEpoch, current.socketEpoch]),
+      JSON.stringify([message.chat_id, message.message_id]),
+      contentIdentity(),
+      send,
+    );
+  }
+
+  private async sendNewMessageCore(
+    message: Message,
+    encryptedSuggestionToDelete?: string | null,
+    connectedAccountContext?: ConnectedAccountSendContext,
+    projectFocusIntent?: ProjectFocusSendIntent,
+    newLocalChat?: boolean,
+    earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
+    holdAdmissionUntil?: (completion: Promise<void>) => void,
+  ): Promise<void> {
     // Reserve synchronously: connected-account preparation may await before the
     // sender starts, while another local send can already be in progress.
     const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
@@ -3072,6 +3106,7 @@ export class ChatSynchronizationService extends EventTarget {
       supportsAdmissionNow,
       () => supportsAdmissionNow() && this.serverCapabilityGate.supportsSelectionDetailsV2(),
       () => supportsAdmissionNow() && this.serverCapabilityGate.supportsContextFailure(),
+      holdAdmissionUntil,
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
@@ -3168,8 +3203,8 @@ export class ChatSynchronizationService extends EventTarget {
   ): Promise<void> {
     await senders.sendCancelSkillImpl(this, skillTaskId, embedId);
   }
-  public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<void> {
-    await senders.sendStoreEmbedImpl(this, payload);
+  public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<senders.EmbedPersistenceResult> {
+    return senders.sendStoreEmbedOperationImpl(this, payload);
   }
   public async sendDeleteNewChatSuggestion(
     encryptedSuggestion: string,

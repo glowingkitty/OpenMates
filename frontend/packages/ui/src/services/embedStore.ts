@@ -97,7 +97,6 @@ const FILE_LIKE_EMBED_TYPES = new Set([
 
 export interface PreviewBackfillMergeResult {
   updated: boolean;
-  storePayload?: StoreEmbedPayload;
 }
 
 export interface VersionRestoreUpdateResult {
@@ -255,10 +254,17 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  // Derived display data never replaces canonical ciphertext or enters IDB.
+  // Bound it independently and invalidate it when its source revision changes.
+  private readonly previewProjections = new BoundedCache<string, {
+    source: unknown; version: unknown; fields: Record<string, unknown>;
+  }>(8 * 1024 * 1024, 500);
   private readonly pendingEmbedIdsByChatId = new Map<string, Set<string>>();
   private readonly childRepairAttempts = new Map<string, number>();
   private readonly childRepairInFlight = new Map<string, Promise<void>>();
   private readonly refRepairInFlight = new Map<string, Promise<string | null>>();
+  private readonly refWindowRepairs = new Map<string, Promise<string[]>>();
+  private readonly refWindowAttempts = new Map<string, number>();
   private uploadedFileCandidates: UploadedFileSearchCandidate[] | null = null;
   private uploadedFileCandidatesPromise: Promise<UploadedFileSearchCandidate[]> | null = null;
   private uploadedFileSearchGeneration = 0;
@@ -1856,6 +1862,24 @@ export class EmbedStore {
   async get(
     contentRef: string,
   ): Promise<Record<string, unknown> | string | undefined> {
+    const canonical = await this.readCanonicalEmbed(contentRef);
+    const projection = this.previewProjections.get(contentRef);
+    if (!projection || !canonical || typeof canonical !== "object") return canonical;
+    if (projection.source !== canonical.content
+      || projection.version !== (canonical.version_number ?? 1)) {
+      this.previewProjections.delete(contentRef);
+      return canonical;
+    }
+    const decoded = typeof canonical.content === "string"
+      ? await decodeRefRepairContent(canonical.content) : canonical.content;
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return canonical;
+    return { ...canonical, ...projection.fields,
+      content: JSON.stringify({ ...decoded, ...projection.fields }) };
+  }
+
+  private async readCanonicalEmbed(
+    contentRef: string,
+  ): Promise<Record<string, unknown> | string | undefined> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
 
@@ -2289,136 +2313,49 @@ export class EmbedStore {
   }
 
   /**
-   * Merge lightweight preview metadata into a parent embed and prepare a durable
-   * store_embed payload when this is a writable owner copy.
-   *
-   * Shared/read-only copies intentionally stop after the local merge so shared
-   * chat recipients never rewrite encrypted parent state on the server.
+   * Overlay derived display fields without mutating canonical content, even for
+   * owner copies. Viewing an embed is never a revision-edit command.
    */
   async mergeDecodedContentForPreviewBackfill(
     contentRef: string,
     fields: Record<string, unknown>,
   ): Promise<PreviewBackfillMergeResult> {
-    const existing = await this.get(contentRef);
+    const existing = await this.readCanonicalEmbed(contentRef);
     if (!existing || typeof existing !== "object") {
       return { updated: false };
     }
 
-    const rawEntry = embedCache.get(contentRef);
+    const permitted = new Set([
+      "result_count", "preview_results", "preview_results_json",
+      "flight_track", "booking_url", "booking_provider",
+    ]);
+    if (Object.keys(fields).some((field) => !permitted.has(field))) {
+      throw new Error("Derived preview fields cannot change canonical embed identity or content.");
+    }
     const rawContent = existing.content;
     let decodedContent: Record<string, unknown> = {};
     if (rawContent && typeof rawContent === "string") {
-      const decoded = await decodeToonContentLocal(rawContent);
+      const decoded = await decodeRefRepairContent(rawContent);
       if (decoded && typeof decoded === "object") {
         decodedContent = decoded as Record<string, unknown>;
       }
     }
 
+    const prior = this.previewProjections.get(contentRef);
+    const previousFields = prior?.source === rawContent
+      && prior.version === (existing.version_number ?? 1) ? prior.fields : {};
     const changed = Object.entries(fields).some(
-      ([key, value]) => JSON.stringify(decodedContent[key]) !== JSON.stringify(value),
+      ([key, value]) => JSON.stringify(previousFields[key] ?? decodedContent[key]) !== JSON.stringify(value),
     );
     if (!changed) {
       return { updated: false };
     }
 
-    const mergedContent = { ...decodedContent, ...fields };
-    const mergedContentString = JSON.stringify(mergedContent);
-    const nowMs = Date.now();
-
-    this.setInMemoryOnly(contentRef, {
-      ...existing,
-      ...fields,
-      content: mergedContentString,
-      status: existing.status || fields.status || "finished",
-      updatedAt: nowMs,
+    this.previewProjections.set(contentRef, {
+      source: rawContent, version: existing.version_number ?? 1,
+      fields: { ...previousFields, ...fields },
     });
-
-    if (!canStorePreviewBackfillLocally(rawEntry)) {
-      return { updated: true };
-    }
-
-    const embedId = rawEntry.embed_id || contentRef.replace("embed:", "");
-    const embedKey = await this.getEmbedKey(embedId, rawEntry.hashed_chat_id);
-    if (!embedKey) {
-      return { updated: true };
-    }
-
-    const encryptedContent = await encryptWithEmbedKey(
-      mergedContentString,
-      embedKey,
-    );
-    if (!encryptedContent) {
-      return { updated: true };
-    }
-
-    const updatedAtSeconds = Math.floor(nowMs / 1000);
-    const createdAt = rawEntry.createdAt || nowMs;
-    const createdAtSeconds =
-      createdAt > 10_000_000_000 ? Math.floor(createdAt / 1000) : createdAt;
-
-    const encryptedData = {
-      embed_id: embedId,
-      encrypted_type: rawEntry.encrypted_type,
-      encrypted_content: encryptedContent,
-      encrypted_text_preview: rawEntry.encrypted_text_preview,
-      status: rawEntry.status || "finished",
-      hashed_chat_id: rawEntry.hashed_chat_id,
-      hashed_message_id: rawEntry.hashed_message_id,
-      hashed_task_id: rawEntry.hashed_task_id,
-      hashed_user_id: rawEntry.hashed_user_id,
-      embed_ids: rawEntry.embed_ids,
-      parent_embed_id: rawEntry.parent_embed_id,
-      version_number: rawEntry.version_number,
-      file_path: rawEntry.file_path,
-      content_hash: rawEntry.content_hash,
-      text_length_chars: rawEntry.text_length_chars,
-      is_private: rawEntry.is_private ?? false,
-      is_shared: rawEntry.is_shared ?? false,
-      createdAt: rawEntry.createdAt,
-      updatedAt: nowMs,
-    };
-
-    await this.putEncrypted(
-      contentRef,
-      encryptedData,
-      rawEntry.type,
-      mergedContentString,
-      {
-        app_id: rawEntry.app_id,
-        skill_id: rawEntry.skill_id,
-        encryption_mode: rawEntry.encryption_mode,
-        vault_key_id: rawEntry.vault_key_id,
-      },
-    );
-
-    if (!canPersistPreviewBackfill(rawEntry)) {
-      return { updated: true };
-    }
-
-    return {
-      updated: true,
-      storePayload: {
-        embed_id: embedId,
-        encrypted_type: rawEntry.encrypted_type,
-        encrypted_content: encryptedContent,
-        encrypted_text_preview: rawEntry.encrypted_text_preview,
-        status: rawEntry.status || "finished",
-        hashed_chat_id: rawEntry.hashed_chat_id,
-        hashed_message_id: rawEntry.hashed_message_id,
-        hashed_task_id: rawEntry.hashed_task_id,
-        hashed_user_id: rawEntry.hashed_user_id,
-        embed_ids: rawEntry.embed_ids,
-        parent_embed_id: rawEntry.parent_embed_id,
-        version_number: rawEntry.version_number,
-        file_path: rawEntry.file_path,
-        content_hash: rawEntry.content_hash,
-        text_length_chars: rawEntry.text_length_chars,
-        is_private: rawEntry.is_private ?? false,
-        is_shared: rawEntry.is_shared ?? false,
-        created_at: createdAtSeconds,
-        updated_at: updatedAtSeconds,
-      },
-    };
+    return { updated: true };
   }
 
   /**
@@ -2725,6 +2662,31 @@ export class EmbedStore {
     }
 
     return null;
+  }
+
+  /** Reuse a source image's canonical ciphertext without replacing its key or chat indexes. */
+  async getPersistencePayload(embedId: string): Promise<StoreEmbedPayload | null> {
+    const contentRef = `embed:${this.normalizeEmbedId(embedId)}`;
+    let entry = embedCache.get(contentRef);
+    if (!entry) {
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
+      entry = await new Promise<EmbedStoreEntry | undefined>((resolve, reject) => {
+        const request = transaction.objectStore(EMBEDS_STORE_NAME).get(contentRef);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    if (!entry?.embed_id || !entry.encrypted_type || !entry.encrypted_content
+        || !entry.hashed_chat_id || !entry.hashed_message_id || !entry.hashed_user_id) return null;
+    return {
+      embed_id: entry.embed_id, encrypted_type: entry.encrypted_type,
+      encrypted_content: entry.encrypted_content, encrypted_text_preview: entry.encrypted_text_preview,
+      status: entry.status ?? "finished", hashed_chat_id: entry.hashed_chat_id,
+      hashed_message_id: entry.hashed_message_id, hashed_user_id: entry.hashed_user_id,
+      content_hash: entry.content_hash, version_number: entry.version_number,
+      is_private: entry.is_private, is_shared: entry.is_shared,
+      created_at: normalizeUnixSeconds(entry.createdAt), updated_at: normalizeUnixSeconds(entry.updatedAt),
+    };
   }
 
   async updateChildEmbedIds(parentEmbedId: string, childEmbedIds: string[]): Promise<StoreEmbedPayload> {
@@ -3111,6 +3073,7 @@ export class EmbedStore {
     chatIdHashCache.clear();
     embedKeyNegativeCache.clear();
     this.pendingEmbedIdsByChatId.clear();
+    this.previewProjections.clear();
     console.debug("[EmbedStore] Cleared embed key cache");
   }
 
@@ -3865,7 +3828,7 @@ export class EmbedStore {
     resolved: Record<string, unknown> | string | undefined,
     chatId: string,
     hashedChatId: string,
-    remaining: Set<string>,
+    requestedChildren: Set<string>,
   ): Promise<string[]> {
     const [
       { authStore },
@@ -3918,20 +3881,12 @@ export class EmbedStore {
       decoded = await decodeRefRepairContent(resolved.content);
     }
     if (!decoded || typeof decoded !== "object") return [];
-    const ids: string[] = [];
-    for (const childId of this.normalizeEmbedIds(
+    // Local children must remain discoverable even after the network allowance
+    // is spent. Reserve that allowance only immediately before a missing read;
+    // otherwise cached results in early parents starve later search groups.
+    const ids = [...new Set(this.normalizeEmbedIds(
       (decoded as Record<string, unknown>).embed_ids,
-    )) {
-      if (
-        !canonical.test(childId) ||
-        childId === parentId ||
-        remaining.has(childId)
-      )
-        continue;
-      if (remaining.size >= MAX_CHILD_EMBEDS_TO_INDEX) break;
-      remaining.add(childId);
-      ids.push(childId);
-    }
+    ))].filter((childId) => canonical.test(childId) && childId !== parentId);
     const { isEmbedKnownError } = await import("./embedResolver");
     const {
       capturePersonalEmbedReadScope,
@@ -3992,7 +3947,6 @@ export class EmbedStore {
         const oldest = this.childRepairAttempts.keys().next().value;
         if (oldest !== undefined) this.childRepairAttempts.delete(oldest);
       }
-      this.childRepairAttempts.set(scopeKey, Date.now());
       const request = runPersonalEmbedReadOperation(
         scope,
         async (assertPending, signal) => {
@@ -4004,6 +3958,13 @@ export class EmbedStore {
           // A competing Personal resolver may have persisted the row during scope capture.
           if (await this.getRawEntry(`embed:${childId}`)) return;
           guard();
+          if (
+            requestedChildren.has(childId) ||
+            requestedChildren.size >= MAX_CHILD_EMBEDS_TO_INDEX
+          ) return;
+          requestedChildren.add(childId);
+          // A skipped read must not cool down a later lookup with fresh budget.
+          this.childRepairAttempts.set(scopeKey, Date.now());
           const response = await fetch(
             getApiEndpoint(
               `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(childId)}`,
@@ -4095,6 +4056,92 @@ export class EmbedStore {
     }
   }
 
+  /** Discover absent roots as well as children in a partially synced Personal chat. */
+  private async recoverMissingRefCandidates(chatId: string, hashedChatId: string): Promise<string[]> {
+    const { capturePersonalEmbedReadScope, personalEmbedReadOperationKey,
+      runPersonalEmbedReadOperation, assertPersonalEmbedReadScope } = await import('./personalEmbedReadOperation');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
+    // This read covers a chat window; the chat UUID supplies its stable operation identity.
+    const scope = capturePersonalEmbedReadScope(chatId, chatId);
+    if (!scope || scope.activeChatId !== chatId) return [];
+    const chat = await chatDB.getChat(chatId);
+    assertPersonalEmbedReadScope(scope);
+    if (!chat || chat.team_id || chat.is_shared_by_others) return [];
+    const key = personalEmbedReadOperationKey(scope);
+    const pending = this.refWindowRepairs.get(key);
+    if (pending) return pending;
+    const lastAttempt = this.refWindowAttempts.get(key);
+    if (lastAttempt !== undefined && Date.now() - lastAttempt < 10_000) return [];
+    if (this.refWindowAttempts.size >= 500) this.refWindowAttempts.delete(this.refWindowAttempts.keys().next().value!);
+    this.refWindowAttempts.set(key, Date.now());
+    const candidates: string[] = [];
+    const repair = runPersonalEmbedReadOperation(scope, async (assertPending, signal) => {
+      const guard = () => {
+        assertPending();
+        if (activeChatStore.get() !== chatId) throw new Error('Embed ref discovery scope changed');
+      };
+      const ownerHash = await computeSHA256(scope.ownerId);
+      const canonical = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      const params = new URLSearchParams();
+      // Server pages contain at most 30 ciphertext rows. Bound work independently
+      // of chat size, coalesce concurrent links, and retain only canonical storage.
+      for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
+        guard();
+        const response = await storageArchiveFetch(getApiEndpoint(
+          `/v1/embeds/chats/${encodeURIComponent(chatId)}/window?${params}`,
+        ), { credentials: 'include', signal });
+        guard();
+        if (!response.ok) throw new Error(`Embed ref window failed (${response.status})`);
+        const page = await response.json();
+        guard();
+        if (page.chat_id !== chatId || !Array.isArray(page.embeds) || page.embeds.length > 30
+          || !Array.isArray(page.embed_keys) || page.embed_keys_has_more_after || page.oversized_embed_key_id) {
+          throw new Error('Embed ref window is incomplete or outside its source chat');
+        }
+        const rows = page.embeds.filter((row: Record<string, unknown>) =>
+          typeof row.embed_id === 'string' && canonical.test(row.embed_id)
+          && row.hashed_chat_id === hashedChatId && row.hashed_user_id === ownerHash
+          && !row.hashed_team_id && row.status === 'finished' && row.encryption_mode !== 'vault'
+          && typeof row.encrypted_content === 'string'
+          && (!row.parent_embed_id || (typeof row.parent_embed_id === 'string' && canonical.test(row.parent_embed_id))));
+        const wrapperHashes = new Set(await Promise.all(rows.flatMap((row: Record<string, unknown>) =>
+          [row.embed_id, row.parent_embed_id].filter((id): id is string => typeof id === 'string').map(computeSHA256))));
+        const keys = page.embed_keys.filter((entry: EmbedKeyEntry & { hashed_team_id?: string; hashed_project_id?: string }) =>
+          wrapperHashes.has(entry.hashed_embed_id) && entry.hashed_user_id === ownerHash
+          && !entry.hashed_team_id && !entry.hashed_project_id && !!entry.encrypted_embed_key
+          && ((entry.key_type === 'master' && !entry.hashed_chat_id)
+            || (entry.key_type === 'chat' && entry.hashed_chat_id === hashedChatId)));
+        guard();
+        await this.storeEmbedKeys(keys, guard);
+        for (const row of rows) {
+          guard();
+          await this.putEncrypted(`embed:${row.embed_id}`, row,
+            (row.encrypted_type ? 'app-skill-use' : row.embed_type || 'app-skill-use') as EmbedType,
+            undefined, undefined, { writeGuard: guard, skipMetadataExtraction: true });
+          candidates.push(row.embed_id);
+        }
+        if (!page.has_more_before) break;
+        // An oversized row can be skipped while continuing discovery of other results.
+        const cursor = page.oversized_embed_cursor ?? page.start_cursor;
+        if (!cursor || !Number.isSafeInteger(cursor.created_at) || typeof cursor.id !== 'string'
+          || !cursor.id || params.get('before_id') === cursor.id) {
+          throw new Error('Embed ref window cursor did not advance');
+        }
+        params.set('before_created_at', String(cursor.created_at));
+        params.set('before_id', cursor.id);
+      }
+    }).then(() => candidates).catch(() => {
+      // Earlier pages are already guarded canonical writes. An unavailable
+      // continuation must not hide them; changed owners/navigation still fail closed.
+      assertPersonalEmbedReadScope(scope);
+      return candidates;
+    });
+    this.refWindowRepairs.set(key, repair);
+    try { return await repair; }
+    finally { if (this.refWindowRepairs.get(key) === repair) this.refWindowRepairs.delete(key); }
+  }
+
   private async resolveByRefDeepUncached(embedRef: string, chatId: string | null): Promise<string | null> {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
@@ -4102,7 +4149,7 @@ export class EmbedStore {
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
     const checkedCandidates = new Set<string>();
 
-    const childIdsChecked = new Set<string>();
+    const requestedChildIds = new Set<string>();
     const tryCandidates = async (candidateEmbedIds: string[], sourceHash?: string): Promise<string | null> => {
       for (const candidateEmbedId of candidateEmbedIds) {
         if (checkedCandidates.has(candidateEmbedId)) continue;
@@ -4111,7 +4158,7 @@ export class EmbedStore {
         const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
         if (sourceHash && chatId) {
           const children = await this.recoverMissingSourceChildren(
-            candidateEmbedId, resolvedEmbed, chatId, sourceHash, childIdsChecked,
+            candidateEmbedId, resolvedEmbed, chatId, sourceHash, requestedChildIds,
           );
           const childResult = await tryCandidates(children);
           if (childResult) return childResult;
@@ -4152,6 +4199,18 @@ export class EmbedStore {
       }
       const chatResult = await tryCandidates(Array.from(chatCandidates), hashedChatId);
       if (chatResult) return chatResult;
+      // A synced message can refer to a result whose entire root group falls
+      // outside the local embed window. Child-only repair cannot discover it.
+      try {
+        const discovered = await this.recoverMissingRefCandidates(chatId, hashedChatId);
+        // Existing ciphertext may only become readable after discovery supplies
+        // missing wrappers. Its earlier failed decryption is no longer decisive.
+        for (const candidate of discovered) checkedCandidates.delete(candidate);
+        const recovered = await tryCandidates(discovered, hashedChatId);
+        if (recovered) return recovered;
+      } catch {
+        // Expired auth/navigation or an unavailable page must not resolve a ref.
+      }
     }
 
     const candidates = new Set<string>(

@@ -13,6 +13,8 @@ from backend.core.api.app.services.embed_version_transaction_service import (
     EmbedVersionTransactionService,
     is_hosted_project_embed_id,
     requires_atomic_project_embed_write,
+    logical_embed_version,
+    validate_canonical_precondition,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
@@ -58,11 +60,7 @@ async def _complete_direct_intent(
 ) -> Dict[str, Any]:
     """Close only a direct-skill intent after its canonical head and keys exist."""
     embed_id = canonical_embed.get("embed_id")
-    version = canonical_embed.get("version_number")
-    # Existing legacy heads have a nullable version. The authoritative Directus
-    # completion transaction interprets that stored null as initial version 1.
-    if version is None:
-        version = 1
+    version = logical_embed_version(canonical_embed.get("version_number"))
     hashed_chat_id = canonical_embed.get("hashed_chat_id")
     if not isinstance(embed_id, str) or not embed_id:
         raise RuntimeError("Canonical embed identity is unavailable for direct completion")
@@ -178,6 +176,7 @@ async def handle_store_embed(
     except Exception:
         pass
     request_id = None
+    operation_id = None
     try:
         try:
             embed_id = payload.get("embed_id")
@@ -185,6 +184,16 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+            if "operation_id" in payload:
+                candidate_operation_id = payload.pop("operation_id")
+                if (not isinstance(candidate_operation_id, str)
+                        or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", candidate_operation_id)):
+                    raise ValueError("Invalid canonical embed operation identity")
+                operation_id = candidate_operation_id
+            # First-party protocol control; never persist it as an embeds field.
+            canonical_precondition = None
+            if "canonical_precondition" in payload:
+                canonical_precondition = validate_canonical_precondition(payload.pop("canonical_precondition"))
             # First-party WebSocket protocol control, never an embeds column.
             # The internal transaction compares the current opaque head and
             # fills only missing provenance without rewriting ciphertext.
@@ -195,7 +204,20 @@ async def handle_store_embed(
             # Recovery correlation is a WebSocket protocol field, not an embeds
             # column. The capability gate has already consumed it before this
             # handler forwards the encrypted head to the legacy transaction.
-            payload.pop("recovery_record_id", None)
+            recovery_record_id = payload.pop("recovery_record_id", None)
+            recovery_wrappers = payload.pop("recovery_key_wrappers", None)
+            recovery_message_id = payload.pop("recovery_message_id", None)
+            has_recovery_bundle = recovery_wrappers is not None or recovery_message_id is not None
+            if has_recovery_bundle and (
+                not isinstance(recovery_record_id, str) or not recovery_record_id
+                or not isinstance(recovery_wrappers, list) or len(recovery_wrappers) != 2
+                or not isinstance(recovery_message_id, str) or not recovery_message_id
+                or payload.get("parent_embed_id") is not None
+                or payload.get("version_number", 1) != 1 or enrichment is not None
+            ):
+                await _reject_store_embed_write(manager, user_id, device_fingerprint_hash,
+                                               embed_id, "invalid_recovery_bundle", request_id)
+                return
             # Public app/skill IDs may be projected for paginated discovery. The
             # chat and Team IDs are authorization inputs only, never Directus embed
             # fields or plaintext content.
@@ -240,6 +262,12 @@ async def handle_store_embed(
                         "chat_scope_unavailable", request_id,
                     )
                     return
+            if isinstance(direct_chat_metadata, dict) and not direct_chat_metadata.get("hashed_team_id"):
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": _user_hash(user_id),
+                    "chat_id": direct_chat_metadata["id"], "mode": "disqualify",
+                })
             if is_direct_chat(direct_chat_metadata):
                 try:
                     await require_direct_chat_access(
@@ -317,6 +345,20 @@ async def handle_store_embed(
                 )
                 return
 
+            bundle_context = None
+            if has_recovery_bundle:
+                if (not isinstance(chat_id, str) or not direct_chat_metadata
+                        or payload.get("hashed_message_id") != _user_hash(recovery_message_id)):
+                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash,
+                                                   embed_id, "invalid_recovery_bundle", request_id)
+                    return
+                bundle_context = {
+                    "chat_id": chat_id, "message_id": recovery_message_id,
+                    "hashed_team_id": direct_chat_metadata.get("hashed_team_id") or None,
+                    "allow_new_personal_chat": False, "key_wrappers": recovery_wrappers,
+                    "recovery_record_id": recovery_record_id,
+                }
+
             logger.info(f"Processing store_embed for embed {embed_id} from user {user_id}")
 
             # CRITICAL FIX: Convert camelCase timestamp fields to snake_case for Directus
@@ -356,9 +398,21 @@ async def handle_store_embed(
                 ).write_legacy_embed(
                     embed_id, payload, user_id=user_id,
                     canonical_metadata_enrichment=enrichment,
+                    canonical_precondition=canonical_precondition,
+                    **({"bundle_context": bundle_context} if bundle_context is not None else {}),
                 )
             except EmbedVersionTransactionError as exc:
-                if exc.status_code in (403, 409):
+                if exc.status_code == 409:
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {
+                            "code": "embed_revision_conflict", "reason": exc.code,
+                            **({"operation_id": operation_id} if operation_id is not None else {}),
+                            "request_id": request_id if isinstance(request_id, str) and 0 < len(request_id) <= 128 else None,
+                            "message": "The canonical embed revision changed or is immutable; refresh its revision before retrying",
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                    return
+                if exc.status_code == 403:
                     await _reject_store_embed_write(
                         manager, user_id, device_fingerprint_hash, embed_id, exc.code, request_id,
                     )
@@ -456,6 +510,7 @@ async def handle_store_embed(
                     {
                         "type": "store_embed_confirmed",
                         "payload": {"request_id": request_id, "embed_id": embed_id,
+                                    **({"operation_id": operation_id} if operation_id is not None else {}),
                                     "canonical_digest": canonical_digest,
                                     "canonical_source": "head"},
                     },

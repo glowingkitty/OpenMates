@@ -13,10 +13,10 @@ const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helper
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-const CHAT_ID = 'example-plumber-message-email-phone';
-const EXAMPLE_PATH = '/example/plumber-message-email-phone-privacy';
-const EMAIL = 'lena.hoffmann@example.com';
-const PHONE = '+1 202-555-0147';
+const CHAT_ID = 'example-private-plumber-email';
+const EXAMPLE_PATH = '/example/private-plumber-email';
+const EMAIL = 'hello@example.com';
+const PHONE = '+44 7700 900123';
 // Retain each asserted state for the full caption interval in the real recording.
 const PROOF_READING_HOLD_MS = 6_000;
 const DEVICES = ['web-phone', 'web-laptop'];
@@ -67,7 +67,7 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 			await expect(toggle).toBeVisible();
 			await proof.assert('protected', async () => {
 				await expect(request).toContainText('[EMAIL_1_com]');
-				await expect(request).toContainText('[PHONE_1_147]');
+				await expect(request).toContainText('[PHONE_1_123]');
 				await expect(request).not.toContainText(EMAIL);
 			});
 			await request.scrollIntoViewIfNeeded();
@@ -91,7 +91,7 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 			});
 			await proof.assert('draft', async () => {
 				await expect(fullscreen).toContainText('[EMAIL_1_com]');
-				await expect(fullscreen).toContainText('[PHONE_1_147]');
+				await expect(fullscreen).toContainText('[PHONE_1_123]');
 				await expect(fullscreen).toContainText('tomorrow afternoon');
 				await expect(fullscreen).not.toContainText(EMAIL);
 			});

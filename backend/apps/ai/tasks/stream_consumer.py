@@ -16,6 +16,7 @@ from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Aw
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
 
+from backend.shared.python_utils.saved_chat_turn_authority import admission_chat_id
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -39,6 +40,10 @@ from backend.shared.python_utils.embed_producer_dispatch import (
 )
 from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
 from backend.shared.python_utils.recent_work_summary_client import mint_response_summary_completion
+from backend.shared.providers.e2b_application_preview import (
+    SVELTE_PREVIEW_DEFAULT_INDEX_HTML as APPLICATION_PREVIEW_DEFAULT_INDEX_HTML,
+    SVELTE_PREVIEW_DEFAULT_MAIN_TS as APPLICATION_PREVIEW_DEFAULT_MAIN_TS,
+)
 
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -78,7 +83,6 @@ from backend.apps.ai.utils.code_embed_policy import (
 )
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
-    strip_failed_app_skill_json_blocks,
 )
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
@@ -96,14 +100,19 @@ from backend.apps.ai.utils.diagram_html_fences import (
     is_diagram_html_fence,
     validate_diagram_html_source,
 )
-from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
+from backend.apps.ai.utils.json_content_fences import is_json_content_fence
 from backend.apps.ai.utils.embeds_map_view import (
+    MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
     content_has_map_capable_app_skill_use,
     extract_map_capable_source_refs,
+    extract_results_view_source_refs,
     is_embeds_map_view_fence_language,
     is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
+    map_view_source_bindings_from_tool_calls,
+    preferred_map_view_source_refs,
+    validate_embeds_map_view_sources,
     should_include_embeds_map_view_hint,
 )
 from backend.shared.python_utils.billing_utils import (
@@ -290,6 +299,7 @@ async def _dispatch_automatic_assistant_speech_segment(
     log_prefix: str,
     live_mock_mode: Optional[str],
     live_mock_group: Optional[str],
+    queue_provider_work: bool = True,
 ) -> None:
     """Persist and queue one immutable segment outside the authoritative text path."""
     if directus_service is None:
@@ -310,11 +320,12 @@ async def _dispatch_automatic_assistant_speech_segment(
         assistant_message_id=str(segment["assistant_message_id"]),
         source_version=int(segment["source_version"]),
         voice_profile=voice_profile,
-        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if lazy_dispatch and int(segment["sequence"]) > 0 else "queued"}],
+        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if not queue_provider_work or (lazy_dispatch and int(segment["sequence"]) > 0) else "queued"}],
+        voice_call_id=str(segment["voice_call_id"]) if segment.get("voice_call_id") else None,
     )
     if not auto_speak:
         return
-    should_dispatch = (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
+    should_dispatch = queue_provider_work and (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
     if should_dispatch:
         celery_config.app.send_task(
             "apps.audio.tasks.assistant_speech_segment",
@@ -343,6 +354,9 @@ async def _dispatch_automatic_assistant_speech_segment(
                 "status": "queued" if should_dispatch else "registered",
                 "sequence": int(segment["sequence"]),
                 "kind": str(segment["kind"]),
+                "source_version": int(segment["source_version"]),
+                **({"language": str(segment.get("language") or "")} if segment.get("voice_mode") else {}),
+                **({"voice_call_id": str(segment["voice_call_id"])} if segment.get("voice_call_id") else {}),
             },
         },
         log_prefix,
@@ -363,7 +377,11 @@ async def _invalidate_automatic_assistant_speech_segment(
 
 
 async def _seal_automatic_assistant_speech_manifest(
-    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object]
+    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object],
+    cache_service: Optional[CacheService] = None, redis_channel_name: str = "",
+    user_id_hash: str = "", log_prefix: str = "",
+    turn_track_id: Optional[str] = None,
+    billing_enabled: bool = True,
 ) -> None:
     """Seal final membership after detached segment persistence has completed."""
     if directus_service is None:
@@ -376,8 +394,32 @@ async def _seal_automatic_assistant_speech_manifest(
         source_version=int(metadata["source_version"]),
         voice_key=str(voice_profile["key"]),
         voice_version=int(voice_profile["version"]),
+        voice_call_id=str(metadata["voice_call_id"]) if metadata.get("voice_call_id") else None,
     )
-    if await seal_speech_manifest(directus_service, manifest_id):
+    try:
+        sealed = await seal_speech_manifest(directus_service, manifest_id)
+    except Exception as exc:
+        logger.warning("Assistant speech final membership unavailable category=%s", type(exc).__name__)
+        sealed = False
+    handoff_failed = metadata.get("handoff_failed") is True
+    if metadata.get("voice_call_id"):
+        from backend.shared.python_utils.assistant_speech_audio import LIVE_HANDOFF_ERROR, validate_assistant_speech_sealed_segments
+
+        payload = {
+            "status": "sealed", "voice_call_id": str(metadata["voice_call_id"]),
+            "source_version": int(metadata["source_version"]),
+            "segments": metadata.get("segments", []),
+            **({"turn_track_id": turn_track_id} if turn_track_id else {}),
+            **({"error": LIVE_HANDOFF_ERROR} if handoff_failed or not sealed else {}),
+        }
+        validate_assistant_speech_sealed_segments(payload)
+        await _publish_to_redis(
+            cache_service, redis_channel_name,
+            {"type": "assistant_speech_status", "chat_id": str(metadata["chat_id"]),
+             "message_id": str(metadata["assistant_message_id"]), "user_id_hash": user_id_hash,
+             "payload": payload}, log_prefix, "assistant speech sealed membership",
+        )
+    if sealed and billing_enabled:
         celery_config.app.send_task(
             "apps.audio.tasks.assistant_speech_billing",
             kwargs={"arguments": {"manifest_id": manifest_id}},
@@ -1178,6 +1220,13 @@ async def _dispatch_sub_chat_parent_continuation(
         message_history=continuation_history,
         chat_has_title=True,
         current_chat_title=original_request.current_chat_title,
+        voice_mode=original_request.voice_mode,
+        voice_call_id=original_request.voice_call_id,
+        voice_turn_id=original_request.voice_turn_id,
+        voice_heard_boundary=original_request.voice_heard_boundary,
+        auto_speak_response=original_request.auto_speak_response,
+        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
+        assistant_response_source_revision=original_request.assistant_response_source_revision,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
@@ -1981,6 +2030,31 @@ def _full_replacement_history_rows(
         "patch": patch, "snapshot": new_content, "created_at": created_at,
     })
     return rows
+
+
+async def _finalize_json_content_embed(embed_service: Any, **content_fields: Any) -> bool:
+    """Finalize once, then attempt one empty error snapshot on storage failure."""
+    log_prefix = content_fields.get("log_prefix", "")
+    embed_id = content_fields.get("embed_id")
+    try:
+        if await embed_service.update_json_content_embed_content(**content_fields):
+            return True
+        logger.error(f"{log_prefix} Final JSON content update failed for embed {embed_id}")
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception:
+        logger.error(f"{log_prefix} Error finalizing JSON content embed {embed_id}", exc_info=True)
+
+    try:
+        if not await embed_service.update_json_content_embed_content(
+            **{**content_fields, "status": "error", "source_json": ""},
+        ):
+            logger.error(f"{log_prefix} Error snapshot could not be saved for JSON content embed {embed_id}")
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception:
+        logger.error(f"{log_prefix} Error saving failed JSON content snapshot {embed_id}", exc_info=True)
+    return False
 
 
 async def _finalize_diagram_html_embed(
@@ -3174,23 +3248,44 @@ def _map_view_source_refs_from_tool_calls(
     tool_calls_info: Optional[List[Dict[str, Any]]],
     user_texts: list[str],
 ) -> list[str]:
-    source_refs: list[str] = []
-    seen: set[str] = set()
-    for tool_call in tool_calls_info or []:
-        if not isinstance(tool_call, dict):
+    """Prefer the actual short parent refs authored by completed tools."""
+    if is_map_view_suppressed_request(user_texts):
+        return []
+    return preferred_map_view_source_refs(map_view_source_bindings_from_tool_calls(tool_calls_info))
+
+
+async def _available_map_view_sources(
+    content: str, request_data: AskSkillRequest, tool_calls_info: Optional[List[Dict[str, Any]]],
+    graph: Optional[FinalizationEmbedGraph],
+) -> dict[str, str]:
+    """Verify only requested historical parents, reusing the finalization graph."""
+    available = map_view_source_bindings_from_tool_calls(tool_calls_info)
+    if graph is None:
+        return available
+    index = getattr(request_data, "embed_file_path_index", None) or {}
+    historical_ids = {
+        embed_id for message in request_data.message_history or []
+        for text in [message.content if hasattr(message, "content") else message.get("content", "")]
+        for embed_id in [
+            *extract_map_capable_source_refs(text),
+            *(ref for ref in extract_results_view_source_refs(text or "") if EMBED_ID_UUID_PATTERN.fullmatch(ref)),
+        ]
+    }
+    for ref in extract_results_view_source_refs(content):
+        if ref in available:
             continue
-        app_id = str(tool_call.get("app_id") or "")
-        skill_id = str(tool_call.get("skill_id") or "")
-        embed_id = tool_call.get("embed_id")
-        if not isinstance(embed_id, str) or not embed_id.strip():
+        embed_id = index.get(ref) or (ref if ref in historical_ids else None)
+        if not isinstance(embed_id, str) or not embed_id:
             continue
-        if not should_include_embeds_map_view_hint(app_id, skill_id, user_texts):
-            continue
-        if embed_id in seen:
-            continue
-        seen.add(embed_id)
-        source_refs.append(embed_id)
-    return source_refs
+        node = await graph.get(embed_id)
+        if (node and (node.decoded.get("app_id"), node.decoded.get("skill_id")) in MAP_VIEW_CAPABLE_SKILLS
+                and node.decoded.get("embed_ids")):
+            available[ref] = embed_id
+            available[embed_id] = embed_id
+            alias = node.decoded.get("embed_ref")
+            if isinstance(alias, str) and alias:
+                available[alias] = embed_id
+    return available
 
 
 def _build_sub_chat_batch_marker(
@@ -3244,7 +3339,7 @@ async def _persist_sealed_typed_output(
             raise RequiredRecoveryOutputError("Synthetic sealed output durability unavailable")
     data = build_sealed_recovery_output_data(
         owner_id=request_data.user_id, owner_hash=request_data.user_id_hash,
-        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        root_chat_id=admission_chat_id(request_data),
         target_chat_id=request_data.chat_id,
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,
@@ -4666,18 +4761,17 @@ async def _validate_paragraph_urls(
     Collects broken URLs in the provided list (thread-safe append).
     This runs asynchronously and doesn't block streaming.
     
-    Uses Webshare proxy and random user agents for anti-detection if secrets_manager
-    is provided. This helps avoid datacenter IP blocking by websites.
+    Uses direct HTTP validation without residential proxy retries.
     
     Args:
         paragraph: The paragraph text to validate
         task_id: Task ID for logging
         broken_urls_collector: List to collect broken URLs (will be appended to)
         log_prefix: Log prefix for consistent logging
-        secrets_manager: Optional SecretsManager for Webshare proxy credentials
+        secrets_manager: Compatibility context for URL validation
     """
     try:
-        # Validate URLs in this paragraph using proxy and random user agents
+        # Validate URLs in this paragraph using direct HTTP requests
         validation_results = await validate_urls_in_paragraph(
             paragraph, task_id, secrets_manager=secrets_manager
         )
@@ -4764,16 +4858,6 @@ APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON = json.dumps({
     },
     "devDependencies": {},
 }, indent=2)
-APPLICATION_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
-APPLICATION_PREVIEW_DEFAULT_MAIN_TS = (
-    "import { mount } from 'svelte';\n"
-    "import App from './App.svelte';\n\n"
-    "const target = document.getElementById('app');\n"
-    "if (!target) {\n"
-    "  throw new Error('Application root element #app was not found');\n"
-    "}\n\n"
-    "mount(App, { target });\n"
-)
 APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
     "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
     "import { defineConfig } from 'vite';\n\n"
@@ -6109,7 +6193,7 @@ class _FirstChunkPublishBarrier:
 
 def _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides) -> bool:
     """Activation-only Focus turns have no answer/profile until their continuation."""
-    if request_data.is_external or request_data.is_incognito:
+    if request_data.is_external or request_data.is_incognito or getattr(preprocessing_result, "routing_only", False):
         return False
     from backend.apps.ai.processing.main_processor import _trusted_focus_override
 
@@ -6145,6 +6229,8 @@ async def _consume_main_processing_stream(
     skill_config_dict: Optional[Dict[str, Any]] = None,
     completion_timing: Optional[AICompletionTiming] = None,
     before_first_chunk_publish: Optional[Callable[[], Awaitable[None]]] = None,
+    voice_waiting_started_at: float | None = None,
+    owned_live_speech: Optional[List[Any]] = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -6314,6 +6400,8 @@ async def _consume_main_processing_stream(
         completion_timing.mark_first_visible_content if completion_timing else None,
     )
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
+    voice_waiting = None
+    realtime_speech_turn = None
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
@@ -6348,13 +6436,13 @@ async def _consume_main_processing_stream(
         else:
             voice_profile = {
                 "key": selected_mate.voice_profile.key,
-                "version": selected_mate.voice_profile.version,
+                "version": 3 if request_data.voice_mode else selected_mate.voice_profile.version,
             }
             speech_language = (
                 preprocessing_result.output_language
                 or (request_data.user_preferences or {}).get("language", "en")
             )
-            if request_data.auto_speak_response:
+            if request_data.auto_speak_response and not request_data.voice_mode:
                 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
 
                 acknowledgement_category = classify_acknowledgement_category(
@@ -6398,14 +6486,51 @@ async def _consume_main_processing_stream(
                 "source_version": request_data.assistant_response_source_revision,
                 "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
                 "language": speech_language,
+                "voice_mode": request_data.voice_mode,
+                "voice_call_id": request_data.voice_call_id,
+                "voice_turn_id": request_data.voice_turn_id,
             }
-            app_use_announcement = build_app_use_announcement(
+            app_use_announcement = None if request_data.voice_mode else build_app_use_announcement(
                 preprocessing_result.relevant_app_skills,
                 speech_language,
             )
-            speech_tracker = ImmutableSpeechBoundaryTracker(
-                metadata=speech_metadata,
-                dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
+            from backend.apps.ai.testing.voice_pipeline_fixture import speech_fixture_context
+            voice_speech_fixture = speech_fixture_context(request_data)
+            waiting_speech_segment = None
+
+            async def stop_waiting_speech():
+                if voice_waiting is not None:
+                    await voice_waiting.close()
+                if waiting_speech_segment is not None:
+                    await _invalidate_automatic_assistant_speech_segment(
+                        segment=waiting_speech_segment, directus_service=directus_service,
+                    )
+
+            if request_data.voice_mode and request_data.auto_speak_response:
+                from backend.apps.audio.assistant_speech.realtime_turn import create_realtime_speech_turn
+
+                realtime_speech_turn = create_realtime_speech_turn(
+                    metadata=speech_metadata, user_id=request_data.user_id,
+                    voice_profile=voice_profile, directus=directus_service,
+                    cache=cache_service, secrets_manager=secrets_manager,
+                    on_first_audio=stop_waiting_speech,
+                    live_mock_context={
+                        "live_mock_mode": voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
+                        "live_mock_group": voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
+                    },
+                )
+                if owned_live_speech is not None:
+                    owned_live_speech.append(realtime_speech_turn)
+
+            async def dispatch_speech_segment(segment):
+                nonlocal waiting_speech_segment
+                if int(segment["sequence"]) == -1:
+                    waiting_speech_segment = segment
+                continuous = realtime_speech_turn is not None and int(segment["sequence"]) >= 0
+                if continuous:
+                    # Track identity/status must arrive before semantic clauses.
+                    await realtime_speech_turn.prepare()
+                await _dispatch_automatic_assistant_speech_segment(
                     segment=segment,
                     directus_service=directus_service,
                     user_id=request_data.user_id,
@@ -6416,9 +6541,29 @@ async def _consume_main_processing_stream(
                     cache_service=cache_service,
                     redis_channel_name=redis_channel_name,
                     log_prefix=log_prefix,
-                    live_mock_mode=request_data.live_mock_mode,
-                    live_mock_group=request_data.live_mock_group,
-                ),
+                    live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
+                    live_mock_group=voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
+                    queue_provider_work=not continuous,
+                )
+                if continuous:
+                    await realtime_speech_turn.enqueue(segment)
+
+            async def finalize_speech_segments(metadata):
+                if realtime_speech_turn is not None:
+                    # EOS queues behind handoffs but never waits for synthesis.
+                    realtime_speech_turn.finish_input()
+                await _seal_automatic_assistant_speech_manifest(
+                    metadata=metadata, directus_service=directus_service,
+                    voice_profile=voice_profile, cache_service=cache_service,
+                    redis_channel_name=redis_channel_name,
+                    user_id_hash=request_data.user_id_hash, log_prefix=log_prefix,
+                    turn_track_id=realtime_speech_turn.track_id if realtime_speech_turn is not None else None,
+                    billing_enabled=not (realtime_speech_turn is not None and realtime_speech_turn.is_mock),
+                )
+
+            speech_tracker = ImmutableSpeechBoundaryTracker(
+                metadata=speech_metadata,
+                dispatch_speech=dispatch_speech_segment,
                 invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
                     segment=segment,
                     directus_service=directus_service,
@@ -6436,13 +6581,21 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     "assistant speech status",
                 ),
-                finalize_speech=lambda metadata: _seal_automatic_assistant_speech_manifest(
-                    metadata=metadata,
-                    directus_service=directus_service,
-                    voice_profile=voice_profile,
-                ),
+                finalize_speech=finalize_speech_segments,
                 sequence_offset=1 if app_use_announcement else 0,
             )
+            if request_data.voice_mode and request_data.auto_speak_response:
+                from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
+
+                voice_waiting = DelayedVoiceWaiting(
+                    language=speech_language,
+                    started_at=voice_waiting_started_at,
+                    response_ready=lambda: speech_tracker.has_response_segments,
+                    dispatch=lambda text: speech_tracker.dispatch_projected_segment(
+                        sequence=-1, kind="waiting_confirmation", speakable_text=text,
+                    ),
+                )
+                voice_waiting.start()
             if app_use_announcement:
                 speech_tracker.dispatch_projected_segment(
                     sequence=0,
@@ -6524,9 +6677,11 @@ async def _consume_main_processing_stream(
     in_mermaid_block = False
     in_diagram_html_block = False
 
-    # Mind map tracking: ```openmates_mindmap ... ``` fences produce Mind Maps
+    # Structured JSON tracking: Mind Maps and Calendar Event fences produce
     # direct embeds instead of generic Code embeds during incremental streaming.
-    in_mindmap_block = False
+    in_json_content_block = False
+    response_only_fence_prefix = ""
+    response_only_json_block = False
 
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
@@ -6738,6 +6893,8 @@ async def _consume_main_processing_stream(
                     "Published same-turn skill wait",
                 )
                 logger.info("%s Suspended provider loop for %s terminal jobs", log_prefix, len(task_ids))
+                if realtime_speech_turn is not None:
+                    await realtime_speech_turn.cancel()
                 return "".join(final_response_chunks), False, False, thinking_buffer, debug_metadata
             
             # Check for app settings/memories permission marker
@@ -6987,7 +7144,14 @@ async def _consume_main_processing_stream(
                 was_revoked_during_stream = True
                 # Include the current chunk before breaking - don't discard it
                 # This ensures we return the partial response and bill for all generated tokens
-                if isinstance(chunk, str):
+                if isinstance(chunk, str) and not (
+                    in_json_content_block
+                    or response_only_json_block
+                    or bool(response_only_fence_prefix)
+                    or (waiting_for_code_language and is_json_content_fence(chunk.split('\n', 1)[0]))
+                    or (chunk.lstrip().startswith('```')
+                        and is_json_content_fence(chunk.lstrip()[3:].split('\n', 1)[0]))
+                ):
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
                     
@@ -7070,6 +7234,23 @@ async def _consume_main_processing_stream(
                     # Anonymous fences are converted to response-only embeds by
                     # the API adapter. Neither path may create persisted embeds.
                     # Preserve server-issued references as ordinary message text.
+                    # Explicit authoring envelopes require the encrypted lifecycle;
+                    # these response-only paths cannot expose their source instead.
+                    if response_only_json_block:
+                        if '```' in chunk:
+                            response_only_json_block = False
+                        continue
+                    if response_only_fence_prefix:
+                        chunk = response_only_fence_prefix + chunk
+                        response_only_fence_prefix = ""
+                    if chunk.lstrip().startswith('```'):
+                        if '\n' not in chunk:
+                            response_only_fence_prefix = chunk
+                            continue
+                        fence_language, _, fence_body = chunk.lstrip()[3:].partition('\n')
+                        if is_json_content_fence(fence_language):
+                            response_only_json_block = '```' not in fence_body
+                            continue
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
                     if cache_service:
@@ -7213,6 +7394,11 @@ async def _consume_main_processing_stream(
                                     content_lines = content_lines[1:]
                                     logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content")
                         code_content = '\n'.join(content_lines)
+                        # Explicit structured output belongs only in encrypted embeds.
+                        # A failed placeholder or unavailable service must never turn
+                        # its authoring envelope into visible code/JSON.
+                        if is_json_content_fence(current_code_language):
+                            chunk = ""
                         
                         # DEBUG: Log extracted code metadata only (never code content)
                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
@@ -7315,6 +7501,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 # Check if this is a math plot block (```plot ... ```)
                                 is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
@@ -7332,8 +7519,8 @@ async def _consume_main_processing_stream(
                                 is_mermaid_block = _is_mermaid_fence(current_code_language)
                                 is_diagram_html_block = is_diagram_html_fence(current_code_language)
 
-                                # Check if this is a Mind Maps OpenMates JSON block.
-                                is_mindmap_block = is_mindmap_fence(current_code_language)
+                                # Check for a supported structured OpenMates JSON artifact.
+                                is_json_content_block = is_json_content_fence(current_code_language)
 
                                 # Check if this is a diff block (```diff:embed_ref).
                                 # Some models emit a bare ```diff fence even after
@@ -7389,8 +7576,9 @@ async def _consume_main_processing_stream(
                                     current_code_content = ""
                                     current_code_embed_id = None
 
-                                elif is_mindmap_block:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -7401,7 +7589,9 @@ async def _consume_main_processing_stream(
                                     )
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
-                                        await embed_service.update_mindmap_embed_content(
+                                        json_content_finished = await _finalize_json_content_embed(
+                                            embed_service,
+                                            source_language=current_code_language,
                                             embed_id=current_code_embed_id,
                                             source_json=code_content,
                                             chat_id=request_data.chat_id,
@@ -7414,12 +7604,12 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(
-                                            f"{log_prefix} Created and finalized mind map embed {current_code_embed_id} "
-                                            f"for complete Mind Maps block"
+                                            f"{log_prefix} Processed complete JSON content embed {current_code_embed_id} "
+                                            f"(finished={json_content_finished})"
                                         )
 
                                         in_code_block = False
-                                        in_mindmap_block = False
+                                        in_json_content_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""
@@ -7973,7 +8163,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_multi = _is_pcb_schematic_fence(current_code_language)
-                        is_mindmap_block_multi = is_mindmap_fence(current_code_language)
+                        is_json_content_block_multi = is_json_content_fence(current_code_language)
                         is_mermaid_block_multi = _is_mermaid_fence(current_code_language)
                         is_diagram_html_block_multi = is_diagram_html_fence(current_code_language)
                         if is_plot_block_multi:
@@ -7989,8 +8179,9 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_multi:
                             in_pcb_schematic_block = True
-                        elif is_mindmap_block_multi:
-                            in_mindmap_block = True
+                        elif is_json_content_block_multi:
+                            in_json_content_block = True
+                            chunk = ""
                         elif is_mermaid_block_multi:
                             in_mermaid_block = True
                         elif is_diagram_html_block_multi:
@@ -8000,6 +8191,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if is_plot_block_multi:
                                     # Create math-plot embed placeholder (expression arrives in subsequent chunks)
@@ -8141,8 +8333,9 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id}")
-                                elif is_mindmap_block_multi:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block_multi:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -8156,7 +8349,8 @@ async def _consume_main_processing_stream(
                                         current_code_embed_id = embed_data["embed_id"]
 
                                         if current_code_content:
-                                            await embed_service.update_mindmap_embed_content(
+                                            await embed_service.update_json_content_embed_content(
+                                                source_language=current_code_language,
                                                 embed_id=current_code_embed_id,
                                                 source_json=current_code_content,
                                                 chat_id=request_data.chat_id,
@@ -8169,7 +8363,7 @@ async def _consume_main_processing_stream(
 
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id}")
+                                        logger.info(f"{log_prefix} Created JSON content embed placeholder {current_code_embed_id}")
                                 elif is_diagram_html_block_multi:
                                     embed_data = await embed_service.create_diagram_html_embed_placeholder(
                                         chat_id=request_data.chat_id, message_id=request_data.message_id,
@@ -8294,6 +8488,8 @@ async def _consume_main_processing_stream(
                                             embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                             chunk = embed_reference_code
                                             logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed placeholder: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
@@ -8415,7 +8611,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_post_bare = _is_pcb_schematic_fence(current_code_language)
-                        is_mindmap_block_post_bare = is_mindmap_fence(current_code_language)
+                        is_json_content_block_post_bare = is_json_content_fence(current_code_language)
                         is_mermaid_block_post_bare = _is_mermaid_fence(current_code_language)
                         is_diagram_html_block_post_bare = is_diagram_html_fence(current_code_language)
                         if is_plot_block_post_bare:
@@ -8431,8 +8627,9 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_post_bare:
                             in_pcb_schematic_block = True
-                        elif is_mindmap_block_post_bare:
-                            in_mindmap_block = True
+                        elif is_json_content_block_post_bare:
+                            in_json_content_block = True
+                            chunk = ""
                         elif is_mermaid_block_post_bare:
                             in_mermaid_block = True
                         elif is_diagram_html_block_post_bare:
@@ -8442,6 +8639,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if is_plot_block_post_bare:
                                     # Create math-plot embed placeholder (expression will arrive in subsequent chunks)
@@ -8589,8 +8787,9 @@ async def _consume_main_processing_stream(
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id} (language resolved after bare fence)")
                                     else:
                                         chunk = ""
-                                elif is_mindmap_block_post_bare:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block_post_bare:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -8604,7 +8803,8 @@ async def _consume_main_processing_stream(
                                         current_code_embed_id = embed_data["embed_id"]
 
                                         if current_code_content:
-                                            await embed_service.update_mindmap_embed_content(
+                                            await embed_service.update_json_content_embed_content(
+                                                source_language=current_code_language,
                                                 embed_id=current_code_embed_id,
                                                 source_json=current_code_content,
                                                 chat_id=request_data.chat_id,
@@ -8617,7 +8817,7 @@ async def _consume_main_processing_stream(
 
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                        logger.info(f"{log_prefix} Created JSON content embed placeholder {current_code_embed_id} (language resolved after bare fence)")
                                     else:
                                         chunk = ""
                                 elif is_diagram_html_block_post_bare:
@@ -8730,16 +8930,18 @@ async def _consume_main_processing_stream(
                                             raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
                                             chunk = raw_fence
                                             # Keep in_code_block=True so closing fence is handled normally
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
                                 # Fall back to raw markdown so code is not silently lost
                                 raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
-                                chunk = raw_fence
+                                chunk = "" if in_json_content_block else raw_fence
                         else:
                             # No encryption services available — fall back to raw markdown
                             logger.warning(f"{log_prefix} No encryption services for code embed — falling back to raw markdown")
                             raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
-                            chunk = raw_fence
+                            chunk = "" if in_json_content_block else raw_fence
                     # Check if this chunk contains closing fence
                     elif '```' in chunk:
                         # Extract content before closing fence
@@ -8958,7 +9160,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9015,7 +9217,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9072,7 +9274,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9111,7 +9313,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9122,22 +9324,23 @@ async def _consume_main_processing_stream(
                         elif not current_code_embed_id and current_code_language:
                             logger.warning(
                                 f"{log_prefix} Code block closed but no embed was created — "
-                                f"emitting {len(current_code_content)} chars as raw markdown "
-                                f"(language={current_code_language or 'none'})"
+                                f"{'suppressing structured source' if in_json_content_block else 'emitting raw markdown'} "
+                                f"({len(current_code_content)} chars, "
+                                f"language={current_code_language or 'none'})"
                             )
                             capped_code_content, _ = _cap_code_for_learning_mode(
                                 request_data,
                                 current_code_content,
                             )
                             raw_block = f"```{current_code_language or ''}\n{capped_code_content}```\n\n"
-                            chunk = raw_block
+                            chunk = "" if in_json_content_block else raw_block
 
                             in_code_block = False
                             in_plot_block = False
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9152,7 +9355,7 @@ async def _consume_main_processing_stream(
                             and not in_document_block
                             and not in_email_block
                             and not in_pcb_schematic_block
-                            and not in_mindmap_block
+                            and not in_json_content_block
                             and not in_mermaid_block
                             and not in_diagram_html_block
                             and _should_skip_code_block_for_embed(current_code_content)
@@ -9190,6 +9393,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if in_plot_block:
                                     # Finalize math-plot embed with the accumulated expression
@@ -9288,8 +9492,10 @@ async def _consume_main_processing_stream(
                                     )
 
                                     logger.info(f"{log_prefix} Finalized PCB schematic embed {current_code_embed_id}")
-                                elif in_mindmap_block:
-                                    await embed_service.update_mindmap_embed_content(
+                                elif in_json_content_block:
+                                    json_content_finished = await _finalize_json_content_embed(
+                                        embed_service,
+                                        source_language=current_code_language,
                                         embed_id=current_code_embed_id,
                                         source_json=current_code_content,
                                         chat_id=request_data.chat_id,
@@ -9300,7 +9506,10 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
 
-                                    logger.info(f"{log_prefix} Finalized mind map embed {current_code_embed_id}")
+                                    logger.info(
+                                        f"{log_prefix} Processed closing JSON content embed {current_code_embed_id} "
+                                        f"(finished={json_content_finished})"
+                                    )
                                 elif in_diagram_html_block:
                                     await _finalize_diagram_html_embed(
                                         embed_service, current_code_embed_id, current_code_content,
@@ -9480,7 +9689,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9496,7 +9705,8 @@ async def _consume_main_processing_stream(
                         # Accumulate content (code or document HTML)
                         current_code_content += chunk
                         is_deferred_protocol_block = (
-                            _is_application_preview_combined_language(current_code_language)
+                            in_json_content_block
+                            or _is_application_preview_combined_language(current_code_language)
                             or _is_remotion_video_fence(current_code_language, current_code_filename)
                             or toon_pending_validation
                             or bool(current_code_language and current_code_language.lower() == 'tool_code')
@@ -9522,6 +9732,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if in_document_block:
                                     capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
@@ -9577,6 +9788,18 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
                                     logger.debug(f"{log_prefix} Updated PCB schematic embed {current_code_embed_id} (per-line update)")
+                                elif in_json_content_block:
+                                    await embed_service.update_json_content_embed_content(
+                                        source_language=current_code_language,
+                                        embed_id=current_code_embed_id,
+                                        source_json=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix,
+                                    )
                                 elif in_mermaid_block:
                                     mermaid_metadata = _extract_mermaid_metadata(
                                         current_code_language,
@@ -9613,6 +9836,8 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix
                                     )
                                     logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
                         
@@ -9819,7 +10044,7 @@ async def _consume_main_processing_stream(
                             # Start background task to validate URLs in this paragraph
                             # This runs asynchronously and doesn't block streaming
                             # Broken URLs will be collected and processed after streaming completes
-                            # Uses Webshare proxy and random user agents for anti-detection
+                            # Uses direct HTTP URL validation
                             validation_task = asyncio.create_task(
                                 _validate_paragraph_urls(
                                     paragraph=chunk,
@@ -9843,6 +10068,8 @@ async def _consume_main_processing_stream(
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
         was_soft_limited_during_stream = True
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
         stream_exception = e
@@ -9858,6 +10085,11 @@ async def _consume_main_processing_stream(
         # A zero-chunk or failed stream still joins before terminal output.
         await first_chunk_barrier.wait()
 
+    if realtime_speech_turn is not None and (
+        was_revoked_during_stream or was_soft_limited_during_stream or terminal_failure_reason
+    ):
+        await realtime_speech_turn.cancel()
+
     with ai_phase_span("main.response_finalize"):
         await content_publisher.flush()
     
@@ -9866,6 +10098,7 @@ async def _consume_main_processing_stream(
         try:
             from backend.core.api.app.services.embed_service import EmbedService
             embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
             
             if in_document_block:
                 # Finalize document embed with partial HTML content (interrupted)
@@ -9902,6 +10135,20 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
+            elif in_json_content_block:
+                # An unclosed authoring envelope is never a finished artifact.
+                # Clear its partial source instead of materializing typed children.
+                await embed_service.update_json_content_embed_content(
+                    source_language=current_code_language,
+                    embed_id=current_code_embed_id,
+                    source_json="",
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="error",
+                    log_prefix=log_prefix,
+                )
             elif in_diagram_html_block:
                 await _finalize_diagram_html_embed(
                     embed_service, current_code_embed_id, current_code_content,
@@ -9945,6 +10192,8 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error finalizing interrupted embed: {e}", exc_info=True)
 
@@ -10251,6 +10500,8 @@ async def _consume_main_processing_stream(
     # No error message, no response, no final marker - the client will show the permission dialog
     # We don't save anything to cache or publish any Redis messages in this case
     if awaiting_app_settings_memories_permission:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "permission_required"
         # Return early - no message processing needed
@@ -10258,6 +10509,8 @@ async def _consume_main_processing_stream(
         return "", False, False, [], debug_metadata
 
     if awaiting_connected_account_permission:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for connected account. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "connected_account_required"
         return "", False, False, [], debug_metadata
@@ -10265,11 +10518,15 @@ async def _consume_main_processing_stream(
     # Handle paused execution cases: waiting for sub-chats or user input
     # The client handles the paused state without finalizing the current message
     if awaiting_user_input:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user input. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "user_input_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chat_confirmation:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting sub-chat confirmation. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "sub_chat_confirmation_required"
         return "", False, False, [], debug_metadata
@@ -10340,6 +10597,8 @@ async def _consume_main_processing_stream(
                 )
 
         debug_metadata["awaiting_focus_mode_continuation"] = True
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         return aggregated_response, False, False, [], debug_metadata
     
     # IMPROVED LOGGING: metadata-only stream completion details.
@@ -10518,25 +10777,9 @@ async def _consume_main_processing_stream(
             f"Tool results are handled via Embeds."
         )
     
-    # --- Strip Failed Embed References from Message Content ---
-    # When skill execution fails, the embed reference JSON block (```json\n{"type":"app_skill_use","embed_id":"..."}\n```)
-    # is already in the streamed content. If not removed, the client will try to resolve these
-    # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
-    # We strip them here before the content is persisted.
-    if failed_embed_ids and aggregated_response:
-        stripped_response, stripped_count = strip_failed_app_skill_json_blocks(
-            aggregated_response,
-            failed_embed_ids,
-            log_prefix,
-        )
-        if stripped_count > 0:
-            aggregated_response = stripped_response
-            # Update final_response_chunks to reflect the cleanup
-            final_response_chunks = [aggregated_response]
-            logger.info(
-                f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
-                f"Failed embed IDs: {failed_embed_ids}"
-            )
+    # Failed execution references remain canonical document members. Their
+    # encrypted error payloads resolve through the same persistence/recovery
+    # pipeline as successful skills, preserving group membership after reload.
 
     # --- Promoted Embed Reference Type Fix ---
     # Streaming placeholders can start as code and later promote to notebook once
@@ -10589,7 +10832,24 @@ async def _consume_main_processing_stream(
                 )
 
     native_presentation_steps: List[Dict[str, Any]] = []
+    native_map_requires_cold_reset = False
 
+    finalization_embed_graph: Optional[FinalizationEmbedGraph] = None
+    if cache_service and encryption_service and user_vault_key_id:
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        finalization_embed_graph = FinalizationEmbedGraph(
+            EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            ),
+            user_vault_key_id,
+            log_prefix,
+        )
+
+
+    had_results_view_block = bool(extract_results_view_source_refs(aggregated_response))
     # --- Embeds Map View Guard ---
     # Normalize virtual map/list blocks before persistence. This drops unsupported
     # fields such as filters/provider/enrichment and cannot dispatch paid skills.
@@ -10599,15 +10859,33 @@ async def _consume_main_processing_stream(
             tool_calls_info,
             map_view_user_texts,
         )
-        map_view_fixed_response, map_view_changed = normalize_embeds_map_view_blocks(
-            aggregated_response,
-            source_refs=map_view_source_refs,
+        available_map_sources = await _available_map_view_sources(
+            aggregated_response, request_data, tool_calls_info, finalization_embed_graph,
         )
+        map_view_fixed_response, map_view_changed = validate_embeds_map_view_sources(
+            aggregated_response,
+            available_sources=available_map_sources,
+            repair_source_refs=map_view_source_refs,
+        )
+        unresolved_map_sources = set(extract_results_view_source_refs(aggregated_response)) - set(available_map_sources)
+        if map_view_changed and unresolved_map_sources:
+            logger.warning(
+                "%s [RESULTS_VIEW] Repaired or removed %d unresolved parent source reference(s)",
+                log_prefix, len(unresolved_map_sources),
+            )
         if map_view_changed:
+            # Native replay can prove only current tool results. Historical refs
+            # were verified through the graph above; preserve their selection and
+            # start a fresh provider cache segment instead of replaying a different view.
+            current_map_sources = map_view_source_bindings_from_tool_calls(tool_calls_info)
+            native_map_requires_cold_reset = any(
+                ref not in current_map_sources
+                for ref in extract_results_view_source_refs(map_view_fixed_response)
+            )
             native_presentation_steps.append({
                 "kind": "normalize_map_view",
                 "refs": list(dict.fromkeys([
-                    *extract_map_capable_source_refs(aggregated_response), *map_view_source_refs,
+                    *map_view_source_refs, *extract_map_capable_source_refs(aggregated_response),
                 ])),
             })
             aggregated_response = map_view_fixed_response
@@ -10647,20 +10925,6 @@ async def _consume_main_processing_stream(
                     f"Published response with mixed URL+embed references fixed "
                     f"(length: {len(aggregated_response)})"
                 )
-
-    finalization_embed_graph: Optional[FinalizationEmbedGraph] = None
-    if cache_service and encryption_service and user_vault_key_id:
-        from backend.core.api.app.services.embed_service import EmbedService
-
-        finalization_embed_graph = FinalizationEmbedGraph(
-            EmbedService(
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-            ),
-            user_vault_key_id,
-            log_prefix,
-        )
 
     # --- Source Quote Verification ---
     # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
@@ -10759,7 +11023,9 @@ async def _consume_main_processing_stream(
                 isinstance(call, dict) and (call.get("app_id"), call.get("skill_id")) == ("web", "search")
                 for call in (tool_calls_info or [])
             )
-            known_refs = authored_web_refs | (parent_source_refs or set())
+            from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
+            generated_outputs = authenticated_generated_outputs(authored_inline_outputs)
+            known_refs = authored_web_refs | set(generated_outputs) | (parent_source_refs or set())
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,
@@ -10777,6 +11043,27 @@ async def _consume_main_processing_stream(
             if request_data.is_sub_chat and (web_search_performed or parent_source_refs is not None):
                 child_source_refs = authored_web_refs | validated_inline_refs
                 child_source_bindings = authored_web_bindings
+            if generated_outputs:
+                try:
+                    from backend.apps.ai.processing.artifact_ledger import load_and_merge_artifact_ledger
+                    generated_index = {}
+                    for ref, output in generated_outputs.items():
+                        generated_index[ref] = output["embed_id"]
+                        filename = output.get("filename")
+                        if isinstance(filename, str):
+                            generated_index[filename] = output["embed_id"]
+                    request_data.embed_file_path_index = await asyncio.wait_for(
+                        load_and_merge_artifact_ledger(
+                            cache_service=cache_service, encryption_service=encryption_service,
+                            user_vault_key_id=user_vault_key_id,
+                            user_id_hash=request_data.user_id_hash, chat_id=request_data.chat_id,
+                            current_index={**(request_data.embed_file_path_index or {}), **generated_index},
+                            persist=not request_data.is_incognito and not request_data.is_external,
+                        ), timeout=5.0,
+                    ) or None
+                except Exception as ledger_error:
+                    logger.warning("%s Generated image continuity metadata unavailable: %s",
+                                   log_prefix, type(ledger_error).__name__)
             if ref_validated_response != aggregated_response:
                 native_presentation_steps.append({"kind": "strip_invalid_links", "refs": sorted(validated_inline_refs)})
                 aggregated_response = ref_validated_response
@@ -10820,7 +11107,7 @@ async def _consume_main_processing_stream(
             not is_map_view_suppressed_request(user_texts)
             and content_has_map_capable_app_skill_use(aggregated_response)
         )
-        if should_repair_map_view:
+        if should_repair_map_view and not had_results_view_block:
             map_view_source_refs = _map_view_source_refs_from_tool_calls(tool_calls_info, user_texts)
             map_view_repaired_response, map_view_repaired = append_missing_embeds_map_view_block(
                 aggregated_response,
@@ -11061,8 +11348,10 @@ async def _consume_main_processing_stream(
     project_file_finalization_started_at = time.monotonic() if project_file_reference_output else None
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     if speech_tracker is not None:
+        if voice_waiting is not None:
+            await voice_waiting.close()
         speech_tracker.observe(aggregated_response, is_final=True)
-        # ElevenLabs generation remains fully asynchronous, but the durable
+        # Speech generation remains fully asynchronous, but the durable
         # segment records and Celery handoffs must finish before this task closes
         # its event loop or the generated reply can be silently abandoned.
         await speech_tracker.wait_for_handoff()
@@ -11179,7 +11468,10 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
     final_native_cache_context = None
+    if native_map_requires_cold_reset and native_cache_completion is not None:
+        logger.info("%s Historical results view was normalized; next request starts a fresh cache segment", log_prefix)
     if (native_cache_completion is not None and not is_error and not is_server_error
+            and not native_map_requires_cold_reset
             and stream_exception is None and terminal_failure_reason is None
             and not was_revoked_during_stream and not was_soft_limited_during_stream
             and not request_data.is_incognito and not request_data.is_external):
@@ -11414,6 +11706,9 @@ async def _consume_main_processing_stream(
             log_prefix=log_prefix,
             secrets_manager=secrets_manager,
         )
+
+    if realtime_speech_turn is not None and owned_live_speech is None:
+        await realtime_speech_turn.wait()
 
     # Retryable conflicts return successfully after BillingService has created
     # a durable pending settlement. An exception here therefore means no durable

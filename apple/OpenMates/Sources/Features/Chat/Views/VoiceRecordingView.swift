@@ -97,7 +97,7 @@ final class AudioRecordingFileWriter: @unchecked Sendable {
     }
 }
 
-private final class OrderedRealtimePCMForwarder: @unchecked Sendable {
+final class OrderedRealtimePCMForwarder: @unchecked Sendable {
     private struct Chunk: Sendable {
         let samples: [Float]
         let sampleRate: Double
@@ -110,6 +110,7 @@ private final class OrderedRealtimePCMForwarder: @unchecked Sendable {
     init(
         client: AudioRealtimeTranscriptionClient,
         chatID: String,
+        beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         onFailure: @escaping @Sendable () async -> Void
     ) {
         var streamContinuation: AsyncStream<Chunk>.Continuation?
@@ -120,6 +121,10 @@ private final class OrderedRealtimePCMForwarder: @unchecked Sendable {
         self.onFailure = onFailure
         consumer = Task {
             do {
+                // Caller-owned confirmed draft allocation bookkeeping must
+                // complete before any online authentication/socket/audio.
+                try await beforeRemoteStart?()
+                try Task.checkCancellation()
                 try await client.start(chatID: chatID)
                 for await chunk in stream {
                     try await client.append(samples: chunk.samples, sourceSampleRate: chunk.sampleRate)
@@ -169,6 +174,7 @@ final class AudioRecordingRealtimeSession {
     private var resultWaiters: [UUID: CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = [:]
     private var settledResult: AudioRecordingRealtimeResult??
     private let speechRuntime: AssistantSpeechAppRuntime
+    private let isTranscriptionOff: @MainActor () -> Bool
     private var recordingReservation: UUID?
     private var captureFinished = false
     private var cancellation: Task<Void, Never>?
@@ -176,9 +182,13 @@ final class AudioRecordingRealtimeSession {
     private let finishTimeout: Duration
     private var finishTimeoutTask: Task<Void, Never>?
 
-    init(finishTimeout: Duration = .seconds(8), speechRuntime: AssistantSpeechAppRuntime = .shared) {
+    init(finishTimeout: Duration = .seconds(8), speechRuntime: AssistantSpeechAppRuntime = .shared,
+         isTranscriptionOff: @escaping @MainActor () -> Bool = {
+             LocalModelStore.shared.recordingTranscriptionPreference == .off
+         }) {
         self.finishTimeout = finishTimeout
         self.speechRuntime = speechRuntime
+        self.isTranscriptionOff = isTranscriptionOff
     }
 
     deinit {
@@ -191,9 +201,11 @@ final class AudioRecordingRealtimeSession {
         }
     }
 
-    private func reserveRecording() {
-        recordingReservation = speechRuntime.beginRecording()
+    @discardableResult private func reserveRecording() -> Bool {
+        guard let reservation = speechRuntime.tryBeginRecording() else { return false }
+        recordingReservation = reservation
         captureFinished = false
+        return true
     }
 
     private func releaseRecordingIfTerminal() {
@@ -205,12 +217,17 @@ final class AudioRecordingRealtimeSession {
     func begin(
         authManager: AuthManager,
         chatID: String,
+        beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         presentationHandler: @escaping PresentationHandler
     ) {
         // Chat and welcome composers create one session per capture.
         guard !hasBegun else { return }
         hasBegun = true
-        reserveRecording()
+        guard reserveRecording() else {
+            settledResult = .some(nil)
+            presentationHandler("", false)
+            return
+        }
         let token = UUID(); generation = token
         self.presentationHandler = presentationHandler
         liveTranscript = ""
@@ -226,8 +243,16 @@ final class AudioRecordingRealtimeSession {
             await self.receive(event)
         }
         self.client = client
-        usesLocalTranscription = client.usesLocalTranscription
-        pcmForwarder = OrderedRealtimePCMForwarder(client: client, chatID: chatID) { [weak self, weak client] in
+        usesLocalTranscription = client.usesLocalTranscription || client.transcriptionDisabled
+        if client.transcriptionDisabled {
+            // Off retains the capture reservation until mic stop, while no PCM
+            // forwarder/authentication/decoder is started. Its typed result also
+            // suppresses the attachment pipeline's automatic batch fallback.
+            settle(.transcriptionDisabled)
+            return
+        }
+        pcmForwarder = OrderedRealtimePCMForwarder(client: client, chatID: chatID,
+            beforeRemoteStart: client.usesLocalTranscription ? nil : beforeRemoteStart) { [weak self, weak client] in
             await client?.cancel()
             guard let self, await self.generation == token else { return }
             await self.settle(nil)
@@ -283,6 +308,13 @@ final class AudioRecordingRealtimeSession {
 
     func awaitResult() async -> AudioRecordingRealtimeResult? {
         guard !Task.isCancelled else { return nil }
+        if isTranscriptionOff() {
+            // A preference change can happen after a failed result was settled.
+            // Drain any old client before suppressing the attachment fallback.
+            await client?.cancel()
+            settle(.transcriptionDisabled)
+            return .transcriptionDisabled
+        }
         if let settledResult { return settledResult }
         let waiterID = UUID()
         return await withTaskCancellationHandler {
@@ -356,7 +388,7 @@ final class AudioRecordingRealtimeSession {
     func beginLocalRecordingForTesting() {
         guard !hasBegun else { return }
         hasBegun = true
-        reserveRecording()
+        guard reserveRecording() else { return }
         usesLocalTranscription = true
     }
     func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {
@@ -366,6 +398,7 @@ final class AudioRecordingRealtimeSession {
 
     private func settle(_ result: AudioRecordingRealtimeResult?) {
         guard settledResult == nil else { return }
+        let result: AudioRecordingRealtimeResult? = isTranscriptionOff() ? .transcriptionDisabled : result
         finishTimeoutTask?.cancel()
         finishTimeoutTask = nil
         settledResult = .some(result)
@@ -397,6 +430,8 @@ final class VoiceRecorder: ObservableObject {
     @Published var isRecording = false
     @Published var duration: TimeInterval = 0
     @Published var error: String?
+    @Published private(set) var recordingAdmissionRejected = false
+    private let recordingAdmission: @MainActor () -> Bool
     @Published private(set) var waveformSamples = Array(
         repeating: 0.0,
         count: VoiceRecorder.waveformSampleCount
@@ -409,11 +444,20 @@ final class VoiceRecorder: ObservableObject {
     private var recordingURL: URL?
     private var recordedWaveformLevels: [Double] = []
 
+    init(recordingAdmission: @escaping @MainActor () -> Bool = {
+        !AssistantSpeechAppRuntime.shared.hasLiveCallReservation
+    }) { self.recordingAdmission = recordingAdmission }
+
     deinit {
         durationTask?.cancel()
     }
 
     func requestPermission() async -> Bool {
+        guard recordingAdmission() else {
+            recordingAdmissionRejected = true
+            return false
+        }
+        recordingAdmissionRejected = false
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-mic-request-granted") {
             return true
@@ -447,6 +491,12 @@ final class VoiceRecorder: ObservableObject {
 
     func startRecording() {
         guard !isRecording else { return }
+        guard recordingAdmission() else {
+            recordingAdmissionRejected = true
+            error = AppStrings.recordingBlockedByCall
+            return
+        }
+        recordingAdmissionRejected = false
         error = nil
         resetWaveform()
         recordedWaveformLevels = []

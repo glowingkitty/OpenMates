@@ -290,7 +290,7 @@ def test_provider_contract_notification_dispatches_once(tmp_path, monkeypatch) -
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
     monkeypatch.setattr(run_provider_contracts.urllib.request, "urlopen", fake_urlopen)
 
-    broken = [{"provider": "doctolib", "failed": 2, "errors": []}]
+    broken = [{"provider": "sample_provider", "failed": 2, "errors": []}]
 
     assert run_provider_contracts._notify_broken_providers("2026-06-10", broken) == "dispatched"
     assert len(calls) == 1
@@ -302,7 +302,7 @@ def test_provider_contract_notification_skips_duplicate_same_day(tmp_path, monke
 
     state_path = tmp_path / "provider-contracts-email-state.json"
     state_path.write_text(
-        '{"date":"2026-06-10","broken_fingerprint":"doctolib"}',
+        '{"date":"2026-06-10","broken_fingerprint":"sample_provider"}',
         encoding="utf-8",
     )
     monkeypatch.setattr(run_provider_contracts, "EMAIL_STATE_PATH", state_path)
@@ -313,6 +313,6 @@ def test_provider_contract_notification_skips_duplicate_same_day(tmp_path, monke
 
     monkeypatch.setattr(run_provider_contracts.urllib.request, "urlopen", fail_urlopen)
 
-    broken = [{"provider": "doctolib", "failed": 2, "errors": []}]
+    broken = [{"provider": "sample_provider", "failed": 2, "errors": []}]
 
     assert run_provider_contracts._notify_broken_providers("2026-06-10", broken) == "already_notified"

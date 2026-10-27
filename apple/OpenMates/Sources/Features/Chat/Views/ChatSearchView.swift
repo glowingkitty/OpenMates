@@ -53,6 +53,7 @@ struct ChatSearchView: View {
     let onSelectResult: (ChatSearchSelection) -> Void
     let onClose: () -> Void
     let prepareSearchMetadata: () async -> Void
+    /// Display cache supplied by ChatSidebarDraftContext; never reparse text nodes as documents.
     var draftPreviews: [String: String] = [:]
     var allowsOfflineContent = true
 
@@ -234,7 +235,7 @@ struct ChatSearchView: View {
             Button {
                 onSelectResult(.init(chatId: result.chat.id, messageId: nil, query: query, teamID: result.chat.teamId))
             } label: {
-                ChatListRow(chat: result.chat, suppliedDraftPreview: draftPreviews[result.chat.id])
+                ChatListRow(chat: result.chat, suppliedDraftPreview: draftPreviews[result.chat.id], previewIsFormatted: true)
                     .background(activeChatId == result.chat.id ? Color.buttonPrimary.opacity(0.12) : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }

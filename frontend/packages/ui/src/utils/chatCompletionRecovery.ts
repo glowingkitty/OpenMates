@@ -335,3 +335,63 @@ export async function openRecoveryOutputEnvelope(
     toArrayBuffer(ciphertext),
   ));
 }
+
+
+/** Generated navigation metadata is a separate authenticated purpose from replies. */
+export interface ChatMetadataRecoveryIdentity {
+  ownerId: string;
+  chatId: string;
+  taskId: string;
+  jobId: string;
+  stage: "initial" | "postprocessing";
+  keyVersion: number;
+}
+
+export type RecoveredChatMetadata = Partial<Record<"title" | "summary" | "category" | "icon", string>>;
+
+export async function openChatMetadataRecoveryEnvelope(
+  envelope: ChatCompletionRecoveryEnvelope,
+  options: ChatMetadataRecoveryIdentity & { recoveryPrivateKey: string },
+): Promise<RecoveredChatMetadata> {
+  if (!envelope || Object.keys(envelope).sort().join(",") !== "ciphertext,epk,nonce,v" || envelope.v !== 1) {
+    throw new Error("invalid metadata recovery envelope");
+  }
+  if (!["initial", "postprocessing"].includes(options.stage) || options.keyVersion < 1) {
+    throw new Error("invalid metadata recovery stage or key version");
+  }
+  const aad = concatBytes(
+    new TextEncoder().encode("OMCM1"),
+    ...[options.ownerId, options.chatId, options.taskId, options.jobId]
+      .map(value => lengthPrefix(canonicalUuid(value, "metadata_identity"))),
+    lengthPrefix(new TextEncoder().encode(options.stage)),
+    uint32(options.keyVersion, "key_version"),
+  );
+  const privateKey = decodeBase64Url(options.recoveryPrivateKey, "recovery_private_key", KEY_BYTES);
+  const epk = decodeBase64Url(envelope.epk, "epk", KEY_BYTES);
+  const nonce = decodeBase64Url(envelope.nonce, "nonce", NONCE_BYTES);
+  const ciphertext = decodeBase64Url(envelope.ciphertext, "ciphertext");
+  if (ciphertext.length < 16 || ciphertext.length - 16 > 64 * 1024) {
+    throw new Error("metadata recovery payload size is invalid");
+  }
+  const key = await crypto.subtle.importKey("raw",
+    toArrayBuffer(await envelopeKey(nacl.scalarMult(privateKey, epk), aad)),
+    { name: "AES-GCM" }, false, ["decrypt"]);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(aad) },
+    key, toArrayBuffer(ciphertext));
+  const recovered = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext));
+  const identity = { owner_id: options.ownerId, chat_id: options.chatId, task_id: options.taskId,
+    job_id: options.jobId, stage: options.stage, key_version: options.keyVersion };
+  if (!recovered || typeof recovered !== "object" || Array.isArray(recovered)
+    || Object.keys(recovered).sort().join(",") !== [...Object.keys(identity), "metadata"].sort().join(",")
+    || Object.entries(identity).some(([field, value]) => recovered[field] !== value)) {
+    throw new Error("metadata recovery plaintext identity mismatch");
+  }
+  const metadata = recovered.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata) || !Object.keys(metadata).length
+    || Object.entries(metadata).some(([field, value]) =>
+      !["title", "summary", "category", "icon"].includes(field) || typeof value !== "string" || !value)) {
+    throw new Error("invalid recovered metadata fields");
+  }
+  return metadata as RecoveredChatMetadata;
+}

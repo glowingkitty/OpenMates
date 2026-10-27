@@ -1,0 +1,1482 @@
+{
+  "date": "2026-10-21",
+  "adopted_candidate": null,
+  "served_application_changed": false,
+  "confidence_threshold": 0.5,
+  "cost_method": "Each raw native HTTP/SDK response counted once; facade accounting is corroboration only. Supplier tariff estimates before credits, not invoices. Interrupted calls without native usage are unknown, never zero.",
+  "jev": {
+    "paths": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-indexed-20261021",
+      "manifest_sha256": "2d4003cacb0b4c8465c968064f89dbd5936b74ac839d94c859f0fa73b2744bdc",
+      "receipt_count": 29,
+      "receipt_set_sha256": "8e4cb1e7e6e16bed086df697b28b90a6a808a3926349826ca9362f9add08110b",
+      "positive_cases": 14,
+      "negative_cases": 15,
+      "positive_admissions": [
+        "original-japanese-paraphrase",
+        "v6-ar-01-allow",
+        "v6-ar-02-allow",
+        "v6-ar-03-allow",
+        "v6-de-03-allow",
+        "v6-hi-03-allow",
+        "v6-ja-01-allow",
+        "v6-ja-03-allow",
+        "v7-tr-reef-colony-role-allow"
+      ],
+      "negative_false_admissions": [
+        "card-4d557a74cab1",
+        "card-6bc707660ed2"
+      ],
+      "native_response_count": 29,
+      "observed_models": {
+        "jev-1.14.0": 29
+      },
+      "input_tokens": 103314,
+      "supplier_usd": 0.004339188,
+      "cost_complete": true,
+      "passed_checks": 445,
+      "failed_or_abstained_checks": 48,
+      "provider_unavailable_requests": 0,
+      "positive_admitted_count": 9,
+      "negative_false_admitted_count": 2
+    },
+    "scalar_copy": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-atomic-copy-20261021",
+      "manifest_sha256": "8b941666dc4bc484f96919b9bd184cb55e1ebf32522aa0491d30856c142ba3d8",
+      "receipt_count": 348,
+      "receipt_set_sha256": "2da0f1b170dffd18320072694e65a4fc73d6f128c491620244f092cce83407b1",
+      "positive_cases": 14,
+      "negative_cases": 15,
+      "positive_admissions": [
+        "v6-ar-01-allow",
+        "v6-ar-03-allow",
+        "v6-de-01-allow",
+        "v6-de-02-allow",
+        "v6-de-03-allow",
+        "v6-hi-01-allow",
+        "v6-hi-02-allow",
+        "v6-hi-03-allow",
+        "v6-ja-01-allow",
+        "v6-ja-02-allow",
+        "v6-ja-03-allow",
+        "v7-tr-reef-colony-role-allow"
+      ],
+      "negative_false_admissions": [
+        "card-4d557a74cab1",
+        "card-6bc707660ed2",
+        "card-d399e32936fc"
+      ],
+      "native_response_count": 348,
+      "observed_models": {
+        "jev-1.14.0": 348
+      },
+      "input_tokens": 210058,
+      "supplier_usd": 0.008822436,
+      "cost_complete": true,
+      "passed_checks": 333,
+      "failed_or_abstained_checks": 15,
+      "provider_unavailable_requests": 0,
+      "positive_admitted_count": 12,
+      "negative_false_admitted_count": 3
+    },
+    "dimensions": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-dimensions-20261021",
+      "manifest_sha256": "c09cc03ecda96fbbf785f334c6a40aadf122b0432d52072269695d8e58103bd9",
+      "receipt_count": 29,
+      "receipt_set_sha256": "4f5ca468f70afb1d09f430e6c994ccc3e9ddc323256d468a769473852269292c",
+      "positive_cases": 14,
+      "negative_cases": 15,
+      "positive_admissions": [],
+      "negative_false_admissions": [],
+      "native_response_count": 29,
+      "observed_models": {
+        "jev-1.14.0": 29
+      },
+      "input_tokens": 336230,
+      "supplier_usd": 0.01412166,
+      "cost_complete": true,
+      "passed_checks": 796,
+      "failed_or_abstained_checks": 335,
+      "provider_unavailable_requests": 0,
+      "positive_admitted_count": 0,
+      "negative_false_admitted_count": 0,
+      "turkish_role_negative_phrase_intro_checks": {
+        "phrase--topic_entities": {
+          "choice": "preserved",
+          "confidence": 0.74,
+          "pass": true
+        },
+        "phrase--role_direction": {
+          "choice": "preserved",
+          "confidence": 0.52,
+          "pass": true
+        },
+        "phrase--scope_qualifiers": {
+          "choice": "preserved",
+          "confidence": 0.51,
+          "pass": true
+        },
+        "phrase--temporal_status": {
+          "choice": "preserved",
+          "confidence": 0.86,
+          "pass": true
+        },
+        "phrase--unsupported_additions": {
+          "choice": "supported",
+          "confidence": 0.66,
+          "pass": true
+        },
+        "phrase--language": {
+          "choice": "correct",
+          "confidence": 1.0,
+          "pass": true
+        },
+        "assistant_response--topic_entities": {
+          "choice": "preserved",
+          "confidence": 0.91,
+          "pass": true
+        },
+        "assistant_response--role_direction": {
+          "choice": "preserved",
+          "confidence": 0.83,
+          "pass": true
+        },
+        "assistant_response--scope_qualifiers": {
+          "choice": "preserved",
+          "confidence": 0.58,
+          "pass": true
+        },
+        "assistant_response--temporal_status": {
+          "choice": "preserved",
+          "confidence": 0.94,
+          "pass": true
+        },
+        "assistant_response--unsupported_additions": {
+          "choice": "supported",
+          "confidence": 0.92,
+          "pass": true
+        },
+        "assistant_response--language": {
+          "choice": "correct",
+          "confidence": 1.0,
+          "pass": true
+        }
+      }
+    }
+  },
+  "invalid_llm_semantic": {
+    "mercury-chain": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-semantic-mercury-chain-20261021",
+      "manifest_sha256": "a1a25a1c7bebdb12fa76cdc4199199be0cf154beec861801e38eafeef3c757c8",
+      "receipt_count": 28,
+      "receipt_set_sha256": "d6331ad5de057c2b9898bed67872d4725e56155ac91bf0522dfb0d91edd02794",
+      "valid_for_quality": false,
+      "invalid_reason": "Fixture case IDs exposed expected allow/reject labels in provider source_id. No quality claims; preserve outputs and native spend.",
+      "counts": {
+        "case_files": 28,
+        "case_complete": 27,
+        "mercury_native_responses": 27,
+        "mercury_prompt_tokens": 30719,
+        "mercury_cached_tokens": 18205,
+        "mercury_completion_tokens": 27603,
+        "case_interrupted": 1
+      },
+      "requested_models": {
+        "inception/mercury-3": 28
+      },
+      "observed_models": {
+        "mercury-3": 27
+      },
+      "schema_failures": {},
+      "unpriced_attempts": [
+        {
+          "case_id": "card-4d557a74cab1",
+          "attempt_index": 0,
+          "requested_model": "inception/mercury-3",
+          "case_status": "interrupted"
+        }
+      ],
+      "mercury_native_known_usd_launch": 0.0110945,
+      "mercury_native_known_usd_regular": 0.022189,
+      "google_native_uncached_upper_bound_usd": 0.0,
+      "google_cache_cost_complete": true,
+      "total_spend_complete": false,
+      "quality_metrics_suppressed": true
+    },
+    "gemini-only": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-semantic-gemini-only-20261021",
+      "manifest_sha256": "e4e47c83981833709ce752ba01ea0aaaacb3fb8588d3b7985cb9f4f43a6e9c7d",
+      "receipt_count": 29,
+      "receipt_set_sha256": "95fb8e2d51c957cfd1baa86fa2ca7b6fc7680922c86c02d2671de20dc43725ea",
+      "valid_for_quality": false,
+      "invalid_reason": "Fixture case IDs exposed expected allow/reject labels in provider source_id. No quality claims; preserve outputs and native spend.",
+      "counts": {
+        "case_files": 29,
+        "case_complete": 29,
+        "google_native_responses": 29,
+        "google_prompt_tokens": 26776,
+        "google_output_tokens": 7726,
+        "google_cache_counter_absent": 29
+      },
+      "requested_models": {
+        "google/gemini-3.5-flash-lite": 29
+      },
+      "observed_models": {
+        "gemini-3.5-flash-lite": 29
+      },
+      "schema_failures": {
+        "schema:partition_disagrees_with_fields": 5
+      },
+      "unpriced_attempts": [],
+      "mercury_native_known_usd_launch": 0.0,
+      "mercury_native_known_usd_regular": 0.0,
+      "google_native_uncached_upper_bound_usd": 0.0273478,
+      "google_cache_cost_complete": false,
+      "total_spend_complete": false,
+      "quality_metrics_suppressed": true
+    }
+  },
+  "case_count": 29,
+  "limitations": [
+    "Curated 29-case diagnostic set, not a population precision estimate or native-language sign-off.",
+    "Variants have different decision scopes: paths includes v6 policy/coherence, scalar_copy and dimensions isolate text checks. None qualifies images or the full pipeline.",
+    "All gates retain confidence >=0.5; no threshold tuning or candidate adoption.",
+    "Dimensions zero card false admissions reflects universal withholding, and does not repair Turkish role-direction detection.",
+    "Invalid semantic runs leaked expected allow/reject labels in provider source_id; no quality comparison is valid.",
+    "Invalid Mercury run stopped with 28 files (27 complete plus one interrupted); remaining planned cases were not run.",
+    "Gemini cache counters absent: displayed cost is an uncached supplier upper bound, not a complete exact bill."
+  ],
+  "tariffs_per_million_tokens": {
+    "jev": {
+      "input": 0.042,
+      "output": 0
+    },
+    "mercury_launch": {
+      "input": 0.1,
+      "cached_input": 0.01,
+      "output": 0.35
+    },
+    "mercury_regular": {
+      "input": 0.2,
+      "cached_input": 0.02,
+      "output": 0.7
+    },
+    "google": {
+      "input": 0.3,
+      "output": 2.5,
+      "cache_counter_absent_method": "All prompt tokens priced uncached; upper bound only"
+    }
+  },
+  "valid_opaque_llm_semantic": {
+    "mercury-chain": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-blind-semantic-mercury-chain-20261021",
+      "manifest_sha256": "e6388d92509558717ad2159a933b01e93783ee84c6e51d77a29e12ff026123e3",
+      "probe_script_sha256": "a69624279e0052456adb7d1acbbaceb25a597c122eebbb4c48ed1b8b880c4635",
+      "source_sha256": {
+        "/app/backend/apps/ai/utils/llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "/app/backend/apps/ai/llm_providers/inception_client.py": "f5295e8da4b53c49b188667535035eb493e763b061ef49232cd21007658dbf89",
+        "/app/backend/apps/ai/llm_providers/google_client.py": "bf698dcde9d0b1752cd2fac150734bd89c4d139967764ad8d7e7fab10e3c2d61",
+        "/app/backend/apps/ai/daily_inspiration/config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "/app/test-results/d115-v7-dimensions-probe.py": "2dd1a1ea4ee05cf9974b2961cd2d1056ee5d2afbd293012f11fceda21dff093f",
+        "/app/backend/scripts/fixtures/daily_inspiration_editorial_v6.json": "2c56e716ffb50150f370c615460d69bac00b9c4fa6fd1966f50281df4aafd2d6",
+        "/app/backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json": "5b69e74923f0c1742a4643b87d6b733d79db3983966aeacf4753ed00d8158ffc",
+        "/app/test-results/d115-v7-turkish-role-pair.json": "84debc8d01720312dc81f8c6d8ddd0b5c23ad3500cd665aa6328e18b344c1858"
+      },
+      "receipt_set_sha256": "4435487419e66d93f9931d6f8d06a09bb02150c92baae988b004249c6fc3f0c4",
+      "provider_identity": "source_000",
+      "fixture_ids_absent_from_immutable_requests": true,
+      "case_count": 29,
+      "counts": {
+        "negative_cases": 15,
+        "negative_false_admissions": 3,
+        "cases_with_retry": 0,
+        "attempts": 29,
+        "mercury_prompt_tokens": 35255,
+        "mercury_completion_tokens": 27297,
+        "mercury_cached_tokens": 19838,
+        "mercury_native_responses": 29,
+        "positive_cases": 14,
+        "positive_admissions": 14,
+        "negative_rejections": 12
+      },
+      "requested_models": {
+        "inception/mercury-3": 29
+      },
+      "observed_models": {
+        "mercury-3": 29
+      },
+      "schema_failures": {},
+      "false_admitted_case_ids": [
+        "card-4d557a74cab1",
+        "card-6bc707660ed2",
+        "card-d399e32936fc"
+      ],
+      "unavailable_withheld_case_ids": [],
+      "attempt_latency_seconds": {
+        "median": 1.7293858183547854,
+        "maximum": 4.937693149782717,
+        "sum": 57.01621288526803,
+        "note": "Concurrent requests; summed duration is not wall-clock run duration."
+      },
+      "mercury_usd_launch": 0.01129403,
+      "mercury_usd_regular": 0.02258806,
+      "google_uncached_upper_bound_usd": 0.0,
+      "unpriced_attempts": 0,
+      "cost_complete": true,
+      "limitations": "Curated diagnostic only; no candidate adopted, no general quality or production qualification claim."
+    },
+    "gemini-only": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-blind-semantic-gemini-only-20261021",
+      "manifest_sha256": "f1226badf8463bab3d4858a78077a6a90e4fbae2ea0c16bee3f183a843eacfd5",
+      "probe_script_sha256": "a69624279e0052456adb7d1acbbaceb25a597c122eebbb4c48ed1b8b880c4635",
+      "source_sha256": {
+        "/app/backend/apps/ai/utils/llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "/app/backend/apps/ai/llm_providers/inception_client.py": "f5295e8da4b53c49b188667535035eb493e763b061ef49232cd21007658dbf89",
+        "/app/backend/apps/ai/llm_providers/google_client.py": "bf698dcde9d0b1752cd2fac150734bd89c4d139967764ad8d7e7fab10e3c2d61",
+        "/app/backend/apps/ai/daily_inspiration/config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "/app/test-results/d115-v7-dimensions-probe.py": "2dd1a1ea4ee05cf9974b2961cd2d1056ee5d2afbd293012f11fceda21dff093f",
+        "/app/backend/scripts/fixtures/daily_inspiration_editorial_v6.json": "2c56e716ffb50150f370c615460d69bac00b9c4fa6fd1966f50281df4aafd2d6",
+        "/app/backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json": "5b69e74923f0c1742a4643b87d6b733d79db3983966aeacf4753ed00d8158ffc",
+        "/app/test-results/d115-v7-turkish-role-pair.json": "84debc8d01720312dc81f8c6d8ddd0b5c23ad3500cd665aa6328e18b344c1858"
+      },
+      "receipt_set_sha256": "96f3bf0405fe7e1d30a9680b537be181db80bf7c506f7fa3187d9d6d95cce8d2",
+      "provider_identity": "source_000",
+      "fixture_ids_absent_from_immutable_requests": true,
+      "case_count": 29,
+      "counts": {
+        "negative_cases": 15,
+        "negative_false_admissions": 14,
+        "cases_with_retry": 0,
+        "attempts": 29,
+        "google_prompt_tokens": 27721,
+        "google_output_tokens": 6818,
+        "google_cache_counter_absent": 29,
+        "google_native_responses": 29,
+        "positive_cases": 14,
+        "positive_admissions": 14
+      },
+      "requested_models": {
+        "google/gemini-3.5-flash-lite": 29
+      },
+      "observed_models": {
+        "gemini-3.5-flash-lite": 29
+      },
+      "schema_failures": {
+        "schema:partition_disagrees_with_fields": 1
+      },
+      "false_admitted_case_ids": [
+        "card-4d557a74cab1",
+        "card-6bc707660ed2",
+        "card-d399e32936fc",
+        "v6-ar-02-reject",
+        "v6-ar-03-reject",
+        "v6-de-01-reject",
+        "v6-de-02-reject",
+        "v6-de-03-reject",
+        "v6-hi-01-reject",
+        "v6-hi-02-reject",
+        "v6-hi-03-reject",
+        "v6-ja-01-reject",
+        "v6-ja-02-reject",
+        "v6-ja-03-reject"
+      ],
+      "unavailable_withheld_case_ids": [
+        "v6-ar-01-reject"
+      ],
+      "attempt_latency_seconds": {
+        "median": 1.2963026259094477,
+        "maximum": 1.942696064710617,
+        "sum": 40.15571623016149,
+        "note": "Concurrent requests; summed duration is not wall-clock run duration."
+      },
+      "mercury_usd_launch": 0.0,
+      "mercury_usd_regular": 0.0,
+      "google_uncached_upper_bound_usd": 0.0253613,
+      "unpriced_attempts": 0,
+      "cost_complete": false,
+      "limitations": "Curated diagnostic only; no candidate adopted, no general quality or production qualification claim."
+    }
+  },
+  "rate_limited_semantic_profiles": {
+    "verdict-medium": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-verdict-medium-20261021",
+      "manifest_sha256": "bbcd90b3df3e2fd6c434b133dc9568df7a68c9d5d9313c19c854fd93e9112def",
+      "probe_script_sha256": "c5a0f394dc8e92fb17219c230dc7e758296a3ed2039c6bdc40b509a6aad13f2d",
+      "receipt_set_sha256": "9aabeb2a7b5c89308c75bd4767a351a8d3b01f0524dd92f5f3943c038b212bf6",
+      "reasoning_effort": "medium",
+      "review_style": "verdict",
+      "requested_temperature": 0,
+      "effective_temperature": {
+        "inception/mercury-3": 0.5,
+        "google/gemini-3.5-flash-lite": 0
+      },
+      "max_output_tokens": 8192,
+      "counts": {
+        "cases": 29,
+        "available_cases": 29,
+        "cases_with_retry": 7,
+        "attempts": 43
+      },
+      "requested_models": {
+        "inception/mercury-3": 36,
+        "google/gemini-3.5-flash-lite": 7
+      },
+      "native_observed_models": {
+        "gemini-3.5-flash-lite": 7,
+        "mercury-3": 23
+      },
+      "mercury_http_statuses": {
+        "429": 13,
+        "200": 23
+      },
+      "failures_by_requested_model": {
+        "inception/mercury-3:provider_or_tool_parse_failure": 14
+      },
+      "usable_verdicts_by_model": {
+        "google/gemini-3.5-flash-lite": {
+          "allow": 7
+        },
+        "inception/mercury-3": {
+          "allow": 11,
+          "reject": 11
+        }
+      },
+      "usable_outcomes_by_model": {
+        "google/gemini-3.5-flash-lite": {
+          "negative_false_allow": 4,
+          "positive_allow": 3
+        },
+        "inception/mercury-3": {
+          "positive_allow": 11,
+          "negative_reject": 11
+        }
+      },
+      "paid_mercury_http200_failed_validation": [
+        {
+          "case_id": "v6-hi-02-allow",
+          "attempt_index": 0,
+          "failure": "provider_or_tool_parse_failure",
+          "finish_reasons": [
+            "length"
+          ]
+        }
+      ],
+      "real_regression_attempts": {
+        "card-4d557a74cab1": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": "allow",
+            "failure": null
+          }
+        ],
+        "card-6bc707660ed2": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": "allow",
+            "failure": null
+          }
+        ],
+        "card-d399e32936fc": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": "allow",
+            "failure": null
+          }
+        ]
+      },
+      "tokens": {
+        "google_prompt": 7647,
+        "google_output": 1645,
+        "google_cache_absent": 7,
+        "mercury_prompt": 26522,
+        "mercury_cached": 14137,
+        "mercury_output": 41308
+      },
+      "mercury_known_usd_launch": 0.01583767,
+      "mercury_known_usd_regular": 0.03167534,
+      "google_uncached_upper_bound_usd": 0.0064066,
+      "known_launch_plus_google_upper_bound_usd": 0.02224427,
+      "attempt_latency_seconds": {
+        "median": 1.4881130885332823,
+        "maximum": 13.042364256456494,
+        "sum_not_wallclock": 88.60096987523139
+      },
+      "limitations": [
+        "Three simultaneous processes each allowed three concurrent calls; repeated Mercury HTTP429 responses confound model isolation.",
+        "All captured HTTP200 usage included even for length/parse/schema failure; facade records not added again.",
+        "HTTP429 has no captured inference usage; no inferred paid tokens or zero-spend guarantee. Old capture did not retain response headers.",
+        "Google cache telemetry absent; Google cost is an uncached upper bound.",
+        "Final chain decisions must not be attributed to Mercury when Gemini fallback produced them; no aggregate qualification."
+      ],
+      "mercury_rate_limit_messages": {
+        "Rate limit reached: output token limit exceeded": 13
+      },
+      "cost_complete": false
+    },
+    "evidence-low": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-evidence-low-20261021",
+      "manifest_sha256": "6d6b6a148d11821f72ad324ef1420fdb9ba070f40791168154a818dd84f1ed12",
+      "probe_script_sha256": "c5a0f394dc8e92fb17219c230dc7e758296a3ed2039c6bdc40b509a6aad13f2d",
+      "receipt_set_sha256": "0dc6c7bed88bdd7ada4a3d30d292a63abf39af053b231e3541742188bf09f984",
+      "reasoning_effort": "low",
+      "review_style": "evidence",
+      "requested_temperature": 0,
+      "effective_temperature": {
+        "inception/mercury-3": 0.5,
+        "google/gemini-3.5-flash-lite": 0
+      },
+      "max_output_tokens": 8192,
+      "counts": {
+        "cases": 29,
+        "available_cases": 24,
+        "cases_with_retry": 15,
+        "attempts": 57
+      },
+      "requested_models": {
+        "inception/mercury-3": 44,
+        "google/gemini-3.5-flash-lite": 13
+      },
+      "native_observed_models": {
+        "gemini-3.5-flash-lite": 13,
+        "mercury-3": 18
+      },
+      "mercury_http_statuses": {
+        "429": 26,
+        "200": 18
+      },
+      "failures_by_requested_model": {
+        "inception/mercury-3:provider_or_tool_parse_failure": 27,
+        "google/gemini-3.5-flash-lite:schema:evidence_quote_not_in_source": 3,
+        "google/gemini-3.5-flash-lite:schema:source_partition": 2,
+        "inception/mercury-3:schema:status_codes": 1
+      },
+      "usable_verdicts_by_model": {
+        "inception/mercury-3": {
+          "allow": 8,
+          "reject": 8
+        },
+        "google/gemini-3.5-flash-lite": {
+          "allow": 8
+        }
+      },
+      "usable_outcomes_by_model": {
+        "inception/mercury-3": {
+          "positive_allow": 8,
+          "negative_reject": 8
+        },
+        "google/gemini-3.5-flash-lite": {
+          "positive_allow": 4,
+          "negative_false_allow": 4
+        }
+      },
+      "paid_mercury_http200_failed_validation": [
+        {
+          "case_id": "v6-de-01-reject",
+          "attempt_index": 0,
+          "failure": "schema:status_codes",
+          "finish_reasons": [
+            "tool_calls"
+          ]
+        },
+        {
+          "case_id": "v6-hi-01-allow",
+          "attempt_index": 0,
+          "failure": "provider_or_tool_parse_failure",
+          "finish_reasons": [
+            "length"
+          ]
+        }
+      ],
+      "real_regression_attempts": {
+        "card-4d557a74cab1": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": null,
+            "failure": "schema:evidence_quote_not_in_source"
+          }
+        ],
+        "card-6bc707660ed2": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": null,
+            "failure": "schema:evidence_quote_not_in_source"
+          }
+        ],
+        "card-d399e32936fc": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": null,
+            "failure": "schema:source_partition"
+          }
+        ]
+      },
+      "tokens": {
+        "google_prompt": 17652,
+        "google_output": 12054,
+        "google_cache_absent": 13,
+        "mercury_prompt": 27433,
+        "mercury_cached": 13206,
+        "mercury_output": 44948
+      },
+      "mercury_known_usd_launch": 0.01728656,
+      "mercury_known_usd_regular": 0.03457312,
+      "google_uncached_upper_bound_usd": 0.0354306,
+      "known_launch_plus_google_upper_bound_usd": 0.05271716,
+      "attempt_latency_seconds": {
+        "median": 2.285996832884848,
+        "maximum": 8.169880336150527,
+        "sum_not_wallclock": 122.56247134506702
+      },
+      "limitations": [
+        "Three simultaneous processes each allowed three concurrent calls; repeated Mercury HTTP429 responses confound model isolation.",
+        "All captured HTTP200 usage included even for length/parse/schema failure; facade records not added again.",
+        "HTTP429 has no captured inference usage; no inferred paid tokens or zero-spend guarantee. Old capture did not retain response headers.",
+        "Google cache telemetry absent; Google cost is an uncached upper bound.",
+        "Final chain decisions must not be attributed to Mercury when Gemini fallback produced them; no aggregate qualification."
+      ],
+      "mercury_rate_limit_messages": {
+        "Rate limit reached: output token limit exceeded": 19,
+        "Rate limit reached: too many requests per minute": 7
+      },
+      "cost_complete": false
+    },
+    "evidence-medium": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-evidence-medium-20261021",
+      "manifest_sha256": "58e60ff7f599fb4f92367d450794a76669f930259cdcc4746d3aeb6d492bf604",
+      "probe_script_sha256": "c5a0f394dc8e92fb17219c230dc7e758296a3ed2039c6bdc40b509a6aad13f2d",
+      "receipt_set_sha256": "8dc2d22af8fe2bc38952a9424c09da9c44e18439af82ef9cbeeb5420b1733b53",
+      "reasoning_effort": "medium",
+      "review_style": "evidence",
+      "requested_temperature": 0,
+      "effective_temperature": {
+        "inception/mercury-3": 0.5,
+        "google/gemini-3.5-flash-lite": 0
+      },
+      "max_output_tokens": 8192,
+      "counts": {
+        "cases": 29,
+        "available_cases": 22,
+        "cases_with_retry": 20,
+        "attempts": 69
+      },
+      "requested_models": {
+        "inception/mercury-3": 49,
+        "google/gemini-3.5-flash-lite": 20
+      },
+      "native_observed_models": {
+        "gemini-3.5-flash-lite": 20,
+        "mercury-3": 12
+      },
+      "mercury_http_statuses": {
+        "429": 37,
+        "200": 12
+      },
+      "failures_by_requested_model": {
+        "inception/mercury-3:provider_or_tool_parse_failure": 39,
+        "google/gemini-3.5-flash-lite:schema:evidence_quote_shape": 1,
+        "google/gemini-3.5-flash-lite:schema:evidence_quote_not_in_source": 2,
+        "google/gemini-3.5-flash-lite:schema:source_partition": 4,
+        "inception/mercury-3:schema:status_codes": 1
+      },
+      "usable_verdicts_by_model": {
+        "google/gemini-3.5-flash-lite": {
+          "allow": 13
+        },
+        "inception/mercury-3": {
+          "allow": 5,
+          "reject": 4
+        }
+      },
+      "usable_outcomes_by_model": {
+        "google/gemini-3.5-flash-lite": {
+          "negative_false_allow": 5,
+          "positive_allow": 8
+        },
+        "inception/mercury-3": {
+          "positive_allow": 4,
+          "negative_reject": 4,
+          "negative_false_allow": 1
+        }
+      },
+      "paid_mercury_http200_failed_validation": [
+        {
+          "case_id": "v6-ar-03-allow",
+          "attempt_index": 0,
+          "failure": "provider_or_tool_parse_failure",
+          "finish_reasons": [
+            "length"
+          ]
+        },
+        {
+          "case_id": "v6-de-02-allow",
+          "attempt_index": 0,
+          "failure": "provider_or_tool_parse_failure",
+          "finish_reasons": [
+            "length"
+          ]
+        },
+        {
+          "case_id": "v6-de-02-allow",
+          "attempt_index": 1,
+          "failure": "schema:status_codes",
+          "finish_reasons": [
+            "tool_calls"
+          ]
+        }
+      ],
+      "real_regression_attempts": {
+        "card-4d557a74cab1": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": null,
+            "failure": "schema:evidence_quote_shape"
+          }
+        ],
+        "card-6bc707660ed2": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": "allow",
+            "failure": null
+          }
+        ],
+        "card-d399e32936fc": [
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "inception/mercury-3",
+            "mercury_http_statuses": [
+              429
+            ],
+            "usable_verdict": null,
+            "failure": "provider_or_tool_parse_failure"
+          },
+          {
+            "requested_model": "google/gemini-3.5-flash-lite",
+            "mercury_http_statuses": [],
+            "usable_verdict": null,
+            "failure": "schema:evidence_quote_not_in_source"
+          }
+        ]
+      },
+      "tokens": {
+        "google_prompt": 26501,
+        "google_output": 17969,
+        "google_cache_absent": 20,
+        "mercury_prompt": 18090,
+        "mercury_cached": 7174,
+        "mercury_output": 44202
+      },
+      "mercury_known_usd_launch": 0.01663404,
+      "mercury_known_usd_regular": 0.03326808,
+      "google_uncached_upper_bound_usd": 0.0528728,
+      "known_launch_plus_google_upper_bound_usd": 0.06950684,
+      "attempt_latency_seconds": {
+        "median": 0.28790754172950983,
+        "maximum": 10.21420696657151,
+        "sum_not_wallclock": 140.39129752479494
+      },
+      "limitations": [
+        "Three simultaneous processes each allowed three concurrent calls; repeated Mercury HTTP429 responses confound model isolation.",
+        "All captured HTTP200 usage included even for length/parse/schema failure; facade records not added again.",
+        "HTTP429 has no captured inference usage; no inferred paid tokens or zero-spend guarantee. Old capture did not retain response headers.",
+        "Google cache telemetry absent; Google cost is an uncached upper bound.",
+        "Final chain decisions must not be attributed to Mercury when Gemini fallback produced them; no aggregate qualification."
+      ],
+      "mercury_rate_limit_messages": {
+        "Rate limit reached: output token limit exceeded": 16,
+        "Rate limit reached: too many requests per minute": 21
+      },
+      "cost_complete": false
+    }
+  },
+  "paced_native_profiles": {
+    "paced-verdict-medium-core": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-paced-verdict-medium-core-20261021",
+      "manifest_sha256": "737bbb670135d593811d0b62bc92c773513536cebe629fbc4116bccde898e53a",
+      "probe_script_sha256": "0be6b61610ce2df3d27ebe3cccaa3cac4b88a02453cce5368cc6f2e13127ff27",
+      "source_sha256": {
+        "/app/backend/apps/ai/utils/llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "/app/backend/apps/ai/llm_providers/inception_client.py": "f5295e8da4b53c49b188667535035eb493e763b061ef49232cd21007658dbf89",
+        "/app/backend/apps/ai/llm_providers/google_client.py": "bf698dcde9d0b1752cd2fac150734bd89c4d139967764ad8d7e7fab10e3c2d61",
+        "/app/backend/apps/ai/daily_inspiration/config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "/app/backend/shared/providers/inception/client.py": "2e0c232ac7c11b053c453d5a49707798295df9fc4f771526669fe9002c5d00ac",
+        "/app/test-results/d115-v7-dimensions-probe.py": "2dd1a1ea4ee05cf9974b2961cd2d1056ee5d2afbd293012f11fceda21dff093f",
+        "/app/backend/scripts/fixtures/daily_inspiration_editorial_v6.json": "2c56e716ffb50150f370c615460d69bac00b9c4fa6fd1966f50281df4aafd2d6",
+        "/app/backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json": "5b69e74923f0c1742a4643b87d6b733d79db3983966aeacf4753ed00d8158ffc",
+        "/app/test-results/d115-v7-turkish-role-pair.json": "84debc8d01720312dc81f8c6d8ddd0b5c23ad3500cd665aa6328e18b344c1858"
+      },
+      "receipt_set_sha256": "f6e51f9a56cf943c51b701718d42ebd63f18b3b89725f36eac8e6e1875381e77",
+      "profile": {
+        "reasoning_effort": "medium",
+        "review_style": "verdict",
+        "concurrency": 1,
+        "min_attempt_interval_seconds": 3,
+        "reviewer_fallback": "withhold",
+        "effective_temperature": {
+          "inception/mercury-3": 0.5,
+          "google/gemini-3.5-flash-lite": 0
+        },
+        "max_output_tokens": 8192
+      },
+      "counts": {
+        "cases": 29,
+        "negative_cases": 15,
+        "available": 29,
+        "cases_with_retry": 0,
+        "negative_false_allow": 1,
+        "attempts": 29,
+        "finish_tool_calls": 29,
+        "negative_reject": 13,
+        "positive_cases": 14,
+        "positive_allow": 14,
+        "negative_uncertain_withheld": 1
+      },
+      "http_statuses": {
+        "200": 29
+      },
+      "observed_models": {
+        "mercury-3": 29
+      },
+      "attempt_failures": {},
+      "tokens": {
+        "prompt_tokens": 34895,
+        "cached_prompt_tokens": 21781,
+        "completion_tokens": 50909
+      },
+      "supplier_usd_launch": 0.01934736,
+      "supplier_usd_regular": 0.03869472,
+      "cost_complete": true,
+      "cases": [
+        {
+          "id": "card-4d557a74cab1",
+          "expected": "reject",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "card-6bc707660ed2",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "card-d399e32936fc",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "original-japanese-paraphrase",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-01-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-01-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-02-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-02-reject",
+          "expected": "reject",
+          "actual": "uncertain",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-03-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ar-03-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-01-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-01-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-02-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-02-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-03-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-de-03-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-01-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-01-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-02-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-02-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-03-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-hi-03-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-01-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-01-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-02-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-02-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-03-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v6-ja-03-reject",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v7-tr-reef-colony-role-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        }
+      ],
+      "latency_seconds": {
+        "median_attempt": 2.1700167395174503,
+        "maximum_attempt": 11.980743180960417,
+        "sum_attempts": 95.96113551035523,
+        "minimum_recorded_attempt_start_gap": 3.000589521601796
+      },
+      "limitations": [
+        "Curated diagnostic; no candidate adopted or production qualification.",
+        "All HTTP200 native usage included once, including paid length/parse failures; facade records not billed again."
+      ]
+    },
+    "paced-evidence-medium-hard": {
+      "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-paced-evidence-medium-hard-20261021",
+      "manifest_sha256": "8d9c7e12e39b5480e3ffc47b1f42b6503834e15c9cef8ed9b4c43453d60f05dd",
+      "probe_script_sha256": "0be6b61610ce2df3d27ebe3cccaa3cac4b88a02453cce5368cc6f2e13127ff27",
+      "source_sha256": {
+        "/app/backend/apps/ai/utils/llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "/app/backend/apps/ai/llm_providers/inception_client.py": "f5295e8da4b53c49b188667535035eb493e763b061ef49232cd21007658dbf89",
+        "/app/backend/apps/ai/llm_providers/google_client.py": "bf698dcde9d0b1752cd2fac150734bd89c4d139967764ad8d7e7fab10e3c2d61",
+        "/app/backend/apps/ai/daily_inspiration/config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "/app/backend/shared/providers/inception/client.py": "2e0c232ac7c11b053c453d5a49707798295df9fc4f771526669fe9002c5d00ac",
+        "/app/test-results/d115-v7-dimensions-probe.py": "2dd1a1ea4ee05cf9974b2961cd2d1056ee5d2afbd293012f11fceda21dff093f",
+        "/app/backend/scripts/fixtures/daily_inspiration_editorial_v6.json": "2c56e716ffb50150f370c615460d69bac00b9c4fa6fd1966f50281df4aafd2d6",
+        "/app/backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json": "5b69e74923f0c1742a4643b87d6b733d79db3983966aeacf4753ed00d8158ffc",
+        "/app/test-results/d115-v7-semantic-hardcases.json": "e1b55261de001cee236c707110a5f375e2ce23d9926e72e9db2f805b3d548842"
+      },
+      "receipt_set_sha256": "bf89c655bdd5815672cf8d654a539d18ec234008ba55c148303eebb03397698a",
+      "profile": {
+        "reasoning_effort": "medium",
+        "review_style": "evidence",
+        "concurrency": 1,
+        "min_attempt_interval_seconds": 3,
+        "reviewer_fallback": "withhold",
+        "effective_temperature": {
+          "inception/mercury-3": 0.5,
+          "google/gemini-3.5-flash-lite": 0
+        },
+        "max_output_tokens": 8192
+      },
+      "counts": {
+        "cases": 7,
+        "negative_cases": 3,
+        "available": 7,
+        "cases_with_retry": 2,
+        "negative_false_allow": 2,
+        "attempts": 9,
+        "finish_length": 2,
+        "finish_tool_calls": 7,
+        "negative_reject": 1,
+        "positive_cases": 4,
+        "positive_allow": 3,
+        "positive_false_reject": 1
+      },
+      "http_statuses": {
+        "200": 9
+      },
+      "observed_models": {
+        "mercury-3": 9
+      },
+      "attempt_failures": {
+        "provider_or_tool_parse_failure": 2
+      },
+      "tokens": {
+        "prompt_tokens": 16571,
+        "cached_prompt_tokens": 11092,
+        "completion_tokens": 43777
+      },
+      "supplier_usd_launch": 0.01598077,
+      "supplier_usd_regular": 0.03196154,
+      "cost_complete": true,
+      "cases": [
+        {
+          "id": "card-4d557a74cab1",
+          "expected": "reject",
+          "actual": "allow",
+          "available": true,
+          "attempts": 2
+        },
+        {
+          "id": "card-6bc707660ed2",
+          "expected": "reject",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "card-d399e32936fc",
+          "expected": "reject",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "original-japanese-paraphrase",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v7-ar-infectious-disease-qualifier-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 2
+        },
+        {
+          "id": "v7-de-gear-transmission-followup-allow",
+          "expected": "allow",
+          "actual": "reject",
+          "available": true,
+          "attempts": 1
+        },
+        {
+          "id": "v7-tr-reef-colony-role-allow",
+          "expected": "allow",
+          "actual": "allow",
+          "available": true,
+          "attempts": 1
+        }
+      ],
+      "latency_seconds": {
+        "median_attempt": 6.433495309203863,
+        "maximum_attempt": 18.32150688674301,
+        "sum_attempts": 76.43391495104879,
+        "minimum_recorded_attempt_start_gap": 4.359230956993997
+      },
+      "limitations": [
+        "Curated diagnostic; no candidate adopted or production qualification.",
+        "All HTTP200 native usage included once, including paid length/parse failures; facade records not billed again."
+      ]
+    }
+  },
+  "selected_ende_control_profile": {
+    "directory": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-final-gemini-ende-20261021",
+    "manifest_sha256": "732077f7cc9fab6d210cdd3235117c039b1039fa3ced7dfbd6a1959d0c762451",
+    "probe_script_sha256": "e94761dd4d691a5832cb606604dea81bf8bdff00d5e38d3c138d87b69e34fdbb",
+    "fixture_sha256": "7da9bd2c6c2966517c8afa5ec1e636c86a68e11cf4797f1f586f4141406008e6",
+    "source_sha256": {
+      "/app/backend/apps/ai/utils/llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+      "/app/backend/apps/ai/llm_providers/inception_client.py": "f5295e8da4b53c49b188667535035eb493e763b061ef49232cd21007658dbf89",
+      "/app/backend/apps/ai/llm_providers/google_client.py": "bf698dcde9d0b1752cd2fac150734bd89c4d139967764ad8d7e7fab10e3c2d61",
+      "/app/backend/apps/ai/daily_inspiration/config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+      "/app/backend/providers/google.yml": "1b264ae299cac553de9f70c9ac1ce7b19302cf4bc89072e9b0edda3f1af01857",
+      "/app/test-results/d115-v7-dimensions-probe.py": "2dd1a1ea4ee05cf9974b2961cd2d1056ee5d2afbd293012f11fceda21dff093f",
+      "/app/backend/scripts/fixtures/daily_inspiration_editorial_v6.json": "2c56e716ffb50150f370c615460d69bac00b9c4fa6fd1966f50281df4aafd2d6",
+      "/app/backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json": "5b69e74923f0c1742a4643b87d6b733d79db3983966aeacf4753ed00d8158ffc",
+      "/app/test-results/d115-v7-semantic-hardcases.json": "e1b55261de001cee236c707110a5f375e2ce23d9926e72e9db2f805b3d548842"
+    },
+    "receipt_set_sha256": "2e6a05f7a1590184d93642de4c95f117f0d18296a50a8a8f2dfe6d9b7650f735",
+    "profile": "Gemini3.8Flash_ENDE_low_two_bounded_attempts",
+    "scope": "Selected EN/DE semantic reviewer diagnostic; fourteen curated controls, not general quality/fullpipeline qualification or deployment evidence.",
+    "counts": {
+      "cases": 14,
+      "expected_reject": 7,
+      "attempts": 15,
+      "prompt_tokens": 12922,
+      "candidate_output_tokens": 3327,
+      "thought_tokens": 9845,
+      "cache_counter_absent": 14,
+      "expected_allow": 7
+    },
+    "correct_controls": 14,
+    "false_admissions": 0,
+    "false_rejections": 0,
+    "final_uncertain_or_unavailable": 0,
+    "observed_models": {
+      "gemini-3.8-flash": 14
+    },
+    "requested_models": [
+      "google/gemini-3.8-flash",
+      "google/gemini-3.8-flash"
+    ],
+    "effective_temperature": 1.0,
+    "reasoning_effort": "low",
+    "max_output_tokens": 4096,
+    "native_responses_priced_once": 14,
+    "captured_response_uncached_upper_bound_usd": 0.0590865,
+    "unknown_canceled_attempts": [
+      {
+        "case_id": "card-6bc707660ed2",
+        "attempt_index": 0,
+        "failure": "transport:TimeoutError",
+        "seconds": 30.031981095671654,
+        "supplier_cost_usd": null
+      }
+    ],
+    "total_spend_complete": false,
+    "cache_counter_note": "Absent in all14responses; uncached upperbound prices capturedusage including thoughts. One30stimeout without native response remains unpriced, so this is not an upper bound on all attempted spend.",
+    "attempt_latency_seconds": {
+      "median": 8.695338700897992,
+      "maximum": 30.031981095671654,
+      "sum": 176.17953514680266
+    },
+    "case_results": [
+      {
+        "id": "card-6bc707660ed2",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 2
+      },
+      {
+        "id": "v6-de-01-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-de-01-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v6-de-02-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-de-02-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v6-de-03-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-de-03-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-01-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-01-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-02-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-02-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-03-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      },
+      {
+        "id": "v6-en-03-reject",
+        "expected": "reject",
+        "actual": "reject",
+        "attempts": 1
+      },
+      {
+        "id": "v7-de-gear-transmission-followup-allow",
+        "expected": "allow",
+        "actual": "allow",
+        "attempts": 1
+      }
+    ]
+  },
+  "temperature_metadata_correction": {
+    "google_thinking_model_effective_temperature": 1.0,
+    "reason": "The Google adapter clamps thinking model temperature to at least1.0. Earlier diagnostic manifests requested0 and sometimes incorrectly labeled0 as effective; raw manifests remain immutable.",
+    "scope": "Earlier Google3.5 semantic profiles and finalGoogle3.8 profile; reported Mercury temperature unchanged."
+  }
+}

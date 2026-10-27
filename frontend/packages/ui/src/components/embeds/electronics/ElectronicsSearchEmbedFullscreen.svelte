@@ -75,7 +75,7 @@
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let localQuery = $state('Power converters');
-  let localProvider = $state('TI WEBENCH');
+  let localProvider = $state('');
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state('');
@@ -85,7 +85,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Power converters';
-      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'TI WEBENCH';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
       localResults = extractSearchResultsFromContent(data.decodedContent);
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
@@ -123,7 +123,7 @@
       title: asString(content.title),
       part_number: asString(content.part_number),
       base_part_number: asString(content.base_part_number),
-      provider: asString(content.provider) || 'TI WEBENCH',
+      provider: asString(content.provider) || '',
       topology: asString(content.topology) || null,
       package: asString(content.package) || null,
       regulator_type: asString(content.regulator_type) || null,

@@ -115,6 +115,20 @@ describe("EmbedLeafletMap theme selection", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=home-search.location.precision
+  it.each([undefined, false])("keeps map attribution by default and allows preview opt-out (%s)", async (showAttribution) => {
+    mockOsDarkMode(false);
+    const component = mount(EmbedLeafletMap, {
+      target: document.body,
+      props: { center: { lat: 52.49, lon: 13.42 }, showAttribution },
+    });
+    await flushLeafletImport();
+    expect(leafletMocks.map).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ attributionControl: showAttribution ?? true }));
+    // Tile source attribution is retained even when its compact control is omitted.
+    expect(leafletMocks.tileLayer).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ attribution: expect.stringContaining("OpenStreetMap") }));
+    await unmount(component);
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("disposes partial initialization and retries without remounting the map", async () => {
     mockOsDarkMode(false);

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@6
+specification: feature.message-input@10
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -265,14 +265,15 @@ immediate_submission:
     restores the labeled Send button, and focus adds no gray translucent backdrop.
 editable_transcript:
 - id: transcript-among-existing-notes
+  assertion_ids: [message-input.audio.editable-transcript]
   given: Alice has typed meeting notes and places the caret where she wants her recording’s words.
-  when: She finishes recording and receives the corrected transcript.
-  then: The transcript appears as editable normal text at that position, preserving her notes, without a recording
-    embed, permanent audio upload or automatic Send.
+  when: She chooses Finish or presses Enter, or chooses the same small round orange up-arrow Send button used by the minimized composer while recording.
+  then: Both paths preserve her notes and insert the corrected transcript at her caret without an audio embed or permanent audio upload. Finish or Enter leaves an editable unsent draft; Send stops capture and submits the complete corrected draft once without a second press, subject to the normal send gates.
 - id: stale-recording-result
-  given: Alice starts a recording in chat A, then cancels or switches to chat B and starts another draft.
-  when: The old correction result arrives.
-  then: It does not alter chat B or the newer draft; temporary recording resources are released.
+  assertion_ids: [message-input.audio.editable-transcript]
+  given: Alice chooses the round Send button for a recording in chat A, and correction is still pending.
+  when: She cancels, correction fails, or she switches to chat B and starts another draft before the old result arrives.
+  then: The pending recording send is discarded, no message is sent, chat B and newer drafts stay unchanged, and temporary recording resources are released.
 gated_attachments:
 - id: pending-file-keeps-send-gated
   given: Alice attaches a private file and its upload is still pending.
@@ -282,9 +283,8 @@ gated_attachments:
   assertion_ids:
   - message-input.embeds.gated-send
   given: Alice finishes a web microphone recording and correction is still in progress.
-  when: She attempts Send.
-  then: Send waits for correction without creating an audio attachment; she can review the corrected normal text
-    before sending.
+  when: She chooses the small round Send button during correction, including if she activates it repeatedly.
+  then: The composer waits for successful correction and then submits the complete corrected draft once through the normal send gates without another press or an audio attachment. If she never chooses Send, Finish leaves the corrected text available for review.
 composer_ghost:
 - id: accept-contextual-next-message
   assertion_ids:
@@ -301,3 +301,63 @@ composer_ghost:
   given: Alice has a contextual ghost for chat A and begins typing, attaching a file, recording or editing a queued message.
   when: She dismisses it with Escape or opens chat B, and an old completion or synchronized suggestion arrives.
   then: Her own draft and current chat remain unchanged; no stale ghost appears. Reduced motion shows an eligible new ghost without a fade.
+october_apple_recording:
+  - id: explicit-local-off-and-automatic-selection
+    assertion_ids: [message-input.recording.lifecycle, message-input.privacy-context]
+    given: An Apple composer has a prior draft and supports Automatic, installed Whisper, included Whistle and Off transcription choices.
+    when: The user selects an unavailable explicit local engine, changes selection while a transcript is pending, or selects Off and finishes a recording.
+    then: Explicit local failure stays local, stale text never enters the draft, and Off preserves the waveform and audio attachment without a hidden transcription request; Automatic alone retains its disclosed existing online fallback.
+  - id: call-audio-prevents-composer-capture
+    assertion_ids: [message-input.recording.lifecycle]
+    given: A connecting or active call owns native audio while an unsent composer draft exists.
+    when: The user attempts any composer recording entry point.
+    then: Capture cannot start, the draft is preserved and no microphone-permission denial is invented for an audio-ownership rejection.
+october_apple_privacy:
+  - id: prepared-privacy-is-not-send-permission
+    assertion_ids: [message-input.privacy-context, message-input.send.ownership]
+    given: Focusing an Apple composer warmed a locally decrypted Personal snapshot before the user's privacy settings changed.
+    when: The user sends while a privacy write is pending, uncertain or contradicted by the fresh complete server snapshot.
+    then: The send waits for current persisted policy or fails visibly with the draft retained; warm cache alone cannot authorize admission and no private draft is sent for preparation.
+  - id: immutable-retry-and-owner-switch
+    assertion_ids: [message-input.privacy-context, message-input.send.ownership]
+    given: An immutable saved turn has an explicit current-turn privacy exclusion and transport reconnects before admission completes.
+    when: The exact turn retries within its original account and workspace, or account, key, server or Team ownership changes.
+    then: A valid retry keeps the same protected payload and deliberate exclusion only after a fresh scoped receipt; replacement ownership cannot consume the turn, draft or prepared privacy.
+
+voxtral3_dictation:
+- id: preview-and-editable-result
+  assertion_ids: [message-input.audio.realtime-voxtral3]
+  given: A signed-in user with one credit starts microphone dictation in an unsent draft.
+  when: The user speaks for one second and then stops the recording.
+  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation. The recording settles once for one credit.
+- id: realtime-price-and-separate-batch
+  assertion_ids: [message-input.audio.realtime-voxtral3]
+  given: A user streams 10 seconds of dictation, disconnects after 61 seconds of another recording, ends an empty recording, and later transcribes an uploaded file with the Audio transcribe app skill.
+  when: The completed and interrupted dictation usage settles and the uploaded-file request is processed.
+  then: The positive-duration dictation recordings settle once each for two and eleven credits respectively; the empty recording costs zero. The published dictation price remains ten credits per minute. The separate app skill retains its existing model and three-credit-per-started-minute price.
+
+single_line_recording:
+- id: long-desktop-dictation
+  assertion_ids: [message-input.audio.single-line-preview]
+  given: A desktop user has spoken enough text to wrap into many transcript lines.
+  when: More recognized words arrive and wrap onto another line.
+  then: Only the newest complete line is visible, without a sliding transition or clipped older line. The full transcript remains available when recording stops.
+- id: responsive-recording-reflow
+  assertion_ids: [message-input.audio.single-line-preview]
+  given: A long recording is active and its newest transcript line is visible.
+  when: The recording overlay changes between laptop, tablet and phone widths.
+  then: The preview immediately settles on exactly one fully readable newest line and recording controls remain visible.
+
+quick_attachments:
+- id: phone-or-ipad-camera-shortcut
+  given: A user has an empty minimized composer on an iPhone or an iPad, even when the iPad uses its desktop-sized viewport.
+  when: The user taps the camera shortcut and then cancels the native camera picker.
+  then: The camera picker opens directly without opening the text keyboard, no attachment is added, and the composer remains usable. Taking a photo instead uses the existing attachment and signup rules.
+  assertion_ids:
+  - message-input.attachments.quick-access
+- id: desktop-file-shortcut
+  given: A user sees an empty minimized composer in a desktop browser.
+  when: The user activates the file shortcut using a mouse or keyboard.
+  then: The file picker opens directly and permits images or other supported files. Cancelling leaves the draft unchanged; selecting a file uses the existing attachment and signup rules.
+  assertion_ids:
+  - message-input.attachments.quick-access

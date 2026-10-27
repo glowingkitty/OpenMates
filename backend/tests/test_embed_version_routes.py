@@ -17,6 +17,18 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+# Import-only substitutes belong to this route fixture. Later collected suites
+# must see their original modules, including the full S3/auth service exports.
+_IMPORT_STUB_NAMES = (
+    "redis", "redis.asyncio",
+    "backend.core.api.app.routes.auth_routes.auth_dependencies",
+    "backend.core.api.app.services.s3.service",
+    "backend.core.api.app.services.s3.config",
+    "backend.core.api.app.services.limiter",
+)
+_ABSENT_MODULE = object()
+_import_modules_before = {name: sys.modules.get(name, _ABSENT_MODULE) for name in _IMPORT_STUB_NAMES}
+
 redis_stub = types.ModuleType("redis")
 redis_asyncio_stub = types.ModuleType("redis.asyncio")
 redis_exceptions_stub = types.SimpleNamespace(RedisError=Exception, ConnectionError=Exception)
@@ -53,7 +65,15 @@ limiter_stub = types.ModuleType("backend.core.api.app.services.limiter")
 limiter_stub.limiter = _FakeLimiter()
 sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
 
-from backend.core.api.app.routes import embeds_api  # noqa: E402  # Import after route dependency stubs.
+try:
+    from backend.core.api.app.routes import embeds_api  # noqa: E402  # Import after route dependency stubs.
+finally:
+    for _name, _previous in _import_modules_before.items():
+        if _previous is _ABSENT_MODULE:
+            sys.modules.pop(_name, None)
+        else:
+            sys.modules[_name] = _previous
+
 
 
 OWNER_ID = "owner-user"
@@ -924,8 +944,23 @@ class ReferenceDirectus:
             ids = params["filter"]["embed_id"]["_in"]
             rows = [self.heads[value] for value in ids if value in self.heads]
             if "encrypted_content" in params["filter"]:
-                rows = [row for row in rows if row.get("encrypted_content")
-                        and row.get("encrypted_type") and row.get("status") == "finished"]
+                def matches(row, filters):
+                    for field, condition in filters.items():
+                        if field == "_or":
+                            if not any(matches(row, option) for option in condition):
+                                return False
+                        elif "_eq" in condition and row.get(field) != condition["_eq"]:
+                            return False
+                        elif "_nempty" in condition and not row.get(field):
+                            return False
+                        elif "_null" in condition and row.get(field) is not None:
+                            return False
+                        elif "_in" in condition and row.get(field) not in condition["_in"]:
+                            return False
+                    return True
+                rows = [row for row in rows if matches(row, params["filter"])]
+        elif collection == "chat_recovery_outputs":
+            rows = []
         elif collection == "embed_keys":
             key_filter = params["filter"]
             hashes = set(key_filter["hashed_embed_id"]["_in"])
@@ -945,7 +980,9 @@ class ReferenceDirectus:
         else:
             raise AssertionError(collection)
         fields = params["fields"].split(",")
-        assert "encrypted_content" not in fields and "encrypted_embed_key" not in fields
+        assert "encrypted_embed_key" not in fields
+        if "encrypted_content" in fields:
+            assert "version_number" in fields  # Internal opaque digest projection only.
         return [{field: row.get(field) for field in fields} for row in rows[:params["limit"]]]
 
     async def get_sync_embed_by_id(self, embed_id):
@@ -1104,28 +1141,39 @@ async def test_cross_chat_key_continuation_uses_same_reference_scope():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("team", [False, True])
 async def test_child_embed_reads_and_key_pages_use_the_verified_parent_wrapper(team):
-    directus = ReferenceDirectus()
+    directus = MountedReferenceDirectus()
     parent_id = "foreign-1" if team else "owned-1"
     parent = directus.heads[parent_id]
-    directus.heads["child-1"] = {**parent, "embed_id": "child-1",
-        "hashed_embed_id": hashlib.sha256(b"child-1").hexdigest(), "parent_embed_id": parent_id}
+    if not team:
+        original = parent_id
+        parent_id = "77777777-7777-4777-8777-777777777777"
+        parent = {**parent, "embed_id": parent_id,
+                  "hashed_embed_id": hashlib.sha256(parent_id.encode()).hexdigest(),
+                  "hashed_chat_id": hashlib.sha256(PERSONAL_CHAT.encode()).hexdigest()}
+        directus.heads[parent_id] = parent
+        for key in directus.keys:
+            if key["hashed_embed_id"] == hashlib.sha256(original.encode()).hexdigest():
+                key["hashed_embed_id"] = hashlib.sha256(parent_id.encode()).hexdigest()
+    child_id = "88888888-8888-4888-8888-888888888888"
+    directus.heads[child_id] = {**parent, "embed_id": child_id,
+        "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(), "parent_embed_id": parent_id}
     options = {"chat_id": TEAM_CHAT if team else PERSONAL_CHAT,
                "team_id": "team-1" if team else None,
-               "request": SimpleNamespace(), "current_user": SimpleNamespace(id=OWNER_ID),
+               "request": SimpleNamespace(query_params={}), "current_user": SimpleNamespace(id=OWNER_ID),
                "directus_service": directus}
-    response = await get_chat_embed_by_id(embed_id="child-1", **options)
-    assert response["embed"]["embed_id"] == "child-1"
+    response = await get_chat_embed_by_id(embed_id=child_id, **options)
+    assert response["embed"]["embed_id"] == child_id
     assert response["embed_keys"][0]["hashed_embed_id"] == hashlib.sha256(parent_id.encode()).hexdigest()
     if team:
         assert all(key["key_type"] == "chat" for key in response["embed_keys"])
-    probe = await reference_probe(payload={"embed_ids": ["child-1"]}, **options)
-    assert probe["results"] == [{"embed_id": "child-1", "state": "ready"}]
-    keys = await get_chat_embed_key_window(embed_ids="child-1", **options)
+    probe = await reference_probe(payload={"embed_ids": [child_id]}, **options)
+    assert probe["results"] == [{"embed_id": child_id, "state": "ready"}]
+    keys = await get_chat_embed_key_window(embed_ids=child_id, **options)
     assert keys["embed_keys"] == response["embed_keys"]
     if team:
         directus.team_role = None
         with pytest.raises(HTTPException) as denied:
-            await get_chat_embed_by_id(embed_id="child-1", **options)
+            await get_chat_embed_by_id(embed_id=child_id, **options)
         assert denied.value.status_code == 404
 
 
@@ -1133,11 +1181,17 @@ async def test_child_embed_reads_and_key_pages_use_the_verified_parent_wrapper(t
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["foreign-owner", "other-chat", "missing-parent", "unready-parent", "missing-wrapper", "cycle", "malformed-parent"])
 async def test_child_embed_parent_link_cannot_bypass_authorization(failure):
-    directus = ReferenceDirectus()
-    parent = directus.heads["owned-1"]
-    child = {**parent, "embed_id": "child-1", "hashed_embed_id": hashlib.sha256(b"child-1").hexdigest(),
-             "parent_embed_id": "owned-1"}
-    directus.heads["child-1"] = child
+    directus = MountedReferenceDirectus()
+    parent_id = "77777777-7777-4777-8777-777777777777"
+    child_id = "88888888-8888-4888-8888-888888888888"
+    parent = {**directus.heads["owned-1"], "embed_id": parent_id,
+              "hashed_embed_id": hashlib.sha256(parent_id.encode()).hexdigest(),
+              "hashed_chat_id": hashlib.sha256(PERSONAL_CHAT.encode()).hexdigest()}
+    directus.heads[parent_id] = parent
+    directus.keys[0]["hashed_embed_id"] = hashlib.sha256(parent_id.encode()).hexdigest()
+    child = {**parent, "embed_id": child_id, "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(),
+             "parent_embed_id": parent_id}
+    directus.heads[child_id] = child
     if failure == "foreign-owner":
         parent["hashed_user_id"] = "foreign-owner"
     elif failure == "other-chat":
@@ -1149,10 +1203,712 @@ async def test_child_embed_parent_link_cannot_bypass_authorization(failure):
     elif failure == "missing-wrapper":
         directus.keys.clear()
     elif failure == "cycle":
-        parent["parent_embed_id"] = "child-1"
+        parent["parent_embed_id"] = child_id
     elif failure == "malformed-parent":
         child["parent_embed_id"] = ["owned-1"]
     with pytest.raises(HTTPException) as denied:
-        await get_chat_embed_by_id(chat_id=PERSONAL_CHAT, embed_id="child-1", request=SimpleNamespace(),
+        await get_chat_embed_by_id(chat_id=PERSONAL_CHAT, embed_id=child_id, request=SimpleNamespace(query_params={}),
             current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
     assert denied.value.status_code == 404
+
+
+ACK_CIPHER_DIGEST = hashlib.sha256(b"content-cipher").hexdigest()
+
+
+class RecoveryAckReferenceDirectus(ReferenceDirectus):
+    def __init__(self):
+        super().__init__()
+        self.heads["owned-1"].update(
+            hashed_chat_id=hashlib.sha256(PERSONAL_CHAT.encode()).hexdigest(),
+            hashed_team_id=None,
+            version_number=2,
+            status="finished",
+            root_embed_id="owned-1",
+        )
+        self.ack_rows = [
+            {
+                "id": "11111111-1111-4111-8111-111111111111",
+                "subject_id": "owned-1",
+                "hashed_user_id": OWNER_HASH,
+                "target_chat_id": PERSONAL_CHAT,
+                "root_chat_id": PERSONAL_CHAT,
+                "root_hashed_team_id": None,
+                "output_kind": "embed",
+                "output_version": 2,
+                "state": "ACKNOWLEDGED",
+                "canonical_digest": ACK_CIPHER_DIGEST,
+                "deleted_at": None,
+            }
+        ]
+        self.ack_fail = False
+        self.ack_queries = []
+
+    async def get_items(self, collection, params, **kwargs):
+        if collection == "chat_recovery_outputs":
+            self.ack_queries.append((params, kwargs))
+            if self.ack_fail:
+                raise RuntimeError("Unavailable")
+            assert kwargs == {
+                "no_cache": True,
+                "admin_required": True,
+                "raise_on_error": True,
+            }
+            assert all(
+                field not in params["fields"]
+                for field in (
+                    "sealed_payload",
+                    "encrypted_content",
+                    "encrypted_embed_key",
+                )
+            )
+            return self.ack_rows
+        return await super().get_items(collection, params, **kwargs)
+
+
+def ack_status(directus):
+    row = directus.ack_rows[0]
+    return {
+        "record_id": row["id"],
+        "state": "ACKNOWLEDGED",
+        "canonical_verified": True,
+        "canonical_source": "head",
+        "subject_id": "owned-1",
+        "target_chat_id": PERSONAL_CHAT,
+        "root_chat_id": PERSONAL_CHAT,
+        "root_hashed_team_id": None,
+        "output_kind": "embed",
+        "output_version": 2,
+        "canonical_digest": ACK_CIPHER_DIGEST,
+    }
+
+
+async def probe_ack(directus):
+    return await reference_probe(
+        chat_id=PERSONAL_CHAT,
+        request=SimpleNamespace(),
+        payload={
+            "embed_ids": ["owned-1"],
+            "required_recovery_versions": {"owned-1": 2},
+        },
+        current_user=SimpleNamespace(id=OWNER_ID),
+        directus_service=directus,
+    )
+
+
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.discoverable-bounded
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["finished", "error"])
+async def test_reference_ack_proof_uses_fresh_canonical_status_and_projects_revision(
+    monkeypatch, status,
+):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"].update(status=status, encryption_mode="client")
+    calls = []
+
+    async def execute(_self, operation, body):
+        calls.append((operation, body))
+        return ack_status(directus)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    assert await probe_ack(directus) == {
+        "results": [
+            {
+                "embed_id": "owned-1",
+                "state": "ready",
+                "canonical_revision": {"version": 2, "ciphertext_sha256": ACK_CIPHER_DIGEST,
+                                       "write_state": "immutable"},
+                "recovery_ack": {
+                    "state": "ACKNOWLEDGED",
+                    "version": 2,
+                    "canonical_digest": ACK_CIPHER_DIGEST,
+                },
+            }
+        ]
+    }
+    assert (
+        calls[0][0] == "get_output_status"
+        and calls[0][1]["hashed_user_id"] == OWNER_HASH
+    )
+    assert directus.ack_queries[0][0]["limit"] == 41
+    assert "sealed_payload" not in json.dumps(await probe_ack(directus))
+    directus.ack_queries.clear()
+    calls.clear()
+    legacy = await reference_probe(
+        chat_id=PERSONAL_CHAT,
+        request=SimpleNamespace(),
+        payload={"embed_ids": ["owned-1"]},
+        current_user=SimpleNamespace(id=OWNER_ID),
+        directus_service=directus,
+    )
+    assert legacy == {"results": [{"embed_id": "owned-1", "state": "ready"}]}
+    assert not directus.ack_queries and not calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("hashed_user_id", "foreign"),
+        ("target_chat_id", FOREIGN_CHAT),
+        ("root_hashed_team_id", "foreign-team"),
+        ("output_version", 1),
+        ("state", "PENDING"),
+        ("deleted_at", 1),
+        ("canonical_digest", "invalid"),
+    ],
+)
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.shared-team-authorized
+async def test_reference_ack_rejects_foreign_stale_and_unacknowledged_records(
+    monkeypatch, field, value
+):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.ack_rows[0][field] = value
+
+    async def unexpected(*_args):
+        raise AssertionError("Invalid record must not reach canonical verification")
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", unexpected)
+    assert "recovery_ack" not in (await probe_ack(directus))["results"][0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("canonical_verified", False),
+        ("canonical_source", "version_row"),
+        ("canonical_digest", "b" * 64),
+        ("output_version", 1),
+        ("subject_id", "foreign"),
+        ("target_chat_id", FOREIGN_CHAT),
+        ("root_hashed_team_id", "foreign-team"),
+        ("state", "PENDING"),
+    ],
+)
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.shared-team-authorized
+async def test_reference_ack_requires_current_canonical_head_digest_and_scope(
+    monkeypatch, field, value
+):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    status = ack_status(directus)
+    status[field] = value
+
+    async def execute(*_args):
+        return status
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    assert "recovery_ack" not in (await probe_ack(directus))["results"][0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("hashed_user_id", "foreign"),
+        ("hashed_chat_id", "foreign"),
+        ("hashed_team_id", "foreign"),
+        ("version_number", 1),
+        ("parent_embed_id", "parent"),
+        ("root_embed_id", "foreign"),
+    ],
+)
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.shared-team-authorized
+async def test_reference_ack_requires_exact_owned_root_head(monkeypatch, field, value):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"][field] = value
+
+    async def unexpected(*_args):
+        raise AssertionError("Invalid head must not reach ACK status")
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", unexpected)
+    assert "recovery_ack" not in (await probe_ack(directus))["results"][0]
+
+
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.discoverable-bounded
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["duplicate", "unavailable", "status-unavailable"])
+async def test_reference_ack_ambiguity_and_transport_failures_fail_closed(
+    monkeypatch, fault
+):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    if fault == "duplicate":
+        directus.ack_rows.append(dict(directus.ack_rows[0]))
+    if fault == "unavailable":
+        directus.ack_fail = True
+
+    async def execute(*_args):
+        raise RuntimeError("status unavailable")
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    with pytest.raises(HTTPException) as error:
+        await probe_ack(directus)
+    assert error.value.status_code == 503
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "versions",
+    [
+        {"absent": 2},
+        {"owned-1": True},
+        {"owned-1": 0},
+        {"owned-1": -1},
+        {"owned-1": 2**53},
+        {"owned-1": "2"},
+        [],
+        None,
+    ],
+)
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded
+async def test_reference_ack_request_versions_are_positive_bounded_exact_subset(
+    versions,
+):
+    with pytest.raises(HTTPException) as error:
+        await reference_probe(
+            chat_id=PERSONAL_CHAT,
+            request=SimpleNamespace(),
+            payload={"embed_ids": ["owned-1"], "required_recovery_versions": versions},
+            current_user=SimpleNamespace(id=OWNER_ID),
+            directus_service=RecoveryAckReferenceDirectus(),
+        )
+    assert error.value.status_code == 400
+
+
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_reference_ack_team_requires_current_membership_and_exact_team_scope(
+    monkeypatch,
+):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    directus.heads["owned-1"].update(
+        hashed_chat_id=hashlib.sha256(TEAM_CHAT.encode()).hexdigest(),
+        hashed_team_id=team_hash,
+    )
+    directus.keys.append(
+        {
+            **directus.keys[0],
+            "key_type": "chat",
+            "hashed_chat_id": hashlib.sha256(TEAM_CHAT.encode()).hexdigest(),
+        }
+    )
+    directus.ack_rows[0].update(
+        target_chat_id=TEAM_CHAT, root_chat_id=TEAM_CHAT, root_hashed_team_id=team_hash
+    )
+
+    async def execute(*_args):
+        return {
+            **ack_status(directus),
+            "target_chat_id": TEAM_CHAT,
+            "root_chat_id": TEAM_CHAT,
+            "root_hashed_team_id": team_hash,
+        }
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+
+    async def probe():
+        return await reference_probe(
+            chat_id=TEAM_CHAT,
+            team_id="team-1",
+            request=SimpleNamespace(),
+            payload={
+                "embed_ids": ["owned-1"],
+                "required_recovery_versions": {"owned-1": 2},
+            },
+            current_user=SimpleNamespace(id=OWNER_ID),
+            directus_service=directus,
+        )
+
+    assert (await probe())["results"][0]["recovery_ack"]["version"] == 2
+    directus.team_role = "viewer"
+    with pytest.raises(HTTPException) as revoked:
+        await probe()
+    assert revoked.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_reference_ack_revoked_historical_root_omits_only_proof(monkeypatch):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+    directus = RecoveryAckReferenceDirectus()
+    async def execute(*_args):
+        raise ChatRecoveryProtocolError(404, "recovery_output_not_found")
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    assert await probe_ack(directus) == {"results": [{"embed_id": "owned-1", "state": "ready"}]}
+
+
+class MountedReferenceDirectus(ReferenceDirectus):
+    """Support both strict Personal child validation and canonical bounded reads."""
+    async def get_items(self, collection, params, **kwargs):
+        if collection == "chats" and "filter[id][_eq]" in params:
+            row = self.chats.get(params["filter[id][_eq]"])
+            return [row] if row else []
+        if collection == "embeds" and "filter[embed_id][_eq]" in params:
+            row = self.heads.get(params["filter[embed_id][_eq]"])
+            return [row] if row else []
+        if collection == "embed_keys" and "_and" in params.get("filter", {}):
+            subject = params["filter"]["_and"][0]["hashed_embed_id"]["_eq"]
+            return [key for key in self.keys if key["hashed_embed_id"] == subject][:params["limit"]]
+        return await super().get_items(collection, params, **kwargs)
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized,chats.sync.key-gated-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["personal-root", "personal-child", "team-root", "team-child"])
+async def test_mounted_exact_embed_route_dispatches_root_child_and_team_through_canonical_handler(kind):
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+    directus = MountedReferenceDirectus()
+    team = kind.startswith("team")
+    child = kind.endswith("child")
+    chat_id = TEAM_CHAT if team else PERSONAL_CHAT
+    original = "foreign-1" if team else "owned-1"
+    parent_id = "77777777-7777-4777-8777-777777777777"
+    child_id = "88888888-8888-4888-8888-888888888888"
+    directus.heads[parent_id] = {**directus.heads[original], "embed_id": parent_id,
+        "hashed_embed_id": hashlib.sha256(parent_id.encode()).hexdigest()}
+    for key in directus.keys:
+        if key["hashed_embed_id"] == hashlib.sha256(original.encode()).hexdigest():
+            key["hashed_embed_id"] = hashlib.sha256(parent_id.encode()).hexdigest()
+    directus.heads[child_id] = {**directus.heads[parent_id], "embed_id": child_id,
+        "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(), "parent_embed_id": parent_id}
+    # Strict Personal children are exact source-chat descendants.
+    if not team:
+        directus.heads[parent_id]["hashed_chat_id"] = hashlib.sha256(chat_id.encode()).hexdigest()
+        directus.heads[child_id]["hashed_chat_id"] = hashlib.sha256(chat_id.encode()).hexdigest()
+    if child and not team:
+        async def broader_key_page(*_args, **_kwargs):
+            raise AssertionError("Personal child must return only its strict validated wrappers")
+        directus.embed.get_sync_embed_key_window_for_page = broader_key_page
+    app = FastAPI()
+    app.state.directus_service = directus
+    app.include_router(embeds_api.router)
+    app.dependency_overrides[embeds_api.get_current_user] = lambda: SimpleNamespace(id=OWNER_ID)
+    app.dependency_overrides[embeds_api.get_current_user_or_api_key] = lambda: SimpleNamespace(id=OWNER_ID)
+    selected = child_id if child else parent_id
+    query = "?team_id=team-1" if team else ""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://fixture.invalid") as client:
+        response = await client.get(f"/v1/embeds/chats/{chat_id}/embeds/{selected}{query}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["embed"]["embed_id"] == selected
+    assert body["embed_keys"][0]["hashed_embed_id"] == hashlib.sha256(parent_id.encode()).hexdigest()
+    assert body["embed_keys_has_more_after"] is False
+    assert body["oversized_embed_key_id"] is None
+    routes = [route for route in app.routes if getattr(route, "path", None)
+        == "/v1/embeds/chats/{chat_id}/embeds/{embed_id}" and "GET" in getattr(route, "methods", set())]
+    assert len(routes) == 1
+    assert routes[0].endpoint is embeds_api.get_chat_embed_by_id
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized,chats.sync.key-gated-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["foreign-owner", "missing-wrapper", "unready", "revoked-team", "vault-child", "wrong-root", "wrong-key-scope", "deleting-chat", "wrong-source"])
+async def test_mounted_exact_embed_route_retains_readiness_and_child_access_denials(fault):
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+    directus = MountedReferenceDirectus()
+    parent_id = "77777777-7777-4777-8777-777777777777"
+    child_id = "88888888-8888-4888-8888-888888888888"
+    parent = {**directus.heads["owned-1"], "embed_id": parent_id,
+        "hashed_embed_id": hashlib.sha256(parent_id.encode()).hexdigest(),
+        "hashed_chat_id": hashlib.sha256(PERSONAL_CHAT.encode()).hexdigest()}
+    directus.heads[parent_id] = parent
+    directus.heads[child_id] = {**parent, "embed_id": child_id,
+        "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(), "parent_embed_id": parent_id}
+    directus.keys = [{**directus.keys[0], "hashed_embed_id": hashlib.sha256(parent_id.encode()).hexdigest()}]
+    chat_id, selected, query = PERSONAL_CHAT, child_id, ""
+    if fault == "foreign-owner":
+        directus.chats[PERSONAL_CHAT]["hashed_user_id"] = "foreign"
+    elif fault == "missing-wrapper":
+        directus.keys.clear()
+    elif fault == "unready":
+        directus.heads[child_id]["status"] = "processing"
+    elif fault == "revoked-team":
+        chat_id, selected, query = TEAM_CHAT, "foreign-1", "?team_id=team-1"
+        directus.team_role = None
+    elif fault == "vault-child":
+        directus.heads[child_id]["encryption_mode"] = "vault"
+    elif fault == "wrong-root":
+        directus.heads[child_id]["root_embed_id"] = child_id
+    elif fault == "wrong-key-scope":
+        directus.keys[0]["hashed_project_id"] = "foreign-project"
+    elif fault == "deleting-chat":
+        directus.chats[PERSONAL_CHAT]["storage_state"] = "deleting"
+    elif fault == "wrong-source":
+        directus.heads[child_id]["hashed_chat_id"] = hashlib.sha256(SOURCE_CHAT.encode()).hexdigest()
+    app = FastAPI()
+    app.state.directus_service = directus
+    app.include_router(embeds_api.router)
+    app.dependency_overrides[embeds_api.get_current_user] = lambda: SimpleNamespace(id=OWNER_ID)
+    app.dependency_overrides[embeds_api.get_current_user_or_api_key] = lambda: SimpleNamespace(id=OWNER_ID)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://fixture.invalid") as client:
+        response = await client.get(f"/v1/embeds/chats/{chat_id}/embeds/{selected}{query}")
+    assert response.status_code == 404, response.text
+    assert "encrypted_content" not in response.text
+    assert "encrypted_embed_key" not in response.text
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_terminal_execution_error_is_readable_only_with_existing_owner_wrapper():
+    directus = ReferenceDirectus()
+    directus.heads['owned-1'].update(status='error', encryption_mode='client',
+                                    app_id='fitness', skill_id='search_classes')
+    options = dict(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
+                   current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    state = await reference_probe(payload={'embed_ids': ['owned-1']}, **options)
+    assert state == {'results': [{'embed_id': 'owned-1', 'state': 'ready'}]}
+    assert 'cipher' not in json.dumps(state)
+    result = await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert result['embed']['status'] == 'error'
+    assert result['embed']['encrypted_type'] == 'type-cipher'
+    assert result['embed']['encrypted_content'] == 'content-cipher'
+    directus.heads['owned-1'].pop('app_id')
+    directus.heads['owned-1'].pop('skill_id')
+    without_catalog = await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert without_catalog['embed']['status'] == 'error'
+    directus.keys.clear()
+    with pytest.raises(HTTPException) as denied:
+        await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert denied.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', [
+    {'status': 'cancelled'}, {'status': 'processing'}, {'encryption_mode': 'vault'},
+    {'encryption_mode': None}, {'encrypted_content': ''}, {'encrypted_type': ''},
+])
+async def test_reference_error_read_rejects_incomplete_or_non_execution_envelopes(change):
+    directus = ReferenceDirectus()
+    directus.heads['owned-1'].update(status='error', encryption_mode='client',
+                                    app_id='fitness', skill_id='search_classes')
+    directus.heads['owned-1'].update(change)
+    result = await reference_probe(
+        chat_id=PERSONAL_CHAT, request=SimpleNamespace(), payload={'embed_ids': ['owned-1']},
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+    )
+    assert result == {'results': [{'embed_id': 'owned-1', 'state': 'unusable'}]}
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_reference_execution_error_still_masks_foreign_owner_and_removed_team_member():
+    directus = ReferenceDirectus()
+    directus.heads['foreign-1'].update(status='error', encryption_mode='client',
+                                      app_id='fitness', skill_id='search_classes')
+    options = dict(request=SimpleNamespace(), payload={'embed_ids': ['foreign-1']},
+                   current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    result = await reference_probe(chat_id=PERSONAL_CHAT, **options)
+    assert result == {'results': [{'embed_id': 'foreign-1', 'state': 'missing'}]}
+    result = await reference_probe(chat_id=TEAM_CHAT, team_id='team-1', **options)
+    assert result == {'results': [{'embed_id': 'foreign-1', 'state': 'ready'}]}
+    directus.team_role = None
+    with pytest.raises(HTTPException) as denied:
+        await reference_probe(chat_id=TEAM_CHAT, team_id='team-1', **options)
+    assert denied.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stored_version", [None, 1])
+async def test_reference_canonical_revision_normalizes_legacy_v1_and_verifies_ack(monkeypatch, stored_version):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"]["version_number"] = stored_version
+    directus.ack_rows[0]["output_version"] = 1
+
+    async def execute(*_args):
+        return {**ack_status(directus), "output_version": 1}
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    result = await reference_probe(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
+        payload={"embed_ids": ["owned-1"], "required_recovery_versions": {"owned-1": 1}},
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    row = result["results"][0]
+    assert row["canonical_revision"] == {"version": 1, "ciphertext_sha256": ACK_CIPHER_DIGEST,
+                                         "write_state": "immutable"}
+    assert row["recovery_ack"]["version"] == 1
+    assert directus.heads["owned-1"]["version_number"] == stored_version
+    assert "content-cipher" not in json.dumps(result)
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_reference_mutable_revision_requires_successful_lookup_without_current_ack():
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"]["version_number"] = None
+    directus.ack_rows = []
+    row = (await probe_ack(directus))["results"][0]
+    assert row["canonical_revision"] == {"version": 1, "ciphertext_sha256": ACK_CIPHER_DIGEST,
+                                         "write_state": "mutable"}
+    assert "recovery_ack" not in row
+    directus.ack_fail = True
+    with pytest.raises(HTTPException) as failed:
+        await probe_ack(directus)
+    assert failed.value.status_code == 503
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stored_version", [True, False, "1", 0, -1, 1.5, 2**53])
+async def test_reference_invalid_logical_version_is_unknown(stored_version):
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"]["version_number"] = stored_version
+    directus.ack_rows = []
+    row = (await probe_ack(directus))["results"][0]
+    assert "canonical_revision" not in row and "recovery_ack" not in row
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ack_version", [True, "2", 0, -1, 2.5, 2**53])
+async def test_reference_malformed_ack_version_cannot_claim_mutability(ack_version):
+    directus = RecoveryAckReferenceDirectus()
+    directus.ack_rows[0]["output_version"] = ack_version
+    row = (await probe_ack(directus))["results"][0]
+    assert "canonical_revision" not in row and "recovery_ack" not in row
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ciphertext", [None, "", "initial-cipher"])
+async def test_reference_owned_processing_root_exposes_completion_cas_without_claiming_readability(ciphertext):
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"].update(status="processing", version_number=None, encrypted_content=ciphertext)
+    directus.ack_rows = []
+    row = (await probe_ack(directus))["results"][0]
+    assert row["state"] == "unusable"
+    assert row["canonical_revision"] == {"version": 1,
+        "ciphertext_sha256": hashlib.sha256((ciphertext or "").encode()).hexdigest(), "write_state": "mutable"}
+    assert "recovery_ack" not in row
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("head_changes", [
+    {"status": "finished", "encrypted_content": None},
+    {"status": "finished", "encrypted_content": ""},
+    {"status": "processing", "encrypted_content": 123},
+    {"status": "processing", "encrypted_content": None, "version_number": 2},
+    {"status": "processing", "encrypted_content": None, "parent_embed_id": "parent"},
+    {"status": "processing", "encrypted_content": None, "hashed_chat_id": "foreign"},
+])
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+async def test_reference_corrupt_or_foreign_unusable_head_keeps_unknown_policy(head_changes):
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"].update({"version_number": 1, **head_changes})
+    directus.ack_rows = []
+    row = (await probe_ack(directus))["results"][0]
+    assert "canonical_revision" not in row and "recovery_ack" not in row
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_reference_processing_head_with_unverified_current_ack_is_unknown(monkeypatch):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"].update(status="processing", version_number=None, encrypted_content=None)
+    directus.ack_rows[0]["output_version"] = 1
+
+    async def execute(*_args):
+        return {**ack_status(directus), "output_version": 1, "canonical_verified": False}
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    row = (await probe_ack(directus))["results"][0]
+    assert "canonical_revision" not in row and "recovery_ack" not in row
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parent_fault", [None, "missing", "foreign", "other-chat", "team", "processing", "no-wrapper"])
+async def test_reference_processing_child_requires_current_owned_ready_root_parent(parent_fault):
+    directus = RecoveryAckReferenceDirectus()
+    child_id = "processing-child"
+    directus.heads[child_id] = {**directus.heads["owned-1"], "embed_id": child_id,
+        "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(),
+        "parent_embed_id": "owned-1", "root_embed_id": "owned-1",
+        "status": "processing", "version_number": None, "encrypted_content": None}
+    directus.ack_rows = []
+    if parent_fault == "missing":
+        del directus.heads["owned-1"]
+    elif parent_fault == "foreign":
+        directus.heads["owned-1"]["hashed_user_id"] = "foreign"
+    elif parent_fault == "other-chat":
+        directus.heads["owned-1"]["hashed_chat_id"] = "foreign-chat"
+    elif parent_fault == "team":
+        directus.heads["owned-1"]["hashed_team_id"] = "foreign-team"
+    elif parent_fault == "processing":
+        directus.heads["owned-1"]["status"] = "processing"
+    elif parent_fault == "no-wrapper":
+        directus.keys.clear()
+    result = await reference_probe(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
+        payload={"embed_ids": [child_id], "required_recovery_versions": {child_id: 1}},
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    row = result["results"][0]
+    assert row["state"] == "unusable"
+    if parent_fault is None:
+        assert row["canonical_revision"] == {"version": 1,
+            "ciphertext_sha256": hashlib.sha256(b"").hexdigest(), "write_state": "mutable"}
+    else:
+        assert "canonical_revision" not in row
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_reference_processing_child_with_current_ack_never_becomes_mutable():
+    directus = RecoveryAckReferenceDirectus()
+    child_id = "processing-child"
+    directus.heads[child_id] = {**directus.heads["owned-1"], "embed_id": child_id,
+        "hashed_embed_id": hashlib.sha256(child_id.encode()).hexdigest(),
+        "parent_embed_id": "owned-1", "root_embed_id": "owned-1",
+        "status": "processing", "version_number": None, "encrypted_content": None}
+    directus.ack_rows[0].update(subject_id=child_id, output_version=1,
+        canonical_digest=hashlib.sha256(b"").hexdigest())
+    result = await reference_probe(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
+        payload={"embed_ids": [child_id], "required_recovery_versions": {child_id: 1}},
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    assert result["results"][0]["state"] == "unusable"
+    assert "canonical_revision" not in result["results"][0]
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("versions", [{}, {"owned-1": 1}])
+async def test_reference_render_probes_do_not_fetch_unrequested_ciphertext_or_ack_policy(versions):
+    from backend.core.api.app.routes.embeds_api import _reference_recovery_ack_proofs
+    from unittest.mock import AsyncMock
+
+    directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"]["version_number"] = None
+    directus.ack_rows = []
+    original_lookup = directus.get_items
+    directus.get_items = AsyncMock(side_effect=original_lookup)
+    rows = [{"embed_id": "owned-1", "state": "ready"},
+            {"embed_id": "unrequested-large-artifact", "state": "ready"}]
+    await _reference_recovery_ack_proofs(rows, versions, PERSONAL_CHAT, None,
+                                        OWNER_HASH, directus)
+    if not versions:
+        directus.get_items.assert_not_called()
+        assert all("canonical_revision" not in row for row in rows)
+    else:
+        for call in directus.get_items.call_args_list:
+            collection = call.args[0]
+            key = "embed_id" if collection == "embeds" else "subject_id"
+            assert call.kwargs["params"]["filter"][key]["_in"] == ["owned-1"]
+        assert rows[0]["canonical_revision"]["write_state"] == "mutable"
+        assert "canonical_revision" not in rows[1]

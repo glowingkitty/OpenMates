@@ -1,6 +1,7 @@
 // Generic group renderer - handles any '*-group' embed types
 // Uses the group handler system to render groups dynamically
 
+import { normalizeEventResult } from "../../../embeds/events/eventResult";
 import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";
 import { isResultsViewLanguage, parseEmbedsMapViewBlock } from "../../../../message_parsing/embedParsing";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
@@ -9,6 +10,7 @@ import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers"
 import {
   resolveEmbed,
   decodeToonContent,
+  isEmbedKnownError,
   isLocalCodeDocPreviewRef,
   type EmbedData,
 } from "../../../../services/embedResolver";
@@ -27,6 +29,7 @@ import {
   type CodeFileData,
 } from "../../../../services/zipExportService";
 import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
+import GroupPreviewNavigation from "../../../embeds/GroupPreviewNavigation.svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
@@ -44,6 +47,7 @@ import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPr
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
+import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
@@ -75,6 +79,8 @@ import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEm
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
 import DiagramHtmlEmbedPreview from "../../../embeds/diagrams/DiagramHtmlEmbedPreview.svelte";
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
+import CalendarEventEmbedPreview from "../../../embeds/calendar/CalendarEventEmbedPreview.svelte";
+import { renderCalendarEvent } from "../../../embeds/calendar/calendarEventEmbedText";
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
@@ -535,6 +541,11 @@ export class GroupRenderer implements EmbedRenderer {
           this.renderMindMapComponent(item, embedData, decodedContent, content),
       ],
       [
+        "calendar-event",
+        (item, embedData, decodedContent, content) =>
+          this.renderCalendarEventComponent(item, embedData, decodedContent, content),
+      ],
+      [
         "electronics-component",
         (item, embedData, decodedContent, content) =>
           this.renderElectronicsComponentComponent(
@@ -666,6 +677,7 @@ export class GroupRenderer implements EmbedRenderer {
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
+    content.dataset.embedPreviewType = attrs.type;
 
     console.debug("[GroupRenderer] RENDER CALLED with attrs:", attrs);
     console.debug(
@@ -836,6 +848,31 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
 
+    // Registered result groups use the same mounted cards as individual
+    // results. HTML fallbacks omit shared sizing, tools and media behavior.
+    const registeredMounter = this.individualMounters.get(baseType);
+    if (registeredMounter) {
+      await this.renderAppSkillUseGroup({
+        baseType, groupDisplayName, items: reversedItems, content,
+        mountItem: async (item, target) => {
+          let row: EmbedData | null = null;
+          let decoded: DecodedEmbedContent | null = null;
+          if (item.contentRef?.startsWith("embed:")) {
+            try {
+              const { resolveEmbed, decodeToonContent } = await import("../../../../services/embedResolver");
+              row = await resolveEmbed(item.contentRef.slice(6), { chatId: item.sourceChatId });
+              if (isEmbedTargetDisposed(target)) return;
+              if (row?.content) decoded = await decodeToonContent(row.content);
+            } catch (error) {
+              console.warn("[GroupRenderer] Could not resolve grouped result", error);
+            }
+          }
+          if (!isEmbedTargetDisposed(target)) await registeredMounter(item, row, decoded, target);
+        },
+      });
+      return;
+    }
+
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map((item) => {
       return this.renderIndividualItem(item, baseType);
@@ -961,6 +998,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderDiagramHtmlItem(item, embedData, decodedContent);
       case "mindmaps-mindmap":
         return this.renderMindMapItem(item, embedData, decodedContent);
+      case "calendar-event":
+        return this.renderCalendarEventItem(decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "design-icon-result":
@@ -1137,6 +1176,33 @@ export class GroupRenderer implements EmbedRenderer {
 
     indicator.replaceChildren();
 
+    // Replace navigation with the same lifetime as the indicator observer on
+    // streaming updates, rather than retaining callbacks to removed siblings.
+    scrollIndicatorCleanups.get(scrollContainer)?.();
+    // Skill executions retain native row scrolling and the position indicator.
+    // Per-card arrows belong only to grouped individual results.
+    const navigation = groupWrapper.dataset.embedGroupBaseType === "app-skill-use" ? [] : items.map((item, index) => {
+      const target = document.createElement("div");
+      target.className = "group-preview-navigation-mount";
+      item.appendChild(target);
+      const showSibling = (offset: number) => {
+        const sibling = items[(index + offset + items.length) % items.length];
+        const bounds = scrollContainer.getBoundingClientRect();
+        const siblingBounds = sibling.getBoundingClientRect();
+        scrollContainer.scrollTo({
+          left: scrollContainer.scrollWidth > scrollContainer.clientWidth + 1
+            ? scrollContainer.scrollLeft + siblingBounds.left - bounds.left : scrollContainer.scrollLeft,
+          top: scrollContainer.scrollHeight > scrollContainer.clientHeight + 1
+            ? scrollContainer.scrollTop + siblingBounds.top - bounds.top : scrollContainer.scrollTop,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+      };
+      const instance = mount(GroupPreviewNavigation, { target, props: {
+        onPrevious: () => showSibling(-1), onNext: () => showSibling(1),
+      } });
+      return () => { void unmount(instance); target.remove(); };
+    });
+
     for (let index = 0; index < items.length; index += 1) {
       const segment = document.createElement("button");
       segment.type = "button";
@@ -1255,7 +1321,6 @@ export class GroupRenderer implements EmbedRenderer {
       });
     };
 
-    scrollIndicatorCleanups.get(scrollContainer)?.();
     let animationFrame: number | null = null;
     const scheduleUpdate = () => {
       if (animationFrame !== null) return;
@@ -1279,6 +1344,7 @@ export class GroupRenderer implements EmbedRenderer {
       }
       scrollContainer.removeEventListener("scroll", onScroll);
       resizeObserver?.disconnect();
+      navigation.forEach((dispose) => dispose());
     });
 
     scheduleUpdate();
@@ -1540,8 +1606,10 @@ export class GroupRenderer implements EmbedRenderer {
     groupDisplayName: string;
     items: EmbedNodeAttributes[];
     content: HTMLElement;
+    mountItem?: (item: EmbedNodeAttributes, target: HTMLElement) => Promise<void>;
   }): Promise<void> {
     const { baseType, groupDisplayName, content } = args;
+    const mountItem = args.mountItem ?? ((item, target) => this.mountAppSkillUsePreview(item, target));
 
     // Sort finished items so embeds with results appear before those without.
     // This ensures users see useful results first in the horizontal scroll row.
@@ -1568,7 +1636,7 @@ export class GroupRenderer implements EmbedRenderer {
       groupDisplayName,
       items,
       content,
-      mountFn: (item, target) => this.mountAppSkillUsePreview(item, target),
+      mountFn: mountItem,
     });
     if (updated) return;
 
@@ -1617,7 +1685,7 @@ export class GroupRenderer implements EmbedRenderer {
         id: item.id,
         contentRef: item.contentRef,
       });
-      await this.mountAppSkillUsePreview(item, itemWrapper);
+      await mountItem(item, itemWrapper);
     }
 
     // Safety net: reconcile header count with actual rendered items.
@@ -1673,6 +1741,7 @@ export class GroupRenderer implements EmbedRenderer {
     const skillId =
       decodedContent?.skill_id || embedData?.skill_id || itemSkillId;
     const indicatorAppId = normalizeAppIdForCss(appId);
+    target.dataset.embedPreviewRegistryKey = `app:${appId}:${skillId}`;
     if (indicatorAppId) {
       target.dataset.embedAppId = indicatorAppId;
     }
@@ -1687,9 +1756,11 @@ export class GroupRenderer implements EmbedRenderer {
     const hasFinishedDecodedContent =
       decodedStatus === "finished" ||
       (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
-      Boolean(decodedContent?.embed_ids);
-    const status = ((hasFinishedDecodedContent ? "finished" : decodedStatus) ||
+      normalizeEmbedIdList(decodedContent?.embed_ids).length > 0;
+    const status = ((decodedStatus === "error" || decodedStatus === "cancelled"
+        ? decodedStatus : hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
+      (embedId && isEmbedKnownError(embedId) ? "error" : null) ||
       item.status ||
       "processing") as "processing" | "finished" | "error";
     const taskId = decodedContent?.task_id;
@@ -1900,7 +1971,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             skillId: normalized.skillId,
             query: query || normalized.query,
-            provider: normalized.provider || provider || "Urban Sports Club",
+            provider: normalized.provider || provider || "",
             summary: normalized.summary,
             filters: normalized.filters,
             status,
@@ -2129,6 +2200,14 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "web" && skillId === "browse") {
+        const component = mount(BrowseEmbedPreview, {
+          target,
+          props: { id: embedId, content: decodedContent ?? {}, status, onFullscreen: handleFullscreen },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
       if (appId === "web" && skillId === "read") {
         const component = mount(WebReadEmbedPreview, {
           target,
@@ -2234,6 +2313,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             prompt: decodedContent?.prompt || embedData?.prompt || "",
             model: decodedContent?.model || embedData?.model || "",
+            provider: decodedContent?.provider || embedData?.provider || "",
             s3BaseUrl:
               decodedContent?.s3_base_url || embedData?.s3_base_url || "",
             files: decodedContent?.files || embedData?.files || undefined,
@@ -2345,7 +2425,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Printables",
+            provider: provider || "",
             status,
             results: modelPreviewResults,
             previewResultsJson: decodedContent?.preview_results_json || "",
@@ -2616,7 +2696,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Doctolib",
+            provider: provider || "",
             status,
             results,
             taskId,
@@ -2635,7 +2715,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "REWE",
+            provider: provider || "",
             status,
             results,
             taskId,
@@ -2689,7 +2769,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "Power converters",
-            provider: provider || "TI WEBENCH",
+            provider: provider || "",
             status,
             results,
             embedIds: childEmbedIds,
@@ -2713,6 +2793,8 @@ export class GroupRenderer implements EmbedRenderer {
             providers,
             status,
             results,
+            resultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -2978,8 +3060,8 @@ export class GroupRenderer implements EmbedRenderer {
         appId: appId || "app",
         skillId: skillId || "skill",
         status,
-        provider,
-        resultCount,
+        provider: status === "error" ? "" : provider,
+        resultCount: status === "error" ? undefined : resultCount,
         previewImageUrl,
         taskId,
         isMobile: false,
@@ -5480,6 +5562,12 @@ export class GroupRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
+          connection: decodedContent ?? undefined,
+          fare: decodedContent?.fare,
+          fareIsPartial: decodedContent?.fare_is_partial,
+          arrivalDelayMinutes: decodedContent?.arrival_delay_minutes ?? lastLeg?.arrival_delay_minutes ?? lastSegment?.arrival_delay_minutes,
+          hasCancellation: decodedContent?.has_cancellation ?? legs.some((leg: Record<string, unknown>) => Array.isArray(leg.segments) && leg.segments.some((segment: Record<string, unknown>) => segment.cancelled === true)),
+          optimization: decodedContent?.optimization,
           price,
           currency,
           transportMethod,
@@ -5725,26 +5813,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     // Reconstruct EventResult from decoded TOON content.
     // Mirrors the transformer in EventsSearchEmbedFullscreen.svelte.
-    const eventResult = {
-      embed_id: embedId,
-      id: decodedContent?.id as string | undefined,
-      provider: decodedContent?.provider as string | undefined,
-      title: decodedContent?.title as string | undefined,
-      description: decodedContent?.description as string | undefined,
-      url: decodedContent?.url as string | undefined,
-      date_start: decodedContent?.date_start as string | undefined,
-      date_end: decodedContent?.date_end as string | undefined,
-      timezone: decodedContent?.timezone as string | undefined,
-      event_type: decodedContent?.event_type as string | undefined,
-      venue: decodedContent?.venue as Record<string, unknown> | undefined,
-      organizer: decodedContent?.organizer as
-        | Record<string, unknown>
-        | undefined,
-      rsvp_count: decodedContent?.rsvp_count as number | undefined,
-      is_paid: decodedContent?.is_paid as boolean | undefined,
-      fee: decodedContent?.fee as Record<string, unknown> | undefined,
-      image_url: decodedContent?.image_url as string | null | undefined,
-    };
+    const eventResult = normalizeEventResult(decodedContent ?? {}, embedId);
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -6573,10 +6642,20 @@ export class GroupRenderer implements EmbedRenderer {
             ? decodedContent.rooms
             : undefined,
           address: decodedContent?.address as string | undefined,
+          city: decodedContent?.city as string | undefined,
+          location_exact_address: decodedContent?.location_exact_address === true || (decodedContent?.location as Record<string, unknown> | undefined)?.exact_address === true,
           image_url: decodedContent?.image_url as string | undefined,
           url: decodedContent?.url as string | undefined,
           provider: decodedContent?.provider as string | undefined,
           listing_type: decodedContent?.listing_type as string | undefined,
+          available_from: decodedContent?.available_from as string | undefined,
+          lat: typeof decodedContent?.latitude === "number" ? decodedContent.latitude
+            : typeof decodedContent?.lat === "number" ? decodedContent.lat : undefined,
+          lon: typeof decodedContent?.longitude === "number" ? decodedContent.longitude
+            : typeof decodedContent?.lon === "number" ? decodedContent.lon : undefined,
+          location_area: decodedContent?.location_area ?? (decodedContent?.location as Record<string, unknown> | undefined)?.area,
+          location_precision: decodedContent?.location_precision as string | undefined,
+          location_approximate: decodedContent?.location_approximate !== false,
           onSelect: () =>
             this.openFullscreen(item, embedData, decodedContent),
         },
@@ -6897,8 +6976,40 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
-   * Render a Mind Maps embed using MindMapEmbedPreview.
+   * Mount a standalone calendar event using the shared preview shell.
    */
+  private async renderCalendarEventComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || decodedContent?.status || item.status || "processing") as "processing" | "finished" | "error" | "cancelled";
+    try {
+      const component = mount(CalendarEventEmbedPreview, {
+        target: content,
+        props: { id: embedId, content: decodedContent ?? {}, status,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent) },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Could not mount calendar event preview", error);
+      content.innerHTML = this.renderCalendarEventItem(decodedContent);
+    }
+  }
+
+  private renderCalendarEventItem(content: DecodedEmbedContent | null): string {
+    const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<div class="embed-text-content">${escape(renderCalendarEvent(content ?? {})).replace(/\n/g, "<br>")}</div>`;
+  }
+
+  /** Render a Mind Maps embed using MindMapEmbedPreview. */
   private async renderMindMapComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null = null,

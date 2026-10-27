@@ -11,6 +11,8 @@ const defaultProps = {
 	url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
 	title: 'Understanding Svelte 5 Runes — Complete Tutorial',
 	videoId: 'dQw4w9WgXcQ',
+	thumbnail: '/images/examples/group1.jpg',
+	channel_name: 'Svelte Society',
 	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false

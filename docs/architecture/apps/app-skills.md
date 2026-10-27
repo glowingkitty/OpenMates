@@ -61,6 +61,7 @@ claims:
 ## How It Works
 
 - Pre-processing preselects relevant skills — see [message-processing.md](../messaging/message-processing.md)
+- Main processing also offers the configured baseline `web-search` and `images-search`, even when preprocessing selects no apps. Availability does not require a call. Explicit tool scopes, disabled apps, Mate app permissions and first-step Focus gates still apply; `images-view` is never a baseline tool.
 - LLM decides which to call → [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py) dispatches each with unique `skill_task_id`
 - Each skill returns JSON dict → auto-converted to **TOON** (30-60% fewer tokens) in [main_processor.py](../../backend/apps/ai/processing/main_processor.py)
 - Result stored as embed — see [embeds.md](../messaging/embeds.md)
@@ -106,7 +107,7 @@ providers:
 
 # No-API-key — always available
 providers:
-  - name: Doctolib
+  - name: OpenMates
     no_api_key: true
 ```
 
@@ -115,8 +116,6 @@ Normalized by `ProviderRef` in [app_metadata_schemas.py](../../backend/shared/py
 **`no_api_key: true` means:** the provider doesn't use the standard Vault API key lookup path. It does NOT necessarily mean "no authentication" — some providers use alternative auth (e.g., SecretsManager tokens, proxy credentials). Always check the provider's source to understand its actual auth mechanism.
 
 **Providers using `no_api_key: true`:**
-- Web scraping: Doctolib, Jameda, Meetup, Luma, REWE
-- Proxy-based: Webshare
 - Alternative auth (SecretsManager): Flightradar24 (Bearer token API)
 - Internal: OpenMates
 

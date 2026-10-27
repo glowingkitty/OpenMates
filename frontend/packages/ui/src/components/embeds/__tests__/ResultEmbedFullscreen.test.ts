@@ -1,0 +1,41 @@
+import { mount, tick, unmount } from 'svelte';
+import { afterEach, expect, it, vi } from 'vitest';
+afterEach(() => vi.unstubAllGlobals());
+const mocks = vi.hoisted(() => ({ request: vi.fn(), route: vi.fn(), chat: vi.fn(), workflow: vi.fn(), error: vi.fn() }));
+vi.mock('../EmbedLeafletMap.svelte', async () => ({ default: (await import('./ResultFullscreenShell.svelte')).default }));
+vi.mock('../UnifiedEmbedFullscreen.svelte', async () => ({ default: (await import('./ResultFullscreenShell.svelte')).default }));
+vi.mock('../../apps/AppsRequestComposer.svelte', async () => ({ default: (await import('./ResultComposerStub.svelte')).default }));
+vi.mock('../../../services/appsWorkspaceRequestService', () => ({ APPS_RESULTS_ACTIONS_CONTEXT: Symbol('actions'), runAppsWorkspaceRequest: mocks.request }));
+vi.mock('../../../services/appsWorkspaceChatHandoffService', () => ({ captureAppsWorkspaceHandoffGuard: () => () => true, queueAppsWorkspaceChatHandoff: mocks.chat, queueAppsWorkspaceWorkflowHandoff: mocks.workflow }));
+vi.mock('../../../services/embedFullscreenController', () => ({ setCanonicalFullscreenRoute: mocks.route }));
+vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: mocks.error } }));
+import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+
+// contract-test: supporting surface=gui.web assertions=health-search-appointments.surface-parity
+it('cancels a disposed result request and ignores its late navigation and handoffs', async () => {
+  const disconnect = vi.fn();
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect = disconnect; });
+  let finish!: (value: { action: string }) => void;
+  mocks.request.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const target = document.createElement('div'); document.body.append(target);
+  const close = vi.fn();
+  const instance = mount(ResultEmbedFullscreen, { target, props: { appId: 'health', skillId: 'appointment', skillIconName: 'health', result: {}, onClose: close, summary: (() => {}) as never, detailContent: (() => {}) as never } });
+  await tick();
+  (target.querySelector('button') as HTMLButtonElement).click();
+  await tick();
+  const options = mocks.request.mock.calls[0][0];
+  await unmount(instance);
+  expect(options.signal.aborted).toBe(true);
+  expect(disconnect).toHaveBeenCalledOnce();
+  options.onAccepted({ embedId: 'late-result' });
+  await options.onChat({ text: 'late' });
+  await options.onWorkflow({ text: 'late' });
+  finish({ action: 'chat' });
+  await tick();
+  expect(mocks.route).not.toHaveBeenCalled();
+  expect(mocks.chat).not.toHaveBeenCalled();
+  expect(mocks.workflow).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled();
+  expect(mocks.error).not.toHaveBeenCalled();
+  target.remove();
+});

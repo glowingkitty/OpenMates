@@ -109,7 +109,6 @@ sections:
     changed_paths:
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/apps/travel/skills/search_connections.py
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
@@ -777,7 +776,6 @@ sources:
     changed_paths:
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/apps/travel/skills/search_connections.py
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte

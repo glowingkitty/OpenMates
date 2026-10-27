@@ -1,35 +1,6 @@
 #!/usr/bin/env python3
-"""
-Fetches AI model rankings from SimpleBench (simple-bench.com) using Firecrawl.
+"""Offline parsing utilities for saved leaderboard data. Live collection is unavailable."""
 
-SimpleBench is a multiple-choice text benchmark where non-specialized humans
-outperform frontier LLMs on spatio-temporal reasoning, social intelligence,
-and linguistic adversarial robustness (trick questions).
-
-This script:
-1. Uses Firecrawl API (via Vault) to scrape the SimpleBench leaderboard page
-2. Parses the markdown table (rank, model, score, organization)
-3. Validates the output to detect when the scraper breaks
-4. Outputs formatted text or JSON
-
-Usage:
-    docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py
-    docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py --json
-    docker exec -it api python /app/backend/scripts/fetch_simplebench_rankings.py -o /app/simplebench.json
-
-Options:
-    --json            Output as JSON instead of formatted text
-    -o, --output FILE Save output to file
-    --limit N         Max models to return (default: 100)
-    --include-human   Include the human baseline in results
-
-Note: This script is designed to run inside the Docker container where it has
-access to Vault for the Firecrawl API key.
-"""
-
-import asyncio
-import argparse
-import json
 import logging
 import re
 import sys
@@ -39,8 +10,6 @@ from typing import Any, Dict, List, Optional
 # Add the backend directory to the Python path for imports
 sys.path.insert(0, '/app/backend')
 
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 
 # Configure logging - suppress verbose library logs
 logging.basicConfig(
@@ -127,7 +96,7 @@ def parse_score(score_str: str) -> Optional[float]:
 
 def parse_simplebench_markdown(markdown: str, include_human: bool = False) -> List[Dict[str, Any]]:
     """
-    Parse SimpleBench leaderboard data from Firecrawl markdown output.
+    Parse SimpleBench leaderboard data from saved markdown.
     
     The SimpleBench table format is:
     | Rank | Model | Score (AVG@5) | Organization |
@@ -137,7 +106,7 @@ def parse_simplebench_markdown(markdown: str, include_human: bool = False) -> Li
     | 2nd | Claude Opus 4.5 | 62.0% | Anthropic |
     
     Args:
-        markdown: Full markdown content from Firecrawl
+        markdown: Saved markdown content
         include_human: If True, include human baseline entry (rank=0)
         
     Returns:
@@ -240,7 +209,7 @@ def validate_markdown_structure(markdown: str) -> List[str]:
     """
     Validate the raw markdown contains expected table structure.
     
-    This helps detect when Firecrawl returns unexpected content (e.g., Cloudflare
+    This helps detect when saved input contains unexpected content (e.g., Cloudflare
     block page, error page, or completely different page structure).
     
     Args:
@@ -412,143 +381,12 @@ async def fetch_simplebench_rankings(
     limit: int = 100,
     include_human: bool = False
 ) -> tuple[List[Dict[str, Any]], List[str]]:
-    """
-    Fetch and parse SimpleBench rankings using Firecrawl.
-    
-    Args:
-        limit: Maximum number of models to return
-        include_human: Include human baseline in results
-        
-    Returns:
-        Tuple of (rankings list, warnings list)
-    """
-    all_warnings = []
-    
-    script_logger.info("Fetching SimpleBench leaderboard...")
-    script_logger.info(f"URL: {BASE_URL}")
-    
-    # Initialize SecretsManager for Vault access (Firecrawl API key)
-    secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    
-    try:
-        # Use Firecrawl to scrape the page (handles JavaScript rendering)
-        result = await scrape_url(
-            url=BASE_URL,
-            secrets_manager=secrets_manager,
-            formats=["markdown"],
-            only_main_content=True,
-            sanitize_output=False  # Don't sanitize ranking data
-        )
-    finally:
-        # Clean up SecretsManager
-        await secrets_manager.aclose()
-    
-    # Check for Firecrawl errors
-    if result.get("error"):
-        raise RuntimeError(f"Firecrawl error: {result['error']}")
-    
-    # Extract markdown from result structure
-    markdown = result.get("data", {}).get("markdown", "")
-    
-    if not markdown:
-        raise RuntimeError("Firecrawl returned no markdown content")
-    
-    script_logger.info(f"Received {len(markdown)} characters of markdown")
-    
-    # Validate markdown structure
-    struct_warnings = validate_markdown_structure(markdown)
-    if struct_warnings:
-        script_logger.warning(f"Markdown structure warnings: {struct_warnings}")
-        all_warnings.extend(struct_warnings)
-    
-    # Parse the leaderboard
-    rankings = parse_simplebench_markdown(markdown, include_human=include_human)
-    script_logger.info(f"Parsed {len(rankings)} model rankings")
-    
-    # Validate parsed data
-    data_warnings = validate_rankings(rankings)
-    if data_warnings:
-        script_logger.warning(f"Data validation warnings: {data_warnings}")
-        all_warnings.extend(data_warnings)
-    
-    # Apply limit
-    if limit and len(rankings) > limit:
-        rankings = rankings[:limit]
-    
-    return rankings, all_warnings
+    """Report unavailable collection without credentials or outbound requests."""
+    raise RuntimeError("No supported leaderboard data source is configured.")
 
 
 def main():
-    """Main entry point for command-line usage."""
-    parser = argparse.ArgumentParser(
-        description="Fetch AI model rankings from SimpleBench benchmark"
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output as JSON instead of formatted text'
-    )
-    parser.add_argument(
-        '-o', '--output',
-        type=str,
-        help='Save output to file'
-    )
-    parser.add_argument(
-        '--limit',
-        type=int,
-        default=100,
-        help='Maximum number of models to return (default: 100)'
-    )
-    parser.add_argument(
-        '--include-human',
-        action='store_true',
-        help='Include human baseline in results'
-    )
-    
-    args = parser.parse_args()
-    
-    try:
-        # Run async fetch
-        rankings, warnings = asyncio.run(
-            fetch_simplebench_rankings(
-                limit=args.limit,
-                include_human=args.include_human
-            )
-        )
-        
-        if not rankings:
-            script_logger.error("No rankings data retrieved")
-            sys.exit(1)
-        
-        # Format output
-        if args.json:
-            output = json.dumps(
-                create_json_output(rankings, warnings),
-                indent=2,
-                ensure_ascii=False
-            )
-        else:
-            output = format_text_output(rankings)
-            if warnings:
-                output += "\nWarnings:\n" + "\n".join(f"  - {w}" for w in warnings)
-        
-        # Output to file or stdout
-        if args.output:
-            with open(args.output, 'w', encoding='utf-8') as f:
-                f.write(output)
-            script_logger.info(f"Output saved to {args.output}")
-        else:
-            print(output)
-        
-        # Exit with warning code if there were validation issues
-        if warnings:
-            script_logger.warning(f"Completed with {len(warnings)} warnings")
-            sys.exit(0)  # Still success, but logged warnings
-        
-    except Exception as e:
-        script_logger.error(f"Failed to fetch rankings: {e}", exc_info=True)
-        sys.exit(1)
+    raise SystemExit("No supported leaderboard data source is configured.")
 
 
 if __name__ == '__main__':

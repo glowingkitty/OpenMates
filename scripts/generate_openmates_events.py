@@ -98,7 +98,7 @@ def _event_record(event: dict[str, Any]) -> dict[str, Any]:
         "embed_id": str(event["slug"]),
         "id": str(event["id"]),
         "slug": str(event["slug"]),
-        "provider": "luma",
+        "provider": "OpenMates",
         "title": title,
         "description": str(content["description"]),
         "url": str(event["luma_url"]),

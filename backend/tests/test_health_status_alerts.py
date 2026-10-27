@@ -260,3 +260,23 @@ async def test_record_health_event_queues_alert_after_persisted_transition(monke
     assert len(discord_calls) == 1
     assert "provider/openai" in discord_calls[0]["discord"]
     assert hct.HEALTH_ALERT_EMAIL_TASK_NAME not in {call.get("name") for call in calls}
+
+
+@pytest.mark.asyncio
+async def test_baseten_health_only_uses_nonbillable_catalog(monkeypatch):
+    from backend.shared.providers import baseten
+    calls = []
+    async def key(manager):
+        assert manager is sentinel
+        return "test-key"
+    class Client:
+        def __init__(self, api_key, **kwargs):
+            assert api_key == "test-key" and kwargs["timeout"] == 15
+        async def models(self):
+            calls.append("models")
+            return [{"id": "deepseek-ai/DeepSeek-V4.1-Flash-1017"}]
+    sentinel = object()
+    monkeypatch.setattr(baseten, "BasetenClient", Client)
+    monkeypatch.setattr(baseten, "resolve_api_key", key)
+    success, error, elapsed = await hct._check_provider_via_test_request("baseten", "deepseek/deepseek-v4.1-flash", sentinel)
+    assert success and error is None and elapsed >= 0 and calls == ["models"]

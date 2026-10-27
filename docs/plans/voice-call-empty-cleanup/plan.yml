@@ -1,0 +1,46 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: voice-call-empty-cleanup
+title: Remove empty new chats left by unsuccessful voice calls
+goal: Additionally, if a voice call is failing for whatever reason in a new chat and
+  there's nothing else in the chat, then this shouldn't even save the chat but automatically
+  delete it.
+authorization: User explicitly requested this BHWRX correction; implementation and
+  scoped dev deployment are authorized.
+task: TASK-9086
+specification_refs:
+- id: feature.video-call
+  version: 12
+scope:
+- Only a server-proven newly created call shell containing no conversation text, draft,
+  artifact or other authored state may be removed. Call status records alone do not
+  constitute a saved conversation.
+- Use the existing chat-deletion transaction and tombstone fanout, with durable eligibility
+  and draft/message/admission exclusion. Retain existing chats and historical reported-issue
+  evidence.
+- After failed, cancelled or no-content call startup, coordinate late bootstrap, lifecycle
+  writes and conditional cleanup without rebinding another call.
+- Guard local deletion atomically against new drafts, messages, assets, pending work
+  and active editor/send state.
+decisions:
+- Never use a generic delete request after a stale client-only emptiness check. Missing
+  or stale authority preserves the chat.
+- Draft and other content admissions disqualify the new call candidate before acknowledgement
+  under existing durable deletion locks, including before the chat row exists.
+- A completed call with lifecycle records requires both exact records durably present.
+  Provider completion and enqueue acknowledgement do not prove stored rows.
+- Stage CMS schema/extension and API before frontend token integration. Legacy connected
+  clients without the local-deletion guard disable automatic cleanup for the candidate.
+- Main microphone and false-credit fix is published independently as8ec5080. Preserve
+  shared automatic model routing, billing records and encrypted conversation content.
+required_checks:
+- Focused transaction and handler checks cover owner mismatch, stale versions, old
+  clients, second calls, pending lifecycle persistence, drafts, artifacts, recovery
+  work and account deletion.
+- Focused browser regressions prove removal and normal fanout for a new lifecycle-only
+  call in both tabs, and retain a call with actual conversation or draft content.
+- Relevant local atomic deletion tests prove new content, drafts, active editor/send
+  reservations and pending work survive the deletion race.
+- Publish through managed session gates; initialize the new schema and verify coherent
+  dev consumers under explicit runtime target/coordinator leases.

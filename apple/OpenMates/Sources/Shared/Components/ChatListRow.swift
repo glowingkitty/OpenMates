@@ -28,12 +28,12 @@ struct ChatListRow: View {
     let processing: Bool
     let activeSubChatCount: Int
     let suppliedDraftPreview: String?
-    private let formattedDraftPreview: String?
+    let formattedDraftPreview: String?
 
-    init(chat: Chat, suppliedDraftPreview: String? = nil, processing: Bool = false, activeSubChatCount: Int = 0) {
+    init(chat: Chat, suppliedDraftPreview: String? = nil, processing: Bool = false, activeSubChatCount: Int = 0, previewIsFormatted: Bool = false) {
         self.chat = chat; self.suppliedDraftPreview = suppliedDraftPreview
         self.processing = processing; self.activeSubChatCount = activeSubChatCount
-        let preview = ChatDraftPreviewFormatter.format(suppliedDraftPreview)
+        let preview = previewIsFormatted ? suppliedDraftPreview ?? "" : ChatDraftPreviewFormatter.format(suppliedDraftPreview)
         formattedDraftPreview = chat.hasNonEmptyDraft == false || preview.isEmpty ? nil : preview
     }
 

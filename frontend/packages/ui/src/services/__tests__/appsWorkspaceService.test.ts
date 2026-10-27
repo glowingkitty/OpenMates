@@ -25,7 +25,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('public Apps skill details', () => {
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  // contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
   it('loads a direct public detail response without browser credentials', async () => {
     const controller = new AbortController();
     const details = { ...metadata, app_id: 'events', skill_id: 'search', anonymous_allowed: true, execution_mode: 'sync' };
@@ -39,7 +39,7 @@ describe('public Apps skill details', () => {
     );
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  // contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
   it('retains the session for the user-gated mail search details endpoint', async () => {
     const controller = new AbortController();
     const details = { ...metadata, app_id: 'mail', skill_id: 'search' };
@@ -53,7 +53,7 @@ describe('public Apps skill details', () => {
     );
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  // contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
   it('rechecks private mail admission after an account switch instead of using cached details', async () => {
     const details = { ...metadata, app_id: 'mail', skill_id: 'search' };
     const fetchMock = vi.fn()
@@ -66,7 +66,7 @@ describe('public Apps skill details', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  // contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
   it('rejects private mail details received after the requesting account changes', async () => {
     let release: (response: Response) => void = () => {};
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { release = resolve; })));
@@ -137,4 +137,19 @@ describe('direct Apps skill execution', () => {
     expect((await execution).data).toEqual({ owner: 'user-A' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+});
+
+// contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+it('rechecks caller Team ownership immediately before provider dispatch after asynchronous metadata', async () => {
+  let release!: (response: Response) => void;
+  const fetchMock = vi.fn(() => new Promise<Response>(resolve => { release = resolve; }));
+  vi.stubGlobal('fetch', fetchMock);
+  let contextValid = true;
+  const request = executeAppsSkill('news', 'search', { query: 'Team dispatch fence' }, {
+    guest: false, assertContext: () => { if (!contextValid) throw new Error('team_context_changed'); },
+  });
+  contextValid = false;
+  release(Response.json({ ...metadata, app_id: 'news', skill_id: 'search' }));
+  await expect(request).rejects.toThrow('team_context_changed');
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });

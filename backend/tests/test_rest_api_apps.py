@@ -1,13 +1,11 @@
 # backend/tests/test_rest_api_apps.py
 #
 # Integration tests for miscellaneous app skills:
-#   - travel/search_connections (Amadeus flights)
-#   - travel/search_stays (hotels)
+#   - travel/search_connections (unavailable, no network)
+#   - travel/search_stays (unavailable, no network)
 #   - travel/get_flight (Flightradar24 — known past flight)
 ##   - code/get_docs
 #   - math/calculate (sympy/mpmath symbolic + numeric)
-#   - shopping/search_products (REWE supermarket)
-#   - health/search_appointments (Doctolib Germany)
 #   - reminder/set-reminder, list-reminders, cancel-reminder (full lifecycle)
 #   - openmates/share-usecase
 #
@@ -25,162 +23,42 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 
-@pytest.mark.integration
-def test_execute_skill_travel_search_connections(api_client):
-    """
-    Test executing the 'travel/search_connections' skill.
-    Searches for a one-way flight from Munich to London via the Amadeus API.
-    """
-    departure_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
+# contract-test: supporting surface=rest_api assertions=app-skills.providers.unavailable-no-network
+@pytest.mark.asyncio
+async def test_execute_skill_travel_search_connections(monkeypatch):
+    """Retired discovery fails locally without an upstream request."""
+    import httpx
+    from unittest.mock import AsyncMock
+    from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
 
-    payload = {
-        "requests": [
-            {
-                "legs": [
-                    {
-                        "origin": "Munich",
-                        "destination": "London",
-                        "date": departure_date,
-                    }
-                ],
-                "transport_methods": ["airplane"],
-                "passengers": 1,
-                "travel_class": "economy",
-                "max_results": 3,
-                "currency": "EUR",
-            }
-        ]
-    }
+    upstream = AsyncMock(side_effect=AssertionError("Unexpected upstream request"))
+    monkeypatch.setattr(httpx.AsyncClient, "request", upstream)
+    response = await object.__new__(SearchConnectionsSkill).execute(requests=[{"id": "retired", "query": "sample"}])
+    assert response.error and "unavailable" in response.error.lower()
+    assert response.results[0]["id"] == "retired"
+    assert response.results[0]["results"] == []
+    upstream.assert_not_awaited()
 
-    print(
-        f"\n[TRAVEL] Searching flights: Munich -> London on {departure_date}"
-    )
-    response = api_client.post(
-        "/v1/apps/travel/skills/search_connections",
-        json=payload,
-        timeout=30.0,
-    )
-    assert response.status_code == 200, (
-        f"Travel search_connections failed: {response.text}"
-    )
 
-    data = response.json()
-    assert data["success"] is True, f"Skill returned success=False: {data}"
-    assert "data" in data
-    skill_data = data["data"]
-    assert "results" in skill_data
+# contract-test: supporting surface=rest_api assertions=app-skills.providers.unavailable-no-network
+@pytest.mark.asyncio
+async def test_execute_skill_travel_search_stays(monkeypatch):
+    """Retired discovery fails locally without an upstream request."""
+    import httpx
+    from unittest.mock import AsyncMock
+    from backend.apps.travel.skills.search_stays import SearchStaysSkill
 
-    results = skill_data["results"]
-    assert len(results) > 0, "Expected at least one result group"
-
-    first_group = results[0]
-    assert "id" in first_group, "Result group should have 'id'"
-    assert "results" in first_group, "Result group should have 'results'"
-
-    connections = first_group["results"]
-    assert len(connections) > 0, "Expected at least one flight connection"
-
-    conn = connections[0]
-    assert conn["type"] == "connection", (
-        f"Expected type 'connection', got '{conn.get('type')}'"
-    )
-    assert conn["transport_method"] == "airplane"
-    assert conn.get("total_price") is not None, "Expected a price"
-    assert conn.get("currency") is not None, "Expected a currency"
-    assert conn.get("legs") is not None, "Expected legs array"
-    assert len(conn["legs"]) >= 1, "Expected at least one leg"
-
-    leg = conn["legs"][0]
-    assert "origin" in leg, "Leg should have 'origin'"
-    assert "destination" in leg, "Leg should have 'destination'"
-    assert "departure" in leg, "Leg should have 'departure'"
-    assert "arrival" in leg, "Leg should have 'arrival'"
-    assert "duration" in leg, "Leg should have 'duration'"
-    assert "stops" in leg, "Leg should have 'stops'"
-    assert "segments" in leg, "Leg should have 'segments'"
-
-    assert len(leg["segments"]) >= 1, "Expected at least one segment"
-    segment = leg["segments"][0]
-    assert "carrier" in segment, "Segment should have 'carrier'"
-    assert "departure_station" in segment, (
-        "Segment should have 'departure_station'"
-    )
-    assert "arrival_station" in segment, (
-        "Segment should have 'arrival_station'"
-    )
-
-    print(f"[TRAVEL] Found {len(connections)} connection(s)")
-    for i, c in enumerate(connections[:3]):
-        legs_info = c.get("legs", [])
-        if legs_info:
-            first = legs_info[0]
-            print(
-                f"  [{i + 1}] {first.get('origin')} -> "
-                f"{first.get('destination')} | "
-                f"{first.get('duration')} | {first.get('stops')} stop(s) | "
-                f"{c.get('total_price')} {c.get('currency')}"
-            )
-
-    assert skill_data.get("provider") == "Amadeus", (
-        f"Expected provider 'Amadeus', got '{skill_data.get('provider')}'"
-    )
+    upstream = AsyncMock(side_effect=AssertionError("Unexpected upstream request"))
+    monkeypatch.setattr(httpx.AsyncClient, "request", upstream)
+    response = await object.__new__(SearchStaysSkill).execute(requests=[{"id": "retired", "query": "sample"}])
+    assert response.error and "unavailable" in response.error.lower()
+    assert response.results[0]["id"] == "retired"
+    assert response.results[0]["results"] == []
+    upstream.assert_not_awaited()
 
 
 @pytest.mark.integration
-def test_execute_skill_travel_search_stays(api_client):
-    """
-    Test executing the 'travel/search_stays' skill.
-    Searches for hotels in Paris for a future date.
-    """
-    check_in = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-    check_out = (datetime.now() + timedelta(days=33)).strftime("%Y-%m-%d")
-
-    payload = {
-        "requests": [
-            {
-                "query": "Hotels in Paris near Eiffel Tower",
-                "check_in_date": check_in,
-                "check_out_date": check_out,
-                "adults": 2,
-                "currency": "EUR",
-                "max_results": 3,
-            }
-        ]
-    }
-
-    print(
-        f"\n[TRAVEL STAYS] Searching hotels in Paris: {check_in} to {check_out}"
-    )
-    response = api_client.post(
-        "/v1/apps/travel/skills/search_stays", json=payload, timeout=30.0
-    )
-    assert response.status_code == 200, (
-        f"travel/search_stays failed: {response.text}"
-    )
-
-    data = response.json()
-    assert data["success"] is True, f"Skill returned success=False: {data}"
-    assert "data" in data
-    skill_data = data["data"]
-    assert "results" in skill_data
-
-    results = skill_data["results"]
-    assert len(results) > 0, "Expected at least one result group"
-
-    first_group = results[0]
-    assert "results" in first_group, "Result group should have 'results'"
-
-    stays = first_group["results"]
-    assert len(stays) > 0, "Expected at least one stay result"
-
-    stay = stays[0]
-    assert stay.get("name"), "Stay should have a 'name'"
-
-    print(f"[TRAVEL STAYS] Found {len(stays)} stay(s)")
-    print(f"[TRAVEL STAYS] First result: {stay.get('name')}")
-
-
-@pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_code_get_docs(api_client):
     """
     Test executing the 'code/get_docs' skill.
@@ -217,6 +95,7 @@ def test_execute_skill_code_get_docs(api_client):
 
 
 @pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_reminder_lifecycle(api_client):
     """
     Test the full reminder lifecycle: set -> list -> cancel.
@@ -324,6 +203,7 @@ def test_execute_skill_reminder_lifecycle(api_client):
 
 
 @pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_openmates_share_usecase(api_client):
     """
     Test executing the 'openmates/share-usecase' skill.
@@ -365,6 +245,7 @@ def test_execute_skill_openmates_share_usecase(api_client):
 
 
 @pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_math_calculate_numeric(api_client):
     """
     Test executing the 'math/calculate' skill with a simple numeric expression.
@@ -404,6 +285,7 @@ def test_execute_skill_math_calculate_numeric(api_client):
 
 
 @pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_math_calculate_symbolic(api_client):
     """
     Test the 'math/calculate' skill with symbolic differentiation.
@@ -441,106 +323,7 @@ def test_execute_skill_math_calculate_symbolic(api_client):
 
 
 @pytest.mark.integration
-def test_execute_skill_shopping_search_products(api_client):
-    """
-    Test executing the 'shopping/search_products' skill with a REWE supermarket search.
-    Searches for a common grocery item and verifies product list structure.
-    """
-    payload = {
-        "requests": [
-            {
-                "query": "bio joghurt",
-                "provider": "REWE",
-                "max_results": 5,
-            }
-        ]
-    }
-
-    print("\n[SHOPPING] Searching REWE for 'bio joghurt'...")
-    response = api_client.post(
-        "/v1/apps/shopping/skills/search_products",
-        json=payload,
-        timeout=30.0,
-    )
-    assert response.status_code == 200, (
-        f"shopping/search_products failed: {response.text}"
-    )
-
-    data = response.json()
-    assert data["success"] is True, f"success=False: {data}"
-    assert "data" in data
-    skill_data = data["data"]
-    assert "results" in skill_data, f"Missing 'results': {skill_data}"
-
-    result_groups = skill_data["results"]
-    assert len(result_groups) > 0, "Expected at least one result group"
-
-    products = result_groups[0].get("results", [])
-    assert len(products) > 0, "Expected at least one product"
-
-    product = products[0]
-    # Shopping products use 'title' (REWE) not 'name'
-    assert product.get("title") or product.get("name"), (
-        f"Product missing 'title' or 'name': {list(product.keys())}"
-    )
-
-    print(f"[SHOPPING] Found {len(products)} product(s)")
-    print(f"[SHOPPING] First: {product.get('title') or product.get('name')} — {product.get('price_eur')}")
-    print("[SHOPPING] PASSED")
-
-
-@pytest.mark.integration
-def test_execute_skill_health_search_appointments(api_client):
-    """
-    Test executing the 'health/search_appointments' skill via Doctolib Germany.
-    Searches for general practitioners in Berlin and verifies the response structure.
-    """
-    payload = {
-        "requests": [
-            {
-                "speciality": "allgemeinmedizin",
-                "city": "Berlin",
-                "provider_platform": "doctolib_de",
-                "insurance_sector": "public",
-            }
-        ]
-    }
-
-    print("\n[HEALTH] Searching Doctolib Germany for GPs in Berlin...")
-    response = api_client.post(
-        "/v1/apps/health/skills/search_appointments",
-        json=payload,
-        timeout=45.0,
-    )
-    assert response.status_code == 200, (
-        f"health/search_appointments failed: {response.text}"
-    )
-
-    data = response.json()
-    assert data["success"] is True, f"success=False: {data}"
-    assert "data" in data
-    skill_data = data["data"]
-    assert "results" in skill_data, f"Missing 'results': {skill_data}"
-
-    result_groups = skill_data["results"]
-    assert len(result_groups) > 0, "Expected at least one result group"
-
-    doctors = result_groups[0].get("results", [])
-    assert len(doctors) > 0, "Expected at least one doctor"
-
-    doctor = doctors[0]
-    assert doctor.get("name"), f"Doctor missing 'name': {doctor}"
-    # practice_url is the canonical field per the skill docs (see skill header comment)
-    assert doctor.get("practice_url") or doctor.get("url"), (
-        f"Doctor missing 'practice_url' or 'url': {doctor}"
-    )
-
-    print(f"[HEALTH] Found {len(doctors)} doctor(s)")
-    print(f"[HEALTH] First: {doctor.get('name')} — {doctor.get('practice_url')}")
-    print("[HEALTH] PASSED")
-
-
-@pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 def test_execute_skill_travel_get_flight(api_client):
     """
     Test executing the 'travel/get_flight' skill via Flightradar24.

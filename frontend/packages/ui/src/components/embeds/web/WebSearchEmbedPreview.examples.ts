@@ -180,19 +180,19 @@ const examples: WebSearchStoreExample[] = [
         ]
       },
       {
-        "title": "r/travel on Reddit: Family friendly beach destinations in Europe in September and early October",
-        "url": "https://www.reddit.com/r/travel/comments/1atnrgs/family_friendly_beach_destinations_in_europe_in/",
+        "title": "r/travel on ExampleCommunity: Family friendly beach destinations in Europe in September and early October",
+        "url": "https://example.com/fixture",
         "description": "In Greece you could look at Rhodes, Syros, Naxos, Corfu, Samos for islands, or on the mainland, the area around Kalamata has a bunch of nice places to visit: Pylos, Methoni, Koroni, ancient Messene, Kardamyli, Stoupa, and it isn't that far to ...",
         "page_age": "February 18, 2024",
         "profile": {
-          "name": "Reddit"
+          "name": "ExampleCommunity"
         },
         "meta_url": {
           "favicon": "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
         },
         "thumbnail": {
           "src": "https://imgs.search.brave.com/A5H_aQiEBuUODR0lNeU8iDfhrWUvO8oEmRGE_mcS_gM/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/cmVkZGl0c3RhdGlj/LmNvbS9pY29uLnBu/Zw",
-          "original": "https://www.redditstatic.com/icon.png"
+          "original": "https://example.com/fixture"
         },
         "extra_snippets": [
           "Any family-friendly destination in Europe that surprised you? r/familytravel • · upvotes · · comments · European countries ranked by safety · r/Maps • · comments · 10 of the best beaches in Europe for families. r/Finland • · upvotes · · comments · Ideas for where to holiday with our 7 month baby in June · r/travel • · comments · Suggestions for a 1-week trip with nice beaches in Southern Europe in September?",

@@ -40,29 +40,31 @@ def test_gateway_preserves_multiple_binary_buffers(monkeypatch):
             thread.join()
 
 
-def test_public_provider_authority_rejects_shared_paid_and_alternate_ports():
+def test_public_provider_authority_rejects_shared_paid_and_alternate_ports(monkeypatch):
     import pytest
-    assert gateway.public_provider_target(b"CONNECT webench.ti.com:443 HTTP/1.1\r\n") == "webench.ti.com"
+    monkeypatch.setattr(gateway, "PUBLIC_PROVIDER_HOSTS", frozenset({"provider.example.test"}))
+    assert gateway.public_provider_target(b"CONNECT provider.example.test:443 HTTP/1.1\r\n") == "provider.example.test"
     for line in (b"CONNECT api.openai.com:443 HTTP/1.1", b"CONNECT api.dev.openmates.org:443 HTTP/1.1",
-                 b"CONNECT webench.ti.com:80 HTTP/1.1", b"CONNECT webench.ti.com.evil.test:443 HTTP/1.1",
-                 b"GET https://webench.ti.com/ HTTP/1.1", b"CONNECT 127.0.0.1:443 HTTP/1.1"):
+                 b"CONNECT provider.example.test:80 HTTP/1.1", b"CONNECT provider.example.test.evil.test:443 HTTP/1.1",
+                 b"GET https://provider.example.test/ HTTP/1.1", b"CONNECT 127.0.0.1:443 HTTP/1.1"):
         with pytest.raises(ValueError):
             gateway.public_provider_target(line)
 
 
 def test_public_proxy_rejects_private_dns_before_connect(monkeypatch):
+    monkeypatch.setattr(gateway, "PUBLIC_PROVIDER_HOSTS", frozenset({"provider.example.test"}))
     proxy = gateway.Gateway(('127.0.0.1', 0), gateway.ProviderProxy)
     thread = threading.Thread(target=proxy.serve_forever, daemon=True)
     thread.start()
     original = socket.getaddrinfo
     def resolve(host, *args, **kwargs):
-        if host == 'webench.ti.com':
+        if host == 'provider.example.test':
             return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 443))]
         return original(host, *args, **kwargs)
     monkeypatch.setattr(socket, 'getaddrinfo', resolve)
     try:
         with socket.create_connection(proxy.server_address, timeout=5) as client:
-            client.sendall(b'CONNECT webench.ti.com:443 HTTP/1.1\r\n\r\n')
+            client.sendall(b'CONNECT provider.example.test:443 HTTP/1.1\r\n\r\n')
             assert b'403 Forbidden' in client.recv(256)
     finally:
         proxy.shutdown()
@@ -71,6 +73,7 @@ def test_public_proxy_rejects_private_dns_before_connect(monkeypatch):
 
 
 def test_allowed_connect_preserves_opaque_tls_payload(monkeypatch):
+    monkeypatch.setattr(gateway, "PUBLIC_PROVIDER_HOSTS", frozenset({"provider.example.test"}))
     class Echo(socketserver.BaseRequestHandler):
         def handle(self):
             while data := self.request.recv(65536):
@@ -80,7 +83,7 @@ def test_allowed_connect_preserves_opaque_tls_payload(monkeypatch):
     resolve = socket.getaddrinfo
     connect = socket.create_connection
     def lookup(host, *args, **kwargs):
-        if host == 'webench.ti.com':
+        if host == 'provider.example.test':
             return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443))]
         return resolve(host, *args, **kwargs)
     def open_socket(address, *args, **kwargs):
@@ -92,7 +95,7 @@ def test_allowed_connect_preserves_opaque_tls_payload(monkeypatch):
         thread.start()
     try:
         with connect(proxy.server_address, timeout=5) as client:
-            client.sendall(b'CONNECT webench.ti.com:443 HTTP/1.1\r\nHost: webench.ti.com:443\r\n\r\n')
+            client.sendall(b'CONNECT provider.example.test:443 HTTP/1.1\r\nHost: provider.example.test:443\r\n\r\n')
             assert b'200 Connection Established' in client.recv(256)
             payload = bytes(range(256)) * 400
             client.sendall(payload)
@@ -106,3 +109,11 @@ def test_allowed_connect_preserves_opaque_tls_payload(monkeypatch):
             server.server_close()
         for thread in threads:
             thread.join()
+
+
+def test_default_public_provider_allowlist_is_empty_and_rejects_before_dns(monkeypatch):
+    import pytest
+    assert gateway.PUBLIC_PROVIDER_HOSTS == frozenset()
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: pytest.fail("No provider DNS is allowed"))
+    with pytest.raises(ValueError, match="not approved"):
+        gateway.public_provider_target(b"CONNECT provider.example.test:443 HTTP/1.1\r\n")

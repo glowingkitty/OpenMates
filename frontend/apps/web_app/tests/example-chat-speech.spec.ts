@@ -46,7 +46,7 @@ test.describe('Public example assistant speech', () => {
 	// contract-test: direct surface=gui.web assertions=public-example-chats.speech.reviewed-public-playback
 	test('hides speech for a public response without reviewed audio', async ({ page, context }: { page: any; context: any }) => {
 		await context.clearCookies();
-		await page.goto(getE2EDebugUrl('/#chat-id=example-plumber-message-email-phone'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=example-private-plumber-email'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('assistant-identity-row')).toBeVisible();
 		await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);

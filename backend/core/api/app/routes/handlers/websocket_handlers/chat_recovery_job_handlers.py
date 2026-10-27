@@ -34,14 +34,66 @@ class _TeamRelayAuthorizationDenied(PermissionError):
     """A current authoritative membership or Team row explicitly denies relay."""
 
 
+class _OriginBoundRecoveryManager:
+    """Keep correlated completion discovery on its exact originating socket.
+
+    This adapter is a new compatibility-merge guard, not a recovery authority.
+    Legacy request_id-only producers retain their existing unbound behavior.
+    """
+
+    def __init__(self, manager, user_id, device_fingerprint_hash, websocket):
+        self._manager = manager
+        self._user_id = user_id
+        self._device = device_fingerprint_hash
+        self._websocket = websocket
+
+    def __getattr__(self, name):
+        return getattr(self._manager, name)
+
+    def _ready(self):
+        return (self._websocket is not None
+                and self._manager.active_connections.get(self._user_id, {}).get(self._device) is self._websocket)
+
+    def is_connection_completion_capable(self, user_id, device_fingerprint_hash):
+        return ((user_id, device_fingerprint_hash) == (self._user_id, self._device)
+                and self._ready()
+                and self._manager.is_connection_completion_capable(user_id, device_fingerprint_hash))
+
+    def supports_typed_recovery_outputs(self, user_id, device_fingerprint_hash):
+        supports = getattr(self._manager, "supports_typed_recovery_outputs", None)
+        return (self.is_connection_completion_capable(user_id, device_fingerprint_hash)
+                and callable(supports) and supports(user_id, device_fingerprint_hash))
+
+    async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return await self._manager.send_personal_message(
+            message, user_id, device_fingerprint_hash,
+            expected_websocket=self._websocket,
+        )
+
+
+def _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash,
+                                      inventory_request_id, websocket=None, *, require_origin=False):
+    if ((inventory_request_id is None and not require_origin)
+            or isinstance(manager, _OriginBoundRecoveryManager)):
+        return manager
+    # Capture once before IO. Missing origin never falls back to a later socket.
+    connections = getattr(manager, "active_connections", {})
+    origin = websocket if websocket is not None else connections.get(user_id, {}).get(device_fingerprint_hash)
+    return _OriginBoundRecoveryManager(manager, user_id, device_fingerprint_hash, origin)
+
+
 async def begin_initial_recovery_discovery(
     *, manager: Any, directus_service: Any, user_id: str,
     user_id_hash: str, device_fingerprint_hash: str,
     supports_typed_recovery_outputs: bool,
     get_epoch: Callable[[], Awaitable[int]],
     user_otel_attrs: dict | None = None,
+    inventory_request_id: str | None = None,
 ) -> list[asyncio.Task]:
     """Keep typed recovery dormant until the first foreground lifecycle ACK."""
+    manager = _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash, inventory_request_id)
     if supports_typed_recovery_outputs:
         return []
     try:
@@ -55,15 +107,17 @@ async def begin_initial_recovery_discovery(
             user_id=user_id, user_id_hash=user_id_hash,
             device_fingerprint_hash=device_fingerprint_hash,
             user_otel_attrs=user_otel_attrs,
+            inventory_request_id=inventory_request_id,
         ))
         await manager.send_personal_message(
-            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled", **({"inventory_request_id": inventory_request_id} if inventory_request_id is not None else {})}},
             user_id, device_fingerprint_hash,
         )
         return [task]
     await manager.send_personal_message(
         {"type": "recovery_outputs_discovery_complete", "payload": {
             "status": "failed" if recovery_epoch is None else "disabled",
+            **({"inventory_request_id": inventory_request_id} if inventory_request_id is not None else {}),
         }},
         user_id, device_fingerprint_hash,
     )
@@ -442,9 +496,13 @@ async def send_available_recovery_jobs(
     user_id_hash: str,
     device_fingerprint_hash: str,
     user_otel_attrs: dict | None = None,
-) -> None:
+    request_id: str | None = None,
+    empty_only: bool = False,
+    inventory_request_id: str | None = None,
+) -> bool:
+    manager = _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash, inventory_request_id, require_origin=empty_only)
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-        return
+        return False
     _otel_span, _otel_token = _start_ws_span(
         "send_available_recovery_jobs",
         user_id,
@@ -460,13 +518,36 @@ async def send_available_recovery_jobs(
                 "device_hash": device_fingerprint_hash,
             },
         )
+        if not isinstance(result, dict):
+            return False
         jobs = result.get("jobs")
-        if jobs and manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-            await manager.send_personal_message(
-                {"type": "recovery_jobs_available", "payload": {"jobs": jobs}},
-                user_id,
-                device_fingerprint_hash,
-            )
+        pending_jobs = result.get("pending_jobs", [])
+        if not isinstance(pending_jobs, list):
+            return False
+        # Canonical pending-only offers remain useful; missing jobs can never
+        # certify an empty inventory, even when pending_jobs is an empty list.
+        if jobs is None and pending_jobs:
+            jobs = []
+        if not isinstance(jobs, list):
+            return False
+        if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        # A paused owner/device-scoped query never offers either kind of work.
+        # Pending completion rows also disprove absence, despite jobs being [].
+        if empty_only and (jobs or pending_jobs):
+            return True
+        payload = {"jobs": jobs}
+        if pending_jobs:
+            payload["pending_jobs"] = pending_jobs
+        if request_id:
+            payload["request_id"] = request_id
+        if inventory_request_id is not None:
+            payload["inventory_request_id"] = inventory_request_id
+        sent = await manager.send_personal_message(
+            {"type": "recovery_jobs_available", "payload": payload},
+            user_id, device_fingerprint_hash,
+        )
+        return sent is not False
     except ChatRecoveryProtocolError as exc:
         if exc.status_code != 404:
             logger.warning(
@@ -475,6 +556,7 @@ async def send_available_recovery_jobs(
                 device_fingerprint_hash[:8],
                 exc.code,
             )
+        return False
     finally:
         _end_ws_span(_otel_span, _otel_token)
 
@@ -482,7 +564,13 @@ async def send_available_recovery_jobs(
 async def send_available_recovery_outputs(
     *, manager: Any, directus_service: Any, user_id: str,
     user_id_hash: str, device_fingerprint_hash: str,
+    request_id: str | None = None,
+    inventory_request_id: str | None = None,
 ) -> None:
+    manager = _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash, inventory_request_id)
+    discovery = {"request_id": request_id} if request_id else {}
+    if inventory_request_id is not None:
+        discovery["inventory_request_id"] = inventory_request_id
     supports_typed = getattr(manager, "supports_typed_recovery_outputs", None)
     if not callable(supports_typed) or not supports_typed(user_id, device_fingerprint_hash):
         return
@@ -500,7 +588,7 @@ async def send_available_recovery_outputs(
                 return
             if result.get("outputs"):
                 await manager.send_personal_message(
-                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"]}},
+                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"], **discovery}},
                     user_id, device_fingerprint_hash,
                 )
             next_cursor = result.get("next_cursor")
@@ -512,7 +600,7 @@ async def send_available_recovery_outputs(
     except Exception:
         try:
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         except Exception:
@@ -521,7 +609,7 @@ async def send_available_recovery_outputs(
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
         return
     await manager.send_personal_message(
-        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"}},
+        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed", **discovery}},
         user_id, device_fingerprint_hash,
     )
 

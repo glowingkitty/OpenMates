@@ -1,0 +1,63 @@
+schema_version: 1
+id: feature.app-skill.shopping-search
+version: 2
+status: draft
+title: Shopping Product Search and Reference Images
+summary: Product discovery is unavailable; saved product identities, prices, galleries and visual-evaluation uncertainty
+  remain readable.
+
+inherits: [architecture.app-skill-execution@1]
+
+scope:
+  includes:
+  - Explicit unavailable behavior for new product discovery through the shared provider boundary.
+  - Generic saved product result and photo-gallery rendering without replacement source retrieval.
+  excludes:
+  - Image-search supplementation, extra paid product-detail enrichment, purchases, exact-identity guarantees and
+    inferred unseen qualities.
+
+assertions:
+- id: shopping-search.products.supplied-gallery
+  type: invariant
+  must: Saved product results preserve identity, price, source link, primary image and ordered deduplicated supplied
+    gallery. Missing photos remain missing; opening history never triggers product-detail discovery or replacement
+    integration.
+  depends_on:
+  - examples.boundary_and_history
+- id: shopping-search.relevance.truthful-fallback
+  type: behavior
+  must: Saved product visual assessments retain their original evaluated, unavailable or unassessed state. Neither
+    history rendering nor an unavailable new search claims a fresh visual comparison or visually verified match.
+  depends_on:
+  - examples.boundary_and_history
+- id: shopping-search.privacy.minimized
+  type: privacy
+  must: New unavailable product searches fail before private image resolution, provider disclosure or visual inference.
+    Saved product text and images remain untrusted and preserve inherited access, encryption and output-safety boundaries.
+  depends_on:
+  - examples.boundary_and_history
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups:
+  - boundary_and_history
+
+approval_source:
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

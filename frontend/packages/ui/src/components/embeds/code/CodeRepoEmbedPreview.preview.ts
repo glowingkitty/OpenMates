@@ -1,6 +1,7 @@
 /** Preview mock data for CodeRepoEmbedPreview. */
 
 const defaultProps = {
+  presentationOnly: true,
   id: 'preview-code-repo-1',
   url: 'https://github.com/lemmingDev/ESP32-BLE-Gamepad',
   fullName: 'lemmingDev/ESP32-BLE-Gamepad',
@@ -23,6 +24,9 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  missingData: { ...defaultProps, ownerAvatarUrl: undefined, description: undefined, primaryLanguage: undefined, licenseName: undefined, licenseSpdxId: undefined, stars: undefined, forks: undefined, openIssues: undefined },
+  longTitle: { ...defaultProps, fullName: 'example-owner/accessible-tools-for-long-running-community-science-projects', name: 'accessible-tools-for-long-running-community-science-projects' },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   processing: { ...defaultProps, id: 'preview-code-repo-processing', status: 'processing' as const },
   error: { ...defaultProps, id: 'preview-code-repo-error', status: 'error' as const },
   cancelled: { ...defaultProps, id: 'preview-code-repo-cancelled', status: 'cancelled' as const },

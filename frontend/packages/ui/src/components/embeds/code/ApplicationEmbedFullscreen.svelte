@@ -11,7 +11,7 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import { isPublicChat } from '../../../demo_chats';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const capturedSourceChatId = sourceChatContext?.chatId ?? null;
+  const capturedSourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';
@@ -19,6 +19,8 @@
   import {
     buildApplicationPreviewSharedContext,
     getCachedApplicationPreviewSession,
+    subscribeApplicationPreviewSession,
+    type CachedApplicationPreviewSession,
     getApplicationPreviewStatus,
     openApplicationPreviewSession,
     startApplicationPreview,
@@ -97,6 +99,7 @@
   let previewEvents = $state<PreviewEvent[]>([]);
   let errorMessage = $state<string | null>(null);
   let isBusy = $state(false);
+  let destroyed = false;
   let pollTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let subtitle = $derived([framework, runtime].filter(Boolean).join(' · '));
@@ -117,14 +120,46 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     releaseOwnedImages();
     clearStatusPoll();
     if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
   });
 
   onMount(() => {
-    void adoptCachedPreviewSession();
+    const requestChatId = previewChatId;
+    const requestEmbedId = embedId;
+    if (!requestChatId || !requestEmbedId) return;
+    return subscribeApplicationPreviewSession(requestChatId, requestEmbedId, (session) => {
+      if (destroyed || previewChatId !== requestChatId || embedId !== requestEmbedId) return;
+      if (!sessionId) {
+        void adoptCachedPreviewSession(session);
+      } else if (sessionId === session.session_id) {
+        const statusChanged = previewStatus !== session.status;
+        previewStatus = session.status;
+        if (!['queued', 'starting'].includes(session.status)) {
+          clearStatusPoll();
+          // Mount the iframe immediately; hydrate logs/errors separately.
+          if (statusChanged) void hydratePushedStatus(session.session_id);
+        }
+      }
+    });
   });
+
+  async function hydratePushedStatus(requestedSessionId: string) {
+    try {
+      const response = await getApplicationPreviewStatus(requestedSessionId);
+      if (destroyed || sessionId !== requestedSessionId) return;
+      applyStatusResponse(response);
+      if (response.status === 'failed' || response.status === 'timeout') {
+        errorMessage = response.error || $text('embeds.application_preview_failed');
+      }
+    } catch (error) {
+      // Metadata already establishes readiness. A failed enrichment request
+      // must not hide a healthy iframe or cause another paid start.
+      console.warn('[ApplicationEmbedFullscreen] Preview status enrichment failed:', error);
+    }
+  }
 
   function clearStatusPoll() {
     if (pollTimeout) {
@@ -142,8 +177,11 @@
 
   async function pollStatus() {
     if (!sessionId || !['queued', 'starting'].includes(previewStatus)) return;
+    const requestedSessionId = sessionId;
     try {
-      const response = await getApplicationPreviewStatus(sessionId);
+      const response = await getApplicationPreviewStatus(requestedSessionId);
+      if (destroyed || sessionId !== requestedSessionId) return;
+      if (previewStatus === 'running' && ['queued', 'starting'].includes(response.status)) return;
       applyStatusResponse(response);
       if (response.status === 'failed' || response.status === 'timeout') {
         errorMessage = response.error || $text('embeds.application_preview_failed');
@@ -153,12 +191,17 @@
         scheduleStatusPoll();
       }
     } catch (error) {
+      if (destroyed || sessionId !== requestedSessionId || !['queued', 'starting'].includes(previewStatus)) return;
       previewStatus = 'failed';
       errorMessage = error instanceof Error ? error.message : $text('embeds.application_preview_failed');
     }
   }
 
   function applyStatusResponse(response: ApplicationPreviewStatus) {
+    if (destroyed || response.session_id !== sessionId) return;
+    if (['stopped', 'timeout', 'failed'].includes(previewStatus)
+      && ['queued', 'starting', 'running'].includes(response.status)) return;
+    if (previewStatus === 'running' && ['queued', 'starting'].includes(response.status)) return;
     previewStatus = response.status;
     previewEvents = response.events ?? previewEvents;
     latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
@@ -167,13 +210,13 @@
     void loadEncryptedScreenshot();
   }
 
-  async function adoptCachedPreviewSession() {
-    const cached = getCachedApplicationPreviewSession(previewChatId ?? undefined, embedId);
+  async function adoptCachedPreviewSession(cached: CachedApplicationPreviewSession) {
     if (!cached || sessionId) return;
     sessionId = cached.session_id;
     previewUrl = cached.preview_url;
     previewStatus = cached.status;
     errorMessage = null;
+    const requestedSessionId = cached.session_id;
     try {
       const response = cached.auto_started
         ? await openApplicationPreviewSession(cached.session_id)
@@ -183,6 +226,7 @@
         scheduleStatusPoll();
       }
     } catch (error) {
+      if (destroyed || sessionId !== requestedSessionId || !['queued', 'starting'].includes(previewStatus)) return;
       previewStatus = 'failed';
       errorMessage = error instanceof Error ? error.message : $text('embeds.application_preview_failed');
     }
@@ -206,8 +250,8 @@
       const response = await startApplicationPreview(requestChatId, previewEmbedId, sharedContext);
       sessionId = response.session_id;
       previewUrl = response.preview_url;
-      previewStatus = response.status;
-      if (response.status === 'queued' || response.status === 'starting') {
+      previewStatus = getCachedApplicationPreviewSession(requestChatId, previewEmbedId)?.status ?? response.status;
+      if (previewStatus === 'queued' || previewStatus === 'starting') {
         scheduleStatusPoll();
       }
     } catch (error) {

@@ -157,6 +157,7 @@ struct ProjectAuthoringRecommendation: Identifiable, Equatable, Sendable {
 }
 
 enum AgentContextEvent: Equatable, Sendable {
+    case memoriesLoaded(ChatLoadedMemoryReceipt)
     case rulesLoaded(setKey: String, rules: [AppliedRuleGuide])
     case directionCorrection(notice: String, instruction: String, deliveryID: String)
     case authoring([ProjectAuthoringRecommendation])
@@ -169,6 +170,11 @@ enum AgentContextEvent: Equatable, Sendable {
 
     static func parse(_ value: [String: Any]) -> Self? {
         switch value["type"] as? String {
+        case "memories_loaded":
+            guard let data = try? JSONSerialization.data(withJSONObject: value),
+                  let content = String(data: data, encoding: .utf8),
+                  let receipt = ChatLoadedMemoryReceipt.parse(content) else { return nil }
+            return .memoriesLoaded(receipt)
         case "rules_loaded":
             guard let rows = value["rules"] as? [[String: Any]], !rows.isEmpty, rows.count <= 24,
                   value["count"] as? Int == rows.count, let key = value["set_key"] as? String else { return nil }

@@ -5,6 +5,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { waitForWorkflowWorkspaceReady } = require('./helpers/workspace-navigation');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -83,6 +84,7 @@ test.describe('streamed workflow authoring', () => {
       const two = await seed(`Stream two ${Date.now()}`);
       const retried = await seed(`Stream retried ${Date.now()}`, retryGraph);
       await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await waitForWorkflowWorkspaceReady(page);
       await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
       let provisionalFetches = 0;
       page.on('request', request => { if (/\/v1\/workflows\/provisional-/.test(request.url())) provisionalFetches += 1; });
@@ -99,6 +101,7 @@ test.describe('streamed workflow authoring', () => {
         { type: 'started', session_id: 'rejected-stream', status: 'running' }
       ], true);
       await page.getByTestId('workflow-input-textarea').fill('Rejected workflow request');
+      await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Rejected workflow request');
       await page.getByTestId('workflow-input-submit').click();
       await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('workflow-ai-pending') || '{}'))).toEqual({ sessionId: 'rejected-stream' });
       expect(await page.evaluate(() => (window as typeof window & { __workflowStreamBodies: Array<Record<string, unknown>> }).__workflowStreamBodies[0]?.idempotency_key)).toMatch(/^[0-9a-f-]{36}$/);
@@ -360,6 +363,7 @@ test.describe('streamed workflow authoring', () => {
     let undoCalls = 0;
     try {
       await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await waitForWorkflowWorkspaceReady(page);
       await page.getByTestId('workflow-landing-card').filter({ hasText: original.title }).click();
       await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'true');
       const stopCounts = new Map<string, number>();

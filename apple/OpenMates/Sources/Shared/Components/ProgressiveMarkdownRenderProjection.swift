@@ -235,32 +235,31 @@ final class ProgressiveMarkdownRenderModel: ObservableObject {
 struct ProgressiveMarkdownBlocksView<BlockContent: View>: View {
     let request: ProgressiveMarkdownRequest
     let blockContent: (ProgressiveMarkdownBlock) -> BlockContent
+    let assistantActivity: AssistantActivityConfiguration?
     @StateObject private var model: ProgressiveMarkdownRenderModel
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.progressiveMarkdownReducedMotion) private var requestedReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || requestedReduceMotion }
 
     init(request: ProgressiveMarkdownRequest,
+         assistantActivity: AssistantActivityConfiguration? = nil,
          @ViewBuilder blockContent: @escaping (ProgressiveMarkdownBlock) -> BlockContent) {
         self.request = request
         self.blockContent = blockContent
+        self.assistantActivity = assistantActivity
         _model = StateObject(wrappedValue: ProgressiveMarkdownRenderModel(request))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            ForEach(model.projection.blocks) { block in
-                blockContent(block)
-                    .modifier(ProgressiveMarkdownTailFade(
-                        revision: model.projection.fadeRevision,
-                        active: model.projection.isStreaming && model.projection.fadeBlockID == block.id))
-                    #if DEBUG
-                    .overlay(alignment: .bottomLeading) {
-                        if ProcessInfo.processInfo.arguments.contains("--ui-test-progressive-render") {
-                            ProgressiveMarkdownMountProbe(blockID: block.id)
-                        }
-                    }
-                    #endif
+            if let assistantActivity {
+                AssistantActivitySegmentsView(blocks: model.projection.blocks, configuration: assistantActivity) { block in
+                    renderedBlock(block)
+                }
+            } else {
+                ForEach(model.projection.blocks) { block in
+                    renderedBlock(block)
+                }
             }
         }
         .onChange(of: request) { _, value in model.update(value) }
@@ -274,6 +273,19 @@ struct ProgressiveMarkdownBlocksView<BlockContent: View>: View {
             }
         }
         #endif
+    }
+    private func renderedBlock(_ block: ProgressiveMarkdownBlock) -> some View {
+        blockContent(block)
+            .modifier(ProgressiveMarkdownTailFade(
+                revision: model.projection.fadeRevision,
+                active: model.projection.isStreaming && model.projection.fadeBlockID == block.id))
+            #if DEBUG
+            .overlay(alignment: .bottomLeading) {
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-progressive-render") {
+                    ProgressiveMarkdownMountProbe(blockID: block.id)
+                }
+            }
+            #endif
     }
 }
 

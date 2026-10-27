@@ -139,7 +139,7 @@ Each fullscreen component adds a `data` prop and extracts fields internally. Exi
 <!-- In ActiveChat.svelte — 20 lines per component -->
 <HealthSearchEmbedFullscreen
   query={embedFullscreenData.decodedContent?.query || ''}
-  provider={embedFullscreenData.decodedContent?.provider || 'Doctolib'}
+  provider={embedFullscreenData.decodedContent?.provider || 'Example Provider'}
   embedIds={embedFullscreenData.decodedContent?.embed_ids || ...}
   results={Array.isArray(...) ? ... : []}
   status={normalizeEmbedStatus(...)}

@@ -5,6 +5,119 @@ import { get } from 'svelte/store';
 import { userProfile } from '../stores/userProfile';
 import { shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
 
+
+// Optional test-installed observation only. No cache, navigation or security policy.
+// Absent by default; no persistence, network, identifiers or domain references.
+const RECENT_REPLAY_DIAGNOSTIC_REASONS = Object.freeze([
+  "route-enter",
+  "route-legal",
+  "route-stale-target",
+  "route-already-active",
+  "route-target-options",
+  "route-draft-md",
+  "route-draft-preview",
+  "route-component-absent",
+  "route-continue",
+  "route-replay-accepted",
+  "route-replay-rejected",
+  "surface-server",
+  "surface-unauthenticated",
+  "surface-logging-out",
+  "surface-forced-logout",
+  "surface-signup",
+  "surface-store-target",
+  "surface-already-current",
+  "surface-public",
+  "surface-example",
+  "surface-anonymous",
+  "surface-composer-content",
+  "surface-code-fullscreen",
+  "surface-embed-fullscreen",
+  "surface-wiki-fullscreen",
+  "surface-live-message",
+  "surface-hash-target",
+  "surface-hash-message",
+  "surface-hash-message-alias",
+  "surface-hash-embed",
+  "surface-hash-embed-alias",
+  "surface-hash-scroll",
+  "surface-key-absent",
+  "surface-selection-absent",
+  "surface-incognito",
+  "surface-anonymous-selection",
+  "surface-draft-only",
+  "surface-team-context",
+  "surface-published",
+  "selection-entry-absent",
+  "selection-source-absent",
+  "invalidation-metadata",
+  "invalidation-metadata-local-list",
+  "invalidation-metadata-chat-updated",
+  "invalidation-metadata-draft-save",
+  "invalidation-metadata-chat-row",
+  "invalidation-metadata-draft-websocket",
+  "invalidation-metadata-draft-delete-sender",
+  "invalidation-metadata-sync-draft",
+  "invalidation-metadata-sync-header",
+  "invalidation-metadata-phase-sync",
+  "invalidation-message",
+  "invalidation-key",
+  "invalidation-delete",
+  "invalidation-unknown",
+  "invalidation-workspace-clear",
+  "invalidation-eviction",
+  "selection-source-target",
+  "selection-window-absent",
+  "selection-header-mismatch",
+  "selection-accepted",
+  "window-account-absent",
+  "window-miss",
+  "window-account-mismatch",
+  "window-epoch-mismatch",
+  "window-revision-mismatch",
+  "window-accepted",
+  "admission-account-absent",
+  "admission-stale-read",
+  "admission-private-selection",
+  "admission-empty-window",
+  "admission-message-target",
+  "admission-unsettled-message",
+  "admission-snapshot-failed",
+  "admission-oversized",
+  "admission-accepted",
+  "admission-evicted"
+] as const);
+type RecentReplayDiagnosticReason = typeof RECENT_REPLAY_DIAGNOSTIC_REASONS[number];
+const RECENT_REPLAY_DIAGNOSTIC_PROPERTY = '__openmatesRecentReplayDiagnostics';
+const RECENT_REPLAY_DIAGNOSTIC_ENABLED_PROPERTY = '__openmatesRecentReplayDiagnosticsEnabled';
+const MAX_RECENT_REPLAY_DIAGNOSTICS = 64;
+let recentReplayDiagnostics: readonly RecentReplayDiagnosticReason[] = Object.freeze([]);
+
+export function recordRecentReplayDiagnostic(reason: RecentReplayDiagnosticReason): void {
+  try {
+    if (typeof window === 'undefined' || !RECENT_REPLAY_DIAGNOSTIC_REASONS.includes(reason)) return;
+    const enabled = Object.getOwnPropertyDescriptor(window, RECENT_REPLAY_DIAGNOSTIC_ENABLED_PROPERTY);
+    // Compare only primitive data. Never inspect externally supplied objects/proxies.
+    if (!enabled || !('value' in enabled) || enabled.value !== true) return;
+    const descriptor = Object.getOwnPropertyDescriptor(window, RECENT_REPLAY_DIAGNOSTIC_PROPERTY);
+    if (descriptor && (!('value' in descriptor) || !descriptor.writable)) return;
+    // Only this module owns the ring. Publish primitive JSON, never an array or callback.
+    const next = Object.freeze([...recentReplayDiagnostics.slice(-(MAX_RECENT_REPLAY_DIAGNOSTICS - 1)), reason]);
+    const receipt = JSON.stringify(next);
+    Object.defineProperty(window, RECENT_REPLAY_DIAGNOSTIC_PROPERTY, {
+      value: receipt, writable: true, configurable: descriptor?.configurable ?? true,
+      enumerable: descriptor?.enumerable ?? false
+    });
+    recentReplayDiagnostics = next;
+  } catch { /* Observation must never interrupt the existing path. */ }
+}
+
+/** Return the already evaluated predicate unchanged, preserving OR short circuiting. */
+export function observeRecentReplayVeto<T>(reason: RecentReplayDiagnosticReason, veto: T): T {
+  if (veto) recordRecentReplayDiagnostic(reason);
+  return veto;
+}
+
 const MAX_RECENT_WINDOWS = 8;
 const MAX_RECENT_WINDOW_BYTES = 16 * 1024 * 1024;
 const MAX_REVISION_TOKENS = 256;
@@ -114,22 +227,48 @@ export function reconcileRecentChatMessages(current: Message[], incoming: Messag
   return current.map((message) => freshById.get(message.message_id) ?? message);
 }
 
+export type RecentChatInvalidationCategory = 'metadata' | 'metadata-local-list' | 'metadata-chat-updated' | 'metadata-draft-save' | 'metadata-chat-row' | 'metadata-draft-websocket' | 'metadata-draft-delete-sender' | 'metadata-sync-draft' | 'metadata-sync-header' | 'metadata-phase-sync' | 'message' | 'key' | 'delete' | 'unknown';
+
+// Runtime callers may violate TypeScript. Switch compares primitives without coercion
+// and only forwards module-owned literals into the diagnostic ring.
+function recordRecentChatInvalidation(category: RecentChatInvalidationCategory): void {
+  switch (category) {
+    case 'metadata-local-list': recordRecentReplayDiagnostic('invalidation-metadata-local-list'); break;
+    case 'metadata-chat-updated': recordRecentReplayDiagnostic('invalidation-metadata-chat-updated'); break;
+    case 'metadata-draft-save': recordRecentReplayDiagnostic('invalidation-metadata-draft-save'); break;
+    case 'metadata-chat-row': recordRecentReplayDiagnostic('invalidation-metadata-chat-row'); break;
+    case 'metadata-draft-websocket': recordRecentReplayDiagnostic('invalidation-metadata-draft-websocket'); break;
+    case 'metadata-draft-delete-sender': recordRecentReplayDiagnostic('invalidation-metadata-draft-delete-sender'); break;
+    case 'metadata-sync-draft': recordRecentReplayDiagnostic('invalidation-metadata-sync-draft'); break;
+    case 'metadata-sync-header': recordRecentReplayDiagnostic('invalidation-metadata-sync-header'); break;
+    case 'metadata-phase-sync': recordRecentReplayDiagnostic('invalidation-metadata-phase-sync'); break;
+    case 'metadata': recordRecentReplayDiagnostic('invalidation-metadata'); break;
+    case 'message': recordRecentReplayDiagnostic('invalidation-message'); break;
+    case 'key': recordRecentReplayDiagnostic('invalidation-key'); break;
+    case 'delete': recordRecentReplayDiagnostic('invalidation-delete'); break;
+    default: recordRecentReplayDiagnostic('invalidation-unknown');
+  }
+}
+
 /** A committed message mutation makes the last decrypted window unsafe to replay. */
-export function invalidateRecentChatWindow(chatId: string): void {
+export function invalidateRecentChatWindow(chatId: string, category: RecentChatInvalidationCategory = 'unknown'): void {
   rememberRevision(chatId, ++nextRevision);
-  cache.delete(chatId);
+  const invalidated = cache.delete(chatId);
+  if (invalidated) recordRecentChatInvalidation(category);
   signalInvalidation();
 }
 
 export function invalidateRecentChatWindowForMessage(messageId: string): void {
   for (const [chatId, entry] of cache) {
-    if (entry.messages.some((message) => message.message_id === messageId)) invalidateRecentChatWindow(chatId);
+    if (entry.messages.some((message) => message.message_id === messageId)) invalidateRecentChatWindow(chatId, 'message');
   }
 }
 
 export function clearRecentChatWindows(): void {
+  const hadEntries = cache.size > 0;
   cache.clear();
   revisions.clear();
+  if (hadEntries) recordRecentReplayDiagnostic('invalidation-workspace-clear');
   signalInvalidation();
 }
 
@@ -144,16 +283,16 @@ export function putRecentChatWindow(
 ): boolean {
   // Resolve identity only on access; importing the store must not subscribe at module initialization.
   const accountId = get(userProfile).user_id;
-  if (!accountId) return false;
-  if (!isRecentChatReadCurrent(chatId, expectedEpoch, expectedRevision)) return false;
-  if (sourceChat && (sourceChat.is_incognito || sourceChat.is_anonymous || sourceChat.is_hidden_candidate)) return false;
-  if (window.messages.length === 0 || window.messages.some((message) => message.chat_id !== chatId)) return false;
+  if (!accountId) { recordRecentReplayDiagnostic('admission-account-absent'); return false; }
+  if (observeRecentReplayVeto('admission-stale-read', !isRecentChatReadCurrent(chatId, expectedEpoch, expectedRevision))) return false;
+  if (observeRecentReplayVeto('admission-private-selection', sourceChat && (sourceChat.is_incognito || sourceChat.is_anonymous || sourceChat.is_hidden_candidate))) return false;
+  if (observeRecentReplayVeto('admission-empty-window', window.messages.length === 0) || observeRecentReplayVeto('admission-message-target', window.messages.some((message) => message.chat_id !== chatId))) return false;
   // Only settled, persisted messages can be replayed on a future selection.
-  if (window.messages.some((message) =>
+  if (observeRecentReplayVeto('admission-unsettled-message', window.messages.some((message) =>
     typeof message.content !== 'string'
     || (message as Message & { _decryptionPending?: boolean })._decryptionPending
     || ['sending', 'processing', 'streaming', 'waiting_for_upload', 'waiting_for_internet'].includes(message.status)
-  )) return false;
+  ))) return false;
   let entry: StoredRecentChatWindow;
   try {
     const sourceChatForSelection: Chat | null = sourceChat?.chat_id === chatId
@@ -197,19 +336,25 @@ export function putRecentChatWindow(
     });
   } catch {
     // Optional memory acceleration must never interrupt canonical chat opening.
+    recordRecentReplayDiagnostic('admission-snapshot-failed');
     return false;
   }
-  if (estimatePayloadBytes(entry, MAX_RECENT_WINDOW_BYTES) > MAX_RECENT_WINDOW_BYTES) return false;
+  if (observeRecentReplayVeto('admission-oversized', estimatePayloadBytes(entry, MAX_RECENT_WINDOW_BYTES) > MAX_RECENT_WINDOW_BYTES)) return false;
+  // Size/has do not touch LRU order. Observe any entries lost during existing trim.
+  const expectedCount = cache.size + (cache.has(chatId) ? 0 : 1);
   cache.set(chatId, entry);
-  return cache.has(chatId);
+  if (cache.size < expectedCount) recordRecentReplayDiagnostic('invalidation-eviction');
+  const admitted = cache.has(chatId);
+  recordRecentReplayDiagnostic(admitted ? 'admission-accepted' : 'admission-evicted');
+  return admitted;
 }
 
 export function getRecentChatWindow(chat: Chat): RecentChatWindow | null {
   const accountId = get(userProfile).user_id;
-  if (!accountId) return null;
+  if (!accountId) { recordRecentReplayDiagnostic('window-account-absent'); return null; }
   const entry = cache.get(chat.chat_id);
-  if (!entry) return null;
-  if (entry.accountId !== accountId || entry.epoch !== getWorkspaceCacheEpoch() || entry.revision !== getRecentChatRevision(chat.chat_id)) {
+  if (!entry) { recordRecentReplayDiagnostic('window-miss'); return null; }
+  if (observeRecentReplayVeto('window-account-mismatch', entry.accountId !== accountId) || observeRecentReplayVeto('window-epoch-mismatch', entry.epoch !== getWorkspaceCacheEpoch()) || observeRecentReplayVeto('window-revision-mismatch', entry.revision !== getRecentChatRevision(chat.chat_id))) {
     cache.delete(chat.chat_id);
     return null;
   }
@@ -224,9 +369,13 @@ export function getRecentChatWindow(chat: Chat): RecentChatWindow | null {
 /** Synchronous selected-chat snapshot for a new ActiveChat component instance. */
 export function getRecentChatSelection(chatId: string): { chat: Chat; window: RecentChatWindow } | null {
   const entry = cache.get(chatId);
-  if (!entry?.sourceChat || entry.sourceChat.chat_id !== chatId) return null;
+  if (!entry) { recordRecentReplayDiagnostic('selection-entry-absent'); return null; }
+  if (!entry.sourceChat) { recordRecentReplayDiagnostic('selection-source-absent'); return null; }
+  if (entry.sourceChat.chat_id !== chatId) { recordRecentReplayDiagnostic('selection-source-target'); return null; }
   const window = getRecentChatWindow(entry.sourceChat);
-  if (!window || !recentChatHeaderMatches(entry.sourceChat, window.header)) return null;
+  if (!window) { recordRecentReplayDiagnostic('selection-window-absent'); return null; }
+  if (!recentChatHeaderMatches(entry.sourceChat, window.header)) { recordRecentReplayDiagnostic('selection-header-mismatch'); return null; }
+  recordRecentReplayDiagnostic('selection-accepted');
   return { chat: snapshot(entry.sourceChat), window };
 }
 

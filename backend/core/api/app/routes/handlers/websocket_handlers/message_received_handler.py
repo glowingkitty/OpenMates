@@ -25,7 +25,7 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
-from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema, ModelRoutingRestrictions
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
@@ -568,6 +568,81 @@ def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
         )
 
 
+def _read_completed_legacy_response(task_id: str) -> Optional[dict[str, Any]]:
+    """Read a result only after durable owner/turn/broker binding verification."""
+    from celery.result import AsyncResult
+    from backend.core.api.app.tasks.celery_config import app
+    from backend.core.api.app.services.chat_recovery_cutover import legacy_completion_requires_persistence
+
+    result = AsyncResult(task_id, app=app)
+    if result.state != "SUCCESS":
+        return None
+    response = result.result
+    if (not legacy_completion_requires_persistence(response)
+            or response.get("task_id") != task_id
+            or not isinstance(response.get("main_processing_output"), str)
+            or not response["main_processing_output"]):
+        return None
+    completed_at = result.date_done
+    return {
+        "content": response["main_processing_output"],
+        "fired_at": int(completed_at.replace(tzinfo=timezone.utc).timestamp())
+        if completed_at else int(time.time()),
+    }
+
+
+async def _reconcile_existing_legacy_turn(
+    *, cache_service: Any, directus_service: Any, manager: Any,
+    user_id: str, device_fingerprint_hash: str, chat_id: str, task_id: str,
+) -> None:
+    """Replay an authorized exact retry without announcing a new AI task."""
+    canonical = await directus_service.chat.get_message_for_chat_by_client_id(chat_id, task_id)
+    if canonical is not None:
+        if (canonical.get("role") != "assistant"
+                or canonical.get("chat_id") != chat_id
+                or canonical.get("hashed_user_id") != hash_id(user_id)
+                or canonical.get("message_id") != task_id):
+            raise RuntimeError("Existing legacy response identity is inconsistent")
+        # Deliver the exact ciphertext, including an older or oversized answer
+        # that would be absent from the chat's latest bounded sync window.
+        await manager.send_personal_message(
+            {"type": "chat_content_batch_response", "payload": {
+                "messages_by_chat_id": {chat_id: [json.dumps({**canonical, "status": "synced"})]},
+            }}, user_id, device_fingerprint_hash,
+        )
+    else:
+        response = await asyncio.to_thread(_read_completed_legacy_response, task_id)
+        if response is None:
+            from backend.core.api.app.routes.handlers.websocket_handlers.active_chat_handler import ai_stream_snapshot_cache_key
+            snapshot = await cache_service.get(ai_stream_snapshot_cache_key(chat_id))
+            if (isinstance(snapshot, dict)
+                    and snapshot.get("user_id_uuid") == user_id
+                    and snapshot.get("chat_id") == chat_id
+                    and snapshot.get("message_id") == task_id
+                    and not snapshot.get("external_request")
+                    and not snapshot.get("is_final_chunk")):
+                await manager.send_personal_message(
+                    {"type": "ai_message_update", "payload": snapshot},
+                    user_id, device_fingerprint_hash,
+                )
+            return
+        await manager.send_personal_message(
+            {"type": "pending_ai_response", "payload": {
+                "type": "ai_response", "chat_id": chat_id, "message_id": task_id,
+                "user_id": user_id, **response,
+            }}, user_id, device_fingerprint_hash,
+        )
+
+    # A retry can recreate an expired Redis marker after completion. Never
+    # release a newer turn's claim while reconciling this completed identity.
+    await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
+    for event in ("ai_message_ready", "ai_typing_ended"):
+        await manager.send_personal_message(
+            {"type": event, "payload": {"chat_id": chat_id, "message_id": task_id}},
+            user_id, device_fingerprint_hash,
+        )
+
+
 async def _settle_failed_first_claim(
     *, cache_service, directus_service, manager, chat_id: str, task_id: str,
     device_fingerprint_hash: str, known_not_dispatched: bool,
@@ -662,6 +737,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
     try:
         chat_id = payload.get("chat_id")
+        # Authenticated first-party WS only: client-decrypted restrictions apply
+        # to this inference turn, never to durable account settings or overrides.
+        try:
+            model_routing_restrictions = ModelRoutingRestrictions.model_validate(
+                payload.get("model_routing_restrictions", {})
+            ).model_dump()
+        except ValueError:
+            raise ValueError("Invalid model routing restrictions") from None
         # The client sends the message details within a "message" sub-dictionary in the payload
         message_payload_from_client = payload.get("message")
         # Get encrypted chat key for server storage (zero-knowledge architecture)
@@ -1659,7 +1742,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     )
 
                     if embed_cached:
-                        await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
                         logger.debug("Embed cache registration acknowledged")
                     else:
                         # Durable upload persistence is independent of this cache.
@@ -1800,14 +1882,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
                     
-                    await cache_service.set_embed_in_cache(
+                    # Content is already encrypted; the cache also owns chat indexing.
+                    embed_cached = await cache_service.set_embed_in_cache(
                         embed_id=embed_data["embed_id"],
                         embed_data=embed_cache_data,
-                        user_vault_key_id=user_vault_key_id
+                        chat_id=chat_id
                     )
-                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_data["embed_id"])
-                    
-                    logger.debug(f"Cached code embed {embed_data['embed_id']} for AI processing")
+                    if embed_cached:
+                        logger.debug(f"Cached code embed {embed_data['embed_id']} for AI processing")
+                    else:
+                        logger.warning("Code embed cache registration was not acknowledged")
                     
                 except Exception as e_embed_send:
                     logger.error(f"Error sending/caching code embed {embed_data.get('embed_id')}: {e_embed_send}", exc_info=True)
@@ -2552,7 +2636,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 if cached_user_data_for_prefs is not None:
                     await cache_service.update_user(user_id, directus_preference_data)
                 logger.debug(f"Loaded AI user preferences from Directus for user {user_id}")
-        user_preferences_dict = {}
+        user_preferences_dict = dict(model_routing_restrictions)
         if user_data_for_prefs and isinstance(user_data_for_prefs, dict):
             user_timezone = user_data_for_prefs.get("timezone")
             if user_timezone:
@@ -2634,19 +2718,28 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
         auto_speak_response_from_client = message_payload_from_client.get("auto_speak_response") is True
         assistant_speech_lazy_dispatch = message_payload_from_client.get("assistant_speech_lazy_dispatch") is True
+        from backend.shared.python_utils.voice_call_admission import admit_voice_call_turn
+        voice_delivery = await admit_voice_call_turn(
+            cache_service, message=message_payload_from_client, websocket_scope=websocket.scope,
+            user_id=user_id, chat_id=chat_id, message_id=message_id,
+        )
+        voice_mode = voice_delivery.voice_mode
+        voice_call_id = voice_delivery.voice_call_id
+        voice_turn_id = voice_delivery.voice_turn_id
+        if voice_mode:
+            auto_speak_response_from_client = True
+            assistant_speech_lazy_dispatch = False
         assistant_response_source_revision = _optional_int(
             message_payload_from_client.get("assistant_response_source_revision"),
         ) or 1
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
-        db_is_sub_chat = chat_metadata_from_db.get("is_sub_chat", False) if chat_metadata_from_db else False
         db_budget_limit = chat_metadata_from_db.get("budget_limit") if chat_metadata_from_db else None
         db_budget_spent = chat_metadata_from_db.get("budget_spent", 0) if chat_metadata_from_db else 0
 
-        client_parent_id = message_payload_from_client.get("parent_id")
-        if client_parent_id and not db_parent_id:
-            db_parent_id = client_parent_id
-            db_is_sub_chat = True
+        # A user message starts a fresh ordinary admission, not the saved
+        # child's completed delegated job. The worker re-reads canonical
+        # ancestry for every delivery; client parent/depth hints are ignored.
 
         # Routing names belong to the request envelope, like memories metadata.
         # They are candidates only; preprocessing validates Project ownership.
@@ -2679,6 +2772,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_chat_title_v=current_chat_title_v_from_client,
             current_chat_metadata_v=current_chat_metadata_v_from_client,
             auto_speak_response=auto_speak_response_from_client,
+            voice_mode=voice_mode,
+            voice_call_id=voice_call_id,
+            voice_turn_id=voice_turn_id,
+            voice_heard_boundary=message_payload_from_client.get("voice_heard_boundary") if voice_mode else None,
             assistant_speech_lazy_dispatch=auto_speak_response_from_client and assistant_speech_lazy_dispatch,
             assistant_response_source_revision=assistant_response_source_revision,
             is_incognito=is_incognito, # Pass the incognito flag
@@ -2716,7 +2813,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
-            is_sub_chat=db_is_sub_chat,
+            is_sub_chat=False,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,
             recovery_task_id=(recovery_enqueue_result or {}).get("inference_task_id"),
@@ -2995,6 +3092,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         broker_invoked = False
         try:
             request_payload = ai_request_payload.model_dump()
+            if voice_mode:
+                # The call may end during durable admission/context preparation.
+                await admit_voice_call_turn(
+                    cache_service, message=message_payload_from_client, websocket_scope=websocket.scope,
+                    user_id=user_id, chat_id=chat_id, message_id=message_id,
+                )
             logger.debug(f"Dispatching ai.ask in-process for chat {chat_id}, message {message_id}")
             if recovery_enqueue_result:
                 release = await directus_service.chat.release_inference_outbox(
@@ -3043,6 +3146,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if ai_task_id:
                 if fresh_task_claim_id and ai_task_id != fresh_task_claim_id:
                     raise RuntimeError("AI dispatcher returned a task ID that differs from the chat claim")
+                if response_data.get("status") == "already_dispatched":
+                    if (is_incognito or recovery_enqueue_result
+                            or ai_request_payload.legacy_cutover_task_id != ai_task_id):
+                        raise RuntimeError("Existing dispatch does not match the admitted legacy turn")
+                    await _reconcile_existing_legacy_turn(
+                        cache_service=cache_service, directus_service=directus_service,
+                        manager=manager, user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        chat_id=chat_id, task_id=ai_task_id,
+                    )
+                    return
                 if recovery_enqueue_result:
                     expected_task_id = recovery_enqueue_result["inference_task_id"]
                     if ai_task_id != expected_task_id:

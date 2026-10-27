@@ -1,0 +1,118 @@
+schema_version: 2
+profile: concise
+id: voxtral-3-migration
+title: Voxtral 3 transcription, playback and shared-pipeline voice calling
+status: verified
+goal: Check the new Voxtral models and let's plan out how we should implement them. We should upgrade speech-to-text
+  transcription and switch web assistant-message listening from ElevenLabs to Voxtral. Plan a custom voice calling setup
+  using Voxtral speech-to-text and text-to-speech with Jev, Mercury 3 for simpler tasks, and other models for complex
+  tasks; investigate reuse of regular pre, main and post processing and reliable user interruptions.
+recorded_on: '2026-10-22'
+task: TASK-6487
+research: research.md
+authorization: The user accepted the clarified architecture and explicitly requested full implementation, testing and
+  deployment, then explicitly required removal of the old Gemini voice calling implementation. This authorizes the revised
+  shared-pipeline voice-mode scope; do not repeat approval rounds.
+scope:
+  in:
+  - Source-backed model recommendations, compatibility findings and rollout design.
+  - Web manual listening and its shared assistant-speech backend.
+  - Live composer transcription and the approved shared-pipeline voice-call migration.
+  - Shared AI orchestration, interruptions, privacy, billing and existing visual-call parity.
+  out:
+  - Replacing explicit audio.speak or sound-effect generation, Apple local speech, or whole-call recording.
+  - Offline Apple model downloads and whole-call recordings remain separate work; this migration uses Voxtral API speech.
+recommended_models:
+  recorded_audio: voxtral-small-transcribe-3-0
+  recorded_audio_cost_candidate: voxtral-mini-transcribe-3-0
+  live_transcription: voxtral-mini-transcribe-realtime-3-0
+  assistant_message_playback: voxtral-mini-tts-3-0
+  call_synthesis: voxtral-mini-tts-3-0 through the shared encrypted assistant-speech queue, using immutable complete prose
+    clauses from the canonical rich response.
+  call_reasoning: Existing automatic model and thinking-level routing, including Google models; no forced Mercury route.
+proposed_sequence:
+- outcome: Verify launch API capabilities, voice choices and timestamp compatibility.
+  detail: Confirm account access, formats, supported languages, realtime TTS transport and usage semantics.
+- outcome: Move web assistant-message playback to Voxtral behind a scoped rollout.
+  detail: Preserve private encrypted segments, demand generation, revision invalidation and successful-only settlement.
+- outcome: Upgrade live and compatible batch transcription.
+  detail: Preserve explicit word-timestamp consumers on the existing route until their versioned contract is resolved.
+- outcome: Prototype modular audio calls through the shared AI pipeline.
+  detail: Add provider-neutral turn events, complete-transcript admission, clause synthesis and full cancellation fencing.
+- outcome: Evaluate and roll out calls after quality, interruption and visual-parity checks.
+  detail: Remove the obsolete Gemini Live implementation; test and deploy the shared-pipeline replacement.
+contract_followup:
+- specifications/features/assistant-response-speech/specification.yml
+- specifications/features/video-call/specification.yml
+- specifications/features/app-skills/videos-get-transcript/specification.yml
+- specifications/features/ai-model-routing/specification.yml
+decisions_for_implementation:
+- Choose curated replacement Mate voices after listening to language-specific samples.
+- Preserve the existing word-timestamp contract; separately choose alignment support or a versioned segment-only contract.
+- Confirm end-user pricing; provider costs change independently of existing credit formulas.
+- Verify account-level processing, training and retention settings for each actual endpoint and provider.
+checks:
+  required_for_this_proposal:
+  - Official release, model, migration, turn-event, streaming and privacy documentation inspected.
+  - Current transcription, assistant speech, calling and AI routing sources inspected.
+  - python3 scripts/plan_validate.py docs/plans/voxtral-3-migration/plan.yml
+  future_implementation: Focused unit checks and updated contract-mapped E2E coverage; product/browser checks through
+    isolated GitHub CI. Only real-inference checks run directly on dev, with isolated test state and normal automatic
+    OpenMates model routing.
+  voice_mode:
+  - Validate existing updated voice-call Specification and concise Plan.
+  - Backend provider/protocol/billing/intent plus ordinary message admission and speech projection tests.
+  - Web voice controller/sender/speech unit checks; focused component and voice-call browser CI with real canonical routing
+    fixtures.
+  - Native call protocol/send/speech focused checks and source-matched Mac compilation where available.
+  - Verify no callable Gemini Live implementation remains; preserve unrelated ordinary Google model routing.
+  - Record exact deployed frontend/backend revision and real provider checks; report concrete verification or evidence
+    gaps.
+approval_prompt_waiver:
+  source: Current user instruction after the architecture and interruption clarification rounds.
+  instruction: Okay, I think we clarified it enough. Your recommendation sounds good. Continue now with fully implementing
+    and testing and deploying.
+  scope: Shared-pipeline voice-mode migration and removal of old Gemini calling; no production or TestFlight publication.
+specification_refs:
+- id: feature.video-call
+  version: 11
+- id: feature.assistant-response-speech
+  version: 8
+- id: feature.message-input
+  version: 8
+- id: feature.video-call-experiment
+  version: 1
+implementation_scope:
+- Replace the old Gemini Live call transport with Voxtral realtime STT and ordinary chat request admission.
+- Reuse automatic model/thinking routing, skills, rich output and existing encrypted speech assets.
+- Implement intent-aware interruptions and localized waiting feedback including delayed Mercury turns.
+- Preserve supported web/Apple call lifecycle, privacy, binding and visual-input behavior; remove obsolete Gemini-only
+  call code.
+- Run focused local unit checks, isolated GitHub component/browser/backend checks, relevant native compilation/tests,
+  and scoped dev deploy/live checks.
+voice_mode_followup:
+  task: TASK-6487
+  research: voice-mode-clarification.md
+  user_goal: Ideally we would just basically use the existing typical chat-based processing architecture with the pre-processing,
+    the main processing and the post-processing, and only make the minimal additional changes required to make it work
+    seamlessly with voice calling.
+  current_stage: Shared-pipeline voice mode and Gemini Live removal are deployed and verified on dev. Full phone and desktop
+    suites passed, matching frontend/backend source is healthy, and the deployed real Voxtral probe passed. Apple source
+    compilation remains unverified because the configured Mac is unreachable; no Apple build was published.
+  requirements_from_user:
+  - Preserve automatic model and thinking-level selection, including Google models.
+  - Preserve app skills, inline links, rich embed previews and image groups in the ordinary response.
+  - Speak natural response prose while rendering the corresponding embeds in chat.
+  - Localize waiting acknowledgements to the request language; clarify the proposed non-Mercury trigger.
+  - Research public weights, licenses and offline iOS/macOS feasibility separately from API availability.
+  - Compare server and device speech detection using official documentation and GitHub sources.
+  - Brief listener acknowledgements such as hmm or okay do not interrupt; yield when the user clearly intends to interrupt.
+  implementation_authorization: The user accepted the clarified architecture and explicitly requested full implementation,
+    testing and deployment, then explicitly required removal of the old Gemini voice calling implementation. This authorizes
+    the revised shared-pipeline voice-mode scope; do not repeat approval rounds.
+recording_preview_followup:
+  authorization: User explicitly requested one newest readable transcript line on desktop and mobile.
+  required_checks:
+  - components/record-audio-live-transcript.spec.ts before broader browser flows
+  - audio-recording-and-speech.spec.ts
+  - assistant-speech-availability.spec.ts

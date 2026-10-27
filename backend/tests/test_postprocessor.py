@@ -9,6 +9,42 @@
 
 import pytest
 
+
+@pytest.mark.asyncio
+async def test_voice_metadata_uses_shared_model_and_title_policy(monkeypatch):
+    from types import SimpleNamespace
+    import backend.apps.ai.processing.postprocessor as module
+    calls = []
+    async def generate(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(error_message=None, arguments={"updated_chat_title": "Vegetarian Ramen Cooking", "chat_summary": "Planning vegetarian ramen with ginger."})
+    monkeypatch.setattr(module, "call_preprocessing_llm", generate)
+    result = await module.generate_chat_metadata(task_id="metadata", message_history=[
+        {"role": "user", "content": "How do I make ramen?", "call_turn": True}],
+        current_chat_title=None, prior_summary=None, conversation_checkpoint="Earlier vegetarian preference",
+        user_system_language="de", secrets_manager=None)
+    assert result["updated_chat_title"] == "Vegetarian Ramen Cooking"
+    assert calls[0]["model_id"] == module.POSTPROCESSING_MODEL_ID
+    assert calls[0]["max_output_tokens"] == 256
+    assert set(calls[0]["tool_definition"]["function"]["parameters"]["properties"]) == {"updated_chat_title", "chat_summary"}
+    prompt = calls[0]["message_history"][0]["content"]
+    assert module.chat_title_instruction(None) in prompt
+    assert "UI language: de" in prompt
+    assert "greetings" in prompt and "call_turn=true" in prompt
+
+
+@pytest.mark.asyncio
+async def test_voice_metadata_can_decline_greetings_without_inventing_a_title(monkeypatch):
+    from types import SimpleNamespace
+    import backend.apps.ai.processing.postprocessor as module
+    async def generate(**_kwargs):
+        return SimpleNamespace(error_message=None, arguments={"updated_chat_title": None, "chat_summary": None})
+    monkeypatch.setattr(module, "call_preprocessing_llm", generate)
+    assert await module.generate_chat_metadata(task_id="metadata", message_history=[
+        {"role": "user", "content": "Hello", "call_turn": True}], current_chat_title=None,
+        prior_summary=None, conversation_checkpoint=None, user_system_language="en", secrets_manager=None
+    ) == {"updated_chat_title": None, "chat_summary": None}
+
 try:
     from backend.apps.ai.processing.postprocessor import (
         extract_available_skills,

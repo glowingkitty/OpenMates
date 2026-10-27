@@ -147,6 +147,7 @@ def _build_lookup_user_cache_payload(
         "darkmode": user_profile.get("darkmode", False),
         "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
         "encrypted_email_address": user_profile.get("encrypted_email_address"),
+        "encrypted_settings": user_profile.get("encrypted_settings"),
         "invoice_counter": user_profile.get("invoice_counter"),
         "lookup_hashes": user_profile.get("lookup_hashes", []),
         "account_id": user_profile.get("account_id") or user_data.get("account_id"),
@@ -866,6 +867,7 @@ async def login(
                     darkmode=user_profile.get("darkmode", False),
                     ui_font=user_profile.get("ui_font", "lexend"),
                     encrypted_key=user_profile.get("encrypted_key"),
+                    encrypted_settings=user_profile.get("encrypted_settings"),
                     key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
                     credential_version=user_profile.get("credential_version"),
@@ -1103,6 +1105,7 @@ async def login(
                         darkmode=user_profile.get("darkmode", False),
                         ui_font=user_profile.get("ui_font", "lexend"),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        encrypted_settings=user_profile.get("encrypted_settings"),
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         credential_version=user_profile.get("credential_version"),
@@ -1430,6 +1433,7 @@ async def login(
                         darkmode=user_profile.get("darkmode", False),
                         ui_font=user_profile.get("ui_font", "lexend"),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        encrypted_settings=user_profile.get("encrypted_settings"),
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         credential_version=user_profile.get("credential_version"),

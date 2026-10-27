@@ -3,6 +3,9 @@ import { domainFixtures } from './hostingPreviewFixtures';
 const defaultProps = { id: domainFixtures.net.embed_id, domain: domainFixtures.net, presentationOnly: true, onFullscreen: () => {} };
 export default defaultProps;
 export const variants = {
+  missingData: { ...defaultProps, id: domainFixtures.unknown.embed_id, domain: domainFixtures.unknown },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
+  longTitle: { ...defaultProps, id: domainFixtures.longIdn.embed_id, domain: domainFixtures.longIdn },
   unavailable: { ...defaultProps, id: domainFixtures.org.embed_id, domain: domainFixtures.org },
   unknown: { ...defaultProps, id: domainFixtures.unknown.embed_id, domain: domainFixtures.unknown },
   premium: { ...defaultProps, id: domainFixtures.premium.embed_id, domain: domainFixtures.premium },

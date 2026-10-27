@@ -13,7 +13,8 @@
     "build": "node --experimental-strip-types scripts/generate-public-data.mjs"
   },
   "dependencies": {
-    "markdown-it": "^14.3.1",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.3.3",
     "@sveltejs/kit": "2.70.2",
     "yaml": "^2.9.0"
   },

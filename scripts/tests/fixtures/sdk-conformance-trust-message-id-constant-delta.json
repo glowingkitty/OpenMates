@@ -1,0 +1,44 @@
+{
+  "afterSha256": "4c4aae4870a6d85341e2a81af56d4b5885e0fcaef1c6755e0faec6f57e9223d7",
+  "beforeSha256": "b5bf3d8593a9475847de2950a267a91af0ad8a9ea2632ca7162f3ddb3116c1e9",
+  "counts": {
+    "contracts": 75,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 283
+  },
+  "gapsUnchanged": true,
+  "matrixDelta": {
+    "afterSha256": "69bc6f28a82b296fa9f3a577b74eab8d127f449b276f301fcd66c27f3a4d5f98",
+    "beforeSha256": "9b62b9ea19a5503e42c2e926fe860c79557217352ebf736a0c1029538f3286e1",
+    "family": "sdk.session-client",
+    "rustApiAdded": "client.message_window.MAX_MESSAGE_ID_BYTES"
+  },
+  "nativeExecutions": 0,
+  "oldPlansSha256": "4fb36f005167c7b367fec8b3dbe70c3445f44d55505f040847536428a5dc0ec3",
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "69bc6f28a82b296fa9f3a577b74eab8d127f449b276f301fcd66c27f3a4d5f98",
+        "before": "9b62b9ea19a5503e42c2e926fe860c79557217352ebf736a0c1029538f3286e1"
+      }
+    },
+    "programs": {
+      "scripts/tests/test_sdk_session_embed_version_gate.py": {
+        "after": "7c71c48f2d816243c51c40ce2d19e0201a1f59cc5656c08070d1a12623ed5d44",
+        "before": "4dd0a5aaa2bf79ec0646f57f342aa9204949d74bdfe1d41c95de6e40a4fa01b7"
+      }
+    }
+  },
+  "plansUnchanged": true,
+  "priorMessageIdWitnessSha256": "2ac9a3303a2cf3e19d1edbeb5d7fdeadceaa5f5aedc578a90b0e6368e8e3bdf9",
+  "private": true,
+  "releaseEligible": false,
+  "schemaVersion": 1,
+  "sourceConstant": {
+    "declaration": "pub const MAX_MESSAGE_ID_BYTES: usize = 256;",
+    "path": "packages/openmates-rust/src/client/message_window.rs",
+    "sha256": "733d15bbf0185a32b01100daee21e2724044d09b6f1ce063aef908399c472d91"
+  },
+  "sourceGateRuns": 0
+}

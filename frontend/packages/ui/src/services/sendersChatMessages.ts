@@ -1,6 +1,7 @@
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
+import { createVoiceCallSendDiagnostics } from "./voiceCallTurns";
 /**
  * sendersChatMessages.ts — Message sending and encrypted storage operations
  *
@@ -43,6 +44,7 @@ import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
 import { authStore } from "../stores/authStore";
+import { modelRoutingRestrictionsForTurn, type ModelRoutingRestrictions } from "./modelRoutingRestrictions";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { assertNoConnectedAccountSecretLeak, prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
@@ -131,8 +133,13 @@ const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
 const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
-const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
-const fastAdmissionListeners = new Map<string, { gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void }>();
+const turnPreflightConfirmListeners = new Map<string, {
+	confirmed: (payload: unknown) => void; settled: Promise<void>; settle: () => void;
+}>();
+const fastAdmissionListeners = new Map<string, {
+	gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void;
+	settled: Promise<void>; settle: () => void;
+}>();
 
 interface EncryptedEmbedForDirectus {
 	embed_id: string;
@@ -619,48 +626,87 @@ export function watchDurableTurnPreflightConfirmation(
 	chatId: string, messageId: string, committedMessagesVersion: number,
 	clearJournal: () => Promise<void> = () =>
 		clearPendingMessageJournal(chatId, messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
-): void {
+): Promise<void> {
 	const key = `${chatId}:${messageId}`;
-	if (turnPreflightConfirmListeners.has(key)) return;
+	const existing = turnPreflightConfirmListeners.get(key);
+	if (existing) return existing.settled;
+	let settle!: () => void;
+	const settled = new Promise<void>(resolve => { settle = resolve; });
 	const confirmed = (payload: unknown) => {
 		const value = payload as { chat_id?: string; message_id?: string; new_messages_v?: number };
 		// Legacy metadata ACKs can name this user row before the durable turn is
 		// admitted. The versioned message_received ACK follows enqueue_chat_turn.
 		if (value?.chat_id !== chatId || value.message_id !== messageId ||
 			value.new_messages_v !== committedMessagesVersion) return;
-		void clearJournal().catch((error) =>
-			console.warn("[ChatSyncService:Senders] Could not clear confirmed turn preflight", error));
 		webSocketService.off("chat_message_confirmed", confirmed);
-		turnPreflightConfirmListeners.delete(key);
+		// Keep same-socket ownership until recovery can no longer see a journal.
+		void clearJournal().catch((error) =>
+			console.warn("[ChatSyncService:Senders] Could not clear confirmed turn preflight", error))
+			.finally(() => {
+				if (turnPreflightConfirmListeners.get(key)?.confirmed === confirmed) turnPreflightConfirmListeners.delete(key);
+				settle();
+			});
 	};
-	turnPreflightConfirmListeners.set(key, confirmed);
+	turnPreflightConfirmListeners.set(key, { confirmed, settled, settle });
 	webSocketService.on("chat_message_confirmed", confirmed);
+	return settled;
 }
 
-function watchFastAdmissionCompletion(input: {
+export function watchFastAdmissionCompletion(input: {
 	chatId: string; messageId: string; turnId: string; requestId: string;
 	committedMessagesVersion: number;
 	onContextRejected?: () => void;
-}): () => boolean {
+	onJournalFailure?: () => void;
+	clearJournals?: () => Promise<void>;
+}): { isCurrentAttempt: () => boolean; settled: Promise<void>; cancel: () => void } {
 	const key = `${input.chatId}:${input.messageId}`;
+	// A replacement connection may replay the retained journal. Settle the old
+	// local reservation, while preserving its accepted protocol phases.
 	const existing = fastAdmissionListeners.get(key);
-	if (existing) return existing.gate.beginAttempt(input.onContextRejected);
-	const gate = new FastAdmissionJournalGate(input);
+	existing?.settle();
+	const gate = existing?.gate ?? new FastAdmissionJournalGate(input);
 	const isCurrentAttempt = gate.beginAttempt(input.onContextRejected);
+	let settle!: () => void;
+	const settled = new Promise<void>((resolve) => { settle = resolve; });
+	const cancel = () => {
+		const listeners = fastAdmissionListeners.get(key);
+		if (listeners?.settled !== settled) return;
+		webSocketService.off("chat_message_confirmed", listeners.confirmed);
+		webSocketService.off("chat_turn_context_ack", listeners.context);
+		fastAdmissionListeners.delete(key);
+		settle();
+	};
+	if (existing) {
+		webSocketService.off("chat_message_confirmed", existing.confirmed);
+		webSocketService.off("chat_turn_context_ack", existing.context);
+	}
+	let finalizing = false;
 	const complete = () => {
-		if (!gate.complete) return;
+		if (!gate.complete || finalizing) return;
+		finalizing = true;
 		const listeners = fastAdmissionListeners.get(key);
 		if (!listeners) return;
 		webSocketService.off("chat_message_confirmed", listeners.confirmed);
 		webSocketService.off("chat_turn_context_ack", listeners.context);
-		fastAdmissionListeners.delete(key);
-		void Promise.all([
-			clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
-			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
-			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
-		]).then(() => import("./sendersSync").then(({ sendOfflineChangesImpl }) =>
-			sendOfflineChangesImpl())).catch((error) =>
-			console.warn("[ChatSyncService:Senders] Could not finalize completed admission replay", error));
+		const clearJournals = input.clearJournals ?? (async () => {
+			await Promise.all([
+				clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
+				clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
+				clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
+			]);
+		});
+		void clearJournals().then(() => {
+			// The indexed recovery scan must no longer see a journal before a
+			// same-connection reservation can be released.
+			if (fastAdmissionListeners.get(key) === listeners) fastAdmissionListeners.delete(key);
+			listeners.settle();
+			return import("./sendersSync").then(({ sendOfflineChangesImpl }) => sendOfflineChangesImpl());
+		}).catch((error) => {
+			console.warn("[ChatSyncService:Senders] Could not finalize completed admission replay", error);
+			if (fastAdmissionListeners.get(key) !== listeners) return;
+			cancel();
+			input.onJournalFailure?.();
+		});
 	};
 	const confirmed = (payload: unknown) => { gate.acceptConfirmation(payload); complete(); };
 	const context = (payload: unknown) => {
@@ -670,16 +716,17 @@ function watchFastAdmissionCompletion(input: {
 				webSocketService.off("chat_message_confirmed", listeners.confirmed);
 				webSocketService.off("chat_turn_context_ack", listeners.context);
 				fastAdmissionListeners.delete(key);
+				listeners.settle();
 			}
 			return;
 		}
 		gate.acceptContextAck(payload);
 		complete();
 	};
-	fastAdmissionListeners.set(key, { gate, confirmed, context });
+	fastAdmissionListeners.set(key, { gate, confirmed, context, settled, settle });
 	webSocketService.on("chat_message_confirmed", confirmed);
 	webSocketService.on("chat_turn_context_ack", context);
-	return isCurrentAttempt;
+	return { isCurrentAttempt, settled, cancel };
 }
 
 if (typeof window !== "undefined") {
@@ -690,13 +737,15 @@ if (typeof window !== "undefined") {
 			embedBundleConfirmListeners.delete(key);
 		}
 		for (const [key, listener] of turnPreflightConfirmListeners) {
-			webSocketService.off("chat_message_confirmed", listener);
+			webSocketService.off("chat_message_confirmed", listener.confirmed);
 			turnPreflightConfirmListeners.delete(key);
+			listener.settle();
 		}
 		for (const [key, listeners] of fastAdmissionListeners) {
 			webSocketService.off("chat_message_confirmed", listeners.confirmed);
 			webSocketService.off("chat_turn_context_ack", listeners.context);
 			fastAdmissionListeners.delete(key);
+			listeners.settle();
 		}
 	});
 }
@@ -1231,6 +1280,7 @@ async function dispatchFastPersonalTurn(input: {
 	onUserFrameDispatched?: () => void;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
 	retainedFastAdmission?: boolean;
+	holdAdmissionUntil?: (completion: Promise<void>) => void;
 	supportsAdmissionNow: () => boolean;
 	supportsSelectionDetailsV2Now: () => boolean;
 	supportsContextFailureNow: () => boolean;
@@ -1238,7 +1288,7 @@ async function dispatchFastPersonalTurn(input: {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
 		includePreflightChatMetadata, workspaceIdentity, privacyReceipt, privacyContentChanged, onUserFrameDispatched,
 		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
-		supportsSelectionDetailsV2Now, supportsContextFailureNow } = input;
+		supportsSelectionDetailsV2Now, supportsContextFailureNow, holdAdmissionUntil } = input;
 	const assertCurrentAdmissionScope = () => {
 		if (!workspaceIdentity || workspaceIdentity !== getWorkspaceCacheIdentity()
 			|| !get(authStore).isAuthenticated || getActiveTeamContextSnapshot().teamId || chat.team_id) {
@@ -1264,7 +1314,9 @@ async function dispatchFastPersonalTurn(input: {
 	);
 	const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
 	if (!encryptedFields.encrypted_content) throw new Error("Durable turn admission requires encrypted user content.");
+	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	const inferenceRequest: Record<string, unknown> = {
+		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		chat_id: message.chat_id,
 		turn_id: turnId,
 		recovery_public_key: recoveryKeypair.publicKey,
@@ -1325,6 +1377,15 @@ async function dispatchFastPersonalTurn(input: {
 				assistant_speech_lazy_dispatch: true, assistant_response_source_revision: 1 });
 		}
 		assertCurrentAdmissionScope();
+	}
+	// Delivery belongs to this admitted call turn, not the saved chat preference.
+	if (message.voice_mode && message.voice_call_id && message.voice_turn_id) {
+		Object.assign(inferenceRequest.message as Record<string, unknown>, {
+			voice_mode: true, voice_call_id: message.voice_call_id, voice_turn_id: message.voice_turn_id,
+			...(message.voice_heard_boundary ? { voice_heard_boundary: message.voice_heard_boundary } : {}),
+			auto_speak_response: true, assistant_speech_lazy_dispatch: false,
+			assistant_response_source_revision: 1,
+		});
 	}
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	if (typeof testMockMarker === "string" && testMockMarker.trim().length > 0) {
@@ -1396,6 +1457,7 @@ async function dispatchFastPersonalTurn(input: {
 	const retainedRequest = admission.inference_request as Record<string, unknown>;
 	const contextWorkspace = getWorkspaceCacheIdentity();
 	const contextTeam = getActiveTeamContextSnapshot();
+	const contextConnection = webSocketService.getConnectionForSend();
 	let contextRejected = false;
 	let contextFailureReported = false;
 	const reportContextFailure = async () => {
@@ -1421,14 +1483,23 @@ async function dispatchFastPersonalTurn(input: {
 			console.warn("[ChatSyncService:Senders] Context failure notification unavailable");
 		}
 	};
-	const isContextAttemptCurrent = watchFastAdmissionCompletion({
+	const { isCurrentAttempt: isContextAttemptCurrent, settled, cancel } = watchFastAdmissionCompletion({
 		chatId: message.chat_id, messageId: message.message_id,
 		turnId: admission.turn_id as string,
 		requestId: retainedRequest.client_context_request_id as string,
 		committedMessagesVersion: Number(admission.expected_messages_v) + 1,
 		onContextRejected: () => { contextRejected = true; void reportContextFailure(); },
+		onJournalFailure: () => {
+			if (contextWorkspace === getWorkspaceCacheIdentity() && get(authStore).isAuthenticated
+				&& getActiveTeamContextSnapshot().epoch === contextTeam.epoch
+				&& contextConnection !== null && webSocketService.getConnectionForSend() === contextConnection) {
+				webSocketService.forceReconnect("chat admission journal finalization failed");
+			}
+		},
 	});
+	holdAdmissionUntil?.(settled);
 	if (!supportsAdmissionNow()) {
+		cancel();
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 		throw new PendingAdmissionCompatibilityError();
 	}
@@ -1466,6 +1537,7 @@ async function dispatchFastPersonalTurn(input: {
 					|| !isDraftContextDispatchActive(message.chat_id, admission.turn_id as string),
 			});
 		}, async (error) => {
+			cancel();
 			if (isPreflightAcknowledgementTimeout(error)) {
 				const stillOwned = () => contextWorkspace !== null
 					&& getWorkspaceCacheIdentity() === contextWorkspace
@@ -1480,6 +1552,7 @@ async function dispatchFastPersonalTurn(input: {
 			}
 			console.warn("[ChatSyncService:Senders] Admission acknowledgement unavailable", error);
 		}).catch(async (error) => {
+			cancel();
 			await reportContextFailure();
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
 		}).finally(async () => {
@@ -1487,6 +1560,7 @@ async function dispatchFastPersonalTurn(input: {
 			releaseDraftCleanup();
 		});
 	} catch (error) {
+		cancel();
 		releaseDraftCleanup();
 		ackAbort.abort();
 		if (isReceiptConnectionMismatch(error) && contextWorkspace === getWorkspaceCacheIdentity()) {
@@ -1513,8 +1587,11 @@ export async function sendNewMessageImpl(
 	supportsAdmissionNow: () => boolean = () => false,
 	supportsSelectionDetailsV2Now: () => boolean = () => false,
 	supportsContextFailureNow: () => boolean = () => false,
+	holdAdmissionUntil?: (completion: Promise<void>) => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
+	const voiceDiagnostics = createVoiceCallSendDiagnostics(message);
+	voiceDiagnostics.enter('sender');
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
 	const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
@@ -1626,13 +1703,23 @@ export async function sendNewMessageImpl(
 	let retainedJournal = false;
 	if (usesPersonalRecovery) {
 		try {
+			voiceDiagnostics.enter('predecessor');
+			voiceDiagnostics.enter('predecessor_wait');
 			predecessorVersion = await awaitPersonalChatPredecessor(personalTurn);
+			voiceDiagnostics.enter('journal_read');
 			retainedJournal = !!(await readPendingMessageJournal(
 				message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD,
 			));
+			if (!retainedJournal && personalTurn.predecessor === null && (chat?.messages_v ?? 0) > 1) {
+				voiceDiagnostics.enter('reply_discovery');
+				const { recoverCompletedRepliesBeforeSend } = await import('./chatSyncServiceHandlersRecovery');
+				predecessorVersion = await recoverCompletedRepliesBeforeSend(serviceInstance, message.chat_id);
+				chat = await chatDB.getChat(message.chat_id) ?? chat;
+			}
 			// A retained frame binds created_at in its encrypted intent MAC. A retry
 			// after a long disconnect must preserve that exact timestamp and identity.
 			if (!retainedJournal) {
+				voiceDiagnostics.enter('optimistic_timestamp');
 				const committedMessages = await chatDB.getMessagesForChat(message.chat_id);
 				const createdAt = nextPersonalUserCreatedAt(
 					Math.floor(Date.now() / 1000), message.created_at, committedMessages, message.message_id,
@@ -1649,6 +1736,7 @@ export async function sendNewMessageImpl(
 	}
 
 	// Personal and incognito turns always invoke AI; preserve their early gate.
+	voiceDiagnostics.enter('model_admission');
 	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) {
 		failPersonalChatTurn(personalTurn, new Error('AI model admission blocked this chat turn.'));
 		return;
@@ -1659,6 +1747,7 @@ export async function sendNewMessageImpl(
 	let privacyReceipt: PrivacySendReceipt | null = null;
 	let privacyContentChanged = false;
 	if (!chat?.team_id && !isIncognitoChat && get(authStore).isAuthenticated) {
+		voiceDiagnostics.enter('personal_privacy');
 		[privacyReceipt] = await Promise.all([
 			freshPersonalPrivacyForSend(generateUUID()),
 			chatKeyManager.getKey(message.chat_id),
@@ -1703,11 +1792,13 @@ export async function sendNewMessageImpl(
 		&& !message.content.includes("@memory")
 		&& !message.content.includes("| ");
 	if (fastPersonalText && chat) {
+		voiceDiagnostics.enter('fast_admission');
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
 			includePreflightChatMetadata, workspaceIdentity: sendWorkspaceIdentity,
 			privacyReceipt: privacyReceipt!, privacyContentChanged, onUserFrameDispatched,
 			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now, supportsContextFailureNow,
+			holdAdmissionUntil,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
 					: loadPostAdmissionConnectedAccounts(message)),
@@ -1717,6 +1808,7 @@ export async function sendNewMessageImpl(
 	// If a local draft changed classification while connected-account discovery
 	// ran, retain the complete legacy payload and its token references.
 	if (postAdmissionConnectedAccounts) {
+		voiceDiagnostics.enter('connected_accounts');
 		connectedAccountContext = await postAdmissionConnectedAccounts;
 	}
 
@@ -1731,6 +1823,7 @@ export async function sendNewMessageImpl(
 	// Client creates embeds locally, encrypts them, and sends everything in one request.
 	// ========================================================================
 	let processedContent = message.content;
+	voiceDiagnostics.enter('embed_preparation');
 	// Saved-message embed IDs are keyed by the chat secret. This keeps retries
 	// stable without exposing a public plaintext guessing oracle in embed IDs.
 	const extractionChatKey = isIncognitoChat ? null :
@@ -2205,6 +2298,7 @@ export async function sendNewMessageImpl(
 	// turns skip this potentially expensive IDB decryption entirely; explicit
 	// Team invocations hydrate the authoritative transcript below.
 	let messageHistory: Message[] = [];
+	voiceDiagnostics.enter('saved_history');
 	if (isIncognitoChat) {
 		try {
 			messageHistory = await incognitoChatService.getMessagesForChat(message.chat_id);
@@ -2239,6 +2333,7 @@ export async function sendNewMessageImpl(
 	// This tells the server what app settings/memories exist on this device WITHOUT sending content
 	// The server's preprocessor uses this to decide which settings/memories to request
 	let appSettingsMemoriesMetadataKeys: string[] = [];
+	voiceDiagnostics.enter('metadata_and_keys');
 	if (!isIncognitoChat) {
 		try {
 			appSettingsMemoriesMetadataKeys = [...new Set([
@@ -2289,6 +2384,7 @@ export async function sendNewMessageImpl(
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
+		model_routing_restrictions?: ModelRoutingRestrictions;
 		preserve_draft?: boolean;
 		protocol_version?: number;
 		preflight_id?: string;
@@ -2318,6 +2414,10 @@ export async function sendNewMessageImpl(
 			current_chat_metadata_v?: number;
             auto_speak_response?: boolean;
             assistant_speech_lazy_dispatch?: boolean;
+			voice_mode?: boolean;
+			voice_call_id?: string;
+			voice_turn_id?: string;
+			voice_heard_boundary?: Message["voice_heard_boundary"];
 			assistant_response_source_revision?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
@@ -2348,7 +2448,9 @@ export async function sendNewMessageImpl(
 		};
 		test_mock_marker?: string;
 	}
+	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	let payload: SendMessagePayload = {
+		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
@@ -2367,6 +2469,12 @@ export async function sendNewMessageImpl(
 			...(autoSpeakResponseForRequest ? {
 				auto_speak_response: true,
 				assistant_speech_lazy_dispatch: true,
+				assistant_response_source_revision: 1,
+			} : {}),
+			...(message.voice_mode && message.voice_call_id && message.voice_turn_id ? {
+				voice_mode: true, voice_call_id: message.voice_call_id, voice_turn_id: message.voice_turn_id,
+				...(message.voice_heard_boundary ? { voice_heard_boundary: message.voice_heard_boundary } : {}),
+				auto_speak_response: true, assistant_speech_lazy_dispatch: false,
 				assistant_response_source_revision: 1,
 			} : {})
 			// NO category or encrypted fields - those go to Phase 2
@@ -2477,6 +2585,7 @@ export async function sendNewMessageImpl(
 			payload.accepted_plan_context = acceptedPlan.value as import('./acceptedPlanContext').AcceptedPlanContext;
 		}
 	})() : Promise.resolve();
+	voiceDiagnostics.enter('private_context');
 	await Promise.all([routingMetadata, privateContext]);
 	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
 	// can use it and not request that category again during this request
@@ -2584,6 +2693,7 @@ export async function sendNewMessageImpl(
 	}
 
 	// For incognito chats, include full message history (no server-side caching)
+	voiceDiagnostics.enter('history_projection');
 	if (isIncognitoChat && messageHistory.length > 0) {
 		payload.message_history = await Promise.all(
 			messageHistory.map(async (msg) =>
@@ -2646,6 +2756,7 @@ export async function sendNewMessageImpl(
 	}
 
 	let pendingBundleConfirmationIdentity: MessageEmbedBundleIdentity | null = null;
+	voiceDiagnostics.enter('embed_storage');
 	// Include embeds if any were found in the message
 	if (embeds.length > 0) {
 		payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
@@ -2908,7 +3019,7 @@ export async function sendNewMessageImpl(
 					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, hashedChatId);
 					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, undefined);
 					await embedStore.putEncrypted(
-						`embed:${encryptedEmbed.embed_id}`, encryptedEmbed,
+						`embed:${encryptedEmbed.embed_id}`, { ...encryptedEmbed },
 						source.type as EmbedType, source.content
 					);
 				}
@@ -2977,6 +3088,7 @@ export async function sendNewMessageImpl(
 	}
 
 	if (!isIncognitoChat) {
+		voiceDiagnostics.enter('preflight_key');
 		if (!encryptedChatKey) {
 			throw new Error(`Saved chat ${message.chat_id} has no encrypted chat key for durable preflight.`);
 		}
@@ -2987,6 +3099,7 @@ export async function sendNewMessageImpl(
 			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
 		}
 		let turnId = privacyReceipt?.turnId ?? generateUUID();
+		voiceDiagnostics.enter('preflight_ciphertext');
 		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
 			encodeBase64Url(chatKey),
 			message.chat_id,
@@ -3050,6 +3163,7 @@ export async function sendNewMessageImpl(
 			delete payload.connected_account_directory;
 			delete payload.connected_account_token_refs;
 			if (!shouldInvokeTeamAI) {
+				delete payload.model_routing_restrictions;
 				delete payload.embeds;
 				delete payload.active_focus_id;
 			}
@@ -3119,6 +3233,7 @@ export async function sendNewMessageImpl(
 		}
 		if (!chat?.team_id || shouldInvokeTeamAI) {
 			try {
+				voiceDiagnostics.enter('preflight_journal');
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const { userDB } = await import("./userDB");
 				const accountId = (await userDB.getUserProfile())?.user_id;
@@ -3144,10 +3259,11 @@ export async function sendNewMessageImpl(
 					bindPersonalChatTurn(personalTurn, turnId);
 					initialChatHistoryGate.bind(message.chat_id, message.message_id, turnId);
 				}
-				watchDurableTurnPreflightConfirmation(
+				const admissionCompleted = watchDurableTurnPreflightConfirmation(
 					message.chat_id, message.message_id,
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
+				holdAdmissionUntil?.(admissionCompleted);
 			} catch (error) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				throw error;
@@ -3172,6 +3288,7 @@ export async function sendNewMessageImpl(
 			);
 		}
 		try {
+			voiceDiagnostics.enter('preflight_serialization');
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const acknowledgement = waitForPreflightAcknowledgement(
@@ -3182,10 +3299,13 @@ export async function sendNewMessageImpl(
 					turnId,
 					webSocketConnected: serviceInstance.webSocketConnected_FOR_SENDERS_ONLY
 				});
+				voiceDiagnostics.enter('preflight_receipt');
 				const privacyTransport = privacyReceipt ? await attachFreshPrivacyReceipt(preflightPayload, privacyReceipt, message) : undefined;
+				voiceDiagnostics.enter('preflight_dispatch');
 				if (privacyTransport) await webSocketService.sendMessage("chat_turn_preflight", preflightPayload, privacyTransport);
 				else await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
 				recordPreflightDebugStep("preflight_dispatch_complete", { turnId });
+				voiceDiagnostics.enter('preflight_ack');
 				return acknowledgement;
 			});
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, turnId, sendWorkspaceIdentity);
@@ -3244,9 +3364,11 @@ export async function sendNewMessageImpl(
 	try {
 		if (shouldInvokeTeamAI) assertTeamSendScope();
 		attemptedTransport = true;
+		voiceDiagnostics.enter('canonical_dispatch');
 		await webSocketService.sendMessage("chat_message_added", payload);
 		onUserFrameDispatched?.();
 	} catch (error) {
+		voiceDiagnostics.failed();
 		console.error(
 			`[ChatSyncService:Senders] Error sending 'chat_message_added' for message_id: ${message.message_id}:`,
 			error
@@ -3263,6 +3385,9 @@ export async function sendNewMessageImpl(
 	} finally {
 		wsDispatchSpan.end();
 	}
+	} catch (error) {
+		voiceDiagnostics.failed();
+		throw error;
 	} finally {
 		implSpan.end();
 	}

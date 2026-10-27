@@ -121,8 +121,9 @@ import vhdl from "highlight.js/lib/languages/vhdl";
 import glsl from "highlight.js/lib/languages/glsl"; // OpenGL Shading Language
 
 // --- 3rd Party Language: Svelte ---
-// Svelte is not built-in to highlight.js, requires separate package
-import hljsSvelte from "highlightjs-svelte";
+// Use the module entry: the package's browser entry is a standalone script
+// that expects a global hljs and does not export the registration function.
+import hljsSvelte from "highlightjs-svelte/dist/index.mjs";
 
 // ============================================================================
 // Register All Languages

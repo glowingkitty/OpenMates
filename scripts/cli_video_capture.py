@@ -135,7 +135,7 @@ def input_step_ready(output: str, marker: str, absent_marker: str | None = None)
     Historical output still contains earlier loading messages, and an unfinished
     synchronized paint must never count as a ready screen.
     """
-    if re.search(r"\x1b\[\d+;1H\x1b\[2K", output):
+    if re.search(r"\x1b\[\d+;1H\x1b\[2K", output) or (re.search(r"\x1b\[\d+;\d+H", output) and "\x1b[2K" not in output):
         start = output.rfind("\x1b[?2026h")
         end = output.rfind("\x1b[?2026l")
         if start < 0 or end < start:
@@ -158,11 +158,146 @@ def input_step_ready(output: str, marker: str, absent_marker: str | None = None)
 def _cell_width(text: str) -> int:
     """Count terminal cells, including wide glyphs and zero-width marks."""
     width = 0
+    joined = False
     for char in text:
+        if char == "\u200d":
+            joined = True
+            continue
+        if 0x1F3FB <= ord(char) <= 0x1F3FF:
+            continue
         if char in "\u200c\u200d" or unicodedata.combining(char) or unicodedata.category(char) in {"Cf", "Mn", "Me"}:
+            continue
+        if joined:
+            joined = False
             continue
         width += 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1
     return width
+
+
+def _latest_cell_screen(output: str, frames: list[Any]) -> tuple[list[str], int, int]:
+    """Apply completed native cell paints, preserving each wide glyph's span."""
+    cells: dict[tuple[int, int], str] = {}
+    owners: dict[tuple[int, int], tuple[int, int]] = {}
+    x = y = width = height = previous_end = 0
+    last_cell: tuple[int, int] | None = None
+    joined = False
+
+    def clear_span(key: tuple[int, int]) -> None:
+        owner = owners.get(key)
+        if owner is None:
+            return
+        # Writing or erasing either half of a wide glyph blanks its whole span.
+        span = _cell_width(cells[owner])
+        for column in range(owner[1], owner[1] + span):
+            position = (owner[0], column)
+            cells.pop(position, None)
+            owners.pop(position, None)
+
+    for frame in frames:
+        between = output[previous_end:frame.start()]
+        # An unsynchronized erase cannot inherit readiness from an older paint.
+        if re.search(r"\x1b\[(?!2J)[0-9;]*[JK]", between):
+            raise CliCaptureError("Native erase requires a complete terminal paint")
+        if "\x1b[2J" in between:
+            cells.clear()
+            owners.clear()
+            width = height = x = y = 0
+            last_cell, joined = None, False
+        for token in re.finditer(r"\x1b\[[0-?]*[ -/]*[@-~]|[^\x1b]+", frame.group(1)):
+            value = token.group()
+            if value.startswith("\x1b["):
+                body, command = value[2:-1], value[-1]
+                numbers = (
+                    [int(n or 0) for n in body.split(";")]
+                    if re.fullmatch(r"[0-9;]*", body)
+                    else []
+                )
+                first = (numbers[0] or 1) if numbers else 1
+                if command in {"H", "f"}:
+                    y, x = first - 1, (numbers[1] or 1) - 1 if len(numbers) > 1 else 0
+                elif command == "G":
+                    x = first - 1
+                elif command == "d":
+                    y = first - 1
+                elif command in {"A", "B", "C", "D"}:
+                    if command == "A":
+                        y = max(0, y - first)
+                    elif command == "B":
+                        y += first
+                    elif command == "C":
+                        x += first
+                    else:
+                        x = max(0, x - first)
+                elif command in {"J", "K"}:
+                    mode = numbers[0] if numbers else 0
+                    if not re.fullmatch(r"[012]?", body):
+                        raise CliCaptureError("Unsupported native terminal erase")
+                    if command == "J" and mode == 2:
+                        cells.clear()
+                        owners.clear()
+                        width = height = 0
+                    else:
+                        for key in list(owners):
+                            selected = (
+                                (command == "J" and (
+                                    (mode == 0 and key >= (y, x))
+                                    or (mode == 1 and key <= (y, x))
+                                ))
+                                or (command == "K" and key[0] == y and (
+                                    mode == 2
+                                    or (mode == 0 and key[1] >= x)
+                                    or (mode == 1 and key[1] <= x)
+                                ))
+                            )
+                            if selected:
+                                clear_span(key)
+                if command != "m":
+                    last_cell, joined = None, False
+                continue
+            for char in value:
+                if char == "\r":
+                    x = 0
+                    last_cell, joined = None, False
+                elif char == "\n":
+                    y += 1
+                    last_cell, joined = None, False
+                elif char >= " ":
+                    size = _cell_width(char)
+                    if char == "\u200d" or joined or 0x1F3FB <= ord(char) <= 0x1F3FF:
+                        if last_cell in cells:
+                            cells[last_cell] += char
+                        joined = char == "\u200d"
+                        continue
+                    if not size:
+                        prior = owners.get((y, x - 1))
+                        if prior in cells:
+                            cells[prior] += char
+                        continue
+                    if not 0 <= x < x + size <= 512 or not 0 <= y < 256:
+                        raise CliCaptureError("Native terminal paint exceeds bounded geometry")
+                    for column in range(x, x + size):
+                        clear_span((y, column))
+                    last_cell = (y, x)
+                    cells[last_cell] = char
+                    for column in range(x, x + size):
+                        key = (y, column)
+                        owners[key] = last_cell
+                        if column != x:
+                            cells[key] = ""
+                    x += size
+                    width, height = max(width, x), max(height, y + 1)
+        previous_end = frame.end()
+    if re.search(r"\x1b\[[0-9;]*[JK]", output[previous_end:]):
+        raise CliCaptureError("Native erase requires a complete terminal paint")
+    if width < 20 or height < 5:
+        raise CliCaptureError("Click target frame has inconsistent terminal geometry")
+    rows = [
+        "".join(cells.get((row, column), " ") for column in range(width))
+        for row in range(height)
+    ]
+    if any(_cell_width(row) != width for row in rows):
+        raise CliCaptureError("Native terminal row does not preserve cell geometry")
+    return rows, width, height
 
 
 def _latest_screen(output: str) -> tuple[list[str], int, int]:
@@ -172,6 +307,8 @@ def _latest_screen(output: str) -> tuple[list[str], int, int]:
     frames = list(re.finditer(r"\x1b\[\?2026h(.*?)\x1b\[\?2026l", output, re.DOTALL))
     if not frames:
         raise CliCaptureError("Click target requires a complete terminal frame")
+    if not any("\x1b[2K" in frame.group(1) for frame in frames):
+        return _latest_cell_screen(output, frames)
     screen: dict[int, str] = {}
     previous_end = 0
     for frame in frames:
@@ -363,7 +500,7 @@ def drive_terminal_inputs(
                 if transcript_path.exists():
                     with transcript_path.open("rb") as handle:
                         transcript = handle.read()
-                    current_screen = b"\x1b[?2026h" in transcript and b"\x1b[2K" in transcript
+                    current_screen = b"\x1b[?2026h" in transcript
                     output = (transcript if current_screen else transcript[start_offset:]).decode("utf-8", errors="replace")
                     if input_step_ready(output, marker, absent_marker):
                         break
@@ -618,7 +755,10 @@ def capture_cli_video(
         time.sleep(0.4)
         if xvfb.poll() is not None:
             raise CliCaptureError(f"Xvfb exited before capture: {(xvfb.stderr.read() if xvfb.stderr else '').strip()}")
-        subprocess.run(["xsetroot", "-display", plan.display, "-solid", "#111827"], env=process_env, check=False, capture_output=True)
+        # A solid desktop background is cosmetic; the real Xvfb/terminal/FFmpeg
+        # capture remains available on minimal runners without X11 utilities.
+        if xsetroot := shutil.which("xsetroot"):
+            subprocess.run([xsetroot, "-display", plan.display, "-solid", "#111827"], env=process_env, check=False, capture_output=True)
         ffmpeg = subprocess.Popen(plan.ffmpeg_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         started_at = time.monotonic()
         time.sleep(0.25)

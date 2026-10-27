@@ -1,0 +1,263 @@
+{
+  "comparisons": [
+    {
+      "baseline": "rust-rebuilt150-carry1-8cpu.json",
+      "candidate": "rust-rebuilt300-carry1-8cpu.json",
+      "annotated_values": 82,
+      "cases_with_lost_meaningful_characters": 9,
+      "lost_meaningful_characters": 143,
+      "differences": [
+        {
+          "id": "q:window-2-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-11-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-11-name-german",
+          "value_index": 0,
+          "lost_characters": 5,
+          "lost_meaningful_characters": 5,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-name-german",
+          "value_index": 0,
+          "lost_characters": 5,
+          "lost_meaningful_characters": 5,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-2-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-11-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        }
+      ]
+    },
+    {
+      "baseline": "rust-rebuilt150-carry1-8cpu.json",
+      "candidate": "rust-rebuilt600-carry1-8cpu.json",
+      "annotated_values": 82,
+      "cases_with_lost_meaningful_characters": 14,
+      "lost_meaningful_characters": 199,
+      "differences": [
+        {
+          "id": "q:window-2-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-name-support",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-name-emoji",
+          "value_index": 0,
+          "lost_characters": 12,
+          "lost_meaningful_characters": 12,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-name-emoji",
+          "value_index": 0,
+          "lost_characters": 6,
+          "lost_meaningful_characters": 6,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-2-name-german",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-name-german",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-name-german",
+          "value_index": 0,
+          "lost_characters": 11,
+          "lost_meaningful_characters": 11,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-address-us",
+          "value_index": 0,
+          "lost_characters": 8,
+          "lost_meaningful_characters": 8,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-address-uk",
+          "value_index": 0,
+          "lost_characters": 7,
+          "lost_meaningful_characters": 7,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-2-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-5-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-11-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        },
+        {
+          "id": "q:window-23-address-de",
+          "value_index": 0,
+          "lost_characters": 25,
+          "lost_meaningful_characters": 25,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        }
+      ]
+    },
+    {
+      "baseline": "rust-rebuilt150-carry1-8cpu.json",
+      "candidate": "rust-rebuilt150-carry0-8cpu.json",
+      "annotated_values": 82,
+      "cases_with_lost_meaningful_characters": 0,
+      "lost_meaningful_characters": 0,
+      "differences": []
+    },
+    {
+      "baseline": "rust-rebuilt150-carry1-8cpu.json",
+      "candidate": "rust-runtime231-150-carry1-8cpu.json",
+      "annotated_values": 82,
+      "cases_with_lost_meaningful_characters": 0,
+      "lost_meaningful_characters": 0,
+      "differences": []
+    },
+    {
+      "baseline": "rust-boundary150-carry1-2cpu.json",
+      "candidate": "rust-boundary150-carry0-2cpu.json",
+      "annotated_values": 24,
+      "cases_with_lost_meaningful_characters": 1,
+      "lost_meaningful_characters": 14,
+      "differences": [
+        {
+          "id": "q:boundary-name-de-80",
+          "value_index": 0,
+          "lost_characters": 0,
+          "lost_meaningful_characters": 0,
+          "gained_characters": 5,
+          "gained_meaningful_characters": 5
+        },
+        {
+          "id": "q:boundary-name-de-100",
+          "value_index": 0,
+          "lost_characters": 0,
+          "lost_meaningful_characters": 0,
+          "gained_characters": 5,
+          "gained_meaningful_characters": 5
+        },
+        {
+          "id": "q:boundary-name-de-115",
+          "value_index": 0,
+          "lost_characters": 0,
+          "lost_meaningful_characters": 0,
+          "gained_characters": 5,
+          "gained_meaningful_characters": 5
+        },
+        {
+          "id": "q:boundary-address-de-115",
+          "value_index": 0,
+          "lost_characters": 14,
+          "lost_meaningful_characters": 14,
+          "gained_characters": 0,
+          "gained_meaningful_characters": 0
+        }
+      ]
+    }
+  ]
+}

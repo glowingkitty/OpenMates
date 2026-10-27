@@ -3,9 +3,8 @@ id: feature.app-skill.hosting-search-domains
 version: 1
 status: draft
 title: Hosting Domain Search
-summary: >
-  Check and discover Gandi domains with truthful availability, comparable price
-  and term context, and grouped results that work across programmatic, web, and Apple clients.
+summary: Domain discovery is unavailable without a permitted provider; saved domain results retain their generic
+  quotes, state and navigation.
 
 inherits:
   - architecture.app-skill-execution@1
@@ -13,13 +12,11 @@ inherits:
 
 scope:
   includes:
-    - Exact domain checks and bounded name or keyword suggestions from Gandi
-    - Evidence-based availability selection and optional relevance ranking
-    - Registration and renewal quotes, tax, premium, term, and restriction context
-    - Grouped skill results and independent parent and child web and Apple embeds
+  - Explicit unavailable behavior for new domain requests, inherited from the shared provider boundary.
+  - Typed domain request/result schemas and previously saved grouped result and child rendering.
   excludes:
-    - Domain purchase, reservation, or availability guarantee
-    - Claims that an undocumented provider endpoint has published API permission
+  - Domain purchase, reservation, or availability guarantee
+  - Claims that an undocumented provider endpoint has published API permission
 
 models:
   DomainSearchRequest:
@@ -36,7 +33,7 @@ models:
   DomainSearchGroup:
     id: {type: string_or_integer, nullable: true}
     query: {type: string, required: true}
-    provider: {type: string, required: true, constraints: {value: Gandi}}
+    provider: {type: string, required: true, constraints: {live_sources_unavailable: true}}
     country: {type: iso_3166_1_alpha_2, required: true}
     currency: {type: iso_4217, required: true}
     checked_at: {type: iso_8601_datetime, nullable: true}
@@ -70,42 +67,46 @@ models:
     normal_price: {type: decimal, nullable: true}
 
 assertions:
-  - id: hosting-domains.request.validated
-    type: validation
-    must: The skill accepts one to five independent grouped requests, each with a nonblank domain, short name, or keyword, optional caller ID, at most five valid TLDs, explicit or default DE tax country, supported currency defaulting to EUR, max_results from one to twenty defaulting to ten, and optional relevance criteria of at most one thousand characters. It canonicalizes IDNA labels while preserving Unicode display, rejects invalid input without provider calls, and does not silently convert or ignore an unsupported currency.
-    depends_on: [models.DomainSearchRequest, models.DomainSearchRequestItem]
-  - id: hosting-domains.lookup.exact
-    type: invariant
-    must: An explicit fully qualified domain is checked as that exact domain, never replaced with invented alternatives. A short name with requested TLDs checks those exact name-and-suffix combinations before suggestions; absent TLDs may use bounded suggestions. Results deduplicate by canonical FQDN and preserve provider order unless optional relevance ranking changes it.
-    depends_on: [models.DomainSearchRequestItem, models.DomainResult]
-  - id: hosting-domains.availability.selection
-    type: behavior
-    must: Availability is based on completed checks. The count-bounded results selection defaults to prefer_available, which returns relevant available candidates first and fills a shortfall only with matching checked unavailable candidates; available_only returns only checked available candidates, even if fewer than count; all exposes checked available and unavailable candidates explicitly. A separately returned checked_results pool retains at most forty matching checked candidates, including unknown diagnostic checks, for local views. Unknown or provider-error status is never labeled unavailable or used as an unavailable top-up. A sole exact unavailable domain remains visible under prefer_available; under available_only it yields empty selected results with checked evidence and a group warning. An exact unknown check returns partial or provider error with checked evidence. No mode fabricates candidates or pads irrelevant results.
-    depends_on: [models.DomainSearchRequestItem.availability, models.DomainResult.availability, models.DomainSearchGroup]
-  - id: hosting-domains.relevance.evidenced
-    type: behavior
-    must: Nonblank relevance criteria use the inherited normalizer and rank_search_candidates over at most forty checked candidates, after structured suffix, currency, and availability filters. One typed Jev decision scores name/domain fit and evidenced registration or renewal price, term, premium, and restrictions; missing facts remain unknown and scores below one are discarded. Ranking cannot restore a structured-filter rejection. With no criteria no relevance Jev call occurs; a failed, incomplete, or rejected decision preserves deterministic provider order and the requested availability policy.
-    depends_on: [models.DomainSearchRequestItem.relevance_criteria, models.DomainSearchRequestItem.availability, models.DomainResult]
-  - id: hosting-domains.provider.bounded-fallback
-    type: failure
-    must: Gandi is called directly first without a Gandi API key. An affected operation may use the existing lazily loaded Webshare route once after transport failure, HTTP 403 or 5xx, malformed response, or incomplete stream; it does not rotate indefinitely or retry valid unavailable answers, invalid input, or missing price alone. HTTP 429 and Retry-After respect the bounded deadline. Partial valid children survive failures, while total failure is a safe provider-unavailable error rather than a successful empty search.
-    depends_on: [models.DomainSearchGroup, models.DomainResult]
-  - id: hosting-domains.quotes.truthful
-    type: invariant
-    must: Each child preserves separately supplied registration and renewal price tiers, currency and tax context, discounts and normal prices, premium or reserved status, registration phase, minimum term, and supplied restrictions. Missing prices and tax facts remain unknown; a discounted registration price is never presented as renewal price, and mixed term lengths are not compared as a single first-year minimum.
-    depends_on: [models.DomainResult, models.DomainPriceTier]
-  - id: hosting-domains.results.partial-and-safe
-    type: security
-    must: Groups expose checked time, partial status, safe warnings and errors, and only confirmed result facts. Domain names and provider text pass the inherited external-output safety boundary. Only the submitted query and provider-required tax and currency context go to Gandi over HTTPS. The existing Webshare HTTP CONNECT proxy receives connection metadata and its own proxy authentication; the domain query remains inside the encrypted Gandi connection. Decrypted chat context, OpenMates user identifiers and credentials, and raw diagnostics are never sent to either provider. No plaintext cross-request query or result cache is used.
-    depends_on: [models.DomainSearchGroup, models.DomainResult]
-  - id: hosting-domains.embeds.parent-child
-    type: behavior
-    must: The web and Apple search result has a parent summary embed and independently openable domain child embeds for checked_results with encrypted child references. The parent preview summarizes checked counts and only comparable starting prices; fullscreen uses a responsive child-card grid and can locally reveal or filter checked in-use domains from the already checked pool without a provider refetch, while keeping displayed selection bounded by count. By default, in-use domains are hidden when available results fill count. Each child preview shows availability and supplied registration and renewal prices; fullscreen shows provider CTA, term and tax details, supplied restrictions, sibling navigation, and return to results. Unknown, unavailable, premium, minimum-term, partial, empty, processing, cancelled, and error states remain distinct.
-    depends_on: [models.DomainSearchGroup, models.DomainResult]
-  - id: hosting-domains.surface-parity
-    type: parity
-    must: Assistant, REST API, CLI, npm and pip SDKs preserve grouped requests, availability selection, optional relevance ranking, quote fields, safe errors, and child references. A Workflow can pass the typed search output to web and Apple result renderers. Apple preserves the same bounded grouped availability, truthful quote details, error states, child navigation, and provider action semantics.
-    depends_on: [models, applies_to]
+- id: hosting-domains.request.validated
+  type: validation
+  must: Keep the typed grouped domain request schema, including caller IDs, IDNA display, suffixes, country, currency
+    and result limits. Current requests fail explicitly as unavailable before any provider work; preserving the
+    schema does not advertise live checks.
+  depends_on:
+  - examples.boundary_and_history
+- id: hosting-domains.availability.selection
+  type: behavior
+  must: Saved checked-domain pools preserve distinct available, unavailable and unknown evidence. Local availability
+    views never relabel a failed check as an in-use domain or fabricate additional results.
+  depends_on:
+  - examples.boundary_and_history
+- id: hosting-domains.quotes.truthful
+  type: invariant
+  must: Saved domain children preserve separate supplied registration and renewal tiers, currency, tax, discount,
+    premium, minimum term and restrictions. Missing facts remain unknown and mixed terms are not collapsed into
+    a false comparable minimum.
+  depends_on:
+  - examples.boundary_and_history
+- id: hosting-domains.results.partial-and-safe
+  type: security
+  must: Saved domain groups preserve checked time, partial status, safe warnings, errors and confirmed facts under
+    inherited encryption and external-output safety. New unavailable requests disclose no query, user context or
+    credentials to providers or proxies.
+  depends_on:
+  - examples.boundary_and_history
+- id: hosting-domains.embeds.parent-child
+  type: behavior
+  must: Previously saved domain parent and child embeds remain independently openable with encrypted references,
+    truthful quote and status details, responsive layout, sibling navigation and return to results. Local filters
+    use only the saved checked pool and never refetch.
+  depends_on:
+  - examples.boundary_and_history
+- id: hosting-domains.surface-parity
+  type: parity
+  must: REST, CLI, npm/pip SDKs, Workflow and GUI preserve explicit unavailable errors for new searches and generic
+    saved domain schemas, child references, quote details and history states.
+  depends_on:
+  - examples.boundary_and_history
 
 applies_to:
   rest_api: {required: true}
@@ -125,7 +126,10 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [requests, lookup, availability, relevance, provider, quotes, safety, embeds, parity]
+  required_groups:
+  - boundary_and_history
 
 approval_source:
-  instruction: Direct user instruction in the existing Codex task on 2026-10-03 authorizes Hosting Apple parity. No separate fingerprint approval is claimed.
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

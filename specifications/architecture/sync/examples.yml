@@ -35,13 +35,19 @@ startup_readiness:
 
 startup_payloads:
   - id: default-phase-all-boundary
+    given: An authenticated account has hundreds of saved parent chats and related sub-chats.
+    when: The client requests normal startup synchronization.
+    then: Recent message windows arrive for at most 20 parent chats, recent list metadata remains bounded to 100, and older transcript content is fetched on demand.
     request: {type: phased_sync_request, phase: all}
     expect:
       phases: [phase1a_shell_metadata, phase1b_recent_parent_content, phase2_recent_metadata, app_settings_memories]
-      maximum_phase1b_parent_chats: 10
+      maximum_phase1b_parent_chats: 20
       maximum_phase2_metadata_chats: 100
       forbidden_events: [phase_3_last_100_chats_ready, background_message_sync]
   - id: phase2-metadata-only
+    given: A recent parent chat has 40 sub-chats.
+    when: Startup supplies their navigation metadata and the user later opens one sub-chat.
+    then: Startup does not download the sub-chat messages; opening that sub-chat fetches its recent message window on demand.
     payload:
       phase: phase2
       chat_count: 100
@@ -118,14 +124,22 @@ draft_metadata:
       team_chat_metadata_synced: true
       draft_only_user_chat_discovered: false
 
+shared_client_sync:
+  - id: same-reconnect-policy-existing-stores
+    given: A browser using IndexedDB, an Apple app using SwiftData and the native CLI each reconnect with cached encrypted chats.
+    when: The same authenticated startup response contains only the recent metadata window.
+    then: Shared Rust applies bounded startup and recovery without pruning older chats from that partial window; thin adapters preserve each store and notify its UI without reimplementing sync policy.
+  - id: late-old-owner-response-is-not-new-owner-data
+    given: A first-party client switches account or Team while a reconnect or recovery response is pending.
+    when: The previous context's response arrives.
+    then: The shared Rust policy prevents it from entering the new context's cache or UI, preserves current authorization checks and does not advertise human interaction that did not occur.
+
 surface_scope:
   - id: first-party-clients
-    applies_to: [web, apple, cli]
-    access_model: authenticated_session_or_approved_device
-    forbidden_access: [unauthenticated_public_rest_api, developer_api_key_sync_startup]
+    given: The web, Apple and CLI clients enter their authenticated first-party session or approved-device paths.
+    when: Startup sync and reconnect recovery run through the shared Rust core.
+    then: They preserve the same bounded encrypted metadata, draft and deletion-authority outcomes; anonymous callers and developer API-key startup remain excluded.
   - id: sdk-startup-queue-out-of-scope
-    applies_to: [npm, pip]
-    expect:
-      startup_sync_owner: first_party_client_websocket
-      sdk_offline_queue: absent
-      on_demand_encrypted_draft_read_write: allowed_elsewhere
+    given: A developer constructs an npm or Python SDK and explicitly calls a supported encrypted draft operation.
+    when: The direct library call completes.
+    then: Public conformance and authorization still apply, but construction does not start first-party application sync or silently adopt an application offline queue.

@@ -110,7 +110,7 @@
 		<footer>
 			<a href={interactiveUrl}>Open event in OpenMates</a>
 			<span class="separator">·</span>
-			<a href={data.event.url} rel="noopener noreferrer">Register on Luma</a>
+			<a href={data.event.url} rel="noopener noreferrer">Register on ExampleEvents</a>
 		</footer>
 	</article>
 </main>

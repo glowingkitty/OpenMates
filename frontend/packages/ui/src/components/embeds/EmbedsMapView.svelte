@@ -8,21 +8,28 @@
 -->
 
 <script lang="ts">
+  import ResultCalendarWeek from "@repo/public-site/components/results/ResultCalendarWeek.svelte";
+  import type { CalendarWeekEntry } from "@repo/public-site/components/results/calendarWeek";
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onDestroy, onMount, getContext} from 'svelte';
   import Toggle from '../Toggle.svelte';
   import ProviderIcon from '../settings/ProviderIcon.svelte';
   import ResultsRangeFilter from './ResultsRangeFilter.svelte';
   import ResultsDateRangeFilter from './ResultsDateRangeFilter.svelte';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import { text } from '../../i18n/translations';
+  import { homeMapGeometry, homeMapLabel, type HomeMapGeometry } from './home/homeListingData';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import { EMBED_METADATA, normalizeEmbedType } from '../../data/embedRegistry.generated';
   import { userProfile } from '../../stores/userProfile';
   import type { Component } from 'svelte';
+  import { extractResultRoute, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
+  import { deduplicateResultViewEntries } from './resultViewEntries';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
+  import { resolveResultsViewRefToId } from '../../services/resultsViewRefResolver';
   import { embedAvailabilityVersion, embedRefIndexVersion, embedStore } from '../../services/embedStore';
   import { chatSyncService } from '../../services/chatSyncService';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
@@ -55,15 +62,7 @@
   const MAX_VISIBLE_ENTRIES = 40;
   const MAX_TRAVEL_LEGS = 8;
   const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
-  const DEFAULT_ROUTE_COLOR = 'var(--color-app-travel-start)';
-  const ACTIVE_ROUTE_COLOR = 'var(--color-app-travel-end)';
-  const INACTIVE_ROUTE_COLOR = 'var(--color-grey-50)';
-  const ROUTE_DASH_ARRAY = '10 10';
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
-  const CALENDAR_WEEK_DAYS = 7;
-  const CALENDAR_VISIBLE_HOURS = 8;
-  const CALENDAR_MINUTES_PER_HOUR = 60;
-  const CALENDAR_DEFAULT_EVENT_MINUTES = 45;
 
   interface Props {
     id: string;
@@ -72,6 +71,9 @@
     sourceRefs?: string[];
     highlightRefs?: string[];
     interactionMode?: 'open' | 'select';
+    /** Parent fullscreen owns the scroll; render previews as a vertical grid. */
+    fullscreen?: boolean;
+    initialVisualTab?: 'map' | 'calendar';
   }
 
   interface MapViewEntry {
@@ -86,6 +88,7 @@
     lat?: number;
     lon?: number;
     route?: MapPathPoint[];
+    homeGeometry?: HomeMapGeometry;
     embedData?: EmbedData;
     decodedContent?: Record<string, unknown> | null;
     preview?: EntryPreview | null;
@@ -152,22 +155,6 @@
     label: string;
   }
 
-  interface CalendarEntry {
-    entry: MapViewEntry;
-    dateOrdinal: number;
-    startMinutes: number;
-    endMinutes?: number;
-    dateOnly: boolean;
-    column?: number;
-    columnCount?: number;
-  }
-
-  interface CalendarWeekDay {
-    dateOrdinal: number;
-    entries: CalendarEntry[];
-    isToday: boolean;
-  }
-
   let {
     id,
     title,
@@ -175,6 +162,8 @@
     sourceRefs = [],
     highlightRefs = [],
     interactionMode = 'open',
+    fullscreen = false,
+    initialVisualTab = 'map',
   }: Props = $props();
 
   let entries = $state<MapViewEntry[]>([]);
@@ -182,6 +171,7 @@
   let hoveredRef = $state<string | null>(null);
   let activeCategory = $state<string>('all');
   let activeVisualTab = $state<VisualTabId>('map');
+  let initialVisualTabApplied = $state(false);
   let rangeFilters = $state<Record<string, { min: number; max: number }>>({});
   let optionFilters = $state<Record<string, string[]>>({});
   let filtersOpen = $state(false);
@@ -190,7 +180,6 @@
   let mapViewportEntryRefs = $state<string[] | null>(null);
   let mapSelectionRefs = $state<string[]>([]);
   let mapSelectionKey = $state<string | null>(null);
-  let calendarWeekStartOrdinal = $state<number | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
   let unsubscribeEmbedAvailability: (() => void) | null = null;
   let mapHydrationObserver: IntersectionObserver | null = null;
@@ -261,46 +250,18 @@
   const activeGeometryRefs = $derived(mapSelectionRefs.length > 0
     ? new Set(mapSelectionRefs)
     : new Set([hoveredRef ?? selectedRef].filter((ref): ref is string => ref != null)));
-  const mapMarkers = $derived<MapMarker[]>(buildMapMarkers(visibleEntries, activeGeometryRefs, mapSelectionKey));
+  const mapMarkers = $derived<MapMarker[]>(buildResultMapMarkers(visibleEntries.map(entry => ({
+    ref: entry.ref, title: entry.title, color: mapEntryColor(entry), lat: entry.lat, lon: entry.lon,
+    route: entry.route, homeGeometry: entry.homeGeometry,
+    homeLabel: entry.homeGeometry ? `${entry.title} · ${homeMapLabel(entry.homeGeometry, $text)}` : undefined,
+  })), activeGeometryRefs, mapSelectionKey));
   const endpointMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-endpoint')).length);
   const stopMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-stop')).length);
-  const routePaths = $derived<MapRoutePath[]>(visibleEntries
-    .filter((entry) => entry.route && entry.route.length > 1)
-    .map((entry) => ({
-      points: entry.route!,
-      color: activeGeometryRefs.size === 0
-        ? DEFAULT_ROUTE_COLOR
-        : activeGeometryRefs.has(entry.ref) ? ACTIVE_ROUTE_COLOR : INACTIVE_ROUTE_COLOR,
-      weight: 5,
-      opacity: activeGeometryRefs.size > 0 && !activeGeometryRefs.has(entry.ref) ? 0.5 : 0.8,
-      dashArray: ROUTE_DASH_ARRAY,
-      ref: entry.ref,
-      testId: 'embeds-map-view-route-path',
-    })));
-  const calendarEntries = $derived<CalendarEntry[]>(visibleEntries
+  const routePaths = $derived<MapRoutePath[]>(buildResultRoutePaths(visibleEntries, activeGeometryRefs, 'embeds-map-view-route-path'));
+  const calendarEntries = $derived<CalendarWeekEntry[]>(visibleEntries
     .map(calendarEntryFromMapEntry)
-    .filter((entry): entry is CalendarEntry => entry != null)
-    .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.entry.title.localeCompare(b.entry.title)));
-  const calendarAvailableWeekStarts = $derived(calendarWeeksWithEntries(calendarEntries));
-  const activeCalendarWeekStart = $derived(
-    calendarWeekStartOrdinal != null && calendarAvailableWeekStarts.includes(calendarWeekStartOrdinal)
-      ? calendarWeekStartOrdinal
-      : calendarAvailableWeekStarts[0] ?? null,
-  );
-  const activeCalendarWeekIndex = $derived(activeCalendarWeekStart == null ? -1 : calendarAvailableWeekStarts.indexOf(activeCalendarWeekStart));
-  const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
-  const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
-  const calendarWeekHasTimedEntries = $derived(calendarWeekDays.some((day) => day.entries.some((entry) => !entry.dateOnly)));
-  const calendarTimedEntries = $derived(calendarWeekDays.flatMap((day) => day.entries.filter((entry) => !entry.dateOnly)));
-  const calendarTimelineStartMinutes = $derived(calendarTimedEntries.length > 0
-    ? Math.floor(Math.min(...calendarTimedEntries.map((entry) => entry.startMinutes)) / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR
-    : 0);
-  const calendarTimelineHours = $derived(calendarTimedEntries.length > 0
-    ? Math.min(24 - calendarTimelineStartMinutes / CALENDAR_MINUTES_PER_HOUR, Math.max(CALENDAR_VISIBLE_HOURS,
-      Math.ceil((Math.max(...calendarTimedEntries.map(calendarEndMinutes)) - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR)))
-    : CALENDAR_VISIBLE_HOURS);
-  const calendarRowTemplate = $derived(['42px', ...(dateOnlyRowCount > 0 ? [`${dateOnlyRowCount * 4}rem`] : []), ...(calendarWeekHasTimedEntries ? ['calc(var(--calendar-hour-height) * var(--calendar-timeline-hours))'] : [])].join(' '));
-  const calendarHourLabels = $derived(Array.from({ length: calendarTimelineHours + 1 }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
+    .filter((entry): entry is CalendarWeekEntry => entry != null)
+    .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.title.localeCompare(b.title)));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapMarkers.map((marker) => ({ lat: marker.lat, lon: marker.lon })),
@@ -338,10 +299,6 @@
     return output;
   }
 
-  function markerCoordinateKey(point: MapPathPoint): string {
-    return `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
-  }
-
   function mapEntryColor(entry: MapViewEntry): string {
     const appId = firstString(
       entry.preview?.props.appId,
@@ -352,72 +309,6 @@
     );
     const safeAppId = /^[a-z][a-z0-9-]*$/.test(appId) ? appId : 'maps';
     return `var(--color-app-${safeAppId}-start, var(--color-app-maps-start))`;
-  }
-
-  function buildMapMarkers(sourceEntries: MapViewEntry[], activeRefs: Set<string>, selectedMarkerKey: string | null): MapMarker[] {
-    const markers = new Map<string, {
-      point: MapPathPoint;
-      role: 'endpoint-start' | 'endpoint-end' | 'stop' | 'location';
-      ref: string;
-      refs: Set<string>;
-      label: string;
-      color: string;
-    }>();
-
-    const addMarker = (
-      entry: MapViewEntry,
-      point: MapPathPoint,
-      role: 'endpoint-start' | 'endpoint-end' | 'stop' | 'location',
-      label: string,
-    ) => {
-      const key = markerCoordinateKey(point);
-      const existing = markers.get(key);
-      if (!existing) {
-        markers.set(key, { point, role, ref: entry.ref, refs: new Set([entry.ref]), label, color: mapEntryColor(entry) });
-        return;
-      }
-      existing.refs.add(entry.ref);
-      if (role.startsWith('endpoint-') && existing.role === 'stop') {
-        existing.role = role;
-        existing.ref = entry.ref;
-        existing.label = label;
-      }
-    };
-
-    for (const entry of sourceEntries) {
-      if (entry.route && entry.route.length > 1) {
-        entry.route.forEach((point, index) => {
-          const isEndpoint = index === 0 || index === entry.route!.length - 1;
-          addMarker(
-            entry,
-            point,
-            isEndpoint ? (index === 0 ? 'endpoint-start' : 'endpoint-end') : 'stop',
-            point.label || `${entry.title} ${isEndpoint ? (index === 0 ? 'start' : 'end') : 'stop'}`,
-          );
-        });
-      } else if (entry.lat != null && entry.lon != null) {
-        addMarker(entry, { lat: entry.lat, lon: entry.lon }, 'location', entry.title);
-      }
-    }
-
-    return Array.from(markers.values()).map((marker) => {
-      const key = markerCoordinateKey(marker.point);
-      const relatedRefs = Array.from(marker.refs);
-      const isActive = relatedRefs.some((ref) => activeRefs.has(ref));
-      return {
-        lat: marker.point.lat,
-        lon: marker.point.lon,
-        label: marker.label,
-        color: marker.color,
-        ref: isActive ? relatedRefs.find((ref) => activeRefs.has(ref)) ?? marker.ref : marker.ref,
-        relatedRefs,
-        selectionKey: key,
-        selected: selectedMarkerKey === key,
-        testId: marker.role === 'stop' ? 'embeds-map-view-stop-marker' : 'embeds-map-view-endpoint-marker',
-        iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}${selectedMarkerKey === key ? ' embeds-map-view-marker-selected' : ''}`,
-        opacity: activeRefs.size > 0 && !isActive ? 0.5 : 1,
-      };
-    });
   }
 
   function firstString(...values: unknown[]): string {
@@ -852,7 +743,7 @@
     return tabs;
   }
 
-  function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarEntry | null {
+  function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarWeekEntry | null {
     if (entry.status !== 'ready') return null;
     const dateOrdinal = numberFacet(entry, 'dateOrdinal');
     const departureMinutes = numberFacet(entry, 'departureMinutes');
@@ -866,51 +757,20 @@
     const endMinutes = rawEndMinutes != null && (rawEndMinutes !== startMinutes || endDayOffset > 0)
       ? rawEndMinutes + (endDayOffset || (rawEndMinutes < startMinutes ? 1440 : 0))
       : durationMinutes != null && durationMinutes > 0 ? startMinutes + durationMinutes : undefined;
-    return { entry, dateOrdinal, startMinutes, endMinutes, dateOnly: departureMinutes == null };
+    return {
+      ref: entry.ref, title: entry.title, category: entry.category, highlighted: entry.highlighted,
+      location: calendarLocation(entry), dateOrdinal, startMinutes, endMinutes,
+      dateOnly: departureMinutes == null,
+      endDateOrdinal: departureMinutes == null && typeof entry.decodedContent?.date_end === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end) ? endDateOrdinal ?? undefined : undefined,
+    };
   }
 
-  function weekStartOrdinal(dateOrdinal: number): number {
-    const day = new Date(dateOrdinal * 86400000).getUTCDay();
-    return dateOrdinal - ((day + 6) % CALENDAR_WEEK_DAYS);
-  }
 
   // Include every week occupied by an event, including its overnight continuation.
   // Event end times are exclusive, so an event ending at Monday 00:00 stays in Sunday.
-  function calendarWeeksWithEntries(items: CalendarEntry[]): number[] {
-    const weeks = new Set<number>();
-    for (const item of items) {
-      const lastDay = item.dateOnly ? item.dateOrdinal
-        : item.dateOrdinal + Math.ceil(calendarEndMinutes(item) / 1440) - 1;
-      const finalWeek = weekStartOrdinal(lastDay);
-      for (let week = weekStartOrdinal(item.dateOrdinal); week <= finalWeek; week += CALENDAR_WEEK_DAYS) {
-        weeks.add(week);
-      }
-    }
-    return [...weeks].sort((a, b) => a - b);
-  }
 
-  function todayOrdinal(): number {
-    const now = new Date();
-    return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
-  }
 
-  function buildCalendarWeekDays(weekStart: number, items: CalendarEntry[]): CalendarWeekDay[] {
-    const today = todayOrdinal();
-    return Array.from({ length: CALENDAR_WEEK_DAYS }, (_, index) => {
-      const dateOrdinal = weekStart + index;
-      return {
-        dateOrdinal,
-        entries: layoutCalendarDay(items.flatMap((item) => {
-          if (item.dateOnly) return item.dateOrdinal === dateOrdinal ? [item] : [];
-          const offset = (dateOrdinal - item.dateOrdinal) * 1440;
-          const start = Math.max(0, item.startMinutes - offset);
-          const end = Math.min(1440, calendarEndMinutes(item) - offset);
-          return end > start && start < 1440 ? [{ ...item, dateOrdinal, startMinutes: start, endMinutes: end }] : [];
-        })),
-        isToday: dateOrdinal === today,
-      };
-    });
-  }
 
   function formatOptionLabel(value: string): string {
     return value
@@ -932,49 +792,11 @@
     return `${Math.round(value)}${control.unit ? ` ${control.unit}` : ''}`;
   }
 
-  function formatCalendarTime(item: CalendarEntry): string {
-    if (item.dateOnly) return dateFromOrdinal(item.dateOrdinal);
-    if (item.endMinutes == null) return formatTimeMinutes(item.startMinutes);
-    return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
-  }
 
-  function formatCalendarHour(value: number): string {
-    return `${Math.floor(value / CALENDAR_MINUTES_PER_HOUR).toString().padStart(2, '0')}:00`;
-  }
 
-  function calendarEndMinutes(item: CalendarEntry): number {
-    return item.endMinutes != null && item.endMinutes > item.startMinutes
-      ? item.endMinutes : item.startMinutes + CALENDAR_DEFAULT_EVENT_MINUTES;
-  }
 
   // Overlaps share the day's width; they never move away from their real time.
-  function layoutCalendarDay(items: CalendarEntry[]): CalendarEntry[] {
-    const timed = items.filter((item) => !item.dateOnly).sort((a, b) => a.startMinutes - b.startMinutes);
-    let group: CalendarEntry[] = [];
-    let laneEnds: number[] = [];
-    let groupEnd = -1;
-    const finishGroup = () => { for (const item of group) item.columnCount = laneEnds.length; };
-    for (const item of timed) {
-      if (item.startMinutes >= groupEnd) {
-        finishGroup();
-        group = [];
-        laneEnds = [];
-      }
-      const freeLane = laneEnds.findIndex((end) => end <= item.startMinutes);
-      item.column = freeLane < 0 ? laneEnds.length : freeLane;
-      laneEnds[item.column] = calendarEndMinutes(item);
-      group.push(item);
-      groupEnd = Math.max(...laneEnds);
-    }
-    finishGroup();
-    return [...items.filter((item) => item.dateOnly), ...timed];
-  }
 
-  function calendarItemStyle(item: CalendarEntry): string {
-    const topHours = (item.startMinutes - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR;
-    const heightHours = (calendarEndMinutes(item) - item.startMinutes) / CALENDAR_MINUTES_PER_HOUR;
-    return `--calendar-item-top-hours: ${topHours}; --calendar-item-height-hours: ${heightHours}; --calendar-item-column: ${item.column ?? 0}; --calendar-item-columns: ${item.columnCount ?? 1};`;
-  }
 
   function calendarLocation(entry: MapViewEntry): string {
     const content = entry.decodedContent;
@@ -984,39 +806,10 @@
       content?.formattedAddress, content?.formatted_address, content?.address, venue?.address, location?.address);
   }
 
-  function formatCalendarDayLabel(value: number): string {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'UTC',
-      weekday: 'short',
-    }).format(new Date(value * 86400000));
-  }
 
-  function formatCalendarDayNumber(value: number): string {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'UTC',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date(value * 86400000));
-  }
 
-  function calendarIsoWeekInfo(value: number): { week: number; year: number } {
-    const date = new Date(value * 86400000);
-    const day = date.getUTCDay() || CALENDAR_WEEK_DAYS;
-    date.setUTCDate(date.getUTCDate() + 4 - day);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / CALENDAR_WEEK_DAYS);
-    return { week, year: date.getUTCFullYear() };
-  }
 
-  function formatCalendarWeekTitle(weekStart: number): string {
-    const { week, year } = calendarIsoWeekInfo(weekStart);
-    return `Week ${week} ${year}`;
-  }
 
-  function formatCalendarWeekLabel(weekStart: number): string {
-    const weekEnd = weekStart + CALENDAR_WEEK_DAYS - 1;
-    return `${formatCalendarDayNumber(weekStart)} - ${formatCalendarDayNumber(weekEnd)}`;
-  }
 
   function formatProviderLabel(value: string): string {
     return value
@@ -1094,157 +887,6 @@
     return point ?? {};
   }
 
-  function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined, label = ''): void {
-    if (lat == null || lon == null) return;
-    const lastPoint = points.at(-1);
-    if (lastPoint && lastPoint.lat === lat && lastPoint.lon === lon) {
-      if (!lastPoint.label && label) lastPoint.label = label;
-      return;
-    }
-    points.push({ lat, lon, ...(label ? { label } : {}) });
-  }
-
-  function travelLocationLabels(content: Record<string, unknown> | null): Map<string, string> {
-    const labels = new Map<string, string>();
-    const addLabel = (codeValue: unknown, nameValue: unknown) => {
-      const code = firstString(codeValue);
-      const name = firstString(nameValue);
-      if (!code || !name) return;
-      labels.set(code, name.includes(code) ? name : `${name} (${code})`);
-    };
-    for (const leg of extractArrayRecords(content?.legs)) {
-      for (const layover of extractArrayRecords(leg.layovers)) {
-        addLabel(layover.airport_code ?? layover.station_code ?? layover.code, layover.airport ?? layover.station ?? layover.name);
-      }
-    }
-    if (!content) return labels;
-    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
-      for (let layoverIndex = 0; layoverIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; layoverIndex += 1) {
-        const prefix = `legs_${legIndex}_layovers_${layoverIndex}`;
-        const code = content[`${prefix}_airport_code`] ?? content[`${prefix}_station_code`] ?? content[`${prefix}_code`];
-        const name = content[`${prefix}_airport`] ?? content[`${prefix}_station`] ?? content[`${prefix}_name`];
-        if (code == null && name == null) {
-          if (layoverIndex === 0) break;
-          continue;
-        }
-        addLabel(code, name);
-      }
-    }
-    return labels;
-  }
-
-  function extractRouteFromSegmentRecords(segments: unknown[], locationLabels: Map<string, string>): MapPathPoint[] {
-    const points: MapPathPoint[] = [];
-    for (const segment of segments) {
-      if (!segment || typeof segment !== 'object' || Array.isArray(segment)) continue;
-      const record = segment as Record<string, unknown>;
-      addRoutePoint(
-        points,
-        firstNumber(record.departure_latitude, record.departure_lat),
-        firstNumber(record.departure_longitude, record.departure_lng, record.departure_lon),
-        locationLabels.get(firstString(record.departure_station)) ?? firstString(record.departure_station),
-      );
-      addRoutePoint(
-        points,
-        firstNumber(record.arrival_latitude, record.arrival_lat),
-        firstNumber(record.arrival_longitude, record.arrival_lng, record.arrival_lon),
-        locationLabels.get(firstString(record.arrival_station)) ?? firstString(record.arrival_station),
-      );
-    }
-    return points;
-  }
-
-  function extractRouteFromStructuredTravelLegs(content: Record<string, unknown> | null): MapPathPoint[] {
-    if (!Array.isArray(content?.legs)) return [];
-    const segments = content.legs.flatMap((leg) => {
-      if (!leg || typeof leg !== 'object' || Array.isArray(leg)) return [];
-      const legRecord = leg as Record<string, unknown>;
-      return Array.isArray(legRecord.segments) ? legRecord.segments : [];
-    });
-    return extractRouteFromSegmentRecords(segments, travelLocationLabels(content));
-  }
-
-  function extractRouteFromFlatTravelSegments(content: Record<string, unknown> | null): MapPathPoint[] {
-    if (!content) return [];
-    const segments: Record<string, unknown>[] = [];
-
-    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
-      for (let segmentIndex = 0; segmentIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; segmentIndex += 1) {
-        const prefix = `legs_${legIndex}_segments_${segmentIndex}`;
-        const record = {
-          departure_station: content[`${prefix}_departure_station`],
-          departure_latitude: content[`${prefix}_departure_latitude`],
-          departure_longitude: content[`${prefix}_departure_longitude`],
-          arrival_station: content[`${prefix}_arrival_station`],
-          arrival_latitude: content[`${prefix}_arrival_latitude`],
-          arrival_longitude: content[`${prefix}_arrival_longitude`],
-        };
-        const hasSegmentData = Object.values(record).some((value) => value != null);
-        if (!hasSegmentData) {
-          if (segmentIndex === 0) break;
-          continue;
-        }
-        segments.push(record);
-      }
-    }
-
-    return extractRouteFromSegmentRecords(segments, travelLocationLabels(content));
-  }
-
-  function extractRouteFromFlightTrack(content: Record<string, unknown> | null): MapPathPoint[] {
-    const flightTrack = getNestedRecord(content, 'flight_track');
-    const tracks = flightTrack?.tracks;
-    if (!Array.isArray(tracks)) return [];
-    return tracks
-      .map((point) => {
-        if (!point || typeof point !== 'object' || Array.isArray(point)) return null;
-        const record = point as Record<string, unknown>;
-        const lat = firstNumber(record.lat, record.latitude);
-        const lon = firstNumber(record.lon, record.lng, record.longitude);
-        return lat != null && lon != null ? { lat, lon } : null;
-      })
-      .filter((point): point is MapPathPoint => point != null);
-  }
-
-  function extractRoute(content: Record<string, unknown> | null): MapPathPoint[] {
-    const routeValue = content?.route_points || content?.route || content?.path || content?.polyline_points;
-    if (Array.isArray(routeValue)) {
-      return routeValue
-        .map((point) => {
-          if (!point || typeof point !== 'object') return null;
-          const record = point as Record<string, unknown>;
-          const lat = firstNumber(record.lat, record.latitude);
-          const lon = firstNumber(record.lon, record.lng, record.longitude);
-          const label = firstString(record.label, record.name, record.station, record.city);
-          return lat != null && lon != null ? { lat, lon, ...(label ? { label } : {}) } : null;
-        })
-        .filter((point): point is MapPathPoint => point != null);
-    }
-
-    const structuredTravelRoute = extractRouteFromStructuredTravelLegs(content);
-    if (structuredTravelRoute.length > 1) return structuredTravelRoute;
-
-    const flatTravelRoute = extractRouteFromFlatTravelSegments(content);
-    if (flatTravelRoute.length > 1) return flatTravelRoute;
-
-    const flightTrackRoute = extractRouteFromFlightTrack(content);
-    if (flightTrackRoute.length > 1) return flightTrackRoute;
-
-    const origin = getNestedRecord(content, 'origin');
-    const destination = getNestedRecord(content, 'destination');
-    const originLat = firstNumber(content?.origin_lat, content?.origin_latitude, origin?.lat, origin?.latitude);
-    const originLon = firstNumber(content?.origin_lon, content?.origin_lng, content?.origin_longitude, origin?.lon, origin?.lng, origin?.longitude);
-    const destinationLat = firstNumber(content?.destination_lat, content?.destination_latitude, destination?.lat, destination?.latitude);
-    const destinationLon = firstNumber(content?.destination_lon, content?.destination_lng, content?.destination_longitude, destination?.lon, destination?.lng, destination?.longitude);
-    if (originLat != null && originLon != null && destinationLat != null && destinationLon != null) {
-      return [
-        { lat: originLat, lon: originLon, ...(firstString(content?.origin_name, content?.origin) ? { label: firstString(content?.origin_name, content?.origin) } : {}) },
-        { lat: destinationLat, lon: destinationLon, ...(firstString(content?.destination_name, content?.destination) ? { label: firstString(content?.destination_name, content?.destination) } : {}) },
-      ];
-    }
-    return [];
-  }
-
   function getTitle(ref: string, embedType: string | null, content: Record<string, unknown> | null): string {
     const venue = getNestedRecord(content, 'venue');
     const origin = firstString(content?.origin, content?.origin_name, content?.from);
@@ -1276,9 +918,7 @@
   }
 
   async function resolveRefToId(ref: string): Promise<string | null> {
-    const normalizedRef = normalizeMapViewRef(ref);
-    const indexed = await embedStore.resolveByRefDeep(normalizedRef);
-    return indexed || normalizedRef;
+    return resolveResultsViewRefToId(normalizeMapViewRef(ref), embedStore);
   }
 
   async function resolveEntryPreview(entry: MapViewEntry): Promise<EntryPreview | null> {
@@ -1293,9 +933,6 @@
       decodedContent: entry.decodedContent,
       onFullscreen: () => openEntry(entry),
     });
-    if (preview && ['connection', 'travel-connection', 'travel-route'].includes(entry.embedType ?? '')) {
-      preview.props.customHeight = 200;
-    }
     return preview;
   }
 
@@ -1321,9 +958,11 @@
 
     const decodedContent = await decodeToonContent(embedData.content);
     const category = getCategory(embedData.type, decodedContent);
-    const point = extractPoint(decodedContent);
-    const route = extractRoute(decodedContent);
-    const entry = {
+    const isHome = normalizeEmbedType(embedData.type) === 'home-listing' || decodedContent?.app_id === 'home';
+    const homeGeometry = isHome && decodedContent ? homeMapGeometry(decodedContent) : undefined;
+    const point: Partial<CoordinatePair> = isHome ? homeGeometry ?? {} : extractPoint(decodedContent);
+    const route = isHome ? [] : extractResultRoute(decodedContent);
+    const entry: MapViewEntry = {
       ref,
       embedId,
       embedType: embedData.type,
@@ -1335,6 +974,7 @@
       lat: point.lat,
       lon: point.lon,
       route,
+      homeGeometry,
       embedData,
       decodedContent,
       preview: null,
@@ -1384,9 +1024,16 @@
       return;
     }
 
-    const resolvedEntries = await Promise.all(refs.slice(0, MAX_VISIBLE_ENTRIES).map(resolveEntry));
-    if (generation !== loadGeneration) return;
-    entries = resolvedEntries;
+    let resolvedEntries: MapViewEntry[] = [];
+    // Cap unique results, not raw refs: aliases and overlapping searches must
+    // neither repeat cards nor consume slots belonging to later unique events.
+    for (let offset = 0; offset < refs.length; offset += MAX_VISIBLE_ENTRIES) {
+      const batch = await Promise.all(refs.slice(offset, offset + MAX_VISIBLE_ENTRIES).map(resolveEntry));
+      if (generation !== loadGeneration) return;
+      resolvedEntries = deduplicateResultViewEntries([...resolvedEntries, ...batch]);
+      if (resolvedEntries.length >= MAX_VISIBLE_ENTRIES) break;
+    }
+    entries = resolvedEntries.slice(0, MAX_VISIBLE_ENTRIES);
     hoveredRef = null;
     isLoading = false;
   }
@@ -1436,6 +1083,19 @@
   }
 
   function entryIntersectsBounds(entry: MapViewEntry, bounds: MapViewportBounds): boolean {
+    if (entry.homeGeometry?.radiusM) {
+      const {lat, lon, radiusM} = entry.homeGeometry;
+      const closestLat = Math.max(bounds.south, Math.min(bounds.north, lat));
+      // Normalize longitudes around the area center, including dateline viewports.
+      const delta = (value: number) => ((value - lon + 540) % 360) - 180;
+      const west = delta(bounds.west), east = delta(bounds.east);
+      const insideLon = bounds.west <= bounds.east ? lon >= bounds.west && lon <= bounds.east : lon >= bounds.west || lon <= bounds.east;
+      const lonDelta = insideLon ? 0 : Math.min(Math.abs(west), Math.abs(east));
+      const radians = Math.PI / 180;
+      const a = Math.sin((closestLat - lat) * radians / 2) ** 2
+        + Math.cos(lat * radians) * Math.cos(closestLat * radians) * Math.sin(lonDelta * radians / 2) ** 2;
+      return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a))) <= radiusM;
+    }
     if (entry.lat != null && entry.lon != null && pointIsInBounds({ lat: entry.lat, lon: entry.lon }, bounds)) return true;
     return entry.route?.some((point) => pointIsInBounds(point, bounds)) ?? false;
   }
@@ -1448,11 +1108,6 @@
     mapViewportEntryRefs = refsInBounds.length > 0 && refsInBounds.length < visibleEntries.length ? refsInBounds : null;
   }
 
-  function moveCalendarWeek(delta: -1 | 1): void {
-    if (activeCalendarWeekIndex < 0) return;
-    const nextWeek = calendarAvailableWeekStarts[activeCalendarWeekIndex + delta];
-    if (nextWeek != null) calendarWeekStartOrdinal = nextWeek;
-  }
 
   // Svelte's dynamic component type needs a permissive cast because registry
   // entries point at heterogeneous preview components with different props.
@@ -1552,17 +1207,15 @@
   });
 
   $effect(() => {
+    if (!initialVisualTabApplied && !isLoading && eligibleEntries.length > 0) {
+      if (visualTabs.some(tab => tab.id === initialVisualTab)) activeVisualTab = initialVisualTab;
+      initialVisualTabApplied = true;
+    }
     if (visualTabs.length > 0 && !visualTabs.some((tab) => tab.id === activeVisualTab)) {
       activeVisualTab = visualTabs[0].id;
     }
   });
 
-  $effect(() => {
-    // Persist the filtered fallback so clearing filters cannot revive an invalid week.
-    if (calendarWeekStartOrdinal !== activeCalendarWeekStart) {
-      calendarWeekStartOrdinal = activeCalendarWeekStart;
-    }
-  });
 
   $effect(() => {
     if (mapSelectionRefs.length > 0) {
@@ -1579,7 +1232,7 @@
 
 <span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
 {#if eligibleEntries.length > 0}
-<section class="embeds-results-view embeds-map-view" class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
+<section class="embeds-results-view embeds-map-view" class:fullscreen class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
     {#if showVisualTabs}
@@ -1593,7 +1246,7 @@
             aria-label={tab.label}
             aria-selected={selectedVisualTab === tab.id}
             aria-controls={`embeds-results-view-panel-${tab.id}`}
-            onclick={() => (activeVisualTab = tab.id)}
+            onclick={() => { initialVisualTabApplied = true; activeVisualTab = tab.id; }}
           >
             <span class={`results-view-tab-icon results-view-tab-icon-${tab.id}`} data-testid={`embeds-results-view-tab-${tab.id}-icon`} aria-hidden="true"></span>
             <span class="visually-hidden">{tab.label}</span>
@@ -1709,7 +1362,7 @@
 
   {#if visualTabs.length === 0}
     <div class="map-view-list" data-testid="embeds-map-view-list">
-      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#each carouselEntries as entry}
           <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
             {#if entry.preview}
@@ -1724,7 +1377,7 @@
   <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'} aria-hidden={filtersOpen}>
     {#if selectedVisualTab === 'map'}
       <div class="map-view-list" data-testid="embeds-map-view-list">
-      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#if isLoading && carouselEntries.length === 0}
           <div class="empty-state">Loading referenced embeds...</div>
         {:else if carouselEntries.length === 0}
@@ -1786,81 +1439,10 @@
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
       {#if selectedVisualTab === 'calendar'}
-        <div class="results-view-calendar" class:date-only={!calendarWeekHasTimedEntries} data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
-          {#if activeCalendarWeekStart != null}
-            <header class="calendar-week-toolbar">
-              <button type="button" aria-label="Previous week" disabled={activeCalendarWeekIndex <= 0} onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
-              <strong data-testid="embeds-results-view-calendar-week-label">
-                {formatCalendarWeekTitle(activeCalendarWeekStart)}
-                <span class="visually-hidden"> {formatCalendarWeekLabel(activeCalendarWeekStart)}</span>
-              </strong>
-              <button type="button" aria-label="Next week" disabled={activeCalendarWeekIndex >= calendarAvailableWeekStarts.length - 1} onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
-            </header>
-            <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}; --calendar-timeline-hours: ${calendarTimelineHours}`} data-testid="embeds-results-view-calendar-week">
-              {#if calendarWeekHasTimedEntries}
-              <div class="calendar-time-column" aria-hidden="true">
-                <span class="calendar-time-column-spacer"></span>
-                {#if dateOnlyRowCount > 0}<div style={`height: ${dateOnlyRowCount * 4}rem`}></div>{/if}
-                <div class="calendar-time-slots">
-                  {#each calendarHourLabels as hour}
-                    <span>{formatCalendarHour(hour)}</span>
-                  {/each}
-                </div>
-              </div>
-              {/if}
-              {#each calendarWeekDays as day}
-                <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
-                  <header class="calendar-day-header" title={formatCalendarDayNumber(day.dateOrdinal)}>
-                    {formatCalendarDayLabel(day.dateOrdinal)} {new Date(day.dateOrdinal * 86400000).getUTCDate()}
-                  </header>
-                  {#if dateOnlyRowCount > 0}
-                    <div class="calendar-date-only" style={`min-height: ${dateOnlyRowCount * 4}rem`}>
-                      {#each day.entries.filter((item) => item.dateOnly) as item}
-                        <button type="button" data-testid="embeds-results-view-calendar-date-only" onclick={() => openEntry(item.entry)}>
-                          <strong>{item.entry.title}</strong><span>{dateFromOrdinal(item.dateOrdinal)}</span>
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                  {#if calendarWeekHasTimedEntries}
-                  <div class="calendar-items">
-                    {#each day.entries.filter((item) => !item.dateOnly) as item}
-                      <button
-                        type="button"
-                        class="calendar-item"
-                        class:highlighted={item.entry.highlighted}
-                        class:selected={selectedRef === item.entry.ref}
-                        class:hovered={item.entry.ref === hoveredRef}
-                        data-testid="embeds-results-view-calendar-item"
-                        data-start-minutes={item.startMinutes}
-                        data-end-minutes={calendarEndMinutes(item)}
-                        data-entry-category={item.entry.category}
-                        data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
-                        style={calendarItemStyle(item)}
-                        aria-label={`${item.entry.title}, ${formatCalendarTime(item)}${calendarLocation(item.entry) ? `, ${calendarLocation(item.entry)}` : ""}`}
-                        title={formatCalendarTime(item)}
-                        onclick={() => openEntry(item.entry)}
-                        onpointerenter={() => (hoveredRef = item.entry.ref)}
-                        onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
-                        onfocus={() => (hoveredRef = item.entry.ref)}
-                        onblur={() => handleEntryPointerLeave(item.entry.ref)}
-                      >
-                        <span class="calendar-copy">
-                          <strong>{item.entry.title}</strong>
-                          {#if calendarLocation(item.entry)}
-                            <span class="calendar-location"><span class="icon" aria-hidden="true"></span>{calendarLocation(item.entry)}</span>
-                          {/if}
-                        </span>
-                      </button>
-                    {/each}
-                  </div>
-                  {/if}
-                </section>
-              {/each}
-            </div>
-          {:else}
-            <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
-          {/if}
+        <div id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
+          <ResultCalendarWeek entries={calendarEntries} {selectedRef} {hoveredRef}
+            onOpen={(ref) => { const entry = visibleEntries.find(item => item.ref === ref); if (entry) void openEntry(entry); }}
+            onHover={(ref) => { if (ref) hoveredRef = ref; else if (hoveredRef) handleEntryPointerLeave(hoveredRef); }} />
         </div>
       {:else}
         <div
@@ -1918,6 +1500,16 @@
 {/if}
 
 <style>
+  .embeds-map-view.fullscreen { max-width: 1100px; margin: 0 auto; padding-top: 0; border: 0; box-shadow: none; }
+  .fullscreen .map-view-body:not(.calendar-active) { display: flex; flex-direction: column; height: auto; overflow: visible; }
+  .fullscreen .results-view-pane { order: -1; }
+  .fullscreen .map-view-list { height: auto; }
+  .fullscreen .map-view-carousel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); height: auto; overflow: clip; gap: 20px; padding: 20px 14px; scroll-snap-type: none; }
+  .fullscreen .map-view-card { width: 100%; min-width: 0; }
+  .fullscreen .show-all-results { position: relative; margin: 12px 16px; }
+  .fullscreen .map-view-toolbar { position: sticky; top: 0; z-index: 20; background: var(--color-grey-20); padding-right: 64px; }
+  .fullscreen .results-view-tabs { transform: translate(-50%, 0); }
+
   :global(.results-view-mount:not(:has([data-result-view-visible="true"]))) { display: none !important; }
   :global(pre.results-view-protocol-host:not(:has([data-result-view-visible="true"]))) { display: none !important; }
   :global(pre.results-view-protocol-host) { background: transparent !important; border: 0 !important; padding: 0 !important; font-size: 0 !important; white-space: normal !important; }
@@ -1927,8 +1519,6 @@
   .results-view-admin-error button { margin-top: 8px; padding: 5px 12px; border: 1px solid var(--color-grey-50); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
   .results-view-admin-error strong, .results-view-admin-error span { display: block; }
 
-  .calendar-date-only button { display: flex; flex-direction: column; width: 100%; min-height: 3.5rem; margin-bottom: .5rem; padding: .4rem; border: 0; border-radius: .5rem; background: var(--color-grey-30); color: var(--color-font-primary); text-align: start; cursor: pointer; }
-  .calendar-date-only span { font-size: .75rem; color: var(--color-font-secondary); }
 
   .embeds-map-view {
     position: relative;
@@ -2339,176 +1929,6 @@
     background: var(--color-grey-20, #f3f3f3);
   }
 
-  .results-view-calendar {
-    display: grid;
-    align-content: start;
-    gap: 8px;
-    height: 535px;
-    min-height: 535px;
-    max-height: 535px;
-    box-sizing: border-box;
-    min-width: 0;
-    overflow: auto;
-    padding: 14px 14px 24px;
-    background: var(--color-grey-20);
-  }
-
-  .results-view-calendar.date-only { height: auto; min-height: 0; }
-
-  .calendar-week-toolbar {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 28px;
-    align-items: center;
-    gap: 20px;
-    justify-self: center;
-    width: min(100%, 260px);
-    min-height: 36px;
-    position: sticky;
-    left: 0;
-    z-index: 1;
-  }
-
-  .calendar-week-toolbar strong {
-    color: var(--color-font-tertiary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  .calendar-week-toolbar button {
-    display: inline-grid;
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    place-items: center;
-    border: 0;
-    border-radius: var(--radius-4);
-    background: transparent;
-    color: var(--color-font-tertiary);
-    padding: 0;
-    font: inherit;
-    font-size: var(--font-size-h3);
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .calendar-week-toolbar button:hover:not(:disabled) { background: var(--color-grey-10); }
-  .calendar-week-toolbar button:disabled { opacity: 0.35; cursor: default; }
-
-  .calendar-week {
-    --calendar-hour-height: 46px;
-    display: grid;
-    grid-template-columns: 44px repeat(7, minmax(0, 1fr));
-    gap: 0;
-    min-width: 620px;
-    border-radius: var(--radius-6);
-  }
-
-  .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-
-  .calendar-time-column,
-  .calendar-day {
-    display: grid;
-    grid-template-rows: var(--calendar-row-template);
-    min-height: 0;
-    min-width: 0;
-  }
-
-  .calendar-time-column {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-xxs);
-    font-weight: 500;
-  }
-
-  .calendar-time-slots {
-    position: relative;
-    display: grid;
-    grid-auto-rows: var(--calendar-hour-height);
-  }
-
-  .calendar-time-slots span {
-    align-self: start;
-    justify-self: end;
-    padding: 0 6px 0 0;
-    transform: translateY(-0.55em);
-  }
-
-  .calendar-day { gap: 0; padding: 0; border-radius: var(--radius-4); }
-  .calendar-day.today { background: var(--color-grey-25); }
-
-  .calendar-day-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 42px;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .calendar-items {
-    position: relative;
-    min-height: calc(var(--calendar-hour-height) * var(--calendar-timeline-hours));
-  }
-
-  .calendar-item {
-    position: absolute;
-    top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height));
-    left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px);
-    width: calc(100% / var(--calendar-item-columns) - 6px);
-    min-width: 0;
-    display: block;
-    box-sizing: border-box;
-    height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height));
-    min-height: 0;
-    overflow: hidden;
-    border: 0;
-    border-left: 3px solid var(--color-error);
-    border-radius: var(--radius-2, 4px);
-    background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20));
-    color: var(--color-font-primary);
-    padding: 4px;
-    text-align: left;
-    font: inherit;
-    box-shadow: none;
-    cursor: pointer;
-  }
-
-  .calendar-item.highlighted,
-  .calendar-item.hovered { border-color: var(--color-primary); }
-  .calendar-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-
-  .calendar-copy { display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden; }
-
-  .calendar-copy strong {
-    display: -webkit-box;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    line-height: 1.25;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-  }
-
-  .calendar-location {
-    display: flex;
-    align-items: center;
-    margin-top: 4px;
-    overflow: hidden;
-    color: var(--color-font-tertiary);
-    font-size: var(--font-size-xxs);
-    line-height: 1.25;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .calendar-location .icon { flex: 0 0 12px; width: 12px; height: 14px; background: var(--color-error); mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; -webkit-mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; }
-
   .empty-state,
   .empty-map,
   .map-hydration-placeholder {
@@ -2568,23 +1988,11 @@
       height: 278px;
     }
 
-    .results-view-pane,
-    .results-view-calendar {
+    .results-view-pane {
       min-height: 535px;
     }
 
-    .results-view-calendar {
-      height: 535px;
-      max-height: 535px;
-    }
 
-    .calendar-week {
-      grid-template-columns: 42px repeat(7, minmax(88px, 1fr));
-      min-width: 658px;
-    }
 
-    .calendar-copy strong {
-      white-space: normal;
-    }
   }
 </style>

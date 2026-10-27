@@ -30,14 +30,14 @@ const detailProofContract = {
 	transcript: [
 		{id: 'project', text: 'The Project opens with its identity card and Overview, Files, and Tasks tabs.', checkpoint: 'project-detail', devices: [PROFILE]},
 		{id: 'workflow', text: 'The workflow graph expands a step in place and opens its editor.', checkpoint: 'workflow-editor', devices: [PROFILE]},
-		{id: 'app', text: 'The app shows its skill catalog, and the selected skill opens a typed input form.', checkpoint: 'app-skill-form', devices: [PROFILE]},
+		{id: 'app', text: 'The app opens its library and natural-language request composer.', checkpoint: 'app-skill-composer', devices: [PROFILE]},
 		{id: 'result', text: 'An encrypted saved Apps result opens from the app history.', checkpoint: 'app-result', devices: [PROFILE]},
 		{id: 'example', text: 'A public example chat opens with its General Knowledge category color and transcript header.', checkpoint: 'example-open', devices: [PROFILE]}
 	],
 	assertions: [
 		{id: 'cli.tui.project-tabs', checkpoint: 'project-detail', visual: 'The seeded Project detail shows its identity and Overview, Files, and Tasks cards.', devices: [PROFILE]},
 		{id: 'cli.tui.workflow-tabs', checkpoint: 'workflow-editor', visual: 'The saved Workflow shows Template and Runs, with a step expanded in place and an edit control.', devices: [PROFILE]},
-		{id: 'cli.tui.app-skill', checkpoint: 'app-skill-form', visual: 'The selected app skill shows its input schema and opens a typed form without execution.', devices: [PROFILE]},
+		{id: 'cli.tui.app-skill', checkpoint: 'app-skill-composer', visual: 'The selected app skill shows pricing and providers with a natural-language composer.', devices: [PROFILE]},
 		{id: 'cli.tui.app-results', checkpoint: 'app-result', visual: 'The app history opens a client-encrypted saved result.', devices: [PROFILE]},
 		{id: 'cli.tui.example-category', checkpoint: 'example-open', visual: 'The example chat header displays General Knowledge with its web category color.', devices: [PROFILE]}
 	],
@@ -184,9 +184,12 @@ function seedEncryptedAppsResult(apiUrl: string, home: string, candidateCli: str
 		"const owner=await client.whoAmI();const ownerId=owner.id||owner.user_id;",
 		"if(!ownerId||client.getActiveTeamId())throw Error('Expected paired Personal account');",
 		"const embedId=randomUUID(),key=randomBytes(32);",
-		"const content={app_id:'web',skill_id:'search',input:{query:'terminal proof'},results:[{title:'Terminal proof saved result'}],status:'finished',result_count:1,embed_ids:[]};",
-		"await client.saveAppsWorkspaceResult({app_id:'web',skill_id:'search',root_embed_id:embedId,expected_user_id:ownerId,linked_embed_ids:[],encrypted_embed_key:await encryptBytesWithAesGcm(key,client.getMasterKeyBytes()),embeds:[{embed_id:embedId,encrypted_type:await encryptWithAesGcmCombined('app_skill_use',key),encrypted_content:await encryptWithAesGcmCombined(JSON.stringify(content),key),status:'finished',embed_ids:[]}]});",
-		"const result=await client.getAppsWorkspaceResult(embedId);if(!result)throw Error('Saved Apps result missing');",
+		// Derive a distinct fixture UUID so the proof can address its child without changing this helper's root-ID return value.
+		"const childId=embedId.slice(0,-1)+(embedId.endsWith('0')?'1':'0');",
+		"const content={app_id:'web',skill_id:'search',input:{requests:[{query:'terminal proof'}]},results:[],status:'finished',result_count:1,embed_ids:[childId]};",
+		"const child={title:'Terminal proof saved result',url:'https://example.test/terminal-proof',description:'Synthetic child website with useful search context.'};",
+		"await client.saveAppsWorkspaceResult({app_id:'web',skill_id:'search',root_embed_id:embedId,expected_user_id:ownerId,linked_embed_ids:[],encrypted_embed_key:await encryptBytesWithAesGcm(key,client.getMasterKeyBytes()),embeds:[{embed_id:embedId,encrypted_type:await encryptWithAesGcmCombined('app_skill_use',key),encrypted_content:await encryptWithAesGcmCombined(JSON.stringify(content),key),status:'finished',embed_ids:[childId]},{embed_id:childId,parent_embed_id:embedId,encrypted_type:await encryptWithAesGcmCombined('web-website',key),encrypted_content:await encryptWithAesGcmCombined(JSON.stringify(child),key),status:'finished',embed_ids:[]}]});",
+		"const result=await client.getAppsWorkspaceResult(embedId);if(!result||result.children?.length!==1||result.children[0]?.embed_id!==childId)throw Error('Saved Apps parent/child graph missing');",
 		"process.stdout.write(embedId);"
 	].join('\n');
 	const cliDir = path.dirname(dist);

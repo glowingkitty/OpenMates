@@ -51,7 +51,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       await expect(row).not.toHaveClass(/revealed/);
       await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '0');
     }
-    await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+    await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/?lang=en`);
     await expect(compose).toBeVisible();
     const geometry = await root.evaluate(element => {
       const rect = (id: string) => element.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().toJSON();
@@ -129,7 +129,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const initialPrompt = await prompt.evaluate((element) => ({ id: (element as HTMLElement).dataset.activeApp, href: element.getAttribute('href'), target: element.getAttribute('target') }));
     const initialApp = initialPrompt.id;
     if (initialApp && landingAppExamples[initialApp]) {
-      expect(initialPrompt.href).toBe(`${APP}/#chat-id=${landingAppExamples[initialApp]}`);
+      expect(initialPrompt.href).toBe(`${APP}/?lang=en#chat-id=${landingAppExamples[initialApp]}`);
       expect(initialPrompt.target).toBe('_blank');
     }
     await expect.poll(() => page.getByTestId('landing-prompt').getAttribute('data-active-app'), { timeout: 7_000 }).not.toBe(initialApp);
@@ -181,9 +181,19 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
         await expect(section.locator('.feature-copy .text-link').first()).toHaveCSS('opacity', '1');
         await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
         await expect(section.locator('.feature-example')).toHaveCSS('transform', 'none');
+        const privacyMedia = section.getByTestId('landing-feature-media-privacy');
+        await expect(privacyMedia.getByTestId('device-screenshots')).toBeVisible();
+        await expect(privacyMedia.locator('a, [href]')).toHaveCount(0);
+        await expect(section.getByTestId('landing-open-example-privacy')).toHaveCount(0);
       }
       expect((await section.boundingBox())!.height).toBeGreaterThanOrEqual(geometry.scroller.height - 1);
       const media = section.getByTestId(`landing-feature-media-${id}`);
+      if (id === 'actionable' || id === 'devices') {
+        await expect(media).toHaveCount(0);
+        await expect(section.locator('.feature-copy p')).toBeVisible();
+        icons.push(await section.getByTestId('landing-feature-icon').evaluate(element => getComputedStyle(element).maskImage));
+        continue;
+      }
       await expect(media).toHaveCSS('transform', 'none');
       const copyRect = await section.locator('.feature-copy').boundingBox();
       const mediaRect = await media.boundingBox();
@@ -234,7 +244,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const after = await compose.boundingBox();
     expect(Math.abs(after!.y + after!.height - geometry.compose.bottom)).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 6 : 12);
+    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 3 : 6);
   });
 }
 
@@ -265,8 +275,8 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await expect(page.getByTestId('public-site-header').locator('.wordmark')).toBeVisible();
   await expect(page.getByTestId('landing-open-web-app')).toHaveText('Open Web App');
   await expect(page.getByTestId('landing-prompt')).toHaveCSS('opacity', '1');
-  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', 'events');
-  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/#chat-id=${landingAppExamples.events}`);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', landingAppOrder[0]);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/?lang=en#chat-id=${landingAppExamples[landingAppOrder[0]]}`);
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('target', '_blank');
   const rail = root.locator('.rail-track');
   await expect(rail).toHaveCSS('animation-name', 'none');
@@ -293,6 +303,11 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('de');
   await language.click(); await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0); await expect(language).toBeFocused();
+  // Production SSR supplies the persisted preference as initial props. Encode
+  // that server input in the preview URL before checking its reload state;
+  // website-language.spec.ts covers the real cookie-to-server round trip.
+  const savedLanguage = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
+  await page.evaluate(url => history.replaceState(history.state, '', url), preview(320, 'dark', { events, initialLanguage: savedLanguage, initialLanguageMode: 'manual' }));
   await page.reload(); await waitForComponentPreview(page, 30_000);
   await expect(language).toHaveText('');
   await expect(language).toHaveAttribute('aria-label', /Deutsch/);
@@ -403,13 +418,13 @@ test('landing app rail selects, pauses, resumes and accepts manual input', async
   const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
   const prompt = page.getByTestId('landing-prompt');
   const selected = landingAppOrder[1];
-  const travel = icons.nth(1);
-  await expect(travel).toBeVisible();
-  await expect(travel).toBeEnabled();
-  const travelBounds = (await travel.boundingBox())!;
+  const secondApp = icons.nth(1);
+  await expect(secondApp).toBeVisible();
+  await expect(secondApp).toBeEnabled();
+  const secondAppBounds = (await secondApp.boundingBox())!;
   const railBounds = (await rail.boundingBox())!;
-  const clickX = travelBounds.x + travelBounds.width / 2;
-  const clickY = travelBounds.y + travelBounds.height / 2;
+  const clickX = secondAppBounds.x + secondAppBounds.width / 2;
+  const clickY = secondAppBounds.y + secondAppBounds.height / 2;
   expect(clickX).toBeGreaterThan(railBounds.x + 10);
   expect(clickX).toBeLessThan(railBounds.x + railBounds.width - 10);
   await page.mouse.click(clickX, clickY);
@@ -595,10 +610,10 @@ for (const [device, viewports] of Object.entries(responsiveGroups)) {
         await expect(header.locator('.wordmark')).toBeVisible();
         await expect(header.locator('.wordmark')).toHaveText('OpenMates');
         await expect(header.locator('.wordmark')).toHaveCSS('font-size', '20px');
-        await expect(header.locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+        await expect(header.locator('.wordmark')).toHaveAttribute('href', `${APP}/?lang=${language}`);
         const appLink = header.getByTestId('landing-open-web-app');
         await expect(appLink).toHaveText(language === 'en' ? 'Open Web App' : 'Web-App öffnen');
-        await expect(appLink).toHaveAttribute('href', `${APP}/`);
+        await expect(appLink).toHaveAttribute('href', `${APP}/?lang=${language}`);
         await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
         if (width >= 542) await expect(header.locator('.github-link')).toBeVisible();
 

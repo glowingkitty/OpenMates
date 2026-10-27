@@ -570,3 +570,115 @@ async def test_preprocessing_freezes_each_model_host_tariff_before_response(monk
     assert [entry["tariff_snapshot"]["costs"]["output_per_million_token"]["price"]
             for entry in telemetry] == [2.0, 4.0]
     assert [entry["supplier_cost_usd"] for entry in telemetry] == pytest.approx([0.00012, 0.00014])
+
+
+@pytest.fixture
+def single_attempt_provider_setup(monkeypatch):
+    """Keep timeout tests offline and independent of provider health/cache state."""
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: (None, None))
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TIMEOUT_SECONDS", .01)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TOTAL_TIMEOUT_SECONDS", .02)
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.asyncio
+@pytest.mark.parametrize("override,success", [(None, False), (.2, True), (30, True)])
+async def test_explicit_single_attempt_allowance_survives_ordinary_caps(
+    monkeypatch, single_attempt_provider_setup, override, success,
+):
+    calls = []
+
+    async def slow_provider(**kwargs):
+        calls.append(kwargs["model_id"])
+        await asyncio.sleep(.04)  # Exceeds both scaled ordinary 5s/12s caps.
+        return UnifiedOpenAIResponse(
+            task_id="test", model_id="model", success=True,
+            tool_calls_made=[ParsedOpenAIToolCall(
+                tool_call_id="valid", function_name="expected_tool",
+                function_arguments_raw="{}", function_arguments_parsed={},
+            )],
+        )
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: slow_provider)
+    options = {} if override is None else {"single_attempt_timeout_seconds": override}
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test", model_id="primary/model", message_history=[],
+        tool_definition=_tool_definition(), fallback_models=["fallback/model"],
+        allow_retries=False, **options,
+    )
+    assert calls == ["model"]
+    assert (result.arguments == {} and result.error_message is None) is success
+    if not success:
+        assert "timeout" in result.error_message.lower()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.asyncio
+@pytest.mark.parametrize("slow_health", [False, True])
+async def test_single_attempt_deadline_bounds_provider_and_health_setup(
+    monkeypatch, single_attempt_provider_setup, slow_health,
+):
+    cancellations = []
+
+    async def blocked():
+        try:
+            await asyncio.sleep(10)
+        finally:
+            cancellations.append(True)
+
+    async def slow_provider(**_kwargs):
+        await blocked()
+        raise AssertionError("must be cancelled")
+
+    class SlowCacheService:
+        @property
+        async def client(self):
+            await blocked()
+            return None
+
+    if slow_health:
+        monkeypatch.setattr(llm_utils, "CacheService", SlowCacheService)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: slow_provider)
+    # Independent test guard fails if the inner deadline stops enforcing its cap.
+    result = await asyncio.wait_for(llm_utils.call_preprocessing_llm(
+        task_id="test", model_id="primary/model", message_history=[],
+        tool_definition=_tool_definition(), allow_retries=False,
+        single_attempt_timeout_seconds=.03,
+    ), timeout=.5)
+    assert cancellations == [True]
+    assert result.arguments is None
+    assert "budget exhausted after 0.03s" in result.error_message
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.asyncio
+@pytest.mark.parametrize("value", [True, False, 0, -1, float("nan"), float("inf"), -float("inf"), 30.01, "30", [], {}])
+async def test_single_attempt_timeout_rejects_invalid_values_before_provider_lookup(monkeypatch, value):
+    monkeypatch.setattr(
+        llm_utils, "_get_provider_client",
+        lambda _: (_ for _ in ()).throw(AssertionError("invalid override reached provider")),
+    )
+    with pytest.raises(ValueError, match="single_attempt_timeout_seconds"):
+        await llm_utils.call_preprocessing_llm(
+            task_id="test", model_id="primary/model", message_history=[],
+            tool_definition=_tool_definition(), allow_retries=False,
+            single_attempt_timeout_seconds=value,
+        )
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.asyncio
+@pytest.mark.parametrize("retry_options", [{}, {"allow_retries": True}])
+async def test_single_attempt_timeout_rejects_retry_enabled_override(retry_options):
+    with pytest.raises(ValueError, match="allow_retries=False"):
+        await llm_utils.call_preprocessing_llm(
+            task_id="test", model_id="primary/model", message_history=[],
+            tool_definition=_tool_definition(), single_attempt_timeout_seconds=30,
+            **retry_options,
+        )

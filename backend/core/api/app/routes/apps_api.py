@@ -20,6 +20,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
 from backend.shared.python_utils.memory_loader import load_app_memories
+from backend.core.api.app.services.app_discovery_visibility import (
+    EXCLUDED_DISCOVERY_APPS, app_is_discoverable, creation_content_types, enabled_discovery_components,
+)
 
 from pydantic import BaseModel, Field
 
@@ -29,7 +32,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, skill_has_provider_support
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 from backend.shared.python_utils.app_skill_output_safety import (
@@ -80,7 +83,7 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
 TEAM_ASYNC_SKILL_BILLING = {
     ("images", "generate"), ("images", "generate_draft"),
     ("videos", "generate"), ("videos", "create"),
@@ -141,7 +144,7 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _json_schema_request_python_type(schema: Dict[str, Any]) -> Any:
-    """Type a declared top-level app-skill input without admitting extra fields."""
+    """Type a declared app-skill input, including primitive array items."""
     schema_type = schema.get("type")
     if isinstance(schema_type, list):
         schema_type = next((item for item in schema_type if item != "null"), None)
@@ -223,7 +226,7 @@ class SkillResponse(BaseModel):
 
 class ProviderPricing(BaseModel):
     """Pricing information for a provider"""
-    provider: str  # Provider ID (e.g., "brave", "firecrawl")
+    provider: str  # Provider ID (e.g., "brave", "youtube")
     name: str  # Provider display name from provider YAML (e.g., "Brave Search")
     description: str  # Provider description from provider YAML
     pricing: Dict[str, Any]  # Pricing configuration for this provider
@@ -259,6 +262,7 @@ class AppMetadata(BaseModel):
     skills: List[SkillMetadata]
     focus_modes: List[FocusModeMetadata] = []
     settings_and_memories: List[SettingsAndMemoryMetadata] = []
+    content_types: List[Dict[str, Any]] = Field(default_factory=list)
     memories: List[Dict[str, Any]] = Field(default_factory=list)
 
 class AppsListResponse(BaseModel):
@@ -586,7 +590,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     This function centralizes the mapping of providers to their API key requirements.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         List of environment variable names to check (in order of preference)
@@ -598,11 +602,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "mistral": ["SECRET__MISTRAL_AI__API_KEY", "SECRET__MISTRAL__API_KEY"],
         "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
         "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
-        "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
-        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -624,7 +626,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     This is used to determine if a skill should be shown as available.
 
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         secrets_manager: SecretsManager instance for checking Vault
         config_manager: Optional ConfigManager for reading provider YAML flags
 
@@ -702,7 +704,7 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
 
     A skill is considered available if at least one of its providers has a configured API key,
     or if a provider declares no_api_key: true (no key required).
-    If a skill has no providers, it's considered available (no API key required).
+    Local-only skills need no providers; provider-backed skills require a source.
 
     Args:
         skill: The skill definition
@@ -713,7 +715,11 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
     Returns:
         True if the skill is available (at least one provider is accessible), False otherwise
     """
-    # If skill has no providers, it's available (no API key required)
+    if getattr(skill, "default_enabled", None) is False or getattr(skill, "internal", False):
+        return False
+    if not skill_has_provider_support(skill):
+        return False
+    # Local-only skills do not need a provider.
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
@@ -813,7 +819,7 @@ async def fetch_provider_pricing(provider_id: str) -> Optional[Dict[str, Any]]:
     Fetch provider-level pricing from internal API.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         Provider pricing dict or None if not found
@@ -927,11 +933,11 @@ async def get_skill_providers_with_pricing(
             else:
                 logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")
             
-            # A loaded config without provider-level pricing is authoritative:
-            # platform services and model-priced providers legitimately omit it.
-            # Avoid an internal 404 for every catalog request in that case.
+            # The loaded registry is authoritative for optional catalog pricing.
+            # Unknown metadata providers and providers without a top-level tariff
+            # remain listed without probing the internal API for an expected 404.
             provider_pricing = None
-            if provider_config is None or provider_config.get("pricing"):
+            if provider_config and provider_config.get("pricing"):
                 provider_pricing = await fetch_provider_pricing(provider_id)
             
             if provider_pricing:
@@ -1005,6 +1011,22 @@ async def call_app_skill(
     log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
     sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
     skill_input_data = strip_request_security_controls(sanitized_input_data)
+
+    if (app_id, skill_id) == ("ai", "decide"):
+        # Public developer/session REST surface; existing authentication and
+        # API-key scope checks above apply. No account content is loaded.
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        from pydantic import ValidationError
+        try:
+            validated = DecideRequest.model_validate(skill_input_data)
+            quote = decision_quote(has_assets=bool(validated.assets))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_request", "message": "Provide bounded state and valid typed questions."}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
+        await require_api_key_budget_for_charge(
+            directus_service, user_info=user_info, requested_credits=quote,
+        )
 
     # Build the request body the same way the old HTTP path did: tool_schema
     # structure (e.g. {"requests": [...]}) plus underscore-prefixed metadata.
@@ -1198,6 +1220,14 @@ async def calculate_skill_credits(
         Number of credits to charge
     """
     resolved_app_id = app_id or getattr(app_metadata, "id", "")
+    if (resolved_app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import decision_result_credits
+        try:
+            # Only the server-produced result is trusted; caller input never
+            # determines token usage or credits for this skill.
+            return decision_result_credits(result_data, has_assets=bool(input_data.get("assets")))
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_usage_unavailable"}) from exc
     declared_result_credits = get_variable_result_credits(
         resolved_app_id,
         skill_id,
@@ -1355,6 +1385,20 @@ def get_variable_result_charge_items(
         return None
     data = _as_dict(result_data)
     results = data.get("results")
+    if (app_id, skill_id) == ("web", "read"):
+        # Only server-produced, successful page groups are billable. Never use
+        # caller-supplied usage or a missing-result fallback to set the amount.
+        return [
+            (index, 20)
+            for index, group in enumerate(results[:5] if isinstance(results, list) else [])
+            if isinstance(group, dict) and not group.get("error")
+            and isinstance(group.get("usage"), dict)
+            and group["usage"].get("credits_charged") == 20
+            and isinstance(group.get("results"), list)
+            and any(isinstance(page, dict) and not page.get("error")
+                    and isinstance(page.get("markdown"), str) and page["markdown"].strip()
+                    for page in group["results"])
+        ]
     if not isinstance(results, list):
         return None
 
@@ -1388,8 +1432,26 @@ def get_variable_preflight_reserved_credits(
     skill_id: str,
     input_data: Dict[str, Any],
 ) -> int:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        from pydantic import ValidationError
+        try:
+            validated = DecideRequest.model_validate(input_data)
+            return decision_quote(has_assets=bool(validated.assets))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_request"}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return 0
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.apps.web.skills.read_skill import ReadRequest
+        from pydantic import ValidationError
+        try:
+            validated = ReadRequest.model_validate(input_data)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_web_read_request"}) from exc
+        return 20 * len(validated.requests)
     if app_id == "code" and skill_id == "image_to_html":
         from backend.apps.code.skills.image_to_html_skill import (
             DEFAULT_MAX_CORRECTION_PASSES,
@@ -1470,6 +1532,10 @@ def get_variable_result_usage_details(
     if not isinstance(results, list) or request_index >= len(results):
         return {}
     result = _as_dict(results[request_index])
+    if (app_id, skill_id) == ("web", "read"):
+        return {"web_read_credits_charged": 20} if get_variable_result_charge_items(
+            app_id, skill_id, {"results": [result]}
+        ) else {}
     if app_id == "audio":
         details: Dict[str, Any] = {}
         model = result.get("model")
@@ -1586,6 +1652,7 @@ async def charge_credits_via_internal_api(
     idempotency_key: Optional[str] = None,
     raise_on_error: bool = False,
     team_id: Optional[str] = None,
+    server_result_group: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Charge credits via the internal billing API.
@@ -1602,6 +1669,8 @@ async def charge_credits_via_internal_api(
         device_hash: Optional SHA-256 hash of the device that created this usage entry
         idempotency_key: Stable caller-owned identity for retry-safe background work.
         raise_on_error: Propagate billing failures when the caller must fail closed.
+        server_result_group: Internal web.read output for post-debit creator share.
+            Never included in billing payloads or populated from request input.
     """
     if credits <= 0:
         logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
@@ -1650,6 +1719,9 @@ async def charge_credits_via_internal_api(
             response.raise_for_status()
             logger.info(f"Successfully charged {credits} credits for skill '{app_id}.{skill_id}'")
             response_data = response.json()
+            if (app_id, skill_id) == ("web", "read") and server_result_group is not None:
+                from backend.core.api.app.services.creators.paid_web_read_income import record_paid_web_read_income
+                await record_paid_web_read_income(server_result_group, response_data)
             return response_data if isinstance(response_data, dict) else None
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
@@ -1804,6 +1876,8 @@ async def list_apps(
         
         apps = []
         for app_id, app_metadata in discovered_apps.items():
+            if app_id in EXCLUDED_DISCOVERY_APPS:
+                continue
             # Skip apps that are explicitly hidden from the public REST API.
             # These apps (e.g., images) rely on zero-knowledge encryption or other
             # client-side crypto flows that cannot be executed via stateless REST calls.
@@ -1838,19 +1912,16 @@ async def list_apps(
                     logger.debug(f"Skipping internal skill '{skill.id}' from app '{app_id}' list response")
                     continue
 
-                # Check if skill is available based on API key configuration.
-                # When include_unavailable=True (used by CLI to match the web app's
-                # build-time static metadata), skip provider availability checks.
-                if not include_unavailable:
-                    skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
-                    if not skill_available:
-                        logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                        continue
+                # include_unavailable is compatibility syntax, not an execution bypass.
+                skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
+                if not skill_available:
+                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                    continue
 
-                    if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
-                        logger.debug("Skipping mail/search for external user without ProtonMail permission")
-                        continue
-                
+                if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
+                    logger.debug("Skipping mail/search for external user without ProtonMail permission")
+                    continue
+
                 skill_name = resolve_translation(
                     translation_service,
                     skill.name_translation_key,
@@ -1876,7 +1947,7 @@ async def list_apps(
             
             # Convert focus modes
             focus_modes = []
-            for focus in app_metadata.focuses or []:
+            for focus in enabled_discovery_components(app_metadata.focuses):
                 focus_name = resolve_translation(
                     translation_service,
                     focus.name_translation_key,
@@ -1917,8 +1988,8 @@ async def list_apps(
                         description=field_description
                     ))
             
-            # Include app if it has at least one skill, focus mode, or settings_and_memories
-            if skills or focus_modes or settings_and_memories or load_app_memories([app_id]):
+            # Durable memory definitions do not qualify an app for discovery.
+            if app_is_discoverable(app_id, skills, focus_modes, app_metadata.embed_types):
                 apps.append(AppMetadata(
                     id=app_id,
                     name=app_name,
@@ -1926,6 +1997,7 @@ async def list_apps(
                     skills=skills,
                     focus_modes=focus_modes,
                     settings_and_memories=settings_and_memories,
+                    content_types=creation_content_types(app_id, app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                 ))
         
@@ -1939,41 +2011,6 @@ async def list_apps(
 # ---------------------------------------------------------------------------
 # Travel app custom routes (non-skill endpoints)
 # ---------------------------------------------------------------------------
-
-class BookingLinkRequest(BaseModel):
-    """Request for on-demand booking URL lookup via SerpAPI."""
-    booking_token: str = Field(
-        ...,
-        description="The booking_token from a flight search result (from search_connections skill output)."
-    )
-    booking_context: Optional[Dict[str, str]] = Field(
-        None,
-        description="Original SerpAPI search parameters needed for booking_token lookup. "
-        "Keys: departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class."
-    )
-    hashed_chat_id: Optional[str] = Field(
-        None,
-        description="SHA-256 hashed chat ID to link the usage entry to the chat where the booking was initiated."
-    )
-
-
-class BookingLinkResponse(BaseModel):
-    """Response containing the resolved booking URL and provider name."""
-    success: bool
-    booking_url: Optional[str] = Field(
-        None,
-        description="Direct clickable booking URL (e.g., airline website or OTA). None if no booking link found."
-    )
-    booking_provider: Optional[str] = Field(
-        None,
-        description="Name of the booking provider (e.g., 'Lufthansa', 'Kayak'). None if no booking link found."
-    )
-    credits_charged: Optional[int] = Field(
-        None,
-        description="Credits charged for this lookup (25 credits = 1 SerpAPI credit)."
-    )
-    error: Optional[str] = Field(None, description="Error message if lookup failed.")
-
 
 # ---------------------------------------------------------------------------
 # Travel app: Flight Details models (for flight-details endpoint)
@@ -2029,138 +2066,8 @@ class FlightDetailsResponse(BaseModel):
 
 
 def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
-    """
-    Register travel-specific REST endpoints that are not standard skills.
-
-    Currently registers:
-    - POST /v1/apps/travel/booking-link — On-demand booking URL lookup using
-      a booking_token from a previous flight search. Costs 25 credits (1 SerpAPI credit).
-
-    Supports both session auth (web app) and API key auth (external clients).
-    """
-    from backend.apps.travel.providers.serpapi_provider import lookup_booking_url
+    """Register supported flight-detail routes with session or API-key auth."""
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
-
-    async def booking_link_handler(
-        request_body: BookingLinkRequest,
-        request: Request = None,
-        user=Depends(get_current_user_or_api_key),
-        cache_service: CacheService = Depends(get_cache_service),
-        directus_service: DirectusService = Depends(get_directus_service),
-    ) -> BookingLinkResponse:
-        """
-        Look up a booking URL for a flight using the booking_token from search results.
-
-        When a user searches for flights via the search_connections skill, each result
-        includes a `booking_token`. This endpoint uses that token to fetch a direct
-        booking URL from SerpAPI (costs 1 SerpAPI credit = 25 OpenMates credits).
-
-        This avoids spending credits on booking lookups during the initial search,
-        only charging when the user actually wants to book a specific flight.
-
-        Supports both session authentication (web app) and API key authentication.
-        """
-        user_info = _custom_route_user_info(request, user)
-        _require_api_key_app_skill_scope(user_info, "travel", "booking_link")
-        await require_api_key_budget_for_charge(
-            directus_service,
-            user_info=user_info,
-            requested_credits=25,
-        )
-        user_id = user_info["user_id"]
-
-        try:
-            logger.info(
-                f"Travel booking-link: User {user_id} requesting "
-                f"booking URL (token: {request_body.booking_token[:20]}...)"
-            )
-
-            # Create SecretsManager to load the SerpAPI key from Vault
-            sm = SecretsManager()
-            await sm.initialize()
-            try:
-                result = await lookup_booking_url(
-                    request_body.booking_token,
-                    booking_context=request_body.booking_context,
-                    secrets_manager=sm,
-                )
-            finally:
-                await sm.aclose()
-
-            # Only charge credits if we successfully got a booking URL
-            credits_charged = 0
-            if result.get("booking_url"):
-                credits_charged = 25
-                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
-                usage_details = {
-                    "external_request": False,
-                    "units_processed": 1,
-                    "server_provider": "SerpAPI",  # Travel booking uses SerpAPI/Google Flights
-                    "server_region": "US",  # SerpAPI is US-based
-                }
-                # Link the usage entry to the chat where the booking was initiated
-                # so it appears in the user's per-chat usage breakdown.
-                if request_body.hashed_chat_id:
-                    usage_details["chat_id"] = request_body.hashed_chat_id
-                await charge_credits_via_internal_api(
-                    user_id=user_id,
-                    user_id_hash=user_id_hash,
-                    credits=credits_charged,
-                    app_id="travel",
-                    skill_id="booking_link",
-                    usage_details=usage_details,
-                    api_key_hash=user_info.get("api_key_hash"),
-                    device_hash=user_info.get("device_hash"),
-                )
-
-            return BookingLinkResponse(
-                success=True,
-                booking_url=result.get("booking_url"),
-                booking_provider=result.get("booking_provider"),
-                credits_charged=credits_charged,
-            )
-
-        except ValueError as e:
-            logger.error(f"Travel booking-link config error: {e}")
-            return BookingLinkResponse(
-                success=False,
-                error="Booking service not configured",
-            )
-        except Exception as e:
-            logger.error(
-                f"Travel booking-link error for user {user_id}: {e}",
-                exc_info=True,
-            )
-            return BookingLinkResponse(
-                success=False,
-                error=f"Booking lookup failed: {str(e)}",
-            )
-
-    # Register the endpoint — no SessionOrApiKeyAuth dependency since we use
-    # get_current_user_or_api_key which handles both auth methods
-    app.add_api_route(
-        path="/v1/apps/travel/booking-link",
-        endpoint=limiter.limit("30/minute")(booking_link_handler),
-        methods=["POST"],
-        response_model=BookingLinkResponse,
-        tags=[f"Apps | {app_name.capitalize()}"],
-        name="travel_booking_link",
-        summary="Look up booking URL for a flight",
-        description=(
-            "Look up a direct booking URL for a flight using the booking_token "
-            "from a previous search_connections result. Costs 25 credits per "
-            "successful lookup (1 SerpAPI credit). Returns the best booking "
-            "option (preferring direct airline over OTA). "
-            "Supports both session and API key authentication."
-        ),
-    )
-    logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
-
-    # -----------------------------------------------------------------------
-    # POST /v1/apps/travel/flight-details
-    # Fetches real GPS track + enrichment for a completed flight from FR24.
-    # Charges 7 credits on success (covers ~46 FR24 API credits).
-    # -----------------------------------------------------------------------
 
     from backend.apps.travel.providers.flightradar24_provider import (
         FR24Provider,
@@ -2739,6 +2646,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             ) -> AppMetadata:
                 """Get metadata for a specific app. Accepts session cookie or API key authentication."""
                 try:
+                    if captured_app_id in EXCLUDED_DISCOVERY_APPS:
+                        raise HTTPException(status_code=404, detail="App not found")
+                    secrets_manager = request.app.state.secrets_manager
+                    mail_allowed = await _is_protonmail_allowed_for_external_user(
+                        user_info=user_info, secrets_manager=secrets_manager,
+                    )
                     trans_service = get_translation_service(request)
                     config_mgr = get_config_manager(request)
                     
@@ -2759,6 +2672,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     # Convert skills
                     skills = []
                     for skill in captured_app_metadata.skills or []:
+                        if not await is_skill_available(skill, captured_app_id, secrets_manager, config_mgr):
+                            continue
+                        if captured_app_id == "mail" and skill.id == "search" and not mail_allowed:
+                            continue
                         if getattr(skill, "internal", False):
                             logger.debug(f"Skipping internal skill '{skill.id}' from app '{captured_app_id}' metadata response")
                             continue
@@ -2788,7 +2705,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     
                     # Convert focus modes
                     focus_modes = []
-                    for focus in captured_app_metadata.focuses or []:
+                    for focus in enabled_discovery_components(captured_app_metadata.focuses):
                         focus_name = resolve_translation(
                             trans_service,
                             focus.name_translation_key,
@@ -2829,6 +2746,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 description=field_description
                             ))
                     
+                    if not app_is_discoverable(captured_app_id, skills, focus_modes, captured_app_metadata.embed_types):
+                        raise HTTPException(status_code=404, detail="App not found")
                     return AppMetadata(
                         id=captured_app_id,
                         name=resolved_name,
@@ -2836,9 +2755,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         skills=skills,
                         focus_modes=focus_modes,
                         settings_and_memories=settings_and_memories,
+                        content_types=creation_content_types(captured_app_id, captured_app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                     )
                     
+                except HTTPException:
+                    raise
                 except Exception as e:
                     logger.error(f"Error getting app {captured_app_id} for user {user_info['user_id']}: {e}", exc_info=True)
                     raise HTTPException(status_code=500, detail="Failed to get app metadata")
@@ -3118,7 +3040,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         else:
                                             prop_type = List[Any]
                                     else:
-                                        prop_type = List[Any]
+                                        prop_type = _json_schema_request_python_type(prop_schema)
                                 elif schema_type == "number":
                                     prop_type = float
                                 elif schema_type == "object":
@@ -3354,6 +3276,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][i]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             
@@ -3716,6 +3640,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][request_index]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             
@@ -3838,6 +3764,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][i]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             

@@ -5,6 +5,7 @@
 // inspiration set so arrow clicks and touch swipes do not appear to be ignored.
 
 import { get } from "svelte/store";
+import { locale } from "svelte-i18n";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   dailyInspirationStore,
@@ -58,6 +59,7 @@ const INSPIRATIONS: DailyInspiration[] = [
 describe("dailyInspirationStore", () => {
   afterEach(() => {
     dailyInspirationStore.reset();
+    locale.set("en");
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.personalized-priority,daily-inspiration.opened-state
@@ -122,7 +124,7 @@ describe("dailyInspirationStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
-  it("forces the exact guest onboarding set after authenticated data races with logout", () => {
+  it("restores the public-safe ten-card guest fallback after authenticated data races with logout", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, {
       personalized: true,
       source: "personalized",
@@ -134,8 +136,11 @@ describe("dailyInspirationStore", () => {
 
     const state = get(dailyInspirationStore);
     expect(state.source).toBe("guest-onboarding");
+    expect(state.inspirations).toHaveLength(10);
+    expect(state.inspirations.every((item) => !GUEST_ONBOARDING_IDS.includes(item.feature?.feature_id ?? ""))).toBe(true);
+    expect(state.inspirations.filter((item) => item.feature).every((item) => item.feature?.requires_authentication === false)).toBe(true);
     expect(state.inspirations.map((item) => item.inspiration_id)).toEqual(
-      GUEST_ONBOARDING_IDS,
+      getHardcodedInspirationsForSurface("en", "chats").map((item) => item.inspiration_id),
     );
   });
 
@@ -193,5 +198,29 @@ describe("dailyInspirationStore", () => {
     expect(state.source).toBe("authenticated-fallback");
     expect(state.isPersonalized).toBe(false);
     expect(hasCompleteAuthenticatedDailySet(state.inspirations)).toBe(true);
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=language-preferences.content-language,daily-inspiration.opened-state
+describe("inspiration language recovery", () => {
+  afterEach(() => { dailyInspirationStore.reset(); locale.set("en"); });
+
+  it("keeps German fallback when stale English personalized sync arrives", () => {
+    locale.set("de");
+    const german = getAuthenticatedFallbackInspirations("de");
+    dailyInspirationStore.setInspirations(german, { source: "authenticated-fallback" });
+    dailyInspirationStore.setInspirations(getAuthenticatedFallbackInspirations("en"), { personalized: true });
+    expect(get(dailyInspirationStore).inspirations).toEqual(german);
+    expect(get(dailyInspirationStore).isPersonalized).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=language-preferences.content-language,daily-inspiration.opened-state
+  it("restores matching language with existing chat ownership and opened state", () => {
+    locale.set("de");
+    const german = getAuthenticatedFallbackInspirations("de");
+    german[0] = { ...german[0], is_opened: true, opened_chat_id: "saved-chat" };
+    dailyInspirationStore.setInspirations(german, { personalized: true });
+    dailyInspirationStore.setInspirations(german.map((item) => ({ ...item, is_opened: false, opened_chat_id: null })), { personalized: true });
+    expect(get(dailyInspirationStore).inspirations[0]).toMatchObject({ language: "de", is_opened: true, opened_chat_id: "saved-chat" });
   });
 });

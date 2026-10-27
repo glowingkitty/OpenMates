@@ -1,3 +1,5 @@
+# contract-test-file: infrastructure
+# Direct URL-check helper tests; these do not prove a product REST endpoint or source integration.
 # backend/tests/test_url_validator.py
 # Tests for URL validation and extraction functionality.
 
@@ -521,3 +523,22 @@ class TestUrlValidatorIntegration:
             assert result['is_valid'] is False
             assert result['error_type'] in ['timeout', 'connection_error', 'unknown_error']
 
+
+
+# contract-test: infrastructure
+@pytest.mark.asyncio
+async def test_source_denial_uses_one_direct_request_without_secrets_or_egress_retry():
+    secrets = MagicMock()
+    secrets.get_secret = AsyncMock(side_effect=AssertionError("No proxy secrets may be read"))
+    with patch("httpx.AsyncClient") as client_factory:
+        client = client_factory.return_value.__aenter__.return_value
+        client.head = AsyncMock(return_value=httpx.Response(403))
+        client.get = AsyncMock()
+        result = await check_url_status("https://example.com/denied", secrets_manager=secrets)
+    assert result == {"is_valid": False, "status_code": 403, "error_type": "4xx", "is_temporary": False}
+    assert "proxy" not in client_factory.call_args.kwargs
+    assert client_factory.call_args.kwargs["trust_env"] is False
+    assert client_factory.call_args.kwargs["headers"]["User-Agent"] == "OpenMates-URL-Validator/1.0"
+    client.head.assert_awaited_once()
+    client.get.assert_not_called()
+    secrets.get_secret.assert_not_called()

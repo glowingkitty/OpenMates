@@ -1,4 +1,8 @@
 /** Focused parsed-message states for the read-only renderer. */
+import { encode } from '@toon-format/toon';
+import { embedStore } from '../services/embedStore';
+import { chatSyncService } from '../services/chatSyncService';
+import { eventContent } from './embeds/calendar/CalendarEventEmbedPreview.preview';
 const defaultProps = {
   role: 'user' as const,
   content: 'A saved message.',
@@ -21,9 +25,141 @@ const codeEmbed = {
   },
 };
 
+const skillExecution = (id: string, status: 'error' | 'finished') => {
+  // Static records model decrypted persisted output, including a stale finished
+  // transport status. The TOON execution status must win after initial load/reload.
+  embedStore.registerStaticEmbed({
+    embedId: id, type: 'app-skill-use', appId: 'fitness', skillId: 'search_classes',
+    content: encode({ app_id: 'fitness', skill_id: 'search_classes', status,
+      error: status === 'error' ? 'The request timed out. Please try again.' : null,
+      query: id === 'failed-fitness' ? 'Evening classes' : 'Morning classes',
+      provider: 'ExampleFitness', result_count: 0, embed_ids: [],
+    }),
+  });
+  return { type: 'embed', attrs: {
+    id, type: 'app-skill-use', status: 'finished', contentRef: `embed:${id}`,
+    app_id: 'fitness', skill_id: 'search_classes',
+  } };
+};
+const failedFitness = skillExecution('failed-fitness', 'error');
+const successfulFitness = skillExecution('successful-fitness', 'finished');
+
+const svgSource = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="steelblue"/><text x="20" y="65" fill="white">SVG image</text></svg>';
+function seedSvgCode(code: string) {
+  embedStore.registerStaticEmbed({ embedId: 'saved-svg-code', type: 'code-code',
+    content: encode({ code, language: 'xml', filename: 'drawing.svg' }),
+  });
+  if (typeof document !== 'undefined') chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: 'saved-svg-code', status: 'finished' },
+  }));
+}
+seedSvgCode(svgSource);
+const calendarEventId = '904f0053-d60a-435d-a122-f1b7f6311bca';
+embedStore.registerStaticEmbed({ embedId: calendarEventId, type: 'calendar_event', appId: 'calendar', skillId: 'event',
+  content: encode({ ...eventContent, app_id: 'calendar', skill_id: 'event',
+    context_events: [{ title: 'Planning day', start: '2027-01-30' }] }),
+});
+const deferredEventId = 'preview-deferred-reply-event';
+function seedDeferredEvent() {
+  embedStore.registerStaticEmbed({ embedId: deferredEventId, type: 'event', appId: 'events', skillId: 'event',
+    content: encode({ type: 'event_result', title: 'Community AI Hack',
+      date_start: '2026-11-14T09:00:00Z', timezone: 'UTC', organizer_name: 'Community Builders',
+      rsvp_count: 42, image_url: '/favicon.png' }),
+  });
+  chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: deferredEventId, status: 'finished' },
+  }));
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('preview:hydrate-reply-event', seedDeferredEvent);
+  document.addEventListener('preview:update-svg-code', () => seedSvgCode(svgSource.replace(/240/g, '320')));
+  document.addEventListener('preview:svg-to-html', () => seedSvgCode(`<html><body>${svgSource}</body></html>`));
+}
+
 export default defaultProps;
 
 export const variants = {
+  compactPIIHidden: {
+    ...defaultProps,
+    chatId: 'preview-compact-pii',
+    content: 'Literal [ADDRESS_1]. Home [ADDRESS_1_0000000000000001], work [ADDRESS_1_0000000000000002], home again [ADDRESS_1_0000000000000001]. Custom [MY_HOME]. Legacy [EMAIL_1_test].',
+    piiMappings: [
+      { type: 'ADDRESS', original: 'Maple Avenue', placeholder: '[ADDRESS_1_0000000000000001]' },
+      { type: 'ADDRESS', original: 'Birch Lane', placeholder: '[ADDRESS_1_0000000000000002]' },
+      { type: 'ADDRESS', original: 'Private Cottage', placeholder: '[MY_HOME]' },
+      { type: 'EMAIL', original: 'owner@example.test', placeholder: '[EMAIL_1_test]' },
+    ],
+    piiRevealed: false,
+  },
+  compactPIIRevealed: {
+    ...defaultProps,
+    chatId: 'preview-compact-pii',
+    content: 'Literal [ADDRESS_1]. Home [ADDRESS_1_0000000000000001], work [ADDRESS_1_0000000000000002], home again [ADDRESS_1_0000000000000001]. Custom [MY_HOME]. Legacy [EMAIL_1_test].',
+    piiMappings: [
+      { type: 'ADDRESS', original: 'Maple Avenue', placeholder: '[ADDRESS_1_0000000000000001]' },
+      { type: 'ADDRESS', original: 'Birch Lane', placeholder: '[ADDRESS_1_0000000000000002]' },
+      { type: 'ADDRESS', original: 'Private Cottage', placeholder: '[MY_HOME]' },
+      { type: 'EMAIL', original: 'owner@example.test', placeholder: '[EMAIL_1_test]' },
+    ],
+    piiRevealed: true,
+  },
+  voiceDeliveryCues: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: '<!-- voice:curious -->Read [the guide](https://example.org/guide). <!-- voice:short pause -->Then continue.\n\nThe literal `<!-- voice:excited -->` stays in this example.',
+  },
+  pendingVoiceDeliveryCue: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: 'A useful spoken answer. <!-- voice:cur',
+  },
+  calendarEventReply: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: 'FOSDEM takes place on January 30–31.\n\n```json\n' + JSON.stringify({
+      type: 'calendar_event', embed_id: calendarEventId,
+    }) + '\n```',
+  },
+  deferredEventReply: {
+    ...defaultProps,
+    content: 'Can I bring my existing project?\n\n```json\n' + JSON.stringify({
+      type: 'events-event', embed_id: deferredEventId, reference_only: true, app_id: 'events', skill_id: 'event',
+    }) + '\n```',
+  },
+  svgFenced: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: `Here is the modified SVG.\n\n\`\`\`xml:drawing.svg\n${svgSource.replace(' xmlns="http://www.w3.org/2000/svg"', '')}\n\`\`\`\n\nThe source is preserved.`,
+  },
+  svgSavedCode: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: '```json\n{"type":"code","embed_id":"saved-svg-code"}\n```',
+  },
+  svgUnlabelled: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: `\`\`\`\n${svgSource}\n\`\`\``,
+  },
+  failedSkillExecution: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'The class search could not complete.' }] },
+      { type: 'paragraph', content: [failedFitness] },
+    ] },
+  },
+  groupedFailedSkillExecution: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'One search failed; the other completed.' }] },
+      { type: 'paragraph', content: [{ type: 'embed', attrs: {
+        id: 'fitness-execution-group', type: 'app-skill-use-group', status: 'finished', contentRef: '',
+        groupedItems: [failedFitness.attrs, successfulFitness.attrs], groupCount: 2,
+      } }] },
+    ] },
+  },
   multilineUser: {
     ...defaultProps,
     content: 'Find **social posts** about rainy-day cafes.\nKeep the source link on its own line.\n\n\nInclude a short summary after the gap.',

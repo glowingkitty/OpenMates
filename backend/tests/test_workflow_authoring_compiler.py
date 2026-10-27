@@ -337,7 +337,7 @@ def test_event_date_named_strings_accept_structured_runtime_markers():
     # format, while its runtime accepts relative date markers from Workflow.
     raw = plan([
         {"kind": "app", "id": "events", "capability": "events.search", "input": {"requests": [{
-            "query": "robotics", "providers": ["Luma", "Eventbrite"], "location": "Lisbon",
+            "query": "robotics", "providers": ["pretalx"], "conference": "39C3", "location": "Lisbon",
             "event_type": "PHYSICAL", "start_date": {"$date": "next_week_start"},
             "end_date": {"$date": "next_week_end"}, "count": 10,
         }]}},
@@ -414,7 +414,8 @@ steps:
     input:
       requests:
         - query: AI
-          providers: [Luma, Eventbrite]
+          providers: [pretalx]
+          conference: 39C3
           location: Berlin
           event_type: PHYSICAL
           start_date: {$date: next_week_start}

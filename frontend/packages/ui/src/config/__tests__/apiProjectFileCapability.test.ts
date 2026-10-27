@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   getWebSocketUrl,
+  setChatMetadataRecoveryCapabilityEnabled,
   setProjectFileJobsCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
 } from "../api";
@@ -9,7 +10,15 @@ import {
 describe("Project file WebSocket capability", () => {
   afterEach(() => {
     setProjectFileJobsCapabilityEnabled(false);
+    setChatMetadataRecoveryCapabilityEnabled(false);
     setRemoteCommandJobsCapabilityEnabled(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery
+  it("advertises sealed metadata recovery only after its handler is installed", () => {
+    expect(getWebSocketUrl()).not.toContain("chat_metadata_recovery");
+    setChatMetadataRecoveryCapabilityEnabled(true);
+    expect(getWebSocketUrl()).toContain("chat_metadata_recovery");
   });
 
   // contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.no-server-decryption-authority

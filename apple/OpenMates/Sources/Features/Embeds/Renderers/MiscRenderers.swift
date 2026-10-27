@@ -1696,12 +1696,17 @@ final class PendingProjectFocusStore: ObservableObject {
     }
 
     /// Waiting is shared with the live timer; it never implies a Project grant.
-    /// Callers still fetch the fresh authoritative active binding before loading.
-    func confirmBeforeContext(chatID: String) async throws {
-        guard let key = currentByChat[chatID], let initial = entries[key] else { return }
+    /// True requires a new authoritative binding read after the accepted activation.
+    @discardableResult
+    func confirmBeforeContext(chatID: String) async throws -> Bool {
+        try Task.checkCancellation()
+        guard let key = currentByChat[chatID], let initial = entries[key] else { return false }
         if let task = tasks[chatID] { await task.value }
-        guard scope == initial.record.scope, entries[key]?.record == initial.record,
+        try Task.checkCancellation()
+        guard scope == initial.record.scope, currentByChat[chatID] == key,
+              entries[key]?.record == initial.record,
               entries[key]?.status == .activated else { throw ProjectsWorkspaceError.invalidContext }
+        return true
     }
 }
 

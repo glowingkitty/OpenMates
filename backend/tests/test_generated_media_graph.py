@@ -69,6 +69,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
         return {
             "status": "finished", "embed_id": child_id,
             "prompt": child_args["prompt"], "model": "actual-model",
+            "input_embed_ids": child_args.get("input_embed_ids", []),
             "aes_key": "secret", "files": {"original": {"download_url": "signed-token"}},
         }
 
@@ -76,7 +77,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
         FakeTask(), app_id="images", skill_id="generate",
         arguments={
             "embed_id": parent_id, "user_id": "user", "chat_id": "chat", "message_id": "message",
-            "requests": [{"prompt": "first"}, {"prompt": "second"}, {"prompt": "third"}],
+            "requests": [{"prompt": "first", "input_embed_ids": ["saved-source"]}, {"prompt": "second", "input_embed_ids": ["failed-source"]}, {"prompt": "third"}],
         },
         generate_one=generate_one,
     )
@@ -85,6 +86,8 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert result["child_embed_ids"] == expected_children
     assert [item["embed_id"] for item in sent] == [*expected_children, parent_id]
     assert sent[-1]["embed_ids"] == expected_children
+    assert "saved-source" in sent[-1]["content_toon"]
+    assert "failed-source" in sent[-1]["content_toon"]
     assert sent[-1]["content_toon"]
     assert [item["subject_id"] for item in sent[-1]["producer_final_children"]] == expected_children
     callback.assert_awaited_once()
@@ -92,6 +95,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert callback_args["async_task_id"] == task_id
     assert callback_args["result_status"] == "failed"
     assert [row["request_index"] for row in callback_args["completed_results"]] == [0, 1, 2]
+    assert callback_args["completed_results"][0]["input_embed_ids"] == ["saved-source"]
     assert callback_args["completed_results"][0]["embed_ref"]
     assert callback_args["completed_results"][0]["parent_embed_id"] == parent_id
     assert callback_args["completed_results"][0]["parent_embed_ref"].startswith("generated-media-images-")
@@ -273,3 +277,32 @@ def test_authored_media_markdown_uses_one_visible_card_and_preserves_untrusted_t
         assert finalize_trusted_inline_refs(protected, [row]) == protected
     failed = {**row, "status": "failed"}
     assert finalize_trusted_inline_refs(f"![Sunflower]({ref})", [failed]) == f"![Sunflower]({ref})"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.parametrize("extension", ["svg", "png", "jpg", "webp"])
+def test_generated_image_filename_is_safe_unique_and_available_in_completion(extension):
+    from backend.shared.python_utils.generated_media_graph import generated_image_filename, media_completion_result
+
+    first = generated_image_filename("../ Sunflower / botanical illustration!", "11111111-1111-4111-8111-111111111111", extension)
+    second = generated_image_filename("../ Sunflower / botanical illustration!", "22222222-2222-4222-8222-222222222222", extension)
+    assert first == f"sunflower-botanical-illustration-11111111.{extension}"
+    assert second != first
+    assert media_completion_result({"filename": first, "provider": "Recraft", "aes_key": "secret"}) == {
+        "filename": first, "provider": "Recraft",
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_generated_authority_requires_exact_finished_canonical_uuid_pair():
+    from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
+
+    child_id = "11111111-1111-4111-8111-111111111111"
+    ref = "generated-images-111111111111"
+    row = {"app_id": "images", "skill_id": "generate", "status": "finished", "embed_id": child_id, "embed_ref": ref}
+    assert authenticated_generated_outputs([row]) == {ref: row}
+    uppercase = {**row, "embed_id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "embed_ref": "generated-images-aaaaaaaaaaaa"}
+    assert authenticated_generated_outputs([uppercase])[uppercase["embed_ref"]]["embed_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    for changes in ({"status": "failed"}, {"embed_id": "invalid"}, {"app_id": "unknown"},
+                    {"embed_ref": "generated-images-invented"}, {"embed_id": "22222222-2222-4222-8222-222222222222"}):
+        assert authenticated_generated_outputs([{**row, **changes}]) == {}

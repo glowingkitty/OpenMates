@@ -1,6 +1,36 @@
 import MarkdownIt from 'markdown-it';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import bash from 'highlight.js/lib/languages/bash';
+import json from 'highlight.js/lib/languages/json';
 
-const markdown = new MarkdownIt({ html: false, linkify: true, breaks: false });
+// A small, isolated registry keeps publication SSR independent of browser-only
+// embed sanitizers and the web app's full language bundle.
+const publicationHighlight = hljs.newInstance();
+for (const [name, grammar] of Object.entries({ javascript, typescript, python, bash, json })) {
+	publicationHighlight.registerLanguage(name, grammar);
+}
+publicationHighlight.registerAliases(['jsx', 'mjs', 'cjs', 'node'], { languageName: 'javascript' });
+publicationHighlight.registerAliases(['tsx', 'mts', 'cts'], { languageName: 'typescript' });
+publicationHighlight.registerAliases(['zsh', 'fish'], { languageName: 'bash' });
+
+const markdown = new MarkdownIt({
+	html: false,
+	linkify: true,
+	breaks: false,
+	highlight(code, language) {
+		// highlight.js escapes source before adding its own trusted token spans.
+		// Empty/unsupported languages return to markdown-it's escaped plain text.
+		if (!language || !publicationHighlight.getLanguage(language)) return '';
+		try {
+			return publicationHighlight.highlight(code, { language, ignoreIllegals: true }).value;
+		} catch {
+			return '';
+		}
+	}
+});
 const defaultLinkOpen = markdown.renderer.rules.link_open
 	?? ((tokens, index, options, _environment, renderer) => renderer.renderToken(tokens, index, options));
 

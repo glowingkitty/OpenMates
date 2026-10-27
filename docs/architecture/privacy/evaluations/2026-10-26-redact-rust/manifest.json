@@ -1,0 +1,241 @@
+{
+  "date": "2026-10-26",
+  "task": "TASK-906",
+  "session": "678f",
+  "immutable_source_candidate": "39891df85b2486e03c5e7a8f7a2bcf1a15a322b2",
+  "scope": "Engineering synthetic native benchmark; no product CLI activation or browser changes",
+  "inference_host": "Rust executable directly calling pinned native C ABI; Python supervision only",
+  "files": [
+    {
+      "file": "Package.resolved",
+      "bytes": 391,
+      "sha256": "2f009b5914724b36dea840dddbe8d51d93c8e4cb5c8da148fb78b2bdee52e85d"
+    },
+    {
+      "file": "benchmark-chunking.patch",
+      "bytes": 1127,
+      "sha256": "4e12a633f94070c1c0ee21644fa9f6661f9d361b41c96ca53f5b4b6c9e3968e0"
+    },
+    {
+      "file": "boundary-sweep-inputs.json",
+      "bytes": 10273,
+      "sha256": "35c7e54c159908b0b7a303b15b5abe11fa34e19f12137f378ed1e1853da5746e"
+    },
+    {
+      "file": "boundary_probe.py.txt",
+      "bytes": 3305,
+      "sha256": "b00e533cd469ca3693f373e73f44193ffb515e0b929e06d290eebf3005d9b1b8"
+    },
+    {
+      "file": "compare_coverage.py.txt",
+      "bytes": 2470,
+      "sha256": "ff0a6355f22e766fa0a0872fe635e39d145004dcc6bf868675061cbacd5cc7fc"
+    },
+    {
+      "file": "coverage-comparison.json",
+      "bytes": 8014,
+      "sha256": "b1956ef099d1688649109358e476528bf2c52b82c1912b1f3cdeeb55dbc63c7e"
+    },
+    {
+      "file": "native-build-receipt.json",
+      "bytes": 6036,
+      "sha256": "1ac6d52c6bda2312aa092f79f9e29ec5645f137f99ef36f68056258c4e7eb270"
+    },
+    {
+      "file": "published-thread-parity.json",
+      "bytes": 422,
+      "sha256": "9cfc3d5c19f0803698fee2fa9efba522bdba535a5d03d58633d5adee63315bf7"
+    },
+    {
+      "file": "rebuilt-baseline-parity.json",
+      "bytes": 603,
+      "sha256": "5bf38de1f9a0fccf80c0f6bc6af4b6e024fa096029b607662dcb338ca98cc8ea"
+    },
+    {
+      "file": "runtime231-benchmark-receipt.json",
+      "bytes": 6377,
+      "sha256": "1f187ed0d4e81c674a898f7ffbe6e679ce2295c8e3d4cbec8b6f0cdad5ad8bc0"
+    },
+    {
+      "file": "runtime231-receipt.json",
+      "bytes": 2731,
+      "sha256": "635895629decd521cf072cc4c345666d4530f8442d2c87cafafbe691c2a20fbe"
+    },
+    {
+      "file": "rust-boundary150-carry0-2cpu.json",
+      "bytes": 12400,
+      "sha256": "293cd762c9684a0981cf9353dae186f68442d4f2641ddaf9a20ad96135d7d58e"
+    },
+    {
+      "file": "rust-boundary150-carry0-2cpu.supervisor.json",
+      "bytes": 1149,
+      "sha256": "6d4e24a945105b5d9a0a5ab129f883186be15b7bdcc39cde71114d00de99e7a5"
+    },
+    {
+      "file": "rust-boundary150-carry1-2cpu.json",
+      "bytes": 12326,
+      "sha256": "24f5446c36f6e87a92391a9afea60342166c4da7dd41ae66cec648d94da718c0"
+    },
+    {
+      "file": "rust-boundary150-carry1-2cpu.supervisor.json",
+      "bytes": 1149,
+      "sha256": "89c943ddf125a84b2e6e9d070789ddfba647410dd34d086234ed7e7261cbc31d"
+    },
+    {
+      "file": "rust-default-2cpu-probe-disconnected.json",
+      "bytes": 2599,
+      "sha256": "4eb11cf51082b28bcbff8716713c7ff2974f0a9b663675cb7ddf125013b69bbb"
+    },
+    {
+      "file": "rust-default-2cpu-probe-disconnected.supervisor.json",
+      "bytes": 2803,
+      "sha256": "f8ae042c0816347abdf5cf76b55d962e3fe90c88ca23d5b5fa4dc85d265caebe"
+    },
+    {
+      "file": "rust-default-2cpu-probe.json",
+      "bytes": 161,
+      "sha256": "8aa89f35b8d7a7ca22d6551bde53ea026ecf4a560c8c527c8fc4a7649d326f7d"
+    },
+    {
+      "file": "rust-default-2cpu-probe.supervisor.json",
+      "bytes": 2784,
+      "sha256": "ac8f5a8d99ab8df8cfe273da6b9607a8eddf62fd3992a3790b856aa3299770f5"
+    },
+    {
+      "file": "rust-published-2cpu-default-full.json",
+      "bytes": 35847,
+      "sha256": "e97b2d3584f80ea4088fece918972f98161aedb134af3b63037401313dcba110"
+    },
+    {
+      "file": "rust-published-2cpu-default-full.supervisor.json",
+      "bytes": 10072,
+      "sha256": "a4597f62cb49e1521fefb2ad2e63461d108df587181190e52b22a3e8059c9827"
+    },
+    {
+      "file": "rust-published-2cpu-threads2-full.json",
+      "bytes": 35826,
+      "sha256": "9b56d52988c78eded478ade2d57e158056d94ce1bd77ba6c60f68d2e1c19c55a"
+    },
+    {
+      "file": "rust-published-2cpu-threads2-full.supervisor.json",
+      "bytes": 10066,
+      "sha256": "02ddf1093424443613bf68af2b1418a100df41bff224bcea393a7c8f299136e9"
+    },
+    {
+      "file": "rust-published-8cpu-threads8-full.json",
+      "bytes": 35817,
+      "sha256": "64e5227312cbc694345ca441f0c34e1adfacdfd0ccfd251dbb48530c2eb75516"
+    },
+    {
+      "file": "rust-published-8cpu-threads8-full.supervisor.json",
+      "bytes": 10107,
+      "sha256": "6aa6d8cf3e79661e63f14e4e828d688b0f94dcdace0aeab8375e6370a9ff7bd5"
+    },
+    {
+      "file": "rust-rebuilt150-carry0-8cpu.json",
+      "bytes": 35843,
+      "sha256": "d6a27d66ab068b7fcf44825d0fdc442a192f6c89a8a674b79db5d863d518254f"
+    },
+    {
+      "file": "rust-rebuilt150-carry0-8cpu.supervisor.json",
+      "bytes": 10033,
+      "sha256": "0bee90b1f488029cd8ee35e907f8cb09b869470572da984257c11649d03ea0f3"
+    },
+    {
+      "file": "rust-rebuilt150-carry1-8cpu.json",
+      "bytes": 35877,
+      "sha256": "f4dee8a5e06b171e2654c4f87daae27d0bff59dd1dee1635b9ba586f356220db"
+    },
+    {
+      "file": "rust-rebuilt150-carry1-8cpu.supervisor.json",
+      "bytes": 10032,
+      "sha256": "eeac8320f0a556206b553827dec140d6ccf2b21c314a03bdc1e70c6d092913df"
+    },
+    {
+      "file": "rust-rebuilt300-carry1-8cpu.json",
+      "bytes": 34441,
+      "sha256": "adcb92a5c60b32a4367f0ce9efa84dbd8b622a7a6b236920bad32a5a3aa68199"
+    },
+    {
+      "file": "rust-rebuilt300-carry1-8cpu.supervisor.json",
+      "bytes": 10034,
+      "sha256": "36824b5184891c6ce61ccf8fc17f6b14cd57080eeb94254e1659675462d64ac4"
+    },
+    {
+      "file": "rust-rebuilt600-carry1-8cpu.json",
+      "bytes": 33973,
+      "sha256": "238e126961e58485c787c4dd0c876b2e041eeec90c69de6408e72d844a3671eb"
+    },
+    {
+      "file": "rust-rebuilt600-carry1-8cpu.supervisor.json",
+      "bytes": 10033,
+      "sha256": "f8241d55d9ef8869ce33c68e777b7ba8291d7671968d2f9ab27a7738977ce0ea"
+    },
+    {
+      "file": "rust-runtime231-150-carry1-8cpu.json",
+      "bytes": 35844,
+      "sha256": "5dc9f65ac0e9c64b5b651e706dbef730089cb415bdfad9887f799cef316b79e3"
+    },
+    {
+      "file": "rust-runtime231-150-carry1-8cpu.supervisor.json",
+      "bytes": 10034,
+      "sha256": "93e8db38dfbf78d7f685b8db9078673bf4d7c481b0a8e2c53da1f2de37fc56e0"
+    },
+    {
+      "file": "rust-threads1-2cpu-probe.json",
+      "bytes": 2553,
+      "sha256": "b38699fcea85d380b3cbf4bfcd1b8c0de31a16d08cb1fe414798b89549c74052"
+    },
+    {
+      "file": "rust-threads1-2cpu-probe.supervisor.json",
+      "bytes": 2798,
+      "sha256": "22a4112f93f6bfd4efe2058c5877e12ba0bacc87940652ef6e4b32d041165360"
+    },
+    {
+      "file": "rust-threads2-2cpu-probe.json",
+      "bytes": 2562,
+      "sha256": "673b2bf3e9fca81fc5992ba1dc636ec9328e8b51020d8e050df2e8ae3720281d"
+    },
+    {
+      "file": "rust-threads2-2cpu-probe.supervisor.json",
+      "bytes": 2797,
+      "sha256": "a307c0ce2d064c5e9eb55bd2afdbba733f6f0a2b3cb9f49f1678ee8d45d0834d"
+    },
+    {
+      "file": "rust-threads8-8cpu-probe.json",
+      "bytes": 2569,
+      "sha256": "76ffc95020f76a48b14b0318666ce65791c68f51a0a06966d31290c92316f783"
+    },
+    {
+      "file": "rust-threads8-8cpu-probe.supervisor.json",
+      "bytes": 2839,
+      "sha256": "4ce796e2f4f815ada4e9e9eef3fadaa684fc3765132c51cda7bd34b5261184de"
+    },
+    {
+      "file": "validation.json",
+      "bytes": 1552,
+      "sha256": "2116c8bfa20ee6024d3db18b1780c6e51a6318deda08c3231b27f8f113159625"
+    }
+  ],
+  "harness": [
+    {
+      "file": "scripts/redact_rust_evaluation.rs",
+      "sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5"
+    },
+    {
+      "file": "scripts/redact_rust_evaluation.py",
+      "sha256": "7a912acd359130bf302cbb5ded7cdeb64942cfaec6429524e6c74cb49453d202"
+    },
+    {
+      "file": "scripts/redact_rust_evaluation_test.py",
+      "sha256": "ca211ce17d5891cb7a6abe5aa3104fd82bfd5dbf7909589667279eadb71e924f"
+    },
+    {
+      "file": "scripts/redact_native_chunk_experiment.py",
+      "sha256": "86d97ee42ad85bdb13e5c5979a901bf5b6400b09fd37c7151ec1950eee3d290d"
+    }
+  ],
+  "historical_scripts": "Byte-identical audit artifacts ending .py.txt, with original task-private paths; not product commands. Boundary script refuses existing outputs. Do not overwrite retained receipts.",
+  "vendor_artifacts": "No model weights, native binaries, source archives or toolchain included",
+  "privacy": "No licence tokens, installation IDs or original detected values in model result receipts. Explicitly synthetic corpus is retained separately."
+}

@@ -20,7 +20,7 @@ import pytest
 import yaml
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 
 
 class _StubLimiter:
@@ -182,6 +182,27 @@ def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=ai-decide.billing.bounded
+async def test_decide_rest_billing_uses_only_server_result_native_credits() -> None:
+    metadata = AppYAML.model_validate({"id": "ai", "name_translation_key": "ai", "description_translation_key": "ai.description", "skills": []})
+    result = {"success": True, "model": "jev-1.14.0", "answers": {"ok": {"type": "noul", "noul": .9}},
+              "usage": {"input_tokens": 15800, "output_tokens": 3, "credits": 2, "complete": True}}
+    assert await apps_api.calculate_skill_credits(metadata, "decide", {"usage": {"credits": 0}}, result, app_id="ai") == 2
+    with pytest.raises(HTTPException) as caught:
+        await apps_api.calculate_skill_credits(metadata, "decide", {"usage": {"credits": 0}}, {}, app_id="ai")
+    assert caught.value.status_code == 503
+
+
+# contract-test: direct surface=rest_api assertions=ai-decide.request.bounded,ai-decide.billing.bounded
+def test_decide_rest_preflight_validates_entire_request_and_quotes_fallback() -> None:
+    body = {"state": "hello", "questions": {"ok": {"type": "noul", "instructions": "Is this a greeting?"}}}
+    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 43
+    with pytest.raises(HTTPException) as caught:
+        apps_api.get_variable_preflight_reserved_credits("ai", "decide", {**body, "model": "other/model"})
+    assert caught.value.status_code == 422
+
+
 # contract-test: direct surface=rest_api assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
 def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) -> None:
     module_name = "backend.apps.rest_schema_contract"
@@ -213,6 +234,15 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
                                 "query": {"type": "string", "minLength": 2},
                                 "count": {"type": "integer", "minimum": 1, "maximum": 20},
                                 "relevance_criteria": {"type": "string", "maxLength": 1000},
+                                "reference_images": {
+                                    "type": "array", "items": {"type": "string"}, "maxItems": 3,
+                                },
+                                "legs": {
+                                    "type": "array", "items": {
+                                        "type": "object", "properties": {"origin": {"type": "string"}},
+                                        "required": ["origin"],
+                                    },
+                                },
                                 "model": {
                                     "type": "string", "enum": ["eleven_v4", "eleven_v4_turbo"],
                                     "default": "eleven_v4_turbo",
@@ -252,6 +282,16 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert item_schema["properties"]["model"]["enum"] == ["eleven_v4", "eleven_v4_turbo"]
     assert item_schema["properties"]["model"]["default"] == "eleven_v4_turbo"
     assert "relevance_criteria" not in item_schema["required"]
+    references_schema = next(option for option in item_schema["properties"]["reference_images"]["anyOf"]
+                             if option.get("type") == "array")
+    assert references_schema["items"] == {"type": "string"}
+    assert references_schema["maxItems"] == 3
+    assert "reference_images" not in item_schema["required"]
+    legs_schema = next(option for option in item_schema["properties"]["legs"]["anyOf"]
+                       if option.get("type") == "array")
+    leg_schema = openapi["components"]["schemas"][legs_schema["items"]["$ref"].rsplit("/", 1)[-1]]
+    assert leg_schema["properties"]["origin"]["type"] == "string"
+    assert leg_schema["required"] == ["origin"]
 
     route = next(route for route in app.routes if getattr(route, "path", None) ==
                  "/v1/apps/rest_schema_contract/skills/search" and "POST" in getattr(route, "methods", set()))
@@ -268,6 +308,26 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert request_model.model_validate({"requests": [{"query": "hi"}]}).countries == ["DE"]
     with pytest.raises(ValueError):
         request_model.model_validate({"countries": [], "requests": [{"query": "hi"}]})
+    assert request_model.model_validate({"requests": [{
+        "query": "hi", "reference_images": ["first", "second", "third"], "legs": [{"origin": "Berlin"}],
+    }]}).model_dump()["requests"][0]["reference_images"] == ["first", "second", "third"]
+    for invalid_references in [[123], [True], [{"url": "forged"}], ["one", "two", "three", "four"]]:
+        with pytest.raises(ValueError):
+            request_model.model_validate({"requests": [{"query": "hi", "reference_images": invalid_references}]})
+    with pytest.raises(ValueError):
+        request_model.model_validate({"requests": [{"query": "hi", "legs": [{}]}]})
+
+
+@pytest.mark.parametrize("schema_type,values", [
+    ("string", ["first", "second"]), ("integer", [1, 2]),
+    ("number", [1.5, 2.5]), ("boolean", [True, False]),
+])
+def test_dynamic_rest_primitive_array_types(schema_type, values) -> None:
+    adapter = TypeAdapter(apps_api._json_schema_request_python_type({
+        "type": "array", "items": {"type": schema_type},
+    }))
+    assert adapter.json_schema() == {"type": "array", "items": {"type": schema_type}}
+    assert adapter.validate_python(values) == values
 
 
 # contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing,maps-search.compatibility.regular-search
@@ -1119,3 +1179,47 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
     assert captured["budget"]["user_info"] is user_info
     assert captured["budget"]["requested_credits"] == 25
     assert fake_embed_service.called is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name,provider_id,configured,priced", [
+    ("MissingCatalog", "missingcatalog", False, False),
+    ("LicensedCatalog", "licensedcatalog", True, True),
+    ("Remotion", "remotion", False, False),
+    ("OptionalCatalog", "optionalcatalog", False, False),
+    ("PublicTimetable", "publictimetable", True, False),
+    ("ProductCatalog", "productcatalog", True, False),
+])
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,app-skills.surface.semantic-parity
+async def test_catalog_optional_pricing_keeps_provider_ids_and_skill_tariffs(
+    monkeypatch, provider_name, provider_id, configured, priced,
+):
+    class ConfigManager:
+        def get_provider_config(self, requested_id):
+            assert requested_id == provider_id
+            if not configured:
+                return None
+            return {"name": provider_name, "description": "Provider metadata",
+                    **({"pricing": {"per_request_credits": 5}} if priced else {})}
+
+    calls = []
+
+    async def fetch(requested_id):
+        calls.append(requested_id)
+        assert priced
+        return {"per_unit": {"credits": 5}}
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", fetch)
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="search", name_translation_key="test", description_translation_key="test",
+            pricing={"fixed": 5}, providers=[ProviderRef(name=provider_name)],
+        ), "test", ConfigManager(),
+    )
+    assert providers[0].provider == "skill"
+    assert providers[0].pricing == {"fixed": 5}
+    assert providers[1].provider == provider_id
+    assert providers[1].name == provider_name
+    assert providers[1].description == ("Provider metadata" if configured else "")
+    assert providers[1].pricing == ({"per_unit": {"credits": 5}} if priced else {})
+    assert calls == ([provider_id] if priced else [])

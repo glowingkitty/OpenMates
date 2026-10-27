@@ -1,0 +1,334 @@
+{
+  "status": "complete",
+  "inference_host": "standalone Rust C ABI host; Python supervision only",
+  "exit_code": 0,
+  "stopped_by_supervisor": null,
+  "wall_seconds": 196.88815542403609,
+  "sampled_peak_rss_bytes": 221937664,
+  "affinity_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "workers": 4,
+  "threads_per_worker": 2,
+  "fast_gaps": 1,
+  "baseline_mode": "optimized-sequential",
+  "native_files": [
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75154720,
+      "sha256": "aef424a660681bea94eeda73ae94d267b5980ee8a894c2cd71fe6f3502ed69f5"
+    },
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    }
+  ],
+  "model_files": [
+    {
+      "file": "redact.tflite",
+      "bytes": 24529472,
+      "sha256": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27"
+    },
+    {
+      "file": "redact_tokenizer.bin",
+      "bytes": 391416,
+      "sha256": "81bc354dc99285e05b8f70edca9df3afbd83dfa4b0cea18d0448ab17ce58aae2"
+    },
+    {
+      "file": "labels.json",
+      "bytes": 3842,
+      "sha256": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a"
+    }
+  ],
+  "sdk_source_commit": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "build_receipt_sha256": "9cd8476a489b298eaf38e59d151e19ad877f8f96a18b7a4bb30a8f5a68a75f58",
+  "rust_source_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "binary_sha256": "cb6e28e374404ecdb4229b9736bd99c5eb37f0a0beee3d641c8c1ba269a8230b",
+  "supervisor_sha256": "d34ebb6cc2bf6b55266c58e85851b65862b6539e02bf7f2b3e053975a2e9398a",
+  "fixture_generator_sha256": "203a2e6de56b20ac8c61250fb24d2cca60176fbeb87783499888500e0e70cafe",
+  "input_sha256": "eeacb9f57b9ea7ef086f3f98e95a46de7cce8a69344338d0dc0de5e3f02d39b6",
+  "input_lengths": [
+    {
+      "id": "q:large-markdown-524288",
+      "utf8_bytes": 524434,
+      "utf16_units": 524368,
+      "text_sha256": "848135b76b83467f1395cb3777ceffdd30c52c08f027fac42764b406590b3959",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-524288",
+      "utf8_bytes": 524548,
+      "utf16_units": 524482,
+      "text_sha256": "dd2351d3b22097c0ab950774b62737012ea1ab169b95a696a246e92310d0d5f3",
+      "annotations": 15
+    }
+  ],
+  "patched_decoder": {
+    "status": "verified",
+    "version": "1.1.1",
+    "version_number": 16781313,
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "symbols": {
+      "BrotliDecoderVersion": {
+        "address": "0xefaa2a786c54",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      },
+      "BrotliDecoderDecompressStream": {
+        "address": "0xefaa2a7856c0",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      }
+    },
+    "mapped_brotli_libraries": [
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+    ],
+    "curl_version": "libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.1 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.7",
+    "network": "libseccomp TSYNC deny installed before SDK library load; no HTTP perform",
+    "sdk_model_or_license_created": false,
+    "curl_init_cleanup": true
+  },
+  "timing_protocol": "One scan per case, fresh process; no repeatability claim or repeated-call cache credit",
+  "quality": [
+    {
+      "id": "q:large-markdown-524288",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 27,
+          "end": 40,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 640,
+          "end": 672,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 695,
+          "end": 721,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 748,
+          "end": 770,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 262283,
+          "end": 262295,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 262351,
+          "end": 262380,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 262390,
+          "end": 262411,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 262431,
+          "end": 262471,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 523785,
+          "end": 523798,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 523839,
+          "end": 523871,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 523894,
+          "end": 523920,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 523947,
+          "end": 523969,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    },
+    {
+      "id": "q:large-typescript-524288",
+      "occurrences": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 145,
+          "end": 157,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 295,
+          "end": 307,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 595,
+          "end": 607,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 643,
+          "end": 675,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 701,
+          "end": 727,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 757,
+          "end": 779,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_person",
+          "start": 262179,
+          "end": 262191,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 262250,
+          "end": 262279,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 262292,
+          "end": 262313,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "secret",
+          "start": 262336,
+          "end": 262376,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": false
+        },
+        {
+          "label": "private_person",
+          "start": 523712,
+          "end": 523725,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_address",
+          "start": 523769,
+          "end": 523801,
+          "fully_hidden": false,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "private_email",
+          "start": 523827,
+          "end": 523853,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        },
+        {
+          "label": "account_number",
+          "start": 523883,
+          "end": 523905,
+          "fully_hidden": true,
+          "letters_digits_marks_hidden": true
+        }
+      ],
+      "negative_false_positive": false
+    }
+  ],
+  "result_sha256": "ed6bf0d96f5efcad08fd7ee629ceedc56c5b6854544025aa9345ecce581ea0dd",
+  "baseline_sha256": "a7de191dd2111b6fa09f296a5dad669c870f0a92879fa7561ba02f9c6777a030",
+  "comparison": {
+    "cases": 2,
+    "span_parity": true,
+    "span_differences": [],
+    "annotated_coverage_losses": []
+  }
+}

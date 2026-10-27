@@ -4,6 +4,34 @@ import XCTest
 
 @MainActor
 final class WorkspaceSwitcherUITests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
+    func testNarrowHeaderHidesFaviconThenGiftAndRestoresWithoutLosingNavigation() {
+        let app = launch()
+        let picker = app.buttons["workspace-switcher"]
+        let canvas = element(app, "workspace-picker-fixture-canvas")
+        for (width, logo, gift) in [(350, false, true), (320, false, false), (390, true, true)] {
+            app.buttons["workspace-picker-fixture-width-\(width)"].tap()
+            let expectedWidth = min(CGFloat(width), app.windows.firstMatch.frame.width)
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                abs(canvas.frame.width - expectedWidth) <= 1 && abs(picker.frame.width - 120) <= 1 &&
+                    app.buttons["compact-logo-button"].exists == logo && app.buttons["referral-cta"].exists == gift
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+            XCTAssertTrue(picker.isHittable)
+            for id in ["sidebar-toggle", "settings-button"] {
+                XCTAssertTrue(app.buttons[id].isHittable)
+                XCTAssertFalse(picker.frame.intersects(app.buttons[id].frame))
+            }
+            picker.tap()
+            waitForValue("expanded", element: picker)
+            XCTAssertTrue(app.buttons["tasks-nav-link"].isHittable)
+            app.buttons["tasks-nav-link"].tap()
+            waitForValue("collapsed", element: picker)
+            waitForLabel("select:tasks", element: element(app, "workspace-picker-fixture-action"))
+            attach(app, name: "header-optional-control-priority-\(width)")
+        }
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
         #if os(iOS)
@@ -104,7 +132,7 @@ final class WorkspaceSwitcherUITests: XCTestCase {
         let picker = app.buttons["workspace-switcher"]
         XCTAssertTrue(picker.waitForExistence(timeout: 10))
         assertCollapsedHeaderControlsDoNotOverlap(app, picker: picker)
-        for id in ["sidebar-toggle", "compact-logo-button", "settings-button"] {
+        for id in ["sidebar-toggle", "settings-button"] {
             app.buttons[id].tap()
             XCTAssertFalse(app.buttons["tasks-nav-link"].exists)
         }
@@ -260,8 +288,11 @@ final class WorkspaceSwitcherUITests: XCTestCase {
     }
     private func assertCollapsedHeaderControlsDoNotOverlap(_ app: XCUIApplication, picker: XCUIElement) {
         XCTAssertEqual(picker.frame.height, 44, accuracy: 1)
+        XCTAssertEqual(picker.frame.width, 120, accuracy: 1)
         XCTAssertTrue(picker.isHittable)
-        for id in ["sidebar-toggle", "compact-logo-button", "settings-button", "referral-cta"] {
+        XCTAssertFalse(app.buttons["compact-logo-button"].exists, "Optional favicon yields first at320 points")
+        XCTAssertFalse(app.buttons["referral-cta"].exists, "Gift yields after the favicon")
+        for id in ["sidebar-toggle", "settings-button"] {
             let control = app.buttons[id]
             XCTAssertTrue(control.isHittable, id)
             XCTAssertFalse(picker.frame.intersects(control.frame), id)

@@ -42,6 +42,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-fable-5-1"
         region: "US"
@@ -111,6 +116,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-5-5"
         region: "US"
@@ -185,6 +195,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-sonnet-5-5"
         region: "US"
@@ -262,6 +277,11 @@ models:
     default_server: anthropic
     servers:
     - id: anthropic
+      reasoning_control:
+        parameter: reasoning_effort
+        levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+        adaptive_thinking: true
+        source_url: https://platform.claude.com/docs/en/build-with-claude/effort
       name: Anthropic API
       model_id: claude-haiku-5-5
       region: US
@@ -367,6 +387,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-fable-5"
         region: "US"
@@ -439,6 +464,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-5"
         region: "US"
@@ -509,6 +539,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-sonnet-5"
         region: "US"
@@ -651,10 +686,20 @@ models:
     default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-sonnet-4-6" # Direct API uses the model ID as-is
         region: "US" # Server region for UI display
       - id: "aws_bedrock"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          adaptive_thinking: true
+          source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html
         name: "AWS Bedrock"
         model_id: "eu.anthropic.claude-sonnet-4-6" # EU inference profile ID for Converse API
         aws_region: "eu-central-1"
@@ -734,10 +779,20 @@ models:
     default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-4-6" # Direct API uses the model ID as-is
         region: "US" # Server region for UI display
       - id: "aws_bedrock"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          adaptive_thinking: true
+          source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html
         name: "AWS Bedrock"
         model_id: "eu.anthropic.claude-opus-4-6-v1" # EU inference profile ID for Converse API
         aws_region: "eu-central-1"
@@ -812,10 +867,20 @@ models:
     default_server: "anthropic" # Bedrock is in research preview; use Anthropic Direct as default
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-4-7"
         region: "US"
       - id: "aws_bedrock"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          adaptive_thinking: true
+          source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html
         name: "AWS Bedrock"
         model_id: "eu.anthropic.claude-opus-4-7" # Research preview on AWS
         aws_region: "eu-central-1"
@@ -884,6 +949,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-4-8"
         region: "US"
@@ -948,6 +1018,11 @@ models:
     default_server: "anthropic"
     servers:
       - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          adaptive_thinking: false
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
         model_id: "claude-opus-4-5-20251101"
         region: "US"

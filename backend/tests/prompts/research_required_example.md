@@ -17,7 +17,7 @@ Was war das für ne Referenz am Ende?
 00:00:10.440 riecht hier auch nach Macht. Hier riecht
 00:00:12.280 es nach Macht. macht eine Droge gegen
 00:00:15.000 die Koks und Fentanyl so harmlos sind
-00:00:17.080 wie bei Rewe an der SB-Kasse was klauen
+00:00:17.080 wie bei einem Supermarkt an der SB-Kasse was klauen
 00:00:19.480 und über die Männer, die in Kanzleramt
 00:00:22.400 und Bundestag hier nebenan die großen
 00:00:24.320 Entscheidungen treffen, sprechen wir

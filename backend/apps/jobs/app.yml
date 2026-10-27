@@ -1,12 +1,5 @@
 landing:
-  order: 8
-  capability:
-    type: focus
-    id: career_insights
-  caption:
-    en: Help with career advice
-    de: Hilf mir bei Karrierefragen
-  example_chat_id: example-adjacent-career-portfolio-experiments
+  enabled: false
 
 name_translation_key: jobs
 description_translation_key: jobs.description
@@ -40,6 +33,9 @@ embed_types:
       - {name: embed_ids, type: object}
       - {name: preview_results, type: object}
   - id: job_result
+    authoring:
+      kind: jobs.job_result
+      schema_id: jobs.job_result
     category: direct
     frontend_type: jobs-job-result
     backend_type: job_result
@@ -61,6 +57,15 @@ embed_types:
       - {name: employment_type, type: string}
       - {name: published_at, type: string}
       - {name: description, type: string}
+      - {name: sector, type: string}
+      - {name: role, type: string}
+      - {name: seniority, type: string}
+      - {name: organization_type, type: string}
+      - {name: work_arrangement, type: string}
+      - {name: salary_text, type: string}
+      - {name: valid_through, type: string}
+      - {name: impact, type: string}
+      - {name: detail_status, type: string}
       - {name: salary_min, type: number}
       - {name: salary_max, type: number}
       - {name: salary_currency, type: string}
@@ -77,33 +82,17 @@ skills:
       expose_post: true
     external_data: true
     preprocessor_hint: >
-      Search current public job listings in Germany and Sweden. Use this skill for
-      job discovery, including opportunities related to a user's stated impact
-      goal. Set countries to the countries the user selected, or omit it for
-      the Germany-only [DE] default. Each request may override countries; the
-      legacy country field means one country. Germany auto sources are
-      Bundesagentur für Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems;
-      Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that
-      cannot verify a requested remote or employment filter are omitted from
-      auto search; an explicit unsupported source request returns an error.
-      Do not imply Europe-wide coverage. Specify a named provider
-      only when the user requests it. Put a user-stated career purpose or impact
-      preference in relevance_criteria so explicit listing facts can rank a
-      bounded candidate pool. Omit it for a neutral query and never invent
-      remote eligibility, salary, employer quality, or meaningful impact.
-      Preserve strict filters and report unavailable or unsupported sources;
-      do not retry with broader filters after an empty result.
+      Search current Swedish job listings using JobTech. Germany is unavailable.
+      Preserve country, remote, employment and age filters. Radius
+      search is unavailable. Use relevance_criteria only for an explicit user goal.
+      Never invent listing facts or broaden filters after empty results.
     class_path: backend.apps.jobs.skills.search_skill.SearchSkill
     pricing:
       per_unit:
         credits: 1
         unit_name: search
     providers:
-      - {name: Bundesagentur für Arbeit, no_api_key: true}
-      - {name: Arbeitnow, no_api_key: true}
       - {name: JobTech, no_api_key: true}
-      - {name: '80,000 Hours', no_api_key: true}
-      - {name: Hard Problems, no_api_key: true}
     tool_schema:
       type: object
       properties:
@@ -115,7 +104,7 @@ skills:
           default: [DE]
           items: {type: string, enum: [DE, SE]}
           x-ui: {basic: true}
-          description: Search these countries by default; omit only when Germany alone is intended.
+          description: Select SE for the available source. DE remains accepted but returns an explicit coverage gap.
         requests:
           type: array
           minItems: 1
@@ -139,7 +128,7 @@ skills:
                 type: string
                 enum: [DE, SE]
                 x-ui: {basic: false}
-                description: Legacy singleton country override; do not combine with countries.
+                description: Legacy singleton country override; DE is unavailable. Do not combine with countries.
               countries:
                 type: array
                 minItems: 1
@@ -159,7 +148,7 @@ skills:
                 x-ui: {basic: false}
                 description: >
                   Radius in km around location. Requires location and is currently
-                  supported only by Bundesagentur für Arbeit in Germany.
+                  unavailable from the configured providers.
               remote:
                 type: boolean
                 x-ui: {basic: true}
@@ -186,12 +175,12 @@ skills:
                 description: Maximum final results for this request.
               provider:
                 type: string
-                enum: [auto, Arbeitnow, Arbeitsagentur, JobTech, '80,000 Hours', Hard Problems]
+                enum: [auto, JobTech]
                 x-ui: {basic: false}
                 description: One explicit source, overriding auto country routing.
               providers:
                 type: array
-                items: {type: string, enum: [Arbeitnow, Arbeitsagentur, JobTech, '80,000 Hours', Hard Problems]}
+                items: {type: string, enum: [JobTech]}
                 x-ui: {basic: false}
                 description: Explicit source list; do not mix with provider or auto.
               relevance_criteria:
@@ -254,6 +243,15 @@ skills:
                 employment_type: {type: [string, 'null'], x-ui: {basic: false}}
                 published_at: {type: [string, 'null'], x-ui: {basic: false}}
                 description: {type: [string, 'null'], x-ui: {basic: false}}
+                sector: {type: [string, 'null'], x-ui: {basic: false}}
+                role: {type: [string, 'null'], x-ui: {basic: false}}
+                seniority: {type: [string, 'null'], x-ui: {basic: false}}
+                organization_type: {type: [string, 'null'], x-ui: {basic: false}}
+                work_arrangement: {type: [string, 'null'], x-ui: {basic: false}}
+                salary_text: {type: [string, 'null'], x-ui: {basic: false}}
+                valid_through: {type: [string, 'null'], x-ui: {basic: false}}
+                impact: {type: [string, 'null'], x-ui: {basic: false}}
+                detail_status: {type: [string, 'null'], x-ui: {basic: false}}
                 salary_min: {type: [number, 'null'], x-ui: {basic: false}}
                 salary_max: {type: [number, 'null'], x-ui: {basic: false}}
                 salary_currency: {type: [string, 'null'], x-ui: {basic: false}}

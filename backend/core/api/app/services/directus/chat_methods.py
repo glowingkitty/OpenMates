@@ -74,8 +74,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -91,6 +91,7 @@ CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,chat_visibilit
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
+    CHAT_METADATA_FIELDS.replace(",title_is_manual", ""),
     CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
     CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
     CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
@@ -1719,6 +1720,7 @@ class ChatMethods:
         cursor_timestamp: Optional[int] = None,
         cursor_message_id: Optional[str] = None,
         lower_bound_timestamp: Optional[int] = None,
+        metadata_only: bool = False,
     ) -> List[Dict[str, Any]]:
         """Read a fixed, bounded projection through the internal SQL endpoint.
 
@@ -1731,7 +1733,7 @@ class ChatMethods:
         response = await self.directus_service._make_api_request(
             'POST', f"{self.directus_service.base_url.rstrip('/')}/chat-archive-transaction",
             headers={'X-Internal-Service-Token': token},
-            json={'operation': 'hot_message_window', 'data': {
+            json={'operation': 'hot_message_timeline' if metadata_only else 'hot_message_window', 'data': {
                 'chat_id': chat_id, 'direction': direction, 'limit': limit,
                 'cursor_timestamp': cursor_timestamp, 'cursor_message_id': cursor_message_id,
                 'lower_bound_timestamp': lower_bound_timestamp or None,
@@ -1744,6 +1746,22 @@ class ChatMethods:
                 or any(not isinstance(row, dict) or row.get('chat_id') != chat_id for row in rows)):
             raise RuntimeError('Canonical message window unavailable')
         return self._normalize_message_window_rows(rows)
+
+    async def get_message_timeline_metadata(
+        self, chat_id: str, *, before_timestamp: Optional[int] = None,
+        before_message_id: Optional[str] = None, limit: int = 201,
+    ) -> List[Dict[str, Any]]:
+        """Read only identity/turn metadata, including tied and legacy IDs.
+
+        The internal reader fixes its SQL projection and limit; clients cannot
+        select ciphertext fields. The API authorizes the chat before calling.
+        """
+        return await self._fetch_message_window_rows(
+            chat_id, direction='latest' if before_timestamp is None else 'before',
+            limit=max(1, min(int(limit), 201)), cursor_timestamp=before_timestamp,
+            cursor_message_id=before_message_id if before_timestamp is not None else None,
+            metadata_only=True,
+        )
 
     async def get_message_window_for_chat(
         self,
@@ -2252,7 +2270,6 @@ class ChatMethods:
         await self._cleanup_assistant_speech(chat_id, assistant_message_id=assistant_message_id)
 
     async def _cleanup_assistant_speech(self, chat_id: str, *, assistant_message_id: str | None = None) -> None:
-        from backend.apps.audio.assistant_speech.persistence import tombstone_speech_assets
         from backend.core.api.app.tasks.celery_config import app
 
         params: Dict[str, Any] = {
@@ -2262,24 +2279,41 @@ class ChatMethods:
         }
         if assistant_message_id:
             params["filter[assistant_message_id][_eq]"] = assistant_message_id
-        manifests = await self.directus_service.get_items("assistant_speech_manifests", params=params, no_cache=True)
-        for manifest in manifests or []:
-            user_id = manifest.get("user_id")
-            message_id = manifest.get("assistant_message_id")
-            if not user_id or not message_id:
-                continue
-            changed = await tombstone_speech_assets(
-                self.directus_service,
-                user_id=str(user_id),
-                chat_id=chat_id,
-                assistant_message_id=str(message_id),
+        identities = set()
+        # Segments remain discoverable even if an interrupted publication has no
+        # manifest. Empty manifests still need cleanup after cancellation.
+        for collection in ("assistant_speech_manifests", "assistant_speech_segments"):
+            rows = await self.directus_service.get_items(collection, params=params, no_cache=True, raise_on_error=True)
+            if not isinstance(rows, list):
+                raise RuntimeError("Assistant speech cleanup inventory unavailable")
+            for row in rows:
+                user_id, message_id = row.get("user_id"), row.get("assistant_message_id")
+                if not user_id or not message_id:
+                    raise RuntimeError("Assistant speech cleanup owner identity unavailable")
+                identities.add((str(user_id), str(message_id)))
+        for user_id, message_id in sorted(identities):
+            # Do not gate dispatch on a status change: broker failure can leave
+            # cancelled rows that the next deletion attempt must dispatch again.
+            rows = await self.directus_service.get_items(
+                "assistant_speech_segments", params={
+                    "filter[user_id][_eq]": user_id, "filter[chat_id][_eq]": chat_id,
+                    "filter[assistant_message_id][_eq]": message_id, "limit": -1,
+                }, no_cache=True, raise_on_error=True,
             )
-            if changed:
-                app.send_task(
-                    "apps.audio.tasks.assistant_speech_delete",
-                    kwargs={"arguments": {"user_id": str(user_id), "chat_id": chat_id, "assistant_message_id": str(message_id)}},
-                    queue="app_music",
-                )
+            if not isinstance(rows, list):
+                raise RuntimeError("Assistant speech cancellation inventory unavailable")
+            for row in rows:
+                if row.get("status") != "cancelled":
+                    row_id = row.get("id") or row.get("segment_id")
+                    if not row_id or not await self.directus_service.update_item(
+                        "assistant_speech_segments", str(row_id), {"status": "cancelled"},
+                    ):
+                        raise RuntimeError("Assistant speech cancellation failed")
+            app.send_task(
+                "apps.audio.tasks.assistant_speech_delete",
+                kwargs={"arguments": {"user_id": user_id, "chat_id": chat_id, "assistant_message_id": message_id}},
+                queue="app_music",
+            )
 
     async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
         """

@@ -1,6 +1,78 @@
 schema_version: 1
 specification: surface.sdk@1
 
+sdk_architecture:
+  - id: explicit-headless-client
+    assertion_ids: [sdk.library.explicit-headless]
+    given: A Rust, npm or Python SDK is instantiated while a CLI user is logged in, and a first-party client supplies its platform storage adapter.
+    when: The caller supplies explicit credentials and invokes an encrypted operation or resumes synchronization after disconnecting.
+    then: Shared Rust performs the reusable operation, crypto, authentication, storage policy, sync and recovery directly. Only the supplied adapter accesses platform storage; the SDK never discovers the CLI login, launches a CLI or initializes a terminal.
+  - id: three-language-conformance-release
+    assertion_ids: [sdk.parity.executable-release-gate]
+    given: A public capability or cryptographic format is added or changed in one SDK.
+    when: Shared-schema, protocol-fixture and cryptographic-vector conformance and package publication checks run.
+    then: Actual Rust, npm and Python libraries must demonstrate matching capability semantics and errors; missing implementations, mismatched results or untracked public additions block release. Migration gaps stay open and required breaking changes are documented and versioned.
+
+client_platforms:
+  - id: browser-ui-and-media-adapter
+    given: The migrated web app displays a chat and offers microphone input and a WebRTC call.
+    when: The user records audio and reconnects the chat after a network interruption.
+    then: Svelte/TypeScript renders the UI and invokes browser media APIs; shared Rust performs reusable chat operations, encryption, authorization and reconnect/recovery without a second TypeScript implementation.
+  - id: native-ui-existing-data
+    given: An Apple client has existing SwiftData chat records and the browser has existing IndexedDB records.
+    when: Their native or browser UI opens a cached chat through the shared Rust core.
+    then: Thin platform adapters retain those stores and data while Rust applies the same reusable policy; no forced SQLite or OPFS conversion occurs.
+
+client_rollout:
+  - id: unfinished-essential-native-flow-blocks-browser
+    given: The entirely Rust CLI/TUI still has an unresolved authentication, encrypted-chat, streaming/cancellation, persistence or sync/reconnect/recovery defect.
+    when: The migration considers starting browser/WASM integration.
+    then: The essential native flow is repaired and verified first; architecture approval or passing command-parser tests alone do not admit browser integration.
+  - id: essential-native-proof-admits-browser-with-parity-open
+    given: Essential native auth, encrypted chat, streaming/cancellation, persistence and sync/reconnect/recovery have exact-source evidence, while some app and CLI commands remain unported.
+    when: The verified Rust CLI is made available alongside the installed npm CLI for daily testing.
+    then: Browser/WASM integration begins immediately and exhaustive CLI parity continues as separate required work; the npm command and source stay available until explicit retirement acceptance.
+client_retirement:
+  - id: accepted-clients-before-backend
+    given: CLI/TUI and the full web migration are verified, including the web before/after measurements.
+    when: Apple is migrated through the coordinated Mac workflow and all clients later receive explicit agent and user acceptance.
+    then: Verified superseded client code is removed after acceptance; only after every client and its cleanup is complete may a separately scoped backend Rust migration begin.
+
+web_migration_performance:
+  - id: compare-complete-cold-load
+    given: The same account, chat and browser conditions are available before and after web migration, with caches cold.
+    when: Performance is measured for the full application.
+    then: The report compares JavaScript and WASM download sizes separately and together, actual compressed transfer, cold startup including WASM initialization, usable-chat latency, auth/encrypted-chat/stream-cancel/persistence/sync-recovery responsiveness, CPU and RAM, with reproducible inputs and visible regressions or failures.
+  - id: smaller-javascript-is-insufficient
+    given: The migrated JavaScript is smaller but its WASM transfer grows and only a warm renderer benchmark has run.
+    when: Web migration completion is reviewed.
+    then: Performance remains unverified until comparable download/transfer, WASM initialization, cold full-application startup and essential-flow measurements are available; the warm result is labeled separately and minimal overhead is not assumed.
+
+sdk_distribution:
+  - id: independent-library-development-release
+    given: A Rust application needs encrypted OpenMates operations without a terminal, while a developer tests a new development release.
+    when: It selects an explicit versioned prerelease of the reusable SDK crate from crates.io.
+    then: It links the library independently of the CLI crate; npm and Python direct bindings remain covered by the same executable conformance, and no GitHub executable asset is required.
+
+sdk_anonymous:
+  - id: free-decision-and-chat
+    given: A new developer uses either SDK without an API key while the existing anonymous allowance can cover the request.
+    when: They inspect allowance status, call apps.ai.decide with a game state, and send a transient text chat.
+    then: Both SDKs use the public anonymous routes with the same stable guest identity and return the supported results without requiring signup or a payment method.
+  - id: account-boundary-and-explicit-free-mode
+    given: An environment contains an API key but the developer explicitly selects anonymous mode.
+    when: They call an eligible skill and then try to save a chat or access private account data.
+    then: The skill uses the guest route without the environment key, while private account work is rejected; an explicitly supplied key conflicting with anonymous mode is also rejected, and authenticated errors never trigger guest fallback.
+sdk_anonymous_failures:
+  - id: allowance-refusal-is-actionable
+    given: A guest has used their allowance or the shared server budget cannot cover a request.
+    when: They call a skill or send a chat through either SDK.
+    then: OpenMatesSignupRequiredError exposes the reason and a clear create-an-account message, without implying inference or skill processing failed.
+  - id: processing-failure-stays-distinct
+    given: The free allowance is available but a provider or the usage meter returns an unavailable error.
+    when: Either SDK receives that response.
+    then: It preserves the processing error as a distinct API failure and never presents it as an exhausted allowance or retries anonymously with a different identity.
+
 sdk_auth:
   - id: stable-device-id-without-secret-material
     input:

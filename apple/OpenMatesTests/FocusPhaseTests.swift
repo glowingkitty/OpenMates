@@ -162,8 +162,10 @@ final class FocusPhaseTests: XCTestCase {
         XCTAssertEqual(privateLoads, 0)
         XCTAssertEqual(store.entry(chatID: "chat", embedID: requestID)?.status, .cancelled)
         store.clearAfterNoActiveBase(chatID: "chat")
-        do { try await store.confirmBeforeContext(chatID: "chat") }
-        catch { XCTFail("Later regular turn with no active base should proceed") }
+        do {
+            let activated = try await store.confirmBeforeContext(chatID: "chat")
+            XCTAssertFalse(activated, "Cleared decline must reuse fresh inactive metadata")
+        } catch { XCTFail("Later regular turn with no active base should proceed") }
         XCTAssertEqual(privateLoads, 0)
         store.reset()
     }
@@ -186,6 +188,33 @@ final class FocusPhaseTests: XCTestCase {
         XCTAssertEqual(confirmationAttempts, 1)
         XCTAssertEqual(store.entry(chatID: "chat", embedID: requestID)?.status, .failed)
         store.reset()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.countdown,projects.focus.inferred-consent
+    @MainActor
+    func testCancelledContextWaiterCannotReuseAcceptedActivation() async throws {
+        let store = PendingProjectFocusStore(), scope = UUID()
+        let embedID = UUID().uuidString.lowercased()
+        let confirming = expectation(description: "Live consent confirmation started")
+        var completion: CheckedContinuation<Void, Never>?
+        store.configure(scope: scope, complete: { record in
+            try store.beginCommit(record)
+            await withCheckedContinuation { completion = $0; confirming.fulfill() }
+        }, reject: { _ in XCTFail("Cancelling a send must preserve the live consent decision") })
+        defer { store.reset() }
+        store.ingest(fields: ["chat_id": "chat", "embed_id": embedID,
+            "focus_id": "project-11111111-1111-4111-8111-111111111111",
+            "expires_at": Date().timeIntervalSince1970 - 1], scope: scope)
+        await fulfillment(of: [confirming], timeout: 2)
+        let waiter = Task { try await store.confirmBeforeContext(chatID: "chat") }
+        waiter.cancel()
+        completion?.resume()
+        do {
+            _ = try await waiter.value
+            XCTFail("A cancelled send cannot use even an accepted activation")
+        } catch is CancellationError {} catch { XCTFail("Expected caller cancellation") }
+        let activated = try await store.confirmBeforeContext(chatID: "chat")
+        XCTAssertTrue(activated, "The independently accepted countdown still requires a fresh binding read")
     }
 
     // contract-test: supporting surface=gui.apple assertions=focus-modes.countdown,projects.focus.inferred-consent
@@ -360,7 +389,8 @@ final class FocusPhaseTests: XCTestCase {
         XCTAssertEqual(store.entry(chatID: "chat", embedID: requestID)?.status, .committing)
         XCTAssertEqual(rejections, 0, "A sent accepted decision cannot claim a successful late cancel")
         suspended?.resume(); suspended = nil
-        try await store.confirmBeforeContext(chatID: "chat")
+        let activated = try await store.confirmBeforeContext(chatID: "chat")
+        XCTAssertTrue(activated, "Accepted activation requires a fresh binding read")
         XCTAssertEqual(store.entry(chatID: "chat", embedID: requestID)?.status, .activated)
         store.reset()
     }

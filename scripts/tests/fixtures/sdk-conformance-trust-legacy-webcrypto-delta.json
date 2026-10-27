@@ -1,0 +1,134 @@
+{
+  "afterSha256": "e90497b9256588cc198ebb562e23c47db71c29240557f257e56764119ce6fdac",
+  "applicationReceiptSha256": "53bad017110f2f47de8785f070cedfefee56f7dfb063bdbc1a7d5b9dcbc11a77",
+  "beforeSha256": "904c42a39c55a76640ac3585986f1907525de5831ee380ba8dc3a20b69b4b71f",
+  "capabilityDelta": 0,
+  "cookieHistoricalTestSha256": "5fad523b3e905cd1eb92625e22b4f7378e00a27b36d6b4e3a8a6a9709bbb3254",
+  "counts": {
+    "contracts": 83,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 317
+  },
+  "excluded": [
+    "Private cache6 and saved-embed7",
+    "Separate canonical CI3 harness changes, not SDK pins",
+    "No Cargo/lock or API/matrix/status/family/plan/gap changes"
+  ],
+  "gapsUnchanged": true,
+  "matrixSha256": "cb10bffa6d3fbe448245415af5a220ba3b244295d028d68c13e574b311ef1edf",
+  "nativeExecutions": 0,
+  "oldGapsSha256": "7ebafa3a3540d3b7079327eac7fd1e93118c12a018a7de13975c1332f397983b",
+  "oldPlansSha256": "87eaab316b78a628b6bcd9c125a7147d604adb9819db0c1ad3f59586e17a4cbe",
+  "pinDeltas": {
+    "contracts": {
+      "packages/openmates-rust/tests/crypto_fixtures/browser-legacy-password.json": {
+        "after": "d85babab5d2cd5a4ba984ae89ce25528caa723f7172d0bbbcf4eb448d904837c",
+        "before": null
+      }
+    },
+    "programs": {
+      "packages/openmates-browser-bindings/src/legacy_password_test_context.rs": {
+        "after": "1140ffaf59c2a37b14fea701490d98009e90583e4fcb7312100336a695142345",
+        "before": null
+      },
+      "packages/openmates-browser-bindings/src/legacy_password_tests.rs": {
+        "after": "3f97211f9ffe1f947b98d4dca60bd8f2ecfc50dd128eb4e046565db9a741aa07",
+        "before": null
+      },
+      "packages/openmates-browser-bindings/src/lib.rs": {
+        "after": "db4a769acf3e87ae7166bc6a14157d5c185c013750567eb27331ede1eb225736",
+        "before": "200ab97ed4627f806024faa506ac05264e94b5de85812667936ea3e47b71911a"
+      },
+      "packages/openmates-rust/src/client/auth.rs": {
+        "after": "88504239c857c01f0149de6d429c3b93a0599a6cb84c7f744390e6e8fc621134",
+        "before": "709a52f4efcfe444f50b92a91d22f9382fddb56093531dc656802678f7d16179"
+      },
+      "packages/openmates-rust/src/crypto.rs": {
+        "after": "475834e9f2b78d3fc2e6609218acd7ae310941cf67d5112d74e15bb52dfa7a7e",
+        "before": "53ecb79bdd6cd264c14bf7b523ed2918dae94ca95eaeaaa75b5ba249b34d4d75"
+      },
+      "packages/openmates-rust/src/crypto/browser_legacy.rs": {
+        "after": "378906fb58b9c88ae7667e3e2a8810544f2a6a99daec7aba3f592af857050397",
+        "before": null
+      },
+      "packages/openmates-rust/src/crypto/legacy_password_tests.rs": {
+        "after": "0046c122f4469810575d1e6298932b4bf7d1922840038bd77ffe2d8ae33c19a3",
+        "before": null
+      },
+      "packages/openmates-rust/src/crypto/password_master.rs": {
+        "after": "2e319556716adb18b70ce58e0c91487667e86f6465dc70f7942dca455ccb6227",
+        "before": null
+      }
+    }
+  },
+  "plansUnchanged": true,
+  "private": true,
+  "publicApiDelta": 0,
+  "releaseEligible": false,
+  "requiredUnverified": [
+    "Actual compilation and execution of existing8 plus new3 genuine DedicatedWorker Rust/WASM cases; all native parser/precredential-scope tests.",
+    "All existing93 direct Rust/npm/Python conformance plans and actual deployed auth/ordinary-retention/browser lifecycle execution remain required.",
+    "Equal-source/input deployed-TS versus Rust/WASM CPU/end-to-end cold/warm performance, memory/size and packaging acceptance remain unmeasured."
+  ],
+  "schemaVersion": 1,
+  "sourceClosure": [
+    {
+      "beforeSha256": null,
+      "bucket": "programs",
+      "path": "packages/openmates-browser-bindings/src/legacy_password_test_context.rs",
+      "sha256": "1140ffaf59c2a37b14fea701490d98009e90583e4fcb7312100336a695142345"
+    },
+    {
+      "beforeSha256": null,
+      "bucket": "programs",
+      "path": "packages/openmates-browser-bindings/src/legacy_password_tests.rs",
+      "sha256": "3f97211f9ffe1f947b98d4dca60bd8f2ecfc50dd128eb4e046565db9a741aa07"
+    },
+    {
+      "beforeSha256": "200ab97ed4627f806024faa506ac05264e94b5de85812667936ea3e47b71911a",
+      "bucket": "programs",
+      "path": "packages/openmates-browser-bindings/src/lib.rs",
+      "sha256": "db4a769acf3e87ae7166bc6a14157d5c185c013750567eb27331ede1eb225736"
+    },
+    {
+      "beforeSha256": "709a52f4efcfe444f50b92a91d22f9382fddb56093531dc656802678f7d16179",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/auth.rs",
+      "sha256": "88504239c857c01f0149de6d429c3b93a0599a6cb84c7f744390e6e8fc621134"
+    },
+    {
+      "beforeSha256": "53ecb79bdd6cd264c14bf7b523ed2918dae94ca95eaeaaa75b5ba249b34d4d75",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/crypto.rs",
+      "sha256": "475834e9f2b78d3fc2e6609218acd7ae310941cf67d5112d74e15bb52dfa7a7e"
+    },
+    {
+      "beforeSha256": null,
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/crypto/browser_legacy.rs",
+      "sha256": "378906fb58b9c88ae7667e3e2a8810544f2a6a99daec7aba3f592af857050397"
+    },
+    {
+      "beforeSha256": null,
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/crypto/legacy_password_tests.rs",
+      "sha256": "0046c122f4469810575d1e6298932b4bf7d1922840038bd77ffe2d8ae33c19a3"
+    },
+    {
+      "beforeSha256": null,
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/crypto/password_master.rs",
+      "sha256": "2e319556716adb18b70ce58e0c91487667e86f6465dc70f7942dca455ccb6227"
+    },
+    {
+      "beforeSha256": null,
+      "bucket": "contracts",
+      "path": "packages/openmates-rust/tests/crypto_fixtures/browser-legacy-password.json",
+      "sha256": "d85babab5d2cd5a4ba984ae89ce25528caa723f7172d0bbbcf4eb448d904837c"
+    }
+  ],
+  "sourceGateRuns": 0,
+  "sourceManifestSha256": "ada39fa1125fe147e7af20e05bfd5abed749e357bcbb69ceb59055e3c91825d4",
+  "sourcePatchSha256": "c1b3f7a9293acdc589d5e929a9f2b3ce5c07929d91073b46761b2c23f1e3f13a"
+}

@@ -31,7 +31,7 @@ final class AppSkillInputPreviewTests: XCTestCase {
             ("code", "get_docs", ["library": "/sveltejs/svelte", "question": "How do runes work?"], "/sveltejs/svelte · How do runes work?"),
             ("travel", "get_flight", ["flight_number": "LH123", "departure_date": "2026-10-09"], "LH123 · 2026-10-09"),
             ("travel", "search_connections", ["requests": [["legs": [["origin": "Berlin", "destination": "Paris", "date": "2026-10-09"]]]]], "Berlin · Paris · 2026-10-09"),
-            ("social_media", "get-posts", ["page": "synthetic-community", "platform": "reddit"], "synthetic-community · reddit"),
+            ("social_media", "get-posts", ["page": "synthetic-community", "platform": "ExampleCommunity"], "synthetic-community · ExampleCommunity"),
             ("workflows", "create-or-modify", ["instruction": "Summarize a weekly report"], "Summarize a weekly report"),
             ("tasks", "create", ["tasks": [["title": "Synthetic task"]]], "Synthetic task")
         ]

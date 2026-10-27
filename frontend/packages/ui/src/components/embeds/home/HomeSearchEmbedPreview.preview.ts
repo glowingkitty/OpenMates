@@ -19,8 +19,8 @@ const defaultProps = {
 			rooms: 2,
 			address: 'Bergmannstr., 10961 Berlin',
 			image_url: '',
-			url: 'https://www.immobilienscout24.de/expose/12345',
-			provider: 'ImmoScout24',
+			url: 'https://example.com/expose/12345',
+			provider: 'ExampleHousingA',
 			listing_type: 'rent'
 		},
 		{
@@ -30,8 +30,8 @@ const defaultProps = {
 			rooms: 1,
 			address: 'Schönhauser Allee, 10439 Berlin',
 			image_url: '',
-			url: 'https://www.wg-gesucht.de/wg-zimmer-in-Berlin.12345.html',
-			provider: 'WG-Gesucht',
+			url: 'https://example.com/fixture',
+			provider: 'ExampleHousingC',
 			listing_type: 'rent'
 		},
 		{
@@ -41,8 +41,8 @@ const defaultProps = {
 			rooms: 3,
 			address: 'Friedrichshain, 10245 Berlin',
 			image_url: '',
-			url: 'https://www.kleinanzeigen.de/s-anzeige/67890',
-			provider: 'Kleinanzeigen',
+			url: 'https://example.com/fixture',
+			provider: 'ExampleHousingB',
 			listing_type: 'rent'
 		}
 	],
@@ -54,6 +54,17 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  savedParentMetadata: {
+    ...defaultProps, id: 'legacy-home-parent-metadata', results: undefined,
+    previewData: {query: 'Berlin', provider: 'Multi', status: 'finished', result_count: 6,
+      embed_ids: 'one|two|three|four|five|six', preview_results: [
+        {title: 'Canal apartment', image_url: '/store-examples/home-1.webp'},
+        {title: 'Park loft', image_url: '/store-examples/home-2.webp'},
+        {title: 'Garden flat', image_url: '/store-examples/home-3.webp'}]}
+  },
+  metadataOnly: {...defaultProps, id: 'legacy-home-count-only', results: [], resultCount: 6, childEmbedIds: 'one|two|three|four|five|six'},
+  knownZero: {...defaultProps, id: 'legacy-home-known-zero', results: [], resultCount: 0},
+  unknownResults: {...defaultProps, id: 'legacy-home-unknown', results: []},
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-home-search-processing',

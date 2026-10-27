@@ -1,10 +1,11 @@
 /**
  * Manual paid proof for the complete message-input transcription pipeline.
  *
- * Chromium replays a committed speech WAV that was generated once through
- * OpenMates audio.speak (ElevenLabs). The test itself never calls ElevenLabs;
- * it sends the prerecorded microphone stream through the real authenticated
- * realtime transcription and correction services on dev.
+ * Chromium replays a committed 62-second synthetic speech WAV with distinct
+ * requirements at the beginning, middle, and end. It sends the microphone stream
+ * through the real authenticated transcription and correction services on dev.
+ * Fixture source is the adjacent .txt; generate with ffmpeg's flite filter,
+ * voice=slt, 16 kHz mono pcm_s16le. No provider is used to create the fixture.
  *
  * This spec is classified manual_expensive in daily_ai_test_manifest.json and
  * is therefore excluded from scheduled daily discovery.
@@ -17,14 +18,14 @@ import { test, expect } from './helpers/cookie-audit';
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 
 const SPEECH_FIXTURE = fs.existsSync(
-	'/workspace/backend/tests/fixtures/realtime_transcription_speech.wav',
+	'/workspace/backend/tests/fixtures/realtime_transcription_long_speech.wav',
 )
-	? '/workspace/backend/tests/fixtures/realtime_transcription_speech.wav'
+	? '/workspace/backend/tests/fixtures/realtime_transcription_long_speech.wav'
 	: path.resolve(
 			__dirname,
-			'../../../../backend/tests/fixtures/realtime_transcription_speech.wav',
+			'../../../../backend/tests/fixtures/realtime_transcription_long_speech.wav',
 		);
-const EXPECTED_TRANSCRIPT_FRAGMENT = /working correctly in openmates/i;
+const EXPECTED_REQUIREMENTS = [/five hundred|500/i, /Wednesday/i, /Daniel/i, /Thursday/i];
 
 test.use({
 	launchOptions: {
@@ -38,9 +39,11 @@ test.use({
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
-test('real speech becomes editable composer text without storing audio', async ({ page }) => {
+test('real long speech preserves beginning middle and end as editable composer text without storing audio', async ({ page }) => {
 	test.setTimeout(300_000);
 	const serverEvents: string[] = [];
+	let streamedTranscript = '';
+	let rawTranscript = '';
 	let realtimeSocketCount = 0;
 	let audioUploads = 0;
 	let batchTranscriptionRequests = 0;
@@ -51,6 +54,8 @@ test('real speech becomes editable composer text without storing audio', async (
 			try {
 				const message = JSON.parse(String(payload));
 				if (typeof message.type === 'string') serverEvents.push(message.type);
+				if (message.type === 'transcription.text.delta') streamedTranscript += String(message.text || '');
+				if (message.type === 'transcription.done') rawTranscript = String(message.transcript || '');
 			} catch { /* Ignore non-JSON protocol frames. */ }
 		});
 	});
@@ -73,11 +78,18 @@ test('real speech becomes editable composer text without storing audio', async (
 	await micButton.click();
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 10_000 });
-	await expect(overlay.getByTestId('recording-live-transcript')).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, { timeout: 60_000 });
+	await expect(overlay.getByTestId('recording-live-transcript')).toContainText(/in the final message/i, { timeout: 90_000 });
+	// Earlier speech must be corrected while the microphone is still active.
+	await expect.poll(() => serverEvents.includes('correction.progress'), { timeout: 30_000 }).toBe(true);
+	expect(serverEvents).not.toContain('transcription.done');
 	await overlay.getByTestId('record-finish-button').click();
-	await expect(overlay).not.toBeVisible({ timeout: 10_000 });
+	await expect(overlay).not.toBeVisible({ timeout: 60_000 });
 	await expect.poll(() => serverEvents.includes('correction.done') || serverEvents.includes('correction.skipped'), { timeout: 60_000 }).toBe(true);
-	await expect(editor).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, { timeout: 60_000 });
+	expect(rawTranscript).toBe(streamedTranscript.trim());
+	for (const requirement of EXPECTED_REQUIREMENTS) {
+		expect(rawTranscript).toMatch(requirement);
+		await expect(editor).toContainText(requirement, { timeout: 60_000 });
+	}
 	await expect(editor).toHaveText(/^Please /);
 	await expect(editor).toBeFocused();
 	await expect(messageField.getByTestId('recording-preview')).toHaveCount(0);

@@ -16,12 +16,6 @@ from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
 
 MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024
-IMAGE_MIME_TYPES = {
-    "png": "image/png",
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "webp": "image/webp",
-}
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +87,28 @@ async def _load_embed_record(
     return record
 
 
+async def decode_image_record_content(*, record: Mapping[str, Any], user_vault_key_id: str,
+                                      encryption_service: Any, decode_toon: Callable[[str], Any] | None = None) -> dict[str, Any]:
+    """Decode server-readable metadata; durable client ciphertext fails closed."""
+    encrypted_content = record.get("encrypted_content")
+    if isinstance(encrypted_content, str) and encrypted_content:
+        if not encrypted_content.startswith("vault:v"):
+            raise EncryptedEmbedImageError("Reference image is unavailable in the current processing window")
+        if decode_toon is None:
+            from toon_format import decode as decode_toon
+        decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
+        if not decrypted_toon:
+            raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
+        content = decode_toon(decrypted_toon)
+        if not isinstance(content, dict):
+            raise EncryptedEmbedImageError("Referenced image content is invalid")
+    else:
+        # Fresh uploads are cached before their optional chat embed is persisted.
+        content = record
+
+    return dict(content)
+
+
 async def resolve_encrypted_image_embed(
     *,
     embed_id: str,
@@ -114,19 +130,8 @@ async def resolve_encrypted_image_embed(
         directus_service=directus_service,
         preloaded_records=preloaded_records,
     )
-    encrypted_content = record.get("encrypted_content")
-    if isinstance(encrypted_content, str) and encrypted_content:
-        if decode_toon is None:
-            from toon_format import decode as decode_toon
-        decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
-        if not decrypted_toon:
-            raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
-        content = decode_toon(decrypted_toon)
-        if not isinstance(content, dict):
-            raise EncryptedEmbedImageError("Referenced image content is invalid")
-    else:
-        # Fresh uploads are cached before their optional chat embed is persisted.
-        content = record
+    content = await decode_image_record_content(record=record, user_vault_key_id=user_vault_key_id,
+                                                encryption_service=encryption_service, decode_toon=decode_toon)
 
     files = content.get("files")
     wrapped_key = content.get("vault_wrapped_aes_key")
@@ -166,8 +171,15 @@ async def resolve_encrypted_image_embed(
         raise EncryptedEmbedImageError("Referenced image file could not be decrypted") from exc
     if len(plaintext) > MAX_IMAGE_INPUT_BYTES:
         raise EncryptedEmbedImageError("Referenced image exceeds the provider input size limit")
-    image_format = str(variant.get("format") or "").lower()
-    mime_type = IMAGE_MIME_TYPES.get(image_format)
-    if not mime_type:
+    # Legacy upload records label every original variant as WEBP, including
+    # preserved JPEG/PNG files. Provider data URLs must describe the decrypted
+    # container, rather than copying that unreliable metadata label.
+    if plaintext.startswith(b"\xff\xd8\xff"):
+        mime_type = "image/jpeg"
+    elif plaintext.startswith(b"\x89PNG\r\n\x1a\n"):
+        mime_type = "image/png"
+    elif len(plaintext) >= 12 and plaintext[:4] == b"RIFF" and plaintext[8:12] == b"WEBP":
+        mime_type = "image/webp"
+    else:
         raise EncryptedEmbedImageError("Referenced image format is not supported")
     return ResolvedEncryptedImage(content=plaintext, mime_type=mime_type)

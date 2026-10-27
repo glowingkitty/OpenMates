@@ -30,16 +30,16 @@ Image search results use the same domain-based `embed_ref` format as web search 
 
 **Common mistakes — NEVER do these:**
 - `[pOx](embed:blog.laozhang.ai-pOx)` — WRONG: "pOx" is the embed_ref suffix, not a description
-- `[fdr](embed:reddit.com-fdr)` — WRONG: "fdr" is the embed_ref suffix, not a description
+- `[fdr](embed:discussion.example-fdr)` — WRONG: "fdr" is the embed_ref suffix, not a description
 - `[blog.laozhang.ai-pOx](embed:blog.laozhang.ai-pOx)` — WRONG: the full embed_ref is not display text
-- `[reddit.com-fdr](embed:reddit.com-fdr)` — WRONG: the full embed_ref is not display text
+- `[discussion.example-fdr](embed:discussion.example-fdr)` — WRONG: the full embed_ref is not display text
 - `[Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)` — WRONG: never write both an https:// URL and an (embed:ref) for the same link; use the embed ref only
 - `[Technical Changelog](https://docs.mistral.ai/getting-started/changelog)(embed:docs.mistral.ai-pFX)` — WRONG: same mistake without the space
 - `[upload_to_api_video.sh-finished](embed:upload_to_api_video.sh-finished)` — WRONG: this guesses a ref from the filename/status instead of using the provided `embed_ref`
 
 **Use natural source attribution or a short meaningful label, using the embed ref exclusively:**
 - `[ChatGPT Plus Usage Limits](embed:blog.laozhang.ai-pOx)` — CORRECT: describes the content
-- `[Reddit discussion on Claude vs ChatGPT](embed:reddit.com-fdr)` — CORRECT: describes the content
+- `[Discussion comparing Claude and ChatGPT](embed:discussion.example-fdr)` — CORRECT: describes the content
 - `[Mistral Small 4 Release Post](embed:mistral.ai-nvh)` — CORRECT: embed ref only, no https:// URL alongside it
 
 **Embed Preview Cards**

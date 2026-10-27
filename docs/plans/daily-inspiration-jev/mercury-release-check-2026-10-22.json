@@ -1,0 +1,1006 @@
+{
+  "date": "2026-10-22",
+  "scope": "One authorized bounded release diagnostic: four freshly revalidated public sources, four single-attempt production Mercury writes, and nineteen separately priced Jev-only controls. No reruns, resampling, account or pool writes. This is not a full refresh or a passing safety qualification.",
+  "evidence_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-mercury-v9-release-20261022",
+  "production_commit": "32d62b7f4adf328ce5530d6f71ef670eaffc35d1",
+  "exit_code": 1,
+  "exit_reason": "One fixed known material negative admitted by current Jev gates; script deliberately exited nonzero.",
+  "manifest_sha256": "9a036d47728e5bafecc381482e6719805f2971147df3f4fd0edf3d90d92787ca",
+  "script_sha256": "65bedc140aafe918af63232a59a2b177d9b7cf1e74d4e279eaae01eef58bd796",
+  "runtime_hashes_verified": 14,
+  "source_sha256": {
+    "config.py": "9499f48168c93010478e4ef80ca621bf79ba56bbfa536663c9aef8921c149417",
+    "decisions.py": "e90bc075a42e35f2b8ea21893360ecbe6c6ceea50b4f1cb8d99ebfa85fb9e61f",
+    "generator.py": "b9fca7e7575e4a414e4656252ccb2c9e70077addf9392f410e7b8e4af794ef56",
+    "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+    "wiki_generator.py": "3cb0fabf04767409c490e2ea3b3b79e8cc5d65764a6d1fbc81c901238a1c2e22",
+    "writer.py": "34faa709c898a9792d05082e12e2811508dd9d582cef2bccc41c3af31df853b6",
+    "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+    "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+    "media_coherence.py": "8fda6032d55070db3b78117008cacb69493a86f975dedd79e7fade6fbef6eb4d",
+    "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+    "writer_prompt.py": "894335c1066210987dac96ad1446e17fc2021947b752e8db33bac62a00e57144",
+    "default_inspiration_tasks.py": "f4cc5a1e738a378d78c06f742c2b9c9e21fe909244d381358180bd20b5f01c45",
+    "daily_inspiration_tasks.py": "8230ec66b24585b770245b5157624d1e5e04275afec7143691a59b98de07c5b5",
+    "default_inspirations.py": "3deddd37f2219040651aedea45f8c4a9b0eea16caf323e5042ecc0684d214be3"
+  },
+  "provider_catalog_sha256": {
+    "google.yml": "1b264ae299cac553de9f70c9ac1ce7b19302cf4bc89072e9b0edda3f1af01857",
+    "inception.yml": "70151694fff5b75ca464bc2f0b784ee5ad0c10abd50aaf69346364e9503fa95d",
+    "typesafe.yml": "f8f9fa3eafc0514dd89459906dba6457c0f97af3b705f645f7b38bdc13518b6c"
+  },
+  "policy_version": "daily-editorial-v9",
+  "planned_source_slots": 4,
+  "freshly_eligible_sources": 4,
+  "source_shortfalls": 0,
+  "production": {
+    "writer_attempts": 4,
+    "valid_returned_drafts": 4,
+    "admitted": 4,
+    "provider_errors": 0,
+    "schema_or_format_failures": 0,
+    "retries": 0,
+    "fallbacks": 0,
+    "llm_review_calls": 0,
+    "google_calls": 0,
+    "observed_writer_models": {
+      "mercury-3": 4
+    },
+    "profile": {
+      "model": "inception/mercury-3",
+      "reasoning_effort": "low",
+      "temperature": 0.5,
+      "max_output_tokens": 4096,
+      "single_attempt_timeout_seconds": 30
+    },
+    "writer_seconds_mean": 1.653827065601945,
+    "writer_seconds_min": 1.1507340678945184,
+    "writer_seconds_max": 2.20121999271214,
+    "writer_plus_production_jev_usd": 0.002036744,
+    "per_attempt_and_admitted_generated_card_usd": 0.000509186,
+    "release_recovery_scope": "EN video 9lcfB0vmwrg is one separately authorized invocation on the prior canceled source. No transport failure was induced and runtime automatic recovery was not tested."
+  },
+  "gate_controls": {
+    "cases": 19,
+    "available": 19,
+    "unavailable": 0,
+    "positive_controls": 10,
+    "positives_admitted": 6,
+    "positive_false_holds": 4,
+    "fixed_material_negatives": 5,
+    "fixed_material_negatives_admitted": 1,
+    "derived_obvious_negatives": 4,
+    "derived_obvious_negatives_admitted": 0,
+    "false_admission": {
+      "id": "control-04",
+      "row": "de-wiki-0-mercury3_only.json",
+      "family": "fixed_audit",
+      "language": "de",
+      "expected": "reject",
+      "admitted": true,
+      "available": true,
+      "expected_matched": false
+    },
+    "cases_detail": [
+      {
+        "id": "control-00",
+        "row": "de-video-2-mercury3_only.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-01",
+        "row": "de-wiki-0-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-02",
+        "row": "de-wiki-1-mercury3_only.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-03",
+        "row": "en-wiki-0-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "en",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-04",
+        "row": "de-wiki-0-mercury3_only.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "reject",
+        "admitted": true,
+        "available": true,
+        "expected_matched": false
+      },
+      {
+        "id": "control-05",
+        "row": "de-video-1-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-06",
+        "row": "en-video-0-gemini38_only.json",
+        "family": "fixed_audit",
+        "language": "en",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-07",
+        "row": "de-video-1-mercury3_only.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-08",
+        "row": "de-wiki-1-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-09",
+        "row": "en-wiki-1-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "en",
+        "expected": "allow",
+        "admitted": false,
+        "available": true,
+        "expected_matched": false
+      },
+      {
+        "id": "control-10",
+        "row": "de-wiki-2-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": false,
+        "available": true,
+        "expected_matched": false
+      },
+      {
+        "id": "control-11",
+        "row": "en-wiki-2-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "en",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-12",
+        "row": "de-video-2-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": false,
+        "available": true,
+        "expected_matched": false
+      },
+      {
+        "id": "control-13",
+        "row": "de-video-0-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "de",
+        "expected": "allow",
+        "admitted": false,
+        "available": true,
+        "expected_matched": false
+      },
+      {
+        "id": "control-14",
+        "row": "en-video-0-mercury3_clear.json",
+        "family": "fixed_audit",
+        "language": "en",
+        "expected": "allow",
+        "admitted": true,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-15",
+        "row": "en-wiki-0-mercury3_clear.json",
+        "family": "wrong_language",
+        "language": "en",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-16",
+        "row": "en-wiki-0-mercury3_clear.json",
+        "family": "off_topic_followup",
+        "language": "en",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-17",
+        "row": "de-wiki-0-mercury3_clear.json",
+        "family": "wrong_language",
+        "language": "de",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      },
+      {
+        "id": "control-18",
+        "row": "de-wiki-0-mercury3_clear.json",
+        "family": "off_topic_followup",
+        "language": "de",
+        "expected": "reject",
+        "admitted": false,
+        "available": true,
+        "expected_matched": true
+      }
+    ],
+    "labels_fixed_audit_sha256": "6bb45f8f0392f9123b6d77344903652e5ec32e7b9019dc54a2f84afef5659cdc",
+    "observed_native_models": {
+      "jev-1.14.0": 21
+    }
+  },
+  "cost_components": {
+    "writer": {
+      "native_responses": 4,
+      "input_tokens": 6090,
+      "output_tokens": 2893,
+      "captured_supplier_cost_usd": 0.00123383,
+      "unpriced_responses": 0
+    },
+    "production_jev": {
+      "native_responses": 6,
+      "input_tokens": 19117,
+      "output_tokens": 3682,
+      "captured_supplier_cost_usd": 0.0008029140000000001,
+      "unpriced_responses": 0
+    },
+    "source_revalidation_jev": {
+      "native_responses": 6,
+      "input_tokens": 10082,
+      "output_tokens": 960,
+      "captured_supplier_cost_usd": 0.00042344400000000003,
+      "unpriced_responses": 0
+    },
+    "diagnostic_locale_jev": {
+      "native_responses": 4,
+      "input_tokens": 2253,
+      "output_tokens": 172,
+      "captured_supplier_cost_usd": 9.462600000000001e-05,
+      "unpriced_responses": 0
+    },
+    "gate_controls_jev": {
+      "native_responses": 21,
+      "input_tokens": 70487,
+      "output_tokens": 15500,
+      "captured_supplier_cost_usd": 0.002960454,
+      "unpriced_responses": 0
+    }
+  },
+  "captured_total_all_diagnostic_ai_usd": 0.005515268,
+  "pricing": {
+    "basis": "Frozen reviewed provider catalog; native captured responses counted once, not added again from facade/summary/accounting. No new price discovery or provider calls for this aggregate.",
+    "mercury_launch_per_million": {
+      "uncached_input_usd": 0.1,
+      "cached_input_usd": 0.01,
+      "output_usd": 0.35
+    },
+    "mercury_regular_sensitivity_per_million": {
+      "uncached_input_usd": 0.2,
+      "cached_input_usd": 0.02,
+      "output_usd": 0.7
+    },
+    "jev_input_per_million_usd": 0.042,
+    "jev_output_usd": 0,
+    "regular_sensitivity_writer_usd": 0.00246766,
+    "regular_sensitivity_writer_plus_production_jev_usd": 0.003270574,
+    "regular_sensitivity_all_diagnostic_ai_usd": 0.006749098,
+    "mercury_cache_tokens": 4308,
+    "mercury_reasoning_tokens": 2155,
+    "reasoning_accounting": "Mercury completion_tokens includes reasoning_tokens; reasoning is displayed but never added a second time.",
+    "google_cache_absence": "Not applicable: zero Google calls in this run."
+  },
+  "unknowns_and_limits": [
+    "No canceled or unpriced captured calls in this release run; all four native writer responses and all gate native responses supplied usable token usage. This does not assert an audited invoice or future spend bound.",
+    "Prior original prompt-cohort canceled call remains unpriced and is excluded; this later successful recovery invocation does not price that earlier attempt.",
+    "Fresh source eligibility, diagnostic locale assessment and cached-copy controls are separate components, excluded from per-generated-card production cost. No Brave, Wikipedia or YouTube discovery costs occurred because immutable public evidence and JPEGs were reused.",
+    "Positive false holds and one known material false admission prevent a fully passing safety claim. Four new drafts passed automatic gates; no independent copy-quality claim is made here.",
+    "Control request latency was not recorded by the temporary per-control transport; no per-control timing is inferred.",
+    "Four source slots and four admitted cards cannot establish full-refresh prices, monthly savings or twenty-language performance."
+  ],
+  "rows": [
+    {
+      "row": "de-video-0-mercury_release.json",
+      "sha256": "3c01e0162ac4c29febcbefa4d68a772f9adcb606dc09ced67283ebb303c58d85",
+      "language": "de",
+      "kind": "video",
+      "source_ids": [
+        "ZuZJZccjI34"
+      ],
+      "status": "complete",
+      "writer_calls": 1,
+      "valid_returned_drafts": 1,
+      "admitted": 1,
+      "provider_or_schema_failure": false,
+      "writer_seconds": 1.279287837445736,
+      "production_seconds": 1.882936978712678,
+      "total_with_locale_seconds": 2.0923803374171257,
+      "request_profile": {
+        "temperature": 0.5,
+        "reasoning_effort": "low",
+        "max_output_tokens": 4096,
+        "allow_retries": false,
+        "fallback_models": [],
+        "single_attempt_timeout_seconds": 30
+      },
+      "request_sha256": "15c9bbb8a6d0159c4e73c7623197d40e2a0a4029f5c2bbfafc57d218a8c36b9f",
+      "native_writer_usage": [
+        {
+          "logical_call": 0,
+          "model_id": "inception/mercury-3",
+          "observed_model": "mercury-3",
+          "response_id": "chatcmpl-1f98e11d-3579-49d3-afe2-48f1e60ee307",
+          "input_tokens": 1497,
+          "cache_read_input_tokens": 1019,
+          "output_tokens": 680,
+          "output_reasoning_tokens": 481,
+          "supplier_cost_usd": 0.00029598999999999994,
+          "supplier_cost_upper_bound_usd": 0.00029598999999999994,
+          "supplier_cost_complete": true,
+          "supplier_upper_bound_complete": true,
+          "cost_basis": "Once-only native response; missing cache counter priced uncached. Google thoughts included once; Mercury completion already includes reasoning."
+        }
+      ]
+    },
+    {
+      "row": "de-wiki-0-mercury_release.json",
+      "sha256": "3b11398eb97c8d273923df850a092bc70bfaa9b30637e66f5ee4b76de87a004d",
+      "language": "de",
+      "kind": "wiki",
+      "source_ids": [
+        "de:Polarlicht"
+      ],
+      "status": "complete",
+      "writer_calls": 1,
+      "valid_returned_drafts": 1,
+      "admitted": 1,
+      "provider_or_schema_failure": false,
+      "writer_seconds": 1.9840663643553853,
+      "production_seconds": 2.2411648239940405,
+      "total_with_locale_seconds": 2.5260733906179667,
+      "request_profile": {
+        "temperature": 0.5,
+        "reasoning_effort": "low",
+        "max_output_tokens": 4096,
+        "allow_retries": false,
+        "fallback_models": [],
+        "single_attempt_timeout_seconds": 30
+      },
+      "request_sha256": "7c3a0ec7a5f14d9052e1e72ce1b18e68416977ae9d14aff3adc965a5dc42fbdb",
+      "native_writer_usage": [
+        {
+          "logical_call": 0,
+          "model_id": "inception/mercury-3",
+          "observed_model": "mercury-3",
+          "response_id": "chatcmpl-01eeb2eb-2bd9-4e95-99ff-fff467c54d9c",
+          "input_tokens": 1373,
+          "cache_read_input_tokens": 1018,
+          "output_tokens": 921,
+          "output_reasoning_tokens": 719,
+          "supplier_cost_usd": 0.00036803,
+          "supplier_cost_upper_bound_usd": 0.00036803,
+          "supplier_cost_complete": true,
+          "supplier_upper_bound_complete": true,
+          "cost_basis": "Once-only native response; missing cache counter priced uncached. Google thoughts included once; Mercury completion already includes reasoning."
+        }
+      ]
+    },
+    {
+      "row": "en-video-0-mercury_release.json",
+      "sha256": "eaa02e13431dbde882854c7e3b9fca83973650c0d9363ff36fb2318e6af59d3b",
+      "language": "en",
+      "kind": "video",
+      "source_ids": [
+        "9lcfB0vmwrg"
+      ],
+      "status": "complete",
+      "writer_calls": 1,
+      "valid_returned_drafts": 1,
+      "admitted": 1,
+      "provider_or_schema_failure": false,
+      "writer_seconds": 1.1507340678945184,
+      "production_seconds": 1.6233568713068962,
+      "total_with_locale_seconds": 1.848678289912641,
+      "request_profile": {
+        "temperature": 0.5,
+        "reasoning_effort": "low",
+        "max_output_tokens": 4096,
+        "allow_retries": false,
+        "fallback_models": [],
+        "single_attempt_timeout_seconds": 30
+      },
+      "request_sha256": "2b426d28edd08e2b5574a8c6dd8e66bebc9aca7d7e17311f112d2cb860d887ea",
+      "native_writer_usage": [
+        {
+          "logical_call": 0,
+          "model_id": "inception/mercury-3",
+          "observed_model": "mercury-3",
+          "response_id": "chatcmpl-dd4bb427-96da-4921-914b-9ba3652ef346",
+          "input_tokens": 1997,
+          "cache_read_input_tokens": 1508,
+          "output_tokens": 399,
+          "output_reasoning_tokens": 237,
+          "supplier_cost_usd": 0.00020363,
+          "supplier_cost_upper_bound_usd": 0.00020363,
+          "supplier_cost_complete": true,
+          "supplier_upper_bound_complete": true,
+          "cost_basis": "Once-only native response; missing cache counter priced uncached. Google thoughts included once; Mercury completion already includes reasoning."
+        }
+      ]
+    },
+    {
+      "row": "en-wiki-0-mercury_release.json",
+      "sha256": "3c0a1c5941cc8c82f28c6519bad4ce2a8ff5905261d9766545e2aef1b9c23a10",
+      "language": "en",
+      "kind": "wiki",
+      "source_ids": [
+        "en:Aurora"
+      ],
+      "status": "complete",
+      "writer_calls": 1,
+      "valid_returned_drafts": 1,
+      "admitted": 1,
+      "provider_or_schema_failure": false,
+      "writer_seconds": 2.20121999271214,
+      "production_seconds": 2.5072913197800517,
+      "total_with_locale_seconds": 2.6952868765220046,
+      "request_profile": {
+        "temperature": 0.5,
+        "reasoning_effort": "low",
+        "max_output_tokens": 4096,
+        "allow_retries": false,
+        "fallback_models": [],
+        "single_attempt_timeout_seconds": 30
+      },
+      "request_sha256": "865eed5b1ef2d1a2184c2984189f7a7d96e8de49c740aa86e6f4cb90dbe66d43",
+      "native_writer_usage": [
+        {
+          "logical_call": 0,
+          "model_id": "inception/mercury-3",
+          "observed_model": "mercury-3",
+          "response_id": "chatcmpl-9592bd54-60d1-4285-a5bd-8e69ea5488fc",
+          "input_tokens": 1223,
+          "cache_read_input_tokens": 763,
+          "output_tokens": 893,
+          "output_reasoning_tokens": 718,
+          "supplier_cost_usd": 0.00036617999999999997,
+          "supplier_cost_upper_bound_usd": 0.00036617999999999997,
+          "supplier_cost_complete": true,
+          "supplier_upper_bound_complete": true,
+          "cost_basis": "Once-only native response; missing cache counter priced uncached. Google thoughts included once; Mercury completion already includes reasoning."
+        }
+      ]
+    }
+  ],
+  "ledgers": {
+    "production_jev": [
+      {
+        "row": "de-video-0-mercury_release.json",
+        "call_id": "6b461c22-9869-4125-afbf-b3f1f7641c7e",
+        "model": "jev-1.14.0",
+        "input_tokens": 3641,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000152922
+      },
+      {
+        "row": "de-video-0-mercury_release.json",
+        "call_id": "29439ae3-2483-4dcc-aea3-dbba34eecc0f",
+        "model": "jev-1.14.0",
+        "input_tokens": 1464,
+        "output_tokens": 44,
+        "supplier_cost_usd": 6.1488e-05
+      },
+      {
+        "row": "de-wiki-0-mercury_release.json",
+        "call_id": "cd1455a7-4077-46bd-9bd9-052ee8a58b1f",
+        "model": "jev-1.14.0",
+        "input_tokens": 3898,
+        "output_tokens": 986,
+        "supplier_cost_usd": 0.000163716
+      },
+      {
+        "row": "en-video-0-mercury_release.json",
+        "call_id": "66d232c6-1683-44aa-b1d9-ec830dd40358",
+        "model": "jev-1.14.0",
+        "input_tokens": 4239,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00017803800000000002
+      },
+      {
+        "row": "en-video-0-mercury_release.json",
+        "call_id": "834b016b-c86a-4cc6-ba38-f5664083adef",
+        "model": "jev-1.14.0",
+        "input_tokens": 2089,
+        "output_tokens": 44,
+        "supplier_cost_usd": 8.7738e-05
+      },
+      {
+        "row": "en-wiki-0-mercury_release.json",
+        "call_id": "4afb9668-d499-4ff4-a6c6-9f41e7da8286",
+        "model": "jev-1.14.0",
+        "input_tokens": 3786,
+        "output_tokens": 986,
+        "supplier_cost_usd": 0.000159012
+      }
+    ],
+    "source_revalidation_jev": [
+      {
+        "source": "de-video-0.json",
+        "gate": 0,
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1559,
+        "output_tokens": 218,
+        "supplier_cost_usd": 6.547800000000001e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "source": "de-video-0.json",
+        "gate": 0,
+        "native_http_index": 1,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1465,
+        "output_tokens": 44,
+        "supplier_cost_usd": 6.153e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "source": "de-wiki-0.json",
+        "gate": 0,
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1431,
+        "output_tokens": 218,
+        "supplier_cost_usd": 6.0102e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "source": "en-video-0.json",
+        "gate": 0,
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 2182,
+        "output_tokens": 218,
+        "supplier_cost_usd": 9.1644e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "source": "en-video-0.json",
+        "gate": 0,
+        "native_http_index": 1,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 2090,
+        "output_tokens": 44,
+        "supplier_cost_usd": 8.778e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "source": "en-wiki-0.json",
+        "gate": 0,
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1355,
+        "output_tokens": 218,
+        "supplier_cost_usd": 5.691e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      }
+    ],
+    "diagnostic_locale_jev": [
+      {
+        "row": "de-video-0-mercury_release.json",
+        "call_id": "8146d6a2-573b-4ef4-a2f9-329200a19446",
+        "model": "jev-1.14.0",
+        "input_tokens": 565,
+        "output_tokens": 43,
+        "supplier_cost_usd": 2.373e-05
+      },
+      {
+        "row": "de-wiki-0-mercury_release.json",
+        "call_id": "40b2c034-6d9a-41a6-bbb4-ee4380c789fb",
+        "model": "jev-1.14.0",
+        "input_tokens": 592,
+        "output_tokens": 43,
+        "supplier_cost_usd": 2.4864e-05
+      },
+      {
+        "row": "en-video-0-mercury_release.json",
+        "call_id": "6e6340dc-5a58-4bfa-acb5-150553d54df3",
+        "model": "jev-1.14.0",
+        "input_tokens": 539,
+        "output_tokens": 43,
+        "supplier_cost_usd": 2.2638000000000002e-05
+      },
+      {
+        "row": "en-wiki-0-mercury_release.json",
+        "call_id": "86f17534-dcd5-4fe5-af63-aba156399859",
+        "model": "jev-1.14.0",
+        "input_tokens": 557,
+        "output_tokens": 43,
+        "supplier_cost_usd": 2.3394000000000003e-05
+      }
+    ],
+    "gate_controls_jev": [
+      {
+        "control": "control-00",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 4307,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000180894,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-01",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3533,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000148386,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-02",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3503,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000147126,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-03",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3434,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014422800000000002,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-04",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3634,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000152628,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-05",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3634,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000152628,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-05",
+        "native_http_index": 1,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1469,
+        "output_tokens": 44,
+        "supplier_cost_usd": 6.1698e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-06",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3369,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014149800000000002,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-07",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3668,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00015405600000000002,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-08",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3445,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014469,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-09",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3338,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000140196,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-10",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3355,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014091,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-11",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3382,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014204400000000002,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-12",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 4260,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00017892000000000003,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-13",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3669,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000154098,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-14",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3345,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014049,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-14",
+        "native_http_index": 1,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 1203,
+        "output_tokens": 44,
+        "supplier_cost_usd": 5.0526000000000004e-05,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-15",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3432,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.000144144,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-16",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3432,
+        "output_tokens": 812,
+        "supplier_cost_usd": 0.000144144,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-17",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3535,
+        "output_tokens": 811,
+        "supplier_cost_usd": 0.00014847,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      },
+      {
+        "control": "control-18",
+        "native_http_index": 0,
+        "host": "api.typesafe.ai",
+        "status": 200,
+        "error": null,
+        "model": "jev-1.14.0",
+        "input_tokens": 3540,
+        "output_tokens": 813,
+        "supplier_cost_usd": 0.00014868000000000002,
+        "supplier_cost_complete": true,
+        "supplier_cost_source": "typesafe_input_$0.042_per_million_output_free"
+      }
+    ]
+  },
+  "receipt_hashes": {
+    "release-check.json": "5d60b17fad747da8048deac8f68015b48b37c4b85a70837f722a6f61810fa708",
+    "manifest.json": "9a036d47728e5bafecc381482e6719805f2971147df3f4fd0edf3d90d92787ca",
+    "summary.json": "6b8d2e20f9123fa9a976ceed26ee419e1d3589a7f3da5c0b9959a5040f6c2ef9",
+    "controls.json": "992a476f46d4d847db66757e61e07e2d0a8d10b37f6280eec07d48b9a5eb823f",
+    "sources/de-video-0.json": "41fdd0f3cf02a8b52e5d13dc422aec8e1acabb3b4b9c68db8fb78d54e875421f",
+    "sources/de-wiki-0.json": "1e3e98580fb58add37002a5f800c01e164a196edd32fb4c603ca7ce623b4542b",
+    "sources/en-video-0.json": "e5fef80df39f5d630e13651ff67dc6c663e5ccd8924faf5bd825f01e35c49219",
+    "sources/en-wiki-0.json": "51915d20de126e0c6bc1495dc75c3781084407226c5a57da75a1c29c1c038909",
+    "controls/control-00.json": "a6e5b06ee09eae2f1f3700a0603ad14b9f928ab14c3d8bdea667e050ec30d7bb",
+    "controls/control-01.json": "5f86ead8aba68af98b6b52383b3e2f03ad857aa2a61f46129fa792d32031c9aa",
+    "controls/control-02.json": "5ca3c5ce0967e9fc50e5141fea56310e582eaf6cde312020f53d4e87fc30f1c6",
+    "controls/control-03.json": "f813ed6f8ea6b7b4134fed26e91c8c950c7de06ca4ae94e7031a59638246eab7",
+    "controls/control-04.json": "db7100906387d5b28cbbadd2d6f369650cdfe40ebab0bdff9e8151ec4e1c2b35",
+    "controls/control-05.json": "3e8e04261730360c0b5e40727569cfb298cdee04fbd860c26009525d4b801550",
+    "controls/control-06.json": "3b3b12bb0c714e54c3d3f0ccbfd8841ac3f709580a29259f4d8907d25a93a6e5",
+    "controls/control-07.json": "0cc5ea3db62f57e5d25bac5d5c8aee2a233b701364c9110f100c655fd26aedcc",
+    "controls/control-08.json": "69f23b0ad95376d43df853e4c453bc6434cfe630be13e76134c5a490c79954a0",
+    "controls/control-09.json": "e06174120e35e39e64509e847214b69a953717c56290be310c34a6e28903887c",
+    "controls/control-10.json": "6adef0c1d9c22c397284d8daf954b07c8d05fec36f0c4d9b0d40d90dfeed0030",
+    "controls/control-11.json": "adbf48b4602ad1bb88bab4033b111bbc1ca8034b75c2af0a6ba66f3461d36bcb",
+    "controls/control-12.json": "b563fb66d34324e6869c166d20c67213998ff85e2b3e608eaacb12e97aab5781",
+    "controls/control-13.json": "6771095a9917981225a0aaee23edef2452da9731981487948b8a03d98b743da3",
+    "controls/control-14.json": "e95ab104fd8ed75677a5f14c9b103ea0a5ffae1b00d64483ac92511281af3293",
+    "controls/control-15.json": "60851ec78fb4681b2f4f2b4660fe6415f1e3b0b0c02af2c5134e0e4973c18e97",
+    "controls/control-16.json": "a7098fe3bd59f75c5193a9c1bfcdfb3c5ddeb897e4ba95c9da59fc75edd970c2",
+    "controls/control-17.json": "c395d4d514a1e3b98a7b1c8ed3c398c8f83158a0238ddcbbb9fc010864e5fd59",
+    "controls/control-18.json": "ed8ec27142ff3f29dfdc614c0635baf4fac4f1ff2eaa2fd8da6ff4373f7a067a"
+  },
+  "wrapper_log_sha256": "aa8663babbaf6ed7f5c14fe77805267f28ec81f54e225e8ef744f26cf4a034d3",
+  "pixel_review": {
+    "source_revalidation_image_calls": 2,
+    "production_copy_image_calls": 2,
+    "cached_copy_control_image_calls": 2,
+    "explanation": "Both selected videos received fresh native pixel review at source eligibility and again after the new production copy passed textual gates. Among seven cached video-copy controls, two passed textual gates and reached fresh pixel review; five were withheld by earlier textual gates, so production correctly did not proceed to image review."
+  }
+}

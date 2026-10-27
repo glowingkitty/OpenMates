@@ -73,7 +73,8 @@ def test_watch_registration_cache_miss_then_background_completion_dispatches(mon
     namespace = {"logger": logging.getLogger(__name__), "apns_topic_for_platform": apns_topic_for_platform,
                  "merge_push_subscription_target": merge_push_subscription_target,
                  "push_subscription_write_lock": lock, "require_push_subscription_lock": AsyncMock(),
-                 "PushSubscribeResponse": lambda **kwargs: SimpleNamespace(**kwargs)}
+                 "PushSubscribeResponse": lambda **kwargs: SimpleNamespace(**kwargs),
+                 "NativeDeviceRegisterResponse": lambda **kwargs: SimpleNamespace(**kwargs)}
     existing, register = load_coroutines("push.py", ["_get_existing_subscription_json", "register_native_device"], namespace)
     namespace["_get_existing_subscription_json"] = existing
     target = SimpleNamespace(token="synthetic-watch-token", platform="watchos", environment="sandbox",

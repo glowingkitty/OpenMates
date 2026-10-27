@@ -267,6 +267,7 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     import pytest
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "playwright_command", lambda: ["/synthetic/node", "/synthetic/playwright/cli.js"])
     web = tmp_path / "web"
     (web / "tests").mkdir(parents=True)
     spec = "security-reporting-email-proof.spec.ts"
@@ -280,7 +281,7 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("Artifact proof must not launch an app server"))
     monkeypatch.setenv("PLAYWRIGHT_TEST_API_URL", "https://shared.invalid")
     def browser(command, **kwargs):
-        assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        assert command[:3] == ["/synthetic/node", "/synthetic/playwright/cli.js", "test"]
         assert kwargs["env"]["PLAYWRIGHT_TEST_API_URL"] == "http://localhost:8000"
         Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1}}))
         return SimpleNamespace(returncode=0)
@@ -306,6 +307,7 @@ def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, m
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     monkeypatch.setitem(sys.modules, "ci_coverage", ci_coverage)
     from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "playwright_command", lambda: ["/synthetic/node", "/synthetic/playwright/cli.js"])
 
     web = tmp_path / "web"
     (web / "tests/components").mkdir(parents=True)
@@ -340,7 +342,7 @@ def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, m
     monkeypatch.setattr(runner, "wait_component_web", lambda child: None)
 
     def browser(command, **kwargs):
-        assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        assert command[:3] == ["/synthetic/node", "/synthetic/playwright/cli.js", "test"]
         Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(
             json.dumps({"stats": {"expected": 1}})
         )
@@ -370,6 +372,7 @@ def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_ove
     from pathlib import Path
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "playwright_command", lambda: ["/synthetic/node", "/synthetic/playwright/cli.js"])
 
     web = tmp_path / "web"
     (web / "tests").mkdir(parents=True)
@@ -436,6 +439,7 @@ def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
 
 
 def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
+    monkeypatch.setenv("OPENMATES_CI_NODE", "/tmp/openmates-ci-node-Synthetic/node")
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
     import pytest
@@ -482,6 +486,7 @@ def test_signup_pacing_respects_real_rate_limit(monkeypatch):
 def test_later_harness_failure_preserves_completed_results(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "verify_pinned_node_runtime", lambda: None)
     monkeypatch.setattr(runner, "require_runner", lambda: None)
     monkeypatch.setattr(runner, "RESULTS", tmp_path)
     monkeypatch.setenv("CI_TEST_MODE", "e2e")
@@ -523,6 +528,7 @@ def test_proof_dimensions_reject_unknown_profile(monkeypatch):
 
 
 def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CI_NODE", "/tmp/openmates-ci-node-Synthetic/node")
     import pytest
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner

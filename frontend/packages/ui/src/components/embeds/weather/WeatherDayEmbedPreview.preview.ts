@@ -23,6 +23,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  providerHidden: { ...defaultProps, provider: 'Fixture Provider Must Stay Fullscreen' },
+  longCity: { ...defaultProps, locationName: 'A deliberately long city and regional district name' },
+  missing: { ...defaultProps, date: undefined, locationName: '', condition: '', icon: '', temperatureMinC: undefined, temperatureMaxC: undefined, precipitationTotalMm: undefined, precipitationProbabilityMaxPct: undefined, rainHours: undefined },
+  zero: { ...defaultProps, temperatureMinC: 0, temperatureMaxC: 0, precipitationTotalMm: 0, precipitationProbabilityMaxPct: 0, rainHours: 0 },
   processing: {
     ...defaultProps,
     id: 'preview-weather-day-processing',

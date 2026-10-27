@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.guest.compact-workspace
 // OpenMates Watch app entry point.
 // Defines the independent watchOS application scene for the standalone Watch
 // client. The target intentionally starts with only app plumbing; pair login,
@@ -36,7 +38,11 @@ struct OpenMatesWatchApp: App {
         WindowGroup {
             Group {
             #if DEBUG && targetEnvironment(simulator)
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-voice-consent") {
+                WatchVoiceCallConsentFixtureView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-guest") {
+                WatchGuestEntryView(authStore: WatchAuthStore(), onSettings: { false }, uiTestPairFixture: .iphoneConfirm)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
                 WatchWorkflowUITestFixtureView(failFirstSave: true)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-retry") {
                 WatchWorkflowUITestFixtureView(failFirstRead: true)
@@ -85,7 +91,7 @@ struct OpenMatesWatchApp: App {
                 WatchChatShellView(uiTestSnapshot: Self.uiTestMarkdownSnapshot, selectedChatId: Self.uiTestChatId)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-draft") {
                 WatchChatShellView(uiTestSnapshot: Self.uiTestNewChatSnapshot, selectedChatId: Self.uiTestChatId,
-                    initialDraft: "Berlin meetup draft", currentUsername: "Kitty")
+                    initialDraft: "Berlin Gathering draft", currentUsername: "Kitty")
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-recording") {
                 WatchChatShellView(
                     uiTestSnapshot: Self.uiTestSnapshot,
@@ -253,7 +259,7 @@ struct OpenMatesWatchApp: App {
         chats: [WatchChatSummary(id: uiTestChatId, title: "Public Berlin events", lastMessageAt: "2026-09-30T12:00:00Z",
             preview: nil, isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)],
         messagesByChatId: [uiTestChatId: [WatchChatMessage(id: "watch-markdown-fixture", chatId: uiTestChatId,
-            role: .assistant, content: "## Berlin **Meetup**\n\n- **Bring** a demo\n- Meet *developers*\n\n> Public event\n\n```swift\nlet city = \"Berlin\"\n```",
+            role: .assistant, content: "## Berlin **Gathering**\n\n- **Bring** a demo\n- Meet *developers*\n\n> Public event\n\n```swift\nlet city = \"Berlin\"\n```",
             encryptedContent: nil, embedRefs: [WatchEmbedRef(id: "watch-events-fixture", type: EmbedType.eventsSearch.rawValue,
                 status: "finished", data: ["query": AnyCodable("Berlin meetups"), "result_count": AnyCodable(3)])],
             createdAt: "2026-09-30T12:00:00Z", isPending: false)]], savedAt: .distantPast)

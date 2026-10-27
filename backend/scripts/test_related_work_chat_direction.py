@@ -25,7 +25,7 @@ from backend.apps.ai.processing.related_work import RelatedWorkCandidate, select
 from backend.apps.ai.processing.chat_direction_review import review_chat_direction  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
-MODEL_ID = "typesafe/jev-1.13"
+MODEL_ID = "typesafe/jev-1.14"
 REVIEW_MODEL_ID = "google/gemini-3.5-flash-lite"
 DRIFT_CASES = (
     ("login-diagnosis", "Fix the login request timeout while preserving authentication.",

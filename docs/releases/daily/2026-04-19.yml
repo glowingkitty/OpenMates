@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -114,59 +94,6 @@ sections:
     user_facing: true
     related_features: []
     feature_metadata_changed: true
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    section: features
-    commits:
-    - 2f6a60234
-    authored_at: '2026-04-19T19:46:19+00:00'
-    changed_paths:
-    - backend/apps/events/app.yml
-    - backend/apps/events/providers/__init__.py
-    - backend/apps/events/providers/berlin_philharmonic.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    section: features
-    commits:
-    - db12c95f0
-    authored_at: '2026-04-19T19:46:00+00:00'
-    changed_paths:
-    - backend/apps/events/providers/registry.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    section: features
-    commits:
-    - 4af97e411
-    authored_at: '2026-04-19T19:45:45+00:00'
-    changed_paths:
-    - backend/apps/events/skills/search_skill.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
@@ -218,15 +145,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -251,15 +174,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -295,15 +214,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -408,15 +323,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -446,15 +357,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -484,15 +391,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -523,15 +426,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -556,15 +455,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -589,15 +484,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -624,15 +515,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -815,39 +702,11 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
 marketing_candidates:
   newsletter:
   - title: 'feat(events): add concert_tags guidance to preprocessor_hint'
     commits:
     - 220d9bd08
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    commits:
-    - db12c95f0
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    commits:
-    - 4af97e411
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -924,30 +783,6 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
     newsletter_ready: true
-  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    commits:
-    - db12c95f0
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    commits:
-    - 4af97e411
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
     commits:
     - 633435f5a
@@ -959,15 +794,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
@@ -981,15 +812,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
@@ -1003,15 +830,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix(apple): fix deco icon opacity + extract incognito gradient token'
@@ -1025,15 +848,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(web): smooth slide-from-right animation for header signup button'
@@ -1103,15 +922,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): add web-source blocks to remaining chat views'
@@ -1125,15 +940,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): add all demo/legal/example chats + fix sidebar + redesign InputActionButtons'
@@ -1147,15 +958,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
@@ -1169,15 +976,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): add web-source block to FollowUpSuggestions'
@@ -1191,15 +994,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(apple): add web-source block + fix OMTextFieldStyle border in OMButtonStyles'
@@ -1213,15 +1012,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
@@ -1255,35 +1050,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/events/app.yml
-    related_feature_ids: []
-  - sha: 2f6a6023414c03b1e03d7a7d5fe239144cbaa610
-    short_sha: 2f6a60234
-    authored_at: '2026-04-19T19:46:19+00:00'
-    subject: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/apps/events/app.yml
-    - backend/apps/events/providers/__init__.py
-    - backend/apps/events/providers/berlin_philharmonic.py
-    related_feature_ids: []
-  - sha: db12c95f06148c4463df769a8c612f6025ac7d0a
-    short_sha: db12c95f0
-    authored_at: '2026-04-19T19:46:00+00:00'
-    subject: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/apps/events/providers/registry.py
-    related_feature_ids: []
-  - sha: 4af97e4112a65e9847718aeb256fde10adb50b2c
-    short_sha: 4af97e411
-    authored_at: '2026-04-19T19:45:45+00:00'
-    subject: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/apps/events/skills/search_skill.py
     related_feature_ids: []
   - sha: 633435f5a02b91749fb6cc2ba7c549d939371569
     short_sha: 633435f5a
@@ -1592,13 +1358,8 @@ sources:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates expanded its event discovery capabilities by activating the Berlin Philharmonic provider and refined
-    the web experience with semantic URLs for public chats and improved signup flows. Significant foundational work also continued
-    for Apple platforms, including a migration to SVG icons and the addition of web-source blocks.
   released_changes:
-  - text: Activated the Berlin Philharmonic provider within the events system, supporting hybrid free-text searches and concert-specific
-      tagging.
-    evidence:
+  - evidence:
       commits:
       - 2f6a60234
       - db12c95f0
@@ -1679,13 +1440,11 @@ llm_summary:
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Integration of the Berlin Philharmonic event provider.
-      evidence:
+    - evidence:
         commits:
         - 2f6a60234
         - db12c95f0
         - 4af97e411
-      reason: The Berlin Philharmonic integration is a significant new content provider for the events system.
     - text: Semantic URLs for public chats and legal pages.
       evidence:
         commits:
@@ -1717,8 +1476,7 @@ llm_summary:
     rationale: The focus for public communication should be on the newly activated event providers and the SEO/UX improvements
       to the web application, as the Apple platforms remain in an unreleased state.
   social_video_recommendations:
-  - idea: A short clip demonstrating a search for Berlin Philharmonic concerts within the OpenMates event interface.
-    priority: high
+  - priority: high
     reason: Concrete new content provider that is easy to visualize.
     evidence:
       commits:

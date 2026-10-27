@@ -19,6 +19,7 @@
 -->
 
 <script lang="ts">
+  import { extractSearchResultsFromContent, getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
@@ -52,7 +53,10 @@
     /** Processing status (direct format) */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) */
-    results?: HomeListingResult[];
+    results?: unknown[];
+    /** Parent metadata supports saved previews without resolving child embeds. */
+    resultCount?: number;
+    childEmbedIds?: string[] | string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill */
@@ -63,6 +67,9 @@
       provider?: string;
       status?: string;
       results?: unknown[];
+      preview_results?: unknown[];
+      result_count?: number;
+      embed_ids?: string[] | string;
       task_id?: string;
       skill_task_id?: string;
     };
@@ -79,6 +86,8 @@
     providers: providersProp,
     status: statusProp,
     results: resultsProp,
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     previewData,
@@ -91,7 +100,9 @@
   let localProvider = $state<string>('Multi');
   let localProviders = $state<string[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
-  let localResults = $state<HomeListingResult[]>([]);
+  let localResults = $state<unknown[]>([]);
+  let localResultCount = $state<number | undefined>();
+  let localChildEmbedIds = $state<string[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
   let storeResolved = $state(false);
@@ -99,12 +110,14 @@
   // Initialize local state from props
   $effect(() => {
     if (!storeResolved) {
+      localResultCount = previewData?.result_count ?? resultCountProp;
+      localChildEmbedIds = normalizeEmbedIdList(previewData?.embed_ids ?? childEmbedIdsProp);
       if (previewData) {
         localQuery = previewData.query || '';
         localProvider = previewData.provider || 'Multi';
         localProviders = (previewData as Record<string, unknown>).providers as string[] || [];
         localStatus = (previewData.status as typeof localStatus) || 'processing';
-        localResults = (previewData.results as HomeListingResult[]) || [];
+        localResults = extractSearchResultsFromContent(previewData);
         localTaskId = previewData.task_id;
         localSkillTaskId = previewData.skill_task_id;
       } else {
@@ -151,9 +164,11 @@
       if (Array.isArray(content.providers)) localProviders = content.providers as string[];
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
-      if (content.results && Array.isArray(content.results)) {
-        localResults = content.results as HomeListingResult[];
+      if (['results', 'preview_results', 'results_toon'].some(key => key in content)) {
+        localResults = extractSearchResultsFromContent(content);
       }
+      if (typeof content.result_count === 'number') localResultCount = content.result_count;
+      if ('embed_ids' in content) localChildEmbedIds = normalizeEmbedIdList(content.embed_ids);
 
     }
   }
@@ -216,9 +231,10 @@
     flatResults?.filter(r => r.image_url).slice(0, 3) || []
   );
 
-  let remainingCount = $derived(
-    Math.max(0, (flatResults?.length || 0) - imageResults.length)
-  );
+  let totalResultCount = $derived(Math.max(flatResults.length, localResultCount ?? 0, localChildEmbedIds.length));
+  let resultState = $derived(getParentPreviewResultState({status, previewResultCount: flatResults.length,
+    resultCount: localResultCount, childEmbedIds: localChildEmbedIds}));
+  let remainingCount = $derived(Math.max(0, totalResultCount - imageResults.length));
 
   /**
    * Handle stop button click — cancels this specific skill, not the entire AI response.
@@ -269,10 +285,15 @@
         </div>
       {:else if status === 'finished'}
         <div class="ds-search-results-info">
-          {#if flatResults.length === 0}
+          {#if totalResultCount > 0}
+            <span data-testid="home-search-result-count" data-count={totalResultCount}>{$text('embeds.home.search.results_count').replace('{count}', String(totalResultCount))}</span>
+          {/if}
+          {#if resultState === 'known_zero_results'}
             <span class="no-results-text" data-testid="search-no-results-message">
               {$text('embeds.search_no_results')}
             </span>
+          {:else if resultState === 'missing_preview_metadata' && totalResultCount === 0}
+            <span class="no-results-text" data-testid="search-preview-metadata-missing-message">{$text('embeds.search_preview_open_to_view_results')}</span>
           {:else}
             <!-- Listing thumbnails row -->
             {#if imageResults.length > 0}
@@ -293,7 +314,7 @@
               </div>
             {/if}
 
-            {#if remainingCount > 0}
+            {#if imageResults.length > 0 && remainingCount > 0}
               <span class="remaining-count">
                 {$text('embeds.more_results').replace('{count}', String(remainingCount))}
               </span>

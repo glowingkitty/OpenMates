@@ -18,12 +18,15 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * Props for maps location embed preview
    */
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
     /** Unique embed ID */
     id: string;
     /** Display name for the location (e.g. "Current location" or search result name) */
@@ -54,6 +57,7 @@
   }
 
   let {
+    resultContext = 'auto',
     id,
     name: nameProp,
     address: addressProp,
@@ -75,7 +79,6 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let storeResolved = $state(false);
   let localTaskId = $state<string | undefined>(undefined);
-  let imageError = $state(false);
 
   // Sync local state from props on initial mount / prop changes
   $effect(() => {
@@ -85,7 +88,6 @@
       localLocationType = locationTypeProp ?? 'area';
       localPlaceType = placeTypeProp ?? '';
       localMapImageUrl = mapImageUrlProp;
-      imageError = false;
       localStatus = statusProp ?? 'processing';
       localTaskId = taskIdProp;
     }
@@ -120,7 +122,6 @@
       if (content.place_type !== undefined) localPlaceType = (content.place_type as string) || '';
       if (content.map_image_url) {
         localMapImageUrl = content.map_image_url as string;
-        imageError = false; // Reset error state on new image
       }
     }
   }
@@ -128,15 +129,11 @@
   // Skill name from translations
   let skillName = $derived($text('common.location'));
 
-  // Icon shown inline in the content area next to the place name.
-  // Transit/transport types use the travel icon; everything else uses the maps/pin icon.
-  const TRANSIT_TYPES = new Set(['railway', 'airport', 'subway', 's-bahn', 'tram', 'bus', 'ferry']);
-  let isTransit = $derived(placeType ? TRANSIT_TYPES.has(placeType.toLowerCase()) : false);
   // skillIconName is still passed to the BasicInfosBar (always pin for location skill)
   const skillIconName = 'pin';
 
   // Whether we have a map image to display full-width
-  let hasImage = $derived(!!mapImageUrl && !imageError && status !== 'error');
+  let hasImage = $derived(!!mapImageUrl && status !== 'error');
 
   // Show "Nearby:" label only in area/imprecise mode — the pin was randomised so the
   // address is approximate and we want to signal that to the user.
@@ -150,6 +147,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="maps"
   skillId="location"
@@ -163,218 +162,11 @@
   showStatus={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    {#if hasImage}
-      <!-- Full-width static map image preview -->
-      <div class="map-image-wrapper">
-        <img
-          src={mapImageUrl}
-          alt={name || $text('common.location')}
-          class="map-preview-image"
-          class:mobile={isMobileLayout}
-          loading="lazy"
-          onerror={() => { imageError = true; }}
-        />
-        {#if name}
-          <div class="map-location-name-overlay" class:mobile={isMobileLayout}>
-            {name}
-          </div>
-        {/if}
-      </div>
-    {:else}
-      <!-- Fallback text layout when no image is available -->
-      <!-- Layout: [icon] Place Name (bold)
-                         Railway (muted type)
-                         Europaplatz 1, 10557 Berlin (address) -->
-      <div class="location-details" class:mobile={isMobileLayout}>
-        {#if showNearbyLabel}
-          <div class="location-nearby-label">{$text('embeds.maps_location.nearby')}</div>
-        {/if}
-        <!-- Name row: inline icon + bold place name -->
-        <div class="location-name-row">
-          <!-- Inline place-type icon (travel for transit, maps pin for others) -->
-          <div class="location-type-icon" class:transit={isTransit}></div>
-          {#if primaryName}
-            <div class="location-name">{primaryName}</div>
-          {:else if address}
-            <!-- No name yet: show address as the primary line -->
-            <div class="location-name location-name--address">{address}</div>
-          {/if}
-        </div>
-        {#if placeType}
-          <!-- Category/type label (e.g. "Railway", "Airport") — muted -->
-          <div class="location-place-type">{placeType}</div>
-        {/if}
-        {#if primaryName && address}
-          <!-- Street address below type — only when we also have a name -->
-          <div class="location-address">{address}</div>
-        {/if}
-        {#if status === 'processing'}
-          <div class="location-loading">{$text('embeds.maps_location.loading_map')}</div>
-        {/if}
-      </div>
-    {/if}
+  {#snippet details()}
+    <ResultEmbedCard title={primaryName || $text('common.location')} description={address} imageUrl={hasImage ? proxyImage(mapImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined} imageAlt={name || $text('common.location')} sourceLabel={placeType || undefined}>
+      {#snippet facts()}
+        {#if showNearbyLabel}<span data-testid="maps-location-approximate">{$text('embeds.maps_location.nearby')} · Approximate area</span>{/if}
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  /* ===========================================
-     Map Image Preview (full-width)
-     =========================================== */
-
-  .map-image-wrapper {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .map-preview-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  /* Location name overlay on top of map image */
-  .map-location-name-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: var(--spacing-4) var(--spacing-6);
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
-    color: var(--color-grey-0);
-    font-size: var(--font-size-small);
-    font-weight: 600;
-    line-height: 1.3;
-    /* Truncate long names */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .map-location-name-overlay.mobile {
-    font-size: var(--font-size-xxs);
-    padding: var(--spacing-3) var(--spacing-5);
-  }
-
-  /* ===========================================
-     Text Fallback Layout (no image)
-     =========================================== */
-
-  .location-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-    height: 100%;
-    justify-content: center;
-    padding: var(--spacing-4);
-  }
-
-  .location-details.mobile {
-    justify-content: flex-start;
-  }
-
-  /* "Nearby:" prefix label — small, muted, indicates imprecise/area mode */
-  .location-nearby-label {
-    font-size: var(--font-size-tiny);
-    font-weight: 500;
-    color: var(--color-grey-60);
-    line-height: 1.2;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: var(--spacing-1);
-  }
-
-  /* Name row: flex container holding the inline icon + bold place name */
-  .location-name-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    min-width: 0;
-  }
-
-  /* Inline place-type icon — same mask technique as the search results panel */
-  .location-type-icon {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    /* Default: maps pin icon */
-    background: var(--color-app-maps, #4CAF50);
-    -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
-    mask-image: url('@openmates/ui/static/icons/maps.svg');
-  }
-
-  /* Transit locations (Railway, Airport, etc.): travel icon */
-  .location-type-icon.transit {
-    background: var(--color-app-travel, #29B6F6);
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
-
-  /* Primary place name — bold, shown above the street address */
-  .location-name {
-    font-size: var(--font-size-small);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    word-break: break-word;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-
-  /* When name falls back to address text, use normal weight */
-  .location-name--address {
-    font-weight: 400;
-  }
-
-  .location-details.mobile .location-name {
-    font-size: var(--font-size-xs);
-  }
-
-  /* Category/type label (e.g. "Railway", "Airport") — muted, shown below the place name */
-  .location-place-type {
-    font-size: var(--font-size-xxs);
-    font-weight: 500;
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .location-details.mobile .location-place-type {
-    font-size: var(--font-size-tiny);
-  }
-
-  /* Street address — muted text below the name, can be multi-line */
-  .location-address {
-    font-size: var(--font-size-xs);
-    color: var(--color-grey-70);
-    line-height: 1.4;
-    word-break: break-word;
-  }
-
-  .location-details.mobile .location-address {
-    font-size: var(--font-size-xxs);
-  }
-
-  .location-loading {
-    font-size: var(--font-size-xs);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-
-  /* Pin skill icon is registered directly in BasicInfosBar.svelte — no :global() override needed here. */
-</style>

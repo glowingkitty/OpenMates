@@ -367,13 +367,13 @@ skill_id: search`,
       type: "image_result",
       content: `type: image_result
 title: r/privacy - Citizen Protest Halts Chat Control; Breyer Celebrates Major Victory for Digital Privacy
-source_page_url: "https://www.reddit.com/r/privacy/comments/1o0n0fc/citizen_protest_halts_chat_control_breyer/"
+source_page_url: "https://example.com/fixture"
 image_url: "https://external-preview.redd.it/citizen-protest-halts-chat-control-breyer-celebrates-major-v0-taE9gmCFhSSLpcsUBV85p15ln2_122UG5NcankINnC8.png?width=640&crop=smart&auto=webp&s=7ce99e85d90d6e0f531a257d256126e543cd11fd"
 thumbnail_url: "https://imgs.search.brave.com/UzlKADGtjYPy52MhEViRzCy3I8F-pfjo46MLDD4DB78/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHRl/cm5hbC1wcmV2aWV3/LnJlZGQuaXQvY2l0/aXplbi1wcm90ZXN0/LWhhbHRzLWNoYXQt/Y29udHJvbC1icmV5/ZXItY2VsZWJyYXRl/cy1tYWpvci12MC10/YUU5Z21DRmhTU0xw/Y3NVQlY4NXAxNWxu/Ml8xMjJVRzVOY2Fu/a0lObkM4LnBuZz93/aWR0aD02NDAmY3Jv/cD1zbWFydCZhdXRv/PXdlYnAmcz03Y2U5/OWU4NWQ5MGQ2ZTBm/NTMxYTI1N2QyNTYx/MjZlNTQzY2QxMWZk"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
 hash: 8acf1f804e9da6a4
-embed_ref: reddit.com-exI
+embed_ref: ExampleCommunity.com-exI
 app_id: images
 skill_id: search`,
       parent_embed_id: "5f5366cb-e519-4787-9536-2bf0785669cc",
@@ -384,13 +384,13 @@ skill_id: search`,
       type: "image_result",
       content: `type: image_result
 title: "r/europe - EU Revives Chat Control: Encrypted Message Scanning for CSAM Sparks Privacy Backlash"
-source_page_url: "https://www.reddit.com/r/europe/comments/1mfrmyb/eu_revives_chat_control_encrypted_message/"
+source_page_url: "https://example.com/fixture"
 image_url: "https://external-preview.redd.it/eu-revives-chat-control-encrypted-message-scanning-for-csam-v0-F8HEEpdMDp3fT3SO9Q65zrdde2zUM2qvgncRkDI7KIA.jpeg?width=640&crop=smart&auto=webp&s=ae99ca296e2a98ed814dcce41bc04e744e6ed127"
 thumbnail_url: "https://imgs.search.brave.com/WTEAEKszAM2wfLw2Dl3WhDEp7K-yzCb5wDPvlhiI0P8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHRl/cm5hbC1wcmV2aWV3/LnJlZGQuaXQvZXUt/cmV2aXZlcy1jaGF0/LWNvbnRyb2wtZW5j/cnlwdGVkLW1lc3Nh/Z2Utc2Nhbm5pbmct/Zm9yLWNzYW0tdjAt/RjhIRUVwZE1EcDNm/VDNTTzlRNjV6cmRk/ZTJ6VU0ycXZnbmNS/a0RJN0tJQS5qcGVn/P3dpZHRoPTY0MCZj/cm9wPXNtYXJ0JmF1/dG89d2VicCZzPWFl/OTljYTI5NmUyYTk4/ZWQ4MTRkY2NlNDFi/YzA0ZTc0NGU2ZWQx/Mjc"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
 hash: 91810cd89ef3263d
-embed_ref: reddit.com-Evt
+embed_ref: ExampleCommunity.com-Evt
 app_id: images
 skill_id: search`,
       parent_embed_id: "5f5366cb-e519-4787-9536-2bf0785669cc",
@@ -401,13 +401,13 @@ skill_id: search`,
       type: "image_result",
       content: `type: image_result
 title: "r/europrivacy - Data protection under fire: Messenger services react to EU chat control"
-source_page_url: "https://www.reddit.com/r/Eesti/comments/1pc5ibn/chat_control_in_the_eu_is_a_massive_threat_to/"
+source_page_url: "https://example.com/fixture"
 image_url: "https://external-preview.redd.it/QMIVgJ2oBsdeNxdsG-2oCG41o9mYoOXbotrKrE_6Q3E.jpeg?width=140&height=93&auto=webp&s=1e9d3027466604cbc40bb8c79d0a44606ba46389"
 thumbnail_url: "https://imgs.search.brave.com/hN2WClvaQxltC7d-MTcJGIAwaCsDtlLnlf8AiOq_n2I/rs:fit:0:180:1:0/g:ce/aHR0cHM6Ly9leHRl/cm5hbC1wcmV2aWV3/LnJlZGQuaXQvUU1J/VmdKMm9Cc2RlTnhk/c0ctMm9DRzQxbzlt/WW9PWGJvdHJLckVf/NlEzRS5qcGVnP3dp/ZHRoPTE0MCZoZWln/aHQ9OTMmYXV0bz13/ZWJwJnM9MWU5ZDMw/Mjc0NjY2MDRjYmM0/MGJiOGM3OWQwYTQ0/NjA2YmE0NjM4OQ"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
 hash: ade388872d92d483
-embed_ref: reddit.com-EVf
+embed_ref: ExampleCommunity.com-EVf
 app_id: images
 skill_id: search`,
       parent_embed_id: "5f5366cb-e519-4787-9536-2bf0785669cc",
@@ -452,13 +452,13 @@ skill_id: search`,
       type: "image_result",
       content: `type: image_result
 title: r/europe - EU Council - Current EU Countries' Chat Control Stances as of Late-September 2025
-source_page_url: "https://www.reddit.com/r/europe/comments/1mc27ka/the_eu_could_be_scanning_your_private_chats_by/"
-image_url: "https://b.thumbs.redditmedia.com/W4id1R-RE2nbgjxbzJy4IlYz-9FF0aAsaNInRQN3r5I.jpg"
+source_page_url: "https://example.com/fixture"
+image_url: "https://example.com/fixture"
 thumbnail_url: "https://imgs.search.brave.com/X7_T3WnJ4DIy7BN9brgLWLOU-L2M-qRXNDqqX283Xsg/rs:fit:0:180:1:0/g:ce/aHR0cHM6Ly9iLnRo/dW1icy5yZWRkaXRt/ZWRpYS5jb20vVzRp/ZDFSLVJFMm5iZ2p4/YnpKeTRJbFl6LTlG/RjBhQXNhTkluUlFO/M3I1SS5qcGc"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
 hash: c7db1ce15ee1f49c
-embed_ref: reddit.com-sFU
+embed_ref: ExampleCommunity.com-sFU
 app_id: images
 skill_id: search`,
       parent_embed_id: "5f5366cb-e519-4787-9536-2bf0785669cc",

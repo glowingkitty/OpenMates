@@ -6,6 +6,7 @@ from fastapi import WebSocket
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.embed_version_transaction_service import EmbedVersionTransactionService
 from backend.core.api.app.services.direct_chat_access import is_direct_chat, validate_direct_chat_metadata
 
 logger = logging.getLogger(__name__)
@@ -49,30 +50,6 @@ async def _canonical_embed_for_key(directus_service, hashed_embed_id, actor_hash
     if not isinstance(links, list) or links:
         raise ValueError("Project embed keys require atomic revision commit")
     return embed
-
-
-async def _existing_wrapper(directus_service, hashed_embed_id, key_type, hashed_chat_id, actor_hash):
-    key_filter = {
-        "hashed_embed_id": {"_eq": hashed_embed_id},
-        "key_type": {"_eq": key_type},
-        "hashed_chat_id": {"_eq": hashed_chat_id} if hashed_chat_id else {"_null": True},
-    }
-    rows = await directus_service.get_items(
-        "embed_keys",
-        params={
-            "filter": key_filter,
-            "fields": "id,hashed_user_id,encrypted_embed_key",
-            "limit": 2,
-        },
-        no_cache=True,
-        admin_required=True,
-        raise_on_error=True,
-    )
-    if not isinstance(rows, list) or len(rows) > 1:
-        raise ValueError("Embed key lookup ambiguous")
-    if rows and (rows[0].get("hashed_user_id") != actor_hash or not rows[0].get("id")):
-        raise ValueError("Embed key owner mismatch")
-    return rows[0] if rows else None
 
 
 async def _require_chat_write_scope(directus_service, hashed_chat_id, actor_hash):
@@ -235,76 +212,18 @@ async def handle_store_embed_keys(
                             directus_service, hashed_chat_id, actor_hash,
                         )
 
-                    # Check for existing key to upsert rather than blindly create.
-                    #
-                    # WHY UPSERT (not skip): When a decryption failure triggers embed
-                    # re-encryption (AppSkillUseRenderer._decryptionFailed recovery), the
-                    # client generates a NEW embed key (key B) and re-encrypts the content.
-                    # store_embed also upserts the encrypted_content in Directus.
-                    # However, the old code here would find the existing key-A wrappers and
-                    # skip writing key-B wrappers — leaving Directus with a permanent mismatch
-                    # (content encrypted with B, keys wrap A). Every future session would fail
-                    # to decrypt. The fix: if wrappers already exist, UPDATE the
-                    # encrypted_embed_key field with the new value instead of skipping.
-                    existing_key = await _existing_wrapper(
-                        directus_service, hashed_embed_id, key_type, hashed_chat_id, actor_hash,
+                    # The transaction repeats ownership and chat authorization under
+                    # the same database advisory lock used by canonical head/bundle writes.
+                    # Ambiguous existing rows are preserved and rejected, never selected.
+                    result = await EmbedVersionTransactionService(directus_service).write_legacy_embed_key(
+                        canonical_embed["embed_id"], {
+                            "hashed_embed_id": hashed_embed_id, "key_type": key_type,
+                            "hashed_chat_id": hashed_chat_id, "encrypted_embed_key": encrypted_embed_key,
+                            "hashed_user_id": actor_hash, "created_at": created_at,
+                        }, user_id=user_id,
                     )
-                
-                    if existing_key:
-                        existing_key_id = existing_key.get("id")
-                        existing_encrypted_key = existing_key.get("encrypted_embed_key")
-
-                        if existing_encrypted_key == encrypted_embed_key:
-                            # Exact same key wrapper — true duplicate, nothing to do.
-                            logger.debug(
-                                f"Skipping identical embed_key (no change): key_type={key_type}, "
-                                f"hashed_embed_id={hashed_embed_id[:16]}..."
-                            )
-                            created_count += 1
-                            completion_candidates[canonical_embed["embed_id"]] = canonical_embed
-                            continue
-
-                        # Different key value → the embed was re-encrypted; update the wrapper.
-                        logger.info(
-                            f"Upserting embed_key (re-encryption detected): key_type={key_type}, "
-                            f"hashed_embed_id={hashed_embed_id[:16]}..., Directus id={existing_key_id}"
-                        )
-                        updated_key = await directus_service.embed.update_embed_key(
-                            existing_key_id, {"encrypted_embed_key": encrypted_embed_key}
-                        )
-                        if updated_key:
-                            created_count += 1
-                            completion_candidates[canonical_embed["embed_id"]] = canonical_embed
-                            logger.debug(
-                                f"Successfully upserted embed_key: key_type={key_type}, "
-                                f"hashed_embed_id={hashed_embed_id[:16]}..."
-                            )
-                        else:
-                            failed_count += 1
-                            logger.error(
-                                f"Failed to upsert embed_key: key_type={key_type}, "
-                                f"hashed_embed_id={hashed_embed_id[:16]}..."
-                            )
-                        continue
-                
-                    # Create embed_key entry in Directus
-                    embed_key_data = {
-                        "hashed_embed_id": hashed_embed_id,
-                        "key_type": key_type,
-                        "hashed_chat_id": hashed_chat_id,
-                        "encrypted_embed_key": encrypted_embed_key,
-                        "hashed_user_id": actor_hash,
-                        "created_at": created_at
-                    }
-
-                    created_key = await directus_service.embed.create_embed_key(embed_key_data)
-                    if created_key:
-                        created_count += 1
-                        completion_candidates[canonical_embed["embed_id"]] = canonical_embed
-                        logger.debug(f"Successfully created embed_key entry: key_type={key_type}, hashed_embed_id={hashed_embed_id[:16]}...")
-                    else:
-                        failed_count += 1
-                        logger.error(f"Failed to create embed_key entry: key_type={key_type}, hashed_embed_id={hashed_embed_id[:16]}...")
+                    created_count += 1
+                    completion_candidates[canonical_embed["embed_id"]] = result["embed"]
 
                 except Exception as e:
                     logger.error(f"Error processing embed_key entry: {e}", exc_info=True)

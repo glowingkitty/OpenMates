@@ -1,5 +1,6 @@
 <script lang="ts">
     import { notificationStore, type Notification } from '../stores/notificationStore';
+    import NotificationRepeatCount from './NotificationRepeatCount.svelte';
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
@@ -51,19 +52,22 @@
      * The shared stack keeps the keyed item mounted for its exit transition.
      */
     function handleDismiss(): void {
+        if (notification.dismissible === false) return;
         notificationStore.removeNotification(notification.id);
     }
 
     function handlePrimaryAction(event: MouseEvent): void {
         event.stopPropagation();
+        if (notification.actionsDisabled) return;
         notification.onAction?.();
-        notificationStore.removeNotification(notification.id);
+        if (!notification.keepOnAction) notificationStore.removeNotification(notification.id);
     }
     
     /**
      * Handle touch/mouse start for swipe gesture
      */
     function handlePointerDown(event: PointerEvent): void {
+        if (notification.dismissible === false) return;
         // Only track vertical swipes
         isDragging = true;
         startY = event.clientY;
@@ -101,6 +105,12 @@
         if (!isDragging) return;
         
         isDragging = false;
+        if (notification.dismissible === false) {
+            dragOffset = 0;
+            const target = event.target as HTMLElement;
+            if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+            return;
+        }
         
         // Calculate swipe velocity
         const swipeTime = Date.now() - swipeStartTime;
@@ -171,6 +181,8 @@
     <div class="notification-header">
         <span class="notification-bell-icon"></span>
         <span class="notification-title">{notification.title || ''}</span>
+        <NotificationRepeatCount count={notification.count} />
+        {#if notification.dismissible !== false}
         <button
             class="notification-dismiss"
             data-testid="notification-dismiss"
@@ -179,6 +191,7 @@
         >
             <span class="notification-close-icon"></span>
         </button>
+        {/if}
     </div>
     
     <!-- Content row with type icon and message -->
@@ -191,12 +204,16 @@
             {#if notification.messageSecondary}
                 <span class="notification-message-secondary">{notification.messageSecondary}</span>
             {/if}
+            {#if notification.messageLink}
+                <a class="notification-message-secondary" href={notification.messageLink.href} target="_blank" rel="noopener noreferrer">{notification.messageLink.label}</a>
+            {/if}
             {#if notification.onAction && notification.actionLabel}
                 <div class="notification-action-row">
                     {#if notification.onSecondaryAction && notification.secondaryActionLabel}
                         <button
                             class="notification-action-btn notification-action-btn-secondary"
                             data-testid="notification-secondary-action"
+                            disabled={notification.actionsDisabled}
                             onclick={(e: MouseEvent) => {
                                 e.stopPropagation();
                                 notification.onSecondaryAction?.();
@@ -208,6 +225,7 @@
                     <button
                         class="notification-action-btn notification-action-btn-primary"
                         data-testid="notification-action"
+                        disabled={notification.actionsDisabled}
                         onclick={handlePrimaryAction}
                     >
                         {notification.actionLabel}
@@ -298,6 +316,10 @@
     
     .notification-title {
         flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-50);

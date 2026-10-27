@@ -253,3 +253,50 @@ read.how_to_use.3:
   sv: Läs Wikipedia-sidan om Romarriket och ge mig de viktigaste fakta
   he: "**קרא** את דף הוויקיפדיה על האימפריה הרומית ותן לי עובדות מרכזיות"
   verified_by_human: [en, de]
+
+browse:
+  context: 'Verb: skill name for agentic web browsing'
+  en: Browse
+  de: Browsen
+  zh: 浏览
+  es: Navegar
+  fr: Naviguer
+  pt: Navegar
+  ru: Просматривать
+  ja: 閲覧する
+  ko: 탐색
+  it: Navigare
+  tr: Gezin
+  vi: Duyệt
+  id: Jelajahi
+  pl: Przeglądaj
+  nl: Bladeren
+  ar: تصفّح
+  hi: ब्राउज़ करें
+  th: เรียกดู
+  cs: Procházet
+  sv: Bläddra
+  he: גלישה
+browse.description:
+  context: Description of the interactive Browse skill
+  en: Browse websites and return observed information as JSON.
+  de: Websites bedienen und gefundene Informationen als JSON zurückgeben.
+  zh: 浏览网站并以 JSON 返回观察到的信息。
+  es: Navega por sitios web y devuelve la información observada en JSON.
+  fr: Parcourir des sites et renvoyer les informations observées en JSON.
+  pt: Navegue por sites e retorne as informações observadas em JSON.
+  ru: Просматривайте сайты и получайте найденную информацию в JSON.
+  ja: ウェブサイトを操作し、確認した情報を JSON で返します。
+  ko: 웹사이트를 탐색하고 확인한 정보를 JSON으로 반환합니다.
+  it: Naviga nei siti e restituisci le informazioni osservate in JSON.
+  tr: Web sitelerinde gezinin ve gözlemlenen bilgileri JSON olarak alın.
+  vi: Duyệt trang web và trả về thông tin quan sát được dưới dạng JSON.
+  id: Jelajahi situs web dan kembalikan informasi yang diamati sebagai JSON.
+  pl: Przeglądaj witryny i zwracaj zaobserwowane informacje w JSON.
+  nl: Doorzoek websites en geef waargenomen informatie terug als JSON.
+  ar: تصفّح المواقع وأعد المعلومات المرصودة بصيغة JSON.
+  hi: वेबसाइट ब्राउज़ करें और देखी गई जानकारी JSON में लौटाएं।
+  th: เรียกดูเว็บไซต์และส่งคืนข้อมูลที่พบเป็น JSON
+  cs: Procházejte weby a vracejte zjištěné informace jako JSON.
+  sv: Besök webbplatser och returnera observerad information som JSON.
+  he: גלישה באתרים והחזרת מידע שנצפה בפורמט JSON.

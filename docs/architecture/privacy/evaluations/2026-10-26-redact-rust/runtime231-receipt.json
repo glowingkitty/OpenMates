@@ -1,0 +1,59 @@
+{
+  "purpose": "PRIVATE compatibility/performance experiment only; not a supported production upgrade",
+  "created_utc": "2026-10-26T13:34:05.794208+00:00",
+  "upstream": {
+    "documentation": "https://developers.google.com/edge/litert/next/cpp_sdk",
+    "version": "2.3.1",
+    "pinned_url": "https://storage.googleapis.com/litert/binaries/2.3.1/linux_arm64/libLiteRt.so?generation=1792778057375009",
+    "gcs_generation": "1792778057375009",
+    "gcs_metadata_url": "https://storage.googleapis.com/storage/v1/b/litert/o/binaries%2F2.3.1%2Flinux_arm64%2FlibLiteRt.so?generation=1792778057375009",
+    "bytes": 8980040,
+    "sha256": "f5dd262601c88f4ae5d1f8be868e1233d07a551baed3327c762ada384d83ded8",
+    "md5_base64": "JC37u5Ggg0iiwt+CEt4idw==",
+    "crc32c_base64": "RJJrQQ==",
+    "advertised_checksums_verified": true,
+    "signature": "No detached release signature or signed binary-to-source attestation available. Official HTTPS object generation and advertised MD5/CRC32C verified; computed SHA256 retained.",
+    "official_header_tag": "v2.3.1",
+    "official_header_commit": "f1b2924a37c25947cd2c3d471741598241235189",
+    "binary_source_commit_identity_proven": false
+  },
+  "source_build_reference": "/tmp/openmates-redact-rust-678f/swift-experiment/receipt.json",
+  "source_build_receipt_sha256": "1ac6d52c6bda2312aa092f79f9e29ec5645f137f99ef36f68056258c4e7eb270",
+  "sdk_source_commit": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "core_header_runtime": "Core and SDK bundled C headers built against LiteRT 2.2.0; core copied byte-identically. Runtime swap to 2.3.1 without rebuilding.",
+  "official_drop_in_compatibility_established": false,
+  "static_checks": {
+    "used_c_declarations_unchanged": 35,
+    "versioned_symbols_present": 35,
+    "public_type_differences": [],
+    "known_break_detected": false
+  },
+  "required_acceptance": "Parent must run exact default 150/1, all 92-case parity, boundary probes and performance. Reject on crash or quality regression.",
+  "inference_performed": false,
+  "dlopen_performed": false,
+  "model_tokenizer_licensing_telemetry_changes": false,
+  "benchmark_environment": {
+    "DAL_REDACT_BENCH_MAX_CHARS": "150",
+    "DAL_REDACT_BENCH_CARRY": "1"
+  },
+  "native_files": [
+    {
+      "file": "native/libLiteRt.so",
+      "bytes": 8980040,
+      "sha256": "f5dd262601c88f4ae5d1f8be868e1233d07a551baed3327c762ada384d83ded8"
+    },
+    {
+      "file": "native/libRedactNode.so",
+      "bytes": 75079512,
+      "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8"
+    }
+  ],
+  "retained_evidence": [
+    "LICENSE",
+    "gcs-object-metadata.json",
+    "source-tag.json",
+    "header-audit.json",
+    "static-link-audit.json",
+    "headers/"
+  ]
+}

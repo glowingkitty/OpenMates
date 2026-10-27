@@ -137,47 +137,6 @@ class DedupedTask(Task):
             logger.warning("Detached output task held without broker identity")
             raise Ignore()
 
-        from backend.apps.ai.processing.voice_async_skills import (
-            VOICE_TASK_HEADER, bound_voice_worker, voice_task_result,
-        )
-        headers = getattr(self.request, "headers", None)
-        if isinstance(headers, dict) and VOICE_TASK_HEADER in headers:
-            # Open only after the normal dedup lock. Do not replace request.kwargs:
-            # Celery retries must retain the original opaque broker envelope.
-            from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
-            try:
-                invocation, voice = asyncio.run(self._open_voice_invocation(
-                    task_id=task_id, args=args, kwargs=kwargs, headers=headers))
-            except RequiredRecoveryOutputError:
-                raise Ignore() from None
-            except Exception:
-                attempts = getattr(self.request, "retries", 0) or 0
-                try:
-                    raise self.retry(exc=RuntimeError("Voice task admission unavailable"),
-                        countdown=min(2 ** (attempts + 1), 30), max_retries=3)
-                except MaxRetriesExceededError:
-                    raise Ignore() from None
-            try:
-                with bound_voice_worker(voice):
-                    # Task.__call__ pushes kwargs into a new request. Calling the
-                    # existing body here keeps self.retry's request/signature
-                    # bound to the opaque envelope installed by the task tracer.
-                    value = self.run(**invocation)
-                return voice_task_result(value, voice)
-            except Ignore:
-                raise
-            except Exception as exc:
-                from celery.exceptions import Retry
-                if isinstance(exc, Retry):
-                    # Keep the existing bounded retry signature and countdown,
-                    # while keeping provider exception text out of broker results.
-                    exc.exc = RuntimeError("Voice asynchronous skill retry")
-                    exc.excs = "Voice asynchronous skill retry"
-                    raise
-                if isinstance(exc, RequiredRecoveryOutputError):
-                    raise Ignore() from None
-                raise RuntimeError("Voice asynchronous skill failed") from None
-
         try:
             producer, recovery = asyncio.run(verify_output_producer(
                 task_name=self.name, task_id=task_id, args=args, kwargs=kwargs,
@@ -213,21 +172,6 @@ class DedupedTask(Task):
 
         with bound_output_producer(producer, recovery):
             return super().__call__(*args, **kwargs)
-
-    async def _open_voice_invocation(self, *, task_id: str, args: tuple,
-                                     kwargs: dict, headers: dict):
-        """Use short-lived worker services to verify owner-sealed voice admission."""
-        from backend.apps.ai.processing.voice_async_skills import open_voice_task
-        cache = CacheService()
-        encryption = EncryptionService(cache_service=cache)
-        directus = DirectusService(cache_service=cache, encryption_service=encryption)
-        try:
-            return await open_voice_task(task_name=self.name, task_id=task_id,
-                args=args, kwargs=kwargs, headers=headers, cache_service=cache,
-                directus_service=directus, encryption_service=encryption)
-        finally:
-            await directus.close()
-            await cache.close()
 
     def __call__(self, *args, **kwargs):
         # Skip dedup entirely for opted-out tasks.
@@ -380,11 +324,6 @@ class BaseServiceTask(DedupedTask):
             )
 
             headers = getattr(self.request, "headers", None)
-            from backend.apps.ai.processing.voice_async_skills import VOICE_TASK_HEADER
-            if isinstance(headers, dict) and VOICE_TASK_HEADER in headers:
-                # Voice has an immutable issued-row receipt and canonical embed;
-                # it is never a standalone developer-key asset invocation.
-                return super().on_success(retval, task_id, args, kwargs)
             identity = _envelope_identity(self.name, tuple(args), kwargs) \
                 if self.name in PROTECTED_EMBED_TASK_NAMES else None
             asset_id = retval.get("embed_id") if isinstance(retval, dict) else None

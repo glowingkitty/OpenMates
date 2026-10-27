@@ -1,0 +1,2281 @@
+{
+  "date": "2026-10-21",
+  "scope": "Two completed direct production-generation function refresh attempts on public inputs; no account/pool writes. ENcomplete10; DE8slots. Distinct failed initial probe retained separately.",
+  "corrected_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-corrected-refresh-20261021",
+  "manifest_sha256": "2f76f214255990ae52db6ac99ca6d16f7776d9a48b1fd2230229a91dcc23bfff",
+  "benchmark_sha256": "392c7121beff52da31b09a1c0b552cf49a2e2208cf125cdbbfc8f3a8eb0c657a",
+  "runtime_source_hash_count": 12,
+  "runtime_hashes_match_reviewed_manifest": true,
+  "current_refreshes": [
+    {
+      "receipt": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-corrected-refresh-20261021/current/en.json",
+      "receipt_sha256": "664b2c970b672c89ae93517f876c8e8537eca72d19ed5e36d9e4bb6d327be459",
+      "status": "complete",
+      "counts": {
+        "video": 3,
+        "wiki": 3,
+        "feature": 4
+      },
+      "generated_admissions": 6,
+      "displayed_slots": 10,
+      "full_ten_card_refresh": true,
+      "seconds": 202.65803186502308,
+      "source_ids": [
+        "xAiNABaKIM0",
+        "i9TZBYsWY88",
+        "Dfvyoir_SCY",
+        "Pollination_syndrome",
+        "Pollination",
+        "Pollination_of_orchids"
+      ],
+      "current_source_sha256": {
+        "decisions.py": "31ed97ce8faaf463d33408826a61f121cc901221e4fea35b288f351a500859c3",
+        "writer.py": "9ebd39aca8da4d4f90268aad4027d99b3b62d85069c38e625f9c691c99f4d1a4",
+        "generator.py": "a4d4dd19fbc8596819c36bc048cc5a7b2c13c47406ee371e79dcaf46893ba56e",
+        "wiki_generator.py": "a96f8c077cafe1e3944cca3726557700a5195a5b9b977aa12237e64f872ed52d",
+        "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+        "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+        "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+        "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "media_coherence.py": "96a260b6a22d435d51fb20f004e61774f7ee6dfa59b328f9739027d1036ff050",
+        "semantic_review.py": "3b53ea94efc641b9c720b73e9ca8409884748454b62c32568614e0df73806d6f",
+        "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "default_inspiration_tasks.py": "2d55c20fa3e0cb50f6e4e5d045c0d04c98a9dd1631cb73a03631a19ee794a935"
+      },
+      "reviewed_source_comparison": {
+        "manifest_sha256": "a65b1d86aa12a3ed96d5c5697e5b414f34418de215eda7ae58adb1f4cdf84211",
+        "matched_keys": [
+          "config.py",
+          "decisions.py",
+          "default_inspiration_tasks.py",
+          "generator.py",
+          "llm_utils.py",
+          "media_coherence.py",
+          "semantic_review.py",
+          "thumbnail_review.py",
+          "validator.py",
+          "video_processor.py",
+          "wiki_generator.py",
+          "writer.py"
+        ],
+        "unreviewed_keys": []
+      },
+      "writer_logical_attempts": 5,
+      "semantic_logical_attempts": 10,
+      "semantic_attempt_outcomes": {
+        "response_returned": 7,
+        "CancelledError": 3
+      },
+      "observed_native_models": {
+        "jev-1.14.0": 28,
+        "mercury-3": 4,
+        "gemini-3.8-flash": 7,
+        "gemini-3.5-flash-lite": 1
+      },
+      "native_http_statuses": {
+        "200": 32
+      },
+      "native_response_ledger": [
+        {
+          "native_http_index": 0,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 7995,
+          "captured_response_launch_usd": 0.00033579,
+          "mercury_regular_usd": 0.00033579
+        },
+        {
+          "native_http_index": 1,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1332,
+          "captured_response_launch_usd": 5.5944e-05,
+          "mercury_regular_usd": 5.5944e-05
+        },
+        {
+          "native_http_index": 2,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1478,
+          "captured_response_launch_usd": 6.2076e-05,
+          "mercury_regular_usd": 6.2076e-05
+        },
+        {
+          "native_http_index": 3,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1412,
+          "captured_response_launch_usd": 5.9304e-05,
+          "mercury_regular_usd": 5.9304e-05
+        },
+        {
+          "native_http_index": 4,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1345,
+          "captured_response_launch_usd": 5.649e-05,
+          "mercury_regular_usd": 5.649e-05
+        },
+        {
+          "native_http_index": 5,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1287,
+          "captured_response_launch_usd": 5.4054e-05,
+          "mercury_regular_usd": 5.4054e-05
+        },
+        {
+          "native_http_index": 6,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1530,
+          "captured_response_launch_usd": 6.426e-05,
+          "mercury_regular_usd": 6.426e-05
+        },
+        {
+          "native_http_index": 7,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1292,
+          "captured_response_launch_usd": 5.4264e-05,
+          "mercury_regular_usd": 5.4264e-05
+        },
+        {
+          "native_http_index": 8,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 7580,
+          "captured_response_launch_usd": 0.00031836,
+          "mercury_regular_usd": 0.00031836
+        },
+        {
+          "native_http_index": 9,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1367,
+          "captured_response_launch_usd": 5.7414e-05,
+          "mercury_regular_usd": 5.7414e-05
+        },
+        {
+          "native_http_index": 10,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1196,
+          "captured_response_launch_usd": 5.0232e-05,
+          "mercury_regular_usd": 5.0232e-05
+        },
+        {
+          "native_http_index": 11,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1259,
+          "captured_response_launch_usd": 5.2878e-05,
+          "mercury_regular_usd": 5.2878e-05
+        },
+        {
+          "native_http_index": 12,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1243,
+          "captured_response_launch_usd": 5.2206e-05,
+          "mercury_regular_usd": 5.2206e-05
+        },
+        {
+          "native_http_index": 13,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1277,
+          "captured_response_launch_usd": 5.3634e-05,
+          "mercury_regular_usd": 5.3634e-05
+        },
+        {
+          "native_http_index": 14,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 4552,
+          "captured_response_launch_usd": 0.000191184,
+          "mercury_regular_usd": 0.000191184
+        },
+        {
+          "native_http_index": 15,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1405,
+          "captured_response_launch_usd": 5.901e-05,
+          "mercury_regular_usd": 5.901e-05
+        },
+        {
+          "native_http_index": 16,
+          "logical_call": 0,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 3773,
+          "cached_input_tokens": 3276,
+          "output_tokens_including_reasoning": 1614,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "captured_response_launch_usd": 0.00064736,
+          "mercury_regular_usd": 0.00129472
+        },
+        {
+          "native_http_index": 17,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1412,
+          "captured_response_launch_usd": 5.9304e-05,
+          "mercury_regular_usd": 5.9304e-05
+        },
+        {
+          "native_http_index": 18,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1340,
+          "captured_response_launch_usd": 5.628e-05,
+          "mercury_regular_usd": 5.628e-05
+        },
+        {
+          "native_http_index": 19,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1272,
+          "captured_response_launch_usd": 5.3424e-05,
+          "mercury_regular_usd": 5.3424e-05
+        },
+        {
+          "native_http_index": 20,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1491,
+          "captured_response_launch_usd": 6.2622e-05,
+          "mercury_regular_usd": 6.2622e-05
+        },
+        {
+          "native_http_index": 21,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1409,
+          "captured_response_launch_usd": 5.9178e-05,
+          "mercury_regular_usd": 5.9178e-05
+        },
+        {
+          "native_http_index": 22,
+          "logical_call": 1,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 3854,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 1232,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "captured_response_launch_usd": 0.00081579,
+          "mercury_regular_usd": 0.00163158
+        },
+        {
+          "native_http_index": 23,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1388,
+          "captured_response_launch_usd": 5.8296e-05,
+          "mercury_regular_usd": 5.8296e-05
+        },
+        {
+          "native_http_index": 24,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1331,
+          "captured_response_launch_usd": 5.5902e-05,
+          "mercury_regular_usd": 5.5902e-05
+        },
+        {
+          "native_http_index": 25,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1362,
+          "captured_response_launch_usd": 5.7204e-05,
+          "mercury_regular_usd": 5.7204e-05
+        },
+        {
+          "native_http_index": 26,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1334,
+          "captured_response_launch_usd": 5.6028e-05,
+          "mercury_regular_usd": 5.6028e-05
+        },
+        {
+          "native_http_index": 27,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 8639,
+          "captured_response_launch_usd": 0.000362838,
+          "mercury_regular_usd": 0.000362838
+        },
+        {
+          "native_http_index": 28,
+          "logical_call": 3,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 1363,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 2522,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "captured_response_launch_usd": 0.00101819,
+          "mercury_regular_usd": 0.00203638
+        },
+        {
+          "native_http_index": 29,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 3651,
+          "captured_response_launch_usd": 0.000153342,
+          "mercury_regular_usd": 0.000153342
+        },
+        {
+          "native_http_index": 30,
+          "logical_call": 4,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 1445,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 1717,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "captured_response_launch_usd": 0.00074464,
+          "mercury_regular_usd": 0.00148928
+        },
+        {
+          "native_http_index": 31,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1699,
+          "captured_response_launch_usd": 7.1358e-05,
+          "mercury_regular_usd": 7.1358e-05
+        },
+        {
+          "google_sdk_index": 0,
+          "logical_call": "semantic:0",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "3bHYaqnRE8e-vdIP6rOdmAc",
+          "input_tokens": 1094,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 574,
+          "output_tokens_including_thoughts": 809,
+          "captured_response_launch_usd": 0.00385425,
+          "mercury_regular_usd": 0.00385425,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 1,
+          "logical_call": "semantic:1",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "57HYaobsFu7hvdIPjfvBuAk",
+          "input_tokens": 1213,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 886,
+          "output_tokens_including_thoughts": 1121,
+          "captured_response_launch_usd": 0.0051135,
+          "mercury_regular_usd": 0.0051135,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 2,
+          "logical_call": "semantic:2",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "9rHYav7EMJG-xN8Pj8ymwAc",
+          "input_tokens": 1143,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 238,
+          "thinking_tokens": 1206,
+          "output_tokens_including_thoughts": 1444,
+          "captured_response_launch_usd": 0.00627225,
+          "mercury_regular_usd": 0.00627225,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 3,
+          "logical_call": 2,
+          "component": "writer_gemini35",
+          "model": "gemini-3.5-flash-lite",
+          "response_id": "BbLYasrxG9Wd28oP082BsAc",
+          "input_tokens": 3755,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 161,
+          "thinking_tokens": 0,
+          "output_tokens_including_thoughts": 161,
+          "captured_response_launch_usd": 0.001529,
+          "mercury_regular_usd": 0.001529,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 4,
+          "logical_call": "semantic:3",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "B7LYasafDu7hvdIPjfvBuAk",
+          "input_tokens": 1117,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 1817,
+          "output_tokens_including_thoughts": 2052,
+          "captured_response_launch_usd": 0.00853275,
+          "mercury_regular_usd": 0.00853275,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 5,
+          "logical_call": "semantic:4",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "J7LYatziDMbovdIPk5Sa0Ag",
+          "input_tokens": 1033,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 546,
+          "output_tokens_including_thoughts": 781,
+          "captured_response_launch_usd": 0.0037035,
+          "mercury_regular_usd": 0.0037035,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 6,
+          "logical_call": "semantic:5",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "J7LYasqDDdWd28oP4ZT18Qo",
+          "input_tokens": 1074,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 849,
+          "output_tokens_including_thoughts": 1084,
+          "captured_response_launch_usd": 0.0048705,
+          "mercury_regular_usd": 0.0048705,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 10,
+          "logical_call": "semantic:9",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "hrLYaq_MIajlxN8PjJew2QY",
+          "input_tokens": 1043,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 738,
+          "output_tokens_including_thoughts": 973,
+          "captured_response_launch_usd": 0.004431,
+          "mercury_regular_usd": 0.004431,
+          "cache_cost_exact": false
+        }
+      ],
+      "components": {
+        "writer_mercury": {
+          "native_responses": 4,
+          "input_tokens": 10435,
+          "cached_input_tokens_recorded": 3303,
+          "cache_counter_absent_responses": 0,
+          "output_tokens_including_reasoning": 7085,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.00322598,
+          "mercury_regular_usd": 0.00645196
+        },
+        "writer_gemini35": {
+          "native_responses": 1,
+          "input_tokens": 3755,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 1,
+          "output_tokens_including_reasoning": 161,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.001529,
+          "mercury_regular_usd": 0.001529
+        },
+        "jev": {
+          "native_responses": 28,
+          "input_tokens": 63878,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 0,
+          "output_tokens_including_reasoning": 0,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.002682876,
+          "mercury_regular_usd": 0.002682876
+        },
+        "semantic_review_gemini38": {
+          "native_responses": 7,
+          "input_tokens": 7717,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 7,
+          "output_tokens_including_reasoning": 8264,
+          "thinking_tokens_explicit_google": 6616,
+          "captured_response_launch_usd": 0.03677775,
+          "mercury_regular_usd": 0.03677775
+        }
+      },
+      "paid_mercury_responses_recovered_from_missing_facade_usage": [],
+      "unknown_canceled_sdk_attempts": [
+        {
+          "logical_call": "semantic:6",
+          "requested_model": "gemini-3.8-flash",
+          "error": "CancelledError",
+          "seconds": 29.93120025191456
+        },
+        {
+          "logical_call": "semantic:7",
+          "requested_model": "gemini-3.8-flash",
+          "error": "CancelledError",
+          "seconds": 29.985984335653484
+        },
+        {
+          "logical_call": "semantic:8",
+          "requested_model": "gemini-3.8-flash",
+          "error": "CancelledError",
+          "seconds": 29.995598341338336
+        }
+      ],
+      "successful_brave_requests": 3,
+      "brave_gross_catalog_usd": 0.015,
+      "captured_response_inference_launch_usd": 0.044215606,
+      "captured_response_inference_mercury_regular_usd": 0.047441586,
+      "captured_response_inference_plus_search_launch_usd": 0.059215606,
+      "captured_response_inference_plus_search_mercury_regular_usd": 0.062441586,
+      "captured_response_gross_per_generated_admission_usd": 0.009869267667,
+      "captured_response_gross_per_displayed_slot_usd": 0.0059215606,
+      "spend_complete": false,
+      "unknowns_note": "Absent Google cache counters =>uncached upperbound for captured responses. Canceled calls without native response are unpriced, so captured-response estimate is NOT total-spend upperbound when cancellations exist. No invoice/infra/YouTube/Wikimedia cost established."
+    },
+    {
+      "receipt": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-corrected-refresh-20261021/current/de.json",
+      "receipt_sha256": "eeb14fb958734b8f17baff3f2d5ba871ec26eeac9276f327f4c79fa50d24ae78",
+      "status": "complete",
+      "counts": {
+        "video": 1,
+        "wiki": 3,
+        "feature": 4
+      },
+      "generated_admissions": 4,
+      "displayed_slots": 8,
+      "full_ten_card_refresh": false,
+      "seconds": 60.942121588625014,
+      "source_ids": [
+        "DC9FBRQKNck",
+        "Vulkanausbruch",
+        "Sonnenfinsternis",
+        "Vulkan"
+      ],
+      "current_source_sha256": {
+        "decisions.py": "31ed97ce8faaf463d33408826a61f121cc901221e4fea35b288f351a500859c3",
+        "writer.py": "9ebd39aca8da4d4f90268aad4027d99b3b62d85069c38e625f9c691c99f4d1a4",
+        "generator.py": "a4d4dd19fbc8596819c36bc048cc5a7b2c13c47406ee371e79dcaf46893ba56e",
+        "wiki_generator.py": "a96f8c077cafe1e3944cca3726557700a5195a5b9b977aa12237e64f872ed52d",
+        "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+        "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+        "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+        "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+        "media_coherence.py": "96a260b6a22d435d51fb20f004e61774f7ee6dfa59b328f9739027d1036ff050",
+        "semantic_review.py": "3b53ea94efc641b9c720b73e9ca8409884748454b62c32568614e0df73806d6f",
+        "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+        "default_inspiration_tasks.py": "2d55c20fa3e0cb50f6e4e5d045c0d04c98a9dd1631cb73a03631a19ee794a935"
+      },
+      "reviewed_source_comparison": {
+        "manifest_sha256": "a65b1d86aa12a3ed96d5c5697e5b414f34418de215eda7ae58adb1f4cdf84211",
+        "matched_keys": [
+          "config.py",
+          "decisions.py",
+          "default_inspiration_tasks.py",
+          "generator.py",
+          "llm_utils.py",
+          "media_coherence.py",
+          "semantic_review.py",
+          "thumbnail_review.py",
+          "validator.py",
+          "video_processor.py",
+          "wiki_generator.py",
+          "writer.py"
+        ],
+        "unreviewed_keys": []
+      },
+      "writer_logical_attempts": 4,
+      "semantic_logical_attempts": 4,
+      "semantic_attempt_outcomes": {
+        "response_returned": 4
+      },
+      "observed_native_models": {
+        "jev-1.14.0": 23,
+        "mercury-3": 3,
+        "gemini-3.5-flash-lite": 1,
+        "gemini-3.8-flash": 4
+      },
+      "native_http_statuses": {
+        "200": 26
+      },
+      "native_response_ledger": [
+        {
+          "native_http_index": 0,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 15130,
+          "captured_response_launch_usd": 0.00063546,
+          "mercury_regular_usd": 0.00063546
+        },
+        {
+          "native_http_index": 1,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 2545,
+          "captured_response_launch_usd": 0.00010689,
+          "mercury_regular_usd": 0.00010689
+        },
+        {
+          "native_http_index": 2,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1295,
+          "captured_response_launch_usd": 5.439e-05,
+          "mercury_regular_usd": 5.439e-05
+        },
+        {
+          "native_http_index": 3,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1304,
+          "captured_response_launch_usd": 5.4768e-05,
+          "mercury_regular_usd": 5.4768e-05
+        },
+        {
+          "native_http_index": 4,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1303,
+          "captured_response_launch_usd": 5.4726e-05,
+          "mercury_regular_usd": 5.4726e-05
+        },
+        {
+          "native_http_index": 5,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1434,
+          "captured_response_launch_usd": 6.0228e-05,
+          "mercury_regular_usd": 6.0228e-05
+        },
+        {
+          "native_http_index": 6,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1766,
+          "captured_response_launch_usd": 7.4172e-05,
+          "mercury_regular_usd": 7.4172e-05
+        },
+        {
+          "native_http_index": 7,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 18654,
+          "captured_response_launch_usd": 0.000783468,
+          "mercury_regular_usd": 0.000783468
+        },
+        {
+          "native_http_index": 8,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1325,
+          "captured_response_launch_usd": 5.565e-05,
+          "mercury_regular_usd": 5.565e-05
+        },
+        {
+          "native_http_index": 9,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1256,
+          "captured_response_launch_usd": 5.2752e-05,
+          "mercury_regular_usd": 5.2752e-05
+        },
+        {
+          "native_http_index": 10,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1936,
+          "captured_response_launch_usd": 8.1312e-05,
+          "mercury_regular_usd": 8.1312e-05
+        },
+        {
+          "native_http_index": 11,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1451,
+          "captured_response_launch_usd": 6.0942e-05,
+          "mercury_regular_usd": 6.0942e-05
+        },
+        {
+          "native_http_index": 12,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1630,
+          "captured_response_launch_usd": 6.846e-05,
+          "mercury_regular_usd": 6.846e-05
+        },
+        {
+          "native_http_index": 13,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1450,
+          "captured_response_launch_usd": 6.09e-05,
+          "mercury_regular_usd": 6.09e-05
+        },
+        {
+          "native_http_index": 14,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 10138,
+          "captured_response_launch_usd": 0.000425796,
+          "mercury_regular_usd": 0.000425796
+        },
+        {
+          "native_http_index": 15,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1193,
+          "captured_response_launch_usd": 5.0106e-05,
+          "mercury_regular_usd": 5.0106e-05
+        },
+        {
+          "native_http_index": 16,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1150,
+          "captured_response_launch_usd": 4.83e-05,
+          "mercury_regular_usd": 4.83e-05
+        },
+        {
+          "native_http_index": 17,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1702,
+          "captured_response_launch_usd": 7.1484e-05,
+          "mercury_regular_usd": 7.1484e-05
+        },
+        {
+          "native_http_index": 18,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1237,
+          "captured_response_launch_usd": 5.1954e-05,
+          "mercury_regular_usd": 5.1954e-05
+        },
+        {
+          "native_http_index": 19,
+          "logical_call": 0,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 4188,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 3978,
+          "finish_reasons": [
+            "length"
+          ],
+          "captured_response_launch_usd": 0.00181029,
+          "mercury_regular_usd": 0.00362058
+        },
+        {
+          "native_http_index": 20,
+          "logical_call": 1,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 4386,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 4014,
+          "finish_reasons": [
+            "length"
+          ],
+          "captured_response_launch_usd": 0.00184269,
+          "mercury_regular_usd": 0.00368538
+        },
+        {
+          "native_http_index": 21,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1977,
+          "captured_response_launch_usd": 8.3034e-05,
+          "mercury_regular_usd": 8.3034e-05
+        },
+        {
+          "native_http_index": 22,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 1935,
+          "captured_response_launch_usd": 8.127e-05,
+          "mercury_regular_usd": 8.127e-05
+        },
+        {
+          "native_http_index": 23,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 8638,
+          "captured_response_launch_usd": 0.000362796,
+          "mercury_regular_usd": 0.000362796
+        },
+        {
+          "native_http_index": 24,
+          "logical_call": 3,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 1314,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 2815,
+          "finish_reasons": [
+            "tool_calls"
+          ],
+          "captured_response_launch_usd": 0.00111584,
+          "mercury_regular_usd": 0.00223168
+        },
+        {
+          "native_http_index": 25,
+          "logical_call": null,
+          "component": "jev",
+          "model": "jev-1.14.0",
+          "input_tokens": 3570,
+          "captured_response_launch_usd": 0.00014994,
+          "mercury_regular_usd": 0.00014994
+        },
+        {
+          "google_sdk_index": 0,
+          "logical_call": 2,
+          "component": "writer_gemini35",
+          "model": "gemini-3.5-flash-lite",
+          "response_id": "rrLYaoy5Lqn6vdIPm-K08As",
+          "input_tokens": 4337,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 528,
+          "thinking_tokens": 0,
+          "output_tokens_including_thoughts": 528,
+          "captured_response_launch_usd": 0.0026211,
+          "mercury_regular_usd": 0.0026211,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 1,
+          "logical_call": "semantic:0",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "sbLYaoaEG5D_vdIPs-m1oAU",
+          "input_tokens": 1764,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 725,
+          "output_tokens_including_thoughts": 960,
+          "captured_response_launch_usd": 0.004923,
+          "mercury_regular_usd": 0.004923,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 2,
+          "logical_call": "semantic:1",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "yLLYapz1LKOJxN8P7NeYwQY",
+          "input_tokens": 1032,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 555,
+          "output_tokens_including_thoughts": 790,
+          "captured_response_launch_usd": 0.0037365,
+          "mercury_regular_usd": 0.0037365,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 3,
+          "logical_call": "semantic:3",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "yLLYauDPJ9CkvdIPt93_2Ac",
+          "input_tokens": 1063,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 567,
+          "output_tokens_including_thoughts": 802,
+          "captured_response_launch_usd": 0.00380475,
+          "mercury_regular_usd": 0.00380475,
+          "cache_cost_exact": false
+        },
+        {
+          "google_sdk_index": 4,
+          "logical_call": "semantic:2",
+          "component": "semantic_review_gemini38",
+          "model": "gemini-3.8-flash",
+          "response_id": "yLLYap3xLJGCxs0PpdHB0QY",
+          "input_tokens": 991,
+          "cached_input_tokens": null,
+          "candidate_output_tokens": 235,
+          "thinking_tokens": 590,
+          "output_tokens_including_thoughts": 825,
+          "captured_response_launch_usd": 0.003837,
+          "mercury_regular_usd": 0.003837,
+          "cache_cost_exact": false
+        }
+      ],
+      "components": {
+        "writer_mercury": {
+          "native_responses": 3,
+          "input_tokens": 9888,
+          "cached_input_tokens_recorded": 27,
+          "cache_counter_absent_responses": 0,
+          "output_tokens_including_reasoning": 10807,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.00476882,
+          "mercury_regular_usd": 0.00953764
+        },
+        "writer_gemini35": {
+          "native_responses": 1,
+          "input_tokens": 4337,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 1,
+          "output_tokens_including_reasoning": 528,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.0026211,
+          "mercury_regular_usd": 0.0026211
+        },
+        "jev": {
+          "native_responses": 23,
+          "input_tokens": 84019,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 0,
+          "output_tokens_including_reasoning": 0,
+          "thinking_tokens_explicit_google": 0,
+          "captured_response_launch_usd": 0.003528798,
+          "mercury_regular_usd": 0.003528798
+        },
+        "semantic_review_gemini38": {
+          "native_responses": 4,
+          "input_tokens": 4850,
+          "cached_input_tokens_recorded": 0,
+          "cache_counter_absent_responses": 4,
+          "output_tokens_including_reasoning": 3377,
+          "thinking_tokens_explicit_google": 2437,
+          "captured_response_launch_usd": 0.01630125,
+          "mercury_regular_usd": 0.01630125
+        }
+      },
+      "paid_mercury_responses_recovered_from_missing_facade_usage": [
+        {
+          "native_http_index": 19,
+          "logical_call": 0,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 4188,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 3978,
+          "finish_reasons": [
+            "length"
+          ],
+          "captured_response_launch_usd": 0.00181029,
+          "mercury_regular_usd": 0.00362058
+        },
+        {
+          "native_http_index": 20,
+          "logical_call": 1,
+          "component": "writer_mercury",
+          "model": "mercury-3",
+          "input_tokens": 4386,
+          "cached_input_tokens": 9,
+          "output_tokens_including_reasoning": 4014,
+          "finish_reasons": [
+            "length"
+          ],
+          "captured_response_launch_usd": 0.00184269,
+          "mercury_regular_usd": 0.00368538
+        }
+      ],
+      "unknown_canceled_sdk_attempts": [],
+      "successful_brave_requests": 3,
+      "brave_gross_catalog_usd": 0.015,
+      "captured_response_inference_launch_usd": 0.027219968,
+      "captured_response_inference_mercury_regular_usd": 0.031988788,
+      "captured_response_inference_plus_search_launch_usd": 0.042219968,
+      "captured_response_inference_plus_search_mercury_regular_usd": 0.046988788,
+      "captured_response_gross_per_generated_admission_usd": 0.010554992,
+      "captured_response_gross_per_displayed_slot_usd": 0.005277496,
+      "spend_complete": false,
+      "unknowns_note": "Absent Google cache counters =>uncached upperbound for captured responses. Canceled calls without native response are unpriced, so captured-response estimate is NOT total-spend upperbound when cancellations exist. No invoice/infra/YouTube/Wikimedia cost established.",
+      "shortfall_diagnosis": {
+        "source": "Parent independent source/row review, supplied2026-10-21",
+        "missing_video_count": 2,
+        "reason": "Existingfive-yearscienceagecap excludes2017/2019videos afterwriting; finalfallbacksuppliedall3videocopyrows.",
+        "terminal_writer_response_failure": false,
+        "followup": "Earlieragecheck/recentreplacementdiscovery; donotrelaxpolicy."
+      }
+    }
+  ],
+  "historical_baseline": {
+    "ref": "c94ebe85a14f87aa3223eacfe129aa85ec93d939",
+    "aggregate_source": "docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json",
+    "aggregate_sha256": "dafa54fe1d93830b229b0c34ad8101a9dd3abdc2779204ffa806504399ef67f4",
+    "replay_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v6-final-costs-20261021",
+    "source_receipt_sha256": {
+      "original-deadline-30s/en.json": "a6a71f0c57f6c46cb22e4e4cf594a02b261a7a50ef6f1651edfa754ded153fdc",
+      "original-deadline-30s/ja.json": "4cf5aa12f26dac410ca252d968d5fcb06faa99761e63bee3578bf45f556a0542"
+    },
+    "refreshes": [
+      {
+        "mode": "original-deadline-30s",
+        "language": "en",
+        "status": "complete",
+        "counts": {
+          "video": 1,
+          "wiki": 2,
+          "feature": 4
+        },
+        "generated_cards_admitted": 3,
+        "input_count": null,
+        "output_count": null,
+        "seconds": 32.25492210127413,
+        "historical_deadlines": {
+          "request_seconds": 30,
+          "total_seconds": 30
+        },
+        "full_ten_card_refresh": false,
+        "logical_calls": 6,
+        "logical_requested_models": {
+          "mistral/mistral-small-latest": 6
+        },
+        "observed_models": [
+          "mistral-small-latest"
+        ],
+        "native_http_hosts": {
+          "api.mistral.ai": 6
+        },
+        "native_http_error_counts": {},
+        "native_http_status_counts": {
+          "200": 6
+        },
+        "google_sdk_requests": 0,
+        "google_sdk_error_counts": {},
+        "google_observed_models": [],
+        "facade_error_results": 0,
+        "writer_usage_records": 6,
+        "writer_input_tokens": 10483,
+        "writer_output_tokens": 4024,
+        "output_reasoning_tokens_subset": 0,
+        "writer_usage_incomplete_cost_records": 0,
+        "writer_unknown_cache_records": 0,
+        "native_jev_calls": 0,
+        "native_jev_input_tokens": 0,
+        "native_jev_output_tokens": 0,
+        "native_jev_missing_usage": 0,
+        "raw_jev_accounting_rows_never_summed": 0,
+        "writer_launch_usd": 0.00390693,
+        "writer_regular_mercury_reprice_usd": 0.00390693,
+        "native_jev_usd": 0,
+        "gross_brave_usd": 0.015,
+        "known_or_uncached_estimate_inference_launch_usd": 0.00390693,
+        "known_or_uncached_estimate_gross_launch_usd": 0.01890693,
+        "known_or_uncached_estimate_gross_regular_usd": 0.01890693,
+        "gross_launch_per_attempt_usd": 0.01890693,
+        "gross_launch_per_admitted_generated_card_usd": 0.006302309999999999,
+        "gross_regular_per_admitted_generated_card_usd": 0.006302309999999999,
+        "source_ids": [
+          "Dfvyoir_SCY",
+          "Laki",
+          "Buzz_pollination"
+        ]
+      },
+      {
+        "mode": "original-deadline-30s",
+        "language": "ja",
+        "status": "complete",
+        "counts": {
+          "video": 0,
+          "wiki": 2,
+          "feature": 4
+        },
+        "generated_cards_admitted": 2,
+        "input_count": null,
+        "output_count": null,
+        "seconds": 37.54544949345291,
+        "historical_deadlines": {
+          "request_seconds": 30,
+          "total_seconds": 30
+        },
+        "full_ten_card_refresh": false,
+        "logical_calls": 5,
+        "logical_requested_models": {
+          "mistral/mistral-small-latest": 5
+        },
+        "observed_models": [
+          "mistral-small-latest"
+        ],
+        "native_http_hosts": {
+          "api.mistral.ai": 5
+        },
+        "native_http_error_counts": {},
+        "native_http_status_counts": {
+          "200": 5
+        },
+        "google_sdk_requests": 0,
+        "google_sdk_error_counts": {},
+        "google_observed_models": [],
+        "facade_error_results": 0,
+        "writer_usage_records": 5,
+        "writer_input_tokens": 13258,
+        "writer_output_tokens": 4551,
+        "output_reasoning_tokens_subset": 0,
+        "writer_usage_incomplete_cost_records": 0,
+        "writer_unknown_cache_records": 0,
+        "native_jev_calls": 0,
+        "native_jev_input_tokens": 0,
+        "native_jev_output_tokens": 0,
+        "native_jev_missing_usage": 0,
+        "raw_jev_accounting_rows_never_summed": 0,
+        "writer_launch_usd": 0.004639379999999999,
+        "writer_regular_mercury_reprice_usd": 0.004639379999999999,
+        "native_jev_usd": 0,
+        "gross_brave_usd": 0.015,
+        "known_or_uncached_estimate_inference_launch_usd": 0.004639379999999999,
+        "known_or_uncached_estimate_gross_launch_usd": 0.019639379999999998,
+        "known_or_uncached_estimate_gross_regular_usd": 0.019639379999999998,
+        "gross_launch_per_attempt_usd": 0.019639379999999998,
+        "gross_launch_per_admitted_generated_card_usd": 0.009819689999999999,
+        "gross_regular_per_admitted_generated_card_usd": 0.009819689999999999,
+        "source_ids": [
+          "セント・ヘレンズ山",
+          "送粉者"
+        ]
+      }
+    ],
+    "limitations": [
+      "Original architecture, declared30second deadline sensitivity; exacthistorical5second replay had8cancellations.",
+      "Original fullsuccess target3video3wiki4static; neither historicalsample completed it.",
+      "NohistoricalGermanreplay; ENDEcurrentaverage vsENJAhistoricalaverage is notpairedsavings.",
+      "Mistralalias observed today is not historicalinvoice or immutablehistoricalweights."
+    ]
+  },
+  "failed_initial_integration_diagnostic": {
+    "root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-final-refresh-20261021",
+    "reason": "Disallowed observability_purpose caused26semanticValueErrors before provider dispatch; invalid as working-aftercost/qualification.",
+    "semantic_review_paid_provider_calls_observed": 0,
+    "refreshes": [
+      {
+        "receipt": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-final-refresh-20261021/current/en.json",
+        "receipt_sha256": "8169f0b1d3105ac071870034111282a2b68a8ebb19791f7d4f9c0168750ff22a",
+        "status": "complete",
+        "counts": {
+          "video": 0,
+          "wiki": 0,
+          "feature": 4
+        },
+        "generated_admissions": 0,
+        "displayed_slots": 4,
+        "full_ten_card_refresh": false,
+        "seconds": 52.8851431934163,
+        "source_ids": [],
+        "current_source_sha256": {
+          "decisions.py": "31ed97ce8faaf463d33408826a61f121cc901221e4fea35b288f351a500859c3",
+          "writer.py": "9ebd39aca8da4d4f90268aad4027d99b3b62d85069c38e625f9c691c99f4d1a4",
+          "generator.py": "a4d4dd19fbc8596819c36bc048cc5a7b2c13c47406ee371e79dcaf46893ba56e",
+          "wiki_generator.py": "a96f8c077cafe1e3944cca3726557700a5195a5b9b977aa12237e64f872ed52d",
+          "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+          "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+          "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+          "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+          "media_coherence.py": "96a260b6a22d435d51fb20f004e61774f7ee6dfa59b328f9739027d1036ff050",
+          "semantic_review.py": "9c235e750a560e86c119dad841efeb7294808136a3263265150a6bde7e9c65d5",
+          "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+          "default_inspiration_tasks.py": "2d55c20fa3e0cb50f6e4e5d045c0d04c98a9dd1631cb73a03631a19ee794a935"
+        },
+        "reviewed_source_comparison": {
+          "manifest_sha256": "8e61e7ddff02e6e33dc47a36735c8fd3c5c331dc30cda8891215d268d7a13925",
+          "matched_keys": [
+            "config.py",
+            "decisions.py",
+            "default_inspiration_tasks.py",
+            "generator.py",
+            "llm_utils.py",
+            "media_coherence.py",
+            "semantic_review.py",
+            "thumbnail_review.py",
+            "validator.py",
+            "video_processor.py",
+            "wiki_generator.py",
+            "writer.py"
+          ],
+          "unreviewed_keys": []
+        },
+        "writer_logical_attempts": 6,
+        "semantic_logical_attempts": 15,
+        "semantic_attempt_outcomes": {
+          "ValueError": 15
+        },
+        "observed_native_models": {
+          "jev-1.14.0": 37,
+          "mercury-3": 4,
+          "gemini-3.5-flash-lite": 2
+        },
+        "native_http_statuses": {
+          "200": 41
+        },
+        "native_response_ledger": [
+          {
+            "native_http_index": 0,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 7995,
+            "captured_response_launch_usd": 0.00033579,
+            "mercury_regular_usd": 0.00033579
+          },
+          {
+            "native_http_index": 1,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1409,
+            "captured_response_launch_usd": 5.9178e-05,
+            "mercury_regular_usd": 5.9178e-05
+          },
+          {
+            "native_http_index": 2,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1471,
+            "captured_response_launch_usd": 6.1782e-05,
+            "mercury_regular_usd": 6.1782e-05
+          },
+          {
+            "native_http_index": 3,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1329,
+            "captured_response_launch_usd": 5.5818e-05,
+            "mercury_regular_usd": 5.5818e-05
+          },
+          {
+            "native_http_index": 4,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1297,
+            "captured_response_launch_usd": 5.4474e-05,
+            "mercury_regular_usd": 5.4474e-05
+          },
+          {
+            "native_http_index": 5,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1528,
+            "captured_response_launch_usd": 6.4176e-05,
+            "mercury_regular_usd": 6.4176e-05
+          },
+          {
+            "native_http_index": 6,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1290,
+            "captured_response_launch_usd": 5.418e-05,
+            "mercury_regular_usd": 5.418e-05
+          },
+          {
+            "native_http_index": 7,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 7580,
+            "captured_response_launch_usd": 0.00031836,
+            "mercury_regular_usd": 0.00031836
+          },
+          {
+            "native_http_index": 8,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1261,
+            "captured_response_launch_usd": 5.2962e-05,
+            "mercury_regular_usd": 5.2962e-05
+          },
+          {
+            "native_http_index": 9,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1366,
+            "captured_response_launch_usd": 5.7372e-05,
+            "mercury_regular_usd": 5.7372e-05
+          },
+          {
+            "native_http_index": 10,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1357,
+            "captured_response_launch_usd": 5.6994e-05,
+            "mercury_regular_usd": 5.6994e-05
+          },
+          {
+            "native_http_index": 11,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1200,
+            "captured_response_launch_usd": 5.04e-05,
+            "mercury_regular_usd": 5.04e-05
+          },
+          {
+            "native_http_index": 12,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1278,
+            "captured_response_launch_usd": 5.3676e-05,
+            "mercury_regular_usd": 5.3676e-05
+          },
+          {
+            "native_http_index": 13,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1239,
+            "captured_response_launch_usd": 5.2038e-05,
+            "mercury_regular_usd": 5.2038e-05
+          },
+          {
+            "native_http_index": 14,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 4552,
+            "captured_response_launch_usd": 0.000191184,
+            "mercury_regular_usd": 0.000191184
+          },
+          {
+            "native_http_index": 15,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1407,
+            "captured_response_launch_usd": 5.9094e-05,
+            "mercury_regular_usd": 5.9094e-05
+          },
+          {
+            "native_http_index": 16,
+            "logical_call": 0,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 3746,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 1387,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00085924,
+            "mercury_regular_usd": 0.00171848
+          },
+          {
+            "native_http_index": 17,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1381,
+            "captured_response_launch_usd": 5.8002e-05,
+            "mercury_regular_usd": 5.8002e-05
+          },
+          {
+            "native_http_index": 18,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1333,
+            "captured_response_launch_usd": 5.5986e-05,
+            "mercury_regular_usd": 5.5986e-05
+          },
+          {
+            "native_http_index": 19,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1318,
+            "captured_response_launch_usd": 5.5356e-05,
+            "mercury_regular_usd": 5.5356e-05
+          },
+          {
+            "native_http_index": 20,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1275,
+            "captured_response_launch_usd": 5.355e-05,
+            "mercury_regular_usd": 5.355e-05
+          },
+          {
+            "native_http_index": 21,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1461,
+            "captured_response_launch_usd": 6.1362e-05,
+            "mercury_regular_usd": 6.1362e-05
+          },
+          {
+            "native_http_index": 22,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1407,
+            "captured_response_launch_usd": 5.9094e-05,
+            "mercury_regular_usd": 5.9094e-05
+          },
+          {
+            "native_http_index": 23,
+            "logical_call": 1,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 3963,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 2381,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00122884,
+            "mercury_regular_usd": 0.00245768
+          },
+          {
+            "native_http_index": 24,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1390,
+            "captured_response_launch_usd": 5.838e-05,
+            "mercury_regular_usd": 5.838e-05
+          },
+          {
+            "native_http_index": 25,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1330,
+            "captured_response_launch_usd": 5.586e-05,
+            "mercury_regular_usd": 5.586e-05
+          },
+          {
+            "native_http_index": 26,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1328,
+            "captured_response_launch_usd": 5.5776e-05,
+            "mercury_regular_usd": 5.5776e-05
+          },
+          {
+            "native_http_index": 27,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1276,
+            "captured_response_launch_usd": 5.3592e-05,
+            "mercury_regular_usd": 5.3592e-05
+          },
+          {
+            "native_http_index": 28,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1466,
+            "captured_response_launch_usd": 6.1572e-05,
+            "mercury_regular_usd": 6.1572e-05
+          },
+          {
+            "native_http_index": 29,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1406,
+            "captured_response_launch_usd": 5.9052e-05,
+            "mercury_regular_usd": 5.9052e-05
+          },
+          {
+            "native_http_index": 30,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1362,
+            "captured_response_launch_usd": 5.7204e-05,
+            "mercury_regular_usd": 5.7204e-05
+          },
+          {
+            "native_http_index": 31,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1330,
+            "captured_response_launch_usd": 5.586e-05,
+            "mercury_regular_usd": 5.586e-05
+          },
+          {
+            "native_http_index": 32,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1291,
+            "captured_response_launch_usd": 5.4222e-05,
+            "mercury_regular_usd": 5.4222e-05
+          },
+          {
+            "native_http_index": 33,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1276,
+            "captured_response_launch_usd": 5.3592e-05,
+            "mercury_regular_usd": 5.3592e-05
+          },
+          {
+            "native_http_index": 34,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1430,
+            "captured_response_launch_usd": 6.006e-05,
+            "mercury_regular_usd": 6.006e-05
+          },
+          {
+            "native_http_index": 35,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1407,
+            "captured_response_launch_usd": 5.9094e-05,
+            "mercury_regular_usd": 5.9094e-05
+          },
+          {
+            "native_http_index": 36,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 8639,
+            "captured_response_launch_usd": 0.000362838,
+            "mercury_regular_usd": 0.000362838
+          },
+          {
+            "native_http_index": 37,
+            "logical_call": 3,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 1381,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 2408,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00098009,
+            "mercury_regular_usd": 0.00196018
+          },
+          {
+            "native_http_index": 38,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 3635,
+            "captured_response_launch_usd": 0.00015267,
+            "mercury_regular_usd": 0.00015267
+          },
+          {
+            "native_http_index": 39,
+            "logical_call": 4,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 1512,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 4001,
+            "finish_reasons": [
+              "length"
+            ],
+            "captured_response_launch_usd": 0.00155074,
+            "mercury_regular_usd": 0.00310148
+          },
+          {
+            "native_http_index": 40,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 3584,
+            "captured_response_launch_usd": 0.000150528,
+            "mercury_regular_usd": 0.000150528
+          },
+          {
+            "google_sdk_index": 0,
+            "logical_call": 2,
+            "component": "writer_gemini35",
+            "model": "gemini-3.5-flash-lite",
+            "response_id": "Oa_YaqD3McXcxs0Pk5HHyQ8",
+            "input_tokens": 3795,
+            "cached_input_tokens": null,
+            "candidate_output_tokens": 431,
+            "thinking_tokens": 0,
+            "output_tokens_including_thoughts": 431,
+            "captured_response_launch_usd": 0.002216,
+            "mercury_regular_usd": 0.002216,
+            "cache_cost_exact": false
+          },
+          {
+            "google_sdk_index": 1,
+            "logical_call": 5,
+            "component": "writer_gemini35",
+            "model": "gemini-3.5-flash-lite",
+            "response_id": "UK_YarroIO-SxN8PnayZmAg",
+            "input_tokens": 1307,
+            "cached_input_tokens": null,
+            "candidate_output_tokens": 447,
+            "thinking_tokens": 0,
+            "output_tokens_including_thoughts": 447,
+            "captured_response_launch_usd": 0.0015096,
+            "mercury_regular_usd": 0.0015096,
+            "cache_cost_exact": false
+          }
+        ],
+        "components": {
+          "writer_mercury": {
+            "native_responses": 4,
+            "input_tokens": 10602,
+            "cached_input_tokens_recorded": 36,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 10177,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.00461891,
+            "mercury_regular_usd": 0.00923782
+          },
+          "writer_gemini35": {
+            "native_responses": 2,
+            "input_tokens": 5102,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 2,
+            "output_tokens_including_reasoning": 878,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.0037256,
+            "mercury_regular_usd": 0.0037256
+          },
+          "jev": {
+            "native_responses": 37,
+            "input_tokens": 77884,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 0,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.003271128,
+            "mercury_regular_usd": 0.003271128
+          },
+          "semantic_review_gemini38": {
+            "native_responses": 0,
+            "input_tokens": 0,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 0,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0,
+            "mercury_regular_usd": 0
+          }
+        },
+        "paid_mercury_responses_recovered_from_missing_facade_usage": [
+          {
+            "native_http_index": 39,
+            "logical_call": 4,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 1512,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 4001,
+            "finish_reasons": [
+              "length"
+            ],
+            "captured_response_launch_usd": 0.00155074,
+            "mercury_regular_usd": 0.00310148
+          }
+        ],
+        "unknown_canceled_sdk_attempts": [],
+        "successful_brave_requests": 3,
+        "brave_gross_catalog_usd": 0.015,
+        "captured_response_inference_launch_usd": 0.011615638,
+        "captured_response_inference_mercury_regular_usd": 0.016234548,
+        "captured_response_inference_plus_search_launch_usd": 0.026615638,
+        "captured_response_inference_plus_search_mercury_regular_usd": 0.031234548,
+        "captured_response_gross_per_generated_admission_usd": null,
+        "captured_response_gross_per_displayed_slot_usd": 0.0066539095,
+        "spend_complete": false,
+        "unknowns_note": "Absent Google cache counters =>uncached upperbound for captured responses. Canceled calls without native response are unpriced, so captured-response estimate is NOT total-spend upperbound when cancellations exist. No invoice/infra/YouTube/Wikimedia cost established."
+      },
+      {
+        "receipt": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v7-final-refresh-20261021/current/de.json",
+        "receipt_sha256": "5969539ec36729895963f5d3ea23e15e0f1ed03b41e5d77df9331dce2e834bf7",
+        "status": "complete",
+        "counts": {
+          "video": 0,
+          "wiki": 0,
+          "feature": 4
+        },
+        "generated_admissions": 0,
+        "displayed_slots": 4,
+        "full_ten_card_refresh": false,
+        "seconds": 53.54743840266019,
+        "source_ids": [],
+        "current_source_sha256": {
+          "decisions.py": "31ed97ce8faaf463d33408826a61f121cc901221e4fea35b288f351a500859c3",
+          "writer.py": "9ebd39aca8da4d4f90268aad4027d99b3b62d85069c38e625f9c691c99f4d1a4",
+          "generator.py": "a4d4dd19fbc8596819c36bc048cc5a7b2c13c47406ee371e79dcaf46893ba56e",
+          "wiki_generator.py": "a96f8c077cafe1e3944cca3726557700a5195a5b9b977aa12237e64f872ed52d",
+          "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+          "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+          "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+          "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+          "media_coherence.py": "96a260b6a22d435d51fb20f004e61774f7ee6dfa59b328f9739027d1036ff050",
+          "semantic_review.py": "9c235e750a560e86c119dad841efeb7294808136a3263265150a6bde7e9c65d5",
+          "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef",
+          "default_inspiration_tasks.py": "2d55c20fa3e0cb50f6e4e5d045c0d04c98a9dd1631cb73a03631a19ee794a935"
+        },
+        "reviewed_source_comparison": {
+          "manifest_sha256": "8e61e7ddff02e6e33dc47a36735c8fd3c5c331dc30cda8891215d268d7a13925",
+          "matched_keys": [
+            "config.py",
+            "decisions.py",
+            "default_inspiration_tasks.py",
+            "generator.py",
+            "llm_utils.py",
+            "media_coherence.py",
+            "semantic_review.py",
+            "thumbnail_review.py",
+            "validator.py",
+            "video_processor.py",
+            "wiki_generator.py",
+            "writer.py"
+          ],
+          "unreviewed_keys": []
+        },
+        "writer_logical_attempts": 6,
+        "semantic_logical_attempts": 11,
+        "semantic_attempt_outcomes": {
+          "ValueError": 11
+        },
+        "observed_native_models": {
+          "jev-1.14.0": 27,
+          "mercury-3": 4,
+          "gemini-3.5-flash-lite": 2
+        },
+        "native_http_statuses": {
+          "200": 31
+        },
+        "native_response_ledger": [
+          {
+            "native_http_index": 0,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 15130,
+            "captured_response_launch_usd": 0.00063546,
+            "mercury_regular_usd": 0.00063546
+          },
+          {
+            "native_http_index": 1,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1299,
+            "captured_response_launch_usd": 5.4558e-05,
+            "mercury_regular_usd": 5.4558e-05
+          },
+          {
+            "native_http_index": 2,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1291,
+            "captured_response_launch_usd": 5.4222e-05,
+            "mercury_regular_usd": 5.4222e-05
+          },
+          {
+            "native_http_index": 3,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1306,
+            "captured_response_launch_usd": 5.4852e-05,
+            "mercury_regular_usd": 5.4852e-05
+          },
+          {
+            "native_http_index": 4,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1439,
+            "captured_response_launch_usd": 6.0438e-05,
+            "mercury_regular_usd": 6.0438e-05
+          },
+          {
+            "native_http_index": 5,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1762,
+            "captured_response_launch_usd": 7.4004e-05,
+            "mercury_regular_usd": 7.4004e-05
+          },
+          {
+            "native_http_index": 6,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1200,
+            "captured_response_launch_usd": 5.04e-05,
+            "mercury_regular_usd": 5.04e-05
+          },
+          {
+            "native_http_index": 7,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 18654,
+            "captured_response_launch_usd": 0.000783468,
+            "mercury_regular_usd": 0.000783468
+          },
+          {
+            "native_http_index": 8,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1933,
+            "captured_response_launch_usd": 8.1186e-05,
+            "mercury_regular_usd": 8.1186e-05
+          },
+          {
+            "native_http_index": 9,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1254,
+            "captured_response_launch_usd": 5.2668e-05,
+            "mercury_regular_usd": 5.2668e-05
+          },
+          {
+            "native_http_index": 10,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1324,
+            "captured_response_launch_usd": 5.5608e-05,
+            "mercury_regular_usd": 5.5608e-05
+          },
+          {
+            "native_http_index": 11,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1449,
+            "captured_response_launch_usd": 6.0858e-05,
+            "mercury_regular_usd": 6.0858e-05
+          },
+          {
+            "native_http_index": 12,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1628,
+            "captured_response_launch_usd": 6.8376e-05,
+            "mercury_regular_usd": 6.8376e-05
+          },
+          {
+            "native_http_index": 13,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1453,
+            "captured_response_launch_usd": 6.1026e-05,
+            "mercury_regular_usd": 6.1026e-05
+          },
+          {
+            "native_http_index": 14,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 10138,
+            "captured_response_launch_usd": 0.000425796,
+            "mercury_regular_usd": 0.000425796
+          },
+          {
+            "native_http_index": 15,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1155,
+            "captured_response_launch_usd": 4.851e-05,
+            "mercury_regular_usd": 4.851e-05
+          },
+          {
+            "native_http_index": 16,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1192,
+            "captured_response_launch_usd": 5.0064e-05,
+            "mercury_regular_usd": 5.0064e-05
+          },
+          {
+            "native_http_index": 17,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1706,
+            "captured_response_launch_usd": 7.1652e-05,
+            "mercury_regular_usd": 7.1652e-05
+          },
+          {
+            "native_http_index": 18,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1235,
+            "captured_response_launch_usd": 5.187e-05,
+            "mercury_regular_usd": 5.187e-05
+          },
+          {
+            "native_http_index": 19,
+            "logical_call": 0,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 4204,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 3574,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00167049,
+            "mercury_regular_usd": 0.00334098
+          },
+          {
+            "native_http_index": 20,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1983,
+            "captured_response_launch_usd": 8.3286e-05,
+            "mercury_regular_usd": 8.3286e-05
+          },
+          {
+            "native_http_index": 21,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1936,
+            "captured_response_launch_usd": 8.1312e-05,
+            "mercury_regular_usd": 8.1312e-05
+          },
+          {
+            "native_http_index": 22,
+            "logical_call": 1,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 4364,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 3996,
+            "finish_reasons": [
+              "length"
+            ],
+            "captured_response_launch_usd": 0.00183419,
+            "mercury_regular_usd": 0.00366838
+          },
+          {
+            "native_http_index": 23,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1962,
+            "captured_response_launch_usd": 8.2404e-05,
+            "mercury_regular_usd": 8.2404e-05
+          },
+          {
+            "native_http_index": 24,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 1933,
+            "captured_response_launch_usd": 8.1186e-05,
+            "mercury_regular_usd": 8.1186e-05
+          },
+          {
+            "native_http_index": 25,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 8638,
+            "captured_response_launch_usd": 0.000362796,
+            "mercury_regular_usd": 0.000362796
+          },
+          {
+            "native_http_index": 26,
+            "logical_call": 3,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 1373,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 2488,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00100729,
+            "mercury_regular_usd": 0.00201458
+          },
+          {
+            "native_http_index": 27,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 3650,
+            "captured_response_launch_usd": 0.0001533,
+            "mercury_regular_usd": 0.0001533
+          },
+          {
+            "native_http_index": 28,
+            "logical_call": 4,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 1536,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 2275,
+            "finish_reasons": [
+              "tool_calls"
+            ],
+            "captured_response_launch_usd": 0.00094904,
+            "mercury_regular_usd": 0.00189808
+          },
+          {
+            "native_http_index": 29,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 3660,
+            "captured_response_launch_usd": 0.00015372,
+            "mercury_regular_usd": 0.00015372
+          },
+          {
+            "native_http_index": 30,
+            "logical_call": null,
+            "component": "jev",
+            "model": "jev-1.14.0",
+            "input_tokens": 3537,
+            "captured_response_launch_usd": 0.000148554,
+            "mercury_regular_usd": 0.000148554
+          },
+          {
+            "google_sdk_index": 0,
+            "logical_call": 2,
+            "component": "writer_gemini35",
+            "model": "gemini-3.5-flash-lite",
+            "response_id": "bK_YasTxLcbovdIP45Sa0Ag",
+            "input_tokens": 4337,
+            "cached_input_tokens": null,
+            "candidate_output_tokens": 505,
+            "thinking_tokens": 0,
+            "output_tokens_including_thoughts": 505,
+            "captured_response_launch_usd": 0.0025636,
+            "mercury_regular_usd": 0.0025636,
+            "cache_cost_exact": false
+          },
+          {
+            "google_sdk_index": 1,
+            "logical_call": 5,
+            "component": "writer_gemini35",
+            "model": "gemini-3.5-flash-lite",
+            "response_id": "hq_YaoXXBPr4xN8P477WyQ8",
+            "input_tokens": 1287,
+            "cached_input_tokens": null,
+            "candidate_output_tokens": 508,
+            "thinking_tokens": 0,
+            "output_tokens_including_thoughts": 508,
+            "captured_response_launch_usd": 0.0016561,
+            "mercury_regular_usd": 0.0016561,
+            "cache_cost_exact": false
+          }
+        ],
+        "components": {
+          "writer_mercury": {
+            "native_responses": 4,
+            "input_tokens": 11477,
+            "cached_input_tokens_recorded": 36,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 12333,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.00546101,
+            "mercury_regular_usd": 0.01092202
+          },
+          "writer_gemini35": {
+            "native_responses": 2,
+            "input_tokens": 5624,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 2,
+            "output_tokens_including_reasoning": 1013,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.0042197,
+            "mercury_regular_usd": 0.0042197
+          },
+          "jev": {
+            "native_responses": 27,
+            "input_tokens": 93847,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 0,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0.003941574,
+            "mercury_regular_usd": 0.003941574
+          },
+          "semantic_review_gemini38": {
+            "native_responses": 0,
+            "input_tokens": 0,
+            "cached_input_tokens_recorded": 0,
+            "cache_counter_absent_responses": 0,
+            "output_tokens_including_reasoning": 0,
+            "thinking_tokens_explicit_google": 0,
+            "captured_response_launch_usd": 0,
+            "mercury_regular_usd": 0
+          }
+        },
+        "paid_mercury_responses_recovered_from_missing_facade_usage": [
+          {
+            "native_http_index": 22,
+            "logical_call": 1,
+            "component": "writer_mercury",
+            "model": "mercury-3",
+            "input_tokens": 4364,
+            "cached_input_tokens": 9,
+            "output_tokens_including_reasoning": 3996,
+            "finish_reasons": [
+              "length"
+            ],
+            "captured_response_launch_usd": 0.00183419,
+            "mercury_regular_usd": 0.00366838
+          }
+        ],
+        "unknown_canceled_sdk_attempts": [],
+        "successful_brave_requests": 3,
+        "brave_gross_catalog_usd": 0.015,
+        "captured_response_inference_launch_usd": 0.013622284,
+        "captured_response_inference_mercury_regular_usd": 0.019083294,
+        "captured_response_inference_plus_search_launch_usd": 0.028622284,
+        "captured_response_inference_plus_search_mercury_regular_usd": 0.034083294,
+        "captured_response_gross_per_generated_admission_usd": null,
+        "captured_response_gross_per_displayed_slot_usd": 0.007155571,
+        "spend_complete": false,
+        "unknowns_note": "Absent Google cache counters =>uncached upperbound for captured responses. Canceled calls without native response are unpriced, so captured-response estimate is NOT total-spend upperbound when cancellations exist. No invoice/infra/YouTube/Wikimedia cost established."
+      }
+    ]
+  },
+  "tariffs_per_million_tokens": {
+    "mistral_original": {
+      "input": 0.15,
+      "cached_input": 0.015,
+      "output": 0.6
+    },
+    "mercury_launch": {
+      "input": 0.1,
+      "cached_input": 0.01,
+      "output": 0.35
+    },
+    "mercury_regular": {
+      "input": 0.2,
+      "cached_input": 0.02,
+      "output": 0.7
+    },
+    "gemini35": {
+      "input": 0.3,
+      "cached_input": 0.03,
+      "output_including_thoughts": 2.5
+    },
+    "gemini38_intro_through_2026_12_31": {
+      "input": 0.75,
+      "cached_input": 0.075,
+      "output_including_thoughts": 3.75
+    },
+    "jev14": {
+      "input": 0.042,
+      "output": 0
+    }
+  },
+  "pricing_sources": [
+    "Nativefacade tariff snapshots and runtime provider catalog hashes in immutable receipts",
+    "https://ai.google.dev/gemini-api/docs/pricing"
+  ],
+  "shared_static_scope": {
+    "static_feature_tip_marginal_inference_usd": 0,
+    "shared_cached_card_read_marginal_inference_usd": 0,
+    "public_pool_revalidation_measured_in_this_run": false,
+    "note": "Shared pool creation/revalidation/backgroundselection costs are not a perread/peruser charge; this run disables separatepoolreview and doesnot measure totalpublicdailyspend."
+  },
+  "limitations": [
+    "Each native physical response pricedonce, facadeusage neveraddedagain; Mercuryreasoning alreadyincluded in completion tokens; Googlethinking addedto candidateoutputonce.",
+    "Googlecache counters absent in all13 capturedcorrected SDKresponses; all useuncachedresponse upperestimates.",
+    "EN3semanticcancellations lackresponseusage; theircost is unknown and notzero.",
+    "No successful historical10carddenominator, nohistoricalDEpairedsample, no saving or20language extrapolation.",
+    "Searchgrosscatalog$5/1000successfulrequests before sharedcredits; no verifiednetinvoice.",
+    "Admissionbyproductiongates is not independentblindqualityassessment of these tenfreshgeneratedcards."
+  ],
+  "corrected_totals": {
+    "generated_admissions": 10,
+    "displayed_slots": 18,
+    "captured_response_inference_plus_search_launch_usd": 0.101435574,
+    "captured_response_inference_plus_search_mercury_regular_usd": 0.109430374,
+    "unknown_canceled_attempts": 3
+  }
+}

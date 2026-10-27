@@ -399,8 +399,8 @@ final class EmbedHeaderActionLayoutParityTests: XCTestCase {
         let data: [String: AnyCodable] = ["slot_datetime": .init("2026-04-03T10:30:00+02:00"),
             "name": .init("Dr. Example"), "speciality": .init("Cardiology"),
             "address": .init("Example Street 1\nMunich"), "service_name": .init("Consultation"),
-            "provider_platform": .init("Doctolib"), "price": .init(120),
-            "booking_url": .init("https://www.doctolib.de/example")]
+            "provider_platform": .init("ExampleClinicA"), "price": .init(120),
+            "booking_url": .init("https://example.com/fixture")]
         let file = try XCTUnwrap(HealthAppointmentCalendarFile.make(data, now: Date(timeIntervalSince1970: 0)))
         XCTAssertTrue(EmbedHeaderActionPolicy.usesMore(width: 402, actionCount: 1))
         XCTAssertFalse(EmbedHeaderActionPolicy.usesMore(width: 860, actionCount: 1))
@@ -409,8 +409,8 @@ final class EmbedHeaderActionLayoutParityTests: XCTestCase {
         XCTAssertTrue(file.content.contains("SUMMARY:Dr. Example - Cardiology"))
         XCTAssertTrue(file.content.contains("LOCATION:Example Street 1\\nMunich"))
         let unfolded = file.content.replacingOccurrences(of: "\r\n ", with: "")
-        XCTAssertTrue(unfolded.contains("DESCRIPTION:Speciality: Cardiology\\nService: Consultation\\nProvider: Doctolib\\nPrice: 120 EUR\\nhttps://www.doctolib.de/example"))
-        XCTAssertTrue(unfolded.contains("URL:https://www.doctolib.de/example"))
+        XCTAssertTrue(unfolded.contains("DESCRIPTION:Speciality: Cardiology\\nService: Consultation\\nProvider: ExampleClinicA\\nPrice: 120 EUR\\nhttps://example.com/fixture"))
+        XCTAssertTrue(unfolded.contains("URL:https://example.com/fixture"))
         XCTAssertTrue(unfolded.contains("DTSTAMP:19700101T000000Z"))
     }
 

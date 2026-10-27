@@ -1,3 +1,5 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.chat.transcripts, video-call.audio.spoken-rich-response, video-call.audio.single-owner, video-call.audio.localized-waiting
 // Specification: specifications/features/assistant-response-speech/specification.yml
 // Assertions: assistant-speech.surface.semantic-parity
 import Foundation
@@ -32,6 +34,7 @@ struct AssistantSpeechStatus: Decodable {
     var request_sequence: Int? = nil
     var kind: String? = nil
     let segments: [AssistantSpeechSegment]?
+    var voice_call_id: String? = nil
 }
 
 enum AssistantSpeechFailure: LocalizedError {
@@ -70,6 +73,8 @@ final class NativeAssistantSpeech: ObservableObject {
         var localSpeechAvailable: @MainActor () -> Bool = { false }
         var synthesizeLocal: @MainActor (AssistantSpeechScope, String) async throws -> Data = { _, _ in throw LocalSpeechRuntimeError.unavailableRuntime }
         var canPlay: @MainActor (AssistantSpeechScope) -> Bool = { _ in true }
+        var playbackOffsetMilliseconds: @MainActor () -> Int = { 0 }
+        var requestSpeechWithSource: (@MainActor (AssistantSpeechScope, String, String, [[String: Any]], String) async throws -> Void)? = nil
     }
     @Published private(set) var enabled = false
     @Published private(set) var ready = false
@@ -83,6 +88,8 @@ final class NativeAssistantSpeech: ObservableObject {
     @Published private(set) var waveform: [Double] = []
     @Published private(set) var mateName = "OpenMates"
     @Published private(set) var mateCategory = "default"
+    private(set) var voiceCallMode = false
+    var currentMessageID: String? { messageID }
     private var localPlayback = false
     private var outgoingLocal = false
     var canUseProviderFallback: Bool { localPlayback && failedOperation == .audio }
@@ -97,12 +104,16 @@ final class NativeAssistantSpeech: ObservableObject {
     private var sequenceOffset = 0
     private var explicitSelection = false
     private var projected: [AssistantSpeechProjection.Part] = []
+    private var sourceMarkdown = ""
+    private var passivePreludeSuperseded = false
     private var generationRequested = Set<String>()
     var playerVisible: Bool { messageID != nil && playbackStatus != .idle && playbackStatus != .stopped }
     var canPause: Bool { playbackStatus == .playing || playbackStatus == .waitingForSegment }
     private var responseDrained: Bool {
         if publicPlayback { return responseComplete && played.count == playbackSegments.count }
         let offset = manual ? sequenceOffset : (playbackSegments.contains { $0.kind == "app_use_announcement" } ? 1 : 0)
+        let clauses = playbackSegments.filter { $0.kind == "voice_prose_clause" && ($0.sequence ?? -1) >= 0 }
+        if let last = clauses.compactMap(\.sequence).max() { return responseComplete && nextSequence > last }
         return responseComplete && !projected.isEmpty && nextSequence >= projected.count + offset
     }
     var hasPrevious: Bool { playbackSegments.contains { $0.kind != "app_use_announcement" && ($0.sequence ?? -1) >= 0 && ($0.sequence ?? -1) < activeSequence } }
@@ -110,10 +121,10 @@ final class NativeAssistantSpeech: ObservableObject {
     func chapter(for segment: AssistantSpeechSegment?) -> String {
         guard let segment else { return AppStrings.loading }
         if segment.kind == "app_use_announcement" { return LocalizationManager.shared.text("chat.assistant_speech.using_apps") }
-        if segment.kind == "acknowledgement" { return LocalizationManager.shared.text("chat.assistant_speech.confirmation") }
+        if segment.kind == "acknowledgement" || segment.kind == "waiting_confirmation" { return LocalizationManager.shared.text("chat.assistant_speech.confirmation") }
         let offset = !manual && playbackSegments.contains(where: { $0.kind == "app_use_announcement" }) ? 1 : 0
         let index = segment.request_sequence ?? ((segment.sequence ?? 0) - offset)
-        if let part = projected.first(where: { $0.sequence == index }) { return part.chapter }
+        if segment.kind != "voice_prose_clause", let part = projected.first(where: { $0.sequence == index }) { return part.chapter }
         return LocalizationManager.shared.text("chat.assistant_speech.part").replacingOccurrences(of: "{number}", with: String(index + 1))
     }
     var activeSegment: AssistantSpeechSegment? { playbackSegments.first { $0.sequence == activeSequence } }
@@ -128,6 +139,7 @@ final class NativeAssistantSpeech: ObservableObject {
     private var messageID: String?
     private var segments: [String: AssistantSpeechSegment] = [:]
     private var played = Set<String>()
+    private var completedVoiceSequences = Set<Int>()
     private var nextSequence = 0
     private enum FailedOperation: Equatable { case load, write(Bool), audio, provider }
     private var failedOperation: FailedOperation?
@@ -188,7 +200,7 @@ final class NativeAssistantSpeech: ObservableObject {
             guard generation == token, preferenceRevision == revision, ready else { return }
             if value != enabled {
                 enabled = value; showFeedback(value)
-                if !value { await stop() }
+                if !value && !voiceCallMode { await stop() }
             }
         } catch {
             guard generation == token, preferenceRevision == revision else { return }
@@ -228,11 +240,14 @@ final class NativeAssistantSpeech: ObservableObject {
         error = failure.localizedDescription; failedOperation = .write(enabled)
     }
 
+    /// Call speech is ephemeral and does not write the saved auto-speak toggle.
+    func setVoiceCallMode(_ active: Bool) { voiceCallMode = active; if active { outgoingLocal = false } }
+
     // Merge into the existing preflight `message`, not at the envelope top level.
     // Snapshot only after the scoped preference write has completed.
     func messageFields(for requestedScope: AssistantSpeechScope) -> [String: Any] {
-        guard requestedScope == scope, ready, enabled else { return [:] }
-        outgoingLocal = dependencies.localSpeechAvailable()
+        guard requestedScope == scope, ready, enabled || voiceCallMode else { return [:] }
+        outgoingLocal = !voiceCallMode && dependencies.localSpeechAvailable()
         if outgoingLocal { return ["auto_speak_response": false, "assistant_response_source_revision": 1] }
         return ["auto_speak_response": true, "assistant_response_source_revision": 1]
     }
@@ -240,26 +255,34 @@ final class NativeAssistantSpeech: ObservableObject {
     // Bind to the exact outgoing turn's eventual assistant ID. Never allow an
     // unrelated chat's broadcast to commandeer playback on another window.
     func expectResponse(_ id: String, in requestedScope: AssistantSpeechScope) {
-        guard requestedScope == scope, enabled else { return }
+        guard requestedScope == scope, enabled || voiceCallMode else { return }
         responseGeneration = UUID(); playbackGeneration = UUID()
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
         localPlayback = outgoingLocal
-        messageID = id; segments.removeAll(); played.removeAll(); nextSequence = 0
+        messageID = id; segments.removeAll(); played.removeAll(); completedVoiceSequences.removeAll(); nextSequence = 0
+        sourceMarkdown = ""; passivePreludeSuperseded = false
         activeSequence = 0; paused = false; explicitSelection = false; manual = false; responseComplete = false; sequenceOffset = 0; projected = []; waveform = []; generationRequested.removeAll()
         playbackSegments = []; playbackStatus = .waitingForSegment
         if failedOperation == .audio || failedOperation == .provider { failedOperation = nil; error = nil }
     }
 
     func receive(_ event: AssistantSpeechStatus, in eventScope: AssistantSpeechScope) {
-        guard !localPlayback, !publicContext, (enabled || manual), eventScope == scope, event.chat_id == eventScope.chatID,
+        guard !localPlayback, !publicContext, (enabled || voiceCallMode || manual), eventScope == scope, event.chat_id == eventScope.chatID,
               event.message_id == messageID else { return }
         if event.status == "error", event.segment_id == nil {
+            if event.kind == "waiting_confirmation" || event.segments?.allSatisfy({ ($0.sequence ?? 0) < 0 }) == true {
+                discardPassivePrelude(); drain(); return
+            }
             failProvider(); return
         }
         let incoming = event.segments ?? [AssistantSpeechSegment(segment_id: event.segment_id,
             sequence: event.sequence, status: event.status, generated_asset_id: event.generated_asset_id, request_sequence: event.request_sequence, kind: event.kind)]
         for segment in incoming {
-            guard let id = segment.segment_id, let sequence = segment.sequence, (sequence >= 0 || (sequence == -1 && segment.kind == "acknowledgement")) else { continue }
+            guard let id = segment.segment_id, let sequence = segment.sequence, (sequence >= 0 || (sequence == -1 && ["acknowledgement", "waiting_confirmation"].contains(segment.kind ?? ""))) else { continue }
+            if sequence == -1 && (manual || passivePreludeSuperseded) { continue }
+            if sequence == -1 && ["error", "cancelled", "deleted"].contains(segment.status ?? "") {
+                discardPassivePrelude(); continue
+            }
             if segments[id]?.status == "ready", ["queued", "generating", "registered"].contains(segment.status ?? "") { continue }
             // A duplicate sequence cannot randomly replace an already queued
             // provider asset. Provider retries require an explicit manual request.
@@ -272,8 +295,11 @@ final class NativeAssistantSpeech: ObservableObject {
             segments[id] = merged
             if ["error", "cancelled", "deleted"].contains(segment.status ?? ""), sequence == nextSequence { failProvider() }
         }
+        if segments.values.contains(where: { ($0.sequence ?? -1) >= 0 && $0.status == "ready" }) {
+            discardPassivePrelude()
+        }
         if manual, awaitingAcceptance, event.status == "accepted", let accepted = event.segments {
-            let offset = accepted.compactMap(\.sequence).min() ?? 0
+            let offset = accepted.compactMap(\.sequence).filter { $0 >= 0 }.min() ?? 0
             for item in accepted {
                 if let id = item.segment_id, var value = segments[id] {
                     value.request_sequence = item.request_sequence ?? ((item.sequence ?? 0) - offset)
@@ -288,12 +314,13 @@ final class NativeAssistantSpeech: ObservableObject {
     }
 
     func request(messageID id: String, markdown: String, mateName: String = "OpenMates", mateCategory: String = "default") async {
-        guard ready, !publicContext, let scope, dependencies.canPlay(scope) else { return }
+        guard ready, !publicContext, !voiceCallMode, let scope, dependencies.canPlay(scope) else { return }
         let parts = AssistantSpeechProjection.project(markdown, language: LocalizationManager.shared.currentLanguage.code)
         guard !parts.isEmpty else { return }
         guard await stopForReplacement(in: scope), !publicContext else { return }
         // Manual playback does not change the encrypted auto-speak preference.
         manual = true; responseComplete = true; awaitingAcceptance = true; paused = false; messageID = id; projected = parts
+        sourceMarkdown = markdown; passivePreludeSuperseded = true
         self.mateName = mateName; self.mateCategory = mateCategory
         activeSequence = 0; nextSequence = 0; playbackStatus = .waitingForSegment
         error = nil; failedOperation = nil
@@ -305,7 +332,7 @@ final class NativeAssistantSpeech: ObservableObject {
             return
         }
         let token = playbackGeneration
-        do { try await dependencies.requestSpeech(scope, id, "request", parts.map(\.wire)) }
+        do { try await sendSpeech(scope, id, "request", parts.map(\.wire)) }
         catch {
             guard playbackGeneration == token, messageID == id else { return }
             self.error = "Speech is temporarily unavailable."; failedOperation = .audio; playbackStatus = .failed
@@ -345,7 +372,11 @@ final class NativeAssistantSpeech: ObservableObject {
     private func requestGeneration(for item: AssistantSpeechSegment) {
         guard !publicContext, !paused, let scope, dependencies.canPlay(scope), let messageID,
               item.status == "registered", let id = item.segment_id,
-              !generationRequested.contains(id), let part = sourcePart(for: item) else { return }
+              !generationRequested.contains(id) else { return }
+        let part = sourcePart(for: item)
+        guard part != nil || (item.kind == "voice_prose_clause" && !sourceMarkdown.isEmpty) else { return }
+        var fields = part?.wire ?? ["sequence": item.sequence ?? 0, "text": sourceMarkdown, "kind": "prose"]
+        fields["segment_id"] = id
         generationRequested.insert(id)
         // Chapter selection changes playbackGeneration, but a prefetched chapter
         // still belongs to the same response. Closing/replacing fences dispatch.
@@ -354,7 +385,7 @@ final class NativeAssistantSpeech: ObservableObject {
             guard let self, generation == token, responseGeneration == responseToken,
                   self.scope == scope, self.messageID == messageID, dependencies.canPlay(scope),
                   !Task.isCancelled else { return }
-            do { try await dependencies.requestSpeech(scope, messageID, "generate", [part.wire]) }
+            do { try await sendSpeech(scope, messageID, "generate", [fields]) }
             catch {
                 guard generation == token, responseGeneration == responseToken,
                       self.scope == scope, self.messageID == messageID, dependencies.canPlay(scope) else { return }
@@ -372,6 +403,7 @@ final class NativeAssistantSpeech: ObservableObject {
         guard !manual, !publicContext, let scope, let messageID,
               let message = messages.first(where: { $0.id == messageID && $0.chatId == scope.chatID && $0.role == .assistant }),
               let content = message.content else { return }
+        sourceMarkdown = content
         projected = AssistantSpeechProjection.project(content, language: LocalizationManager.shared.currentLanguage.code)
         mateName = message.senderName ?? "OpenMates"; mateCategory = message.category ?? "default"
         responseComplete = message.isStreaming != true
@@ -402,13 +434,14 @@ final class NativeAssistantSpeech: ObservableObject {
     // uploads text to a provider when local inference failed.
     func retryWithProvider() async {
         guard canUseProviderFallback, let scope, let messageID, dependencies.canPlay(scope) else { return }
-        let parts = projected
+        let parts = projected, markdown = sourceMarkdown
         guard !parts.isEmpty, await stopForReplacement(in: scope) else { return }
         localPlayback = false; manual = true; responseComplete = true; awaitingAcceptance = true
+        sourceMarkdown = markdown
         self.messageID = messageID; projected = parts; nextSequence = 0; activeSequence = 0
         error = nil; failedOperation = nil; playbackStatus = .waitingForSegment
         let token = playbackGeneration
-        do { try await dependencies.requestSpeech(scope, messageID, "request", parts.map(\.wire)) }
+        do { try await sendSpeech(scope, messageID, "request", parts.map(\.wire)) }
         catch {
             guard playbackGeneration == token, self.scope == scope, self.messageID == messageID else { return }
             self.error = "Speech is temporarily unavailable."; failedOperation = .audio; playbackStatus = .failed
@@ -416,8 +449,25 @@ final class NativeAssistantSpeech: ObservableObject {
     }
     func resumePlaybackIfReady() { drain() }
 
+    private func sendSpeech(_ scope: AssistantSpeechScope, _ id: String, _ action: String, _ fields: [[String: Any]]) async throws {
+        if let request = dependencies.requestSpeechWithSource {
+            try await request(scope, id, action, fields, sourceMarkdown)
+        } else { try await dependencies.requestSpeech(scope, id, action, fields) }
+    }
+    private func discardPassivePrelude() {
+        passivePreludeSuperseded = true
+        let passive = segments.filter { ($0.value.sequence ?? 0) < 0 }
+        played.formUnion(passive.keys)
+        for key in passive.keys { segments.removeValue(forKey: key) }
+        if nextSequence < 0 {
+            playbackGeneration = UUID(); playbackTask?.cancel(); playbackTask = nil
+            dependencies.stopPendingCue(); dependencies.stopPlayback()
+            nextSequence = 0; activeSequence = 0
+        }
+    }
+
     private func drain() {
-        guard (enabled || manual || publicPlayback), !paused, !awaitingAcceptance, failedOperation == nil, playbackTask == nil, let scope,
+        guard (enabled || voiceCallMode || manual || publicPlayback), !paused, !awaitingAcceptance, failedOperation == nil, playbackTask == nil, let scope,
               dependencies.canPlay(scope), let messageID,
               let item = segments.values.first(where: { $0.sequence == nextSequence }),
               let id = item.segment_id, !played.contains(id) else { return }
@@ -466,12 +516,16 @@ final class NativeAssistantSpeech: ObservableObject {
                 try Task.checkCancellation()
                 guard generation == token, playbackGeneration == playbackToken, self.messageID == messageID else { return }
                 played.insert(id)
+                if item.kind == "voice_prose_clause", let sequence = item.sequence { completedVoiceSequences.insert(sequence) }
                 nextSequence = publicPlayback ? (playbackSegments.first(where: { ($0.sequence ?? -1) > activeSequence })?.sequence ?? activeSequence + 1) : nextSequence + 1; playbackTask = nil
                 playbackStatus = responseDrained ? .completed : .waitingForSegment
                 drain()
             } catch {
                 guard generation == token, playbackGeneration == playbackToken, self.messageID == messageID else { return }
                 playbackTask = nil
+                if (item.sequence ?? 0) < 0 {
+                    discardPassivePrelude(); playbackStatus = .waitingForSegment; drain(); return
+                }
                 if !(error is CancellationError) { self.error = localPlayback ? AppStrings.offlineAIModelsLocalSpeechFailed : "Speech audio could not be loaded."; failedOperation = .audio; playbackStatus = .failed }
             }
         }
@@ -503,7 +557,7 @@ final class NativeAssistantSpeech: ObservableObject {
                 guard let self, generation == token, responseGeneration == responseToken,
                       self.scope == scope, self.messageID == messageID, dependencies.canPlay(scope),
                       !Task.isCancelled else { return }
-                do { try await dependencies.requestSpeech(scope, messageID, "request", projected.map(\.wire)) }
+                do { try await sendSpeech(scope, messageID, "request", projected.map(\.wire)) }
                 catch {
                     guard generation == token, responseGeneration == responseToken,
                           self.scope == scope, self.messageID == messageID, dependencies.canPlay(scope) else { return }
@@ -520,11 +574,19 @@ final class NativeAssistantSpeech: ObservableObject {
             drain()
         }
     }
+    func heardBoundary() -> NativeVoiceCallHeardBoundary? {
+        guard let messageID else { return nil }
+        let active = (playbackStatus == .playing || playbackStatus == .paused)
+            && activeSegment?.kind == "voice_prose_clause" ? activeSegment?.sequence : nil
+        return .init(assistantMessageID: messageID, completedSequences: completedVoiceSequences,
+            activeSequence: active, activeOffsetMilliseconds: active == nil ? 0 : dependencies.playbackOffsetMilliseconds())
+    }
+
     private func stopLocally() -> (AssistantSpeechScope, String)? {
         let oldScope = scope, oldMessage = messageID, wasPublic = publicPlayback, wasLocal = localPlayback
         responseGeneration = UUID(); playbackGeneration = UUID()
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
-        messageID = nil; segments.removeAll(); played.removeAll()
+        messageID = nil; segments.removeAll(); played.removeAll(); completedVoiceSequences.removeAll(); sourceMarkdown = ""; passivePreludeSuperseded = false
         playbackSegments = []; waveform = []; waveforms = [:]; projected = []; generationRequested.removeAll(); manual = false; awaitingAcceptance = false; explicitSelection = false; paused = false; playbackStatus = .stopped
         localPlayback = false
         publicPlayback = false; publicAssets = [:]; publicAudio = [:]
@@ -559,10 +621,10 @@ final class NativeAssistantSpeech: ObservableObject {
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
         localPlayback = false; outgoingLocal = false
         publicContext = false; publicPlayback = false; publicAssets = [:]; publicAudio = [:]
-        scope = nil; messageID = nil; segments.removeAll(); played.removeAll()
+        scope = nil; messageID = nil; segments.removeAll(); played.removeAll(); completedVoiceSequences.removeAll(); sourceMarkdown = ""; passivePreludeSuperseded = false
         playbackSegments = []; waveform = []; waveforms = [:]; projected = []; generationRequested.removeAll(); manual = false; awaitingAcceptance = false; explicitSelection = false; paused = false; playbackStatus = .stopped
         mateName = "OpenMates"; mateCategory = "default"
-        enabled = false; ready = false; feedback = nil; error = nil; failedOperation = nil
+        voiceCallMode = false; enabled = false; ready = false; feedback = nil; error = nil; failedOperation = nil
     }
     private func showFeedback(_ value: Bool) {
         feedbackTask?.cancel(); feedback = value

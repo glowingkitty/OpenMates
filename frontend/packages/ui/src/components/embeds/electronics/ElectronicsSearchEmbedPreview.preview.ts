@@ -1,6 +1,6 @@
 /**
  * Preview mock data for ElectronicsSearchEmbedPreview.
- * Provides TI WEBENCH-style component search results for the app embed showcase.
+ * Provides ExampleComponents-style component search results for the app embed showcase.
  * Access path: /dev/preview/embeds/electronics.
  * Architecture context: docs/architecture/embeds.md.
  */
@@ -8,7 +8,7 @@
 const sampleResults = [
   {
     type: "power_converter",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     part_number: "TPS564257DRLR",
     base_part_number: "TPS564257",
     title: "TPS564257DRLR Buck converter",
@@ -24,7 +24,7 @@ const sampleResults = [
   },
   {
     type: "power_converter",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     part_number: "TPS563257DRLR",
     base_part_number: "TPS563257",
     title: "TPS563257DRLR Buck converter",
@@ -43,7 +43,7 @@ const sampleResults = [
 const defaultProps = {
   id: "preview-electronics-search-1",
   query: "12V to 3.3V buck converter at 3A",
-  provider: "TI WEBENCH",
+  provider: "ExampleComponents",
   status: "finished" as const,
   results: sampleResults,
   isMobile: false,
@@ -56,7 +56,7 @@ export const variants = {
   processing: {
     id: "preview-electronics-search-processing",
     query: "24V to 5V isolated converter",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     status: "processing" as const,
     results: [],
     isMobile: false,
@@ -64,7 +64,7 @@ export const variants = {
   error: {
     id: "preview-electronics-search-error",
     query: "invalid converter search",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     status: "error" as const,
     results: [],
     isMobile: false,

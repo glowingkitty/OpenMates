@@ -39,6 +39,15 @@ share that spec's disposable stack.
 
 The workflow checks out its trusted harness separately from the immutable subject. For a worktree candidate it checks out the reachable base in detached state, downloads a private 48-hour patch, verifies its SHA-256, reconstructs the deterministic tree and commit, and rejects any identity mismatch. No candidate branch or other Git ref is created. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
 
+Runtime topology changes in `ci_environment.py` must reach the trusted dev
+harness before candidate checks can use them. A candidate's planned Compose
+profile does not change the separately checked-out harness. Camera-call fixtures
+require the guarded AI worker to consume `app_ai`, `app_ai_routing` and
+`app_videos`, alongside the isolated upload service. Startup verifies the
+worker's actual queue configuration and records its queue names in
+`ci-environment.json`; missing or inconsistent queues fail startup instead of
+leaving detached generation jobs waiting indefinitely.
+
 ## Commands
 
 Focused worktree request, once the migration readiness checkpoint is published:
@@ -247,9 +256,8 @@ synchronization; it never rewrites the source to fabricate a newer base.
 
 These legacy workflows now fail explicitly before shared-dev execution. They are
 unmigrated coverage, not passing skips: typed Task/Workflow CLI smoke, main-processor
-CLI smoke, installed VSIX login, and release core journeys. Their runner-local
-profiles and cloud-only/provider requirements must be implemented before release.
-Existing unit/build checks in the VS Code workflow remain executable. Public
+CLI smoke and release core journeys. Their runner-local profiles and
+cloud-only/provider requirements must be implemented before release. Public
 self-host mocks do not replace official-cloud billing, eligibility or budget proof.
 
 
@@ -333,8 +341,7 @@ directly. Credits do not provide paid-provider credentials or loosen network
 restrictions. Receipts record the amount and real gift-acceptance method.
 
 Committed replay suites with an original public-provider CLI phase can use the
-existing gateway's fixed HTTPS CONNECT allowlist. Initially only `webench.ti.com:443`
-is accepted. Backend/AI containers remain on the internal network; the proxy port
+existing gateway's fixed HTTPS CONNECT allowlist for explicitly configured supported sources. Backend/AI containers remain on the internal network; the proxy port
 is not published on the host. Private DNS answers, paid-provider authorities and
 shared-dev destinations are rejected before upstream connection. TLS remains
 end-to-end with normal client certificate validation. Original provider requests

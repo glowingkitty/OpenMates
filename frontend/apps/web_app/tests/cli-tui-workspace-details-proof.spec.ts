@@ -117,12 +117,13 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 			'description: Disposable Events search workflow for terminal proof.',
 			'start_when:', '  schedule:', '    type: once', '    at: "2036-01-01T00:00:00Z"',
 			'steps:', '  - id: events', '    use_app_skill: events.search', '    input:',
-			'      requests:', '        - query: OpenMates meetup Berlin', '          location: Berlin',
+			'      requests:', '        - query: OpenMates Gathering Berlin', '          location: Berlin',
 			'          count: 3', '          start_date: "2036-01-01"', '          end_date: "2036-01-02"',
-			'          providers:', '            - Meetup'
+			'          providers:', '            - Gathering'
 		].join('\n'));
 		await runWorkflowCliJson(apiUrl, home, ['workflows', 'update', fixture.workflowId!, '--file', eventsYaml], 'prepare Events search editor proof');
 		const savedResultId = seedEncryptedAppsResult(apiUrl, home, candidateCli);
+		const savedResultChildId = savedResultId.slice(0, -1) + (savedResultId.endsWith('0') ? '1' : '0');
 		const steps: ProofStep[] = [
 			{name: 'initial-closed', wait_for: 'DAILY INSPIRATION', hold_ms: 350},
 			{name: 'projects-command', text: '/projects'},
@@ -151,16 +152,20 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 			{name: 'apps-command', text: '/apps'},
 			{name: 'apps-home', key: 'Return', wait_for: 'Browse websites', hold_ms: 300},
 			{name: 'app-command', text: '/app web'},
-			{name: 'app-detail', key: 'Return', wait_for: 'Which app skill do you want to use?', hold_ms: 650},
+			{name: 'app-detail', key: 'Return', wait_for: 'What would you like to find or do?', hold_ms: 650},
 			{name: 'app-skill-command', text: '/app-skill web/search'},
-			{name: 'app-skill-detail', key: 'Return', wait_for: 'Use this skill manually', hold_ms: 450},
+			{name: 'app-skill-detail', key: 'Return', wait_for: 'Describe what you want in the composer below.', hold_ms: 450},
 			{name: 'app-run-command', text: '/app-run'},
-			{name: 'app-skill-form', key: 'Return', wait_for: 'Ctrl+S saves.', hold_ms: 850},
-			{name: 'app-skill-cancel', key: 'Escape', wait_for: 'Use this skill manually', hold_ms: 650},
+			{name: 'app-skill-composer', key: 'Return', wait_for: 'What would you like Web to find or do?', hold_ms: 850},
 			{name: 'app-results-command', text: '/app-results'},
 			{name: 'app-results', key: 'Return', wait_for: savedResultId.slice(0, 8), hold_ms: 500},
 			{name: 'app-result-command', text: '/app-result ' + savedResultId},
 			{name: 'app-result', key: 'Return', wait_for: 'Terminal proof saved result', hold_ms: 900},
+			{name: 'app-child-command', text: '/embed ' + savedResultChildId},
+			{name: 'app-child-detail', key: 'Return', wait_for: 'https://example.test/terminal-proof', hold_ms: 500},
+			{name: 'app-child-back', key: 'Escape', wait_for: 'Filter results', hold_ms: 350},
+			{name: 'app-parent-composer', text: 'Refine these website results', wait_for: 'Refine these website results', hold_ms: 300},
+			{name: 'app-parent-draft-clear', key: 'ctrl+u', wait_for: 'Refine this search, start a new one'},
 			{name: 'example-command', text: '/example ' + EXAMPLE_SLUG},
 			{name: 'example-open', key: 'Return', wait_for: 'General Knowledge', hold_ms: 1000},
 			{name: 'tasks-command', text: '/tasks'},
@@ -174,10 +179,10 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 			{name: 'tasks-ctrl-g-navigation', key: 'ctrl+g', wait_for: 'Ctrl+G navigation', hold_ms: 350},
 			{name: 'tasks-navigation-escape', key: 'Escape', wait_for: '↑/↓ task'},
 			{name: 'task-select', key: 'Return', wait_for: 'Description', hold_ms: 200},
-			{name: 'task-edit-open', text: 'e', wait_for: 'Ctrl+S saves'},
+			{name: 'task-edit-open', text: 'e', wait_for: 'Save · Ctrl+S    Cancel · Esc'},
 			{name: 'task-edit-cancel-append', text: ' cancelled'},
 			{name: 'task-edit-cancel', key: 'Escape', wait_for: 'Actions'},
-			{name: 'task-edit-reopen', text: 'e', wait_for: 'Ctrl+S saves'},
+			{name: 'task-edit-reopen', text: 'e', wait_for: 'Save · Ctrl+S    Cancel · Esc'},
 			{name: 'task-edit-save-append', text: ' saved'},
 			{name: 'task-edit-save', key: 'ctrl+s', wait_for: 'Task saved.', hold_ms: 250},
 			{name: 'exit-command', text: '/exit'},
@@ -228,21 +233,28 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 		expect(recording.frame('workflow-run-graph').join('\n')).toContain('Run graph');
 		expect(recording.frame('workflow-run-graph').join('\n')).toContain('completed');
 		expect(recording.segment('workflow-template-tab', 'workflow-runs-tab')).toContain('Template graph');
-		expect(recording.segment('app-detail', 'app-command')).toContain('Which app skill do you want to use?');
-		expect(recording.segment('app-skill-detail', 'app-skill-command')).toContain('Use this skill manually');
-		expect(recording.segment('app-skill-form', 'app-run-command')).toContain('query *');
-		expect(recording.segment('app-skill-form', 'app-run-command')).toContain('Ctrl+S saves.');
-		expect(recording.segment('app-skill-cancel', 'app-skill-form')).toContain('Use this skill manually');
+		expect(recording.segment('app-detail', 'app-command')).toContain('What would you like to find or do?');
+		expect(recording.segment('app-skill-detail', 'app-skill-command')).toContain('Describe what you want in the composer below.');
+		expect(recording.segment('app-skill-composer', 'app-run-command')).toContain('What would you like Web to find or do?');
 		expect(recording.segment('app-results', 'app-results-command')).toContain(savedResultId.slice(0, 8));
 		expect(recording.segment('app-result', 'app-result-command')).toContain('Terminal proof saved result');
+		const savedChildren = recording.frame('app-result').join('\n');
+		for (const text of ['Terminal proof saved result', 'example.test', 'Synthetic child website with useful search context.', '/embed ' + savedResultChildId]) expect(savedChildren).toContain(text);
+		const childDetail = recording.frame('app-child-detail').join('\n');
+		for (const text of ['Terminal proof saved result', 'https://example.test/terminal-proof', 'Synthetic child website with useful search context.']) expect(childDetail).toContain(text);
+		const restoredParent = recording.frame('app-child-back').join('\n');
+		for (const text of ['Filter results', 'Save search', 'Terminal proof saved result', '/embed ' + savedResultChildId]) expect(restoredParent).toContain(text);
+		expect(recording.frame('app-parent-composer').join('\n')).toContain('> Refine these website results');
 		expect(recording.segment('example-open', 'example-command')).toContain('General Knowledge');
-		expect(recording.segment('example-open', 'example-command')).toContain('web/search');
+		expect(recording.segment('example-open', 'example-command')).toContain('Web · Search');
+		expect(recording.segment('example-open', 'example-command')).toContain('/embed web-s-1');
 		expect(recording.segment('example-open', 'example-command')).not.toContain('"type": "app_skill_use"');
 		expect(recording.transcript.includes('\x1b[38;2;222;30;102m') || recording.transcript.includes('\x1b[48;2;222;30;102m')).toBe(true);
 		const tasksFrame = recording.frame('tasks-list').join('\n');
 		for (const status of ['Backlog', 'Todo', 'In progress', 'Blocked', 'Done']) expect(tasksFrame).toContain(status);
 		expect(recording.frame('tasks-list').filter((row: string) => row.includes('╔')).length).toBe(1);
-		expect(tasksFrame).toContain('› ' + fixture.taskTitle);
+		expect(tasksFrame).toContain(fixture.taskTitle);
+		expect(recording.frame('tasks-search').join('\n')).toContain('› ' + fixture.taskTitle);
 		const taskColors = rawSegment('tasks-list', 'tasks-command');
 		for (const rgb of ['191;90;242', '50;173;230', '240;160;80', '255;107;107', '48;209;88'])
 			expect(taskColors).toContain(`\x1b[1m\x1b[38;2;${rgb}m`);
@@ -269,21 +281,21 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 			"};"
 		].join('\n'), {encoding: 'utf8', mode: 0o600});
 		const offlineSteps: ProofStep[] = [
-			{name: 'offline-initial', wait_for: 'DAILY INSPIRATION'},
+			{name: 'offline-initial', wait_for: 'Offline. Showing saved work; /refresh retries sign-in.'},
 			{name: 'offline-projects-command', text: '/projects'},
-			{name: 'offline-projects-list', key: 'Return', wait_for: 'Showing saved Projects. Offline', hold_ms: 300},
+			{name: 'offline-projects-list', key: 'Return', wait_for: fixture.projectName, hold_ms: 300},
 			{name: 'offline-project-command', text: '/project ' + fixture.projectId},
 			{name: 'offline-project-detail', key: 'Return', wait_for: '[Overview · 1]', hold_ms: 300},
 			{name: 'offline-project-files', text: '2', wait_for: '[Files · 2]', hold_ms: 300},
 			{name: 'offline-tasks-command', text: '/tasks'},
-			{name: 'offline-tasks-list', key: 'Return', wait_for: 'Showing cached tasks. Refresh failed.', hold_ms: 300},
+			{name: 'offline-tasks-list', key: 'Return', wait_for: fixture.taskTitle + ' saved', hold_ms: 300},
 			{name: 'offline-tasks-search-command', text: '/search ' + fixture.taskTitle},
 			{name: 'offline-tasks-filter', key: 'Return', wait_for: 'Search: ' + fixture.taskTitle, hold_ms: 300},
 			{name: 'offline-workflows-command', text: '/workflows'},
-			{name: 'offline-workflows-list', key: 'Return', wait_for: 'Showing cached workflows. Refresh failed.', hold_ms: 300},
+			{name: 'offline-workflows-list', key: 'Return', wait_for: fixture.workflowTitle, hold_ms: 300},
 			{name: 'offline-workflow-command', text: '/workflow ' + fixture.workflowId},
-			{name: 'offline-workflow-detail', key: 'Return', wait_for: 'Showing cached runs. Refresh failed.', hold_ms: 300},
-			{name: 'offline-workflow-runs', text: 'r', wait_for: 'Showing cached recorded graph. Refresh failed.', hold_ms: 350},
+			{name: 'offline-workflow-detail', key: 'Return', wait_for: 'Template graph', hold_ms: 300},
+			{name: 'offline-workflow-runs', text: 'r', wait_for: 'Selected run ' + retainedRun.id, wait_for_absent: 'Run graph unavailable.', hold_ms: 350},
 			{name: 'offline-workflow-template', text: 'g', wait_for: 'Template graph'},
 			{name: 'offline-event-select', key: 'Down', wait_for: 'Use app skill'},
 			{name: 'offline-event-form', text: 'E', wait_for: 'requests 1 / query', hold_ms: 350},
@@ -305,6 +317,8 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 				else process.env.NODE_OPTIONS = priorNodeOptions;
 			}
 		})();
+		expect(offlineRecording.frame('offline-initial').join('\n')).toContain('Offline. Showing saved work; /refresh retries sign-in.');
+		expect(offlineRecording.frame('offline-initial').join('\n')).toContain('DAILY INSPIRATION');
 		expect(offlineRecording.frame('offline-projects-list').join('\n')).toContain(fixture.projectName);
 		expect(offlineRecording.frame('offline-project-detail').join('\n')).toContain('[Overview · 1]');
 		expect(offlineRecording.frame('offline-project-files').join('\n')).toContain('[Files · 2]');

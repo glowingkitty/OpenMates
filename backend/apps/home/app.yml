@@ -1,21 +1,12 @@
 landing:
-  order: 3
-  capability:
-    type: skill
-    id: search
-  caption:
-    en: Find apartments
-    de: Finde Wohnungen
-  example_chat_id: example-furnished-apartments-berlin
+  enabled: false
 
 # Home app — German apartment and housing search
 #
-# Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht for apartments,
 # houses, and WG rooms across Germany. All three providers use public
 # endpoints (no API keys required). Results are merged and sorted by
 # price, then returned as parent search embeds with child listing embeds.
 #
-# Provider: ImmoScout24 (mobile API), Kleinanzeigen (SSR HTML), WG-Gesucht (sitemap + detail API)
 # No API keys needed.
 
 name_translation_key: home
@@ -23,7 +14,7 @@ description_translation_key: home.description
 icon_image: |
   home.svg
 category: lifestyle
-last_updated: "2026-03-28"
+last_updated: "2026-10-21"
 settings_and_memories:
   - id: saved_listings
     name_translation_key: home.saved_listings
@@ -66,6 +57,9 @@ settings_and_memories:
 # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
 embed_types:
   - id: search
+    authoring:
+      kind: home.listing
+      schema_id: home.listing
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use
@@ -118,24 +112,72 @@ embed_types:
         type: string
       - name: available_from
         type: string
-        description: "Move-in date (WG-Gesucht only, format: DD.MM.YYYY)"
+        description: "Search is currently unavailable without a permitted provider."
       - name: deposit
         type: number
-        description: "Deposit amount in EUR (WG-Gesucht only)"
+        description: "Search is currently unavailable without a permitted provider."
       - name: furnished
         type: boolean
-        description: "Whether the listing is furnished (WG-Gesucht only)"
+        description: "Search is currently unavailable without a permitted provider."
+      - name: image_urls
+        type: string
+      - name: description
+        type: string
+      - name: gallery_status
+        type: string
+      - name: detail_status
+        type: string
+      - name: price
+        type: number
+      - name: price_type
+        type: string
+      - name: cold_rent_eur
+        type: number
+      - name: warm_rent_eur
+        type: number
+      - name: utilities_eur
+        type: number
+      - name: heating_costs_eur
+        type: number
+      - name: floor
+        type: string
+      - name: available_to
+        type: string
+      - name: latitude
+        type: number
+      - name: longitude
+        type: number
+      - name: location_precision
+        type: string
+      - name: location_approximate
+        type: boolean
+      - name: location_source
+        type: string
+      - name: location
+        type: object
+        description: "Exact-address eligibility, source provenance and approximate area center/radius. An area center
+          is never an apartment address."
+      - name: street
+        type: string
+      - name: house_number
+        type: string
+      - name: city
+        type: string
+      - name: district
+        type: string
+      - name: amenities
+        type: object
+      - name: amenity_conflicts
+        type: object
+      - name: match_evidence
+        type: object
+      - name: visual_assessment
+        type: object
+      - name: neighborhood
+        type: object
 instructions:
-  - instruction: |
-      **Home Search Skill**
-
-      - **home-search**: Search for apartments, houses, and WG rooms in German cities.
-        Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
-        Returns listings with prices, sizes, addresses, and direct links.
-        Costs 10 credits per search.
-      - Use when the user asks to find housing, apartments, rooms, or real estate in Germany.
-      - Always specify the city name as the query. Optionally specify listing_type ("rent" or "buy").
-      - WG-Gesucht only has rental listings — it is automatically skipped for "buy" searches.
+  - instruction: |-
+      Housing search is currently unavailable because no permitted provider is configured.
 skills:
   # -----------------------------------------------------------------------
   # Search — search German housing platforms for apartments and rooms
@@ -145,31 +187,18 @@ skills:
     name_translation_key: app_skills.home.search
     description_translation_key: app_skills.home.search.description
     icon_image: home.svg
-    preprocessor_hint: >
-      Search for apartments, houses, and WG rooms in German cities.
-      Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
-      Returns listings with prices, sizes, rooms, addresses, and direct links.
-      Costs 10 credits per search. Use when user asks about finding housing in Germany.
-      Keep query focused on the location. Whenever the user states an intended use, household need,
-      desired quality, or preference not fully captured by price, room, size, property-type, or sort
-      fields, put it in relevance_criteria even if related words could also be added to query. Example:
-      "Prioritize listings with explicit balcony and quiet-setting evidence." Omit relevance_criteria
-      only for a neutral housing search fully expressed by query and structured fields. Never invent
-      amenities, commute, lease, accessibility, or neighborhood qualities.
+    preprocessor_hint: >-
+      Housing search is currently unavailable because no permitted provider is configured. Report this limitation;
+      do not attempt alternate provider access.
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:
         credits: 10
-    providers:
-      - name: ImmoScout24
-        no_api_key: true
-      - name: Kleinanzeigen
-        no_api_key: true
-      - name: WG-Gesucht
-        no_api_key: true
+    providers: []
     exclude_fields_for_llm:
       - type
       - image_url
+      - image_urls
       - id
     suggestions_follow_up_requests:
       - Show only apartments under 1000 EUR
@@ -199,9 +228,8 @@ skills:
                 x-ui:
                   basic: true
                 type: string
-                description: >
-                  Type of listing. "rent" for rentals (default), "buy" for purchases.
-                  Note: WG-Gesucht only has rentals and is skipped for "buy".
+                description: >-
+                  Search is currently unavailable without a permitted provider.
                 enum:
                   - rent
                   - buy
@@ -210,54 +238,128 @@ skills:
                 x-ui:
                   basic: false
                 type: array
-                description: >
-                  Optional list of providers to search. Defaults to all three.
+                description: >-
+                  Optional source identifier; search is currently unavailable.
                 items:
                   type: string
-                  enum:
-                    - ImmoScout24
-                    - Kleinanzeigen
-                    - WG-Gesucht
               property_type:
                 x-ui:
                   basic: true
                 type: string
                 enum:
-                - apartment
-                - shared_room
+                  - apartment
+                  - shared_room
                 default: apartment
-                description: Entire apartments or shared rooms. Shared rooms use WG-Gesucht.
+                description: Search is currently unavailable without a permitted provider.
               sort:
                 x-ui:
                   basic: false
                 type: string
                 enum:
-                - price_asc
-                - newest
+                  - price_asc
+                  - newest
                 default: price_asc
-                description: Price ascending, or discovery order for monitoring. Newest order is
-                  supported by Kleinanzeigen; other providers retain their source order.
+                description: Search is currently unavailable without a permitted provider.
               max_price_eur:
                 x-ui:
                   basic: true
                 type: number
                 minimum: 0
-                description: Maximum advertised monthly rent or purchase price in EUR. Price basis
-                  varies by provider.
+                description: Maximum advertised monthly rent or purchase price in EUR. Price basis varies by
+                  provider.
               min_rooms:
                 x-ui:
                   basic: false
                 type: number
                 minimum: 0
-                description: Minimum advertised rooms. Results with unknown rooms are excluded when
-                  set.
+                description: Minimum advertised rooms. Results with unknown rooms are excluded when set.
               min_size_sqm:
                 x-ui:
                   basic: false
                 type: number
                 minimum: 0
-                description: Minimum advertised area in square metres. Unknown area is excluded
-                  when set.
+                description: Minimum advertised area in square metres. Unknown area is excluded when set.
+              min_price_eur:
+                type: number
+                minimum: 0
+                description: Minimum advertised price in EUR.
+              max_rooms:
+                type: number
+                minimum: 0
+              max_size_sqm:
+                type: number
+                minimum: 0
+              max_warm_rent_eur:
+                type: number
+                minimum: 0
+                description: Maximum explicitly advertised total monthly rent, including service costs.
+                  Unknown total rent is unconfirmed.
+              max_cold_rent_eur:
+                type: number
+                minimum: 0
+                description: Maximum explicitly advertised cold monthly rent, excluding service costs.
+              available_by:
+                type: string
+                format: date
+                description: Must be available on or before this ISO date.
+              required_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Explicit hard amenity requirements; unknown evidence is not a confirmed match.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              excluded_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Amenities the user explicitly excludes. Missing evidence does not prove absence.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              preferred_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Soft amenity preferences; these rank results without excluding unknowns.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              include_unconfirmed:
+                type: boolean
+                default: false
+                description: Include clearly labelled listings with missing evidence for requirements;
+                  explicit conflicts remain excluded.
+              visual_analysis:
+                type: boolean
+                default: true
+                description: Assess a bounded subset of supplied photos for requested features, preserving the
+                  complete gallery.
+              neighborhood_categories:
+                type: array
+                default: []
+                maxItems: 5
+                items:
+                  type: string
+                  enum: [water, park, transit, groceries, school]
+              neighborhood_radius_m:
+                type: integer
+                minimum: 100
+                maximum: 5000
+                default: 1500
+              max_water_distance_m:
+                type: number
+                minimum: 0
+                maximum: 5000
+                description: Maximum supported distance to a shoreline, not to a water feature's
+                  representative point.
+              max_water_walk_minutes:
+                type: number
+                minimum: 0
+                maximum: 120
+                description: Maximum supported walk to a public waterfront; a straight-line estimate cannot
+                  satisfy this.
               relevance_criteria:
                 x-ui:
                   basic: true
@@ -290,16 +392,16 @@ skills:
       unattended: true
       approval: never
       binding_requirements:
-      - location
+        - location
       test_allowed: true
       test_example_input:
         requests:
-        - query: Berlin
-          property_type: apartment
-          providers:
-          - Kleinanzeigen
-          sort: newest
-          max_results: 3
+          - query: Berlin
+            property_type: apartment
+            providers:
+              - source
+            sort: newest
+            max_results: 3
       output_schema:
         type: object
         properties:
@@ -318,6 +420,7 @@ skills:
               basic: false
             type: string
             example: Example housing provider
+            description: Optional source identifier; search is currently unavailable.
           results:
             x-ui:
               basic: true
@@ -355,12 +458,13 @@ skills:
                     basic: false
                   type: string
                   example: Example housing provider
+                  description: Optional source identifier; search is currently unavailable.
                 price:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 1100
                 price_label:
                   x-ui:
@@ -371,15 +475,15 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 55
                 rooms:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 2
                 address:
                   x-ui:
@@ -400,8 +504,8 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - string
-                  - 'null'
+                    - string
+                    - 'null'
               example:
                 id: example-listing
                 source_id: example-listing
@@ -417,19 +521,19 @@ skills:
                 property_type: apartment
                 listing_type: rent
             example:
-            - id: example-listing
-              source_id: example-listing
-              title: Two-room apartment
-              url: https://example.invalid/apartments/one
-              canonical_url: https://example.invalid/apartments/one
-              provider: Example housing provider
-              price: 1100
-              price_label: 1.100 EUR/month
-              size_sqm: 55
-              rooms: 2
-              address: Berlin
-              property_type: apartment
-              listing_type: rent
+              - id: example-listing
+                source_id: example-listing
+                title: Two-room apartment
+                url: https://example.invalid/apartments/one
+                canonical_url: https://example.invalid/apartments/one
+                provider: Example housing provider
+                price: 1100
+                price_label: 1.100 EUR/month
+                size_sqm: 55
+                rooms: 2
+                address: Berlin
+                property_type: apartment
+                listing_type: rent
           listings:
             x-ui:
               basic: false
@@ -467,12 +571,13 @@ skills:
                     basic: false
                   type: string
                   example: Example housing provider
+                  description: Optional source identifier; search is currently unavailable.
                 price:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 1100
                 price_label:
                   x-ui:
@@ -483,15 +588,15 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 55
                 rooms:
                   x-ui:
                     basic: false
                   type:
-                  - number
-                  - 'null'
+                    - number
+                    - 'null'
                   example: 2
                 address:
                   x-ui:
@@ -512,8 +617,8 @@ skills:
                   x-ui:
                     basic: false
                   type:
-                  - string
-                  - 'null'
+                    - string
+                    - 'null'
               example:
                 id: example-listing
                 source_id: example-listing
@@ -529,19 +634,19 @@ skills:
                 property_type: apartment
                 listing_type: rent
             example:
-            - id: example-listing
-              source_id: example-listing
-              title: Two-room apartment
-              url: https://example.invalid/apartments/one
-              canonical_url: https://example.invalid/apartments/one
-              provider: Example housing provider
-              price: 1100
-              price_label: 1.100 EUR/month
-              size_sqm: 55
-              rooms: 2
-              address: Berlin
-              property_type: apartment
-              listing_type: rent
+              - id: example-listing
+                source_id: example-listing
+                title: Two-room apartment
+                url: https://example.invalid/apartments/one
+                canonical_url: https://example.invalid/apartments/one
+                provider: Example housing provider
+                price: 1100
+                price_label: 1.100 EUR/month
+                size_sqm: 55
+                rooms: 2
+                address: Berlin
+                property_type: apartment
+                listing_type: rent
           warnings:
             x-ui:
               basic: false
@@ -555,6 +660,7 @@ skills:
             type: boolean
             example: false
 
+    provider_required: true
 marketing_discovery:
   skills:
     search:

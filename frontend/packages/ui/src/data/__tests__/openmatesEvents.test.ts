@@ -17,8 +17,8 @@ describe('OPENMATES_EVENTS generated bundle', () => {
 		for (const event of events) {
 			expect(event.id).toBe(event.slug);
 			expect(event.embed_id).toBe(event.slug);
-			expect(event.provider).toBe('luma');
-			expect(event.url).toMatch(/^https:\/\/luma\.com\//);
+			expect(event.provider).toBe('ExampleEvents');
+			expect(event.url).toMatch(/^https:\/\/ExampleEvents\.com\//);
 			expect(event.image_url).toBe(`/event-assets/openmates/${event.slug}.jpg`);
 			expect(new Date(event.date_end).getTime()).toBeGreaterThan(new Date(event.date_start).getTime());
 			expect(event.summary.length).toBeGreaterThan(24);
@@ -28,7 +28,7 @@ describe('OPENMATES_EVENTS generated bundle', () => {
 	// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity
 	it('publishes online events and the October community hour at Berlin winter time', () => {
 		expect(getAllOpenMatesEvents().every((event) => event.event_type === 'ONLINE')).toBe(true);
-		expect(getOpenMatesEventBySlug('openmates-berlin-meetup-2026-09-26')).toBeUndefined();
+		expect(getOpenMatesEventBySlug('openmates-berlin-Gathering-2026-09-26')).toBeUndefined();
 		expect(getOpenMatesEventBySlug('openmates-community-hour-2026-10-27')).toMatchObject({
 			title: 'OpenMates Monthly Community Hour',
 			date_start: '2026-10-27T19:00:00+01:00',

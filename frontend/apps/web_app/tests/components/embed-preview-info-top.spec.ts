@@ -90,15 +90,19 @@ test('expanded and full-image previews keep one visible info bar above content',
   await page.goto('/dev/preview/embeds/images/ImageResultEmbedPreview?chrome=0&theme=light');
   await waitForComponentPreview(page);
   const imageCard = page.getByTestId('embed-preview');
-  await expect(imageCard.getByTestId('embed-basic-infos-bar')).toHaveCount(1);
+  await expect(imageCard.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
+  await expect(imageCard.locator('.card-copy')).toHaveCount(0);
+  const imageFrame = (await imageCard.getByTestId('result-card-media').boundingBox())!;
+  const imageShell = (await imageCard.boundingBox())!;
+  expect(imageFrame.width).toBeCloseTo(imageShell.width, 0);
+  expect(imageFrame.height).toBeCloseTo(imageShell.height, 0);
+  await expect(imageCard.getByTestId('image-result-preview-image')).toHaveCSS('object-fit', 'contain');
   const imageBounds = await imageCard.evaluate((element) => {
     const card = element.getBoundingClientRect();
-    const bar = element.querySelector('[data-testid="embed-basic-infos-bar"]')!.getBoundingClientRect();
-    const details = element.querySelector('.details-section.full-width-image')!.getBoundingClientRect();
-    return { cardBottom: card.bottom, barBottom: bar.bottom, detailsTop: details.top, detailsBottom: details.bottom };
+    const content = element.querySelector('[data-testid="result-card-content"]')!.getBoundingClientRect();
+    return { cardBottom: card.bottom, contentBottom: content.bottom };
   });
-  expect(imageBounds.barBottom).toBeLessThanOrEqual(imageBounds.detailsTop + 1);
-  expect(imageBounds.detailsBottom).toBeLessThanOrEqual(imageBounds.cardBottom + 1);
+  expect(imageBounds.contentBottom).toBeLessThanOrEqual(imageBounds.cardBottom + 1);
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.preview-info-top
@@ -138,4 +142,106 @@ test('metadata-only inspiration videos rotate without persisted embed reads and 
   await card.click();
   await expect.poll(() => fullscreen).toEqual(['[Preview] onEmbedFullscreen abc123finance']);
   expect(persistedReads).toEqual([]);
+});
+
+for (const theme of ['light', 'dark']) {
+  for (const width of [390, 1100]) {
+    // contract-test: supporting surface=gui.web assertions=chats.rendering.preview-info-top
+    test(`result information uses existing status masks and shared tooltip surfaces at ${width}px ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      for (const state of [
+        { variant: '', state: 'yes', icon: 'check', token: '--color-success' },
+        { variant: 'absent', state: 'no', icon: 'close', token: '--color-error' },
+        { variant: 'unknown', state: 'unknown', icon: 'question', token: '--color-grey-60' },
+      ]) {
+        await page.goto(`/dev/preview/embeds/ResultEmbedInfo?chrome=0&theme=${theme}&width=${width}${state.variant ? `&variant=${state.variant}` : ''}`);
+        await waitForComponentPreview(page);
+        const trigger = page.locator('.info-trigger');
+        await expect(trigger).toHaveAttribute('data-state', state.state);
+        const badge = trigger.locator('.state');
+        const symbol = badge.locator(`.clickable-icon.icon_${state.icon}`);
+        await expect(symbol).toBeVisible();
+        await expect.poll(() => symbol.evaluate((el, icon) => {
+          const style = getComputedStyle(el);
+          const probe = document.createElement('span');
+          probe.style.maskImage = `var(--icon-url-${icon})`;
+          el.appendChild(probe);
+          const expected = getComputedStyle(probe).maskImage;
+          probe.remove();
+          return {
+            defined: style.getPropertyValue(`--icon-url-${icon}`).trim().length > 0,
+            asset: style.maskImage !== 'none' && expected !== 'none',
+            matches: style.maskImage === expected,
+          };
+        }, state.icon)).toEqual({ defined: true, asset: true, matches: true });
+        await expect(badge).toHaveCSS('border-radius', '50%');
+        await expect.poll(() => badge.evaluate((el, token) => {
+          const style = getComputedStyle(el);
+          const probe = document.createElement('span');
+          probe.style.backgroundColor = `var(${token})`;
+          el.appendChild(probe);
+          const expected = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return { defined: style.getPropertyValue(token).trim().length > 0, matches: style.backgroundColor === expected };
+        }, state.token)).toEqual({ defined: true, matches: true });
+        await trigger.hover();
+        const tooltip = page.getByTestId('result-info-tooltip');
+        await expect(tooltip).toBeVisible();
+        await expect(tooltip).toHaveClass(/om-tooltip/);
+        await expect(tooltip.locator('.om-tooltip-arrow')).toHaveCount(1);
+        await expect(tooltip).toHaveCSS('box-shadow', 'rgba(0, 0, 0, 0.2) 0px 2px 4px 0px');
+        await expect.poll(() => tooltip.evaluate(el => {
+          const style = getComputedStyle(el);
+          return { padding: style.padding, radius: style.borderRadius, font: style.fontSize };
+        })).toEqual(await tooltip.evaluate(el => {
+          const probe = document.createElement('div');
+          probe.style.cssText = 'padding:var(--spacing-4) var(--spacing-6);border-radius:var(--radius-2);font-size:var(--font-size-small)';
+          el.appendChild(probe);
+          const style = getComputedStyle(probe);
+          const expected = { padding: style.padding, radius: style.borderRadius, font: style.fontSize };
+          probe.remove();
+          return expected;
+        }));
+        await trigger.focus();
+        await expect(tooltip).toContainText('Provider listing confirms');
+        await trigger.click();
+        await expect(trigger).toHaveAttribute('data-pinned', 'true');
+        await page.mouse.move(2, 2);
+        await expect(tooltip).toBeVisible();
+        expect(await tooltip.evaluate(el => el.parentElement === document.body)).toBe(true);
+        const bounds = await tooltip.boundingBox();
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+        await testInfo.attach(`result-info-${state.state}-${theme}-${width}px`, {
+          body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+        await page.keyboard.press('Escape');
+        await expect(tooltip).toHaveCount(0);
+        await trigger.click();
+        await expect(tooltip).toBeVisible();
+        await page.mouse.click(2, 2);
+        await expect(tooltip).toHaveCount(0);
+      }
+    });
+  }
+}
+
+test.describe('touch result information', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.preview-info-top
+  test('touch pins the shared tooltip until an outside tap', async ({ page }, testInfo) => {
+    await page.goto('/dev/preview/embeds/ResultEmbedInfo?chrome=0&theme=light&width=390');
+    await waitForComponentPreview(page);
+    const trigger = page.locator('.info-trigger');
+    await trigger.tap();
+    const tooltip = page.getByTestId('result-info-tooltip');
+    await expect(trigger).toHaveAttribute('data-pinned', 'true');
+    await expect(tooltip).toContainText('Provider listing confirms');
+    await expect(tooltip).toHaveClass(/om-tooltip/);
+    await testInfo.attach('result-info-touch-pinned-390px', {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+    await page.touchscreen.tap(2, 2);
+    await expect(tooltip).toHaveCount(0);
+  });
 });

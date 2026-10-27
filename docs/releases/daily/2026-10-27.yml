@@ -1,0 +1,4775 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-27'
+generated_at: '2026-10-27T10:56:03+00:00'
+range:
+  since: 24 hours ago
+  until: null
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 53
+  section_counts:
+    features: 5
+    bug_fixes: 34
+    improvements: 1
+    docs: 4
+    tests: 6
+    infrastructure: 3
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 53
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Browse session embeds and user takeover'
+    section: features
+    commits:
+    - 970c0d6799
+    authored_at: '2026-10-27T10:20:41+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/browse_skill.py
+    - backend/apps/web/tasks/browse_task.py
+    - backend/tests/test_web_browse_dispatch.py
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.ts
+    - frontend/packages/ui/src/components/embeds/web/browseEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/services/webBrowseService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web, embed:web:browse, skill:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    section: features
+    commits:
+    - 612c62f6d2
+    authored_at: '2026-10-26T19:34:18+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/web/tasks/browse_task.py
+    - backend/core/api/app/services/web_browse_pool.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/browser_pool.yml
+    - backend/core/directus/schemas/browser_pool_claims.yml
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/profile_web_browse_startup.py
+    - backend/scripts/test_web_browse_pool_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_pool.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add source-independent typed result authoring'
+    section: features
+    commits:
+    - c5831accf3
+    authored_at: '2026-10-26T16:31:07+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/authored_results.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/tests/test_authored_result_api_resolution.py
+    - backend/apps/ai/utils/authored_result_fences.py
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/apps/ai/utils/json_content_fences.py
+    - backend/apps/business/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/hosting/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/tv/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/core/api/Dockerfile
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_authored_result_content.py
+    - backend/tests/test_authored_result_fixture.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_authored_result_service.py
+    - backend/tests/test_authored_result_streaming.py
+    - backend/tests/test_calendar_event_streaming.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_final_stream_delivery.py
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/assistant-authored-result-embeds/fosdem-sources.md
+    - docs/plans/assistant-authored-result-embeds/plan.yml
+    - docs/plans/assistant-authored-result-embeds/verification.md
+    - frontend/apps/web_app/tests/cli-authored-results.spec.ts
+    - frontend/apps/web_app/tests/helpers/cli-ws-metadata-probe.mjs
+    - frontend/apps/web_app/tests/helpers/cli-ws-metadata-probe.test.mjs
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/streamedCanonicalHead.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/services/authoredResultMedia.test.ts
+    - frontend/packages/ui/src/services/authoredResultMedia.ts
+    - frontend/packages/ui/src/types/authoredResult.ts
+    - frontend/packages/ui/src/utils/imageProxy.test.ts
+    - frontend/packages/ui/src/utils/imageProxy.ts
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_authored_result_registry.py
+    - shared/config/authored_result_types.json
+    - specifications/features/tv-title-embeds/examples.yml
+    - specifications/features/tv-title-embeds/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:business, app:code, app:design, app:electronics, app:events, app:fitness,
+      app:health, app:home, app:hosting, app:images, app:jobs, app:maps, app:models3d, app:news, app:nutrition, app:shopping,
+      app:social_media, app:travel, app:tv, app:videos, app:weather, app:web, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add bounded E2B Browse execution and JSON results'
+    section: features
+    commits:
+    - eedefb69cd
+    authored_at: '2026-10-26T12:15:19+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/base_app.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/browse_skill.py
+    - backend/apps/web/tasks/__init__.py
+    - backend/apps/web/tasks/browse_task.py
+    - backend/core/api/app/routes/tasks_api.py
+    - backend/core/api/app/routes/web_browse.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/web_browse_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/browser_runs.yml
+    - backend/core/directus/schemas/browser_sessions.yml
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/shared/python_schemas/web_browse.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/shared/python_utils/strict_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/shared/python_utils/web_browse_dispatch.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_safety.py
+    - backend/tests/test_web_browse_service.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/web.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/app-skills/web-browse/examples.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web, embed:web:browse, platform:tasks, skill:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: trial offline Redact detection in the dev web composer'
+    section: features
+    commits:
+    - d0b63e7fc2
+    authored_at: '2026-10-26T11:02:03+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.partial.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/quality-rescore.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/quality-summary.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIFallbackNotice.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIMatches.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - frontend/packages/ui/src/components/enter_message/services/webPIIFallbackNotice.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/pii.yml
+    - frontend/packages/ui/src/stores/__tests__/pendingUploadStore.test.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - scripts/redact_linux_evaluation.mjs
+    - scripts/redact_linux_evaluation.py
+    - scripts/redact_linux_evaluation.test.mjs
+    - scripts/redact_linux_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: clarify selected authored-result correction guidance'
+    section: bug_fixes
+    commits:
+    - 2c3c25cad3
+    authored_at: '2026-10-27T10:51:22+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve chat retry identity and encrypted code context'
+    section: bug_fixes
+    commits:
+    - 2548fa4084
+    authored_at: '2026-10-27T10:41:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/providers/zai.yml
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_context_handoff_retry_identity.py
+    - backend/tests/test_glm47_host_routing.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_queued_context_authority.py
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align new-chat voice-call controls and remove helper text'
+    section: bug_fixes
+    commits:
+    - fbeb720115
+    authored_at: '2026-10-27T10:38:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/voice-call-chat-header.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-header-actions.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.preview.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match composer attachment icons to microphone gradient'
+    section: bug_fixes
+    commits:
+    - 95ad8b8bae
+    authored_at: '2026-10-27T10:07:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain image viewing for conversational upload requests'
+    section: bug_fixes
+    commits:
+    - 49190d5a70
+    authored_at: '2026-10-27T10:01:44+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_image_reference_routing.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: distinguish native setup failures from disk refusals'
+    section: bug_fixes
+    commits:
+    - 07f1b80e6b
+    authored_at: '2026-10-27T00:47:38+00:00'
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/tests/test_ci_native_setup_diagnostic.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: register Rust client compiler and publication guard repairs'
+    section: bug_fixes
+    commits:
+    - 0190d5733d
+    authored_at: '2026-10-27T00:35:24+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/check_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/specifications.py
+    - scripts/tests/fixtures/sdk-conformance-trust-browser41-rich768-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-cli-json-header-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-compiler_publication11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-direct11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rich45-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-security41-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    - scripts/tests/test_specification_test_metadata.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: log closed migration CI failure stages'
+    section: bug_fixes
+    commits:
+    - 2e50fd0ed6
+    authored_at: '2026-10-26T23:04:34+00:00'
+    changed_paths:
+    - scripts/ci_closed_failure_summary.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_closed_failure_summary.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
+    section: bug_fixes
+    commits:
+    - 7ab11940f5
+    authored_at: '2026-10-26T22:03:08+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-binding-compile2-delta.json
+    - scripts/tests/test_ci_sdk_compiler_diagnostics.py
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve voice thinking pauses and improve call delivery'
+    section: bug_fixes
+    commits:
+    - 09d92f3325
+    authored_at: '2026-10-26T20:49:56+00:00'
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/assistant_speech/voice_context.py
+    - backend/apps/ai/instructions/base_voice_conversation_instruction.md
+    - backend/apps/audio/assistant_speech/realtime_turn.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/python_utils/voice_call_intent.py
+    - backend/shared/python_utils/voice_turn_completion.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_instructions.py
+    - backend/tests/test_voice_call_intent.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_completion_fixture.py
+    - backend/tests/test_voice_realtime_turn.py
+    - backend/tests/test_voice_speech_projection.py
+    - backend/tests/test_voice_speech_replay.py
+    - backend/tests/test_voice_turn_completion.py
+    - docs/apis/elevenlabs-realtime-call-speech.md
+    - docs/plans/voice-pause-completion/completion-probe.json
+    - docs/plans/voice-pause-completion/listening-cues.md
+    - docs/plans/voice-pause-completion/plan.yml
+    - docs/plans/voice-pause-completion/verification.md
+    - frontend/apps/web_app/tests/components/voice-call-chat-header.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/videocall/callAudio.test.ts
+    - frontend/packages/ui/src/components/videocall/callAudio.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/voiceDeliveryCues.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/voiceDeliveryCues.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: extract verified Browse answers when no output schema is supplied'
+    section: bug_fixes
+    commits:
+    - 46e7c36a23
+    authored_at: '2026-10-26T20:45:04+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify quoted Browse results against checked page evidence'
+    section: bug_fixes
+    commits:
+    - 5d2048a5f7
+    authored_at: '2026-10-26T20:16:33+00:00'
+    changed_paths:
+    - backend/scripts/test_web_browse_text_helpers.py
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct Python SDK test surface registration'
+    section: bug_fixes
+    commits:
+    - 562c2c854a
+    authored_at: '2026-10-26T19:19:24+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-sdk-header-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: minimize image sends and render viewed image previews'
+    section: bug_fixes
+    commits:
+    - 0da8c0c6d0
+    authored_at: '2026-10-26T19:05:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/image-view-preview.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-image-send.spec.ts
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce Brotli protection without blocking web startup'
+    section: bug_fixes
+    commits:
+    - cd3704074a
+    authored_at: '2026-10-26T19:01:17+00:00'
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/web-brotli-runtime-protection/plan.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/scripts/public-metadata-fetch.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/lib/server/publicMetadataFetch.mjs
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
+    - frontend/apps/web_app/tests/web-runtime-security.spec.ts
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: register reviewed native full-read and SDK conformance source'
+    section: bug_fixes
+    commits:
+    - f942fed84f
+    authored_at: '2026-10-26T18:54:16+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-ci-unit-fixture3-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-arrival20-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native5-fixture-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-selected-sdk-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore web bootstrap on hosted Node runtime'
+    section: bug_fixes
+    commits:
+    - 3a4f7aa975
+    authored_at: '2026-10-26T17:52:49+00:00'
+    changed_paths:
+    - backend/apps/tv/app.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:tv'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    section: bug_fixes
+    commits:
+    - 3b54b1d06a
+    authored_at: '2026-10-26T17:34:13+00:00'
+    changed_paths:
+    - DESIGN.md
+    - frontend/apps/web_app/src/lib/actions/fitVisualViewport.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/apps/web_app/tests/composer-mobile-keyboard.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain safe transport classes in authoring diagnostics'
+    section: bug_fixes
+    commits:
+    - bd81f9166a
+    authored_at: '2026-10-26T16:15:37+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify browse answers against separate completion criteria'
+    section: bug_fixes
+    commits:
+    - 29836d6a61
+    authored_at: '2026-10-26T16:12:28+00:00'
+    changed_paths:
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Browse controllers through idle pause'
+    section: bug_fixes
+    commits:
+    - 510799976d
+    authored_at: '2026-10-26T15:33:53+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: distinguish fixture publication from delivery failure'
+    section: bug_fixes
+    commits:
+    - de336c0749
+    authored_at: '2026-10-26T15:24:18+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain bounded final delivery diagnostics'
+    section: bug_fixes
+    commits:
+    - 5511bf0680
+    authored_at: '2026-10-26T14:55:10+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for resumed Browse ingress and stable observations'
+    section: bug_fixes
+    commits:
+    - aada322994
+    authored_at: '2026-10-26T14:51:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: settle Browse windows and resume paused sessions'
+    section: bug_fixes
+    commits:
+    - 5a6e9244a3
+    authored_at: '2026-10-26T14:08:59+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_dispatch.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove empty failed call chats with guarded sync'
+    section: bug_fixes
+    commits:
+    - 24dd88b5ea
+    authored_at: '2026-10-26T13:45:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallEmptyChatCleanup.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallEmptyChatCleanup.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: locate the E2B browser at runtime'
+    section: bug_fixes
+    commits:
+    - c96894ed55
+    authored_at: '2026-10-26T13:42:20+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve photo drafts after send failures'
+    section: bug_fixes
+    commits:
+    - 77b3ebf9f3
+    authored_at: '2026-10-26T13:18:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pin Browse HTTPS transport and account native usage'
+    section: bug_fixes
+    commits:
+    - bd333ac5db
+    authored_at: '2026-10-26T13:10:37+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_google_thinking_profiles.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/architecture/apps/web-browse.md
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve draft content during voice recording'
+    section: bug_fixes
+    commits:
+    - 2ed54c9f5d
+    authored_at: '2026-10-26T13:01:44+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputRecordingDraftPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputRecordingDraftPreviewHarness.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose safe runtime versions in Brotli startup failures'
+    section: bug_fixes
+    commits:
+    - 929203c445
+    authored_at: '2026-10-26T12:06:31+00:00'
+    changed_paths:
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    section: bug_fixes
+    commits:
+    - 8cd2ec444a
+    authored_at: '2026-10-26T11:56:18+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight-final.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight-final.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/private-build.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - scripts/redact_brotli_guard.py
+    - scripts/redact_linux_evaluation.mjs
+    - scripts/redact_linux_evaluation.py
+    - scripts/redact_linux_evaluation.test.mjs
+    - scripts/redact_linux_evaluation_test.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize voice call cleanup schema'
+    section: bug_fixes
+    commits:
+    - 871960ea23
+    authored_at: '2026-10-26T11:37:03+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/tests/test_empty_call_cleanup_schema.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: authorize empty voice call cleanup atomically'
+    section: bug_fixes
+    commits:
+    - dc7a292419
+    authored_at: '2026-10-26T11:13:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/draft_scope.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/update_chat_pinned_handler.py
+    - backend/core/api/app/routes/ideabucket.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/directus/chat_model_preference_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
+    - backend/tests/test_ai_chat_model_preferences.py
+    - backend/tests/test_call_cleanup_admission.py
+    - backend/tests/test_cross_client_draft_sync.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_empty_call_cleanup_connections.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_voice_call_protocol.py
+    - docs/plans/voice-call-empty-cleanup/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: evaluate parallel Redact scans and adaptive native limits'
+    section: improvements
+    commits:
+    - fced40d294
+    authored_at: '2026-10-26T18:59:08+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/comparison-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/executed-generated-host.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/executed-probe-extension.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/feasibility-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/future-dry-preparation-preservation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/future-preparation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/preparation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/public-header-abi-check.log.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/receipt-clarification.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/allocation-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/sanitized-allocation-error.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/supervisor-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/allocation-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/sanitized-allocation-error.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/supervisor-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-512k-code-doc.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-512k-code-doc.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-2workers-4threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-2workers-4threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-512k-code-doc.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-512k-code-doc.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-1threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-1threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-2threads-16cpu-scaling.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-2threads-16cpu-scaling.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/large-document-manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-fits.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-fits.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-rejects.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-rejects.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/benchmark-parallel.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/benchmark-parallel.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/build-scratch-cleanup.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/gap-predicate-proof.log.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/gap-predicate-proof.swift
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/published-1worker-8threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/published-1worker-8threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/resource-policy-validation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/case-filter-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/fast-support-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/published-control-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/sixteen-cpu-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/measure-validation.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-only.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-proof.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-result.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/architecture/privacy/redact-parallel-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - scripts/redact_dynamic_shape_probe.py
+    - scripts/redact_dynamic_shape_probe.rs
+    - scripts/redact_large_document_fixtures.py
+    - scripts/redact_large_document_fixtures_test.py
+    - scripts/redact_native_chunk_experiment.py
+    - scripts/redact_native_resource_policy.rs
+    - scripts/redact_parallel_evaluation.py
+    - scripts/redact_parallel_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: limit Redact trial to message inputs'
+    section: docs
+    commits:
+    - a157e9b503
+    authored_at: '2026-10-27T09:01:42+00:00'
+    changed_paths:
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-parallel-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Browse startup isolation cost and reliability qualification'
+    section: docs
+    commits:
+    - c6b71740f5
+    authored_at: '2026-10-26T21:25:17+00:00'
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: plan cloud-first agentic project development'
+    section: docs
+    commits:
+    - 4dd5d8a055
+    authored_at: '2026-10-26T19:06:48+00:00'
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record the managed Brotli runtime security blocker'
+    section: docs
+    commits:
+    - f98d62f3f6
+    authored_at: '2026-10-26T12:23:21+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-web-brotli-2026-10-26/manifest.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/vercel-brotli-runtime-support-draft-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: enable isolated authored-result web and image flows'
+    section: tests
+    commits:
+    - 4f86305036
+    authored_at: '2026-10-26T19:42:39+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/ci_voice_recovery_epoch.py
+    - scripts/tests/test_ci_authored_media_recovery_epoch.py
+    - scripts/tests/test_ci_voice_recovery_epoch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: evaluate Redact from Rust and document licensing privacy'
+    section: tests
+    commits:
+    - a11c8a3e92
+    authored_at: '2026-10-26T14:11:41+00:00'
+    changed_paths:
+    - docs/architecture/privacy/desert-ant-privacy-questions-unsent-2026-10-26.md
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/benchmark-chunking.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/boundary-sweep-inputs.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/boundary_probe.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/compare_coverage.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/coverage-comparison.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/native-build-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/published-thread-parity.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rebuilt-baseline-parity.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/runtime231-benchmark-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/runtime231-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry0-2cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry0-2cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry1-2cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry1-2cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe-disconnected.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe-disconnected.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-default-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-default-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-threads2-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-threads2-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-8cpu-threads8-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-8cpu-threads8-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry0-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry0-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt300-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt300-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt600-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt600-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-runtime231-150-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-runtime231-150-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads1-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads1-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads2-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads2-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads8-8cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads8-8cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/validation.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/architecture/privacy/redact-rust-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - scripts/redact_native_chunk_experiment.py
+    - scripts/redact_rust_evaluation.py
+    - scripts/redact_rust_evaluation.rs
+    - scripts/redact_rust_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain authored result recovery failure diagnostics'
+    section: tests
+    commits:
+    - 1e1e71d99e
+    authored_at: '2026-10-26T13:20:42+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain nested voice cleanup failure windows'
+    section: tests
+    commits:
+    - 3d7a101569
+    authored_at: '2026-10-26T12:54:43+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate the approved empty call cleanup case'
+    section: tests
+    commits:
+    - e7cb2acd47
+    authored_at: '2026-10-26T12:47:04+00:00'
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enable recovery for authored result CLI checks'
+    section: tests
+    commits:
+    - 7a47fbcd10
+    authored_at: '2026-10-26T11:21:15+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: admit guarded Rust browser previews and preserve SDK checks'
+    section: infrastructure
+    commits:
+    - 1c973f2723
+    authored_at: '2026-10-26T13:19:33+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_coverage.py
+    - scripts/ci_results.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-browser45-delta.json
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: register selected Rust recovery without inventory authority'
+    section: infrastructure
+    commits:
+    - db23c04c87
+    authored_at: '2026-10-26T12:55:53+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-selected-cli-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: attribute native SDK first-page failures safely'
+    section: infrastructure
+    commits:
+    - de1e16940b
+    authored_at: '2026-10-26T12:39:24+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-first-page-npm-diagnostic-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_ci_sdk_first_page_npm_diagnostics.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: clarify selected authored-result correction guidance'
+    commits:
+    - 2c3c25cad3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve chat retry identity and encrypted code context'
+    commits:
+    - 2548fa4084
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align new-chat voice-call controls and remove helper text'
+    commits:
+    - fbeb720115
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Browse session embeds and user takeover'
+    commits:
+    - 970c0d6799
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: match composer attachment icons to microphone gradient'
+    commits:
+    - 95ad8b8bae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retain image viewing for conversational upload requests'
+    commits:
+    - 49190d5a70
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: limit Redact trial to message inputs'
+    commits:
+    - a157e9b503
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: distinguish native setup failures from disk refusals'
+    commits:
+    - 07f1b80e6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: register Rust client compiler and publication guard repairs'
+    commits:
+    - 0190d5733d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: log closed migration CI failure stages'
+    commits:
+    - 2e50fd0ed6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
+    commits:
+    - 7ab11940f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Browse startup isolation cost and reliability qualification'
+    commits:
+    - c6b71740f5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'fix: extract verified Browse answers when no output schema is supplied'
+    commits:
+    - 46e7c36a23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify quoted Browse results against checked page evidence'
+    commits:
+    - 5d2048a5f7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: enable isolated authored-result web and image flows'
+    commits:
+    - 4f86305036
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: correct Python SDK test surface registration'
+    commits:
+    - 562c2c854a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: plan cloud-first agentic project development'
+    commits:
+    - 4dd5d8a055
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: evaluate parallel Redact scans and adaptive native limits'
+    commits:
+    - fced40d294
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: register reviewed native full-read and SDK conformance source'
+    commits:
+    - f942fed84f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa975
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+  - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: retain safe transport classes in authoring diagnostics'
+    commits:
+    - bd81f9166a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify browse answers against separate completion criteria'
+    commits:
+    - 29836d6a61
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve Browse controllers through idle pause'
+    commits:
+    - 510799976d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: distinguish fixture publication from delivery failure'
+    commits:
+    - de336c0749
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain bounded final delivery diagnostics'
+    commits:
+    - 5511bf0680
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for resumed Browse ingress and stable observations'
+    commits:
+    - aada322994
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: evaluate Redact from Rust and document licensing privacy'
+    commits:
+    - a11c8a3e92
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: locate the E2B browser at runtime'
+    commits:
+    - c96894ed55
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain authored result recovery failure diagnostics'
+    commits:
+    - 1e1e71d99e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: admit guarded Rust browser previews and preserve SDK checks'
+    commits:
+    - 1c973f2723
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'ci: register selected Rust recovery without inventory authority'
+    commits:
+    - db23c04c87
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain nested voice cleanup failure windows'
+    commits:
+    - 3d7a101569
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate the approved empty call cleanup case'
+    commits:
+    - e7cb2acd47
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: attribute native SDK first-page failures safely'
+    commits:
+    - de1e16940b
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record the managed Brotli runtime security blocker'
+    commits:
+    - f98d62f3f6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add bounded E2B Browse execution and JSON results'
+    commits:
+    - eedefb69cd
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c445
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: initialize voice call cleanup schema'
+    commits:
+    - 871960ea23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: enable recovery for authored result CLI checks'
+    commits:
+    - 7a47fbcd10
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a292419
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add Browse session embeds and user takeover'
+    commits:
+    - 970c0d6799
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: register Rust client compiler and publication guard repairs'
+    commits:
+    - 0190d5733d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa975
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+  - title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add bounded E2B Browse execution and JSON results'
+    commits:
+    - eedefb69cd
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a292419
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: clarify selected authored-result correction guidance'
+    commits:
+    - 2c3c25cad3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve chat retry identity and encrypted code context'
+    commits:
+    - 2548fa4084
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align new-chat voice-call controls and remove helper text'
+    commits:
+    - fbeb720115
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Browse session embeds and user takeover'
+    commits:
+    - 970c0d6799
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: match composer attachment icons to microphone gradient'
+    commits:
+    - 95ad8b8bae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retain image viewing for conversational upload requests'
+    commits:
+    - 49190d5a70
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa975
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add bounded E2B Browse execution and JSON results'
+    commits:
+    - eedefb69cd
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c445
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a292419
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2c3c25cad31e93686a8a94630852ef543dee6599
+    short_sha: 2c3c25cad3
+    authored_at: '2026-10-27T10:51:22+00:00'
+    subject: 'fix: clarify selected authored-result correction guidance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    related_feature_ids:
+    - app:ai
+  - sha: 2548fa4084c4ad80a368f2dcb1a26414b5379d31
+    short_sha: 2548fa4084
+    authored_at: '2026-10-27T10:41:55+00:00'
+    subject: 'fix: preserve chat retry identity and encrypted code context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/providers/zai.yml
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_context_handoff_retry_identity.py
+    - backend/tests/test_glm47_host_routing.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_queued_context_authority.py
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fbeb7201157f3017d836abce21e169247f4ffc91
+    short_sha: fbeb720115
+    authored_at: '2026-10-27T10:38:52+00:00'
+    subject: 'fix: align new-chat voice-call controls and remove helper text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/voice-call-chat-header.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-header-actions.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.preview.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 970c0d6799eaabc85799e83ffcf831ea99a8ff57
+    short_sha: 970c0d6799
+    authored_at: '2026-10-27T10:20:41+00:00'
+    subject: 'feat: add Browse session embeds and user takeover'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/browse_skill.py
+    - backend/apps/web/tasks/browse_task.py
+    - backend/tests/test_web_browse_dispatch.py
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.ts
+    - frontend/packages/ui/src/components/embeds/web/browseEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/services/webBrowseService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:web
+    - embed:web:browse
+    - skill:web:browse
+  - sha: 95ad8b8baedccbdae89eb636de4d4c086dfff5d9
+    short_sha: 95ad8b8bae
+    authored_at: '2026-10-27T10:07:12+00:00'
+    subject: 'fix: match composer attachment icons to microphone gradient'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 49190d5a703676f79efca85eb2dc2c0bdd284e41
+    short_sha: 49190d5a70
+    authored_at: '2026-10-27T10:01:44+00:00'
+    subject: 'fix: retain image viewing for conversational upload requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_image_reference_routing.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: a157e9b5031201999d3125025f20a43947a95274
+    short_sha: a157e9b503
+    authored_at: '2026-10-27T09:01:42+00:00'
+    subject: 'docs: limit Redact trial to message inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-parallel-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    related_feature_ids: []
+  - sha: 07f1b80e6b2c251952265e6245166f411b4e4774
+    short_sha: 07f1b80e6b
+    authored_at: '2026-10-27T00:47:38+00:00'
+    subject: 'fix: distinguish native setup failures from disk refusals'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/tests/test_ci_native_setup_diagnostic.py
+    related_feature_ids: []
+  - sha: 0190d5733d800e941286b299582f5d4277b62dfe
+    short_sha: 0190d5733d
+    authored_at: '2026-10-27T00:35:24+00:00'
+    subject: 'fix: register Rust client compiler and publication guard repairs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/check_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/specifications.py
+    - scripts/tests/fixtures/sdk-conformance-trust-browser41-rich768-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-cli-json-header-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-compiler_publication11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-direct11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rich45-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-security41-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    - scripts/tests/test_specification_test_metadata.py
+    related_feature_ids: []
+  - sha: 2e50fd0ed67bd43872286cd173fc87a9c1309156
+    short_sha: 2e50fd0ed6
+    authored_at: '2026-10-26T23:04:34+00:00'
+    subject: 'fix: log closed migration CI failure stages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_closed_failure_summary.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_closed_failure_summary.py
+    related_feature_ids: []
+  - sha: 7ab11940f526ab6fe08ebf6d5a302b9fd3442e0a
+    short_sha: 7ab11940f5
+    authored_at: '2026-10-26T22:03:08+00:00'
+    subject: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-binding-compile2-delta.json
+    - scripts/tests/test_ci_sdk_compiler_diagnostics.py
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: c6b71740f5df32646ff9f33c61efa62332f73589
+    short_sha: c6b71740f5
+    authored_at: '2026-10-26T21:25:17+00:00'
+    subject: 'docs: record Browse startup isolation cost and reliability qualification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    related_feature_ids: []
+  - sha: 09d92f3325e91dba5fec1e6a0b6f627ee9a41e00
+    short_sha: 09d92f3325
+    authored_at: '2026-10-26T20:49:56+00:00'
+    subject: 'fix: preserve voice thinking pauses and improve call delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/assistant_speech/voice_context.py
+    - backend/apps/ai/instructions/base_voice_conversation_instruction.md
+    - backend/apps/audio/assistant_speech/realtime_turn.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/python_utils/voice_call_intent.py
+    - backend/shared/python_utils/voice_turn_completion.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_instructions.py
+    - backend/tests/test_voice_call_intent.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_completion_fixture.py
+    - backend/tests/test_voice_realtime_turn.py
+    - backend/tests/test_voice_speech_projection.py
+    - backend/tests/test_voice_speech_replay.py
+    - backend/tests/test_voice_turn_completion.py
+    - docs/apis/elevenlabs-realtime-call-speech.md
+    - docs/plans/voice-pause-completion/completion-probe.json
+    - docs/plans/voice-pause-completion/listening-cues.md
+    - docs/plans/voice-pause-completion/plan.yml
+    - docs/plans/voice-pause-completion/verification.md
+    - frontend/apps/web_app/tests/components/voice-call-chat-header.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/videocall/callAudio.test.ts
+    - frontend/packages/ui/src/components/videocall/callAudio.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/voiceDeliveryCues.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/voiceDeliveryCues.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+  - sha: 46e7c36a23355b6b35ef7fe910ecf0e102a19833
+    short_sha: 46e7c36a23
+    authored_at: '2026-10-26T20:45:04+00:00'
+    subject: 'fix: extract verified Browse answers when no output schema is supplied'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5d2048a5f7cf47c392cf8c657ccc8176a522b004
+    short_sha: 5d2048a5f7
+    authored_at: '2026-10-26T20:16:33+00:00'
+    subject: 'fix: verify quoted Browse results against checked page evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/test_web_browse_text_helpers.py
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4f86305036ba59f684e9d85a88f647cbb46d2f43
+    short_sha: 4f86305036
+    authored_at: '2026-10-26T19:42:39+00:00'
+    subject: 'test: enable isolated authored-result web and image flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/ci_voice_recovery_epoch.py
+    - scripts/tests/test_ci_authored_media_recovery_epoch.py
+    - scripts/tests/test_ci_voice_recovery_epoch.py
+    related_feature_ids: []
+  - sha: 612c62f6d2bdcbbebddb2fd4b30e923640538007
+    short_sha: 612c62f6d2
+    authored_at: '2026-10-26T19:34:18+00:00'
+    subject: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/web/tasks/browse_task.py
+    - backend/core/api/app/services/web_browse_pool.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/browser_pool.yml
+    - backend/core/directus/schemas/browser_pool_claims.yml
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/profile_web_browse_startup.py
+    - backend/scripts/test_web_browse_pool_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_pool.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:web
+  - sha: 562c2c854af9c052c86f384aeacedf5d69697da4
+    short_sha: 562c2c854a
+    authored_at: '2026-10-26T19:19:24+00:00'
+    subject: 'fix: correct Python SDK test surface registration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-sdk-header-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 4dd5d8a0551595372a27fe03adf367326c235473
+    short_sha: 4dd5d8a055
+    authored_at: '2026-10-26T19:06:48+00:00'
+    subject: 'docs: plan cloud-first agentic project development'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    related_feature_ids: []
+  - sha: 0da8c0c6d0d6faf742e851cef5c9283f95d14a6a
+    short_sha: 0da8c0c6d0
+    authored_at: '2026-10-26T19:05:31+00:00'
+    subject: 'fix: minimize image sends and render viewed image previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/image-view-preview.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-image-send.spec.ts
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cd3704074a815916ff5f1c88bedf60abea128f2c
+    short_sha: cd3704074a
+    authored_at: '2026-10-26T19:01:17+00:00'
+    subject: 'fix: enforce Brotli protection without blocking web startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/web-brotli-runtime-protection/plan.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/scripts/public-metadata-fetch.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/lib/server/publicMetadataFetch.mjs
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
+    - frontend/apps/web_app/tests/web-runtime-security.spec.ts
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: fced40d294dbce8e56e1d960dccb4d22feee5d57
+    short_sha: fced40d294
+    authored_at: '2026-10-26T18:59:08+00:00'
+    subject: 'perf: evaluate parallel Redact scans and adaptive native limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/comparison-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/executed-generated-host.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/executed-probe-extension.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/feasibility-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/future-dry-preparation-preservation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/future-preparation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/preparation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/public-header-abi-check.log.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/receipt-clarification.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/allocation-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/sanitized-allocation-error.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.2/supervisor-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/allocation-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/sanitized-allocation-error.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/dynamic-shape/runtime-2.3.1/supervisor-result.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-512k-code-doc.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-512k-code-doc.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-1worker-8threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-2workers-4threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-2workers-4threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-512k-code-doc.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-512k-code-doc.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-4workers-2threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-1threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-1threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-2threads-16cpu-scaling.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/fast-8workers-2threads-16cpu-scaling.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/large-document-manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-fits.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-fits.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-rejects.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/memory-300mib-rejects.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/benchmark-parallel.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-experiment/receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/benchmark-parallel.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/build-scratch-cleanup.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/gap-predicate-proof.log.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/gap-predicate-proof.swift
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/parallel-fast-gaps/receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/published-1worker-8threads-all.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/published-1worker-8threads-all.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/resource-policy-validation.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/case-filter-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/fast-support-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/published-control-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/supervisor-history/sixteen-cpu-supervisor.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/measure-validation.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-only.rs.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-proof.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/validator-attribution/validation-result.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/architecture/privacy/redact-parallel-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - scripts/redact_dynamic_shape_probe.py
+    - scripts/redact_dynamic_shape_probe.rs
+    - scripts/redact_large_document_fixtures.py
+    - scripts/redact_large_document_fixtures_test.py
+    - scripts/redact_native_chunk_experiment.py
+    - scripts/redact_native_resource_policy.rs
+    - scripts/redact_parallel_evaluation.py
+    - scripts/redact_parallel_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: f942fed84f105c2205530e31535da98f82bde524
+    short_sha: f942fed84f
+    authored_at: '2026-10-26T18:54:16+00:00'
+    subject: 'fix: register reviewed native full-read and SDK conformance source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-ci-unit-fixture3-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-arrival20-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native5-fixture-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-selected-sdk-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    related_feature_ids: []
+  - sha: 3a4f7aa9751e81474bb5813609ba0c8e1a5bfc88
+    short_sha: 3a4f7aa975
+    authored_at: '2026-10-26T17:52:49+00:00'
+    subject: 'fix: restore web bootstrap on hosted Node runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/tv/app.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    related_feature_ids:
+    - app:tv
+  - sha: 3b54b1d06ae881f3a2339d097938258d14c95f33
+    short_sha: 3b54b1d06a
+    authored_at: '2026-10-26T17:34:13+00:00'
+    subject: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - frontend/apps/web_app/src/lib/actions/fitVisualViewport.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/apps/web_app/tests/composer-mobile-keyboard.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: c5831accf32584b3c149dc3260769140193f2382
+    short_sha: c5831accf3
+    authored_at: '2026-10-26T16:31:07+00:00'
+    subject: 'feat: add source-independent typed result authoring'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/authored_results.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/tests/test_authored_result_api_resolution.py
+    - backend/apps/ai/utils/authored_result_fences.py
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/apps/ai/utils/json_content_fences.py
+    - backend/apps/business/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/hosting/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/tv/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/core/api/Dockerfile
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_authored_result_content.py
+    - backend/tests/test_authored_result_fixture.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_authored_result_service.py
+    - backend/tests/test_authored_result_streaming.py
+    - backend/tests/test_calendar_event_streaming.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_final_stream_delivery.py
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/assistant-authored-result-embeds/fosdem-sources.md
+    - docs/plans/assistant-authored-result-embeds/plan.yml
+    - docs/plans/assistant-authored-result-embeds/verification.md
+    - frontend/apps/web_app/tests/cli-authored-results.spec.ts
+    - frontend/apps/web_app/tests/helpers/cli-ws-metadata-probe.mjs
+    - frontend/apps/web_app/tests/helpers/cli-ws-metadata-probe.test.mjs
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/streamedCanonicalHead.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/services/authoredResultMedia.test.ts
+    - frontend/packages/ui/src/services/authoredResultMedia.ts
+    - frontend/packages/ui/src/types/authoredResult.ts
+    - frontend/packages/ui/src/utils/imageProxy.test.ts
+    - frontend/packages/ui/src/utils/imageProxy.ts
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_authored_result_registry.py
+    - shared/config/authored_result_types.json
+    - specifications/features/tv-title-embeds/examples.yml
+    - specifications/features/tv-title-embeds/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:business
+    - app:code
+    - app:design
+    - app:electronics
+    - app:events
+    - app:fitness
+    - app:health
+    - app:home
+    - app:hosting
+    - app:images
+    - app:jobs
+    - app:maps
+    - app:models3d
+    - app:news
+    - app:nutrition
+    - app:shopping
+    - app:social_media
+    - app:travel
+    - app:tv
+    - app:videos
+    - app:weather
+    - app:web
+    - skill:ai:ask
+  - sha: bd81f9166aed34aad25b78356a83c942a270e6be
+    short_sha: bd81f9166a
+    authored_at: '2026-10-26T16:15:37+00:00'
+    subject: 'fix: retain safe transport classes in authoring diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: 29836d6a6118b1ed691cecf556e382e0d457a6d1
+    short_sha: 29836d6a61
+    authored_at: '2026-10-26T16:12:28+00:00'
+    subject: 'fix: verify browse answers against separate completion criteria'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 510799976d2c0cf0ee8351e477098f063e3cae12
+    short_sha: 510799976d
+    authored_at: '2026-10-26T15:33:53+00:00'
+    subject: 'fix: preserve Browse controllers through idle pause'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: de336c0749fc9a2732d38c554f2353efa6f4589e
+    short_sha: de336c0749
+    authored_at: '2026-10-26T15:24:18+00:00'
+    subject: 'fix: distinguish fixture publication from delivery failure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: 5511bf0680f7e2b5e7f2b622f6f761b7c1c650e9
+    short_sha: 5511bf0680
+    authored_at: '2026-10-26T14:55:10+00:00'
+    subject: 'fix: retain bounded final delivery diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: aada3229942076e3b71f2790dd78e6f7f4169541
+    short_sha: aada322994
+    authored_at: '2026-10-26T14:51:19+00:00'
+    subject: 'fix: wait for resumed Browse ingress and stable observations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/plans/web-browse/measurements.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a11c8a3e9223b98b3fe3d90e78bf35f25399bb4d
+    short_sha: a11c8a3e92
+    authored_at: '2026-10-26T14:11:41+00:00'
+    subject: 'test: evaluate Redact from Rust and document licensing privacy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/desert-ant-privacy-questions-unsent-2026-10-26.md
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/Package.resolved
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/benchmark-chunking.patch
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/boundary-sweep-inputs.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/boundary_probe.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/compare_coverage.py.txt
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/coverage-comparison.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/native-build-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/published-thread-parity.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rebuilt-baseline-parity.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/runtime231-benchmark-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/runtime231-receipt.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry0-2cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry0-2cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry1-2cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-boundary150-carry1-2cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe-disconnected.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe-disconnected.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-default-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-default-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-default-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-threads2-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-2cpu-threads2-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-8cpu-threads8-full.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-published-8cpu-threads8-full.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry0-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry0-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt150-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt300-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt300-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt600-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-rebuilt600-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-runtime231-150-carry1-8cpu.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-runtime231-150-carry1-8cpu.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads1-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads1-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads2-2cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads2-2cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads8-8cpu-probe.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/rust-threads8-8cpu-probe.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact-rust/validation.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/architecture/privacy/redact-rust-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - scripts/redact_native_chunk_experiment.py
+    - scripts/redact_rust_evaluation.py
+    - scripts/redact_rust_evaluation.rs
+    - scripts/redact_rust_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5a6e9244a3729c37fc26f55bd69032f20ddd67aa
+    short_sha: 5a6e9244a3
+    authored_at: '2026-10-26T14:08:59+00:00'
+    subject: 'fix: settle Browse windows and resume paused sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_dispatch.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 24dd88b5ea846d649a15c36e8c06f36bed7613c4
+    short_sha: 24dd88b5ea
+    authored_at: '2026-10-26T13:45:49+00:00'
+    subject: 'fix: remove empty failed call chats with guarded sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallEmptyChatCleanup.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallEmptyChatCleanup.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c96894ed558d54dc582d4436ebcb805324e39b67
+    short_sha: c96894ed55
+    authored_at: '2026-10-26T13:42:20+00:00'
+    subject: 'fix: locate the E2B browser at runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1e1e71d99e1e0f8afe7258a0c01500dc0c66cee6
+    short_sha: 1e1e71d99e
+    authored_at: '2026-10-26T13:20:42+00:00'
+    subject: 'test: retain authored result recovery failure diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: 1c973f272300bc916e870fd51b410857ea8d1e27
+    short_sha: 1c973f2723
+    authored_at: '2026-10-26T13:19:33+00:00'
+    subject: 'ci: admit guarded Rust browser previews and preserve SDK checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_coverage.py
+    - scripts/ci_results.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-browser45-delta.json
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    related_feature_ids: []
+  - sha: 77b3ebf9f3178255c772225234dbead3e194835f
+    short_sha: 77b3ebf9f3
+    authored_at: '2026-10-26T13:18:19+00:00'
+    subject: 'fix: preserve photo drafts after send failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: bd333ac5dbbfd50689e81123248dd911a22fb36e
+    short_sha: bd333ac5db
+    authored_at: '2026-10-26T13:10:37+00:00'
+    subject: 'fix: pin Browse HTTPS transport and account native usage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_google_thinking_profiles.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - docs/architecture/apps/web-browse.md
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 2ed54c9f5d39b9d5cc0b4efb01d4ae083dc0dbd0
+    short_sha: 2ed54c9f5d
+    authored_at: '2026-10-26T13:01:44+00:00'
+    subject: 'fix: preserve draft content during voice recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputRecordingDraftPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputRecordingDraftPreviewHarness.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: db23c04c87f12018f2c6189c84889d0598a5a1c1
+    short_sha: db23c04c87
+    authored_at: '2026-10-26T12:55:53+00:00'
+    subject: 'ci: register selected Rust recovery without inventory authority'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-selected-cli-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    related_feature_ids: []
+  - sha: 3d7a101569336a006121cc8979e027cbb31520fe
+    short_sha: 3d7a101569
+    authored_at: '2026-10-26T12:54:43+00:00'
+    subject: 'test: retain nested voice cleanup failure windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    related_feature_ids: []
+  - sha: e7cb2acd47df8d4a640adc3852b7569592560081
+    short_sha: e7cb2acd47
+    authored_at: '2026-10-26T12:47:04+00:00'
+    subject: 'test: isolate the approved empty call cleanup case'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    related_feature_ids: []
+  - sha: de1e16940b80a030a94d4792eec6809f19861f3f
+    short_sha: de1e16940b
+    authored_at: '2026-10-26T12:39:24+00:00'
+    subject: 'ci: attribute native SDK first-page failures safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-first-page-npm-diagnostic-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_ci_sdk_first_page_npm_diagnostics.py
+    related_feature_ids: []
+  - sha: f98d62f3f6d5ed6db3c9f10d8fd5c9be8f8999ca
+    short_sha: f98d62f3f6
+    authored_at: '2026-10-26T12:23:21+00:00'
+    subject: 'docs: record the managed Brotli runtime security blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-web-brotli-2026-10-26/manifest.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/vercel-brotli-runtime-support-draft-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    related_feature_ids: []
+  - sha: eedefb69cd0ccb30151e7f7c2674c35ea6bb5d45
+    short_sha: eedefb69cd
+    authored_at: '2026-10-26T12:15:19+00:00'
+    subject: 'feat: add bounded E2B Browse execution and JSON results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/base_app.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/browse_skill.py
+    - backend/apps/web/tasks/__init__.py
+    - backend/apps/web/tasks/browse_task.py
+    - backend/core/api/app/routes/tasks_api.py
+    - backend/core/api/app/routes/web_browse.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/web_browse_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/browser_runs.yml
+    - backend/core/directus/schemas/browser_sessions.yml
+    - backend/scripts/build_web_browse_template.py
+    - backend/scripts/test_web_browse_runtime.py
+    - backend/shared/providers/browser_models.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/shared/python_schemas/web_browse.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/shared/python_utils/strict_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/shared/python_utils/web_browse_dispatch.py
+    - backend/tests/test_web_browse_models.py
+    - backend/tests/test_web_browse_safety.py
+    - backend/tests/test_web_browse_service.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/plan.yml
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/web.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/app-skills/web-browse/examples.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+    - embed:web:browse
+    - platform:tasks
+    - skill:web:browse
+  - sha: 929203c4454c663eec131f084da011dcb3761dce
+    short_sha: 929203c445
+    authored_at: '2026-10-26T12:06:31+00:00'
+    subject: 'fix: expose safe runtime versions in Brotli startup failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    related_feature_ids: []
+  - sha: 8cd2ec444a77467f4f4a8408d1504fcae2baa7d9
+    short_sha: 8cd2ec444a
+    authored_at: '2026-10-26T11:56:18+00:00'
+    subject: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight-final.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight-final.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/private-build.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - scripts/redact_brotli_guard.py
+    - scripts/redact_linux_evaluation.mjs
+    - scripts/redact_linux_evaluation.py
+    - scripts/redact_linux_evaluation.test.mjs
+    - scripts/redact_linux_evaluation_test.py
+    related_feature_ids: []
+  - sha: 871960ea232e2b665ceb8d2912e44e3f2e2d2528
+    short_sha: 871960ea23
+    authored_at: '2026-10-26T11:37:03+00:00'
+    subject: 'fix: initialize voice call cleanup schema'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/tests/test_empty_call_cleanup_schema.py
+    related_feature_ids: []
+  - sha: 7a47fbcd10db8ca3969f77a6a5508d0ed834be50
+    short_sha: 7a47fbcd10
+    authored_at: '2026-10-26T11:21:15+00:00'
+    subject: 'test: enable recovery for authored result CLI checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: dc7a2924196f68cf692a231bd184772ba1212a5d
+    short_sha: dc7a292419
+    authored_at: '2026-10-26T11:13:37+00:00'
+    subject: 'fix: authorize empty voice call cleanup atomically'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/draft_scope.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/update_chat_pinned_handler.py
+    - backend/core/api/app/routes/ideabucket.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/directus/chat_model_preference_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
+    - backend/tests/test_ai_chat_model_preferences.py
+    - backend/tests/test_call_cleanup_admission.py
+    - backend/tests/test_cross_client_draft_sync.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_empty_call_cleanup_connections.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_voice_call_protocol.py
+    - docs/plans/voice-call-empty-cleanup/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d0b63e7fc24752caff675fd626fd316b05922c7f
+    short_sha: d0b63e7fc2
+    authored_at: '2026-10-26T11:02:03+00:00'
+    subject: 'feat: trial offline Redact detection in the dev web composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.partial.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core-tail.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core.progress.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-2core.supervisor.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/quality-rescore.json
+    - docs/architecture/privacy/evaluations/2026-10-26-redact/quality-summary.json
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-linux-evaluation-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIFallbackNotice.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIMatches.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - frontend/packages/ui/src/components/enter_message/services/webPIIFallbackNotice.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/pii.yml
+    - frontend/packages/ui/src/stores/__tests__/pendingUploadStore.test.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - scripts/redact_linux_evaluation.mjs
+    - scripts/redact_linux_evaluation.py
+    - scripts/redact_linux_evaluation.test.mjs
+    - scripts/redact_linux_evaluation_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  status: deterministic
+  overview: Deterministic release summary generated from 53 structured change items.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: 'feat: add Browse session embeds and user takeover'
+    evidence:
+      commits:
+      - 970c0d6799
+    release_status: dev_only
+  - text: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    evidence:
+      commits:
+      - 612c62f6d2
+    release_status: dev_only
+  - text: 'feat: add source-independent typed result authoring'
+    evidence:
+      commits:
+      - c5831accf3
+    release_status: dev_only
+  - text: 'feat: add bounded E2B Browse execution and JSON results'
+    evidence:
+      commits:
+      - eedefb69cd
+    release_status: dev_only
+  - text: 'feat: trial offline Redact detection in the dev web composer'
+    evidence:
+      commits:
+      - d0b63e7fc2
+    release_status: dev_only
+  - text: 'fix: clarify selected authored-result correction guidance'
+    evidence:
+      commits:
+      - 2c3c25cad3
+    release_status: dev_only
+  - text: 'fix: preserve chat retry identity and encrypted code context'
+    evidence:
+      commits:
+      - 2548fa4084
+    release_status: dev_only
+  - text: 'fix: align new-chat voice-call controls and remove helper text'
+    evidence:
+      commits:
+      - fbeb720115
+    release_status: dev_only
+  - text: 'fix: match composer attachment icons to microphone gradient'
+    evidence:
+      commits:
+      - 95ad8b8bae
+    release_status: dev_only
+  - text: 'fix: retain image viewing for conversational upload requests'
+    evidence:
+      commits:
+      - 49190d5a70
+    release_status: dev_only
+  - text: 'fix: preserve voice thinking pauses and improve call delivery'
+    evidence:
+      commits:
+      - 09d92f3325
+    release_status: dev_only
+  - text: 'fix: minimize image sends and render viewed image previews'
+    evidence:
+      commits:
+      - 0da8c0c6d0
+    release_status: dev_only
+  internal_progress:
+  - text: 'fix: distinguish native setup failures from disk refusals'
+    evidence:
+      commits:
+      - 07f1b80e6b
+    release_status: dev_only
+  - text: 'fix: register Rust client compiler and publication guard repairs'
+    evidence:
+      commits:
+      - 0190d5733d
+    release_status: dev_only
+  - text: 'fix: log closed migration CI failure stages'
+    evidence:
+      commits:
+      - 2e50fd0ed6
+    release_status: dev_only
+  - text: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
+    evidence:
+      commits:
+      - 7ab11940f5
+    release_status: dev_only
+  - text: 'fix: extract verified Browse answers when no output schema is supplied'
+    evidence:
+      commits:
+      - 46e7c36a23
+    release_status: dev_only
+  - text: 'fix: verify quoted Browse results against checked page evidence'
+    evidence:
+      commits:
+      - 5d2048a5f7
+    release_status: dev_only
+  - text: 'fix: correct Python SDK test surface registration'
+    evidence:
+      commits:
+      - 562c2c854a
+    release_status: dev_only
+  - text: 'fix: register reviewed native full-read and SDK conformance source'
+    evidence:
+      commits:
+      - f942fed84f
+    release_status: dev_only
+  - text: 'fix: retain safe transport classes in authoring diagnostics'
+    evidence:
+      commits:
+      - bd81f9166a
+    release_status: dev_only
+  - text: 'fix: verify browse answers against separate completion criteria'
+    evidence:
+      commits:
+      - 29836d6a61
+    release_status: dev_only
+  - text: 'fix: preserve Browse controllers through idle pause'
+    evidence:
+      commits:
+      - 510799976d
+    release_status: dev_only
+  - text: 'fix: distinguish fixture publication from delivery failure'
+    evidence:
+      commits:
+      - de336c0749
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: 'feat: add Browse session embeds and user takeover'
+      evidence:
+        commits:
+        - 970c0d6799
+      reason: Not classified as ready for public communication.
+    - text: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+      evidence:
+        commits:
+        - 612c62f6d2
+      reason: Not classified as ready for public communication.
+    - text: 'feat: add source-independent typed result authoring'
+      evidence:
+        commits:
+        - c5831accf3
+      reason: Not classified as ready for public communication.
+    - text: 'feat: add bounded E2B Browse execution and JSON results'
+      evidence:
+        commits:
+        - eedefb69cd
+      reason: Not classified as ready for public communication.
+    - text: 'feat: trial offline Redact detection in the dev web composer'
+      evidence:
+        commits:
+        - d0b63e7fc2
+      reason: Not classified as ready for public communication.
+    - text: 'fix: clarify selected authored-result correction guidance'
+      evidence:
+        commits:
+        - 2c3c25cad3
+      reason: Not classified as ready for public communication.
+    - text: 'fix: preserve chat retry identity and encrypted code context'
+      evidence:
+        commits:
+        - 2548fa4084
+      reason: Not classified as ready for public communication.
+    - text: 'fix: align new-chat voice-call controls and remove helper text'
+      evidence:
+        commits:
+        - fbeb720115
+      reason: Not classified as ready for public communication.
+    - text: 'fix: match composer attachment icons to microphone gradient'
+      evidence:
+        commits:
+        - 95ad8b8bae
+      reason: Not classified as ready for public communication.
+    - text: 'fix: retain image viewing for conversational upload requests'
+      evidence:
+        commits:
+        - 49190d5a70
+      reason: Not classified as ready for public communication.
+    - text: 'fix: preserve voice thinking pauses and improve call delivery'
+      evidence:
+        commits:
+        - 09d92f3325
+      reason: Not classified as ready for public communication.
+    - text: 'fix: minimize image sends and render viewed image previews'
+      evidence:
+        commits:
+        - 0da8c0c6d0
+      reason: Not classified as ready for public communication.
+    rationale: Only deterministically released and communication-ready items are included.
+  social_video_recommendations: []
+  quality_notes:
+  - Generated without LLM interpretation; review grouped commit titles before publication.
+  validation_warnings: []

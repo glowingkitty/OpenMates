@@ -8,9 +8,9 @@ import CryptoKit
 final class NativeEmbedMemoryActionTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=app-memories.surface.semantic-parity
     func testFiveFamiliesBuildCanonicalKeysAndPayloadsAndExcludeSearchParents() throws {
-        let event = try XCTUnwrap(NativeEmbedMemoryConfig.config(type: .eventsEvent, embedID: "event-child", content: ["id": "event-42", "title": "Public event", "provider": "meetup", "venue_city": "Berlin", "venue_country": "Germany"]))
+        let event = try XCTUnwrap(NativeEmbedMemoryConfig.config(type: .eventsEvent, embedID: "event-child", content: ["id": "event-42", "title": "Public event", "provider": "Gathering", "venue_city": "Berlin", "venue_country": "Germany"]))
         XCTAssertEqual(event.appID, "events"); XCTAssertEqual(event.itemKey, "saved_events.event-42")
-        XCTAssertEqual(event.fields["provider"], .string("Meetup")); XCTAssertEqual(event.fields["location"], .string("Berlin, Germany"))
+        XCTAssertEqual(event.fields["provider"], .string("Gathering")); XCTAssertEqual(event.fields["location"], .string("Berlin, Germany"))
         let health = try XCTUnwrap(NativeEmbedMemoryConfig.config(type: .healthAppointment, embedID: "health-child", content: ["name": "Public doctor", "speciality": "General", "booking_url": "https://example.invalid/book", "slot_datetime": "2026-10-04T00:30:00+02:00"]))
         XCTAssertEqual(health.itemKey, "appointments.https://example.invalid/book.2026-10-04T00:30:00+02:00")
         XCTAssertEqual(health.fields["date"], .string("2026-10-03")); XCTAssertEqual(health.fields["where"], .string("Public doctor · General"))

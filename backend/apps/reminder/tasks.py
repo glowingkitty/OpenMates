@@ -46,6 +46,7 @@ REMINDER_TASK_TEMPLATE = "[Scheduled Reminder — Task Triggered]\n\nTask: {prom
 REMINDER_NOTIFICATION_PROFILE_FIELDS = [
     "email_notifications_enabled",
     "email_notification_preferences",
+    "email_notification_preference_choices",
     "encrypted_notification_email",
     "vault_key_id",
     "language",
@@ -350,6 +351,47 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                         "target_embed_title": prompt.replace("Reminder: ", "", 1)[:100],
                     })
 
+                notification_context = None
+                preview_url = None
+                email_chat_id = target_chat_id
+                try:
+                    from backend.core.api.app.services.reminder_notification_context import (
+                        normalize_notification_context, resolve_reminder_source_chat,
+                    )
+                    encrypted_context = reminder.get("encrypted_notification_context")
+                    stored_context = {}
+                    if encrypted_context:
+                        stored_context = json.loads(await encryption_service.decrypt_with_user_key(
+                            ciphertext=encrypted_context, key_id=vault_key_id,
+                        ))
+                        notification_context = normalize_notification_context({
+                            key: value for key, value in stored_context.items() if not key.startswith("_")
+                        })
+                    if target_type == "embed":
+                        email_chat_id = reminder.get("created_in_chat_id")
+                        if not email_chat_id and reminder.get("encrypted_created_in_chat_id"):
+                            email_chat_id = await encryption_service.decrypt_with_user_key(
+                                ciphertext=reminder["encrypted_created_in_chat_id"], key_id=vault_key_id,
+                            )
+                        # Fresh authorization is required even for an old cached
+                        # source; legacy IDs are resolved once from owned metadata.
+                        email_chat_id = await resolve_reminder_source_chat(
+                            directus_service, user_id, chat_id=email_chat_id, embed_id=target_embed_id,
+                        )
+                    token = stored_context.get("_preview_token")
+                    if notification_context and token:
+                        from backend.shared.python_utils.frontend_url import get_api_base_url
+
+                        preview_url = f"{get_api_base_url()}/v1/email/reminder-preview/{reminder_id}/{token}.png"
+                    if notification_context and not chat_title:
+                        chat_title = notification_context["title"]
+                except Exception as context_error:
+                    logger.warning("Reminder email context unavailable (%s)", type(context_error).__name__)
+                    # Do not fabricate a private source or send a broken None URL.
+                    # Existing saved text remains useful; the email renderer can
+                    # preserve an exact standalone legacy embed destination.
+                    preview_url = None
+
                 # WebSocket delivery
                 try:
                     await task.publish_websocket_event(
@@ -375,11 +417,15 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                         user_id=user_id,
                         reminder_prompt=prompt,
                         trigger_time=format_reminder_time(current_time, timezone),
-                        chat_id=target_chat_id,
+                        chat_id=email_chat_id,
                         chat_title=chat_title,
                         is_new_chat=(target_type == "new_chat"),
                         directus_service=directus_service,
                         encryption_service=encryption_service,
+                        notification_context=notification_context,
+                        target_embed_id=target_embed_id,
+                        preview_url=preview_url,
+                        reminder_id=reminder_id,
                     )
                 except Exception as email_error:
                     logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
@@ -743,11 +789,15 @@ async def _send_reminder_email_notification(
     user_id: str,
     reminder_prompt: str,
     trigger_time: str,
-    chat_id: str,
+    chat_id: str | None,
     chat_title: str | None,
     is_new_chat: bool,
     directus_service,
     encryption_service,
+    notification_context: dict | None = None,
+    target_embed_id: str | None = None,
+    preview_url: str | None = None,
+    reminder_id: str | None = None,
 ) -> bool:
     """
     Send an email notification for a fired reminder.
@@ -805,6 +855,13 @@ async def _send_reminder_email_notification(
 
         language = user_profile.get("language", "en")
         darkmode = user_profile.get("darkmode", False)
+        from backend.core.api.app.services.reminder_notification_context import reminder_email_content_allowed
+
+        if not reminder_email_content_allowed(user_profile):
+            reminder_prompt = ""
+            chat_title = None
+            notification_context = None
+            preview_url = None
 
         app.send_task(
             name='app.tasks.email_tasks.reminder_notification_email_task.send_reminder_notification',
@@ -817,6 +874,10 @@ async def _send_reminder_email_notification(
                 "is_new_chat": is_new_chat,
                 "language": language,
                 "darkmode": darkmode,
+                "notification_context": notification_context,
+                "target_embed_id": target_embed_id,
+                "preview_url": preview_url,
+                "reminder_id": reminder_id,
             },
             queue='email'
         )

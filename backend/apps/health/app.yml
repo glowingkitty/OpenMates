@@ -1,12 +1,5 @@
 landing:
-  order: 4
-  capability:
-    type: skill
-    id: search_appointments
-  caption:
-    en: Find doctor appointments
-    de: Finde Arzttermine
-  example_chat_id: example-berlin-english-speaking-gp
+  enabled: false
 
 name_translation_key: health
 description_translation_key: health.description
@@ -17,6 +10,9 @@ last_updated: "2026-08-06"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_appointments
+    authoring:
+      kind: health.appointment
+      schema_id: health.appointment
     category: app-skill-use
     skill_id: search_appointments
     frontend_type: app-skill-use
@@ -207,9 +203,7 @@ settings_and_memories:
           description: HH:MM time when user woke up in 24-hour format
         sleep_duration_hours:
           type: number
-          description:
-            Total hours of sleep (can be calculated from bedtime/wake_time
-            or manually entered)
+          description: Total hours of sleep (can be calculated from bedtime/wake_time or manually entered)
         sleep_quality:
           type: string
           enum:
@@ -220,9 +214,8 @@ settings_and_memories:
           description: Overall sleep quality rating
         notes:
           type: string
-          description:
-            Additional notes about the sleep period (dreams, restlessness,
-            specific disturbances, etc.)
+          description: Additional notes about the sleep period (dreams, restlessness, specific disturbances,
+            etc.)
           multiline: true
       required:
         - date
@@ -232,23 +225,15 @@ skills:
     name_translation_key: app_skills.health.search_appointments
     description_translation_key: app_skills.health.search_appointments.description
     icon_image: calendar.svg
-    preprocessor_hint: >
-      Search available medical appointments at German doctors/specialists by speciality and city.
-      Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist,
-      gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations,
-      check-ups, blood tests, and other examinations.
-      Note: "Termin" in a medical context means appointment, not event — route here instead of events-search.
-      Sources: Doctolib, Jameda (Germany only).
+    preprocessor_hint: >-
+      Appointment search is currently unavailable because no permitted provider is configured. Report this limitation;
+      do not attempt alternate provider access.
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
         credits: 20
         unit_name: request
-    providers:
-      - name: Doctolib
-        no_api_key: true
-      - name: Jameda
-        no_api_key: true
+    providers: []
     exclude_fields_for_llm:
       - type
       - hash
@@ -299,16 +284,8 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: >
-                  Booking platform to search. "both" (default) searches Doctolib and
-                  Jameda in parallel and merges results sorted by soonest slot.
-                  "doctolib_de" for Doctolib Germany only. "jameda" for Jameda Germany
-                  only (includes ratings, prices, direct booking URLs).
-                enum:
-                  - both
-                  - doctolib_de
-                  - jameda
-                default: both
+                description: >-
+                  Optional source identifier; search is currently unavailable.
               insurance_sector:
                 x-ui:
                   basic: true
@@ -341,10 +318,8 @@ skills:
                 x-ui:
                   basic: true
                 type: integer
-                description: >
-                  How many days ahead to search for appointments. Must be one of
-                  1, 3, or 7 (Doctolib API caps availability queries at 7 days).
-                  Defaults to 7.
+                description: >-
+                  Search is currently unavailable without a permitted provider.
                 enum:
                   - 1
                   - 3
@@ -385,21 +360,9 @@ skills:
       required:
         - requests
 
-  - id: create_report
-    anonymous_access: authenticated
-    name_translation_key: health.create_report
-    description_translation_key: health.create_report.description
 
-focuses:
-  - id: prepare_doctor_report
-    name_translation_key: health.prepare_doctor_report
-    description_translation_key: health.prepare_doctor_report.description
-  - id: health_insights
-    name_translation_key: health.health_insights
-    description_translation_key: health.health_insights.description
-  - id: prepare_doctor_appointment
-    name_translation_key: health.prepare_doctor_appointment
-    description_translation_key: health.prepare_doctor_appointment.description
+    provider_required: true
+focuses: []
 
 marketing_discovery:
   skills:

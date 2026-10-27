@@ -1,0 +1,122 @@
+schema_version: 2
+profile: concise
+id: llm-cache-nested-chats
+title: Direct Baseten and correct provider caching throughout nested chats
+status: verified
+goal: >-
+  We need to add the 4.1 Flash model from DeepSeek and support for Baseten when
+  an API key is available. Caching has to work, including OpenRouter cache-hit
+  usage details and correct billing for sub-chats and sub-chats in sub-chats.
+task: TASK-3871
+session: b26c
+authorization: User explicitly requested implementation on 2026-10-25 after the provider and cache-scope audit.
+contract_refs:
+  - specifications/features/billing/specification.yml#billing.usage.receipt-token-breakdown
+  - specifications/features/chats/specification.yml
+scope:
+  - Retain direct Baseten and use live-verified Together as the DeepSeek V4.1 Flash primary, with OpenRouter fallback.
+  - Preserve reported usage and usage-only terminal events across all compatible providers; never invent cache hits.
+  - Admit authenticated orchestrated parent/child/grandchild cache tariffs while retaining native replay and summary-charge boundaries.
+  - Preserve root reservation limits, attribution, idempotency and encrypted receipts.
+  - Document provider-specific cache support, tariff eligibility and verified limitations.
+checks:
+  required:
+    - Focused local provider transport, normalization, nested reservation and receipt arithmetic tests.
+    - Isolated GitHub product regression coverage for cache receipts and nested attribution.
+    - Catalog/metadata generation, relevant lint, Plan and existing contract validation.
+constraints:
+  - OpenMates chat tests retain automatic routing with no account/model/provider overrides.
+  - Real inference runs only on isolated dev state; no paid inference in CI.
+  - No raw prompt/response or credential logging in the new provider.
+  - No new workflow, Spec Navigator or cloud coding runner work.
+provider_contract:
+  reviewed_on: '2026-10-25'
+  permission_source: https://www.baseten.co/terms-and-conditions/
+  api_documentation: https://docs.baseten.co/reference/inference-api/chat-completions
+  privacy_policy: https://www.baseten.co/privacy-policy/
+  endpoints:
+    - POST https://inference.baseten.co/v1/chat/completions; Bearer API key; documented OpenAI-compatible messages/tools/reasoning; SSE with final usage.
+    - GET https://inference.baseten.co/v1/models; Bearer API key; non-billable credential/catalog health check.
+  usage: Inclusive prompt/completion totals, optional cached input/write/reasoning counters, actual request identity and inference host.
+  affinity: Opaque owner-scoped root chat identity, shared across descendants, never raw user identifiers.
+  failures: Bounded 429 retry before execution only; no silent partial-stream replay; existing logical-model fallback handles unavailable keys/hosts.
+  pricing: Verified host-specific supplier costs and customer cache rates; missing counters remain unknown.
+  retention: Existing client encryption unchanged; synchronous Model APIs document zero data retention, with automatic transient KV caching. Shared regions are not fixed residency guarantees.
+
+verification:
+  reviewed_on: '2026-10-25'
+  focused_backend: Initial cache suite 240 passed; orchestration suite 216 passed plus 22 transaction tests; subsequent Together suite 101 passed. Counts overlap and are not a summed unique total.
+  lint: Scoped Python, TypeScript and YAML lint passed; generated model/provider metadata, training disclosures and locales refreshed.
+  isolated_product:
+    source: 4cc87f9cc16b2e05fb2e4857021240c6f9127230
+    coordinator_job: 0ad2e06494769d093ed6be780ebe68725ef6d40a6532d27f481157175dea7b13
+    github_run: https://github.com/glowingkitty/OpenMates/actions/runs/40188591963
+    result: Passed without retry or skips; root/child/grandchild ledger settlement across Together, OpenRouter and Baseten, encrypted owner receipts, replay idempotency, maximum depth and saved descendant admission; controlled counters, no paid inference.
+  admission_review: Existing credit admission and native transcript rollout remain on the standalone scope; only verified customer tariff eligibility extends to authenticated orchestration.
+  live_provider:
+    baseten_credential_configured: false
+    inference_requests: 0
+    limitation: Live Baseten cache-hit measurement requires a configured API key; a deterministic accounting test is not evidence of a provider cache hit.
+
+live_validation:
+  requested_by_user: '2026-10-25; direct Baseten deferred until its key is configured'
+  report: docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+  provider_hosts_with_real_cache_hits: 11
+  provider_model_paths_with_real_cache_hits: 12
+  replay_or_mock_usage: false
+  direct_provider_attempts: 31
+  app_routing: Existing automatic routing; no model/provider overrides or account model-default changes.
+  parent_child_billing: Passed through real grandchildren; fourteen independently repriced receipts total 813 credits, wallet 1000 to 187, new nested orchestration 417 spent and zero reserved.
+  grandchild: Passed after the approved fix; real depth-two child completed, then child and root synthesis completed. Current CLI recovered all 15 encrypted outputs with zero pending acknowledgements.
+  child_followup: Passed live after the fix; fresh saved-child turn completed and billed 64 credits at physical depth one under the original root.
+  orchestration_fix_authorization: User approved both gaps and explicitly required maximum root-child-grandchild depth on 2026-10-25.
+  orchestration_fix_scope:
+    - Offer delegation to admitted initial depth-one children despite classifier rejection, preserving terminal grandchildren and continuations.
+    - Admit saved descendant user turns as ordinary fresh work, rederive immutable physical ancestry at every worker delivery and checkpoint restoration, retain original root billing attribution.
+    - Reject descendant re-rooting and depth-three preparation in the authoritative transaction layer, including legacy larger max_depth values.
+  orchestration_fix_verification: 216 Python tests and 22 transaction tests passed; isolated product run 40186494953 passed; real automatic-routing nested execution, saved child turn and grandchild no-spawn turn passed.
+  grandchild_user_turn: Passed; no delegation tool or spawn events, physical depth two, charge 51 credits, database has no depth-three descendants.
+  final_billing: Fourteen unique independently repriced receipts total 813; wallet 1000 to 187; held credits and orchestration reservations zero.
+  cli_recovery: Installed release predates existing 51d45817f3 fix; current-source CLI recovered the same saved outputs without new inference, 15 acknowledged and zero pending.
+
+together_primary_validation:
+  authorized: User requested brief live Together validation before making it primary on 2026-10-25.
+  snapshot: deepseek-ai/DeepSeek-V4.1-Flash-1017
+  source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
+  documentation: https://docs.together.ai/docs/inference/chat/prompt-caching
+  initial_text_calls: 2
+  initial_cold_cached_tokens: 0
+  initial_warm_cached_tokens: 11008
+  initial_warm_input_tokens: 11098
+  initial_warm_elapsed_seconds: 0.386
+  updated_adapter_text_calls: 2
+  updated_adapter_effort: 1
+  updated_adapter_warm_cached_tokens: 11008
+  updated_adapter_warm_elapsed_seconds: 0.320
+  tool_roundtrip_requests: 2
+  tool_calls_completed: 1
+  tool_followup_cached_tokens: 6272
+  tool_followup_input_tokens: 6364
+  mock_or_replay: false
+  throughput_limit: Brief responses validate function and cache counters; they do not establish advertised sustained tokens per second.
+  routing: Together primary; reviewed Baseten snapshot through OpenRouter first fallback; optional direct Baseten remains available afterward.
+  pricing: Shared customer tariff unchanged; actual Together cached supplier cost is USD 0.006 per million, Baseten and pinned gateway cost USD 0.007.
+
+final_runtime:
+  deployed_commit: dd9e7cf18318225c5d8405a77efc12ea8d555fee
+  source_backend_tree: e7a7df72b3903f2836655e3ad8ed4ec2598d75cd
+  api_and_workers_healthy: true
+  loaded_primary: together
+  loaded_fallback_order: [openrouter, baseten]
+  loaded_cache_hosts: [together, openrouter, baseten]
+  together_adapter_sha256: 5dec685a8a702f43e092bca47ea573fbfba6f1cfae24156364141fe6c7ed70c8
+  private_current_cli_build: Built successfully; recovered saved nested output without repeating inference.
+
+completion:
+  task: TASK-3871
+  reviewed_on: '2026-10-25'
+  plan_verification: Passed complete phase; direct Baseten inference remains explicitly deferred by the user.
+  final_isolated_run: https://github.com/glowingkitty/OpenMates/actions/runs/40188591963
+  frontend_webapp_build: success
+  frontend_website_build: success
+  remaining_product_work: None within the accepted provider, cache billing and bounded orchestration preparation scope.

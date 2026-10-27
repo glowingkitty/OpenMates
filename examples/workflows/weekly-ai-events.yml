@@ -1,7 +1,7 @@
-# Replace Berlin before enabling. Sunday 09:00 is an editable example time.
-# Dates resolve at execution to the next Monday–Sunday in the schedule timezone.
-title: AI events next week
-description: Discover the upcoming calendar week's AI events every Sunday.
+# Choose a supported official conference and topic before enabling.
+# Sunday 09:00 is an editable example time.
+title: Conference sessions each week
+description: Search the selected official conference schedule every Sunday.
 start_when:
   schedule:
     type: weekly
@@ -14,20 +14,14 @@ steps:
     use_app_skill: events.search
     input:
       requests:
-        - query: AI
-          providers: [Luma, Eventbrite]
-          location: Berlin
-          event_type: PHYSICAL
-          start_date:
-            $date: next_week_start
-          end_date:
-            $date: next_week_end
+        - query: security
+          conference: 39C3
           count: 10
   - id: report
     send_chat_message:
-      title: AI events for the upcoming week
+      title: Conference sessions
       blocks:
         - id: events
-          label: Newly found AI events
+          label: Newly found conference sessions
           source: $nodes.events.output.results
           only_new_results: true

@@ -9,8 +9,11 @@
 /** Default props — shows a fullscreen image generation view (without actual image data) */
 const defaultProps = {
 	prompt: 'A serene mountain landscape at sunset with vibrant orange and purple skies',
+	embedId: '22222222-2222-4222-8222-222222222222',
+	filename: 'mountain_landscape.png',
 	model: 'flux-schnell',
-	aspectRatio: '16:9',
+	previewImageUrl: '/images/examples/group1.jpg',
+	aspect_ratio: '16:9',
 	status: 'finished',
 	skillId: 'generate' as const,
 	generatedAt: '2026-02-17T10:30:00Z',
@@ -26,7 +29,9 @@ export const variants = {
 	completePrompt: {
 		...defaultProps,
 		prompt: 'An observatory on a windswept coast, blue-hour fog, copper telescope, and three bright stars above the horizon',
-		model: 'google/gemini-3-pro-image-preview'
+		model: 'google/gemini-3-pro-image-preview',
+		provider: 'Google',
+		filename: 'observatory_coast.png'
 	},
 	/** With navigation arrows */
 	withNavigation: {
@@ -61,7 +66,7 @@ export const variants = {
 	/** Square aspect ratio */
 	square: {
 		...defaultProps,
-		aspectRatio: '1:1',
+		aspect_ratio: '1:1',
 		prompt: 'A detailed portrait of a robot reading a book in a cozy library'
 	}
 };

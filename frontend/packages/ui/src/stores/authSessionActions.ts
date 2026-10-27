@@ -18,6 +18,8 @@ import { chatDB } from "../services/db"; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { locale } from "svelte-i18n";
+import { applyAccountLanguage, getCurrentLanguage } from "../i18n/setup";
+import { readBrowserPreference } from "@repo/public-site/languagePreference";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
 import {
@@ -570,10 +572,8 @@ async function performAuthCheck(
         // the browser locale and never corrected). If the user explicitly
         // chose a language locally (stored in localStorage.preferredLanguage),
         // push it to the server so they stay in sync.
-        const rawLocalLanguage =
-          typeof localStorage !== "undefined"
-            ? localStorage.getItem("preferredLanguage")
-            : null;
+        const languagePreference = readBrowserPreference();
+        const rawLocalLanguage = languagePreference?.mode === 'manual' ? languagePreference.language : null;
         // Validate localStorage value against supported locales (OPE-39: prevents
         // invalid values like "cs-CZ" from being pushed to the server)
         const localPreferredLanguage =
@@ -626,9 +626,8 @@ async function performAuthCheck(
             .catch(() => {
               /* non-fatal */
             });
-        } else if (userLanguage && userLanguage !== get(locale)) {
-          console.debug(`Applying user language from session: ${userLanguage}`);
-          locale.set(userLanguage);
+        } else if (userLanguage) {
+          await applyAccountLanguage(userLanguage);
         }
 
         // Use reconciled language (local takes priority if it differs)
@@ -637,7 +636,7 @@ async function performAuthCheck(
           localPreferredLanguage !== userLanguage &&
           data.user.language
             ? localPreferredLanguage
-            : userLanguage;
+            : getCurrentLanguage();
 
         updateProfile({
           user_id: data.user.id || null,
@@ -1254,16 +1253,8 @@ async function performAuthCheck(
           isInSignupProcess.set(false);
         }
 
-        // Apply language from local profile if available
-        if (localProfile.language) {
-          const currentLocale = get(locale);
-          if (localProfile.language !== currentLocale) {
-            console.debug(
-              `[AuthSessionActions] Applying local user language: ${localProfile.language}`,
-            );
-            locale.set(localProfile.language);
-          }
-        }
+        // Use the same explicit/automatic policy as the first render and warm its local cache.
+        if (localProfile.language) await applyAccountLanguage(localProfile.language);
 
         return true; // Return true to indicate optimistic authentication
       } else {

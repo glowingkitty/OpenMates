@@ -178,3 +178,10 @@ established_chats:
       header_mode: normal
       title_source: existing_chat_metadata
       route_behavior: unchanged
+
+keyless_draft_sync:
+- id: expected-personal-draft-shell-never-generates-a-chat-key
+  assertion_ids: [drafts.draft-only.lifecycle, chats.persistence.client-encrypted]
+  given: A fresh sync contains a personal master-key encrypted draft with positive draft version and no messages, title or existing chat key.
+  when: The client stores that strictly identified draft-only shell.
+  then: The draft stays encrypted and keyless without a false missing-key error. No replacement chat key is generated; direct, Team, anonymous, shared, message-bearing or unreadable-existing-key cases keep their guards.

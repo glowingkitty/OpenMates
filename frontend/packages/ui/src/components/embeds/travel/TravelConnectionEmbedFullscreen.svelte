@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
 
   Fullscreen detail view for a single travel connection (child embed).
-  Uses EntryWithMapTemplate for map-background layout with overlapping detail card.
+  Uses ResultEmbedFullscreen for map-background layout with overlapping detail card.
 
   Layout (wide):
   - Gradient header: price, route, trip info, CTA
@@ -18,7 +18,9 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import transportIconUrl from '../../../../static/icons/travel.svg';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
@@ -30,6 +32,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
+  import TravelTimeBadge from './TravelTimeBadge.svelte';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
@@ -534,6 +537,7 @@
   });
 
   /** Airline logos for the header area (from carrier codes) */
+  let failedHeaderLogos = $state<string[]>([]);
   let headerAirlineLogos = $derived.by(() => {
     const conn = connection as MaybeConnection;
     const codes = conn?.carrier_codes;
@@ -708,7 +712,7 @@
         };
         flightTrackState = 'loaded';
 
-        // Persist into embed so reopening is free (no second API call)
+        // Cache display details for reopening without changing the encrypted source
         persistFlightDetailsInEmbed(resolvedFlightTrack);
       } else {
         // Flight not found or no track data — silent fallback to arc
@@ -725,128 +729,17 @@
     }
   }
 
-  /**
-   * Persist the resolved flight track data into the child embed's content
-   * so the real map polyline survives close/reopen of the fullscreen view.
-   *
-   * Mirrors persistBookingUrlInEmbed() exactly — same IDB + server sync flow.
-   * Non-blocking: failures are logged but do not affect the UI.
-   */
+  /** Keep fetched display details separate from the immutable source revision. */
   async function persistFlightDetailsInEmbed(
     flightTrack: NonNullable<ConnectionData['flight_track']>,
   ) {
-    if (!embedId) {
-      console.debug('[TravelConnectionEmbedFullscreen] No embedId, skipping flight track persistence');
-      return;
-    }
-
+    if (!embedId) return;
     try {
-      const contentRef = `embed:${embedId}`;
-
-      const existingEmbed = await embedStore.get(contentRef);
-      if (!existingEmbed) {
-        console.warn('[TravelConnectionEmbedFullscreen] Embed not found in store, cannot persist flight track:', embedId);
-        return;
-      }
-
-      const { decodeToonContent } = await import('../../../services/embedResolver');
-      let decodedContent: Record<string, unknown> = {};
-      if (existingEmbed.content && typeof existingEmbed.content === 'string') {
-        decodedContent = (await decodeToonContent(existingEmbed.content)) || {};
-      } else if (typeof existingEmbed.content === 'object' && existingEmbed.content !== null) {
-        decodedContent = existingEmbed.content as Record<string, unknown>;
-      }
-
-      // Inject the flight track data
-      decodedContent.flight_track = flightTrack;
-
-      const { encode: toonEncode } = await import('@toon-format/toon');
-      const updatedToonContent = toonEncode(decodedContent);
-
-      const embedHashed = existingEmbed.hashed_chat_id || undefined;
-      const embedKey = await embedStore.getEmbedKey(embedId, embedHashed);
-
-      if (!embedKey) {
-        console.warn('[TravelConnectionEmbedFullscreen] No embed key found, cannot persist flight track:', embedId);
-        return;
-      }
-
-      const { encryptWithEmbedKey } = await import('../../../services/cryptoService');
-      const encryptedContent = await encryptWithEmbedKey(updatedToonContent, embedKey);
-      if (!encryptedContent) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to encrypt updated content');
-        return;
-      }
-
-      const embedType = existingEmbed.type || existingEmbed.embed_type || 'app-skill-use';
-      const encryptedType = (await encryptWithEmbedKey(embedType, embedKey)) || undefined;
-
-      const nowMs = Date.now();
-
-      const encryptedEmbedForStorage = {
-        embed_id: existingEmbed.embed_id || embedId,
-        encrypted_content: encryptedContent,
-        encrypted_type: encryptedType,
-        encrypted_text_preview: existingEmbed.encrypted_text_preview,
-        status: existingEmbed.status || 'finished',
-        hashed_chat_id: existingEmbed.hashed_chat_id,
-        hashed_message_id: existingEmbed.hashed_message_id,
-        hashed_task_id: existingEmbed.hashed_task_id,
-        hashed_user_id: existingEmbed.hashed_user_id,
-        embed_ids: existingEmbed.embed_ids,
-        parent_embed_id: existingEmbed.parent_embed_id,
-        version_number: existingEmbed.version_number,
-        file_path: existingEmbed.file_path,
-        content_hash: existingEmbed.content_hash,
-        text_length_chars: existingEmbed.text_length_chars,
-        is_private: existingEmbed.is_private ?? false,
-        is_shared: existingEmbed.is_shared ?? false,
-        createdAt: existingEmbed.createdAt,
-        updatedAt: nowMs,
-      };
-
-      await embedStore.putEncrypted(
-        contentRef,
-        encryptedEmbedForStorage,
-        embedType as import('../../../message_parsing/types').EmbedType,
-        updatedToonContent,
-        { app_id: existingEmbed.app_id, skill_id: existingEmbed.skill_id },
-      );
-
-      console.info('[TravelConnectionEmbedFullscreen] Persisted flight track in embed:', embedId);
-
-      try {
-        const { chatSyncService } = await import('../../../services/chatSyncService');
-        const nowSecs = Math.floor(nowMs / 1000);
-        await chatSyncService.sendStoreEmbed({
-          embed_id: encryptedEmbedForStorage.embed_id || embedId,
-          encrypted_type: encryptedEmbedForStorage.encrypted_type || '',
-          encrypted_content: encryptedEmbedForStorage.encrypted_content,
-          encrypted_text_preview: encryptedEmbedForStorage.encrypted_text_preview,
-          status: encryptedEmbedForStorage.status || 'finished',
-          hashed_chat_id: encryptedEmbedForStorage.hashed_chat_id || '',
-          hashed_message_id: encryptedEmbedForStorage.hashed_message_id || '',
-          hashed_task_id: encryptedEmbedForStorage.hashed_task_id,
-          hashed_user_id: encryptedEmbedForStorage.hashed_user_id || '',
-          embed_ids: encryptedEmbedForStorage.embed_ids,
-          parent_embed_id: encryptedEmbedForStorage.parent_embed_id,
-          version_number: encryptedEmbedForStorage.version_number,
-          file_path: encryptedEmbedForStorage.file_path,
-          content_hash: encryptedEmbedForStorage.content_hash,
-          text_length_chars: encryptedEmbedForStorage.text_length_chars,
-          is_private: encryptedEmbedForStorage.is_private,
-          is_shared: encryptedEmbedForStorage.is_shared,
-          created_at: encryptedEmbedForStorage.createdAt
-            ? Math.floor(encryptedEmbedForStorage.createdAt / 1000)
-            : nowSecs,
-          updated_at: nowSecs,
-        });
-        console.debug('[TravelConnectionEmbedFullscreen] Sent updated embed (flight track) to server:', embedId);
-      } catch (sendError) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to send updated embed (flight track) to server:', sendError);
-      }
+      await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        flight_track: flightTrack,
+      });
     } catch (error) {
-      console.warn('[TravelConnectionEmbedFullscreen] Failed to persist flight track in embed:', error);
+      console.warn('[TravelConnectionEmbedFullscreen] Failed to cache flight details:', error);
     }
   }
 
@@ -941,7 +834,7 @@
         persistBookingUrlInEmbed(data.booking_url, data.booking_provider || primaryCarrier);
       } else {
         // No booking link found — show Google Flights fallback
-        console.log('No booking link available from SerpAPI');
+        console.log('No booking link available from ExampleSearch');
         bookingState = 'error';
         notificationStore.error(
           $text('embeds.booking_link_failed')
@@ -1046,145 +939,19 @@
     });
   }
   
-  /**
-   * Persist the resolved booking URL and provider into the child embed's content
-   * so the booking button survives close/reopen of the fullscreen view.
-   *
-   * Flow:
-   * 1. Load the existing embed from embedStore (decrypted)
-   * 2. Decode its TOON content and inject booking_url + booking_provider
-   * 3. Re-encode as TOON, re-encrypt with the embed key, and store locally
-   * 4. Send the updated encrypted embed to the server via store_embed WebSocket event
-   *
-   * This is non-blocking — failures are logged but don't affect the UI.
-   */
+  /** Cache derived booking details without rewriting the canonical embed. */
   async function persistBookingUrlInEmbed(bookingUrl: string, bookingProvider: string) {
-    if (!embedId) {
-      console.debug('[TravelConnectionEmbedFullscreen] No embedId, skipping booking URL persistence');
-      return;
-    }
-    
+    if (!embedId) return;
     try {
-      const contentRef = `embed:${embedId}`;
-      
-      // Load the existing embed data (decrypted)
-      const existingEmbed = await embedStore.get(contentRef);
-      if (!existingEmbed) {
-        console.warn('[TravelConnectionEmbedFullscreen] Embed not found in store, cannot persist booking URL:', embedId);
-        return;
-      }
-      
-      // Decode the TOON content to a plain object so we can add booking_url
-      const { decodeToonContent } = await import('../../../services/embedResolver');
-      let decodedContent: Record<string, unknown> = {};
-      if (existingEmbed.content && typeof existingEmbed.content === 'string') {
-        decodedContent = (await decodeToonContent(existingEmbed.content)) || {};
-      } else if (typeof existingEmbed.content === 'object' && existingEmbed.content !== null) {
-        decodedContent = existingEmbed.content as Record<string, unknown>;
-      }
-      
-      // Inject the resolved booking URL and provider into the content
-      decodedContent.booking_url = bookingUrl;
-      decodedContent.booking_provider = bookingProvider;
-      
-      // Re-encode as TOON
-      const { encode: toonEncode } = await import('@toon-format/toon');
-      const updatedToonContent = toonEncode(decodedContent);
-      
-      // Get the embed key for encryption (child embeds inherit parent's key)
-      const hashedChatId = existingEmbed.hashed_chat_id || undefined;
-      const embedKey = await embedStore.getEmbedKey(embedId, hashedChatId);
-      
-      if (!embedKey) {
-        console.warn('[TravelConnectionEmbedFullscreen] No embed key found, cannot persist booking URL:', embedId);
-        return;
-      }
-      
-      // Encrypt the updated content
-      const { encryptWithEmbedKey } = await import('../../../services/cryptoService');
-      const encryptedContent = await encryptWithEmbedKey(updatedToonContent, embedKey);
-      if (!encryptedContent) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to encrypt updated content');
-        return;
-      }
-      
-      // Encrypt the type
-      const embedType = existingEmbed.type || existingEmbed.embed_type || 'app-skill-use';
-      const encryptedType = (await encryptWithEmbedKey(embedType, embedKey)) || undefined;
-      
-      const nowMs = Date.now();
-      
-      // Build the encrypted embed object for local storage
-      const encryptedEmbedForStorage = {
-        embed_id: existingEmbed.embed_id || embedId,
-        encrypted_content: encryptedContent,
-        encrypted_type: encryptedType,
-        encrypted_text_preview: existingEmbed.encrypted_text_preview,
-        status: existingEmbed.status || 'finished',
-        hashed_chat_id: existingEmbed.hashed_chat_id,
-        hashed_message_id: existingEmbed.hashed_message_id,
-        hashed_task_id: existingEmbed.hashed_task_id,
-        hashed_user_id: existingEmbed.hashed_user_id,
-        embed_ids: existingEmbed.embed_ids,
-        parent_embed_id: existingEmbed.parent_embed_id,
-        version_number: existingEmbed.version_number,
-        file_path: existingEmbed.file_path,
-        content_hash: existingEmbed.content_hash,
-        text_length_chars: existingEmbed.text_length_chars,
-        is_private: existingEmbed.is_private ?? false,
-        is_shared: existingEmbed.is_shared ?? false,
-        createdAt: existingEmbed.createdAt,
-        updatedAt: nowMs,
-      };
-      
-      // Store locally via putEncrypted (updates IndexedDB + memory cache)
-      await embedStore.putEncrypted(
-        contentRef,
-        encryptedEmbedForStorage,
-        embedType as import('../../../message_parsing/types').EmbedType,
-        updatedToonContent,
-        { app_id: existingEmbed.app_id, skill_id: existingEmbed.skill_id },
-      );
-      
-      console.info('[TravelConnectionEmbedFullscreen] Persisted booking URL in embed:', embedId);
-      
-      // Send updated embed to server via store_embed WebSocket event
-      try {
-        const { chatSyncService } = await import('../../../services/chatSyncService');
-        const nowSecs = Math.floor(nowMs / 1000);
-        await chatSyncService.sendStoreEmbed({
-          embed_id: encryptedEmbedForStorage.embed_id || embedId,
-          encrypted_type: encryptedEmbedForStorage.encrypted_type || '',
-          encrypted_content: encryptedEmbedForStorage.encrypted_content,
-          encrypted_text_preview: encryptedEmbedForStorage.encrypted_text_preview,
-          status: encryptedEmbedForStorage.status || 'finished',
-          hashed_chat_id: encryptedEmbedForStorage.hashed_chat_id || '',
-          hashed_message_id: encryptedEmbedForStorage.hashed_message_id || '',
-          hashed_task_id: encryptedEmbedForStorage.hashed_task_id,
-          hashed_user_id: encryptedEmbedForStorage.hashed_user_id || '',
-          embed_ids: encryptedEmbedForStorage.embed_ids,
-          parent_embed_id: encryptedEmbedForStorage.parent_embed_id,
-          version_number: encryptedEmbedForStorage.version_number,
-          file_path: encryptedEmbedForStorage.file_path,
-          content_hash: encryptedEmbedForStorage.content_hash,
-          text_length_chars: encryptedEmbedForStorage.text_length_chars,
-          is_private: encryptedEmbedForStorage.is_private,
-          is_shared: encryptedEmbedForStorage.is_shared,
-          created_at: encryptedEmbedForStorage.createdAt ? Math.floor(encryptedEmbedForStorage.createdAt / 1000) : nowSecs,
-          updated_at: nowSecs,
-        });
-        
-        console.debug('[TravelConnectionEmbedFullscreen] Sent updated embed to server:', embedId);
-      } catch (sendError) {
-        // Non-fatal — embed is stored locally, will sync on next connection
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to send updated embed to server:', sendError);
-      }
+      await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        booking_url: bookingUrl,
+        booking_provider: bookingProvider,
+      });
     } catch (error) {
-      // Non-blocking — the booking button still works, just won't survive close/reopen
-      console.warn('[TravelConnectionEmbedFullscreen] Failed to persist booking URL in embed:', error);
+      console.warn('[TravelConnectionEmbedFullscreen] Failed to cache booking details:', error);
     }
   }
-  
+
   // ---------------------------------------------------------------------------
   // Share connection embed
   // ---------------------------------------------------------------------------
@@ -1292,7 +1059,7 @@
    * Uses jspdf (dynamically imported) to create a clean A4 document
    * with route, price, date, leg details, and carrier info.
    */
-  async function _handleDownload() {
+  async function handleDownload() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1440,14 +1207,14 @@
   }
   
   // ---------------------------------------------------------------------------
-  // Route map (via EntryWithMapTemplate's onMapReady callback)
+  // Route map (via ResultEmbedFullscreen's onMapReady callback)
   // ---------------------------------------------------------------------------
 
   /** Leaflet module reference (set by onMapReady) */
-  let L: typeof import('leaflet') | null = null;
+  let L = $state.raw<typeof import('leaflet') | null>(null);
 
   /** Leaflet map instance (set by onMapReady) */
-  let map: LeafletMap | null = null;
+  let map = $state.raw<LeafletMap | null>(null);
 
   let routeLineLayer: import('leaflet').LayerGroup | null = null;
 
@@ -1686,7 +1453,7 @@
   });
 
   /**
-   * onMapReady callback for EntryWithMapTemplate.
+   * onMapReady callback for ResultEmbedFullscreen.
    * Called with the raw Leaflet map instance and L module when the map is mounted.
    * Draws segment-colored route lines, FR24 tracks, and stop markers.
    */
@@ -1694,7 +1461,11 @@
     map = mapInstance as LeafletMap;
     L = leafletModule as typeof import('leaflet');
 
-    if (!L || !map || routeWaypoints.length < 2) return;
+    if (!L || !map) return;
+
+    // Tracks can be available without named segment stops. Draw the route
+    // independently so optional stop markers cannot suppress valid geometry.
+    drawRoutePath();
 
     try {
       const stopIcon = L.divIcon({
@@ -1709,8 +1480,6 @@
           .addTo(map)
           .bindPopup(wp.code);
       }
-
-      drawRoutePath();
     } catch (err) {
       console.error('[TravelConnectionEmbedFullscreen] Failed to render map overlays:', err);
     }
@@ -1775,11 +1544,13 @@
 </script>
 
 {#if connection}
-<EntryWithMapTemplate
+<ResultEmbedFullscreen
+  result={connection as unknown as Record<string, unknown>}
   appId="travel"
   skillId="connection"
   {onClose}
   onCopy={handleCopy}
+  onDownload={handleDownload}
   skillIconName="travel"
   embedHeaderTitle={priceHeader}
   embedHeaderSubtitle={headerSubtitle}
@@ -1800,7 +1571,8 @@
         {#each headerAirlineLogos as logo}
           <img
             class="header-airline-logo"
-            src={logo.url}
+            src={failedHeaderLogos.includes(logo.url) ? transportIconUrl : logo.url}
+            onerror={() => { if (!failedHeaderLogos.includes(logo.url)) failedHeaderLogos = [...failedHeaderLogos, logo.url]; }}
             alt={logo.code}
             width="28"
             height="28"
@@ -1811,7 +1583,7 @@
     {/if}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedConnection} />
+        <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedConnection} />
       {/if}
       {#if bookingState === 'loaded' && resolvedBookingUrl}
         <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
@@ -1825,7 +1597,13 @@
     </div>
   {/snippet}
 
-  {#snippet detailContent(_childContext)}
+  {#snippet summary()}
+    {#if formattedPrice}<ResultEmbedInfo icon="euro" label="Fare" value={formattedPrice}>{fareSummary || formattedPrice}</ResultEmbedInfo>{/if}
+    {#if connection.duration}<ResultEmbedInfo icon="clock" label="Journey duration" value={connection.duration}>{connection.duration}</ResultEmbedInfo>{/if}
+    {#if travelClassLabel}<ResultEmbedInfo icon="armchair" label="Travel class" value={travelClassLabel}>{travelClassLabel}</ResultEmbedInfo>{/if}
+  {/snippet}
+
+  {#snippet detailContent()}
     <div class="flight-card" data-testid="flight-details-card">
       {#if routeHeaderWithFlags}
         <div class="route-header-pill" data-testid="route-header">{routeHeaderWithFlags}</div>
@@ -1876,10 +1654,7 @@
             {@const fareCoverageLabel = formatFareCoverage(segment.fare_coverage)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
-                <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
-                  <span class="time-icon">{segment.departure_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text" class:changed={depChanged}>{displayTime(segment.departure_time, segment.actual_departure_time)}</span>
-                </div>
+                <TravelTimeBadge time={displayTime(segment.departure_time, segment.actual_departure_time)} isDaytime={segment.departure_is_daytime} changed={depChanged} />
                 {#if depChanged}
                   <div class="scheduled-time">was {formatTime(segment.departure_time)}</div>
                 {/if}
@@ -1889,10 +1664,7 @@
                   </div>
                 {/if}
                 <div class="segment-duration-text">{segment.duration}</div>
-                <div class="time-badge" class:daytime={segment.arrival_is_daytime === true} class:nighttime={segment.arrival_is_daytime !== true}>
-                  <span class="time-icon">{segment.arrival_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text" class:changed={arrChanged}>{displayTime(segment.arrival_time, segment.actual_arrival_time)}</span>
-                </div>
+                <TravelTimeBadge time={displayTime(segment.arrival_time, segment.actual_arrival_time)} isDaytime={segment.arrival_is_daytime} changed={arrChanged} />
                 {#if arrChanged}
                   <div class="scheduled-time">was {formatTime(segment.arrival_time)}</div>
                 {/if}
@@ -2020,7 +1792,7 @@
       {/if}
     </div>
   {/snippet}
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 {/if}
 
 <style>
@@ -2043,12 +1815,6 @@
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
   .segment-left { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-3); flex-shrink: 0; min-width: 96px; }
-  .time-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 10px; border-radius: 58px; font-size: 0.875rem; font-weight: 700; color: white; white-space: nowrap; }
-  .time-badge.nighttime { background: linear-gradient(to right, #365dad, #1745a1); }
-  .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
-  .time-icon { font-size: 0.75rem; line-height: 1; }
-  .time-text { line-height: 1; }
-  .time-text.changed { color: #fff; }
   .scheduled-time { margin-top: -8px; margin-left: 10px; font-size: 0.688rem; font-weight: 700; color: var(--color-grey-50); text-decoration: line-through; }
   .delay-badge { margin-top: -8px; padding: 2px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; color: var(--color-grey-60); background: var(--color-grey-20); white-space: nowrap; }
   .delay-badge.late { color: #991b1b; background: #fee2e2; }

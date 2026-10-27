@@ -41,6 +41,7 @@ class ParsedBedrockToolCall(BaseModel):
     function_arguments_raw: str
     function_arguments_parsed: Dict[str, Any]
     parsing_error: Optional[str] = None
+    provider_transport_state: Optional[Dict[str, Any]] = None
 
 
 class RawBedrockResponse(BaseModel):
@@ -191,9 +192,35 @@ def _convert_tool_result_content(content: Any) -> List[Dict[str, Any]]:
     return [{"text": str(content) if content else ""}]
 
 
+def encode_bedrock_reasoning(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep opaque redacted reasoning JSON-safe in private tool transport state."""
+    result = []
+    for block in blocks:
+        if "reasoningContent" not in block:
+            continue
+        reasoning = dict(block["reasoningContent"])
+        opaque = reasoning.get("redactedContent")
+        if isinstance(opaque, (bytes, bytearray)):
+            reasoning.pop("redactedContent")
+            reasoning["redactedContentBase64"] = base64.b64encode(opaque).decode("ascii")
+        result.append({"reasoningContent": reasoning})
+    return result
+
+
 def _convert_assistant_content(msg: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
     """Convert assistant message content to Converse format, including tool_calls."""
+    state = msg.get("provider_transport_state") or next((
+        call.get("provider_transport_state") for call in msg.get("tool_calls", [])
+        if call.get("provider_transport_state")
+    ), None)
+    # Only replay Bedrock-private blocks on this transport.
     content_blocks = []
+    for block in (state.get("bedrock_reasoning") or []) if isinstance(state, dict) else []:
+        reasoning = dict(block.get("reasoningContent") or {})
+        opaque = reasoning.pop("redactedContentBase64", None)
+        if opaque is not None:
+            reasoning["redactedContent"] = base64.b64decode(opaque, validate=True)
+        content_blocks.append({"reasoningContent": reasoning})
 
     # Add text content
     text_content = msg.get("content")

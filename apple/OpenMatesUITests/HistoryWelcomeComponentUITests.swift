@@ -95,7 +95,10 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         let app = launch("welcome")
         let ids = app.staticTexts["dev-welcome-eligible-ids"]
         XCTAssertTrue(ids.waitForExistence(timeout: 5))
-        XCTAssertEqual(ids.label, "fixture-resume,fixture-pinned-archived,fixture-pinned,fixture-draft")
+        // Web sortChats(..., []) preserves encounter order when pin, draft,
+        // activity and update values tie; archived pins gain no extra priority.
+        XCTAssertEqual(ids.label, "fixture-resume,fixture-pinned,fixture-pinned-archived,fixture-draft",
+                       "Tied pinned chats retain fixture encounter order")
         XCTAssertFalse(app.descendants(matching: .any)["welcome-draft-card-fixture-pending-draft"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["welcome-draft-card-fixture-empty-preview"].exists)
         XCTAssertFalse(app.staticTexts["New Chat"].exists)
@@ -217,7 +220,15 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         let draft = sidebarRow("sidebar-pure-draft", app: app)
         XCTAssertTrue(draft.waitForExistence(timeout: 5))
         XCTAssertTrue(draft.label.contains("Draft"))
-        XCTAssertTrue(draft.label.contains("A preview without a generated title"))
+        XCTAssertTrue(draft.label.contains("Before [Audio] after [Image] describe it"))
+        XCTAssertFalse(draft.label.contains("embed_id"))
+        XCTAssertFalse(draft.label.contains("```"))
+        XCTAssertFalse(sidebarRow("sidebar-empty-shell", app: app).exists)
+        XCTAssertFalse(sidebarRow("sidebar-pending-draft", app: app).exists)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Sidebar canonical mixed-media draft preview"
+        shot.lifetime = .keepAlways
+        add(shot)
         XCTAssertFalse(draft.label.contains("New Chat"))
         XCTAssertFalse(draft.descendants(matching: .any)["chat-row-title"].exists)
         XCTAssertFalse(draft.descendants(matching: .any)["chat-row-profile"].exists)

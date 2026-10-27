@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "version": "1.1.1",
+  "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+  "archive_sha256": "38f9c17ee36c2e930ce00975b50fcd246a8e5594c1bcf43cd56b14118786b82a",
+  "decoder_source_sha256": "79db5a1879540eb7c915ce948e8fb94adc1ff49be87dca01529b9283c6ba343e",
+  "fixed_block_switch_error_propagation": true,
+  "compiler": "/usr/bin/cc",
+  "compiler_version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "build_commands": [
+    [
+      "/usr/bin/cc",
+      "-O2",
+      "-DNDEBUG",
+      "-fPIC",
+      "-fvisibility=hidden",
+      "-DBROTLI_SHARED_COMPILATION",
+      "-DBROTLICOMMON_SHARED_COMPILATION",
+      "-I",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/include",
+      "-shared",
+      "-Wl,-soname,libbrotlicommon.so.1",
+      "-o",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/constants.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/context.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/dictionary.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/platform.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/shared_dictionary.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/common/transform.c",
+      "-lm"
+    ],
+    [
+      "/usr/bin/cc",
+      "-O2",
+      "-DNDEBUG",
+      "-fPIC",
+      "-fvisibility=hidden",
+      "-DBROTLI_SHARED_COMPILATION",
+      "-DBROTLIDEC_SHARED_COMPILATION",
+      "-I",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/include",
+      "-shared",
+      "-Wl,-soname,libbrotlidec.so.1",
+      "-o",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/dec/bit_reader.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/dec/decode.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/dec/huffman.c",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/brotli-db0631dfea829194206d269bc7b25d0908cdb97d/c/dec/state.c",
+      "-L",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib",
+      "-lbrotlicommon",
+      "-Wl,-rpath,$ORIGIN",
+      "-lm"
+    ]
+  ],
+  "affinity_cpus": [
+    0,
+    1
+  ],
+  "niceness_increment": 10,
+  "libraries": {
+    "libbrotlicommon.so.1": {
+      "file": "lib/libbrotlicommon.so.1.1.1",
+      "sha256": "74907dcc520f4df0de4ffa271070a7d91e553f7ed0f2ae94608d4f12d650037c"
+    },
+    "libbrotlidec.so.1": {
+      "file": "lib/libbrotlidec.so.1.1.1",
+      "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+    }
+  }
+}

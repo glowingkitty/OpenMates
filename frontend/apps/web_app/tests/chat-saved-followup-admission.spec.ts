@@ -153,3 +153,118 @@ test('saved Personal follow-up admits full history before phased routing and det
     });
   }
 });
+
+// contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced,chats.message.identity-idempotent,chats.send.immediate-admission
+test('reload restores a leased completed reply before admitting the question-mark follow-up and survives a cold login', async ({ page, browser }: { page: any; browser: any }, testInfo: any) => {
+  test.setTimeout(300000);
+  const events: Array<Record<string, any>> = [];
+  const admissions: Array<Record<string, any>> = [];
+  const admittedIds = new Set<string>();
+  let reloaded = false;
+  let seedAssistantId = '';
+  let held: Record<string, any> | null = null;
+  let coldContext: any = null;
+  let coldPage: any = null;
+  await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket: any) => {
+    const server = socket.connectToServer();
+    const capture = (direction: string, raw: unknown) => {
+      try {
+        const frame = JSON.parse(String(raw)), body = frame.payload ?? {};
+        const event = { direction, type: frame.type, jobId: body.job_id, state: body.state, requestId: body.request_id,
+          turnId: body.turn_id, messageId: body.message_id, committed: body.committed_messages_v,
+          pendingIds: body.pending_jobs?.map((job: any) => job.job_id),
+          historyIds: body.inference_request?.message_history?.map((row: any) => row.message_id),
+          expected: body.expected_messages_v };
+        events.push(event);
+        if (direction === 'sent' && ['chat_turn_admit', 'chat_turn_preflight'].includes(frame.type)
+          && typeof body.message_id === 'string' && !admittedIds.has(body.message_id)) {
+          admittedIds.add(body.message_id);
+          admissions.push({ ...event, eventIndex: events.length - 1 });
+        }
+        return frame;
+      } catch { return null; }
+    };
+    socket.onMessage((raw: unknown) => {
+      const frame = capture('sent', raw);
+      const body = frame?.payload ?? {};
+      if (!reloaded && admissions.length === 2 && frame?.type === 'recovery_job_persist'
+        && body.encrypted_assistant_message?.client_message_id !== seedAssistantId) {
+        held = { jobId: body.job_id, assistantId: body.encrypted_assistant_message.client_message_id };
+        return; // The old connection holds a real lease but misses its terminal write.
+      }
+      server.send(raw);
+    });
+    server.onMessage((raw: unknown) => {
+      const frame = capture('received', raw);
+      if (!reloaded && frame?.type === 'ai_message_update'
+        && frame.payload?.user_message_id === admissions[1]?.messageId) return;
+      socket.send(raw);
+    });
+  });
+  try {
+    const { logCheckpoint } = await loginAndNavigateToChat(page, test, 'RELOADED_FOLLOWUP');
+    const chatId = await sendMessageAndGetChatId(page,
+      withMockMarker('Seed the existing conversation.', 'chat_flow_capital'), logCheckpoint);
+    await expect.poll(() => events.some(event => event.direction === 'received'
+      && event.type === 'recovery_job_persisted' && event.state === 'TERMINAL'), { timeout: 90000 }).toBe(true);
+    seedAssistantId = await page.getByTestId('message-assistant').first().getAttribute('data-message-id');
+    expect(seedAssistantId).toBeTruthy();
+    await sendMessage(page, withMockMarker('A second request in this existing chat.', 'chat_flow_capital'), logCheckpoint);
+    await expect(page.getByTestId('message-user')).toHaveCount(2);
+    await expect.poll(() => held, { timeout: 90000 }).toBeTruthy();
+    expect(admissions).toHaveLength(2);
+    reloaded = true;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('message-user')).toHaveCount(2, { timeout: 30000 });
+    await expect(page.getByTestId('message-assistant')).toHaveCount(1);
+    const followupStart = events.length;
+    // Observe the optimistic phase before acceptance: the old connection's
+    // real lease must keep this turn pending until recovery finishes.
+    await sendMessage(page, withMockMarker('?', 'chat_flow_capital'), logCheckpoint,
+      undefined, 'pending-followup', { waitUntil: 'visible' });
+    await expect(page.getByTestId('message-user')).toHaveCount(3);
+    await expect(page.getByTestId('message-user').last()).toHaveAttribute('data-status', 'sending');
+    await expect.poll(() => events.slice(followupStart).some(event => event.direction === 'received'
+      && event.type === 'recovery_jobs_available' && event.pendingIds?.includes(held!.jobId)),
+      { timeout: 15000 }).toBe(true);
+    expect(admissions, 'The live old lease must prevent another inference with incomplete history').toHaveLength(2);
+    await expect.poll(() => admissions.length, { timeout: 120000 }).toBe(3);
+    const recoveredAckIndex = events.findIndex(event => event.direction === 'received'
+      && event.type === 'recovery_job_persisted' && event.jobId === held!.jobId && event.state === 'TERMINAL');
+    expect(recoveredAckIndex).toBeGreaterThan(followupStart);
+    expect(admissions[2].eventIndex).toBeGreaterThan(recoveredAckIndex);
+    expect(admissions[2].historyIds).toContain(held!.assistantId);
+    expect(admissions[2].historyIds).toContain(seedAssistantId);
+    expect(admissions[2].expected).toBe(events[recoveredAckIndex].committed);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(3, { timeout: 90000 });
+    await expect.poll(() => events.filter(event => event.direction === 'received'
+      && event.type === 'recovery_job_persisted' && event.state === 'TERMINAL').length,
+      { timeout: 90000 }).toBeGreaterThanOrEqual(3);
+    const originalOrder = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').evaluateAll((nodes: Element[]) =>
+      nodes.map(node => node.getAttribute('data-message-id')));
+    expect(originalOrder.indexOf(held!.assistantId)).toBeLessThan(originalOrder.indexOf(admissions[2].messageId));
+    expect(originalOrder.filter((id: string) => id === held!.assistantId)).toHaveLength(1);
+    await testInfo.attach('recovered-before-followup', { body: await page.screenshot(), contentType: 'image/png' });
+
+    const baseURL = new URL(page.url()).origin;
+    coldContext = await browser.newContext({ baseURL, viewport: { width: 1280, height: 900 },
+      storageState: { cookies: [], origins: [] }, recordVideo: { dir: testInfo.outputPath('cold-login-video') } });
+    coldPage = await coldContext.newPage();
+    await loginToTestAccount(coldPage, logCheckpoint, async () => {});
+    const { getE2EDebugUrl } = require('./signup-flow-helpers');
+    await coldPage.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });
+    await expect(coldPage.getByTestId('message-assistant')).toHaveCount(3, { timeout: 90000 });
+    await expect(coldPage.getByTestId('message-user')).toHaveCount(3);
+    const coldOrder = await coldPage.locator('[data-testid="message-user"], [data-testid="message-assistant"]').evaluateAll((nodes: Element[]) =>
+      nodes.map(node => node.getAttribute('data-message-id')));
+    expect(coldOrder).toEqual(originalOrder);
+    expect(admissions).toHaveLength(3);
+  } finally {
+    if (coldContext) {
+      const video = coldPage?.video();
+      await coldContext.close();
+      if (video) await testInfo.attach('cold-login-retains-response-order', { path: await video.path(), contentType: 'video/webm' });
+    }
+    await testInfo.attach('reload-followup-protocol', { body: JSON.stringify(events), contentType: 'application/json' });
+  }
+});

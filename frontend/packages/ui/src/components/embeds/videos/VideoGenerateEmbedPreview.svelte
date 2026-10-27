@@ -8,6 +8,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
   import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
   const audioUrlOwner = createAudioUrlOwner();
@@ -130,6 +131,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   appId="videos"
   skillId="generate"
@@ -143,23 +145,27 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details()}
+    <ResultEmbedCard title={currentPrompt || skillName} sourceLabel={currentModel} description={statusText()} mediaFit="contain">
+      {#snippet media()}
     <div class="video-generate-preview" data-testid="video-generate-preview">
       {#if currentStatus === 'finished' && videoUrl}
-        <video src={videoUrl} poster={currentPreviewImageUrl || undefined} controls playsinline preload="metadata" data-testid="video-generate-video">
+        <video onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()} oncontextmenu={(event) => event.stopPropagation()} src={videoUrl} poster={currentPreviewImageUrl || undefined} controls playsinline preload="metadata" data-testid="video-generate-video">
           <track kind="captions" src="data:text/vtt,WEBVTT" />
         </video>
-      {:else if videoError}
-        <div class="error">{videoError}</div>
+      {:else if videoError || currentStatus === 'error'}
+        <div class="error">{videoError || currentError}</div>
       {:else}
-        <div class="placeholder">{currentPrompt || 'Generating video...'}</div>
+        <div class="placeholder">{statusText()}</div>
       {/if}
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .video-generate-preview { height: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; }
-  video { width: 100%; max-height: 100%; border-radius: 12px; background: var(--color-grey-100); }
-  .placeholder, .error { color: var(--color-font-primary); font-size: 14px; text-align: center; }
+  .video-generate-preview { height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; }
+  video { object-fit: contain; width: 100%; max-height: 100%; border-radius: 12px; background: var(--color-grey-100); }
+  .placeholder, .error { color: var(--color-font-primary); font-size: 0.875rem; text-align: center; }
   .error { color: var(--color-error, #b00020); }
 </style>

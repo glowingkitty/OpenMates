@@ -342,16 +342,16 @@
             
             // Extract rendered HTML from the ProseMirror editor content
             if (lastUserEl) {
-                const proseMirror = lastUserEl.querySelector('.read-only-message .ProseMirror, .chat-message-text .ProseMirror');
+                const proseMirror = Array.from(lastUserEl.querySelectorAll('.read-only-message .ProseMirror, .chat-message-text .ProseMirror')).map(body => body.innerHTML).join('\n');
                 if (proseMirror) {
-                    parts.push(`<div data-role="user">\n${proseMirror.innerHTML}\n</div>`);
+                    parts.push(`<div data-role="user">\n${proseMirror}\n</div>`);
                 }
             }
             
             if (lastAssistantEl) {
-                const proseMirror = lastAssistantEl.querySelector('.read-only-message .ProseMirror, .chat-message-text .ProseMirror');
+                const proseMirror = Array.from(lastAssistantEl.querySelectorAll('.read-only-message .ProseMirror, .chat-message-text .ProseMirror')).map(body => body.innerHTML).join('\n');
                 if (proseMirror) {
-                    parts.push(`<div data-role="assistant">\n${proseMirror.innerHTML}\n</div>`);
+                    parts.push(`<div data-role="assistant">\n${proseMirror}\n</div>`);
                 }
             }
             

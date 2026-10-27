@@ -1,0 +1,453 @@
+{
+  "status": "complete",
+  "inference_host": "standalone Rust binary; no Node or Python model execution",
+  "exit_code": 0,
+  "stopped_by_supervisor": null,
+  "wall_seconds": 44.3070263704285,
+  "sampled_peak_rss_bytes": 80498688,
+  "affinity_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "niceness_increment": 10,
+  "dal_litert_threads": "8",
+  "timeout_seconds": 180,
+  "native_build": "private Linux chunking experiment",
+  "experimental_build_receipt_sha256": "1ac6d52c6bda2312aa092f79f9e29ec5645f137f99ef36f68056258c4e7eb270",
+  "chunking_max_chars": 150,
+  "chunking_carry": 1,
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "binary_sha256": "cb6e28e374404ecdb4229b9736bd99c5eb37f0a0beee3d641c8c1ba269a8230b",
+  "source_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "supervisor_sha256": "7a912acd359130bf302cbb5ded7cdeb64942cfaec6429524e6c74cb49453d202",
+  "input_sha256": "38e1af3c5e00467a95fc4d463c9ce4fb5afd646c3bea5375eb987a8b13c7eae5",
+  "input_lengths": [
+    {
+      "id": "q:name-support",
+      "characters_utf16": 59
+    },
+    {
+      "id": "q:name-rare",
+      "characters_utf16": 63
+    },
+    {
+      "id": "q:name-first-only",
+      "characters_utf16": 51
+    },
+    {
+      "id": "q:name-initials",
+      "characters_utf16": 54
+    },
+    {
+      "id": "q:name-json",
+      "characters_utf16": 53
+    },
+    {
+      "id": "q:name-code",
+      "characters_utf16": 61
+    },
+    {
+      "id": "q:name-emoji",
+      "characters_utf16": 60
+    },
+    {
+      "id": "q:name-german",
+      "characters_utf16": 62
+    },
+    {
+      "id": "q:name-japanese",
+      "characters_utf16": 29
+    },
+    {
+      "id": "q:name-arabic",
+      "characters_utf16": 47
+    },
+    {
+      "id": "q:address-us",
+      "characters_utf16": 74
+    },
+    {
+      "id": "q:address-uk",
+      "characters_utf16": 52
+    },
+    {
+      "id": "q:address-de",
+      "characters_utf16": 54
+    },
+    {
+      "id": "q:address-json",
+      "characters_utf16": 52
+    },
+    {
+      "id": "q:address-multiline",
+      "characters_utf16": 71
+    },
+    {
+      "id": "q:address-context-only",
+      "characters_utf16": 56
+    },
+    {
+      "id": "q:email-simple",
+      "characters_utf16": 48
+    },
+    {
+      "id": "q:email-plus",
+      "characters_utf16": 47
+    },
+    {
+      "id": "q:email-json",
+      "characters_utf16": 52
+    },
+    {
+      "id": "q:email-unicode-context",
+      "characters_utf16": 33
+    },
+    {
+      "id": "q:phone-us",
+      "characters_utf16": 45
+    },
+    {
+      "id": "q:phone-uk",
+      "characters_utf16": 39
+    },
+    {
+      "id": "q:phone-de",
+      "characters_utf16": 44
+    },
+    {
+      "id": "q:phone-local",
+      "characters_utf16": 45
+    },
+    {
+      "id": "q:secret-github",
+      "characters_utf16": 53
+    },
+    {
+      "id": "q:secret-openai",
+      "characters_utf16": 167
+    },
+    {
+      "id": "q:secret-aws",
+      "characters_utf16": 38
+    },
+    {
+      "id": "q:secret-google",
+      "characters_utf16": 59
+    },
+    {
+      "id": "q:secret-stripe",
+      "characters_utf16": 50
+    },
+    {
+      "id": "q:secret-slack",
+      "characters_utf16": 67
+    },
+    {
+      "id": "q:secret-bearer",
+      "characters_utf16": 57
+    },
+    {
+      "id": "q:secret-opaque-context",
+      "characters_utf16": 75
+    },
+    {
+      "id": "q:secret-passphrase",
+      "characters_utf16": 60
+    },
+    {
+      "id": "q:secret-json-unusual",
+      "characters_utf16": 48
+    },
+    {
+      "id": "q:secret-assignment",
+      "characters_utf16": 42
+    },
+    {
+      "id": "q:secret-bare-unknown",
+      "characters_utf16": 24
+    },
+    {
+      "id": "q:secret-split",
+      "characters_utf16": 71
+    },
+    {
+      "id": "q:account-iban",
+      "characters_utf16": 47
+    },
+    {
+      "id": "q:account-ssn",
+      "characters_utf16": 33
+    },
+    {
+      "id": "q:date-birth",
+      "characters_utf16": 37
+    },
+    {
+      "id": "q:url-private",
+      "characters_utf16": 85
+    },
+    {
+      "id": "q:configured-person",
+      "characters_utf16": 68
+    },
+    {
+      "id": "q:mixed-support",
+      "characters_utf16": 120
+    },
+    {
+      "id": "q:mixed-log",
+      "characters_utf16": 117
+    },
+    {
+      "id": "q:negative-uuid",
+      "characters_utf16": 57
+    },
+    {
+      "id": "q:negative-hash",
+      "characters_utf16": 71
+    },
+    {
+      "id": "q:negative-function",
+      "characters_utf16": 68
+    },
+    {
+      "id": "q:negative-public-name",
+      "characters_utf16": 62
+    },
+    {
+      "id": "q:negative-library",
+      "characters_utf16": 57
+    },
+    {
+      "id": "q:negative-public-url",
+      "characters_utf16": 69
+    },
+    {
+      "id": "q:negative-version",
+      "characters_utf16": 67
+    },
+    {
+      "id": "q:negative-timestamp",
+      "characters_utf16": 63
+    },
+    {
+      "id": "q:negative-placeholders",
+      "characters_utf16": 62
+    },
+    {
+      "id": "q:negative-counts",
+      "characters_utf16": 74
+    },
+    {
+      "id": "q:negative-address-public",
+      "characters_utf16": 69
+    },
+    {
+      "id": "q:negative-branch",
+      "characters_utf16": 75
+    },
+    {
+      "id": "q:window-2-name-support",
+      "characters_utf16": 325
+    },
+    {
+      "id": "q:window-5-name-support",
+      "characters_utf16": 484
+    },
+    {
+      "id": "q:window-11-name-support",
+      "characters_utf16": 802
+    },
+    {
+      "id": "q:window-23-name-support",
+      "characters_utf16": 1438
+    },
+    {
+      "id": "q:window-2-name-emoji",
+      "characters_utf16": 326
+    },
+    {
+      "id": "q:window-5-name-emoji",
+      "characters_utf16": 485
+    },
+    {
+      "id": "q:window-11-name-emoji",
+      "characters_utf16": 803
+    },
+    {
+      "id": "q:window-23-name-emoji",
+      "characters_utf16": 1439
+    },
+    {
+      "id": "q:window-2-name-german",
+      "characters_utf16": 328
+    },
+    {
+      "id": "q:window-5-name-german",
+      "characters_utf16": 487
+    },
+    {
+      "id": "q:window-11-name-german",
+      "characters_utf16": 805
+    },
+    {
+      "id": "q:window-23-name-german",
+      "characters_utf16": 1441
+    },
+    {
+      "id": "q:window-2-address-us",
+      "characters_utf16": 340
+    },
+    {
+      "id": "q:window-5-address-us",
+      "characters_utf16": 499
+    },
+    {
+      "id": "q:window-11-address-us",
+      "characters_utf16": 817
+    },
+    {
+      "id": "q:window-23-address-us",
+      "characters_utf16": 1453
+    },
+    {
+      "id": "q:window-2-address-uk",
+      "characters_utf16": 318
+    },
+    {
+      "id": "q:window-5-address-uk",
+      "characters_utf16": 477
+    },
+    {
+      "id": "q:window-11-address-uk",
+      "characters_utf16": 795
+    },
+    {
+      "id": "q:window-23-address-uk",
+      "characters_utf16": 1431
+    },
+    {
+      "id": "q:window-2-address-de",
+      "characters_utf16": 320
+    },
+    {
+      "id": "q:window-5-address-de",
+      "characters_utf16": 479
+    },
+    {
+      "id": "q:window-11-address-de",
+      "characters_utf16": 797
+    },
+    {
+      "id": "q:window-23-address-de",
+      "characters_utf16": 1433
+    },
+    {
+      "id": "q:window-2-email-plus",
+      "characters_utf16": 313
+    },
+    {
+      "id": "q:window-5-email-plus",
+      "characters_utf16": 472
+    },
+    {
+      "id": "q:window-11-email-plus",
+      "characters_utf16": 790
+    },
+    {
+      "id": "q:window-23-email-plus",
+      "characters_utf16": 1426
+    },
+    {
+      "id": "q:window-2-account-iban",
+      "characters_utf16": 313
+    },
+    {
+      "id": "q:window-5-account-iban",
+      "characters_utf16": 472
+    },
+    {
+      "id": "q:window-11-account-iban",
+      "characters_utf16": 790
+    },
+    {
+      "id": "q:window-23-account-iban",
+      "characters_utf16": 1426
+    },
+    {
+      "id": "lat:address",
+      "characters_utf16": 86
+    },
+    {
+      "id": "lat:32",
+      "characters_utf16": 211
+    },
+    {
+      "id": "lat:256",
+      "characters_utf16": 1695
+    },
+    {
+      "id": "lat:4096",
+      "characters_utf16": 27135
+    }
+  ],
+  "native_files": [
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75079512,
+      "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8"
+    },
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    }
+  ],
+  "patched_decoder": {
+    "status": "verified",
+    "version": "1.1.1",
+    "version_number": 16781313,
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "symbols": {
+      "BrotliDecoderVersion": {
+        "address": "0xf99ea0d86c54",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      },
+      "BrotliDecoderDecompressStream": {
+        "address": "0xf99ea0d856c0",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      }
+    },
+    "mapped_brotli_libraries": [
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+    ],
+    "curl_version": "libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.1 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.7",
+    "network": "libseccomp TSYNC deny installed before SDK library load; no HTTP perform",
+    "sdk_model_or_license_created": false,
+    "curl_init_cleanup": true
+  },
+  "quality": {
+    "expected_values": 50,
+    "fully_hidden": 14,
+    "letters_digits_marks_hidden": 30,
+    "negative_cases": 12,
+    "false_positive_cases": 2,
+    "context_boundaries": {
+      "expected_values": 32,
+      "fully_hidden": 8,
+      "letters_digits_marks_hidden": 32,
+      "negative_cases": 0,
+      "false_positive_cases": 0
+    }
+  }
+}

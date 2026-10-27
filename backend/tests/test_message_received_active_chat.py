@@ -16,7 +16,7 @@ import sys
 
 import pytest
 from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from backend.core.api.app.services.directus.team_methods import hash_id
 
@@ -66,6 +66,7 @@ class FakeManager:
 class FakeWebSocket:
     def __init__(self):
         self.sent = []
+        self.scope = {}
 
     async def send_json(self, message):
         self.sent.append(message)
@@ -209,8 +210,39 @@ def test_exact_project_name_remains_a_routing_hint_without_access(message, expec
 @pytest.mark.parametrize("context_bound", [False, True])
 @pytest.mark.parametrize("related_discovery", [None, False, True])
 def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery):
+    _exercise_ordinary_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery)
+
+
+def test_saved_child_user_message_gets_fresh_ordinary_admission(monkeypatch):
+    result = _exercise_ordinary_dispatch(monkeypatch, {
+        "id": "chat-123", "hashed_user_id": hash_id("user-123"), "chat_visibility": None,
+        "parent_id": "canonical-parent", "is_sub_chat": True,
+        "budget_limit": 200, "budget_spent": 40, "messages_v": 2,
+    }, related_discovery=False)
+    request = result.manager.request_payload
+    assert request["is_sub_chat"] is False
+    assert request["parent_id"] == "canonical-parent"
+    assert request["legacy_cutover_task_id"] == hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
+
+
+def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=False, related_discovery=None, outcome="processing"):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
+    reconcile = AsyncMock()
+    alert = AsyncMock()
+    monkeypatch.setattr(message_received_handler, "_reconcile_existing_legacy_turn", reconcile)
+    monkeypatch.setattr(message_received_handler, "notify_chat_failure", alert)
+    dispatch = FakeSkillRegistry.dispatch_skill
+
+    async def dispatch_with_outcome(registry, *args):
+        response = await dispatch(registry, *args)
+        if outcome == "mismatch":
+            raise message_received_handler.ChatRecoveryProtocolError(409, "legacy_dispatch_mismatch")
+        if outcome == "broker_failure":
+            raise RuntimeError("broker unavailable")
+        return {**response, "status": outcome}
+
+    monkeypatch.setattr(FakeSkillRegistry, "dispatch_skill", dispatch_with_outcome)
     manager = FakeManager()
     cutover = SimpleNamespace(
         get_epoch=AsyncMock(return_value=0),
@@ -245,8 +277,14 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),
     )
-    encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
+    encryption_service = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _: [(f"vault:v1:history-{index}", 1) for index, _ in enumerate(contents)]),
+    )
+    routing_restrictions = {"disabled_ai_models": ["mercury-3"],
+                            "disabled_ai_servers": {"gemini-3.8-flash": ["google_ai_studio"]}}
     payload = {
+        "model_routing_restrictions": routing_restrictions,
         "chat_id": "chat-123",
         "project_focus_candidates": [{"project_id": "11111111-1111-4111-8111-111111111111", "name": "Garden notes"}],
         "message": {
@@ -310,6 +348,13 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    assert manager.request_payload["user_preferences"]["disabled_ai_models"] == ["mercury-3"]
+    assert manager.request_payload["user_preferences"]["disabled_ai_servers"] == {"gemini-3.8-flash": ["google_ai_studio"]}
+    # These local encrypted preferences are not copied into the account cache.
+    for call in cache_service.update_user.call_args_list:
+        assert "disabled_ai_models" not in call.args[1]
+        assert "disabled_ai_servers" not in call.args[1]
+    assert routing_restrictions == payload["model_routing_restrictions"]
     expected_title = bool(chat_metadata and chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
     assert manager.request_payload["chat_has_title"] is expected_title
     assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
@@ -353,12 +398,162 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         "payload": {"chat_id": "chat-123", "draft_v": 4},
     } in manager.broadcasts
 
+    return SimpleNamespace(manager=manager, cache=cache_service, reconcile=reconcile, alert=alert)
 
-def test_message_send_forwards_client_embed_ref_index(monkeypatch):
+
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent,operational-monitoring.chat-failures.email-trigger
+@pytest.mark.parametrize("outcome", ["already_dispatched", "mismatch", "broker_failure"])
+def test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert(monkeypatch, outcome):
+    context = _exercise_ordinary_dispatch(monkeypatch, outcome=outcome)
+    if outcome == "already_dispatched":
+        context.reconcile.assert_awaited_once()
+        assert context.reconcile.await_args.kwargs["task_id"] == hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
+        context.alert.assert_not_awaited()
+        assert not any(call[1] in ("ai_task_initiated", "error") for call in context.manager.calls)
+    else:
+        context.reconcile.assert_not_awaited()
+        context.alert.assert_awaited_once_with("chat-123:msg-123", stage="dispatch")
+        assert any(call[1] == "error" for call in context.manager.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("completed", ["canonical", "pending", "running"])
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent,chats.completion.recovery-takeover
+async def test_existing_legacy_turn_replays_without_restarting_processing(monkeypatch, completed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    canonical = {"role": "assistant", "chat_id": "chat", "message_id": "task",
+                 "hashed_user_id": hash_id("owner"), "encrypted_content": "ciphertext"}
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_message_for_chat_by_client_id=AsyncMock(return_value=canonical if completed == "canonical" else None),
+    ))
+    snapshot = {"user_id_uuid": "owner", "chat_id": "chat", "message_id": "task",
+                "full_content_so_far": "partial", "is_final_chunk": False}
+    cache = SimpleNamespace(get=AsyncMock(return_value=snapshot),
+                            clear_active_ai_task_if_matches=AsyncMock(return_value=True))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    result = {"content": "completed answer", "fired_at": 1_700_000_000}
+    monkeypatch.setattr(handler, "_read_completed_legacy_response",
+                        lambda _: result if completed == "pending" else None)
+
+    await handler._reconcile_existing_legacy_turn(
+        cache_service=cache, directus_service=directus, manager=manager, user_id="owner", device_fingerprint_hash="device",
+        chat_id="chat", task_id="task",
+    )
+    frames = [call.args[0] for call in manager.send_personal_message.await_args_list]
+    assert all(call.args[1:] == ("owner", "device") for call in manager.send_personal_message.await_args_list)
+    assert not any(frame["type"] in ("ai_task_initiated", "error") for frame in frames)
+    if completed == "running":
+        assert frames == [{"type": "ai_message_update", "payload": snapshot}]
+        cache.clear_active_ai_task_if_matches.assert_not_awaited()
+    else:
+        cache.clear_active_ai_task_if_matches.assert_awaited_once_with("chat", "task")
+        assert [frame["type"] for frame in frames[-2:]] == ["ai_message_ready", "ai_typing_ended"]
+        if completed == "canonical":
+            assert frames[0]["type"] == "chat_content_batch_response"
+            # The exact row is replayed, independent of latest-window bounds.
+            rows = frames[0]["payload"]["messages_by_chat_id"]["chat"]
+            assert [json.loads(row) for row in rows] == [{**canonical, "status": "synced"}]
+        else:
+            assert frames[0] == {"type": "pending_ai_response", "payload": {
+                "type": "ai_response", "chat_id": "chat", "message_id": "task",
+                "user_id": "owner", **result,
+            }}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [{"user_id_uuid": "foreign"}, {"chat_id": "foreign"},
+                                    {"message_id": "newer-task"}, {"external_request": True},
+                                    {"is_final_chunk": True}])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.access.scoped,chats.message.identity-idempotent
+async def test_existing_legacy_retry_never_replays_another_stream(monkeypatch, changed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    monkeypatch.setattr(handler, "_read_completed_legacy_response", lambda _: None)
+    snapshot = {"user_id_uuid": "owner", "chat_id": "chat", "message_id": "task", **changed}
+    cache = SimpleNamespace(get=AsyncMock(return_value=snapshot),
+                            clear_active_ai_task_if_matches=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    await handler._reconcile_existing_legacy_turn(
+        cache_service=cache, directus_service=SimpleNamespace(chat=SimpleNamespace(
+            get_message_for_chat_by_client_id=AsyncMock(return_value=None))),
+        manager=manager, user_id="owner",
+        device_fingerprint_hash="device", chat_id="chat", task_id="task",
+    )
+    manager.send_personal_message.assert_not_awaited()
+    cache.clear_active_ai_task_if_matches.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [{"hashed_user_id": "foreign"}, {"chat_id": "foreign"},
+                                    {"message_id": "other"}, {"role": "user"}])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.access.scoped
+async def test_existing_legacy_canonical_replay_requires_exact_owner_and_message(monkeypatch, changed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    canonical = {"role": "assistant", "chat_id": "chat", "message_id": "task",
+                 "hashed_user_id": hash_id("owner"), **changed}
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    cache = SimpleNamespace(clear_active_ai_task_if_matches=AsyncMock())
+    with pytest.raises(RuntimeError, match="identity is inconsistent"):
+        await handler._reconcile_existing_legacy_turn(
+            cache_service=cache, directus_service=SimpleNamespace(chat=SimpleNamespace(
+                get_message_for_chat_by_client_id=AsyncMock(return_value=canonical))),
+            manager=manager, user_id="owner", device_fingerprint_hash="device",
+            chat_id="chat", task_id="task",
+        )
+    manager.send_personal_message.assert_not_awaited()
+    cache.clear_active_ai_task_if_matches.assert_not_awaited()
+
+
+@pytest.mark.parametrize("state,changed,expected", [
+    ("SUCCESS", {}, True), ("PENDING", {}, False),
+    ("SUCCESS", {"task_id": "foreign"}, False),
+    ("SUCCESS", {"interrupted_by_revocation": True}, False),
+    ("SUCCESS", {"main_processing_output": None}, False),
+])
+# contract-test: direct surface=rest_api assertions=chats.completion.recovery-takeover
+def test_existing_legacy_result_replay_requires_successful_matching_completion(monkeypatch, state, changed, expected):
+    from datetime import datetime, timezone
+    import celery.result
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    response = {"_celery_task_state": "SUCCESS", "task_id": "task",
+                "main_processing_output": "answer", **changed}
+    result = SimpleNamespace(state=state, result=response,
+                             date_done=datetime(2026, 10, 22, 17, 30, tzinfo=timezone.utc))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=object()))
+    monkeypatch.setattr(celery.result, "AsyncResult", lambda task_id, app: result)
+    replay = handler._read_completed_legacy_response("task")
+    assert (replay is not None) is expected
+    if expected:
+        assert replay == {"content": "answer", "fired_at": int(result.date_done.timestamp())}
+
+
+@pytest.mark.parametrize("server_code,cache_ack", [(False, True), (True, True), (True, False)])
+def test_message_send_forwards_client_embed_ref_index(monkeypatch, server_code, cache_ack):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
+    warning = Mock(wraps=message_received_handler.logger.warning)
+    error = Mock(wraps=message_received_handler.logger.error)
+    monkeypatch.setattr(message_received_handler.logger, "warning", warning)
+    monkeypatch.setattr(message_received_handler.logger, "error", error)
     manager = FakeManager()
     captured: dict[str, object] = {}
+    cached_embeds = []
+
+    async def cache_embed(*, embed_id, embed_data, chat_id, ttl=86400):
+        # Enforce the real cache contract rather than accepting arbitrary kwargs.
+        cached_embeds.append((embed_id, embed_data, chat_id, ttl))
+        return cache_ack
+
+    class CodeEmbedService(FakeEmbedService):
+        async def extract_code_blocks_from_user_message(self, **kwargs):
+            return "Review [!](embed:sample.py)", [{
+                "embed_id": "extracted-code-1", "type": "code", "status": "finished",
+                "content": "type: code\ncode: print('synthetic code sentinel')",
+                "filename": "sample.py",
+            }]
 
     class CapturingSkillRegistry:
         async def dispatch_skill(self, app_name, skill_name, request_payload):
@@ -380,7 +575,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
         ),
         increment_and_tombstone_user_draft=AsyncMock(return_value=1),
-        set_embed_in_cache=AsyncMock(),
+        set_embed_in_cache=AsyncMock(side_effect=cache_embed),
         add_embed_id_to_chat_index=AsyncMock(),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
@@ -425,11 +620,14 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
             }
         ],
     }
+    if server_code:
+        payload["message"]["content"] = "Review this code:\n```python\nprint('synthetic code sentinel')\n```"
+        payload["embeds"] = []
 
     monkeypatch.setitem(
         sys.modules,
         "backend.core.api.app.services.embed_service",
-        SimpleNamespace(EmbedService=FakeEmbedService),
+        SimpleNamespace(EmbedService=CodeEmbedService),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -444,7 +642,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -455,8 +653,18 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         )
     )
 
-    assert captured["embed_file_path_index"] == {"mockup-png-abc123": "embed-image-1"}
-    assert captured["has_image_upload_embed"] is True
+    assert captured["embed_file_path_index"] == (None if server_code else {"mockup-png-abc123": "embed-image-1"})
+    assert captured["has_image_upload_embed"] is (not server_code)
+    assert len(cached_embeds) == 1
+    embed_id, embed_data, indexed_chat, ttl = cached_embeds[0]
+    assert embed_id == ("extracted-code-1" if server_code else "embed-image-1")
+    assert indexed_chat == "chat-123" and ttl == 86400
+    assert embed_data["encrypted_content"] == embed_data["encrypted_type"] == "encrypted"
+    assert "synthetic code sentinel" not in json.dumps(embed_data)
+    cache_service.add_embed_id_to_chat_index.assert_not_awaited()
+    if not cache_ack:
+        warning.assert_any_call("Code embed cache registration was not acknowledged")
+    error.assert_not_called()
     cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
     cache_service.set_active_ai_task.assert_not_awaited()
 
@@ -481,7 +689,7 @@ def test_recovery_send_requires_preflight_even_while_another_task_is_active(monk
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=SimpleNamespace(),
@@ -534,7 +742,7 @@ def test_authoritative_epoch_and_chat_read_overlap_before_preflight_rejection(mo
 
     async def run():
         await asyncio.wait_for(message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(), manager=manager,
+            websocket=SimpleNamespace(scope={}), manager=manager,
             cache_service=SimpleNamespace(), directus_service=directus,
             encryption_service=SimpleNamespace(), user_id="user-123",
             device_fingerprint_hash="device-123",
@@ -562,7 +770,7 @@ def test_chat_row_never_authorizes_send_when_epoch_read_fails(monkeypatch):
     )
 
     asyncio.run(message_received_handler.handle_message_received(
-        websocket=SimpleNamespace(), manager=manager,
+        websocket=SimpleNamespace(scope={}), manager=manager,
         cache_service=SimpleNamespace(),
         directus_service=SimpleNamespace(chat=SimpleNamespace(
             get_chat_metadata=metadata, check_chat_ownership=ownership,
@@ -651,6 +859,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
     )
     encryption_service = SimpleNamespace(
         encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _: [(f"vault:v1:history-{index}", 1) for index, _ in enumerate(contents)]),
         decrypt_with_user_key=AsyncMock(side_effect=["@openmates summarize this", "Earlier owner note"]),
     )
     enqueue = AsyncMock(
@@ -701,7 +910,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -862,7 +1071,7 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
 
     asyncio.run(
         asyncio.wait_for(message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1029,7 +1238,7 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1130,7 +1339,7 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1266,7 +1475,7 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,

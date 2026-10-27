@@ -21,7 +21,8 @@
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
   import { getImageAuthenticityStatus, type AIDetectionMetadata } from './imageAuthenticity';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
@@ -348,7 +349,9 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ filename, file_size: fileSize, file_type: fileType }}
+  mediaLayout="immersive"
   appId="images"
   skillId="view"
   skillIconName="image"
@@ -362,11 +365,15 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
-  {navigateDirection}
+  navigateDirection={navigateDirection ?? undefined}
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content()}
+  {#snippet summary()}
+    {#if fileSize !== undefined}<ResultEmbedInfo icon="hard-drive" label={formatFileSize(fileSize)} value={formatFileSize(fileSize)} />{/if}
+    {#if fileType}<ResultEmbedInfo icon="image" label={fileType} value={getFileTypeLabel(fileType, filename)} />{/if}
+  {/snippet}
+  {#snippet media()}
     <div class="image-embed-fullscreen" data-testid="image-embed-fullscreen">
       {#if imageError}
         <div class="error-container">
@@ -377,14 +384,14 @@
         <div class="image-wrapper">
           <!-- Clicking opens original in new tab; Ctrl/Cmd+click uses native link -->
           <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" onclick={handleImageClick}>
-            <img src={fullImageUrl} alt={filename} class="full-image" />
+            <img src={fullImageUrl} alt={filename} class="result-primary-media full-image" />
           </a>
           <ImageAuthenticityBadge {aiDetection} variant="fullscreen" />
         </div>
       {:else if previewImageUrl && isLoadingImage}
         <!-- Progressive: show blurred preview while full-res fetches -->
         <div class="image-wrapper progressive">
-          <img src={previewImageUrl} alt={filename} class="full-image preview-placeholder" />
+          <img src={previewImageUrl} alt={filename} class="result-primary-media full-image preview-placeholder" />
           <ImageAuthenticityBadge {aiDetection} variant="fullscreen" />
           <div class="progressive-overlay" class:with-authenticity-badge={showAuthenticityBadge}>
             <div class="loading-spinner small"></div>
@@ -398,7 +405,7 @@
       {/if}
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
   /*
@@ -415,8 +422,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 220px);
-    padding: var(--spacing-12);
+    min-height: 0;
+    width: 100%;
+    padding: 0;
     box-sizing: border-box;
   }
 
@@ -435,6 +443,7 @@
   }
 
   .image-link {
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -443,6 +452,8 @@
   }
 
   .full-image {
+    width: 100%;
+    height: auto;
     max-width: 100%;
     max-height: calc(100vh - 280px);
     object-fit: contain;

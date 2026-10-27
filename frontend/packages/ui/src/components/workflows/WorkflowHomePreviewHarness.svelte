@@ -8,13 +8,17 @@
   import WorkflowDetailPage from './WorkflowDetailPage.svelte';
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import { text } from '../../i18n/translations';
+  import { workspacePaneMotion } from '../../utils/workspacePaneMotion';
 
   let { greetingName = 'there', empty = false, guest = false }: { greetingName?: string; empty?: boolean; guest?: boolean } = $props();
   let value = $state('');
+  let signupRequested = $state(false);
   let browseMode = $state<'home' | 'workflows' | 'templates'>('home');
   let sortMode = $state<'recent' | 'running-next'>('recent');
   let selectedGuestTemplate = $state<WorkflowTemplate | null>(null);
-  let selectedGuestGraph = $derived(selectedGuestTemplate ? workflowTemplateGraph(selectedGuestTemplate.id) : null);
+  let outgoingTemplate = $state<WorkflowTemplate | null>(null);
+  let displayedTemplate = $derived(selectedGuestTemplate ?? outgoingTemplate);
+  let selectedGuestGraph = $derived(displayedTemplate ? workflowTemplateGraph(displayedTemplate.id) : null);
   const now = Math.floor(Date.now() / 1000);
   const actionItems = [
     { id: 'workflow-fixture', title: 'Weekly AI events', summary: 'Every day, 09:00 - Keep latest 5 encrypted runs', badge: 'Paused', category: 'technology', icon: 'calendar-days', source: 'recent' as const, created_at: now - 60, updated_at: now - 60, next_run_at: null, enabled: false },
@@ -35,14 +39,14 @@
 </script>
 
 {#if guest && selectedGuestTemplate}
-  <section class="workflow-management" data-testid="workflow-management">
+  <section class="workflow-management" data-testid="workflow-management" transition:workspacePaneMotion onoutroend={() => { outgoingTemplate = null; }}>
     <section class="workflow-detail" data-testid="workflow-detail">
       <WorkflowDetailPage
-        title={selectedGuestTemplate.title} description={selectedGuestTemplate.description ?? selectedGuestTemplate.summary}
-        category={selectedGuestTemplate.category} icon={selectedGuestTemplate.icon}
+        title={displayedTemplate!.title} description={displayedTemplate!.description ?? displayedTemplate!.summary}
+        category={displayedTemplate!.category} icon={displayedTemplate!.icon}
         enabled={false} canEnable={false} canRun={false} saving={false} provisional activeTab="template"
         onTabChange={() => {}} onToggleEnabled={() => {}} onRunWorkflow={() => {}} onDeleteWorkflow={() => {}}
-        onOpenHome={() => { selectedGuestTemplate = null; }} onOpenShare={() => {}} onExport={() => {}}
+        onOpenHome={() => { outgoingTemplate = selectedGuestTemplate; selectedGuestTemplate = null; }} onOpenShare={() => {}} onExport={() => {}}
         onOpenRuns={() => {}} runsHref="" onUpdateIdentity={async () => {}} onDraftIdentity={() => {}}
       />
       <div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
@@ -57,10 +61,11 @@
 {:else}
 <WorkspaceHomeShell
   surface="workflows" testId="workflows-start-screen"
-  heading={`Hey ${greetingName}!`} subtitle="What do you want to automate next?"
+  heading={$text('workflows.home.greeting', { values: { name: greetingName } })} subtitle={$text(guest ? 'workflows.home.guest_subtitle' : 'workflows.home.subtitle')}
+  continueLabel=""
   actionItems={guest || empty ? [] : sortWorkflowContinue(actionItems)} actionItemsTestId="workflow-mixed-row" itemTestId="workflow-landing-card"
   continueItems={guest ? guestTemplates : []} continueItemTestId="workflow-landing-card"
-  showReportIssue showComposer={!guest} showAllMode={browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
+  showReportIssue showComposer showAllMode={browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
   browseLabel="Show templates" browseTestId="workflows-show-templates"
   allItemsHeading={guest || browseMode === 'templates' ? 'Templates' : 'My workflows'}
   allItems={guest ? guestTemplates : browseMode === 'templates' ? templates : empty ? [] : sortAllWorkflows(actionItems, sortMode)} allItemsViewTestId="all-workflows-view" allItemsGridTestId="all-workflows-grid"
@@ -77,6 +82,8 @@
     {/if}
   </svelte:fragment>
   <svelte:fragment slot="composer">
+    <div class="workflow-home-composer">
+    <div inert={guest}>
     <WorkspacePromptComposer
       surface="workflows" bind:value placeholder={$text('workflows.builder.new_workflow_placeholder')}
       submitLabel="Create workflow" submittingLabel="Creating..." disabled={false} submitting={false}
@@ -84,6 +91,16 @@
       submitTestId="workflow-input-submit" micTestId="workflow-input-mic"
       onSubmit={() => {}} onMicClick={() => {}}
     />
+    </div>
+    {#if guest}<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={() => { signupRequested = true; }}></button>{/if}
+    </div>
   </svelte:fragment>
 </WorkspaceHomeShell>
 {/if}
+
+{#if signupRequested}<div role="dialog" aria-label="Sign up" data-testid="workflow-signup-dialog"><button type="button" onclick={() => { signupRequested = false; }}>Close</button></div>{/if}
+<style>
+  .workflow-home-composer { position: relative; width: min(629px, 100%); margin: 0 auto; }
+  .workflow-guest-signup { position: absolute; inset: 0; border: 0; border-radius: var(--radius-5); background: transparent; cursor: text; }
+  .workflow-guest-signup:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+</style>

@@ -660,7 +660,7 @@ export async function handleBackgroundMessageSyncImpl(
             { isFromSync: true },
           );
           if (shouldClearDraftOnlyShell) {
-            chatMetadataCache.invalidateChat(chatData.chat_id);
+            chatMetadataCache.invalidateChat(chatData.chat_id, 'metadata-phase-sync');
             chatListCache.markDirty();
             console.info(
               `[ChatSyncService] Cleared stale draft-only shell for message-bearing chat ${chatData.chat_id}`,

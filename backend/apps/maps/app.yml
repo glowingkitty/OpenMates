@@ -10,6 +10,9 @@ last_updated: "2025-01-27"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
+    authoring:
+      kind: maps.place
+      schema_id: maps.place
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use
@@ -95,14 +98,17 @@ skills:
       or preference that should change place ordering, put it in relevance_criteria even if related
       words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria
       "Places suitable for working several hours on a laptop and taking a client call." Keep rating,
-      open-now, price, and required amenities structured. Omit relevance_criteria only for a neutral
+      open-now, closing time, price, and required amenities structured. For "open until at least 9pm",
+      always set openUntil to "21:00" (place-local time), with openOn only when the user specifies a
+      date. This hard filter excludes unknown hours; query text or relevance_criteria alone does
+      not enforce opening hours. Omit relevance_criteria only for a neutral
       place search fully expressed by query and structured fields; never invent preferences.
       For ruins, viewpoints, drinking water, toilets, picnic sites or campsites, use categories
       and area to search OpenStreetMap via Geoapify directly. Categories are ruins, viewpoints,
       drinking_water, toilets, picnic_sites, campsites (OR when combined). Area requires either
       name (include country to avoid ambiguity) or latitude and longitude, with radiusMeters
       (default 10000, maximum 50000). Never infer the user's current location. Ask for an area
-      when none is known. Do not use Google-only rating, open-now or review filters with categories.
+      when none is known. Do not use Google-only rating, opening-hours or review filters with categories.
       Ruins are not a general abandoned-places search; access and missing amenities are unknown.
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
@@ -272,6 +278,14 @@ skills:
                 type: boolean
                 description: If true, return only places that are currently open. Defaults to false.
                 default: false
+              openUntil:
+                type: string
+                pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
+                description: 'Hard closing-time filter: only places with confirmed hours through this place-local HH:MM time, inclusive. For "open until at least 9pm", set "21:00". Uses today unless openOn is supplied. Unknown hours are excluded. Not supported with discovery categories.'
+              openOn:
+                type: string
+                pattern: '^\d{4}-\d{2}-\d{2}$'
+                description: Optional place-local YYYY-MM-DD date for openUntil. Requires openUntil; defaults to today at each place.
               includeReviews:
                 x-ui:
                   basic: false

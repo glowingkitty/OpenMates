@@ -121,8 +121,13 @@ openmates chats share last --expires 604800
 openmates chats delete <chat-id> --yes
 ```
 
-Exports include YAML and Markdown. When present, code embeds and video
-transcripts are written as separate files.
+Exports include YAML and Markdown. When present, code embeds, video transcripts,
+and calendar events are written as separate files. Calendar files appear in
+`calendar/` as `.ics` files, each containing only its primary event.
+
+The TypeScript SDK also supports local calendar export from decrypted embed
+content. `buildCalendarEventFile(embedId, content)` returns an RFC 5545 string;
+it requires a valid finished calendar event and does not contact a calendar provider.
 
 ### Use apps and typed commands
 
@@ -337,13 +342,14 @@ Treat these files like account credentials.
 
 ## Node.js SDK
 
-The npm package also exports an API-key SDK for Node.js. Use it when you want a
-programmatic client instead of shell commands.
+The npm package also exports a Node.js SDK. Without an API key, supported app
+skills and `chats.send()` use the shared free allowance without an account.
+A configured `OPENMATES_API_KEY` automatically uses your account instead.
 
-```ts
+```typescript
 import { OpenMates } from "openmates";
 
-const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
+const om = new OpenMates();
 
 const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
@@ -352,17 +358,31 @@ const search = await om.apps.web.search({
 const response = await om.chats.send("Summarize this release note draft.");
 ```
 
-SDK chats are non-persistent by default. Use `saveToAccount: true` only when you
-intentionally want the chat saved to the OpenMates account.
+Check the allowance with `await om.anonymous.status()`. No identity setup is
+needed. Free usage is limited by public IP and a shared daily, weekly, and monthly
+service allowance; people on the same network may share the IP limit.
+When the allowance is used or unavailable, `OpenMatesSignupRequiredError` exposes
+`signupRequired`, `code`, and `reason`, with a message directing users to create
+an account. Provider and network failures remain separate errors.
+
+Pass `apiKey` or set `OPENMATES_API_KEY` to use an account. Invalid or exhausted
+keys never fall back to free usage. For advanced free-only use, `anonymous: true`
+ignores an environment key; it cannot be combined with an explicit `apiKey`.
+
+SDK chats are non-persistent by default. Account-only options, including saved
+chats, Memories, Teams, focus modes, and model overrides, require an API key.
+Use `chats.send()` for anonymous AI chat with automatic routing; `apps.ai.ask()`
+requires an account. With an API key, use `saveToAccount: true` when you want the
+chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.27`, in the web app.
+OpenMates shows the short product line, for example `v0.28`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.27.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.28.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.27.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.28.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.
@@ -374,3 +394,36 @@ Install stable releases with `npm install -g openmates`. Install prereleases wit
 - [SDK guide](https://openmates.org/docs/user-guide/developers/sdk)
 - [Source code](https://github.com/glowingkitty/OpenMates/tree/dev/frontend/packages/openmates-cli)
 - [Issue tracker](https://github.com/glowingkitty/OpenMates/issues)
+## Experimental image decisions
+
+`apps.ai.decide` supports Jev 1.14 decisions over inline PNG/JPEG images:
+
+```typescript
+import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { OpenMates } from "openmates";
+
+const om = new OpenMates();
+const ref = randomUUID();
+const result = await om.apps.ai.decide({
+  state: { board: ref },
+  questions: { clear: { type: "noul", instructions: "Is the path to the exit clear?" } },
+  assets: {
+    [ref]: { type: "image", format: "png", data_base64: (await readFile("board.png")).toString("base64") }
+  }
+});
+console.log(result);
+```
+
+Every asset needs a canonical lowercase UUID key referenced in a string value
+in state, instructions, or criteria. OpenMates validates up to four still images,
+1 MiB decoded per image and 4 MiB total, with both dimensions 280–1568 pixels.
+State/questions remain limited to 16 KiB; the complete JSON body is limited to
+6 MiB. Use `jpg` or `jpeg` for JPEG bytes. CLI callers can pass the same JSON
+shape with `openmates apps ai decide --input '<JSON>' --json`.
+
+This prototype feature calls TypeSafe directly, never OpenRouter fallback.
+Image tokens use the same applicable free allowance or account credits. No
+provider key or image header is required from the caller. It does not fetch
+remote images or create stored uploads; account upload flows still need signup.
+See [REST image decisions](https://github.com/glowingkitty/OpenMates/blob/dev/docs/architecture/apps/rest-api.md#experimental-image-decisions).

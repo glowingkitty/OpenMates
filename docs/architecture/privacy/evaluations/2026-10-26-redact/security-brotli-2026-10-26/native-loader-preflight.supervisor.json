@@ -1,0 +1,46 @@
+{
+  "status": "complete",
+  "result_file": "native-loader-preflight.json",
+  "supervisor": {
+    "returncode": 0,
+    "stopped_by_supervisor": null,
+    "wall_seconds": 0.20475810021162033,
+    "sampled_peak_rss_bytes": 63467520,
+    "rss_sample_interval_seconds": 0.1,
+    "rss_limit_mib": 1536,
+    "wall_limit_seconds": 300,
+    "affinity_cpus": [
+      0,
+      1
+    ],
+    "niceness_increment": 10
+  },
+  "native_decoder_preflight": {
+    "status": "verified",
+    "version": "1.1.1",
+    "version_number": 16781313,
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "symbols": {
+      "BrotliDecoderVersion": {
+        "address": "0xe7cd81786c54",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      },
+      "BrotliDecoderDecompressStream": {
+        "address": "0xe7cd817856c0",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      }
+    },
+    "mapped_brotli_libraries": [
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+    ],
+    "curl_version": "libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.1 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.7",
+    "network": "libseccomp TSYNC deny installed before SDK library load; no HTTP perform",
+    "sdk_model_or_license_created": false,
+    "curl_init_cleanup": true
+  },
+  "stdout_stderr": "discarded to prevent raw fixture/prediction logs"
+}

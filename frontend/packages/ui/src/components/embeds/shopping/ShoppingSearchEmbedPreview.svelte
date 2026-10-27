@@ -9,7 +9,7 @@
   - Embed context: receives query, provider, results directly
 
   Details content structure:
-  - Processing: search query + "via REWE"
+  - Processing: search query + "via ExampleGrocer"
   - Finished: search query + product count + price range (lowest price)
   - Error: error title + message
 
@@ -25,7 +25,7 @@
 
   /**
    * A single product result from the search_products skill.
-   * Matches the fields returned by REWEProduct.to_result_dict().
+   * Matches the fields returned by the stored product result.
    */
   interface ProductResult {
     type?: string;
@@ -53,7 +53,7 @@
     bought_last_month?: string | null;
     provider?: string;
     country?: string;
-    amazon_domain?: string;
+    ExampleRetail_domain?: string;
     attributes?: {
       is_organic?: boolean;
       is_vegan?: boolean;
@@ -66,7 +66,7 @@
     id: string;
     /** Search query (e.g., "bio joghurt") */
     query?: string;
-    /** Provider name (e.g., 'REWE') */
+    /** Provider name (e.g., 'ExampleGrocer') */
     provider?: string;
     /** Providers selected for the search request */
     providers?: string[];
@@ -162,12 +162,12 @@
   const skillIconName = 'search';
   function shoppingProviderLabel(value: string): string {
     const normalized = value.trim().toUpperCase();
-    if (normalized === 'AMAZON') {
+    if (normalized === 'ExampleRetail') {
       const countryCode = (flatResults[0]?.country || '').toUpperCase();
-      return countryCode ? `Amazon ${countryCode}` : 'Amazon';
+      return countryCode ? `ExampleRetail ${countryCode}` : 'ExampleRetail';
     }
-    if (normalized === 'REWE') return 'REWE';
-    if (normalized === 'STOFFE.DE' || normalized === 'STOFFE_DE' || normalized === 'STOFFE') return 'Stoffe.de';
+    if (normalized === 'ExampleGrocer') return 'ExampleGrocer';
+    if (normalized === 'ExampleFabric' || normalized === 'ExampleFabric_DE' || normalized === 'ExampleFabric') return 'ExampleFabric';
     return value;
   }
 
@@ -266,7 +266,7 @@
       <!-- Search query (e.g., "bio joghurt") -->
       <div class="ds-search-query">{query || $text('common.search')}</div>
 
-      <!-- Provider subtitle (e.g., "via REWE") -->
+      <!-- Provider subtitle (e.g., "via ExampleGrocer") -->
       {#if viaProvider}
         <div class="ds-search-provider">{viaProvider}</div>
       {/if}

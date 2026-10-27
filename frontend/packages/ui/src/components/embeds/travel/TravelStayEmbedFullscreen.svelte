@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
   
   Fullscreen detail view for a single travel stay/accommodation result.
-  Uses EntryWithMapTemplate for responsive map + detail card layout.
+  Uses ResultEmbedFullscreen for responsive map + detail card layout.
   
   Shows map when GPS coordinates are available from the stay data.
   
@@ -16,7 +16,9 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedChevron from '../EmbedChevron.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
@@ -241,12 +243,29 @@
 </script>
 
 {#if stay}
-<EntryWithMapTemplate
+  {#snippet resultMedia()}
+    <!-- Image Gallery -->
+    {#if currentImage}
+      <div class="image-gallery" data-testid="stay-gallery">
+        <img class="gallery-image" src={currentImage} alt={name} loading="lazy" />
+        {#if allImages.length > 1}
+          <button type="button" class="gallery-nav gallery-prev" onclick={prevImage} aria-label="Previous image"><EmbedChevron direction="previous" /></button>
+          <button type="button" class="gallery-nav gallery-next" onclick={nextImage} aria-label="Next image"><EmbedChevron direction="next" /></button>
+          <div class="gallery-counter" data-testid="stay-gallery-counter">{currentImageIndex + 1} / {allImages.length}</div>
+        {/if}
+      </div>
+    {/if}
+
+  {/snippet}
+<ResultEmbedFullscreen
+  media={currentImage ? resultMedia : undefined}
+  result={stay as unknown as Record<string, unknown>}
   appId="travel"
   skillId="search_stays"
   {onClose}
   skillIconName="search"
-  embedHeaderTitle={$text('app_skills.travel.search_stays')}
+  embedHeaderTitle={name}
+  embedHeaderSubtitle={propertyType || undefined}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -259,7 +278,7 @@
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedStay} testId="save-embed-cta" />
+        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedStay} testId="save-embed-cta" />
       {/if}
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
@@ -267,7 +286,13 @@
     </div>
   {/snippet}
 
-  {#snippet detailContent(_ctx)}
+  {#snippet summary()}
+    {#if pricePerNight != null}<ResultEmbedInfo icon="euro" label="Price per night" value={`${currency} ${pricePerNight}`} caption="per night">{totalPrice != null ? `${currency} ${totalPrice} total` : 'Total price is not supplied.'}</ResultEmbedInfo>{/if}
+    {#if formattedRating}<ResultEmbedInfo icon="star" label="Guest rating" value={formattedRating}>{formattedReviews ? `${formattedReviews} reviews` : 'Review count not supplied.'}</ResultEmbedInfo>{/if}
+    {#if stars}<ResultEmbedInfo icon="hotel" label="Hotel class" value={stars}>{propertyType || name}</ResultEmbedInfo>{/if}
+  {/snippet}
+
+  {#snippet detailContent()}
     <!-- Header: Name + Stars + Rating -->
     <div class="stay-header">
       <h1 class="stay-name" data-testid="stay-name">{name}</h1>
@@ -284,18 +309,6 @@
         </div>
       {/if}
     </div>
-
-    <!-- Image Gallery -->
-    {#if currentImage}
-      <div class="image-gallery">
-        <img class="gallery-image" src={currentImage} alt={name} loading="lazy" />
-        {#if allImages.length > 1}
-          <button class="gallery-nav gallery-prev" onclick={prevImage} aria-label="Previous image">&#x2039;</button>
-          <button class="gallery-nav gallery-next" onclick={nextImage} aria-label="Next image">&#x203a;</button>
-          <div class="gallery-counter">{currentImageIndex + 1} / {allImages.length}</div>
-        {/if}
-      </div>
-    {/if}
 
     <!-- Price Section -->
     <div class="price-section">
@@ -329,7 +342,7 @@
     {#if amenities.length > 0}
       <div class="amenities-grid">
         {#each amenities as amenity}
-          <span class="amenity-badge">{amenity}</span>
+          <ResultEmbedInfo icon="check" label={amenity} state="yes">{amenity}</ResultEmbedInfo>
         {/each}
       </div>
     {/if}
@@ -367,7 +380,7 @@
   {/snippet}
 
 
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 {/if}
 
 <style>
@@ -411,33 +424,33 @@
   .image-gallery {
     position: relative;
     width: 100%;
+    height: var(--result-media-height);
     border-radius: var(--radius-5);
     overflow: hidden;
-    background: var(--color-grey-10);
+    background: var(--color-grey-90);
   }
+  :global([data-theme="dark"]) .image-gallery { background: var(--color-grey-30); }
   .gallery-image {
     width: 100%;
-    height: 180px;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     display: block;
   }
   .gallery-nav {
+    all: unset;
+    box-sizing: border-box;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: var(--font-size-h3-mobile);
+    width: 36px;
+    height: 44px;
+    display: grid;
+    place-items: center;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--color-font-button);
     z-index: var(--z-index-raised-2);
   }
+  .gallery-nav:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
   .gallery-prev { left: 8px; }
   .gallery-next { right: 8px; }
   .gallery-counter {
@@ -489,14 +502,6 @@
   }
 
   .amenities-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
-  .amenity-badge {
-    font-size: var(--font-size-xxs);
-    padding: var(--spacing-2) var(--spacing-5);
-    border-radius: 100px;
-    background-color: var(--color-grey-10);
-    color: var(--color-grey-80);
-    border: 1px solid var(--color-grey-20);
-  }
 
   .check-times { display: flex; gap: var(--spacing-8); flex-wrap: wrap; }
   .check-time { display: flex; flex-direction: column; gap: var(--spacing-1); }

@@ -36,7 +36,7 @@ final class HostingEmbedParityUITests: XCTestCase {
         cards.firstMatch.tap()
         waitUntilReady(app)
         XCTAssertTrue(app.descendants(matching: .any)["hosting-domain-ascii"].firstMatch.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["hosting-open-gandi"].isHittable)
+        XCTAssertTrue(app.buttons["hosting-open-ExampleRegistrar"].isHittable)
         let next = app.buttons["embed-next"]
         XCTAssertTrue(next.isHittable)
         next.tap()
@@ -83,7 +83,7 @@ final class HostingEmbedParityUITests: XCTestCase {
             let app = launch(key: "hosting-domain", surface: "fullscreen", variant: variant)
             waitUntilReady(app)
             XCTAssertTrue(app.descendants(matching: .any)["hosting-domain-details"].firstMatch.waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["hosting-open-gandi"].isHittable)
+            XCTAssertTrue(app.buttons["hosting-open-ExampleRegistrar"].isHittable)
             XCTAssertTrue(app.buttons["embed-more-button"].isHittable)
             app.buttons["embed-more-button"].tap()
             XCTAssertTrue(app.buttons["embed-copy-button"].isHittable)

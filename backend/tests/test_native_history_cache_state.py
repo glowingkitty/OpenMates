@@ -31,6 +31,26 @@ from backend.apps.ai.utils.embeds_map_view import (
 )
 
 
+def test_native_replay_accepts_wr7tn_short_source_repair_only_for_authored_parents():
+    from backend.apps.ai.processing.native_history_cache import _replay_presentation_steps
+    from backend.apps.ai.utils.embeds_map_view import validate_embeds_map_view_sources
+
+    parent_id = "11111111-1111-4111-8111-111111111111"
+    ref = "events-search-111111"
+    calls = [{
+        "app_id": "events", "skill_id": "search", "embed_id": parent_id,
+        "embed_reference": json.dumps({"type": "app_skill_use", "embed_id": parent_id,
+                                       "app_id": "events", "skill_id": "search"}),
+        "source_ref_bindings": {ref: parent_id, "forged-ref": "not-authored"},
+    }]
+    raw = "```embeds_results_view\ntitle: AI events\nsources: events-search-12ab34\n```"
+    expected, _ = validate_embeds_map_view_sources(
+        raw, available_sources={ref: parent_id, parent_id: parent_id}, repair_source_refs=[ref],
+    )
+    assert _replay_presentation_steps(raw, [{"kind": "normalize_map_view", "refs": [ref, parent_id]}], calls) == expected
+    assert _replay_presentation_steps(raw, [{"kind": "normalize_map_view", "refs": ["forged-ref"]}], calls) is None
+
+
 def _tool(name, description="first"):
     return {"type": "function", "function": {
         "name": name, "description": description,

@@ -1,0 +1,449 @@
+{
+  "status": "complete",
+  "stage": "bounded-latency",
+  "completed_quality_cases": 59,
+  "quality_timings": [
+    {
+      "id": "name-support",
+      "characters_utf16": 59,
+      "raw_ms": 132.722662,
+      "browser_ms": 81.49007700000004
+    },
+    {
+      "id": "name-rare",
+      "characters_utf16": 63,
+      "raw_ms": 82.08155999999997,
+      "browser_ms": 81.89571899999999
+    },
+    {
+      "id": "name-first-only",
+      "characters_utf16": 51,
+      "raw_ms": 80.00951099999997,
+      "browser_ms": 82.11487999999986
+    },
+    {
+      "id": "name-initials",
+      "characters_utf16": 54,
+      "raw_ms": 80.11871100000008,
+      "browser_ms": 78.88818600000013
+    },
+    {
+      "id": "name-json",
+      "characters_utf16": 53,
+      "raw_ms": 80.34267299999988,
+      "browser_ms": 79.66906900000004
+    },
+    {
+      "id": "name-code",
+      "characters_utf16": 61,
+      "raw_ms": 80.3498320000001,
+      "browser_ms": 79.57846900000004
+    },
+    {
+      "id": "name-emoji",
+      "characters_utf16": 60,
+      "raw_ms": 79.77594900000008,
+      "browser_ms": 79.35222799999997
+    },
+    {
+      "id": "name-german",
+      "characters_utf16": 62,
+      "raw_ms": 78.36750400000005,
+      "browser_ms": 79.36242799999991
+    },
+    {
+      "id": "name-japanese",
+      "characters_utf16": 29,
+      "raw_ms": 81.74527799999987,
+      "browser_ms": 78.6225850000003
+    },
+    {
+      "id": "name-arabic",
+      "characters_utf16": 47,
+      "raw_ms": 78.30882399999973,
+      "browser_ms": 78.50286400000005
+    },
+    {
+      "id": "address-us",
+      "characters_utf16": 74,
+      "raw_ms": 81.3157970000002,
+      "browser_ms": 80.35747300000003
+    },
+    {
+      "id": "address-uk",
+      "characters_utf16": 52,
+      "raw_ms": 81.97996000000012,
+      "browser_ms": 80.8503539999997
+    },
+    {
+      "id": "address-de",
+      "characters_utf16": 54,
+      "raw_ms": 81.76271799999995,
+      "browser_ms": 79.43986900000027
+    },
+    {
+      "id": "address-json",
+      "characters_utf16": 52,
+      "raw_ms": 79.83438999999998,
+      "browser_ms": 81.1495160000004
+    },
+    {
+      "id": "address-multiline",
+      "characters_utf16": 71,
+      "raw_ms": 81.12279599999965,
+      "browser_ms": 80.47551299999986
+    },
+    {
+      "id": "address-context-only",
+      "characters_utf16": 56,
+      "raw_ms": 80.83871499999987,
+      "browser_ms": 79.41246799999999
+    },
+    {
+      "id": "email-simple",
+      "characters_utf16": 48,
+      "raw_ms": 79.7143900000001,
+      "browser_ms": 79.53026899999986
+    },
+    {
+      "id": "email-plus",
+      "characters_utf16": 47,
+      "raw_ms": 79.61694899999975,
+      "browser_ms": 81.17427599999974
+    },
+    {
+      "id": "email-json",
+      "characters_utf16": 52,
+      "raw_ms": 80.87631500000043,
+      "browser_ms": 79.31490799999983
+    },
+    {
+      "id": "email-unicode-context",
+      "characters_utf16": 33,
+      "raw_ms": 78.49226399999998,
+      "browser_ms": 79.3515080000002
+    },
+    {
+      "id": "phone-us",
+      "characters_utf16": 45,
+      "raw_ms": 81.49763699999994,
+      "browser_ms": 81.80303900000035
+    },
+    {
+      "id": "phone-uk",
+      "characters_utf16": 39,
+      "raw_ms": 80.70231400000011,
+      "browser_ms": 79.14146699999947
+    },
+    {
+      "id": "phone-de",
+      "characters_utf16": 44,
+      "raw_ms": 79.80090999999993,
+      "browser_ms": 81.3219569999992
+    },
+    {
+      "id": "phone-local",
+      "characters_utf16": 45,
+      "raw_ms": 80.20871200000056,
+      "browser_ms": 81.44651700000031
+    },
+    {
+      "id": "secret-github",
+      "characters_utf16": 53,
+      "raw_ms": 79.4931889999998,
+      "browser_ms": 80.20679199999995
+    },
+    {
+      "id": "secret-openai",
+      "characters_utf16": 167,
+      "raw_ms": 158.1522130000003,
+      "browser_ms": 159.48009999999977
+    },
+    {
+      "id": "secret-aws",
+      "characters_utf16": 38,
+      "raw_ms": 81.25511599999936,
+      "browser_ms": 78.68610499999977
+    },
+    {
+      "id": "secret-google",
+      "characters_utf16": 59,
+      "raw_ms": 79.0947070000002,
+      "browser_ms": 80.56539299999986
+    },
+    {
+      "id": "secret-stripe",
+      "characters_utf16": 50,
+      "raw_ms": 80.46243299999969,
+      "browser_ms": 78.96982599999956
+    },
+    {
+      "id": "secret-slack",
+      "characters_utf16": 67,
+      "raw_ms": 79.80859000000055,
+      "browser_ms": 80.09863099999984
+    },
+    {
+      "id": "secret-bearer",
+      "characters_utf16": 57,
+      "raw_ms": 81.4216779999997,
+      "browser_ms": 78.83818499999961
+    },
+    {
+      "id": "secret-opaque-context",
+      "characters_utf16": 75,
+      "raw_ms": 80.60247299999992,
+      "browser_ms": 80.87343499999952
+    },
+    {
+      "id": "secret-passphrase",
+      "characters_utf16": 60,
+      "raw_ms": 82.48256200000014,
+      "browser_ms": 80.5867530000005
+    },
+    {
+      "id": "secret-json-unusual",
+      "characters_utf16": 48,
+      "raw_ms": 79.74066999999923,
+      "browser_ms": 78.85318499999994
+    },
+    {
+      "id": "secret-assignment",
+      "characters_utf16": 42,
+      "raw_ms": 83.49112700000023,
+      "browser_ms": 80.42127199999959
+    },
+    {
+      "id": "secret-bare-unknown",
+      "characters_utf16": 24,
+      "raw_ms": 81.4393570000002,
+      "browser_ms": 79.82314999999926
+    },
+    {
+      "id": "secret-split",
+      "characters_utf16": 71,
+      "raw_ms": 79.76098999999977,
+      "browser_ms": 78.90042600000015
+    },
+    {
+      "id": "account-iban",
+      "characters_utf16": 47,
+      "raw_ms": 81.24927599999955,
+      "browser_ms": 80.93875500000013
+    },
+    {
+      "id": "account-ssn",
+      "characters_utf16": 33,
+      "raw_ms": 80.67475399999967,
+      "browser_ms": 79.7145900000005
+    },
+    {
+      "id": "date-birth",
+      "characters_utf16": 37,
+      "raw_ms": 78.54374499999994,
+      "browser_ms": 77.86270100000002
+    },
+    {
+      "id": "url-private",
+      "characters_utf16": 85,
+      "raw_ms": 79.20762800000011,
+      "browser_ms": 79.15066699999988
+    },
+    {
+      "id": "configured-person",
+      "characters_utf16": 68,
+      "raw_ms": 79.42070800000056,
+      "browser_ms": 78.28726300000017
+    },
+    {
+      "id": "mixed-support",
+      "characters_utf16": 120,
+      "raw_ms": 81.53987799999959,
+      "browser_ms": 79.74294999999984
+    },
+    {
+      "id": "mixed-log",
+      "characters_utf16": 117,
+      "raw_ms": 80.12291199999981,
+      "browser_ms": 80.11275099999966
+    },
+    {
+      "id": "negative-uuid",
+      "characters_utf16": 57,
+      "raw_ms": 81.44495700000061,
+      "browser_ms": 79.3895080000002
+    },
+    {
+      "id": "negative-hash",
+      "characters_utf16": 71,
+      "raw_ms": 79.74775000000045,
+      "browser_ms": 79.30122699999993
+    },
+    {
+      "id": "negative-function",
+      "characters_utf16": 68,
+      "raw_ms": 81.45339699999931,
+      "browser_ms": 80.630674
+    },
+    {
+      "id": "negative-public-name",
+      "characters_utf16": 62,
+      "raw_ms": 80.48195299999861,
+      "browser_ms": 79.48930800000016
+    },
+    {
+      "id": "negative-library",
+      "characters_utf16": 57,
+      "raw_ms": 82.14880100000119,
+      "browser_ms": 80.55303300000014
+    },
+    {
+      "id": "negative-public-url",
+      "characters_utf16": 69,
+      "raw_ms": 79.30574799999886,
+      "browser_ms": 80.03239100000064
+    },
+    {
+      "id": "negative-version",
+      "characters_utf16": 67,
+      "raw_ms": 80.49923299999864,
+      "browser_ms": 80.08703100000093
+    },
+    {
+      "id": "negative-timestamp",
+      "characters_utf16": 63,
+      "raw_ms": 78.52582399999847,
+      "browser_ms": 78.77718599999935
+    },
+    {
+      "id": "negative-placeholders",
+      "characters_utf16": 62,
+      "raw_ms": 78.9289860000008,
+      "browser_ms": 79.4961489999987
+    },
+    {
+      "id": "negative-counts",
+      "characters_utf16": 74,
+      "raw_ms": 78.8121059999994,
+      "browser_ms": 80.28287199999977
+    },
+    {
+      "id": "negative-address-public",
+      "characters_utf16": 69,
+      "raw_ms": 79.41346900000099,
+      "browser_ms": 79.81947000000036
+    },
+    {
+      "id": "negative-branch",
+      "characters_utf16": 75,
+      "raw_ms": 81.15235500000017,
+      "browser_ms": 77.28649899999982
+    },
+    {
+      "id": "window-tail-255",
+      "characters_utf16": 4409,
+      "raw_ms": 2502.096254,
+      "browser_ms": 2524.154709999999
+    },
+    {
+      "id": "window-tail-1024",
+      "characters_utf16": 17482,
+      "raw_ms": 9723.871643,
+      "browser_ms": 9729.303826
+    },
+    {
+      "id": "window-tail-4096",
+      "characters_utf16": 69706,
+      "raw_ms": 38631.206748,
+      "browser_ms": 39120.652546
+    }
+  ],
+  "latency": [
+    {
+      "whitespace_units": 32,
+      "characters_utf16": 211,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        243.40342700001202,
+        246.39695999999822,
+        245.34743599999638
+      ],
+      "median_ms": 245.34743599999638,
+      "p95_ms": 246.39695999999822,
+      "before_repetitions_rss_bytes": 187441152,
+      "after_repetitions_rss_bytes": 187441152
+    },
+    {
+      "whitespace_units": 256,
+      "characters_utf16": 1695,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        2496.936426,
+        2500.5261610000016,
+        2541.5791809999937
+      ],
+      "median_ms": 2500.5261610000016,
+      "p95_ms": 2541.5791809999937,
+      "before_repetitions_rss_bytes": 187441152,
+      "after_repetitions_rss_bytes": 187441152
+    },
+    {
+      "whitespace_units": 1024,
+      "characters_utf16": 6783,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        10165.230516999989,
+        10269.687092999986,
+        10083.165032999997
+      ],
+      "median_ms": 10165.230516999989,
+      "p95_ms": 10269.687092999986,
+      "before_repetitions_rss_bytes": 187441152,
+      "after_repetitions_rss_bytes": 187441152
+    },
+    {
+      "whitespace_units": 4096,
+      "characters_utf16": 27135,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        40721.832679000014,
+        41189.335063999984,
+        41060.28591700003
+      ],
+      "median_ms": 41060.28591700003,
+      "p95_ms": 41189.335063999984,
+      "before_repetitions_rss_bytes": 187441152,
+      "after_repetitions_rss_bytes": 183570432
+    }
+  ],
+  "load": {
+    "first_new_process_ms": 29.16744799999998,
+    "warm_same_process_reload_ms": 0.10536000000001877
+  },
+  "environment": {
+    "platform": "linux",
+    "architecture": "arm64",
+    "node": "v24.22.1",
+    "os": "6.8.0-137-generic",
+    "cpu": "Neoverse-N1",
+    "affinity": "0",
+    "native_thread_setting": "SDK default; no supported public thread option; all threads affinity-bounded by supervisor",
+    "native_threads_after_load": 11
+  },
+  "offline": {
+    "mechanism": "libseccomp TSYNC, EPERM",
+    "all_threads": true,
+    "socket_creation_denied": true,
+    "existing_internet_sockets": 0,
+    "required_telemetry": "normal SDK load and flush before seal; SDK unmodified"
+  },
+  "current_fixture": "window-tail-4096",
+  "after_first_inference_rss_bytes": 176533504,
+  "current_latency_whitespace_units": 4096,
+  "active_latency_samples_ms": [
+    40721.832679000014,
+    41189.335063999984,
+    41060.28591700003
+  ],
+  "current_rss_bytes": 164851712
+}

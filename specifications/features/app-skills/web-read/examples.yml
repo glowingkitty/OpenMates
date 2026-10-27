@@ -1,0 +1,57 @@
+schema_version: 1
+specification: feature.app-skill.web-read@1
+public_page:
+  - id: public-documentation-page
+    given: Alice supplies a public documentation URL with a caller ID, and its crawler policy permits reading.
+    when: She invokes web.read through an authenticated supported surface.
+    then: Her result retains the caller ID, complete extracted text, title, source URL and hash; successful-page pricing is unchanged.
+    assertion_ids: [web-read.public-page]
+  - id: mixed-batch
+    given: Alice supplies two URLs; one is readable and the other returns an access denial.
+    when: Both reads finish within the bounded batch.
+    then: The readable page remains complete and the denied page has a visible error in its original position without creator income.
+    assertion_ids: [web-read.public-page]
+crawler_exclusions:
+  - id: disallowed-page-and-redirect
+    given: A site's robots.txt disallows an article for OpenMatesReader, including when another URL redirects to it.
+    when: Alice asks the reader to retrieve that article.
+    then: The reader reports the exclusion without sending a request for the disallowed article.
+    assertion_ids: [web-read.crawler-exclusions]
+  - id: unavailable-policy-or-access-barrier
+    given: Crawler policy cannot be established, or the page responds with an access denial or CAPTCHA barrier.
+    when: Alice attempts a read.
+    then: She receives a visible failure with no successful page content, proxy retry, credential request or CAPTCHA bypass.
+    assertion_ids: [web-read.crawler-exclusions]
+transport_boundary:
+  - id: unsafe-destination
+    given: Alice supplies a local address or a public page that redirects to a private server.
+    when: The reader validates its destination.
+    then: It rejects the unsafe target before connecting to it, while keeping TLS verification enabled.
+    assertion_ids: [web-read.transport-boundary]
+  - id: bounded-source
+    given: A selected page exceeds the download budget or asks the reader to use an unsupported response format.
+    when: The bounded read runs.
+    then: It returns a visible failure without silently truncating the page or using another access path.
+    assertion_ids: [web-read.transport-boundary]
+saved_full_text:
+  - id: save-reload-and-read-last-paragraph
+    given: Alice successfully reads a long article with a distinctive final paragraph.
+    when: She saves the result, reloads the chat and opens the fullscreen reader.
+    then: The complete extracted article, including its final paragraph, remains readable from the encrypted saved embed without another source request.
+    assertion_ids: [web-read.saved-full-text]
+  - id: historical-page-stays-readable
+    given: Alice has an existing saved full-text page and its source later denies crawler access.
+    when: She opens that saved result.
+    then: The saved text remains available and the reader does not refetch or delete it.
+    assertion_ids: [web-read.saved-full-text]
+billing:
+  - id: successful-and-excluded-pages
+    given: Alice submits two pages and the server returns one complete readable page and one crawler exclusion.
+    when: The existing billing path accounts for the server-produced results.
+    then: Alice is charged twenty credits for the readable page; the excluded page costs zero and creates no creator income.
+    assertion_ids: [web-read.billing]
+  - id: caller-usage-is-not-authoritative
+    given: Alice includes an invented credit count in a read request and every page is denied.
+    when: The server validates and executes the request.
+    then: No successful-page charge or creator income is created from the caller's count.
+    assertion_ids: [web-read.billing]

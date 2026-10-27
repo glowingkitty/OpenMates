@@ -128,7 +128,7 @@ def build_degraded_issue_report(
         if count >= min_occurrences
     ]
     issues.sort(
-        key=lambda item: (item["count"], item["level"] == "CRITICAL", item["level"] == "ERROR"),
+        key=lambda item: (item["level"] == "CRITICAL", item["level"] == "ERROR", item["count"]),
         reverse=True,
     )
     return issues[:top_messages]
@@ -181,6 +181,7 @@ async def collect_recent_degraded_log_rows(
     end_time = datetime.now(timezone.utc)
     collector = OpenObserveLogCollectorService()
     rows: list[dict[str, Any]] = []
+    seen_events: set[tuple[Any, ...]] = set()
     while True:
         sql = (
             'SELECT _timestamp, service, container, job, level, message FROM "default" '
@@ -188,10 +189,31 @@ async def collect_recent_degraded_log_rows(
             "ORDER BY _timestamp DESC "
             f"LIMIT {DEGRADED_SERVICES_REPORT_QUERY_LIMIT} OFFSET {len(rows)}"
         )
-        page = await collector._search("default", sql, start_time=start_time, end_time=end_time)
+        # Cached OFFSET queries can return overlapping slices on OpenObserve.
+        page = await collector._search(
+            "default", sql, start_time=start_time, end_time=end_time, use_cache=False,
+        )
         if page is None:
             # Do not publish partial counts as a full 24-hour report.
             raise RuntimeError("Failed to collect the complete degraded-services log window")
+        timestamps = [row.get("_timestamp") for row in page]
+        if any(not isinstance(timestamp, int) for timestamp in timestamps):
+            raise RuntimeError("Incomplete degraded-services log timestamps")
+        if any(newer < older for newer, older in zip(timestamps, timestamps[1:])):
+            raise RuntimeError("Unordered degraded-services log page")
+        if rows and page and rows[-1]["_timestamp"] < page[0]["_timestamp"]:
+            raise RuntimeError("Reversed degraded-services log page boundary")
+        # Include ingestion time and source: inner messages alone are not event
+        # identities. Never deduplicate genuine repeats within a source/page.
+        page_events = {
+            tuple(row.get(field) for field in ("_timestamp", "service", "container", "job", "level", "message"))
+            for row in page
+        }
+        if seen_events.intersection(page_events):
+            # Identical events straddling a tied boundary are ambiguous too:
+            # fail closed rather than silently drop or inflate occurrences.
+            raise RuntimeError("Overlapping degraded-services log pages")
+        seen_events.update(page_events)
         rows.extend(page)
         if len(page) < DEGRADED_SERVICES_REPORT_QUERY_LIMIT:
             return rows

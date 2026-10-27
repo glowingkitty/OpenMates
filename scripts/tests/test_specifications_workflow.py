@@ -410,6 +410,7 @@ def test_coverage_keeps_inventory_mapping_proof_and_surfaces_separate(tmp_path):
     assert coverage["assertions_with_tests"] == 0
     assert coverage["assertions_with_current_proof"] == 0
     assert coverage["surface_parity"]["rest_api"]["required"] == 1
+    assert coverage["surface_parity"]["sdks.rust"] == {"required": 0, "proven": 0}
 
 
 # contract-test: tooling
@@ -501,6 +502,47 @@ def test_repository_test_discovery_prunes_managed_worktrees(tmp_path):
 
 
 # contract-test: tooling
+@pytest.mark.parametrize("generated_directory", ["target", "logs"])
+def test_repository_test_discovery_prunes_generated_copies_at_every_depth(tmp_path, generated_directory):
+    module = load_module()
+    # There is no Git index in this temporary repository: real untracked source
+    # tests must remain discoverable alongside tracked source in normal use.
+    source_paths = [
+        tmp_path / "scripts/tests/test_source.py",
+        tmp_path / "frontend/packages/ui/tests/source.spec.ts",
+        tmp_path / "packages/client/tests/test_untracked.py",
+    ]
+    copy_paths = [
+        tmp_path / generated_directory / "tests/test_root_copy.py",
+        tmp_path / "packages/native" / generated_directory / "private/baseline/tests/copied.spec.ts",
+        tmp_path / "frontend/packages/ui" / generated_directory / "retained/tests/test_nested_copy.py",
+    ]
+    for path in source_paths + copy_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# synthetic test discovery fixture\n", encoding="utf-8")
+
+    discovered = module._repository_test_files(tmp_path)
+
+    assert set(discovered) == set(source_paths)
+
+
+# contract-test: tooling
+def test_repository_test_discovery_excludes_exact_generated_directory_names_only(tmp_path):
+    module = load_module()
+    source_paths = [
+        tmp_path / "targeted/tests/test_source.py",
+        tmp_path / "catalogs/tests/test_source.py",
+        tmp_path / "logs-helper/tests/helper.spec.ts",
+        tmp_path / "scripts/tests/target_test.py",
+    ]
+    for path in source_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# synthetic source test\n", encoding="utf-8")
+
+    assert set(module._repository_test_files(tmp_path)) == set(source_paths)
+
+
+# contract-test: tooling
 def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, tmp_path):
     module = load_module()
     control_root = tmp_path / "repo"
@@ -536,3 +578,125 @@ def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, t
     assert "HEAD stale987" in error
     assert "merged commit merged123" in error
     assert "1 dirty file" in error
+
+
+def test_rust_surface_counts_only_its_own_current_proof(tmp_path):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    bundle = write_bundle(specifications_root)
+    specification_path = bundle / "specification.yml"
+    specification = yaml.safe_load(specification_path.read_text(encoding="utf-8"))
+    specification["applies_to"]["sdks"]["implementations"]["rust"] = {"required": True}
+    specification_path.write_text(yaml.safe_dump(specification, sort_keys=False), encoding="utf-8")
+    registry = module.build_registry(specifications_root)
+    assertion_id = "web-search.request.validated"
+
+    without_proof = module.build_coverage(registry, test_index={})
+    assert without_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 0}
+    indexed = {"assertions": {assertion_id: {"surfaces": {"rest_api": {"current_direct_proof": True}}}}}
+    rest_proof = module.build_coverage(registry, indexed)
+    assert rest_proof["surface_parity"]["rest_api"] == {"required": 1, "proven": 1}
+    assert rest_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 0}
+    indexed["assertions"][assertion_id]["surfaces"]["sdks.rust"] = {"current_direct_proof": True}
+    rust_proof = module.build_coverage(registry, indexed)
+    assert rust_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 1}
+    assert rust_proof["assertions_with_current_proof"] == 0
+    assert {key: value for key, value in rest_proof["surface_parity"].items() if key != "sdks.rust"} == {
+        key: value for key, value in rust_proof["surface_parity"].items() if key != "sdks.rust"
+    }
+
+
+def test_rust_surface_metadata_is_accepted_and_unknown_surface_is_rejected(tmp_path):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    write_bundle(specifications_root)
+    registry = module.build_registry(specifications_root)
+    test_path = tmp_path / "test_rust_surface.py"
+    source = (
+        "# contract-test: direct surface=sdks.rust assertions=web-search.request.validated\n"
+        "def test_rust_contract():\n"
+        "    pass\n"
+    )
+    test_path.write_text(source, encoding="utf-8")
+    assert module.check_test_file(test_path, registry, changed=True) == []
+    test_path.write_text(source.replace("sdks.rust", "sdks.unknown"), encoding="utf-8")
+    errors = module.check_test_file(test_path, registry, changed=True)
+    assert len(errors) == 1
+    assert "unknown surface sdks.unknown" in errors[0]
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("current_version", [2, 12])
+def test_registry_keeps_historical_successor_pointer_when_active_version_advances(tmp_path, current_version):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    history = write_bundle(specifications_root / "history", specification_id="feature.old", assertion_id="shared.assertion")
+    active = write_bundle(specifications_root / "active", specification_id="feature.current", assertion_id="shared.assertion")
+    old_path = history / "specification.yml"
+    old = yaml.safe_load(old_path.read_text())
+    old.update(status="superseded", superseded_by="feature.current@1")
+    old_path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = current_version
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    fingerprint = module.validate_bundle(history).fingerprint
+    registry = module.build_registry(specifications_root)
+    assert registry["specifications"]["feature.old"]["superseded_by"] == "feature.current@1"
+    assert registry["assertions"]["shared.assertion"]["specification"] == f"feature.current@{current_version}"
+    assert module.validate_bundle(history).fingerprint == fingerprint
+    assert module.check_approval(tmp_path / "empty-approvals.json", "session", "feature.current", module.validate_bundle(active).fingerprint)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("reference", ["feature.current@3", "feature.current@0", "feature.current@01", "feature.current", "feature.unknown@1"])
+def test_registry_rejects_invalid_or_future_historical_successor(tmp_path, reference):
+    module = load_module()
+    root = tmp_path / "specifications"
+    history = write_bundle(root / "history", specification_id="feature.old", assertion_id="historical.assertion")
+    active = write_bundle(root / "active", specification_id="feature.current", assertion_id="current.assertion")
+    path = history / "specification.yml"
+    old = yaml.safe_load(path.read_text())
+    old.update(status="superseded", superseded_by=reference)
+    path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = 2
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    with pytest.raises(module.SpecificationError, match="invalid superseded_by"):
+        module.build_registry(root)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("change", ["retired_target", "changed_assertion"])
+def test_historical_successor_resolution_preserves_active_owner_and_migration_guards(tmp_path, change):
+    module = load_module()
+    root = tmp_path / "specifications"
+    history = write_bundle(root / "history", specification_id="feature.old", assertion_id="shared.assertion")
+    active = write_bundle(root / "active", specification_id="feature.current", assertion_id="shared.assertion")
+    path = history / "specification.yml"
+    old = yaml.safe_load(path.read_text())
+    old.update(status="superseded", superseded_by="feature.current@1")
+    path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = 2
+    if change == "retired_target":
+        current["status"] = "superseded"
+    else:
+        current["assertions"][0]["must"] = "A changed requirement cannot silently migrate."
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    with pytest.raises(module.SpecificationError, match="active Specification|duplicate assertion id"):
+        module.build_registry(root)

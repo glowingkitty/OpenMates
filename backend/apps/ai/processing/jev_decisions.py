@@ -19,6 +19,11 @@ async def evaluate_jev_decisions(
     telemetry_task_id: Optional[str] = None,
     telemetry_purpose: Optional[str] = None,
 ) -> DecisionResponse:
+    if telemetry_purpose == "preprocess_decision":
+        from backend.apps.ai.testing.voice_pipeline_fixture import jev_response
+        fixture = jev_response(questions=questions, model=model_id)
+        if fixture is not None:
+            return fixture
     client = JevDecisionClient(secrets_manager=secrets_manager, model=model_id, max_retries=max_retries,
                                telemetry_task_id=telemetry_task_id, telemetry_purpose=telemetry_purpose)
     return await client.evaluate(state=state, questions=questions)

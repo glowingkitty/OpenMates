@@ -9,6 +9,309 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-watch.embeds.read-only-fullscreen
+    func testUnopenedCohortMediaReopensEncryptedDiskIntoNormalOfflineThumbnailAndAudioModels() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let mediaDirectory = directory.appendingPathComponent("media")
+        let cache = WatchChatOfflineCache(directory: directory)
+        let media = WatchHubOfflineCache(directory: mediaDirectory, cohortPartition: true, entryLimit: WatchAudioSource.maximumBytes)
+        let crypto = WatchOfflineFixtureCrypto()
+        let transport = WatchOfflineFixtureTransport(crypto: crypto); transport.includesMedia = true
+        let runtime = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
+            api: transport, cache: cache, crypto: crypto, syncSocket: transport, mediaCache: media)
+        await runtime.setForeground(true); await runtime.refresh(); await runtime.waitForRecentOfflineSync()
+        await runtime.waitForRecentMediaSync()
+        XCTAssertNil(runtime.selectedChatId)
+        XCTAssertTrue(runtime.messagesByChatId.isEmpty, "Unvisited media maintenance never publishes transcripts")
+        XCTAssertEqual(runtime.offlineMediaStatus, WatchOfflineMediaStatus(requested: 2, retained: 2, failed: 0, finished: true))
+        XCTAssertEqual(transport.thumbnailReads, 1); XCTAssertEqual(transport.audioReads, 1)
+        await runtime.refresh(); await runtime.waitForRecentOfflineSync(); await runtime.waitForRecentMediaSync()
+        XCTAssertEqual(transport.thumbnailReads, 1, "Repeated sync deduplicates already retained current content")
+        XCTAssertEqual(transport.audioReads, 1)
+        for entry in try FileManager.default.contentsOfDirectory(at: mediaDirectory, includingPropertiesForKeys: nil) {
+            let bytes = try Data(contentsOf: entry)
+            XCTAssertNil(bytes.range(of: WatchOfflineFixtureTransport.thumbnail))
+            XCTAssertNil(bytes.range(of: Data("RIFF".utf8)))
+            XCTAssertFalse(entry.lastPathComponent.contains("offline"))
+        }
+        runtime.stopRealtimeSync(); transport.offline = true
+        let reopenedMedia = WatchHubOfflineCache(directory: mediaDirectory, cohortPartition: true, entryLimit: WatchAudioSource.maximumBytes)
+        let reopened = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
+            api: transport, cache: cache, crypto: WatchOfflineFixtureCrypto(key: crypto.key), syncSocket: nil, mediaCache: reopenedMedia)
+        await reopened.loadCachedSnapshot()
+        await reopened.openChat(try XCTUnwrap(reopened.chats.first { $0.id == "watch-offline-20" }))
+        XCTAssertTrue(reopened.isOffline)
+        let image = WatchEmbedPreviewMapper.makeModel(for: try XCTUnwrap(reopened.hydratedEmbedPreviews["offline-image"]), chatId: "watch-offline-20")
+        let audio = WatchEmbedPreviewMapper.makeModel(for: try XCTUnwrap(reopened.hydratedEmbedPreviews["offline-audio"]), chatId: "watch-offline-20")
+        let thumbnail = try await reopened.retainedThumbnailData(for: image.detailContent)
+        let recording = try await reopened.audioPlaybackData(for: audio)
+        XCTAssertEqual(thumbnail, WatchOfflineFixtureTransport.thumbnail)
+        XCTAssertEqual(recording, WatchOfflineFixtureTransport.audio)
+        XCTAssertEqual(transport.thumbnailReads, 1); XCTAssertEqual(transport.audioReads, 1, "Offline playback performs no presign or media request")
+        reopened.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-watch.embeds.read-only-fullscreen
+    func testSuspendedRetainedMediaReadsRejectSameChatRemovalAndVersionReplacement() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let media = WatchHubOfflineCache(directory: directory.appendingPathComponent("media"),
+            cohortPartition: true, entryLimit: WatchAudioSource.maximumBytes)
+        let crypto = WatchOfflineFixtureCrypto()
+        let transport = WatchOfflineFixtureTransport(crypto: crypto); transport.includesMedia = true
+        let warming = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
+            api: transport, cache: cache, crypto: crypto, syncSocket: transport, mediaCache: media)
+        await warming.setForeground(true); await warming.refresh()
+        await warming.waitForRecentOfflineSync(); await warming.waitForRecentMediaSync()
+        XCTAssertTrue(warming.offlineMediaStatus.complete)
+        warming.stopRealtimeSync(); transport.offline = true
+        let chatID = "watch-offline-20"
+        for suspension in ["key", "cache"] {
+          for kind in ["thumbnail", "audio"] {
+            for mutation in ["remove", "version"] {
+                let gate = WatchChatFetchGate()
+                let beforeCacheLoad: (@Sendable () async -> Void)? = suspension == "cache"
+                    ? { @Sendable in await gate.suspendFetch() } : nil
+                let reopenedMedia = WatchHubOfflineCache(directory: directory.appendingPathComponent("media"),
+                    cohortPartition: true, entryLimit: WatchAudioSource.maximumBytes, beforeLoad: beforeCacheLoad)
+                let reopenedCrypto = WatchOfflineFixtureCrypto(key: crypto.key)
+                let reopened = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
+                    api: transport, cache: cache, crypto: reopenedCrypto, syncSocket: nil, mediaCache: reopenedMedia)
+                await reopened.loadCachedSnapshot()
+                await reopened.openChat(try XCTUnwrap(reopened.chats.first { $0.id == chatID }))
+                let embedID = kind == "thumbnail" ? "offline-image" : "offline-audio"
+                let ref = try XCTUnwrap(reopened.hydratedEmbedPreviews[embedID])
+                let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: chatID)
+                if suspension == "key" { reopenedCrypto.beforeOfflineMediaKey = { await gate.suspendFetch() } }
+                let pending = Task<Data?, Error> {
+                    if kind == "thumbnail" { return try await reopened.retainedThumbnailData(for: model.detailContent) }
+                    return try await reopened.audioPlaybackData(for: model)
+                }
+                await gate.waitUntilStarted()
+                reopenedCrypto.beforeOfflineMediaKey = nil
+                if mutation == "remove" {
+                    await reopened.loadOfflinePage(0)
+                    XCTAssertNil(reopened.hydratedEmbedPreviews[embedID])
+                } else {
+                    // A real current encrypted embed update supersedes the model
+                    // while the same selected-chat read is waiting for its key.
+                    var fields = try XCTUnwrap(ref.data).mapValues(\.value)
+                    fields["version_number"] = 2
+                    let key = SymmetricKey(size: .bits256)
+                    let content = String(decoding: try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys]), as: UTF8.self)
+                    await reopened.handleEmbedEvent(type: "send_embed_data", payload: [
+                        "embed_id": embedID, "chat_id": chatID, "user_id": WatchOfflineFixtureTransport.accountID,
+                        "type": try ComposerEmbedCrypto.encryptContent(ref.type, using: key),
+                        "content": try ComposerEmbedCrypto.encryptContent(content, using: key),
+                        "status": "finished", "version_number": 2, "already_encrypted": true, "encryption_mode": "client",
+                        "embed_keys": [["hashed_embed_id": WatchChatKeyWrapperRecord.hashedChatId(for: embedID),
+                            "key_type": "master", "hashed_user_id": WatchChatKeyWrapperRecord.hashedChatId(for: WatchOfflineFixtureTransport.accountID),
+                            "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(key, using: crypto.key)]]
+                    ])
+                    let replacement = WatchEmbedPreviewMapper.makeModel(for: try XCTUnwrap(reopened.hydratedEmbedPreviews[embedID]), chatId: chatID)
+                    XCTAssertNotEqual(replacement.detailContent.retainedMediaKey, model.detailContent.retainedMediaKey)
+                }
+                XCTAssertEqual(reopened.selectedChatId, chatID)
+                await gate.release()
+                do { _ = try await pending.value; XCTFail("Suspended \(suspension) \(kind) read returned stale bytes after same-chat \(mutation)") }
+                catch { XCTAssertTrue(error is CancellationError) }
+                reopened.stopRealtimeSync()
+            }
+          }
+        }
+        XCTAssertEqual(transport.thumbnailReads, 1); XCTAssertEqual(transport.audioReads, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-watch.embeds.read-only-fullscreen
+    func testMediaFailureIsPartialAndCohortChangeCancelsHeldFetchWithoutRecreatingPrunedBytes() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let mediaDirectory = directory.appendingPathComponent("media")
+        let media = WatchHubOfflineCache(directory: mediaDirectory, cohortPartition: true, entryLimit: WatchAudioSource.maximumBytes)
+        let crypto = WatchOfflineFixtureCrypto()
+        let transport = WatchOfflineFixtureTransport(crypto: crypto)
+        transport.includesMedia = true; transport.failAudio = true
+        let runtime = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID, api: transport,
+            cache: WatchChatOfflineCache(directory: directory), crypto: crypto, syncSocket: transport, mediaCache: media)
+        await runtime.setForeground(true); await runtime.refresh(); await runtime.waitForRecentOfflineSync(); await runtime.waitForRecentMediaSync()
+        XCTAssertEqual(runtime.offlineMediaStatus.requested, 2)
+        XCTAssertEqual(runtime.offlineMediaStatus.retained, 1)
+        XCTAssertEqual(runtime.offlineMediaStatus.failed, 1)
+        XCTAssertFalse(runtime.offlineMediaStatus.complete)
+        // Remove the current cohort receipt's assets, forcing a real held request.
+        let scope = WatchWorkflowDetailScope.capture(accountID: WatchOfflineFixtureTransport.accountID)
+        _ = try await media.retainCohort(keys: [], scope: scope)
+        transport.holdMedia = true
+        await runtime.refresh(); await runtime.waitForRecentOfflineSync()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while transport.thumbnailReads < 2, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(transport.thumbnailReads, 2)
+        transport.excludeNewest = true
+        await runtime.refresh(); await runtime.waitForRecentOfflineSync(); await runtime.waitForRecentMediaSync()
+        transport.holdMedia = false
+        XCTAssertTrue(runtime.offlineMediaStatus.complete)
+        XCTAssertEqual(runtime.offlineMediaStatus.requested, 0)
+        let entries = (try? FileManager.default.contentsOfDirectory(at: mediaDirectory, includingPropertiesForKeys: nil)) ?? []
+        XCTAssertTrue(entries.isEmpty, "A cancelled old media request cannot resurrect the chat removed from the cohort")
+        runtime.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.browse-search-open
+    func testLocalFirstTurnSkipsMissingCanonicalRowBeforeDuringAndAfterRejectedAdmission() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let api = FakeWatchChatAPI()
+        api.messageWindowError = APIError.httpError(status: 404, message: "Chat not found")
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto(),
+            syncSocket: socket, syncSession: WatchSyncSession(sessionId: "synthetic", token: "synthetic"))
+        await runtime.createNewChat()
+        let identity = try XCTUnwrap(runtime.selectedChat)
+        await runtime.refreshSelectedChat()
+        await runtime.openChat(identity)
+        XCTAssertNil(runtime.errorMessage)
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 0)
+        socket.beforeTurnResult = { [weak runtime] in
+            let runtime = try XCTUnwrap(runtime)
+            await runtime.refreshSelectedChat()
+            await runtime.openChat(try XCTUnwrap(runtime.selectedChat))
+            XCTAssertEqual(api.fetchMessageWindowCallCount, 0, "An in-flight first turn has no canonical ACK")
+        }
+        let queued = await runtime.sendText("Synthetic first turn")
+        XCTAssertTrue(queued, "Rejected admission retains the durable turn for retry")
+        let saved = await cache.loadSnapshot()
+        XCTAssertEqual(saved.pendingTextSends.count, 1)
+        let admissionError = runtime.errorMessage
+        await runtime.refreshSelectedChat()
+        await runtime.openChat(try XCTUnwrap(runtime.selectedChat))
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 0)
+        XCTAssertEqual(runtime.errorMessage, admissionError, "Navigation cannot replace admission diagnostics with a premature 404")
+        XCTAssertEqual(runtime.selectedChatId, identity.id)
+        runtime.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.browse-search-open
+    func testFirstCanonicalACKReleasesReadFenceForSameChatAndWrappedKey() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let api = FakeWatchChatAPI()
+        let socket = FakeWatchChatSyncSocket()
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto(),
+            syncSocket: socket, syncSession: WatchSyncSession(sessionId: "synthetic", token: "synthetic"))
+        await runtime.createNewChat()
+        let identity = try XCTUnwrap(runtime.selectedChat)
+        socket.beforeTurnResult = { [weak runtime] in
+            await runtime?.refreshSelectedChat()
+            XCTAssertEqual(api.fetchMessageWindowCallCount, 0, "Dispatch alone cannot release the fence")
+        }
+        let sent = await runtime.sendText("Synthetic acknowledged turn")
+        XCTAssertTrue(sent)
+        let saved = await cache.loadSnapshot()
+        XCTAssertTrue(saved.pendingTextSends.isEmpty)
+        XCTAssertEqual(socket.sentTurns.count, 1)
+        XCTAssertEqual(runtime.selectedChatId, identity.id)
+        XCTAssertEqual(runtime.selectedChat?.encryptedChatKey, identity.encryptedChatKey)
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 1, "Successful canonical admission resumes the normal read")
+        await runtime.openChat(try XCTUnwrap(runtime.selectedChat))
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 2)
+        runtime.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.offline.recent-cohort
+    func testColdRelaunchFirstTurnFencePreservesExactEncryptedReplayThenResumesReads() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let failingSocket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let chatKey = SymmetricKey(size: .bits256)
+        let original = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: FakeWatchChatCrypto(textKey: chatKey),
+            syncSocket: failingSocket, syncSession: WatchSyncSession(sessionId: "synthetic", token: "synthetic"))
+        await original.createNewChat()
+        let identity = try XCTUnwrap(original.selectedChat)
+        let queued = await original.sendText("Synthetic durable first turn")
+        XCTAssertTrue(queued)
+        let before = await cache.loadSnapshot()
+        let pending = try XCTUnwrap(before.pendingTextSends.first)
+        let savedCiphertext = try XCTUnwrap(pending.encryptedPreparedTurn)
+        // The retained outbox really uses AES-GCM. Replaying must preserve this
+        // exact ciphertext/nonce, while transport JSON objects may reorder keys.
+        let savedPlaintext = try ComposerEmbedCrypto.decryptContent(savedCiphertext, using: chatKey)
+        let savedPrepared = try WatchCanonicalStorage.object(Data(savedPlaintext.utf8))
+        func canonicalJSON(_ object: Any) throws -> Data {
+            try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        }
+        let expectedPreflight = try canonicalJSON(try XCTUnwrap(savedPrepared["preflight"] as? [String: Any]))
+        let expectedInference = try canonicalJSON(try XCTUnwrap(savedPrepared["inference"] as? [String: Any]))
+        XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(pending.encryptedContent, using: chatKey), "Synthetic durable first turn")
+        XCTAssertTrue(pending.preflightJSON.isEmpty)
+        XCTAssertTrue(pending.inferenceJSON.isEmpty)
+        original.stopRealtimeSync()
+
+        let api = FakeWatchChatAPI()
+        api.messageWindowError = APIError.httpError(status: 404, message: "Chat not found")
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let restored = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto(textKey: chatKey),
+            syncSocket: socket, syncSession: WatchSyncSession(sessionId: "synthetic", token: "synthetic"))
+        await restored.loadCachedSnapshot()
+        await restored.openChat(try XCTUnwrap(restored.chats.first { $0.id == identity.id }))
+        await restored.refreshSelectedChat()
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 0, "Recovered pending authority fences REST without an in-memory transient identity")
+        await restored.startRealtimeSync()
+        let rejected = await cache.loadSnapshot()
+        XCTAssertEqual(rejected.pendingTextSends, [pending])
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 0)
+        XCTAssertFalse(socket.attemptedTurns.isEmpty)
+        XCTAssertTrue(socket.attemptedTurns.allSatisfy { $0.id == pending.id && $0.messageId == pending.messageId
+            && $0.encryptedContent == pending.encryptedContent && $0.encryptedPreparedTurn == pending.encryptedPreparedTurn })
+        socket.shouldRejectSend = false
+        api.messageWindowError = nil
+        await restored.refresh()
+        let acknowledged = await cache.loadSnapshot()
+        XCTAssertTrue(acknowledged.pendingTextSends.isEmpty)
+        XCTAssertEqual(socket.sentTurns.count, 1)
+        let originalAttempt = try XCTUnwrap(failingSocket.attemptedTurns.first)
+        let committedReplay = try XCTUnwrap(socket.sentTurns.first)
+        for attempt in [originalAttempt] + socket.attemptedTurns {
+            XCTAssertEqual(attempt.id, pending.id)
+            XCTAssertEqual(attempt.chatId, pending.chatId)
+            XCTAssertEqual(attempt.messageId, pending.messageId)
+            XCTAssertEqual(attempt.createdAt, pending.createdAt)
+            XCTAssertEqual(attempt.encryptedChatKey, pending.encryptedChatKey)
+            XCTAssertEqual(attempt.encryptedContent, pending.encryptedContent)
+            XCTAssertEqual(attempt.encryptedPreparedTurn, savedCiphertext)
+            // Production admission reparses these objects and the backend commits
+            // canonical JSON. Compare every field to the persisted authority;
+            // dictionary serialization order is not a transport identity.
+            XCTAssertEqual(try canonicalJSON(WatchCanonicalStorage.object(attempt.preflightJSON)), expectedPreflight)
+            XCTAssertEqual(try canonicalJSON(WatchCanonicalStorage.object(attempt.inferenceJSON)), expectedInference)
+        }
+        XCTAssertEqual(committedReplay.encryptedPreparedTurn, savedCiphertext)
+        XCTAssertEqual(committedReplay.encryptedContent, pending.encryptedContent)
+        XCTAssertEqual(restored.selectedChatId, identity.id)
+        XCTAssertEqual(restored.selectedChat?.encryptedChatKey, identity.encryptedChatKey)
+        await restored.refreshSelectedChat()
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 1)
+        restored.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testUnknownZeroVersionRemoteChatStillReadsCanonicalWindow() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI()
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let chat = WatchChatSummary(id: "unknown-zero", title: nil, lastMessageAt: nil, preview: nil,
+            isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: "wrapped-chat-key")
+        await runtime.openChat(chat)
+        XCTAssertEqual(api.fetchMessageWindowCallCount, 1, "Zero versions alone do not establish local draft authority")
+        runtime.stopRealtimeSync()
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
     func testListRefreshPreservesSelectedChatAndReplacesVisibleMetadata() async {
         let directory = temporaryDirectory()
@@ -1695,6 +1998,7 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private(set) var fetchMessageWindowCallCount = 0
     private(set) var windowQueries: [WatchMessageWindowQuery] = []
     var windowFetchGate: WatchChatFetchGate?
+    var messageWindowError: Error?
     private(set) var uploadedAudioRequests: [FakeAudioUploadRequest] = []
     private(set) var transcribedAudioIds: [String] = []
 
@@ -1749,6 +2053,7 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         fetchMessageWindowCallCount += 1
         windowQueries.append(query)
         await windowFetchGate?.suspendFetch()
+        if let messageWindowError { throw messageWindowError }
         if transientMessageFetchFailures > 0 {
             transientMessageFetchFailures -= 1
             throw URLError(.networkConnectionLost)
@@ -1913,6 +2218,10 @@ private enum WatchLiveTOTP {
 
 @MainActor
 private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
+    var becomesReadyOnConnect = false
+    var artifactRequest: (@MainActor (String, [String: Any]) async throws -> [String: Any])?
+    private(set) var artifactRequests: [(type: String, payload: Data)] = []
+    private(set) var isConnected = false
     private(set) var connectedSession: WatchSyncSession?
     private(set) var connectedSyncState: WatchSyncClientState?
     private(set) var didDisconnect = false
@@ -1921,6 +2230,7 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     var shouldRejectSend: Bool
     var rejectionCode: String?
     var sendFailure: WatchChatRuntimeError?
+    var beforeTurnResult: (@MainActor () async throws -> Void)?
 
     init(shouldRejectSend: Bool = false, rejectionCode: String? = nil) {
         self.shouldRejectSend = shouldRejectSend
@@ -1930,12 +2240,25 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
         connectedSession = session
         connectedSyncState = syncState
+        if becomesReadyOnConnect { isConnected = true }
+    }
+
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+        matching: @escaping @MainActor ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void) async throws -> [String: Any] {
+        try beforeSend()
+        artifactRequests.append((type, try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])))
+        guard let artifactRequest else { throw WatchChatRuntimeError.socketUnavailable }
+        let response = try await artifactRequest(type, payload)
+        guard matching(response) else { throw WatchChatRuntimeError.socketUnavailable }
+        return response
     }
 
     func disconnect() { didDisconnect = true }
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
     func sendTurn(_ pending: WatchPendingTextSend) async throws {
         attemptedTurns.append(pending)
+        try await beforeTurnResult?()
         if let sendFailure { throw sendFailure }
         if shouldRejectSend {
             if let rejectionCode { throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .preflight, code: rejectionCode) }
@@ -1999,15 +2322,20 @@ private final class WatchNotificationTestSocket: WatchChatSyncSocket {
 private final class FakeWatchChatCrypto: WatchChatCrypto {
     private let decryptedValues: [String: String]
     private let omittedChatIds: Set<String>
+    private let textKey: SymmetricKey?
     private let draftKey = SymmetricKey(size: .bits256)
+    private(set) var artifactPreparationCount = 0
+    private var artifactKeys: [String: SymmetricKey] = [:]
 
-    init(decryptedValues: [String: String] = [:], omittedChatIds: Set<String> = []) {
+    init(decryptedValues: [String: String] = [:], omittedChatIds: Set<String> = [], textKey: SymmetricKey? = nil) {
         self.decryptedValues = decryptedValues
         self.omittedChatIds = omittedChatIds
+        self.textKey = textKey
     }
 
     private func openedText(_ ciphertext: String) -> String? {
         if let value = decryptedValues[ciphertext] { return value }
+        if let textKey, let value = try? ComposerEmbedCrypto.decryptContent(ciphertext, using: textKey) { return value }
         guard ciphertext.hasPrefix("encrypted:") else { return nil }
         return String(ciphertext.dropFirst("encrypted:".count))
     }
@@ -2043,7 +2371,8 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     }
 
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String {
-        "encrypted:\(text)"
+        if let textKey { return try ComposerEmbedCrypto.encryptContent(text, using: textKey) }
+        return "encrypted:\(text)"
     }
     func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String {
         guard let value = openedText(ciphertext) else { throw WatchChatRuntimeError.missingChatKey }
@@ -2064,6 +2393,30 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
         WatchChatSummary(id: "new-chat", title: nil, lastMessageAt: nil, preview: nil,
                          isPinned: false, encryptedTitle: "encrypted:", encryptedPreview: nil,
                          encryptedChatKey: "wrapped-new-key")
+    }
+    func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef {
+        guard let id = payload["embed_id"] as? String, let owner = payload["user_id"] as? String else {
+            throw WatchChatRuntimeError.missingChatKey
+        }
+        let preview = try WatchEmbedHydration.open(payload: payload, embedID: id, chatID: chat.id,
+            accountID: owner, masterKey: draftKey, chatKey: draftKey)
+        if payload["already_encrypted"] as? Bool == true || payload["encryption_mode"] as? String == "client" {
+            artifactKeys[chat.id + ":" + id] = try WatchEmbedHydration.versionKey(payload: payload, embedID: id,
+                chatID: chat.id, accountID: owner, masterKey: draftKey, chatKey: draftKey)
+        }
+        return preview
+    }
+    func decryptArtifactVersion(_ ciphertext: String, embedID: String, chat: WatchChatSummary) async throws -> String {
+        guard let key = artifactKeys[chat.id + ":" + embedID] else { throw WatchChatRuntimeError.missingChatKey }
+        return try ComposerEmbedCrypto.decryptContent(ciphertext, using: key)
+    }
+    func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any]) {
+        artifactPreparationCount += 1
+        guard let id = payload["embed_id"] as? String, let owner = payload["user_id"] as? String else {
+            throw WatchChatRuntimeError.missingChatKey
+        }
+        return try WatchEmbedHydration.prepareStorage(payload: payload, embedID: id, chatID: chat.id,
+            messageID: messageID, accountID: owner, masterKey: draftKey, chatKey: draftKey)
     }
     func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String { "recovery-public-key" }
     func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] {
@@ -2471,5 +2824,871 @@ extension WatchChatRuntimeTests {
             XCTAssertEqual(dto.encryptedDraftPreview, "preview-ciphertext")
             XCTAssertEqual(dto.draftV, 4)
         }
+    }
+}
+
+extension WatchChatRuntimeTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testWatchComposerTextDoesNotReplaceMicrophoneAndBusyAudioIsExclusive() {
+        let typed = WatchComposerControlPolicy(busy: false, callOwnsAudio: false, hasRecordingDraft: false, hasText: true)
+        XCTAssertTrue(typed.canRecord)
+        XCTAssertTrue(typed.canSend)
+        XCTAssertTrue(typed.canEdit)
+        let call = WatchComposerControlPolicy(busy: false, callOwnsAudio: true, hasRecordingDraft: false, hasText: true)
+        XCTAssertFalse(call.canRecord)
+        XCTAssertTrue(call.canEdit)
+        let attached = WatchComposerControlPolicy(busy: false, callOwnsAudio: false, hasRecordingDraft: true, hasText: false)
+        XCTAssertFalse(attached.canRecord)
+        XCTAssertFalse(attached.canActivateCall)
+        XCTAssertTrue(attached.canSend)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.local-transcription,apple-watch.chats.audio-reply
+    func testWatchFinishSealsLocalDraftWithoutUploadThenExplicitSendUsesOneEncryptedAudioTurn() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let audio = directory.appendingPathComponent("synthetic.m4a")
+        let bytes = Data([12, 34, 56, 78])
+        try bytes.write(to: audio)
+        let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+        let cache = WatchChatOfflineCache(directory: directory)
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+        let api = FakeWatchChatAPI(uploadedAudio: Self.uploadedAudio())
+        let socket = FakeWatchChatSyncSocket()
+        let crypto = FakeWatchChatCrypto()
+        let transcriber = WatchDraftTranscriberProbe(text: "Local editable words")
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: crypto, syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "synthetic", token: nil), recordingTranscriber: transcriber)
+        await runtime.loadCachedSnapshot()
+        runtime.selectedChatId = chat.id
+        runtime.updateComposerDraft("Existing text", chatId: chat.id)
+        let prepared = await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: true)
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "Existing text\nLocal editable words")
+        XCTAssertTrue(runtime.hasSelectedRecordingDraft)
+        XCTAssertTrue(api.uploadedAudioRequests.isEmpty)
+        XCTAssertTrue(api.transcribedAudioIds.isEmpty)
+        XCTAssertTrue(socket.sentTurns.isEmpty)
+        let snapshot = await cache.loadSnapshot()
+        let sealed = try XCTUnwrap(snapshot.recordingDrafts.first)
+        let persisted = String(decoding: try JSONEncoder().encode(snapshot), as: UTF8.self)
+        XCTAssertFalse(persisted.contains("Local editable words"))
+        XCTAssertFalse(persisted.contains("Existing text"))
+        let opened = try await crypto.decryptDraft(sealed.encryptedPayload)
+        let payload = try JSONDecoder().decode(WatchRecordingDraftPayload.self, from: Data(opened.utf8))
+        XCTAssertEqual(payload.audio, bytes)
+        XCTAssertEqual(payload.transcript, "Local editable words")
+        let relaunched = WatchChatRuntime(api: api, cache: cache, crypto: crypto, syncSocket: nil,
+            recordingTranscriber: transcriber)
+        await relaunched.loadCachedSnapshot()
+        relaunched.selectedChatId = chat.id
+        XCTAssertTrue(relaunched.hasSelectedRecordingDraft)
+        XCTAssertEqual(relaunched.composerDrafts[chat.id], "Existing text\nLocal editable words")
+        let accepted = await runtime.sendText("Edited text")
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(api.uploadedAudioRequests.count, 1)
+        XCTAssertTrue(api.transcribedAudioIds.isEmpty, "Local transcription must not silently run server STT")
+        XCTAssertEqual(socket.sentTurns.count, 1)
+        let turn = try XCTUnwrap(socket.sentTurns.first)
+        let inference = try XCTUnwrap(JSONSerialization.jsonObject(with: turn.inferenceJSON) as? [String: Any])
+        let message = try XCTUnwrap(inference["message"] as? [String: Any])
+        let content = try XCTUnwrap(message["content"] as? String)
+        XCTAssertTrue(content.hasPrefix("Edited text\n"))
+        XCTAssertEqual(content.components(separatedBy: "watch-audio-embed").count - 1, 1)
+        XCTAssertFalse(runtime.hasSelectedRecordingDraft)
+        let afterSend = await cache.loadSnapshot()
+        XCTAssertTrue(afterSend.recordingDrafts.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.local-transcription
+    func testWatchLocalFailurePreservesDraftAndRecordingWithoutNetworkFallback() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let audio = directory.appendingPathComponent("synthetic.m4a")
+        try Data([1]).write(to: audio)
+        let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+        let cache = WatchChatOfflineCache(directory: directory)
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+        let api = FakeWatchChatAPI()
+        let transcriber = WatchDraftTranscriberProbe(text: "", fail: true)
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto(), syncSocket: nil,
+            recordingTranscriber: transcriber)
+        await runtime.loadCachedSnapshot()
+        runtime.selectedChatId = chat.id
+        runtime.updateComposerDraft("Keep exactly", chatId: chat.id)
+        let prepared = await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: true)
+        XCTAssertFalse(prepared)
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "Keep exactly")
+        XCTAssertTrue(runtime.recordingDrafts.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audio.path), "The view retains the same recording for retry")
+        XCTAssertTrue(api.uploadedAudioRequests.isEmpty)
+        XCTAssertTrue(api.transcribedAudioIds.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.local-transcription,apple-watch.guest.account-isolation
+    func testWatchCanceledLocalTranscriptionCannotAppendAfterAccountStops() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let audio = directory.appendingPathComponent("synthetic.m4a")
+        try Data([1]).write(to: audio)
+        let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+        let cache = WatchChatOfflineCache(directory: directory)
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+        let transcriber = WatchDraftTranscriberProbe(text: "Late result", suspended: true)
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: FakeWatchChatCrypto(),
+            syncSocket: nil, recordingTranscriber: transcriber)
+        await runtime.loadCachedSnapshot()
+        runtime.selectedChatId = chat.id
+        runtime.updateComposerDraft("Keep exactly", chatId: chat.id)
+        let task = Task { await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: true) }
+        await transcriber.waitUntilStarted()
+        runtime.stopRealtimeSync()
+        await runtime.cancelRecordingDraftPreparation()
+        let prepared = await task.value
+        XCTAssertFalse(prepared)
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "Keep exactly")
+        XCTAssertTrue(runtime.recordingDrafts.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testWatchPhoneRequiresPhysicalRouteAndCallTypingNeverUsesOrdinaryInference() async throws {
+        let adapter = WatchCallActionAdapter()
+        var starts = 0
+        var typed = [String]()
+        var muted: Bool?
+        adapter.configure(projection: .init(phase: .ready), start: { _, _ in starts += 1 },
+            sendText: { typed.append($0); return "typed-id" }, setMuted: { muted = $0 }, hangup: {}, invalidate: {})
+        let context = WatchChatRequestContext(accountID: nil, profile: ServerProfile.current(),
+            accountGeneration: WatchChatAccountLifecycle.generation)
+        do { try await adapter.activate(context: context, chatID: "chat-a"); XCTFail("Simulator cannot establish physical networking eligibility") }
+        catch {}
+        XCTAssertEqual(starts, 0)
+        adapter.update(.init(phase: .live, chatID: "chat-a", physicalRouteVerified: true))
+        let routed = try await adapter.sendText("Typed during call", chatID: "chat-a")
+        XCTAssertEqual(routed, "typed-id")
+        XCTAssertEqual(typed, ["Typed during call"])
+        let otherChat = try await adapter.sendText("Other chat", chatID: "chat-b")
+        XCTAssertNil(otherChat)
+        await adapter.toggleMuted()
+        XCTAssertEqual(muted, true)
+        await adapter.invalidate()
+        adapter.update(.init(phase: .live, chatID: "chat-a", physicalRouteVerified: true))
+        XCTAssertEqual(adapter.projection.phase, .unavailable, "Late call events cannot revive an invalidated account")
+    }
+}
+
+private actor WatchDraftTranscriberProbe: WatchRecordingDraftTranscribing {
+    let text: String
+    let fail: Bool
+    let suspended: Bool
+    private var started = false
+    private var startWaiter: CheckedContinuation<Void, Never>?
+    private var resultWaiter: CheckedContinuation<String, Error>?
+
+    init(text: String, fail: Bool = false, suspended: Bool = false) {
+        self.text = text; self.fail = fail; self.suspended = suspended
+    }
+    func transcribe(fileURL: URL) async throws -> String {
+        started = true; startWaiter?.resume(); startWaiter = nil
+        if fail { throw WatchComposerActionError.localTranscriptionUnavailable }
+        if suspended { return try await withCheckedThrowingContinuation { resultWaiter = $0 } }
+        return text
+    }
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startWaiter = $0 }
+    }
+    func cancel() async {
+        resultWaiter?.resume(throwing: CancellationError()); resultWaiter = nil
+    }
+}
+
+extension WatchChatRuntimeTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.local-transcription
+    func testRecordingDraftCancelAtSaveBarrierCannotPersistCandidateOrOverwriteNewerDraft() async throws {
+        for editsNewerDraft in [false, true] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let audio = directory.appendingPathComponent("synthetic.m4a")
+            try Data([1]).write(to: audio)
+            let probe = WatchSnapshotSaveProbe()
+            let cache = WatchChatOfflineCache(directory: directory, beforeSnapshotCommit: { try await probe.beforeCommit() })
+            let crypto = FakeWatchChatCrypto()
+            let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+            try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+            let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: nil,
+                recordingTranscriber: WatchDraftTranscriberProbe(text: "Candidate words"))
+            await runtime.loadCachedSnapshot()
+            runtime.selectedChatId = chat.id
+            runtime.updateComposerDraft("Original draft", chatId: chat.id)
+            await runtime.leaveChat()
+            runtime.selectedChatId = chat.id
+            await probe.holdNext()
+            let operation = Task { await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: true) }
+            await probe.waitUntilHeld()
+            XCTAssertFalse(runtime.hasSelectedRecordingDraft, "Uncommitted state must never enter the editor")
+            XCTAssertEqual(runtime.composerDrafts[chat.id], "Original draft")
+            if editsNewerDraft { runtime.updateComposerDraft("Newer draft", chatId: chat.id) }
+            await runtime.cancelRecordingDraftPreparation()
+            await probe.release()
+            let result = await operation.value
+            XCTAssertFalse(result)
+            XCTAssertTrue(runtime.recordingDrafts.isEmpty)
+            XCTAssertEqual(runtime.composerDrafts[chat.id], editsNewerDraft ? "Newer draft" : "Original draft")
+            await runtime.leaveChat()
+            let persisted = await cache.loadSnapshot()
+            XCTAssertTrue(persisted.recordingDrafts.isEmpty)
+            let sealed = try XCTUnwrap(persisted.encryptedDrafts[chat.id]?.encryptedMarkdown)
+            let text = try await crypto.decryptDraft(sealed)
+            XCTAssertEqual(text, editsNewerDraft ? "Newer draft" : "Original draft")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.audio-reply,apple-watch.chats.local-transcription
+    func testFirstOutboxSaveFailuresKeepRecordingAndDraftRecoverableAndDoNotAcceptSend() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let audio = directory.appendingPathComponent("synthetic.m4a")
+        try Data([1, 2]).write(to: audio)
+        let probe = WatchSnapshotSaveProbe()
+        let cache = WatchChatOfflineCache(directory: directory, beforeSnapshotCommit: { try await probe.beforeCommit() })
+        let crypto = FakeWatchChatCrypto()
+        let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+        let socket = FakeWatchChatSyncSocket()
+        let api = FakeWatchChatAPI(uploadedAudio: Self.uploadedAudio())
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: crypto, syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "synthetic", token: nil),
+            recordingTranscriber: WatchDraftTranscriberProbe(text: "Recorded words"))
+        await runtime.loadCachedSnapshot(); runtime.selectedChatId = chat.id
+        runtime.updateComposerDraft("Keep", chatId: chat.id)
+        let prepared = await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: true)
+        XCTAssertTrue(prepared)
+        await probe.failNext(2)
+        let accepted = await runtime.sendText(runtime.composerDrafts[chat.id] ?? "")
+        XCTAssertFalse(accepted, "An in-memory prepared turn is not durable acceptance")
+        XCTAssertTrue(runtime.hasSelectedRecordingDraft)
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "Keep\nRecorded words")
+        XCTAssertTrue(socket.sentTurns.isEmpty)
+        XCTAssertTrue(runtime.selectedMessages.allSatisfy { !$0.isPending })
+        let persisted = await cache.loadSnapshot()
+        XCTAssertEqual(persisted.recordingDrafts.count, 1)
+        XCTAssertTrue(persisted.pendingTextSends.isEmpty)
+        let relaunched = WatchChatRuntime(api: api, cache: cache, crypto: crypto, syncSocket: nil)
+        await relaunched.loadCachedSnapshot(); relaunched.selectedChatId = chat.id
+        XCTAssertTrue(relaunched.hasSelectedRecordingDraft)
+        XCTAssertEqual(relaunched.composerDrafts[chat.id], "Keep\nRecorded words")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.local-transcription
+    func testTextOnlyRecordingFinishPreservesDraftWithoutAttachingOrSendingAudio() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let audio = directory.appendingPathComponent("synthetic.m4a")
+        try Data([1]).write(to: audio)
+        let cache = WatchChatOfflineCache(directory: directory)
+        let chat = Self.chat(id: "chat-a", title: "Synthetic", lastMessageAt: "1800000000")
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date()))
+        let api = FakeWatchChatAPI()
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto(), syncSocket: nil,
+            recordingTranscriber: WatchDraftTranscriberProbe(text: "Dictated words"))
+        await runtime.loadCachedSnapshot(); runtime.selectedChatId = chat.id
+        runtime.updateComposerDraft("Original", chatId: chat.id)
+        let prepared = await runtime.prepareRecordingDraft(fileURL: audio, duration: 1, attachAudio: false)
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "Original\nDictated words")
+        XCTAssertFalse(runtime.hasSelectedRecordingDraft)
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertTrue(snapshot.recordingDrafts.isEmpty)
+        XCTAssertTrue(snapshot.pendingTextSends.isEmpty)
+        XCTAssertTrue(api.uploadedAudioRequests.isEmpty)
+        XCTAssertTrue(api.transcribedAudioIds.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testWatchRecordingLeaseCannotReleaseLiveCallOrAllowOverlappingCapture() throws {
+        let ownership = WatchAudioOwnership()
+        let call = try ownership.acquire(owner: .liveCall)
+        XCTAssertThrowsError(try ownership.acquire(owner: .recording))
+        let stale = WatchAudioOwnership.Lease(id: UUID(), owner: .recording)
+        XCTAssertFalse(ownership.isCurrent(stale))
+        XCTAssertFalse(ownership.release(stale))
+        XCTAssertTrue(ownership.isCurrent(call))
+        XCTAssertTrue(ownership.release(call))
+        let recording = try ownership.acquire(owner: .recording)
+        XCTAssertThrowsError(try ownership.acquire(owner: .liveCall))
+        XCTAssertFalse(ownership.release(call))
+        XCTAssertTrue(ownership.isCurrent(recording))
+        XCTAssertTrue(ownership.release(recording))
+    }
+}
+
+private actor WatchSnapshotSaveProbe {
+    private var hold = false
+    private var held = false
+    private var failures = 0
+    private var heldWaiter: CheckedContinuation<Void, Never>?
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+    func holdNext() { hold = true; held = false }
+    func failNext(_ count: Int) { failures = count }
+    func beforeCommit() async throws {
+        if failures > 0 { failures -= 1; throw CocoaError(.fileWriteOutOfSpace) }
+        if hold {
+            hold = false; held = true
+            heldWaiter?.resume(); heldWaiter = nil
+            await withCheckedContinuation { releaseWaiter = $0 }
+        }
+    }
+    func waitUntilHeld() async {
+        if held { return }
+        await withCheckedContinuation { heldWaiter = $0 }
+    }
+    func release() { releaseWaiter?.resume(); releaseWaiter = nil }
+}
+
+extension WatchChatRuntimeTests {
+    private func voiceHookFixture(directory: URL) async throws -> (runtime: WatchChatRuntime, cache: WatchChatOfflineCache,
+        socket: FakeWatchChatSyncSocket, context: WatchChatRequestContext, scope: NativeVoiceCallScope,
+        crypto: FakeWatchChatCrypto) {
+        let chat = Self.chat(id: "voice-chat", title: "Synthetic", lastMessageAt: "1800000000")
+        let cache = WatchChatOfflineCache(directory: directory)
+        let owner = "synthetic-watch-call-owner"
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [chat], messagesByChatId: [:], savedAt: Date(),
+            accountID: owner, serverScope: WatchChatRuntime.currentServerScope))
+        let socket = FakeWatchChatSyncSocket()
+        let crypto = FakeWatchChatCrypto()
+        let runtime = WatchChatRuntime(currentUserId: owner, api: FakeWatchChatAPI(), cache: cache,
+            crypto: crypto, syncSocket: socket, syncSession: WatchSyncSession(sessionId: "synthetic", token: "synthetic"))
+        await runtime.loadCachedSnapshot(); runtime.selectedChatId = chat.id
+        let context = try runtime.voiceCallContext(for: chat.id)
+        let scope = NativeVoiceCallScope(accountID: owner, profileID: context.profile.id,
+            workspaceGeneration: UUID(), chatID: chat.id, mateCategory: "general_knowledge")
+        return (runtime, cache, socket, context, scope, crypto)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testCanonicalWatchActivationRequiresRealCallLeaseAndUsesExistingSocketOnce() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fixture = try await voiceHookFixture(directory: directory)
+        do { try await fixture.runtime.activateVoiceCallCanonicalTransport(context: fixture.context); XCTFail("No capture owner") }
+        catch {}
+        XCTAssertNil(fixture.socket.connectedSession)
+        let lease = try WatchAudioOwnership.shared.acquire(owner: .liveCall)
+        defer { WatchAudioOwnership.shared.release(lease) }
+        fixture.socket.becomesReadyOnConnect = true
+        try await fixture.runtime.activateVoiceCallCanonicalTransport(context: fixture.context)
+        XCTAssertEqual(fixture.socket.connectedSession?.sessionId, "synthetic")
+        XCTAssertTrue(fixture.socket.sentTurns.isEmpty)
+        // Supporting adapter-state proof only; this fake socket and lease do not
+        // prove actual Watch audio activation or physical network eligibility.
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testCallTypedWireSuccessRetainsDraftUntilExactFinalEchoAndPublishesWithoutPlaintextCache() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let f = try await voiceHookFixture(directory: directory)
+        let id = NativeVoiceCallMessageID.make()
+        var typedCount = 0
+        f.runtime.callActions.configure(projection: .init(phase: .live, chatID: f.scope.chatID,
+            callID: "call-1", scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true),
+            start: { _, _ in }, sendText: { _ in typedCount += 1; return id }, setMuted: { _ in }, hangup: {}, invalidate: {})
+        f.runtime.updateComposerDraft("Typed source", chatId: f.scope.chatID)
+        let wireAccepted = await f.runtime.sendText("Typed source")
+        XCTAssertFalse(wireAccepted, "Legacy composer must not clear after wire success")
+        XCTAssertEqual(f.runtime.composerDrafts[f.scope.chatID], "Typed source")
+        XCTAssertTrue(f.runtime.hasPendingVoiceCallTypedDraft)
+        let duplicate = await f.runtime.sendText("Typed source")
+        XCTAssertFalse(duplicate)
+        XCTAssertEqual(typedCount, 1)
+        let echo = NativeVoiceCallTranscript(callID: "call-1", messageID: id, role: .user,
+            text: "Typed source", final: true, interrupted: false, userMessageID: nil, createdAt: 1800000001,
+            modelName: nil, mateCategory: nil, mateName: nil)
+        try f.runtime.voiceCallPublishTranscript(echo, scope: f.scope, context: f.context)
+        await f.runtime.waitForVoiceCallDraftSettlement()
+        XCTAssertEqual(f.runtime.composerDrafts[f.scope.chatID], "")
+        XCTAssertFalse(f.runtime.hasPendingVoiceCallTypedDraft)
+        XCTAssertEqual(f.runtime.selectedMessages.first?.id, id)
+        XCTAssertEqual(f.runtime.selectedMessages.first?.content, "Typed source")
+        XCTAssertFalse(f.runtime.selectedMessages.first?.isPending ?? true)
+        let saved = await f.cache.loadSnapshot()
+        XCTAssertNil(saved.encryptedDrafts[f.scope.chatID]?.encryptedMarkdown)
+        XCTAssertTrue(saved.messagesByChatId[f.scope.chatID, default: []].isEmpty,
+            "Transient call text is never a second cache/persistence writer")
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(saved), as: UTF8.self).contains("Typed source"))
+        XCTAssertTrue(f.socket.sentTurns.isEmpty, "No ordinary inference")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testFinalEchoBeforeWireReturnStillSettlesAfterImmediateCallEnd() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let f = try await voiceHookFixture(directory: directory)
+        let id = NativeVoiceCallMessageID.make()
+        f.runtime.callActions.configure(projection: .init(phase: .live, chatID: f.scope.chatID,
+            callID: "call-1", scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true),
+            start: { _, _ in }, sendText: { text in
+                try f.runtime.voiceCallPublishTranscript(NativeVoiceCallTranscript(callID: "call-1", messageID: id,
+                    role: .user, text: text, final: true, interrupted: false, userMessageID: nil,
+                    createdAt: 1800000001, modelName: nil, mateCategory: nil, mateName: nil),
+                    scope: f.scope, context: f.context)
+                f.runtime.callActions.update(.init(phase: .ended, chatID: f.scope.chatID,
+                    callID: "call-1", scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+                return id
+            }, setMuted: { _ in }, hangup: {}, invalidate: {})
+        f.runtime.updateComposerDraft("Early final source", chatId: f.scope.chatID)
+        _ = await f.runtime.sendText("Early final source")
+        await f.runtime.waitForVoiceCallDraftSettlement()
+        XCTAssertEqual(f.runtime.composerDrafts[f.scope.chatID], "")
+        XCTAssertFalse(f.runtime.hasPendingVoiceCallTypedDraft)
+        XCTAssertTrue(f.socket.sentTurns.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions
+    func testCallTypedRejectionDisconnectAndStaleEchoPreserveOwnedOrNewerDraft() async throws {
+        for scenario in ["reject", "disconnect", "newer", "early-reject"] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let f = try await voiceHookFixture(directory: directory)
+            let id = NativeVoiceCallMessageID.make()
+            f.runtime.callActions.configure(projection: .init(phase: .live, chatID: f.scope.chatID,
+                callID: "call-1", scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true),
+                start: { _, _ in }, sendText: { _ in
+                    if scenario == "early-reject" { f.runtime.voiceCallRejectTyped(messageID: id, scope: f.scope, context: f.context) }
+                    return id
+                }, setMuted: { _ in }, hangup: {}, invalidate: {})
+            f.runtime.updateComposerDraft("Retain source", chatId: f.scope.chatID)
+            _ = await f.runtime.sendText("Retain source")
+            if scenario == "newer" { f.runtime.updateComposerDraft("Newer edit", chatId: f.scope.chatID) }
+            if scenario == "disconnect" {
+                f.runtime.callActions.update(.init(phase: .failed, chatID: f.scope.chatID,
+                    callID: "call-1", scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+            } else { f.runtime.voiceCallRejectTyped(messageID: id, scope: f.scope, context: f.context) }
+            XCTAssertFalse(f.runtime.hasPendingVoiceCallTypedDraft)
+            let stale = NativeVoiceCallTranscript(callID: "old-call", messageID: id, role: .user,
+                text: "Retain source", final: true, interrupted: false, userMessageID: nil, createdAt: 1800000001,
+                modelName: nil, mateCategory: nil, mateName: nil)
+            XCTAssertThrowsError(try f.runtime.voiceCallPublishTranscript(stale, scope: f.scope, context: f.context))
+            XCTAssertEqual(f.runtime.composerDrafts[f.scope.chatID], scenario == "newer" ? "Newer edit" : "Retain source")
+            XCTAssertTrue(f.socket.sentTurns.isEmpty)
+        }
+    }
+}
+
+extension WatchChatRuntimeTests {
+    private func artifactFrame(scope: NativeVoiceCallScope, status: String = "finished", content: String? = "{\"title\":\"Synthetic artifact\",\"code\":\"print(42)\"}") -> NativeVoiceCallFrame {
+        var payload: NativeVoiceCallFrame = ["embed_id": .string("watch-call-artifact"), "type": .string("code"),
+            "chat_id": .string(scope.chatID), "message_id": .string("assistant-artifact"),
+            "app_id": .string("code"), "skill_id": .string("run"), "user_id": .string(scope.accountID), "status": .string(status), "version_number": .number(1)]
+        if let content { payload["content"] = .string(content) }
+        return ["type": .string("voice_embed"), "call_id": .string("call-1"),
+            "function_call_id": .string("function-artifact"), "assistant_message_id": .string("assistant-artifact"),
+            "user_message_id": .string("user-artifact"), "payload": .object(payload)]
+    }
+
+    private func configureArtifactCall(_ runtime: WatchChatRuntime, scope: NativeVoiceCallScope) {
+        runtime.callActions.configure(projection: .init(phase: .live, chatID: scope.chatID, callID: "call-1",
+            scopeGeneration: scope.workspaceGeneration, physicalRouteVerified: true), start: { _, _ in },
+            sendText: { _ in throw NativeVoiceCallError.invalidState }, setMuted: { _ in }, hangup: {}, invalidate: {})
+    }
+
+    private func artifactReceipt(type: String, payload: [String: Any]) throws -> [String: Any] {
+        if type == "store_embed" {
+            return ["request_id": try XCTUnwrap(payload["request_id"]), "embed_id": try XCTUnwrap(payload["embed_id"]),
+                "canonical_source": "head", "canonical_digest": CanonicalEmbedStorageReceipts.digest(try XCTUnwrap(payload["encrypted_content"] as? String))]
+        }
+        let count = try XCTUnwrap(payload["keys"] as? [[String: Any]]).count
+        return ["request_id": try XCTUnwrap(payload["request_id"]), "created_count": count, "requested_count": count, "failed_count": 0]
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.transcripts,storage.privacy.ciphertext-boundary
+    func testWatchCallArtifactCommitsBeforeSpeechAndProcessingNeverCreatesTranscriptRow() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let f = try await voiceHookFixture(directory: directory)
+        configureArtifactCall(f.runtime, scope: f.scope)
+        f.socket.becomesReadyOnConnect = true
+        f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"), syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+        f.socket.artifactRequest = { type, payload in
+            if type == "store_embed" {
+                XCTAssertEqual(payload["chat_id"] as? String, f.scope.chatID)
+                XCTAssertEqual(payload["app_id"] as? String, "code")
+                XCTAssertEqual(payload["skill_id"] as? String, "run")
+            }
+            return try self.artifactReceipt(type: type, payload: payload)
+        }
+        let processing = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope, status: "processing"), scope: f.scope, context: f.context)
+        let preview = try await f.runtime.voiceCallPersistArtifact(processing, context: f.context)
+        XCTAssertNil(preview)
+        XCTAssertTrue(f.socket.artifactRequests.isEmpty)
+        XCTAssertEqual(f.crypto.artifactPreparationCount, 0)
+        XCTAssertTrue(f.runtime.selectedMessages.isEmpty)
+        let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+        let result = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context)
+        let committed = try XCTUnwrap(result)
+        XCTAssertEqual(committed.reference["embed_id"]?.string, "watch-call-artifact")
+        XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["store_embed", "store_embed_keys"])
+        XCTAssertTrue(f.runtime.selectedMessages.isEmpty, "Canonical outbox owns the single assistant transcript")
+        let saved = await f.cache.loadSnapshot()
+        XCTAssertTrue(saved.pendingCompletions.isEmpty)
+        XCTAssertTrue(saved.messagesByChatId[f.scope.chatID, default: []].isEmpty)
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(saved), as: UTF8.self).contains("print(42)"))
+        XCTAssertTrue(f.socket.sentTurns.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,storage.privacy.ciphertext-boundary
+    func testWatchCallLostHeadOrWrapperReceiptRetriesOriginalDurableCiphertextAndIDs() async throws {
+        for failure in ["store_embed", "store_embed_keys"] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let f = try await voiceHookFixture(directory: directory)
+            configureArtifactCall(f.runtime, scope: f.scope)
+            f.socket.becomesReadyOnConnect = true
+            f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"), syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+            var failOnce = true
+            f.socket.artifactRequest = { type, payload in
+                if type == failure, failOnce { failOnce = false; throw WatchChatRuntimeError.socketUnavailable }
+                return try self.artifactReceipt(type: type, payload: payload)
+            }
+            let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+            do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("Lost receipt is not committed") }
+            catch WatchChatRuntimeError.socketUnavailable { }
+            let retained = await f.cache.loadSnapshot()
+            XCTAssertEqual(retained.pendingCompletions.count, 1)
+            XCTAssertFalse(String(decoding: try JSONEncoder().encode(retained), as: UTF8.self).contains("print(42)"))
+            let retryAdmission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+            let retried = try await f.runtime.voiceCallPersistArtifact(retryAdmission, context: f.context)
+            XCTAssertNotNil(retried)
+            XCTAssertEqual(f.crypto.artifactPreparationCount, 1)
+            let headRequests = f.socket.artifactRequests.filter { $0.type == "store_embed" }
+            XCTAssertEqual(headRequests.first?.payload, headRequests.last?.payload)
+            let keys = f.socket.artifactRequests.filter { $0.type == "store_embed_keys" }
+            if failure == "store_embed_keys" { XCTAssertEqual(keys.first?.payload, keys.last?.payload) }
+            let count = f.socket.artifactRequests.count
+            _ = try await f.runtime.voiceCallPersistArtifact(retryAdmission, context: f.context)
+            XCTAssertEqual(f.socket.artifactRequests.count, count, "Duplicate committed delivery does no second write")
+            let altered = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope, content: "{\"code\":\"changed\"}"), scope: f.scope, context: f.context)
+            do { _ = try await f.runtime.voiceCallPersistArtifact(altered, context: f.context); XCTFail("Conflicting same-version delivery") }
+            catch NativeVoiceCallError.invalidResponse { }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.chat.fixed-binding
+    func testWatchAdmittedArtifactCanPublishOnlyOriginalAssistantAfterHangupAndRejectsReplacement() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let f = try await voiceHookFixture(directory: directory)
+        configureArtifactCall(f.runtime, scope: f.scope)
+        f.socket.becomesReadyOnConnect = true
+        f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"), syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+        f.socket.artifactRequest = { type, payload in
+            f.runtime.callActions.update(.init(phase: .ended, chatID: f.scope.chatID, callID: "call-1",
+                scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+            return try self.artifactReceipt(type: type, payload: payload)
+        }
+        let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+        let result = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context)
+        let committed = try XCTUnwrap(result)
+        let reference = try NativeVoiceCallArtifactReference(validating: committed.reference)
+        let transcript = NativeVoiceCallTranscript(callID: "call-1", messageID: "assistant-artifact", role: .assistant,
+            text: try reference.markdown, final: true, interrupted: false, userMessageID: "user-artifact", createdAt: 1800000001,
+            modelName: nil, mateCategory: nil, mateName: nil, embedReferences: [reference])
+        XCTAssertThrowsError(try f.runtime.voiceCallPublishTranscript(transcript, scope: f.scope, context: f.context))
+        try f.runtime.voiceCallPublishTranscript(transcript, scope: f.scope, context: f.context, admittedArtifact: admission)
+        XCTAssertEqual(f.runtime.selectedMessages.map(\.id), ["assistant-artifact"])
+        XCTAssertThrowsError(try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context))
+        f.runtime.callActions.update(.init(phase: .live, chatID: f.scope.chatID, callID: "replacement",
+            scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+        XCTAssertThrowsError(try f.runtime.voiceCallPublishTranscript(transcript, scope: f.scope, context: f.context, admittedArtifact: admission))
+        do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("Original capability cannot cross replacement") }
+        catch NativeVoiceCallError.scopeChanged { }
+        XCTAssertTrue(f.socket.sentTurns.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.fixed-binding
+    func testWatchCallMismatchedCanonicalHeadOrKeyReceiptNeverReturnsCommittedReference() async throws {
+        for corrupt in ["head-digest", "head-source", "keys-count", "replacement"] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let f = try await voiceHookFixture(directory: directory)
+            configureArtifactCall(f.runtime, scope: f.scope)
+            f.socket.becomesReadyOnConnect = true
+            f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"), syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+            f.socket.artifactRequest = { type, payload in
+                var receipt = try self.artifactReceipt(type: type, payload: payload)
+                if type == "store_embed", corrupt == "head-digest" { receipt["canonical_digest"] = "wrong" }
+                if type == "store_embed", corrupt == "head-source" { receipt["canonical_source"] = "version_row" }
+                if type == "store_embed_keys", corrupt == "keys-count" { receipt["created_count"] = 0 }
+                if type == "store_embed_keys", corrupt == "replacement" {
+                    f.runtime.callActions.update(.init(phase: .live, chatID: f.scope.chatID, callID: "replacement",
+                        scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+                }
+                return receipt
+            }
+            let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+            do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("Invalid proof cannot commit") }
+            catch { }
+            let retained = await f.cache.loadSnapshot()
+            XCTAssertEqual(retained.pendingCompletions.count, 1)
+            XCTAssertTrue(f.runtime.selectedMessages.isEmpty)
+            if corrupt.hasPrefix("head-") { XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["store_embed"]) }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.fixed-binding
+    func testWatchColdReferenceFetchValidatesEncryptedIdentityAndHydratesWithoutInventingCommitProof() async throws {
+        for mismatch in ["none", "chat", "message", "version", "version-boolean", "version-string", "version-zero", "version-fraction", "type", "key"] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let f = try await voiceHookFixture(directory: directory)
+            configureArtifactCall(f.runtime, scope: f.scope)
+            f.socket.becomesReadyOnConnect = true
+            f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"), syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+            let full = try WatchCanonicalStorage.object(JSONEncoder().encode(try XCTUnwrap(artifactFrame(scope: f.scope)["payload"]?.object)))
+            let chat = try XCTUnwrap(f.runtime.chats.first)
+            let prepared = try await f.crypto.prepareEmbedStorage(payload: full, chat: chat, messageID: "assistant-artifact")
+            var fetched: [String: Any] = ["embed_id": "watch-call-artifact", "type": try XCTUnwrap(prepared.embed["encrypted_type"]),
+                "content": try XCTUnwrap(prepared.embed["encrypted_content"]), "already_encrypted": true, "encryption_mode": "client",
+                "user_id": f.scope.accountID, "chat_id": f.scope.chatID,
+                "message_id": CanonicalEmbedStorageReceipts.digest("assistant-artifact"), "status": "finished", "version_number": 1,
+                "embed_keys": try XCTUnwrap(prepared.keys["keys"]), "embed_keys_has_more_after": false]
+            switch mismatch {
+            case "chat": fetched["chat_id"] = CanonicalEmbedStorageReceipts.digest("unrelated-chat")
+            case "message": fetched["message_id"] = CanonicalEmbedStorageReceipts.digest("unrelated-assistant")
+            case "version": fetched["version_number"] = 2
+            case "version-boolean": fetched["version_number"] = true
+            case "version-string": fetched["version_number"] = "1"
+            case "version-zero": fetched["version_number"] = 0
+            case "version-fraction": fetched["version_number"] = 1.5
+            case "type": fetched["type"] = "sheet"
+            case "key": fetched["embed_keys"] = [["encrypted_embed_key": "wrong-key"]]
+            default: break
+            }
+            let response = fetched
+            f.socket.artifactRequest = { type, payload in
+                XCTAssertEqual(type, "request_embed")
+                XCTAssertEqual(payload["embed_id"] as? String, "watch-call-artifact")
+                XCTAssertEqual(payload["chat_id"] as? String, f.scope.chatID)
+                return response
+            }
+            let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope, content: nil), scope: f.scope, context: f.context)
+            do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("A head without genuine provenance cannot use the locked equality confirmation") }
+            catch { }
+            let row = WatchChatMessage(id: "view-only-probe", chatId: f.scope.chatID, role: .assistant,
+                content: "[!](embed:watch-call-artifact)", encryptedContent: nil, embedRefs: nil, createdAt: "1800000001", isPending: false)
+            let preview = f.runtime.messageWithHydratedEmbeds(row).embedRefs?.first
+            XCTAssertEqual(preview?.data != nil, mismatch == "none", "Only the exact encrypted origin may hydrate")
+            XCTAssertTrue(f.runtime.selectedMessages.isEmpty)
+            XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["request_embed"])
+            let saved = await f.cache.loadSnapshot()
+            XCTAssertTrue(saved.pendingCompletions.isEmpty)
+        }
+    }
+}
+
+extension WatchChatRuntimeTests {
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.fixed-binding,storage.privacy.ciphertext-boundary
+    func testWatchColdReferenceReconfirmsFetchedCiphertextAndChatWrapperWithStableRetry() async throws {
+        for (failure, version) in [("store_embed", 1), ("store_embed_keys", 1), ("store_embed_keys", 2)] {
+            let directory = temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let f = try await voiceHookFixture(directory: directory)
+            configureArtifactCall(f.runtime, scope: f.scope)
+            f.socket.becomesReadyOnConnect = true
+            f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"),
+                syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+            let full = try WatchCanonicalStorage.object(JSONEncoder().encode(try XCTUnwrap(artifactFrame(scope: f.scope)["payload"]?.object)))
+            let chat = try XCTUnwrap(f.runtime.chats.first)
+            let prepared = try await f.crypto.prepareEmbedStorage(payload: full, chat: chat, messageID: "assistant-artifact")
+            let ciphertext = try XCTUnwrap(prepared.embed["encrypted_content"] as? String)
+            let encryptedType = try XCTUnwrap(prepared.embed["encrypted_type"] as? String)
+            let provenance = String(repeating: "a", count: 64)
+            let wrappers = try XCTUnwrap(prepared.keys["keys"] as? [[String: Any]])
+            let fetched: [String: Any] = ["embed_id": "watch-call-artifact", "type": encryptedType,
+                "content": ciphertext, "already_encrypted": true, "encryption_mode": "client",
+                "user_id": f.scope.accountID, "chat_id": f.scope.chatID,
+                "message_id": CanonicalEmbedStorageReceipts.digest("assistant-artifact"), "status": "finished", "version_number": version,
+                "content_hash": provenance, "embed_keys": wrappers, "embed_keys_has_more_after": false]
+            var failOnce = true
+            f.socket.artifactRequest = { type, payload in
+                if type == "request_embed" {
+                    XCTAssertEqual(payload["chat_id"] as? String, f.scope.chatID)
+                    return fetched
+                }
+                if type == "store_embed" {
+                    XCTAssertEqual(payload["encrypted_content"] as? String, ciphertext)
+                    XCTAssertEqual(payload["encrypted_type"] as? String, encryptedType)
+                    XCTAssertNil(payload["version_number"], "The locked marker checks version without rewriting the stored column")
+                    XCTAssertEqual(payload["content_hash"] as? String, provenance)
+                    let guardFields = try XCTUnwrap(payload["canonical_metadata_enrichment"] as? [String: Any])
+                    XCTAssertEqual(guardFields["expected_version"] as? Int, version)
+                    XCTAssertEqual(guardFields["expected_ciphertext_sha256"] as? String, CanonicalEmbedStorageReceipts.digest(ciphertext))
+                    XCTAssertNil(payload["created_at"])
+                    XCTAssertNil(payload["updated_at"])
+                } else {
+                    let posted = try XCTUnwrap(payload["keys"] as? [[String: Any]])
+                    XCTAssertEqual(posted.count, 1, "Only the exact original chat wrapper grants association authority")
+                    XCTAssertEqual(posted.first?["encrypted_embed_key"] as? String,
+                        wrappers.first { $0["key_type"] as? String == "chat" }?["encrypted_embed_key"] as? String)
+                }
+                if type == failure, failOnce { failOnce = false; throw WatchChatRuntimeError.socketUnavailable }
+                return try self.artifactReceipt(type: type, payload: payload)
+            }
+            var referenceFrame = artifactFrame(scope: f.scope, content: nil)
+            var referencePayload = try XCTUnwrap(referenceFrame["payload"]?.object)
+            referencePayload["version_number"] = .number(Double(version))
+            referenceFrame["payload"] = .object(referencePayload)
+            let admission = try f.runtime.voiceCallAdmitArtifact(frame: referenceFrame, scope: f.scope, context: f.context)
+            do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("Missing exact receipt") }
+            catch WatchChatRuntimeError.socketUnavailable { }
+            let retained = await f.cache.loadSnapshot()
+            XCTAssertEqual(retained.pendingCompletions.count, 1)
+            let result = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context)
+            XCTAssertNotNil(result)
+            XCTAssertEqual(f.crypto.artifactPreparationCount, 1, "Only test setup encrypts; cold hydration never generates replacement ciphertext or wrappers")
+            let heads = f.socket.artifactRequests.filter { $0.type == "store_embed" }
+            XCTAssertEqual(heads.first?.payload, heads.last?.payload)
+            if failure == "store_embed_keys" {
+                let keys = f.socket.artifactRequests.filter { $0.type == "store_embed_keys" }
+                XCTAssertEqual(keys.first?.payload, keys.last?.payload)
+            }
+            XCTAssertTrue(f.runtime.selectedMessages.isEmpty)
+            XCTAssertTrue(f.socket.sentTurns.isEmpty)
+        }
+    }
+}
+
+extension WatchChatRuntimeTests {
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.fixed-binding,storage.privacy.ciphertext-boundary
+    func testWatchColdLegacyNullAndMissingRevisionReconfirmEffectiveV1WithoutWritingVersionColumn() async throws {
+        for legacyShape in ["null", "missing"] {
+            for corruptDigest in [false, true] {
+                let directory = temporaryDirectory()
+                defer { try? FileManager.default.removeItem(at: directory) }
+                let f = try await voiceHookFixture(directory: directory)
+                configureArtifactCall(f.runtime, scope: f.scope)
+                f.socket.becomesReadyOnConnect = true
+                f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"),
+                    syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+                let full = try WatchCanonicalStorage.object(JSONEncoder().encode(try XCTUnwrap(artifactFrame(scope: f.scope)["payload"]?.object)))
+                let chat = try XCTUnwrap(f.runtime.chats.first)
+                let prepared = try await f.crypto.prepareEmbedStorage(payload: full, chat: chat, messageID: "assistant-artifact")
+                let ciphertext = try XCTUnwrap(prepared.embed["encrypted_content"] as? String)
+                let encryptedType = try XCTUnwrap(prepared.embed["encrypted_type"] as? String)
+                let provenance = String(repeating: "b", count: 64)
+                var legacy: [String: Any] = ["embed_id": "watch-call-artifact", "type": encryptedType,
+                    "content": ciphertext, "already_encrypted": true, "encryption_mode": "client",
+                    "user_id": f.scope.accountID, "chat_id": f.scope.chatID,
+                    "message_id": CanonicalEmbedStorageReceipts.digest("assistant-artifact"), "status": "finished",
+                    "content_hash": provenance, "embed_keys": try XCTUnwrap(prepared.keys["keys"]), "embed_keys_has_more_after": false]
+                if legacyShape == "null" { legacy["version_number"] = NSNull() }
+                let fetched = legacy
+                f.socket.artifactRequest = { type, payload in
+                    if type == "request_embed" { return fetched }
+                    if type == "store_embed" {
+                        XCTAssertNil(payload["version_number"], "Supplying effective 1 would mismatch the stored legacy null in the equality transaction")
+                        XCTAssertEqual(payload["encrypted_content"] as? String, ciphertext)
+                        XCTAssertEqual(payload["encrypted_type"] as? String, encryptedType)
+                        XCTAssertEqual(payload["content_hash"] as? String, provenance)
+                        let marker = try XCTUnwrap(payload["canonical_metadata_enrichment"] as? [String: Any])
+                        XCTAssertEqual(marker["expected_version"] as? Int, 1)
+                        XCTAssertEqual(marker["expected_ciphertext_sha256"] as? String, CanonicalEmbedStorageReceipts.digest(ciphertext))
+                    }
+                    var receipt = try self.artifactReceipt(type: type, payload: payload)
+                    if type == "store_embed", corruptDigest { receipt["canonical_digest"] = "wrong" }
+                    return receipt
+                }
+                let admission = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope, content: nil), scope: f.scope, context: f.context)
+                if corruptDigest {
+                    do { _ = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context); XCTFail("Effective v1 never bypasses exact head receipts") }
+                    catch CanonicalEmbedStorageReceiptError.invalidHead { }
+                    XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["request_embed", "store_embed"])
+                    let saved = await f.cache.loadSnapshot()
+                    XCTAssertEqual(saved.pendingCompletions.count, 1)
+                } else {
+                    let result = try await f.runtime.voiceCallPersistArtifact(admission, context: f.context)
+                    XCTAssertNotNil(result)
+                    XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["request_embed", "store_embed", "store_embed_keys"])
+                    let saved = await f.cache.loadSnapshot()
+                    XCTAssertTrue(saved.pendingCompletions.isEmpty)
+                }
+                XCTAssertEqual(f.crypto.artifactPreparationCount, 1, "Only fixture creation encrypts the original legacy record")
+                XCTAssertTrue(f.runtime.selectedMessages.isEmpty)
+                XCTAssertTrue(f.socket.sentTurns.isEmpty)
+            }
+        }
+    }
+}
+
+extension WatchChatRuntimeTests {
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.chat.fixed-binding
+    func testWatchCommittedArtifactSelectionSurvivesAnotherProcessingArtifactInSameAssistantTurn() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let f = try await voiceHookFixture(directory: directory)
+        configureArtifactCall(f.runtime, scope: f.scope)
+        f.socket.becomesReadyOnConnect = true
+        f.socket.connect(session: .init(sessionId: "synthetic", token: "synthetic"),
+            syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [], clientSuggestionsCount: 0, clientEmbedIds: []))
+        f.socket.artifactRequest = { type, payload in try self.artifactReceipt(type: type, payload: payload) }
+        var committedArtifacts = WatchVoiceCallCommittedArtifacts()
+        let first = try f.runtime.voiceCallAdmitArtifact(frame: artifactFrame(scope: f.scope), scope: f.scope, context: f.context)
+        let firstResult = try await f.runtime.voiceCallPersistArtifact(first, context: f.context)
+        let committedFirst = try XCTUnwrap(firstResult)
+        try committedArtifacts.record(committedFirst)
+        let firstReference = try NativeVoiceCallArtifactReference(validating: committedFirst.reference)
+        let firstTranscript = NativeVoiceCallTranscript(callID: "call-1", messageID: "assistant-artifact", role: .assistant,
+            text: try firstReference.markdown, final: true, interrupted: false, userMessageID: "user-artifact", createdAt: 1800000001,
+            modelName: nil, mateCategory: nil, mateName: nil, embedReferences: [firstReference])
+        var secondFrame = artifactFrame(scope: f.scope, status: "processing")
+        var secondPayload = try XCTUnwrap(secondFrame["payload"]?.object)
+        secondPayload["embed_id"] = .string("watch-call-artifact-b")
+        secondFrame["function_call_id"] = .string("function-artifact-b")
+        secondFrame["payload"] = .object(secondPayload)
+        let secondProcessing = try f.runtime.voiceCallAdmitArtifact(frame: secondFrame, scope: f.scope, context: f.context)
+        let processingResult = try await f.runtime.voiceCallPersistArtifact(secondProcessing, context: f.context)
+        XCTAssertNil(processingResult)
+        let selectedFirst = try XCTUnwrap(committedArtifacts.admission(for: firstTranscript, scope: f.scope))
+        XCTAssertEqual(selectedFirst.functionCallID, first.functionCallID)
+        try f.runtime.voiceCallPublishTranscript(firstTranscript, scope: f.scope, context: f.context, admittedArtifact: selectedFirst)
+        XCTAssertEqual(f.runtime.selectedMessages.count, 1)
+        XCTAssertEqual(f.runtime.selectedMessages.first?.content, firstTranscript.text)
+        XCTAssertTrue(f.socket.sentTurns.isEmpty)
+        secondPayload["status"] = .string("finished")
+        secondFrame["payload"] = .object(secondPayload)
+        let secondFinal = try f.runtime.voiceCallAdmitArtifact(frame: secondFrame, scope: f.scope, context: f.context)
+        let secondResult = try await f.runtime.voiceCallPersistArtifact(secondFinal, context: f.context)
+        let committedSecond = try XCTUnwrap(secondResult)
+        try committedArtifacts.record(committedSecond)
+        let secondReference = try NativeVoiceCallArtifactReference(validating: committedSecond.reference)
+        let combined = NativeVoiceCallTranscript(callID: "call-1", messageID: "assistant-artifact", role: .assistant,
+            text: try firstReference.markdown + "\n" + secondReference.markdown, final: true, interrupted: false,
+            userMessageID: "user-artifact", createdAt: 1800000001, modelName: nil, mateCategory: nil, mateName: nil,
+            embedReferences: [firstReference, secondReference])
+        let selectedCombined = try XCTUnwrap(committedArtifacts.admission(for: combined, scope: f.scope))
+        XCTAssertEqual(selectedCombined.functionCallID, secondFinal.functionCallID)
+        XCTAssertEqual(committedArtifacts.admission(for: firstTranscript, scope: f.scope)?.functionCallID, first.functionCallID,
+            "The second artifact cannot erase the first committed reference's capability")
+        try f.runtime.voiceCallPublishTranscript(combined, scope: f.scope, context: f.context, admittedArtifact: selectedCombined)
+        f.runtime.callActions.update(.init(phase: .ended, chatID: f.scope.chatID, callID: "call-1",
+            scopeGeneration: f.scope.workspaceGeneration, physicalRouteVerified: true))
+        try f.runtime.voiceCallPublishTranscript(combined, scope: f.scope, context: f.context, admittedArtifact: selectedCombined)
+        let replacementScope = NativeVoiceCallScope(accountID: f.scope.accountID, profileID: f.scope.profileID,
+            workspaceGeneration: UUID(), chatID: f.scope.chatID, mateCategory: f.scope.mateCategory)
+        XCTAssertNil(committedArtifacts.admission(for: combined, scope: replacementScope))
+        let wrongUser = NativeVoiceCallTranscript(callID: combined.callID, messageID: combined.messageID, role: .assistant,
+            text: combined.text, final: true, interrupted: false, userMessageID: "unrelated-user-message", createdAt: combined.createdAt,
+            modelName: nil, mateCategory: nil, mateName: nil, embedReferences: combined.embedReferences)
+        XCTAssertNil(committedArtifacts.admission(for: wrongUser, scope: f.scope))
+        XCTAssertEqual(f.runtime.selectedMessages.count, 1, "Both artifacts belong to the original canonical assistant row")
+        XCTAssertEqual(f.runtime.selectedMessages.first?.content, combined.text)
+        XCTAssertEqual(f.socket.artifactRequests.map(\.type), ["store_embed", "store_embed_keys", "store_embed", "store_embed_keys"])
     }
 }

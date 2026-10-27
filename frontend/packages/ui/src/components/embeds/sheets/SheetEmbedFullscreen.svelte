@@ -282,7 +282,7 @@
    */
   let colWidths = $derived.by(() => {
     return parsedTable.headers.map((header, i) => {
-      const headerLen = header.content.length;
+      const headerLen = stripEmbedLinks(header.content).length;
       const maxDataLen = displayRows.reduce((max, row) => {
         const len = row[i]?.content?.length ?? 0;
         return len > max ? len : max;
@@ -482,7 +482,7 @@
                 <input
                   type="text"
                   class="filter-input"
-                  placeholder={header.content}
+                  placeholder={stripEmbedLinks(header.content)}
                   bind:value={columnFilters[i]}
                 />
               </div>
@@ -541,7 +541,7 @@
                     title="Click to sort"
                   >
                     <span class="col-header-content">
-                      <span class="col-header-text">{header.content}</span>
+                      <span class="col-header-text">{stripEmbedLinks(header.content)}</span>
                       <span class="sort-icon" class:sort-icon-active={sortColumnIndex === i && sortDirection !== 'none'}>
                         {#if sortColumnIndex === i && sortDirection === 'asc'}
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg>

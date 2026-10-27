@@ -9,10 +9,12 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { normalizeShoppingProductImages } from './shoppingProductImages';
   import { proxyImage } from '../../../utils/imageProxy';
 
   const MAX_WIDTH_PRODUCT_IMAGE = 1200;
@@ -46,6 +48,7 @@
     grammage?: string | null;
     purchase_url?: string;
     image_url?: string | null;
+    image_urls?: string[] | string | null;
     category_path?: string | null;
     price?: string | null;
     price_amount?: number | null;
@@ -91,7 +94,7 @@
 
   function asNumber(value: unknown): number | undefined {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && value.trim()) {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) return parsed;
     }
@@ -142,7 +145,8 @@
       was_price_cents: asNumber(content.was_price_cents) ?? null,
       grammage: asString(content.grammage) || null,
       purchase_url: asString(content.purchase_url) || asString(content.url),
-      image_url: asString(content.image_url) || null,
+      image_url: asString(content.image_url) || normalizeShoppingProductImages(content.image_urls)[0] || null,
+      image_urls: normalizeShoppingProductImages(content.image_urls, content.image_url),
       category_path: asString(content.category_path) || null,
       price: asString(content.price) || null,
       price_amount: asNumber(content.price_amount) ?? null,
@@ -166,12 +170,12 @@
   let product = $derived(productProp ?? productFromFullscreenData(data, embedId));
 
   function formatCents(value: number | null | undefined): string {
-    if (value == null || value <= 0) return '';
+    if (value == null || value < 0) return '';
     return `${(value / 100).toFixed(2).replace('.', ',')} €`;
   }
 
   function formatAmount(value: number | null | undefined, symbol?: string | null): string {
-    if (value == null || value <= 0) return '';
+    if (value == null || value < 0) return '';
     const currency = symbol || '€';
     const amount = currency === '€' ? value.toFixed(2).replace('.', ',') : value.toFixed(2);
     return `${currency}${amount}`;
@@ -200,22 +204,19 @@
     return false;
   }
 
-  function getTags(): string[] {
-    const tags: string[] = [];
-    const attr = product.attributes;
-    if (!attr) return tags;
-    if (attr.is_organic) tags.push('Bio');
-    if (attr.is_vegan) tags.push('Vegan');
-    if (attr.is_vegetarian) tags.push('Vegetarisch');
-    if (attr.is_dairy_free) tags.push('Laktosefrei');
-    if (attr.is_gluten_free) tags.push('Glutenfrei');
-    if (attr.is_regional) tags.push('Regional');
-    return tags;
+  function formatStock(value: number | null | undefined): string {
+    if (value == null || value < 0) return '';
+    return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
   }
 
-  function formatStock(value: number | null | undefined): string {
-    if (value == null || value <= 0) return '';
-    return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
+  function attributeLabel(key: string): string {
+    const known: Record<string, string> = {
+      is_organic: $text('result_embed.organic'), is_vegan: $text('result_embed.vegan'),
+      is_vegetarian: $text('result_embed.vegetarian'), is_dairy_free: $text('result_embed.dairy_free'),
+      is_gluten_free: $text('result_embed.gluten_free'), is_regional: $text('result_embed.regional'),
+      is_new: $text('embeds.shopping.new'),
+    };
+    return known[key] || key;
   }
 
   function getAttributeValue(key: string): string {
@@ -241,409 +242,125 @@
   let displayPrice = $derived(getDisplayPrice());
   let displayOldPrice = $derived(getDisplayOldPrice());
   let onSale = $derived(hasSale());
-  let tags = $derived(getTags());
-  let imageUrl = $derived(product.image_url ? proxyImage(product.image_url, MAX_WIDTH_PRODUCT_IMAGE) : '');
+  let imageUrls = $derived(normalizeShoppingProductImages(product.image_urls, product.image_url));
+  let selectedImage = $state(0);
+  let failedImages = $state<string[]>([]);
+  $effect(() => {
+    // Child-product navigation reuses this viewer: reset media with its identity/data.
+    void product.embed_id;
+    void imageUrls;
+    selectedImage = 0;
+    failedImages = [];
+  });
+  let activeImage = $derived(imageUrls[selectedImage]);
+  let imageUrl = $derived(activeImage ? proxyImage(activeImage, MAX_WIDTH_PRODUCT_IMAGE) : '');
+
+  function selectImage(event: KeyboardEvent, index: number) {
+    let next = index;
+    if (event.key === 'ArrowRight') next = (index + 1) % imageUrls.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + imageUrls.length) % imageUrls.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = imageUrls.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectedImage = next;
+    const controls = (event.currentTarget as HTMLButtonElement).parentElement;
+    controls?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
+  }
   let ratingText = $derived(product.rating != null ? `★ ${product.rating.toFixed(1)}` : '');
   let stockText = $derived(formatStock(product.stock));
   let colorCount = $derived(product.color_child_item_ids?.length ?? 0);
   let fabricDetails = $derived(getFabricDetails());
+  // Only fields displayed by this result may cross the follow-up request boundary.
+  let visibleContext = $derived({
+    title: asString(title), provider: asString(product.provider), brand: asString(product.brand),
+    purchase_url: asString(product.purchase_url), price: asString(displayPrice),
+    old_price: onSale ? asString(displayOldPrice) : undefined,
+    grammage: asString(product.grammage), base_price: asString(product.base_price), unit: asString(product.unit),
+    rating: asNumber(product.rating), reviews: asNumber(product.reviews), stock: asNumber(product.stock),
+    availability: asString(product.availability), is_salable: asBoolean(product.is_salable), prime: asBoolean(product.prime),
+    delivery: Array.isArray(product.delivery) ? product.delivery.filter((entry): entry is string => typeof entry === 'string') : [],
+    category_path: asString(product.category_path), product_id: asString(product.product_id), variation_id: asString(product.variation_id),
+    asin: asString(product.asin), country: asString(product.country), bought_last_month: asString(product.bought_last_month),
+    fabric_details: fabricDetails.map(({ label, value }) => ({ label, value })),
+    organic: asBoolean(product.attributes?.is_organic), vegan: asBoolean(product.attributes?.is_vegan),
+    vegetarian: asBoolean(product.attributes?.is_vegetarian), dairy_free: asBoolean(product.attributes?.is_dairy_free),
+    gluten_free: asBoolean(product.attributes?.is_gluten_free), regional: asBoolean(product.attributes?.is_regional),
+    is_new: asBoolean(product.attributes?.is_new),
+  });
 </script>
 
-<UnifiedEmbedFullscreen
-  appId="shopping"
-  skillId="search_products"
-  embedHeaderTitle={title}
-  embedHeaderSubtitle={subtitle}
-  skillIconName="search"
-  showSkillIcon={true}
-  {onClose}
-  currentEmbedId={embedId}
-  {hasPreviousEmbed}
-  {hasNextEmbed}
-  {onNavigatePrevious}
-  {onNavigateNext}
+<ResultEmbedFullscreen
+  appId="shopping" skillId="search_products" skillIconName="search"
+  embedHeaderTitle={title} embedHeaderSubtitle={subtitle} result={visibleContext}
+  media={productMedia}
+  {onClose} currentEmbedId={embedId} {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext}
 >
-  {#snippet embedHeaderCta()}
-    {#if product.purchase_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', product.provider || 'Product')} href={product.purchase_url} />
-    {/if}
+  {#snippet embedHeaderCta()}{#if product.purchase_url}<EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', product.provider || 'Product')} href={product.purchase_url} />{/if}{/snippet}
+  {#snippet summary()}
+    <ResultEmbedInfo icon="tag" label={$text('embeds.results_view.price')} value={displayPrice || $text('embeds.shopping.price_unavailable')}>
+      <p>{product.base_price || product.grammage || displayPrice || $text('embeds.shopping.price_unavailable')}</p>
+      {#if onSale && displayOldPrice}<p>{$text('embeds.shopping.sale')}: <s>{displayOldPrice}</s></p>{/if}
+      {#if product.unit}<p>{product.unit}</p>{/if}
+    </ResultEmbedInfo>
+    {#if product.rating != null}<ResultEmbedInfo icon="star" label={$text('result_embed.rating')} value={ratingText}><p>{ratingText}{#if product.reviews != null} ({product.reviews.toLocaleString()}){/if}</p></ResultEmbedInfo>{/if}
+    {#if product.stock != null}<ResultEmbedInfo icon="package" label={$text('embeds.shopping.stock')} value={stockText}><p>{stockText}</p></ResultEmbedInfo>{/if}
   {/snippet}
-
-  {#snippet content()}
-    <div class="product-fullscreen">
-      <div class="media-column">
-        {#if imageUrl}
-          <img class="product-image" src={imageUrl} alt={title} loading="lazy" />
-        {:else}
-          <div class="image-placeholder">🛒</div>
-        {/if}
-      </div>
-
-      <div class="info-column">
-        <h2 class="title">{title}</h2>
-
-        {#if product.brand}
-          <div class="brand">{product.brand}</div>
-        {/if}
-
-        <div class="price-row">
-          {#if displayPrice}
-            <span class="price" class:sale={onSale}>{displayPrice}</span>
-          {:else}
-            <span class="price-unavailable">{$text('embeds.shopping.price_unavailable')}</span>
-          {/if}
-          {#if onSale && displayOldPrice}
-            <span class="old-price">{displayOldPrice}</span>
-            <span class="sale-badge">{$text('embeds.shopping.sale')}</span>
-          {/if}
+  {#snippet productMedia()}
+      <div class="product-media">
+        <div class="product-image-stage">
+          {#if imageUrl && !failedImages.includes(activeImage)}
+            <img class="product-image" data-testid="shopping-product-image" src={imageUrl} alt={title} loading="lazy" onerror={() => { failedImages = [...failedImages, activeImage]; }} />
+          {:else}<div class="image-placeholder" data-testid="shopping-product-placeholder">🛒</div>{/if}
         </div>
-
-        {#if product.grammage}
-          <div class="grammage">{product.grammage}</div>
-        {/if}
-
-        {#if product.base_price || product.unit}
-          <div class="detail-grid compact">
-            {#if product.base_price}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.base_price')}</span>
-                <span class="detail-value">{product.base_price}</span>
-              </div>
-            {/if}
-            {#if product.unit}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.unit')}</span>
-                <span class="detail-value">{product.unit}</span>
-              </div>
-            {/if}
+        {#if imageUrls.length > 1}
+          <div class="gallery-thumbnails" role="group" aria-label={$text('common.images')} data-testid="shopping-product-gallery">
+            {#each imageUrls as image, index (image)}<button type="button" class="gallery-thumbnail" class:selected={selectedImage === index} aria-label={`${title} — ${$text('common.images')} ${index + 1} / ${imageUrls.length}`} aria-pressed={selectedImage === index} onclick={() => { selectedImage = index; }} onkeydown={(event) => selectImage(event, index)}><img src={proxyImage(image, 120)} alt="" loading="lazy" /></button>{/each}
           </div>
+          <div class="gallery-counter" aria-live="polite" aria-atomic="true">{selectedImage + 1} / {imageUrls.length}</div>
         {/if}
-
-        {#if ratingText}
-          <div class="rating-row">
-            <span class="rating">{ratingText}</span>
-            {#if product.reviews != null}
-              <span class="reviews">({product.reviews.toLocaleString()})</span>
-            {/if}
-            {#if product.prime}
-              <span class="prime">Prime</span>
-            {/if}
-          </div>
-        {/if}
-
-        {#if product.delivery && product.delivery.length > 0}
-          <div class="delivery">{product.delivery[0]}</div>
-        {/if}
-
-        {#if product.availability || stockText || colorCount > 0 || product.is_salable != null}
-          <div class="detail-grid">
-            {#if product.availability}
-              <div class="detail-item wide">
-                <span class="detail-label">{$text('embeds.shopping.availability')}</span>
-                <span class="detail-value">{product.availability}</span>
-              </div>
-            {/if}
-            {#if stockText}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.stock')}</span>
-                <span class="detail-value">{stockText}</span>
-              </div>
-            {/if}
-            {#if colorCount > 0}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.colors')}</span>
-                <span class="detail-value">{colorCount}</span>
-              </div>
-            {/if}
-            {#if product.is_salable != null}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.status')}</span>
-                <span class="detail-value">{product.is_salable ? $text('embeds.shopping.available') : $text('embeds.shopping.not_available')}</span>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        {#if product.bought_last_month}
-          <div class="social-proof">{product.bought_last_month}</div>
-        {/if}
-
-        {#if tags.length > 0}
-          <div class="tags-row">
-            {#each tags as tag}
-              <span class="tag">{tag}</span>
-            {/each}
-          </div>
-        {/if}
-
-        {#if fabricDetails.length > 0}
-          <div class="fabric-details">
-            <h3>{$text('embeds.shopping.fabric_details')}</h3>
-            <div class="detail-grid">
-              {#each fabricDetails as detail}
-                <div class="detail-item">
-                  <span class="detail-label">{detail.label}</span>
-                  <span class="detail-value">{detail.value}</span>
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
-
-        {#if product.product_id || product.variation_id}
-          <div class="detail-grid compact muted">
-            {#if product.product_id}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.product_id')}</span>
-                <span class="detail-value">{product.product_id}</span>
-              </div>
-            {/if}
-            {#if product.variation_id}
-              <div class="detail-item">
-                <span class="detail-label">{$text('embeds.shopping.variation_id')}</span>
-                <span class="detail-value">{product.variation_id}</span>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        {#if product.category_path}
-          <div class="category-path">{product.category_path}</div>
-        {/if}
-
       </div>
-    </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
-
+  {#snippet detailContent()}
+    {#if product.brand || product.grammage}<div class="result-location">{[product.brand, product.grammage].filter(Boolean).join(' · ')}</div>{/if}
+    <div class="result-icon-row">
+      <ResultEmbedInfo icon="package-check" label={$text('embeds.shopping.availability')} state={product.is_salable == null ? 'unknown' : product.is_salable ? 'yes' : 'no'}>
+        <p>{product.availability || (product.is_salable == null ? $text('result_embed.availability_unknown') : product.is_salable ? $text('embeds.shopping.available') : $text('embeds.shopping.not_available'))}</p>
+        {#if product.stock != null}<p>{$text('embeds.shopping.stock')}: {stockText}</p>{/if}
+        {#if colorCount > 0}<p>{$text('embeds.shopping.colors')}: {colorCount}</p>{/if}
+      </ResultEmbedInfo>
+      {#if product.delivery?.length || product.prime != null}<ResultEmbedInfo icon="truck" label={$text('result_embed.delivery')}>{#each product.delivery || [] as delivery}<p>{delivery}</p>{/each}{#if product.prime != null}<p>Prime: {product.prime ? '✓' : '×'}</p>{/if}</ResultEmbedInfo>{/if}
+      {#if product.attributes}<ResultEmbedInfo icon="leaf" label={$text('result_embed.product_attributes')}>
+        <dl>{#each Object.entries(product.attributes).filter(([, value]) => value != null && value !== '') as [key, value]}<div><dt>{attributeLabel(key)}</dt><dd>{typeof value === 'boolean' ? value ? '✓' : '×' : String(value)}</dd></div>{/each}</dl>
+      </ResultEmbedInfo>{/if}
+      {#if product.product_id || product.variation_id || product.category_path || product.bought_last_month || product.asin || product.country}<ResultEmbedInfo icon="info" label={$text('embeds.shopping.product_id')}>
+        {#if product.product_id}<p>{$text('embeds.shopping.product_id')}: {product.product_id}</p>{/if}
+        {#if product.variation_id}<p>{$text('embeds.shopping.variation_id')}: {product.variation_id}</p>{/if}
+        {#if product.asin}<p>ASIN: {product.asin}</p>{/if}
+        {#if product.country}<p>{product.country}</p>{/if}
+        {#if product.category_path}<p>{product.category_path}</p>{/if}
+        {#if product.bought_last_month}<p>{product.bought_last_month}</p>{/if}
+      </ResultEmbedInfo>{/if}
+    </div>
+    {#if fabricDetails.length}<section class="fabric-details"><h3>{$text('embeds.shopping.fabric_details')}</h3><dl>{#each fabricDetails as detail}<div><dt>{detail.label}</dt><dd>{detail.value}</dd></div>{/each}</dl></section>{/if}
+  {/snippet}
+</ResultEmbedFullscreen>
 <style>
-  .product-fullscreen {
-    display: grid;
-    grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1fr);
-    gap: var(--spacing-10);
-    width: min(1040px, calc(100% - 24px));
-    margin: 24px auto 120px;
-  }
-
-  .media-column {
-    background: var(--color-grey-10);
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-7);
-    min-height: 320px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .product-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    max-height: 560px;
-    padding: 18px;
-    box-sizing: border-box;
-  }
-
-  .image-placeholder {
-    font-size: 3.25rem;
-    opacity: 0.45;
-  }
-
-  .info-column {
-    background: var(--color-grey-5);
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-7);
-    padding: var(--spacing-10);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-5);
-    min-width: 0;
-  }
-
-  .title {
-    margin: 0;
-    font-size: var(--font-size-h2-mobile);
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--color-font-primary);
-    word-break: break-word;
-  }
-
-  .brand {
-    font-size: var(--font-size-small);
-    color: var(--color-font-secondary);
-  }
-
-  .price-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    flex-wrap: wrap;
-  }
-
-  .price {
-    font-size: var(--font-size-xxl);
-    font-weight: 800;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .price.sale {
-    color: var(--color-error);
-  }
-
-  .old-price {
-    font-size: var(--font-size-small);
-    color: var(--color-font-secondary);
-    text-decoration: line-through;
-  }
-
-  .sale-badge {
-    font-size: var(--font-size-tiny);
-    font-weight: 700;
-    color: var(--color-grey-0);
-    background: var(--color-error);
-    border-radius: 100px;
-    padding: var(--spacing-1) var(--spacing-4);
-    text-transform: uppercase;
-  }
-
-  .price-unavailable {
-    font-size: var(--font-size-small);
-    color: var(--color-font-secondary);
-    font-style: italic;
-  }
-
-  .grammage,
-  .delivery,
-  .social-proof,
-  .category-path {
-    font-size: var(--font-size-xs);
-    color: var(--color-font-secondary);
-    line-height: 1.35;
-    word-break: break-word;
-  }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--spacing-3);
-  }
-
-  .detail-grid.compact {
-    gap: var(--spacing-2);
-  }
-
-  .detail-grid.muted {
-    opacity: 0.78;
-  }
-
-  .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    padding: var(--spacing-3);
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-4);
-    background: var(--color-grey-0);
-  }
-
-  .detail-item.wide {
-    grid-column: 1 / -1;
-  }
-
-  .detail-label {
-    font-size: var(--font-size-tiny);
-    color: var(--color-font-secondary);
-    font-weight: 600;
-  }
-
-  .detail-value {
-    font-size: var(--font-size-xs);
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-  }
-
-  .fabric-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-    margin-top: var(--spacing-1);
-  }
-
-  .fabric-details h3 {
-    margin: 0;
-    font-size: var(--font-size-small);
-    color: var(--color-font-primary);
-  }
-
-  .rating-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    flex-wrap: wrap;
-  }
-
-  .rating {
-    font-size: var(--font-size-xs);
-    color: #f59e0b;
-    font-weight: 700;
-  }
-
-  .reviews {
-    font-size: var(--font-size-xxs);
-    color: var(--color-font-secondary);
-  }
-
-  .prime {
-    font-size: var(--font-size-tiny);
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: var(--radius-4);
-    background: rgba(59, 130, 246, 0.12);
-    color: #2563eb;
-  }
-
-  .tags-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-    margin-top: var(--spacing-1);
-  }
-
-  .tag {
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 100px;
-    background: rgba(var(--color-primary-rgb), 0.1);
-    color: var(--color-primary);
-  }
-
-  @container fullscreen (max-width: 760px) {
-    .product-fullscreen {
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-top: var(--spacing-8);
-    }
-
-    .media-column {
-      min-height: 220px;
-    }
-
-    .title {
-      font-size: var(--font-size-h3);
-    }
-
-    .price {
-      font-size: var(--font-size-h2-mobile);
-    }
-
-    .detail-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+  .product-media { width:100%; display:flex; flex-direction:column; align-items:center; }
+  .product-image-stage { width:100%; min-height:12rem; display:grid; place-items:center; }
+  .product-image { display:block; width:100%; height:auto; max-height:65vh; object-fit:contain; }
+  .image-placeholder { font-size:3rem; padding:var(--spacing-12); }
+  .gallery-thumbnails { display:flex; gap:var(--spacing-4); max-width:100%; overflow-x:auto; padding:var(--spacing-4); box-sizing:border-box; }
+  .gallery-thumbnail { flex:0 0 56px; width:56px; height:56px; padding:var(--spacing-2); border:2px solid transparent; border-radius:var(--radius-3); background:var(--color-grey-0); cursor:pointer; }
+  .gallery-thumbnail.selected { border-color:var(--color-button-primary); }
+  .gallery-thumbnail:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
+  .gallery-thumbnail img { width:100%; height:100%; object-fit:contain; }
+  .gallery-counter { font-size:var(--font-size-xs); color:var(--color-font-secondary); }
+  .fabric-details { width:100%; font-size:var(--font-size-small); }
+  h3 { font-size:inherit; }
+  dl { margin:0; display:grid; gap:var(--spacing-3); }
+  dl > div { display:grid; grid-template-columns:1fr 1fr; gap:var(--spacing-4); }
+  dd { margin:0; overflow-wrap:anywhere; }
+  dt { color:var(--color-font-secondary); }
 </style>

@@ -1,3 +1,5 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.audio.single-owner, video-call.audio.spoken-rich-response, video-call.chat.transcripts
 // Specification: specifications/features/assistant-response-speech/specification.yml
 // Assertions: assistant-speech.surface.semantic-parity
 import AVFoundation
@@ -29,13 +31,21 @@ final class AssistantSpeechAudioPlayer {
         #endif
     }
     private var completion: CheckedContinuation<Void, Error>?
-    func play(_ data: Data) async throws {
+    var positionMilliseconds: Int {
+        guard let render = node.lastRenderTime,
+              let time = node.playerTime(forNodeTime: render), time.sampleRate > 0 else { return 0 }
+        let milliseconds = Double(time.sampleTime) / time.sampleRate * 1_000
+        return milliseconds.isFinite ? Int(min(3_600_000, max(0, milliseconds))) : 0
+    }
+    func play(_ data: Data, preserveCaptureSession: Bool = false) async throws {
         try Task.checkCancellation()
         stop()
         let token = generation
         #if os(iOS)
-        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try AVAudioSession.sharedInstance().setActive(true)
+        if !preserveCaptureSession {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        }
         #endif
         let buffer = try AssistantSpeechWaveform.buffer(data)
         if !configured {

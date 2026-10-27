@@ -90,6 +90,7 @@ function statusVariant(status: AssistantSpeechPlayerState["status"], error: stri
 }
 
 export const variants = {
+  callOwned: { controller: createPreviewController(), callOwnsAudio: true },
   awaitingAudio: statusVariant("waiting_for_segment"),
   autoplayBlocked: statusVariant("blocked_by_autoplay"),
   failed: statusVariant("failed", "Speech audio could not be loaded."),

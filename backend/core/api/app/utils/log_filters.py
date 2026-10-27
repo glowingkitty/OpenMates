@@ -7,11 +7,15 @@ NEWSLETTER_TOKEN_URL_PATTERN = re.compile(
     r"(newsletter/(?:confirm|unsubscribe(?:/one-click)?)/)[^/\s?#<>\"']+",
     re.IGNORECASE,
 )
+REMINDER_PREVIEW_TOKEN_URL_PATTERN = re.compile(
+    r"(email/reminder-preview/[^/\s?#<>\"']+/)[^/\s?#<>\"']+", re.IGNORECASE,
+)
 
 
 def redact_newsletter_token_urls(value: str) -> str:
     """Keep recipient-held newsletter tokens out of log/metric URL values."""
-    return NEWSLETTER_TOKEN_URL_PATTERN.sub(r"\1[REDACTED]", value)
+    value = NEWSLETTER_TOKEN_URL_PATTERN.sub(r"\1[REDACTED]", value)
+    return REMINDER_PREVIEW_TOKEN_URL_PATTERN.sub(r"\1[REDACTED]", value)
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -45,6 +49,7 @@ class SensitiveDataFilter(logging.Filter):
             # Token pattern
             "token": re.compile(r'"?(?:api_?key|token|secret|jwt)"?\s*[:=]\s*"?[^",\s]+"?', re.IGNORECASE),
             "newsletter_token_url": NEWSLETTER_TOKEN_URL_PATTERN,
+            "reminder_preview_token_url": REMINDER_PREVIEW_TOKEN_URL_PATTERN,
             
             # Bearer auth header pattern
             "bearer": re.compile(r'[Bb]earer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*'),
@@ -64,6 +69,7 @@ class SensitiveDataFilter(logging.Filter):
             "password": '"password": "[REDACTED]"',
             "token": '"token": "[REDACTED]"',
             "newsletter_token_url": r"\1[REDACTED]",
+            "reminder_preview_token_url": r"\1[REDACTED]",
             "bearer": "Bearer [REDACTED]",
             "discord_webhook": "https://discord.com/api/webhooks/[REDACTED]",
         }

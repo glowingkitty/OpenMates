@@ -53,6 +53,7 @@ class DailyInspirationPoolMethods:
         feature_metadata: Optional[Dict[str, Any]] = None,
         follow_up_suggestions: Optional[List[str]] = None,
         generated_at: Optional[int] = None,
+        video_description: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Add an inspiration to the pool. Video entries deduplicate by youtube_id;
@@ -83,6 +84,7 @@ class DailyInspirationPoolMethods:
                 "category": category,
                 "content_type": content_type or "video",
                 "video_title": video_title,
+                "video_description": video_description,
                 "video_thumbnail_url": video_thumbnail_url,
                 "video_channel_name": video_channel_name,
                 "video_view_count": video_view_count,

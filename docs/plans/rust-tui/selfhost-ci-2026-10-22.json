@@ -1,0 +1,818 @@
+{
+  "source": "2628325b035a8e9b6e88899b54749243e930b610",
+  "run": 39832707017,
+  "request": "d1f46420cfabe8eb55a2b8eb5adcbf1085a1740506f6932d448c3712a1a0d965",
+  "overall": "failed",
+  "steps": [
+    {
+      "step": "Install workspace dependencies",
+      "exit_code": 0
+    },
+    {
+      "step": "Build current branch CLI",
+      "exit_code": 0
+    },
+    {
+      "step": "Build exact-source Rust self-host CLI",
+      "exit_code": 0
+    },
+    {
+      "step": "Install published CLI from npm",
+      "exit_code": 0
+    },
+    {
+      "step": "Stage OpenObserve image for self-hosted install",
+      "exit_code": 0
+    },
+    {
+      "step": "Source-mode timing baseline",
+      "exit_code": 0
+    },
+    {
+      "step": "Native source-mode install lifecycle",
+      "exit_code": 0
+    },
+    {
+      "step": "Build local image-mode images",
+      "exit_code": 0
+    },
+    {
+      "step": "Image-mode self-hosted install and timing",
+      "exit_code": 1
+    },
+    {
+      "step": "Show self-hosted status and logs",
+      "exit_code": 0
+    },
+    {
+      "step": "Uninstall self-hosted edition",
+      "exit_code": 0
+    }
+  ],
+  "native_source_lifecycle": "passed",
+  "native_image_mode": "Install, start and update dry-run reached; actual image update failed its local API health check. Worker logs also report PermissionError at /app_config/providers.",
+  "root_causes": [
+    "Native update probes /health, whose canonical redirect is rejected by its strict HTTP client; direct /v1/health is required.",
+    "Fresh image configuration creates a private providers directory that image worker UID cannot enumerate."
+  ],
+  "cleanup": {
+    "run_id": "39832707017",
+    "harness_commit": "649d028e481aa80244d308e867d26b4a5e256d93",
+    "containers_remaining": 0,
+    "volumes_remaining": 0,
+    "private_account_files_removed": true,
+    "errors": []
+  },
+  "artifact": {
+    "id": 12454378562,
+    "url": "https://github.com/glowingkitty/OpenMates/actions/runs/39832707017/artifacts/12454378562",
+    "sha256": "ac8949e90ec55a0034689ea96a4383dce7d4754d28882dbd4a923a94d8f7702d"
+  },
+  "receipt_sha256": "737b4a751db13f71c610ac4a4f435e9af0c7b38d0fd3379b150995bea7c3c32a",
+  "qualification": "Retained exact-source GitHub CI evidence for source262 only. No final-source image acceptance or controlled performance comparison; later corrected source still requires verification.",
+  "image_follow_up": {
+    "source": "d9f419b26f6aca8a66fb82841e3227df6690be11",
+    "run": 39848779823,
+    "request": "e41bc5354b3ebc9e7526613a498ddb3082842c31bf58cd776a8ba020c2bc1bc7",
+    "overall": "failure",
+    "receipt_sha256": "767a3ab47abda02ddd978da70293939adcf126a1bf25ead559663f360f531503",
+    "steps": [
+      {
+        "step": "Install workspace dependencies",
+        "exit_code": 0
+      },
+      {
+        "step": "Build current branch CLI",
+        "exit_code": 0
+      },
+      {
+        "step": "Build exact-source Rust self-host CLI",
+        "exit_code": 0
+      },
+      {
+        "step": "Install published CLI from npm",
+        "exit_code": 0
+      },
+      {
+        "step": "Stage OpenObserve image for self-hosted install",
+        "exit_code": 0
+      },
+      {
+        "step": "Source-mode timing baseline",
+        "exit_code": 0
+      },
+      {
+        "step": "Native source-mode install lifecycle",
+        "exit_code": 0
+      },
+      {
+        "step": "Build local image-mode images",
+        "exit_code": 0
+      },
+      {
+        "step": "Image-mode self-hosted install and timing",
+        "exit_code": 1
+      },
+      {
+        "step": "Show self-hosted status and logs",
+        "exit_code": 0
+      },
+      {
+        "step": "Uninstall self-hosted edition",
+        "exit_code": 0
+      }
+    ],
+    "native_source_lifecycle": "passed",
+    "canonical_api_health": "passed: update.health completes before runtime-verification",
+    "provider_directory_discovery": "passed: workers enumerate providers without PermissionError",
+    "image_update_failure": {
+      "phase": "runtime-verification",
+      "receipt_status": "degraded",
+      "error": "generic system subprocess failure",
+      "exact_subcheck": "not retained; unknown",
+      "follow_up": "Static check IDs, completed checks and sanitized failure kind; no subprocess arguments, stdin or output."
+    },
+    "retained_log_lines": {
+      "update_receipt": [
+        652,
+        658
+      ],
+      "healthy_core_services": [
+        683,
+        690
+      ],
+      "provider_discovery": [
+        [
+          920,
+          921
+        ],
+        [
+          938,
+          939
+        ]
+      ]
+    },
+    "cleanup": {
+      "run_id": "39848779823",
+      "harness_commit": "5783a7b50d92c7a47043eb77c14ea313889a2eb4",
+      "containers_remaining": 0,
+      "volumes_remaining": 0,
+      "private_account_files_removed": true,
+      "errors": []
+    },
+    "recording": "Unavailable: no attempt report returned; evidence inventory inspected.",
+    "qualification": "The earlier health/provider corrections pass in this run. Other runtime subchecks and complete image lifecycle remain unverified; no Redis or other specific cause is established."
+  },
+  "native_ui_follow_up": {
+    "source": "d9f419b26f6aca8a66fb82841e3227df6690be11",
+    "run": 39848773195,
+    "request": "a1f212df4a6244adbcd032c2e48c2322302181d7a1d27c0f35755902a2fe708c",
+    "overall": "cancelled",
+    "receipt_sha256": "e284ef8b0dbcb78c4634790e714c11df61b8e15272e5005d4cb300a11cce411f",
+    "last_stage": {
+      "name": "Install browser",
+      "seconds": 2735,
+      "conclusion": "cancelled",
+      "observation": "Browser/terminal package installation still downloading Ubuntu packages when cancelled; no selected checks executed.",
+      "cancel_cause": "Not established by the retained generic operation-cancelled log."
+    },
+    "product_checks_started": false,
+    "cleanup_verified": true,
+    "recording": "Unavailable: capture never started; evidence inventory inspected.",
+    "qualification": "Setup cancellation is neither a product failure nor a product pass; draft clearing, pairing and benchmarks remain unverified."
+  },
+  "diagnostic_follow_up": {
+    "source": "2d94b4075374884d2a746a9135ad4041d72ac65d",
+    "run": 39860517609,
+    "request": "fbc5e3e1da773a8f9e4a464d2a6affe9bac5cb49a8df0e5285acc0d4b301c8b1",
+    "overall": "failure",
+    "receipt_sha256": "6bc40db59961fede7b4b8f50291aa647f4f6d259eae13d7c18d0a5d19716d243",
+    "cleanup_verified": true,
+    "native_source_lifecycle": "passed",
+    "image_install_start_and_dry_run": "passed",
+    "image_update": {
+      "phase": "runtime-verification",
+      "current_check": "core.worker_queue",
+      "failure_kind": "subprocess_nonzero",
+      "operation": "Docker Compose cache-container redis-cli --json transport; LPUSH/GET/DEL are not distinguished by this receipt.",
+      "prior_checks": "Compose configuration, database, CMS cache settings, authenticated cache PING and Vault passed in the strict sequential verifier.",
+      "cause": "Unresolved: no Redis CLI version/flag capability or stderr retained. Unsupported --json is a hypothesis, not an established cause."
+    },
+    "recording": {
+      "available": false,
+      "reason": "No attempt report returned; inspect the run setup/recording stage",
+      "evidence_command_exit": 0
+    },
+    "qualification": "Old Tokio1.54.0 source supplies bounded functional feedback only; not installation/publication acceptance. Do not relabel it as current patched source. No runtime or health assertion bypass.",
+    "compatibility_findings": {
+      "cache_reference": "docker.dragonflydb.io/dragonflydb/dragonfly (implicit latest)",
+      "ci_cache_digest_and_cli_version": "not retained; cannot identify exact CI CLI version",
+      "same_cache_pipe_authenticated_ping": "passed",
+      "local_existing_image_metadata": "Ubuntu22.04 with apt redis-tools; not linked to CI image identity",
+      "primary_sources": [
+        "https://raw.githubusercontent.com/redis/redis/6.0/src/redis-cli.c",
+        "https://raw.githubusercontent.com/redis/redis/7.0/src/redis-cli.c"
+      ],
+      "verified_compatibility_difference": "Redis6 source supports CSV but not JSON mode; Redis7 adds JSON. Version output can test --csv parser acceptance without server connection.",
+      "remediation": "One checked argv-only --csv --version preflight before credentials/enqueue; strict CSV scalar decoder, stdin AUTH followed by acknowledged nonzero SELECT, no error-based fallback.",
+      "qualification": "Removes verified output-mode and authenticated DB-selection assumptions. Does not establish the historical CI subprocess cause or actual runtime success."
+    }
+  },
+  "staged_csv_follow_up": {
+    "source": "da67ee7ad3be48c0faa980f53d3085fa312ddd5f",
+    "run": 39871354094,
+    "request": "6cdb3de43fa00fd5ed20007d5c80c4ecc2fe4f870f99cc6567aa147781daeb49",
+    "overall": "failure",
+    "receipt_sha256": "a125948fc65b40ed422134ac7446c9a14f6934eb02978f342e2f0a5211bf6e92",
+    "steps": [
+      {
+        "step": "Install workspace dependencies",
+        "exit_code": 0
+      },
+      {
+        "step": "Build current branch CLI",
+        "exit_code": 0
+      },
+      {
+        "step": "Build exact-source Rust self-host CLI",
+        "exit_code": 0
+      },
+      {
+        "step": "Install published CLI from npm",
+        "exit_code": 0
+      },
+      {
+        "step": "Stage OpenObserve image for self-hosted install",
+        "exit_code": 0
+      },
+      {
+        "step": "Source-mode timing baseline",
+        "exit_code": 0
+      },
+      {
+        "step": "Native source-mode install lifecycle",
+        "exit_code": 0
+      },
+      {
+        "step": "Build local image-mode images",
+        "exit_code": 0
+      },
+      {
+        "step": "Image-mode self-hosted install and timing",
+        "exit_code": 0
+      },
+      {
+        "step": "Summarize setup timing",
+        "exit_code": 0
+      },
+      {
+        "step": "Check server status JSON",
+        "exit_code": 0
+      },
+      {
+        "step": "Check backend and web Docker containers",
+        "exit_code": 0
+      },
+      {
+        "step": "Verify Chrome browser",
+        "exit_code": 0
+      },
+      {
+        "step": "Run self-hosted smoke spec",
+        "exit_code": 1
+      },
+      {
+        "step": "Show self-hosted status and logs",
+        "exit_code": 0
+      },
+      {
+        "step": "Uninstall self-hosted edition",
+        "exit_code": 0
+      }
+    ],
+    "native_source_lifecycle": "passed",
+    "native_image_install_start_update": "passed",
+    "runtime_verification": "CSV same-connection acknowledgement-gated core checks passed; update completed and exact workflow receipt assertions passed.",
+    "browser_smoke": {
+      "failed": [
+        "Dry-run coreSetupGate included reuseCompletedSetup inside the nested gate rather than at top-level, violating the retained legacy JSON shape.",
+        "Installer synthesized VITE_API_URL instead of retaining the absent-override fixture and local CLI fallback."
+      ],
+      "passed": [
+        "passkey fixture",
+        "recovery fixture"
+      ]
+    },
+    "cleanup": {
+      "run_id": "39871354094",
+      "harness_commit": "d0f90ccf98bcfc7e56ca2ee286949c205d88a384",
+      "containers_remaining": 0,
+      "volumes_remaining": 0,
+      "private_account_files_removed": true,
+      "errors": []
+    },
+    "cleanup_verified": true,
+    "evidence": {
+      "command_executed": true,
+      "video": "Unavailable: no video attachment in each returned test attempt; capture may not have started.",
+      "images": "Returned screenshots uploaded; exact evidence inventory retained with the receipt."
+    },
+    "qualification": "Actual native source/image lifecycle evidence applies to da67 only. Full self-host acceptance remains open on browser compatibility failures. Later producer corrections require new exact-source verification; historical Redis subprocess cause is still not proven. Setup timings are uncontrolled single samples, not the requested application performance comparison."
+  },
+  "latest_48d2_follow_up": {
+    "source": "48d2a2de82dfcda95586106c9090f5e2974d9ccb",
+    "run": 39925355788,
+    "request": "9598fa99f130a2df7b4b487bcfdf3dd699e8adccdf7c6ad0da46e45c98c69cdc",
+    "overall": "failed",
+    "receipt_sha256": "6812fca9a41df4ccb7a0bf67114ebbb0dc7ebbfa4da78f3b35e051c4bb28de55",
+    "native_source_and_image_install_start_update": "passed",
+    "browser_update_order_passkey_and_recovery": "passed",
+    "remaining_failure": "Normal signup passed; native server make-admin returned generic subprocess failure. Source uses nonexistent users SQL relation instead of canonical directus_users; retained stderr does not independently establish the SQL diagnostic.",
+    "cleanup_verified": true,
+    "working_tree_follow_up": "All three SQL account references corrected to directus_users, preserving transaction, normalized hash-only stdin, UUID receipt and cache/event order. Two focused native regressions and independent source review; later full native unit/static checkpoint passed. New exact-source self-host CI remains pending.",
+    "qualification": "Historical 48d2 lifecycle evidence is retained, not relabeled as current source or complete self-host acceptance."
+  },
+  "latest_native_ui_follow_up": {
+    "source": "48d2a2de82dfcda95586106c9090f5e2974d9ccb",
+    "run": 39925282376,
+    "overall": "failed",
+    "receipt_sha256": "68e3053f38ee8a23b1faac4f86c4d1421b5497fad70e94958283de67f1dcebc4",
+    "attempt_zero": "Protocol/authenticated terminal and full browser pairing, vault restart, wrong-PIN and cancellation checks passed; application preparation refused canonical CI app port5173 because guards required3000. No signed-in measurement reached.",
+    "retry": "Authorization200, authorizer poll401 binding-required, browser cancellation200, native ACK conflict. Source analysis identifies incoming stale Cookie binding versus effective authenticated successor; no secret/token lineage was logged.",
+    "cleanup_verified": true,
+    "working_tree_follow_up": "Canonical isolated APP5173/API8000 guards and effective-refresh-credential pairing binding corrected with focused tests/review. New exact-source native CI pending.",
+    "dev_binary_installed": false
+  },
+  "three_scope_acceptance_2026_10_24": {
+    "date": "2026-10-24",
+    "task": "TASK-5702",
+    "task_status": "done",
+    "status": "passed_matching_three_scope_aggregate",
+    "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+    "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+    "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+    "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+    "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+    "strict_aggregate_acceptance": true,
+    "scopes": [
+      {
+        "suite": "selfhost-source",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088488008",
+        "target": "selfhost-source",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "none",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 45667,
+            "exit_code": 0,
+            "completed_elapsed_ms": 57722
+          },
+          {
+            "id": "selfhost-rust-cli",
+            "step": "Build exact-source Rust self-host CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 57800,
+            "exit_code": 0,
+            "completed_elapsed_ms": 277152
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 277154,
+            "exit_code": 0,
+            "completed_elapsed_ms": 281174
+          },
+          {
+            "id": "selfhost-native-source",
+            "step": "Native source-mode install lifecycle",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 281175,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405283
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405284,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405389
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405390,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405655
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405656,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405781
+          }
+        ],
+        "stats": {
+          "expected": 0,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "faebba5e252cab47c84fab689af508b27f575cc18f9dd6f3d5924b7c50d1491d",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      },
+      {
+        "suite": "selfhost-image",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088490965",
+        "target": "selfhost-image",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "full-spec",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 48017,
+            "exit_code": 0,
+            "completed_elapsed_ms": 59966
+          },
+          {
+            "id": "selfhost-typescript-cli",
+            "step": "Build current branch CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 59968,
+            "exit_code": 0,
+            "completed_elapsed_ms": 89227
+          },
+          {
+            "id": "selfhost-rust-cli",
+            "step": "Build exact-source Rust self-host CLI",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 89231,
+            "exit_code": 0,
+            "completed_elapsed_ms": 300505
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 300507,
+            "exit_code": 0,
+            "completed_elapsed_ms": 305890
+          },
+          {
+            "id": "selfhost-images",
+            "step": "Build local image-mode images",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 305891,
+            "exit_code": 0,
+            "completed_elapsed_ms": 712839
+          },
+          {
+            "id": "selfhost-native-image",
+            "step": "Image-mode self-hosted install and timing",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 712840,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2432998
+          },
+          {
+            "id": "selfhost-epoch0-restart",
+            "step": "Preserve epoch 0 across restart",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 2432999,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2870356
+          },
+          {
+            "id": "selfhost-epoch0-update",
+            "step": "Preserve epoch 0 across update",
+            "step_index": 7,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 2870357,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3201105
+          },
+          {
+            "id": "selfhost-epoch1-restart",
+            "step": "Preserve epoch 1 across restart",
+            "step_index": 8,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3201106,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3612143
+          },
+          {
+            "id": "selfhost-epoch1-update",
+            "step": "Preserve epoch 1 across update",
+            "step_index": 9,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3612144,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3938923
+          },
+          {
+            "id": "selfhost-restore-ready",
+            "step": "Restore ready epoch fixture",
+            "step_index": 10,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3938924,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939239
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 11,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939240,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939352
+          },
+          {
+            "id": "selfhost-server-status",
+            "step": "Check server status JSON",
+            "step_index": 12,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939353,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939507
+          },
+          {
+            "id": "selfhost-containers",
+            "step": "Check backend and web Docker containers",
+            "step_index": 13,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939508,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939662
+          },
+          {
+            "id": "selfhost-chrome",
+            "step": "Verify Chrome browser",
+            "step_index": 14,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939800,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3941745
+          },
+          {
+            "id": "selfhost-browser",
+            "step": "Run self-hosted smoke spec",
+            "step_index": 15,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3941746,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4035182
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 16,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 4035184,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4036485
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 17,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 4036486,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4048829
+          }
+        ],
+        "stats": {
+          "expected": 4,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "6b1cf9adc8744b8cf9e0771dedddf011ede22ca18a9e90e5ad261c0c0004c2d5",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      },
+      {
+        "suite": "selfhost-legacy",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088493475",
+        "target": "selfhost-legacy",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "none",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 47775,
+            "exit_code": 0,
+            "completed_elapsed_ms": 59906
+          },
+          {
+            "id": "selfhost-typescript-cli",
+            "step": "Build current branch CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 59907,
+            "exit_code": 0,
+            "completed_elapsed_ms": 89646
+          },
+          {
+            "id": "selfhost-published-cli",
+            "step": "Install published CLI from npm",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 89654,
+            "exit_code": 0,
+            "completed_elapsed_ms": 94430
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 94434,
+            "exit_code": 0,
+            "completed_elapsed_ms": 99519
+          },
+          {
+            "id": "selfhost-legacy-source",
+            "step": "Source-mode timing baseline",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 99520,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1314768
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1314773,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1314856
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1314857,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1315122
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 7,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1315122,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1315488
+          }
+        ],
+        "stats": {
+          "expected": 0,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "786246dede14afcde6d1d2f42dff9468e19a494bb3f56bdd42976e81d5e593f3",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      }
+    ],
+    "qualification": "Acceptance requires all three matching source/image/legacy receipts together. Each recipe-target receipt correctly retains coverage_complete=false; image browser scope alone is full-spec with four passing cases. This closes fresh Rust self-host setup/readiness work only, not performance, security, SDK publication, platform or CLI/TUI retirement gates."
+  },
+  "latest_acceptance": "three_scope_acceptance_2026_10_24"
+}

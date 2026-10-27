@@ -59,7 +59,7 @@
   let {
     title = '',
     provisionalChatTitle = '',
-    currentChatId: _currentChatId = null,
+    currentChatId = null,
     category = null,
     icon = null,
     summary = null,
@@ -181,8 +181,16 @@
   // Only decoded images participate in the carousel. Keep the current picture
   // visible while others load, and discard completions from an obsolete chat.
   let loadedImageBubbles = $state<NonNullable<typeof headerImageBubbles>>([]);
+  // Streaming updates can recreate an identical array every few milliseconds.
+  // Decode only when the actual sources or owning chat change.
+  const imageBubbleSources = $derived(JSON.stringify({
+    chatId: currentChatId,
+    bubbles: hasHeaderMedia ? [] : (headerImageBubbles ?? []),
+  }));
   $effect(() => {
-    const candidates = hasHeaderMedia ? [] : (headerImageBubbles ?? []);
+    const { bubbles: candidates } = JSON.parse(imageBubbleSources) as {
+      bubbles: NonNullable<typeof headerImageBubbles>;
+    };
     let cancelled = false;
     const pendingImages = new Set<HTMLImageElement>();
     const retained = untrack(() => loadedImageBubbles).filter(bubble =>

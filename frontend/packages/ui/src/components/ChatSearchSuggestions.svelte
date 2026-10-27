@@ -31,7 +31,7 @@
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
-    INTRO_CHATS, LEGAL_CHATS, translateDemoChats, getAllExampleChats,
+    INTRO_CHATS, translateDemoChats, getAllExampleChats,
     convertDemoChatToChat,
   } from '../demo_chats';
   import type { Chat } from '../types/chat';
@@ -51,7 +51,7 @@
     messageInputContent?: string;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
-    onEmbedSelect: (embedId: string, settingsPath?: string) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string, embedChatId?: string) => void;
     currentChatId?: string | undefined;
   } = $props();
 
@@ -72,7 +72,7 @@
   let activeSearchController: AbortController | null = null;
 
   function getPublicSearchChats(): Chat[] {
-    const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
+    const translatedPublicChats = translateDemoChats([...INTRO_CHATS]).map(convertDemoChatToChat);
     return [...translatedPublicChats, ...getAllExampleChats()];
   }
 
@@ -232,28 +232,26 @@
 </script>
 
 {#if chatSearchResults.length > 0 || fileSearchResults.length > 0 || savedEmbedResults.length > 0 || recentEmbedResults.length > 0}
-  <div class="chat-search-wrapper" data-testid="chat-search-suggestions">
+  <div class="chat-search-wrapper" data-testid="chat-search-suggestions" data-preserve-composer-focus="true">
     <div class="chat-search-header">
       {$text('chats.search.results_label')}
     </div>
     <div class="chat-search-scroll">
       {#each savedEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
             <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>
-          <span class="card-date">{embed.subtitle || embed.appId}</span>
         </div>
       {/each}
 
       {#each recentEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId)}>
+          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, undefined, embed.chatId)}>
             <span class="card-icon"><Icon name={embed.appId || 'search'} type={embed.appId ? 'app' : 'skill'} size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>
-          <span class="card-date">{embed.subtitle}</span>
         </div>
       {/each}
 
@@ -306,14 +304,16 @@
 
 <style>
   .chat-search-wrapper {
+    container: composer-search / inline-size;
+    --search-fade-width: clamp(16px, 4%, 28px);
     animation: fadeIn 200ms ease-out;
     animation-delay: 200ms;
     animation-fill-mode: backwards;
     transition: opacity 200ms ease;
     opacity: 1;
     width: 100%;
-    -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--search-fade-width), black calc(100% - var(--search-fade-width)), transparent);
+    mask-image: linear-gradient(to right, transparent, black var(--search-fade-width), black calc(100% - var(--search-fade-width)), transparent);
   }
 
   .chat-search-header {
@@ -426,6 +426,8 @@
   }
 
   .chat-result-wrapper {
+    width: 300px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -434,6 +436,9 @@
   }
 
   .card-date {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--color-grey-50);
     font-size: var(--font-size-tiny);
     font-weight: 400;
@@ -443,12 +448,7 @@
     opacity: 0.8;
   }
 
-  @media (max-width: 730px) {
-    .chat-search-wrapper {
-      -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
-      mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
-    }
-
+  @container composer-search (max-width: 730px) {
     .chat-search-header {
       padding: 0 0 0 calc(50% - 105px);
       font-size: var(--font-size-small);
@@ -465,6 +465,8 @@
       padding: var(--spacing-5) var(--spacing-6);
       gap: var(--spacing-4);
     }
+
+    .chat-result-wrapper { width: 210px; }
 
     .card-text {
       font-size: var(--font-size-xs);

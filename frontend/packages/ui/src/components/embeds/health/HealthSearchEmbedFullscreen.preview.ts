@@ -6,10 +6,10 @@
  * Access at: /dev/preview/embeds/health/HealthSearchEmbedFullscreen
  */
 
-/** Default props — finished search with mixed Doctolib + Jameda results */
+/** Default props — finished search with mixed ExampleClinicA + ExampleClinicB results */
 const defaultProps = {
   query: "Ophthalmologist in Munich",
-  provider: "Doctolib, Jameda",
+  provider: "ExampleClinicA, ExampleClinicB",
   status: "finished" as const,
   results: [
     {
@@ -22,8 +22,8 @@ const defaultProps = {
       gps_coordinates: { latitude: 48.1374, longitude: 11.5733 },
       insurance: "",
       telehealth: false,
-      provider_platform: "Jameda",
-      booking_url: "https://www.jameda.de/booking/datum-auswaehlen/12345/67890/2026-04-03T08:00:00+01:00",
+      provider_platform: "ExampleClinicB",
+      booking_url: "https://example.com/fixture",
       rating: 5.0,
       rating_count: 125,
       price: 120,
@@ -39,8 +39,8 @@ const defaultProps = {
       gps_coordinates: { latitude: 48.1397, longitude: 11.5784 },
       insurance: "public",
       telehealth: false,
-      practice_url: "https://www.doctolib.de/ophtalmologe/munich/sophie-mueller",
-      provider_platform: "Doctolib",
+      practice_url: "https://example.com/fixture",
+      provider_platform: "ExampleClinicA",
     },
     {
       embed_id: "preview-health-fs-result-3",
@@ -51,8 +51,8 @@ const defaultProps = {
       address: "Leopoldstraße 45, 80802 Munich",
       insurance: "private",
       telehealth: true,
-      practice_url: "https://www.doctolib.de/cardiologue/munich/klaus-weber",
-      provider_platform: "Doctolib",
+      practice_url: "https://example.com/fixture",
+      provider_platform: "ExampleClinicA",
     },
     {
       embed_id: "preview-health-fs-result-4",
@@ -61,8 +61,8 @@ const defaultProps = {
       name: "Konrad Witkowski",
       speciality: "Zahnarzt",
       address: "Hoheluftchaussee 2, 20253 Hamburg",
-      provider_platform: "Jameda",
-      booking_url: "https://www.jameda.de/booking/datum-auswaehlen/44444/55555/2026-04-04T09:30:00+01:00",
+      provider_platform: "ExampleClinicB",
+      booking_url: "https://example.com/fixture",
       rating: 4.8,
       rating_count: 46,
       service_name: "Allgemeine Sprechstunde",
@@ -75,8 +75,8 @@ const defaultProps = {
       address: "Sendlinger Straße 8, 80331 Munich",
       insurance: "public",
       telehealth: false,
-      practice_url: "https://www.doctolib.de/ophtalmologe/munich/anna-schmidt",
-      provider_platform: "Doctolib",
+      practice_url: "https://example.com/fixture",
+      provider_platform: "ExampleClinicA",
     },
   ],
   onClose: () => {},
@@ -101,15 +101,15 @@ export const variants = {
     ...defaultProps,
     query: "Specialist search failed",
     status: "error" as const,
-    errorMessage: "Could not connect to Doctolib. Please try again.",
+    errorMessage: "Could not connect to ExampleClinicA. Please try again.",
     results: [],
   },
 
-  /** Jameda only results */
-  jamedaOnly: {
+  /** ExampleClinicB only results */
+  ExampleClinicBOnly: {
     ...defaultProps,
     query: "Hausarzt in Berlin",
-    provider: "Jameda",
+    provider: "ExampleClinicB",
     results: [
       {
         embed_id: "preview-health-fs-jam-1",
@@ -118,8 +118,8 @@ export const variants = {
         name: "Ingmar Frank",
         speciality: "Allgemeinmediziner",
         address: "Potsdamer Chaussee 80, Berlin",
-        provider_platform: "Jameda",
-        booking_url: "https://www.jameda.de/booking/datum-auswaehlen/270886/508647/2026-04-03T09:00:00+01:00",
+        provider_platform: "ExampleClinicB",
+        booking_url: "https://example.com/fixture",
         rating: 5.0,
         rating_count: 10,
         service_name: "Erstuntersuchung (Neupatient/in)",
@@ -131,8 +131,8 @@ export const variants = {
         name: "Nikolaus Peter Höllen",
         speciality: "Allgemeinmediziner",
         address: "Kyffhäuserstr. 11, Berlin",
-        provider_platform: "Jameda",
-        booking_url: "https://www.jameda.de/booking/datum-auswaehlen/89012/396782/2026-04-03T09:10:00+01:00",
+        provider_platform: "ExampleClinicB",
+        booking_url: "https://example.com/fixture",
         rating: 5.0,
         rating_count: 165,
         price: 30,

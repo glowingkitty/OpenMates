@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
 
-  Preview component for Fitness Urban Sports search embeds.
+  Preview component for Fitness fitness source search embeds.
   Uses UnifiedEmbedPreview and mirrors the compact event-search card pattern:
   query/location summary, provider, result count, plan/mode filters, and top
   result snippets while the full result list stays in fullscreen.
@@ -12,7 +12,6 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import {
     asText,
-    getFitnessResultTitle,
     normalizeFitnessSearchContent,
     type FitnessResult,
     type FitnessSkillId,
@@ -39,33 +38,26 @@
     id,
     skillId,
     query: queryProp = '',
-    provider: providerProp = 'Urban Sports Club',
-    summary: summaryProp = '',
+    provider: providerProp = '',
     filters: filtersProp = {},
     status: statusProp,
     results: resultsProp = [],
-    result_count: resultCountProp = 0,
+    result_count: resultCountProp,
     taskId,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
 
   let localQuery = $state('');
-  let localProvider = $state('Urban Sports Club');
-  let localSummary = $state('');
-  let localFilters = $state<Record<string, unknown>>({});
+  let localProvider = $state('');
   let localStatus = $state<FitnessStatus>('processing');
-  let localResults = $state<FitnessResult[]>([]);
   let localResultCount = $state(0);
 
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Urban Sports Club';
-    localSummary = summaryProp || '';
-    localFilters = filtersProp || {};
+    localQuery = queryProp || asText(filtersProp.query || filtersProp.address || filtersProp.city);
+    localProvider = providerProp || '';
     localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localResultCount = resultCountProp || resultsProp.length || 0;
+    localResultCount = resultCountProp ?? resultsProp.length;
   });
 
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
@@ -73,56 +65,23 @@
     localStatus = data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled'
       ? data.status
       : normalized.status;
-    localSummary = normalized.summary;
+    localQuery = normalized.query || localQuery;
     localProvider = normalized.provider;
     localResultCount = normalized.resultCount;
-    localFilters = normalized.filters;
-    localResults = normalized.results;
   }
 
   let title = $derived(skillId === 'search_classes' ? $text('app_skills.fitness.search_classes') : $text('app_skills.fitness.search_locations'));
   let countLabel = $derived(`${localResultCount} ${skillId === 'search_classes' ? 'classes' : 'locations'}`);
-  let locationLabel = $derived(asText(localFilters.address || localFilters.city || localQuery || 'Urban Sports'));
-  let filterChips = $derived.by(() => {
-    const chips = [];
-    if (localFilters.radius_km) chips.push(`${localFilters.radius_km} km`);
-    if (localFilters.plan) chips.push(`Plan: ${localFilters.plan}`);
-    if (localFilters.attendance_mode) chips.push(String(localFilters.attendance_mode));
-    return chips;
-  });
 </script>
 
 {#snippet details()}
   <div class="fitness-search-preview" data-testid="fitness-search-preview" data-skill-id={skillId}>
-    <div class="fitness-search-kicker">{localProvider}</div>
-    <div class="fitness-search-title">{title}</div>
-    <div class="fitness-search-location">{locationLabel}</div>
+    <div class="fitness-search-query" title={localQuery}>{localQuery || title}</div>
+    <div class="fitness-search-provider" title={localProvider}>{localProvider}</div>
     {#if localStatus === 'finished'}
       <div class="fitness-search-count" data-testid="fitness-search-result-count">{countLabel}</div>
-      {#if localSummary}
-        <div class="fitness-search-summary">{localSummary}</div>
-      {/if}
-      {#if localResults.length > 0}
-        <div class="fitness-search-results">
-          {#each localResults.slice(0, 2) as result}
-            <div class="fitness-search-result">
-              <span>{getFitnessResultTitle(result)}</span>
-              {#if result.venue_name}<small>{result.venue_name}</small>{/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
-    {:else if localStatus === 'error'}
-      <div class="fitness-search-summary">Search failed.</div>
-    {:else if localStatus === 'cancelled'}
-      <div class="fitness-search-summary">Search cancelled.</div>
-    {:else}
-      <div class="fitness-search-summary">Searching Urban Sports Club...</div>
-    {/if}
-    {#if filterChips.length > 0}
-      <div class="fitness-search-chips">
-        {#each filterChips as chip}<span>{chip}</span>{/each}
-      </div>
+    {:else if localStatus === 'error'}<div class="fitness-search-status">Search failed.</div>
+    {:else if localStatus === 'cancelled'}<div class="fitness-search-status">Search cancelled.</div>
     {/if}
   </div>
 {/snippet}
@@ -143,66 +102,7 @@
 />
 
 <style>
-  .fitness-search-preview {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    height: 100%;
-  }
-
-  .fitness-search-kicker,
-  .fitness-search-summary,
-  .fitness-search-location,
-  .fitness-search-result small {
-    color: var(--color-font-secondary, #666);
-    font-size: 0.78rem;
-  }
-
-  .fitness-search-title {
-    color: var(--color-font-primary, #111);
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .fitness-search-count {
-    color: var(--color-font-primary, #111);
-    font-weight: 650;
-  }
-
-  .fitness-search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    overflow: hidden;
-  }
-
-  .fitness-search-result {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .fitness-search-result span,
-  .fitness-search-result small,
-  .fitness-search-location,
-  .fitness-search-summary {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .fitness-search-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-top: auto;
-  }
-
-  .fitness-search-chips span {
-    border: 1px solid var(--color-grey-30, #d8d8d8);
-    border-radius: 999px;
-    color: var(--color-font-secondary, #666);
-    font-size: 0.7rem;
-    padding: 0.1rem 0.4rem;
-  }
+  .fitness-search-preview { display:flex; flex-direction:column; justify-content:center; gap:var(--spacing-3); min-width:0; height:100%; }
+  .fitness-search-query { color:var(--color-font-primary); font-size:var(--font-size-small); font-weight:600; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow-wrap:anywhere; }
+  .fitness-search-provider, .fitness-search-count, .fitness-search-status { color:var(--color-font-secondary); font-size:var(--font-size-xs); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>

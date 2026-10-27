@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@7
+specification: feature.assistant-response-speech@10
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -37,15 +37,13 @@ segmentation:
     when: The server registers the response paragraphs.
     then: The server dispatches all three paragraphs so native playback continues while native chapter requests are developed.
   - id: three-paragraph-response-three-files
-    assertion_ids: [assistant-speech.execution.web-paragraph-demand]
     given: A web listener starts a three-paragraph voice reply, Auto speak response, or manual Speak playback. None of its paragraphs has audio yet.
     when: The response paragraphs are registered and the listener hears the first one, then continues through the whole message.
-    then: Registering the chapter list creates no ElevenLabs request for paragraphs two or three. The first paragraph causes one request; the second is requested only near the end of the first, and the third only near the end of the second. Three separate encrypted files exist after full playback, with no combined message file.
+    then: Registering the chapter list creates no Mistral request for paragraphs two or three. The first paragraph causes one request; the second is requested only near the end of the first, and the third only near the end of the second. Three separate encrypted files exist after full playback, with no combined message file.
   - id: stop-or-replay-before-next-request
-    assertion_ids: [assistant-speech.execution.web-paragraph-demand]
     given: A listener has played the first paragraph of a three-paragraph response and its encrypted audio file is ready.
     when: The listener stops before the next-paragraph threshold, then later replays the first paragraph.
-    then: Only the first paragraph has been requested from ElevenLabs and billed. Replay uses its ready file; neither later paragraph is requested or billed until playback reaches it or the listener selects it.
+    then: Only the first paragraph has been requested from Mistral and billed. Replay uses its ready file; neither later paragraph is requested or billed until playback reaches it or the listener selects it.
   - id: paragraph-and-map-summary-are-separate-files
     given: {prose_paragraphs: 1, map_embed_summary: I attached a map with three hotel options.}
     expect: {segments: [prose_paragraph, embed_summary], encrypted_s3_object_count: 2, each_object_independently_skippable: true}
@@ -104,7 +102,7 @@ playback:
     assertion_ids: [assistant-speech.on-demand.generate-missing-only]
     given: A listener is playing a twenty-second first paragraph and later paragraphs are registered without provider work.
     when: Playback reaches six seconds before the first paragraph ends.
-    then: The browser sends one ElevenLabs generation request for the second paragraph and none for the third; if the second paragraph already has a matching ready file, it plays that file without a new request.
+    then: The browser sends one Mistral generation request for the second paragraph and none for the third; if the second paragraph already has a matching ready file, it plays that file without a new request.
   - id: skip-to-pending-chapter-cue
     assertion_ids: [assistant-speech.playback.two-second-idle-grace]
     given: A listener selects a paragraph whose audio is not ready.
@@ -117,7 +115,7 @@ playback:
     given: {playing_clip: app_use_announcement, selected_apps: [Weather], next_response_chapter_ready: false}
     expect: {chapter_label: Using apps, replayable_chapter: false, previous_next_target: false, loading_visible: true}
   - id: start-after-first-paragraph
-    given: The first web paragraph is ready and the next two are registered without ElevenLabs work.
+    given: The first web paragraph is ready and the next two are registered without Mistral work.
     when: Automatic playback begins and the listener stays on the first paragraph.
     then: The first paragraph plays in the pinned chat bar while text continues streaming; the next paragraph is requested only near the end of the first and a later paragraph remains unrequested.
   - id: full-response-waveform-bar
@@ -224,12 +222,10 @@ public_examples:
 
 billing:
   - id: two-successful-paragraphs
-    assertion_ids: [assistant-speech.billing.segment-success-once]
-    given: ElevenLabs successfully generates two paragraphs of 120 and 280 submitted characters for one assistant message.
+    given: Mistral successfully generates two paragraphs of 120 and 280 submitted characters for one assistant message.
     when: Each encrypted paragraph becomes ready.
-    then: The first settlement charges 9 credits and the second charges 20, totaling 29 credits for the message; each charge identifies the chat, message, provider, and model.
+    then: The first settlement charges 2 credits and the second charges 4, totaling 6 credits for the message; each charge identifies the chat, message, provider, and model.
   - id: successful-retry-updates-existing-message-entry
-    assertion_ids: [assistant-speech.billing.segment-success-once]
     given: The first paragraph was charged, the second initially failed, and the user later retries it.
     when: The second paragraph succeeds and billing is retried after a worker interruption.
     then: Only the additional cumulative credit amount is charged once; the first paragraph is not billed again.
@@ -253,14 +249,14 @@ failures:
     expect: {auto_speak_enabled: true, provider_error_shown: false, regeneration: false, tap_to_continue_visible: true, additional_credits: 0}
   - id: safety-rejects-segment
     given: {segment_safety_decision: rejected}
-    expect: {elevenlabs_called: false, credits_charged: 0, text_response_continues: true, safe_visible_error: true}
+    expect: {mistral_called: false, credits_charged: 0, text_response_continues: true, safe_visible_error: true}
 
 privacy:
   - id: automatic-current-paragraph-provider-payload
     given: {current_segment: segment-2, unrelated_chat_messages: 30, embed_payload_contains_json: true}
     expect:
-      elevenlabs_receives: [segment-2-speakable-text, required-voice-settings]
-      elevenlabs_does_not_receive: [unrelated-chat-history, raw-embed-json, encryption-keys, provider-credentials]
+      mistral_receives: [segment-2-speakable-text, required-voice-settings]
+      mistral_does_not_receive: [unrelated-chat-history, raw-embed-json, encryption-keys, provider-credentials]
       durable_plaintext_segment: false
       plaintext_logs: false
   - id: historical-message-owner-boundary
@@ -286,12 +282,102 @@ lifecycle:
 
 optional_local_speech:
   - id: verified-local-playback-keeps-provider-route-available-to-others
-    assertion_ids: [assistant-speech.voice.fixed-versioned-mate-profile]
     given: One user has explicitly installed verified Supertonic3 assets on a supported Apple device; another has no eligible local assets. Both enable Auto speak for their own private chat.
     when: Each receives an assistant response and playback starts.
-    then: The first device uses the approved local voice and language mapping without backend automatic speech, provider text submission or provider-generation charges. The second keeps the existing authenticated ElevenLabs behavior. Text streaming and chat-scoped controls continue for both.
+    then: The first device uses the approved local voice and language mapping without backend automatic speech, provider text submission or provider-generation charges. The second keeps the existing authenticated Mistral behavior. Text streaming and chat-scoped controls continue for both.
   - id: local-failure-needs-explicit-online-choice
-    assertion_ids: [assistant-speech.voice.fixed-versioned-mate-profile]
     given: A supported Apple device selected verified installed Supertonic3 for a private assistant response, but local preparation or synthesis fails.
     when: The user retries locally and later chooses Use online speech.
     then: Failure and local retry make no provider request. Only the explicit online choice requests the existing authenticated provider route, with its normal privacy and billing rules; unrelated chats and newer playback scopes remain unchanged. No speed or voice-quality guarantee is inferred from installation.
+
+provider_migration:
+  - id: mistral-without-elevenlabs
+    assertion_ids: [assistant-speech.on-demand.generate-missing-only]
+    given: Mistral is configured and ElevenLabs is unavailable. A signed-in user owns an assistant message without audio.
+    when: The user chooses Speak.
+    then: The Speak action is available and the requested paragraph is synthesized by Voxtral TTS 3, encrypted and played without calling ElevenLabs.
+  - id: queued-legacy-speech
+    given: A version-1 ElevenLabs paragraph was queued before the migration and a new message is created afterwards.
+    when: The queued paragraph completes and the new message is spoken.
+    then: The queued paragraph retains its original voice and model price. The new message uses a version-2 Mistral preset and its cumulative Mistral character price.
+
+voxtral_timely_feedback:
+  - id: timely-feedback
+    given: A web listener has enabled spoken responses and sends a message.
+    when: Processing starts while Mistral generation is still pending.
+    then: Within five seconds the prerecorded acknowledgement starts or an explicit autoplay recovery action appears. Provider latency is measured separately.
+
+voxtral_versioned_voices:
+  - id: versioned-voices
+    given: A new assistant response is spoken after the Mistral migration while an older version-1 paragraph is still queued.
+    when: Both paragraphs are requested by their owners.
+    then: The new response uses its curated version-2 Voxtral TTS 3 preset. The older paragraph retains its original provider and model. Neither exposes provider voice IDs or offers voice cloning.
+
+voxtral_encrypted_paragraphs:
+  - id: encrypted-paragraphs
+    given: An assistant message has two immutable paragraphs.
+    when: The listener plays both paragraphs.
+    then: Mistral synthesizes each paragraph separately. Two independently encrypted private objects exist, with no combined message audio file.
+
+voxtral_lazy_mistral_generation:
+  - id: lazy-mistral-generation
+    given: Mistral is configured, ElevenLabs is unavailable, and a web listener chooses Speak on a three-paragraph assistant response.
+    when: The first paragraph plays and the listener later selects the third chapter.
+    then: Speak is available. Only the first paragraph is initially requested from Mistral; selecting the third requests that paragraph once. A matching ready paragraph replays without another request or charge.
+
+voxtral_safety_before_generation:
+- id: safety-before-generation
+  given: A response paragraph or incrementally released call clause is rejected by the normal deterministic
+    or semantic speech safety decision.
+  when: The speech path considers dispatching that text.
+  then: Neither Mistral nor ElevenLabs receives the rejected text, no speech credits are charged, and a safe
+    visible speech error leaves the canonical text response intact.
+voxtral_segment_privacy:
+- id: segment-privacy
+  given: A permitted stored-message paragraph is ready for speech synthesis.
+  when: The server generates its audio.
+  then: Mistral receives only that speakable paragraph and required voice settings. Plaintext is not durably
+    logged or stored, and audio is encrypted before private storage.
+- id: call-privacy
+  given: A listener has only the old Mistral-only call acknowledgement.
+  when: They accept the new notice naming Mistral transcription and ElevenLabs speech and begin a call.
+  then: Version-3 consent is confirmed before capture or paid dispatch. ElevenLabs receives only released
+    approved speech text and required voice settings; no unrelated chat or keys are sent and no call audio
+    history or replay asset is stored.
+voxtral_cumulative_mistral_price:
+- id: cumulative-mistral-price
+  given: Mistral successfully generates paragraphs containing 120 and 280 characters for one assistant message.
+  when: The two encrypted files become ready and a billing retry runs.
+  then: The first paragraph charges two credits and the second adds four, for six total. Retry and replay
+    add no duplicate charge; the usage is attributed to Mistral and Voxtral TTS 3.
+- id: cumulative-call-price
+  given: Eleven v4 Turbo receives incremental appends of 120 and 280 exact characters on one continuous turn track
+    for an assistant message.
+  when: The 400-character synthesis completes successfully and settlement retries arrive.
+  then: The ledger charges sixteen credits once for the cumulative 400 characters, attributed to ElevenLabs and
+    Eleven v4 Turbo; appends and retries add nothing. Clauses within a track add no duplicate synthesis charge,
+    and interrupted incomplete synthesis adds none.
+live_call_streaming:
+- id: hear-call-speech-while-provider-is-generating
+  assertion_ids:
+  - assistant-speech.playback.live-call-streaming
+  - assistant-speech.execution.first-segment-progressive
+  - assistant-speech.segmentation.one-file-per-segment
+  - assistant-speech.voice.fixed-versioned-mate-profile
+  given: A listener is in an active web call; a long ordinary main response is streaming approved prose, source
+    links and image previews.
+  when: Eleven v4 Turbo receives the first released clause, returns audio, and receives another clause before
+    response and speech input completion.
+  then: The listener hears one continuous ordered turn track immediately while rich chat keeps progressing
+    through normal shared decisions and permissions. No call audio file, upload, generated embed or replay
+    cache exists. Exact successful submitted characters settle once at 0.04 credits per character.
+- id: manual-speak-after-an-ephemeral-call
+  assertion_ids:
+  - assistant-speech.playback.live-call-streaming
+  given: A call ends with encrypted rich assistant text saved, and no call audio stored. An earlier response
+    was interrupted without reliable clause timing.
+  when: The user presses manual Speak on the saved message, then replays it after listening.
+  then: The interrupted call records an explicit empty heard boundary and rejects late audio; it never claims
+    the full response heard. All clauses count as heard only for a sealed response with successful provider
+    completion and native playback end. Manual Speak separately uses Mistral at 0.013 credits per character
+    and encrypts its audio; replay uses the cache without generation or charge.

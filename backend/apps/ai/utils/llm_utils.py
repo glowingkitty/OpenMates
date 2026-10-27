@@ -3,6 +3,7 @@
 # ruff: noqa: E402
 
 import logging
+import math
 from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Union
 import copy
 from pydantic import BaseModel
@@ -34,7 +35,8 @@ from backend.apps.ai.llm_providers.openai_shared import (
     UnifiedOpenAIResponse,
     _sanitize_schema_for_llm_providers,
 )
-from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES
+from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES, LOW_FALLBACK_MODEL, MERCURY_MODEL
+from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level, resolve_reasoning_parameters
 from backend.apps.ai.llm_providers.native_cache_context import (
     NativeCacheProviderOutput,
     NativeCacheSchemaChanged,
@@ -83,7 +85,8 @@ def _google_profile_thinking_level(
         logical_model_id == "google/gemini-4-argon"
         and requested_level in {"LOW", "MEDIUM", "HIGH"}
     )
-    if not is_argon_level and not any(
+    is_low_fallback = logical_model_id == LOW_FALLBACK_MODEL and requested_level == "LOW"
+    if not is_argon_level and not is_low_fallback and not any(
         profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
         for profile in DEFAULT_TIER_MODEL_PROFILES.values()
     ):
@@ -349,6 +352,35 @@ def _chunk_has_substantive_output(chunk: Any) -> bool:
 def _is_provider_error_marker(chunk: Any) -> bool:
     """Return True when a provider encoded a stream failure as text."""
     return isinstance(chunk, str) and chunk.strip().startswith(PROVIDER_STREAM_ERROR_PREFIX)
+
+
+async def _dispatch_with_substantive_deadline(provider_client, arguments, timeout_seconds):
+    """Bound credential/dispatch work and metadata-only streams until real output."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout_seconds
+    stream = None
+    substantive = False
+    try:
+        stream = await asyncio.wait_for(provider_client(**arguments), timeout_seconds)
+        if not hasattr(stream, "__aiter__"):
+            raise ValueError("Provider did not return a stream")
+        iterator = stream.__aiter__()
+        while True:
+            try:
+                if substantive:
+                    chunk = await anext(iterator)
+                else:
+                    remaining = deadline - loop.time()
+                    if remaining <= 0:
+                        raise TimeoutError("Provider did not produce substantive output before deadline")
+                    chunk = await asyncio.wait_for(anext(iterator), remaining)
+            except StopAsyncIteration:
+                return
+            substantive = substantive or _chunk_has_substantive_output(chunk)
+            yield chunk
+    finally:
+        if stream is not None and hasattr(stream, "aclose"):
+            await stream.aclose()
 
 
 def _discover_server_providers_from_modules() -> Dict[str, Any]:
@@ -935,6 +967,7 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
             if not tool_call_id:
                 logger.warning(f"Tool message at index {idx} missing tool_call_id, skipping")
                 continue
+            shopping_tool = msg.get("name") in {"shopping-search_products", "shopping-search-products", "shopping.search_products"}
             
             content_input = msg.get("content", "")
             # Tool content is either plain text (TOON/JSON) or a list of content blocks
@@ -961,7 +994,15 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                     
                     # Try to decode TOON content
                     try:
-                        decoded_content = decode(plain_text_content)
+                        if shopping_tool:
+                            # The TOON decoder can accept JSON as a malformed key
+                            # without raising. Honor Shopping's JSON fallback first.
+                            try:
+                                decoded_content = json.loads(plain_text_content)
+                            except (ValueError, TypeError):
+                                decoded_content = decode(plain_text_content)
+                        else:
+                            decoded_content = decode(plain_text_content)
                         original_length = len(plain_text_content)
                         
                         # Filter the decoded content
@@ -974,6 +1015,9 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = {"results": filtered_results, "count": len(filtered_results)}
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content.update(shopping_inference_metadata(decoded_content))
                                 logger.debug(
                                     f"Filtered {len(filtered_results)} tool result(s) from history. "
                                     f"Removed fields: {ignore_fields_for_inference}"
@@ -985,6 +1029,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = filtered_results[0] if filtered_results else decoded_content
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                        **shopping_inference_metadata(decoded_content)}
                                 logger.debug(
                                     f"Filtered single tool result from history. "
                                     f"Removed fields: {ignore_fields_for_inference}"
@@ -996,6 +1044,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                 ignore_fields_for_inference
                             )
                             filtered_content = filtered_results
+                            if shopping_tool:
+                                from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                    **shopping_inference_metadata({})}
                             logger.debug(
                                 f"Filtered {len(filtered_results)} tool result(s) from history (list format). "
                                 f"Removed fields: {ignore_fields_for_inference}"
@@ -1031,6 +1083,9 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                         ignore_fields_for_inference
                                     )
                                     filtered_content = {"results": filtered_results, "count": len(filtered_results)}
+                                    if shopping_tool:
+                                        from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                        filtered_content.update(shopping_inference_metadata(decoded_content))
                                     logger.debug(
                                         f"Filtered {len(filtered_results)} tool result(s) from history (JSON format, multiple). "
                                         f"Removed fields: {ignore_fields_for_inference}"
@@ -1042,6 +1097,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                         ignore_fields_for_inference
                                     )
                                     filtered_content = filtered_results[0] if filtered_results else decoded_content
+                                    if shopping_tool:
+                                        from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                        filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                            **shopping_inference_metadata(decoded_content)}
                                     logger.debug(
                                         f"Filtered single tool result from history (JSON format). "
                                         f"Removed fields: {ignore_fields_for_inference}"
@@ -1053,6 +1112,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = filtered_results
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                        **shopping_inference_metadata({})}
                                 logger.debug(
                                     f"Filtered {len(filtered_results)} tool result(s) from history (JSON format, list). "
                                     f"Removed fields: {ignore_fields_for_inference}"
@@ -1251,7 +1314,30 @@ async def call_preprocessing_llm(
     observability_purpose: str = "preprocess",
     usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     max_output_tokens: Optional[int] = None,
+    resolve_logical_fallbacks: bool = False,
+    single_attempt_timeout_seconds: Optional[float] = None,
 ) -> LLMPreprocessingCallResult:
+    # Background callers may own their retry schedule and need a longer single
+    # request. Ordinary preprocessing retains its existing request/chain limits.
+    if single_attempt_timeout_seconds is not None and (
+        allow_retries is not False
+        or isinstance(single_attempt_timeout_seconds, bool)
+        or not isinstance(single_attempt_timeout_seconds, (int, float))
+        or not 0 < single_attempt_timeout_seconds <= 30
+        or not math.isfinite(single_attempt_timeout_seconds)
+    ):
+        raise ValueError(
+            "single_attempt_timeout_seconds requires allow_retries=False "
+            "and a finite positive number no greater than 30"
+        )
+    request_timeout_seconds = (
+        single_attempt_timeout_seconds
+        if single_attempt_timeout_seconds is not None else PREPROCESSING_TIMEOUT_SECONDS
+    )
+    total_timeout_seconds = (
+        single_attempt_timeout_seconds
+        if single_attempt_timeout_seconds is not None else PREPROCESSING_TOTAL_TIMEOUT_SECONDS
+    )
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
     if temperature is not None and (
@@ -1408,6 +1494,14 @@ async def call_preprocessing_llm(
                     # Redact chat_summary (user-generated content)
                     if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
                         sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+                    if (
+                        observability_purpose == "early_chat_metadata"
+                        and isinstance(sanitized_args.get("summary"), str)
+                    ):
+                        sanitized_args["summary"] = {
+                            "length": len(sanitized_args["summary"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
@@ -1533,15 +1627,15 @@ async def call_preprocessing_llm(
     preprocessing_started_at = asyncio.get_running_loop().time()
 
     def _remaining_preprocessing_budget_seconds() -> Optional[float]:
-        if PREPROCESSING_TOTAL_TIMEOUT_SECONDS <= 0:
+        if total_timeout_seconds <= 0:
             return None
         elapsed = asyncio.get_running_loop().time() - preprocessing_started_at
-        return PREPROCESSING_TOTAL_TIMEOUT_SECONDS - elapsed
+        return total_timeout_seconds - elapsed
 
     def _preprocessing_budget_exhausted_error() -> str:
         return (
             "Preprocessing retry budget exhausted after "
-            f"{_format_timeout_seconds(PREPROCESSING_TOTAL_TIMEOUT_SECONDS)}s"
+            f"{_format_timeout_seconds(total_timeout_seconds)}s"
         )
 
     # Helper function to call a single provider
@@ -1570,7 +1664,8 @@ async def call_preprocessing_llm(
             # Cross-provider logical fallbacks such as deepseek/* still need
             # resolution because they have no direct registered client.
             should_resolve_default = (
-                is_primary_model or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
+                is_primary_model or resolve_logical_fallbacks
+                or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
             )
             default_server_id, transformed_model_id = (
                 resolve_default_server_from_provider_config(provider_model_id)
@@ -1643,7 +1738,7 @@ async def call_preprocessing_llm(
                     # cannot multiply RPM or silently consume the fallback budget.
                     if provider_prefix == "groq":
                         provider_request_kwargs["max_retries"] = 0
-                    if provider_prefix == "groq" and reasoning_effort:
+                    if provider_prefix in {"groq", "inception"} and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
                     if provider_prefix == "mistral":
                         provider_request_kwargs["catalog_model_id"] = requested_model_id
@@ -1651,9 +1746,9 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["temperature"] = temperature
                     if max_output_tokens is not None:
                         provider_request_kwargs["max_tokens"] = max_output_tokens
-                    effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
+                    effective_timeout = request_timeout_seconds
                     if timeout_seconds is not None:
-                        effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
+                        effective_timeout = min(request_timeout_seconds, max(0.0, timeout_seconds))
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
@@ -1675,6 +1770,8 @@ async def call_preprocessing_llm(
                         _snapshot_for_customer_scope(attempt_pricing, cache_pricing_enabled=False)
                         if attempt_pricing else None
                     )
+                    if provider_prefix == "openrouter":
+                        provider_request_kwargs["catalog_model_id"] = attempt_model_id
                     provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
@@ -1845,12 +1942,25 @@ async def call_preprocessing_llm(
                 attempt_budget_seconds /= remaining_providers
 
             with ai_provider_span(observability_purpose) as provider_span:
-                result = await _call_single_provider(
+                provider_call = _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
                     is_primary_model=provider_idx == 0,
                 )
+                if single_attempt_timeout_seconds is not None:
+                    # Bound provider setup/health checks as well as the request;
+                    # this independent deadline also survives a slow adapter.
+                    try:
+                        result = await asyncio.wait_for(
+                            provider_call, timeout=remaining_budget_seconds,
+                        )
+                    except asyncio.TimeoutError:
+                        result = LLMPreprocessingCallResult(
+                            error_message=_preprocessing_budget_exhausted_error(),
+                        )
+                else:
+                    result = await provider_call
                 telemetry = result.usage_telemetry or {}
                 provider_span.set_attribute("ai.aux_input_tokens", telemetry.get("input_tokens") or 0)
                 provider_span.set_attribute("ai.aux_output_tokens", telemetry.get("output_tokens") or 0)
@@ -1938,9 +2048,12 @@ async def call_main_llm_stream(
     pre_dispatch_admission: Optional[Callable[..., Awaitable[int]]] = None,
     customer_cache_pricing_enabled: bool = False,
     thinking_level: Optional[str] = None,
+    requested_reasoning_level: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
     failed_servers_in_turn: Optional[set[str]] = None,
     private_logging: bool = False,
+    first_substantive_timeout_seconds: Optional[float] = None,
+    allowed_server_ids: Optional[set[str]] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2010,6 +2123,18 @@ async def call_main_llm_stream(
     # Store original model_id for fallback resolution and provider override resolution (needed for openrouter)
     original_model_id = model_id
     is_reasoning_model = _is_reasoning_model(original_model_id)
+    reasoning_model_config = None
+    if "/" in original_model_id:
+        reasoning_provider_id, reasoning_model_suffix = original_model_id.split("/", 1)
+        reasoning_provider = config_manager.get_provider_config(reasoning_provider_id) or {}
+        reasoning_model_config = next((entry for entry in reasoning_provider.get("models", [])
+                                       if isinstance(entry, dict) and entry.get("id") == reasoning_model_suffix), None)
+    # Effort is independent of automatic-route provenance and resolved again for
+    # each hosting server. Mercury's main-answer default never affects auxiliary
+    # uses of its adapter (which retain their existing defaults).
+    effective_requested_reasoning = normalize_reasoning_level(requested_reasoning_level)
+    if effective_requested_reasoning is None and original_model_id == MERCURY_MODEL:
+        effective_requested_reasoning = "MEDIUM"
     
     # Resolve fallback servers from provider config (if any).
     # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
@@ -2044,6 +2169,10 @@ async def call_main_llm_stream(
     if fallback_servers:
         servers_to_try.extend(fallback_servers)
         logger.info(f"{log_prefix} Will try {len(servers_to_try)} server(s): primary='{servers_to_try[0]}', fallbacks={servers_to_try[1:]}")
+    if allowed_server_ids is not None:
+        servers_to_try = [server for server in servers_to_try if server.split("/", 1)[0] in allowed_server_ids]
+        if not servers_to_try:
+            raise AllServersFailedError(original_model_id, [], "No permitted hosting route is available")
     if failed_servers_in_turn:
         skipped = [server for server in servers_to_try if server in failed_servers_in_turn]
         servers_to_try = [server for server in servers_to_try if server not in failed_servers_in_turn]
@@ -2276,6 +2405,9 @@ async def call_main_llm_stream(
             )
             if _retry_thinking_level:
                 _retry_input["thinking_level"] = _retry_thinking_level
+            _retry_input.update(resolve_reasoning_parameters(
+                reasoning_model_config, _retry_provider_prefix, effective_requested_reasoning,
+            ))
             _retry_attempt_id = uuid.uuid4().hex
             _retry_region = _configured_server_region(
                 original_model_id, _retry_provider_prefix, _retry_actual_model_id,
@@ -2295,8 +2427,10 @@ async def call_main_llm_stream(
             if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
                     and _cache_checkpoint_allowed(_retry_tariff, "openai")):
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
-            if _retry_provider_prefix == "mistral" and prompt_cache_key:
+            if _retry_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
+            if _retry_provider_prefix == "openrouter":
+                _retry_input["catalog_model_id"] = original_model_id
             if _retry_provider_prefix == "mistral":
                 _retry_input["catalog_model_id"] = original_model_id
             if pre_dispatch_admission is not None:
@@ -2418,6 +2552,9 @@ async def call_main_llm_stream(
         
         # Check health status from cache before attempting
         is_unhealthy = await _is_provider_unhealthy(server_provider_prefix)
+        if is_unhealthy and original_model_id == MERCURY_MODEL and first_substantive_timeout_seconds is not None:
+            _mark_failed_server(server_model_id)
+            raise AllServersFailedError(original_model_id, attempted_servers, "Automatic Mercury route is unhealthy")
         if is_unhealthy:
             # Skip unhealthy providers unless all servers are unhealthy
             if len(attempted_servers) < len(servers_to_try):
@@ -2445,6 +2582,9 @@ async def call_main_llm_stream(
         )
         if server_thinking_level:
             server_llm_input_details["thinking_level"] = server_thinking_level
+        server_llm_input_details.update(resolve_reasoning_parameters(
+            reasoning_model_config, server_provider_prefix, effective_requested_reasoning,
+        ))
         
         # For openrouter, if the original model has provider_overrides configured, 
         # we need to pass the original model_id (e.g., "alibaba/qwen3-235b-a22b-2507") 
@@ -2469,6 +2609,10 @@ async def call_main_llm_stream(
                                 server_llm_input_details["model_id"] = server_actual_model_id
                                 logger.debug(f"{attempt_log_prefix} Using fallback server model_id '{server_actual_model_id}' for openrouter")
                             break
+
+        if server_provider_prefix == "openrouter":
+            # Preserve logical-model host restrictions on secondary routes too.
+            server_llm_input_details["catalog_model_id"] = original_model_id
 
         if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
             server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
@@ -2534,7 +2678,7 @@ async def call_main_llm_stream(
         if (prepared_native_context is None and server_provider_prefix == "openai" and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
-        if server_provider_prefix == "mistral" and prompt_cache_key:
+        if server_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
             server_llm_input_details["prompt_cache_key"] = prompt_cache_key
 
         # The previous host may have incurred usage without producing visible
@@ -2554,12 +2698,24 @@ async def call_main_llm_stream(
 
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
-            raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
+            if (original_model_id == MERCURY_MODEL and server_provider_prefix == "inception"
+                    and first_substantive_timeout_seconds is not None):
+                raw_chunk_stream = _dispatch_with_substantive_deadline(
+                    provider_client, {"secrets_manager": secrets_manager, **server_llm_input_details},
+                    first_substantive_timeout_seconds,
+                )
+            else:
+                raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
             
             if hasattr(raw_chunk_stream, '__aiter__'):
                 # Success! Wrap stream with timeout for first chunk AND inter-chunk timeout
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                if original_model_id == MERCURY_MODEL and first_substantive_timeout_seconds is not None:
+                    # The generic idle watchdog must not cut a healthy HIGH
+                    # reasoning attempt short before its substantive deadline.
+                    first_chunk_timeout_seconds = max(first_chunk_timeout_seconds, first_substantive_timeout_seconds)
+                    inter_chunk_timeout_seconds = max(inter_chunk_timeout_seconds, first_substantive_timeout_seconds)
                 logger.info(
                     f"{attempt_log_prefix} Provider returned a lazy stream iterator. "
                     f"Streaming response with {first_chunk_timeout_seconds}s first-chunk timeout, "
@@ -2692,6 +2848,9 @@ async def call_main_llm_stream(
                         else:
                             raise AllServersFailedError(original_model_id, attempted_servers, last_error)
                         return
+                finally:
+                    if hasattr(raw_chunk_stream, "aclose"):
+                        await raw_chunk_stream.aclose()
             else:
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")

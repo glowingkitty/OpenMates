@@ -4,7 +4,8 @@
 #
 # Produces the SAME three variants as the image generation pipeline (generate_task.py):
 #
-#   - original    — Re-encoded with preserved format (no XMP/C2PA for user uploads)
+#   - original    — Metadata-free bounded camera JPEG bytes, otherwise re-encoded
+#                   with preserved format (no XMP/C2PA for user uploads)
 #   - full_webp   — Full-size WEBP at quality 90
 #   - preview_webp — Cropped/resized WEBP matching generate_task.py logic:
 #                     * Horizontal/Square: 600×400 px (aspect-crop)
@@ -24,6 +25,7 @@
 # All Pillow operations run inside asyncio.to_thread() to avoid blocking the event loop.
 
 import asyncio
+import hashlib
 import io
 import logging
 
@@ -174,6 +176,72 @@ def _rasterize_svg(svg_bytes: bytes) -> bytes:
         raise RuntimeError(f"SVG rasterization failed: {exc}") from exc
 
 
+def _is_safe_camera_jpeg(data: bytes, width: int, height: int, mode: str) -> bool:
+    """Recognize the metadata-free baseline profile emitted by camera uploads.
+
+    This is content-based: no filename or client flag can opt into preservation.
+    Pillow must fully decode the image before this allowlist is consulted. All
+    other profiles retain the existing original re-encoding path.
+    """
+    if (not data.startswith(b"\xff\xd8") or len(data) > 256 * 1024
+            or not 0 < width <= 1280 or not 0 < height <= 720 or mode not in {"RGB", "L"}):
+        return False
+    offset, saw_frame = 2, False
+    while offset + 4 <= len(data):
+        if data[offset] != 0xFF:
+            return False
+        marker = data[offset + 1]
+        # Only baseline pixels, quantization/Huffman tables, restart interval,
+        # and one scan. APP/EXIF/XMP/ICC/COM, extensions and progressive or
+        # multi-scan images are never retained verbatim.
+        if marker not in {0xC0, 0xC4, 0xDB, 0xDD, 0xDA}:
+            return False
+        length = int.from_bytes(data[offset + 2:offset + 4], "big")
+        if length < 2 or offset + 2 + length > len(data):
+            return False
+        if marker == 0xC0:
+            if saw_frame:
+                return False
+            saw_frame = True
+        offset += 2 + length
+        if marker != 0xDA:
+            continue
+        if not saw_frame:
+            return False
+        # Entropy-coded scan bytes allow stuffed FF and restart markers only.
+        # EOI must terminate the file exactly; trailing payloads are unsafe.
+        while offset < len(data) - 1:
+            offset = data.find(b"\xff", offset)
+            if offset < 0 or offset + 1 >= len(data):
+                return False
+            following = data[offset + 1]
+            if following == 0x00 or 0xD0 <= following <= 0xD7:
+                offset += 2
+                continue
+            return following == 0xD9 and offset + 2 == len(data)
+        return False
+    return False
+
+
+def camera_jpeg_original_hash(data: bytes) -> str | None:
+    """Return the exact input hash only for a fully decoded camera profile.
+
+    Dedup must independently establish eligibility before trusting an old
+    stored-original proof. This remains bounded to the small camera envelope.
+    """
+    if len(data) > 256 * 1024 or not data.startswith(b"\xff\xd8"):
+        return None
+    from PIL import Image
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if not _is_safe_camera_jpeg(data, *image.size, image.mode):
+                return None
+            image.load()
+    except (OSError, ValueError, SyntaxError):
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
 def _process_sync(file_bytes: bytes) -> ImagePreviewResult:
     """
     Synchronous image processing — called via asyncio.to_thread().
@@ -223,13 +291,24 @@ def _process_sync(file_bytes: bytes) -> ImagePreviewResult:
         f"[PreviewGenerator] Processing {orig_format} image {original_width}x{original_height}"
     )
 
-    # --- Re-encode original (preserve format, no metadata injection for uploads) ---
+    # Fully decode before deciding whether source bytes can be retained.
+    # This also rejects truncated or invalid entropy data before encryption.
+    img.load()
+
+    # --- Original (strict camera JPEG preservation, otherwise re-encode) ---
     orig_buf = io.BytesIO()
     fmt_upper = orig_format.upper()
     if fmt_upper == "PNG":
         img.save(orig_buf, format="PNG")
     elif fmt_upper in ("JPEG", "JPG"):
-        img.save(orig_buf, format="JPEG", quality=98)
+        # Pillow may implicitly copy JPEG comments from img.info. Clear them
+        # even on the fallback path; raw camera bytes are retained only after
+        # structural verification proves there are no metadata containers.
+        img.info.clear()
+        if _is_safe_camera_jpeg(file_bytes, original_width, original_height, img.mode):
+            orig_buf.write(file_bytes)
+        else:
+            img.save(orig_buf, format="JPEG", quality=98)
     elif fmt_upper == "WEBP":
         img.save(orig_buf, format="WEBP", quality=98)
     else:

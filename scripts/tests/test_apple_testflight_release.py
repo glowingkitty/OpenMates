@@ -50,11 +50,25 @@ def make_archive(root: Path, platform: str, version: str = "0.21.0", build: int 
         "CFBundleIdentifier": "org.openmates.app",
         "CFBundleShortVersionString": version,
         "CFBundleVersion": str(build),
+        "OpenMatesKeychainAccessGroup": "TEAMID.org.openmates.app",
     })
     executable = app / ("OpenMates" if platform == "ios" else "Contents/MacOS/OpenMates")
     executable.parent.mkdir(parents=True, exist_ok=True)
     executable.write_bytes(b"app-binary")
     if platform == "ios":
+        for name, suffix, point in [
+            ("OpenMatesNotificationService", "notification-service", "com.apple.usernotifications.service"),
+            ("OpenMatesNotificationContent", "notification-content", "com.apple.usernotifications.content-extension"),
+        ]:
+            write_plist(app / f"PlugIns/{name}.appex/Info.plist", {
+                "CFBundleIdentifier": f"org.openmates.app.{suffix}",
+                "CFBundleShortVersionString": version, "CFBundleVersion": str(build),
+                "OpenMatesKeychainAccessGroup": "TEAMID.org.openmates.app",
+                "NSExtension": {"NSExtensionPointIdentifier": point, "NSExtensionAttributes": {
+                    "UNNotificationExtensionCategory": "OPENMATES_CHAT_MESSAGE",
+                    "UNNotificationExtensionUserInteractionEnabled": True,
+                }},
+            })
         watch = app / "Watch" / "OpenMatesWatch.app"
         write_plist(watch / "Info.plist", {
             "CFBundleIdentifier": "org.openmates.app.watch",
@@ -69,11 +83,18 @@ def make_archive(root: Path, platform: str, version: str = "0.21.0", build: int 
                              ("OpenMatesNotificationService_macOS", "notification-servicemacos")]:
             write_plist(app / f"Contents/PlugIns/{name}.appex/Contents/Info.plist", {
                 "CFBundleIdentifier": f"org.openmates.app.{suffix}",
+                "OpenMatesKeychainAccessGroup": "TEAMID.org.openmates.app",
             })
     return archive
 
 
 def extension_entitlements(bundle: Path) -> dict:
+    if bundle.name in {"OpenMatesNotificationService.appex", "OpenMatesNotificationContent.appex"}:
+        suffix = "notification-service" if bundle.name == "OpenMatesNotificationService.appex" else "notification-content"
+        return {
+            "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
+            "keychain-access-groups": [f"TEAMID.org.openmates.app.{suffix}", "TEAMID.org.openmates.app"],
+        }
     if bundle.name == "OpenMatesWidget_macOS.appex":
         return {
             "com.apple.security.app-sandbox": True,
@@ -87,7 +108,10 @@ def extension_entitlements(bundle: Path) -> dict:
             "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
             "keychain-access-groups": ["TEAMID.org.openmates.app.notification-servicemacos", "TEAMID.org.openmates.app"],
         }
-    return {"com.apple.security.app-sandbox": True}
+    return {
+        "com.apple.security.app-sandbox": True,
+        "keychain-access-groups": ["TEAMID.org.openmates.app.sharemacos", "TEAMID.org.openmates.app"],
+    }
 
 
 def test_archive_validation_requires_watch_and_universal_macos(tmp_path: Path) -> None:
@@ -133,6 +157,8 @@ def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path, use
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in ios
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in macos
     assert "ARCHS=arm64 x86_64" in macos
+    assert "AppIdentifierPrefix=TEAM." in macos
+    assert not any(arg.startswith("AppIdentifierPrefix=") for arg in ios)
     for command in (ios, macos):
         assert command.count("-jobs") == 1
         assert command[command.index("-jobs") + 1] == "1"
@@ -225,7 +251,8 @@ def test_macos_stamping_signs_all_extensions_before_parent_with_own_entitlements
     monkeypatch.setattr(release, "run_logged", lambda command, log_path, timeout: calls.append(command))
     archive = make_archive(tmp_path, "macos")
     extension_info = archive / "Products/Applications/OpenMates.app/Contents/PlugIns/OpenMatesShareExtension_macOS.appex/Contents/Info.plist"
-    write_plist(extension_info, {"CFBundleIdentifier": "org.openmates.app.sharemacos"})
+    write_plist(extension_info, {"CFBundleIdentifier": "org.openmates.app.sharemacos",
+                                 "OpenMatesKeychainAccessGroup": "TEAMID.org.openmates.app"})
 
     release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
 
@@ -388,9 +415,9 @@ def test_macos_widget_entitlements_are_required_for_new_and_resumed_archives(
     monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
     with pytest.raises(release.ReleaseError, match=error):
         if resumed:
-            release.validate_resumed_archive(archive, "macos", "0.27.0", 91, {"archive_identity": identity})
+            release.validate_resumed_archive(archive, "macos", "0.27.0", 91, {"archive_identity": identity}, "TEAMID")
         else:
-            release.validate_release_entitlements(archive, "macos")
+            release.validate_release_entitlements(archive, "macos", "TEAMID")
 
 
 def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: Path, monkeypatch) -> None:
@@ -415,9 +442,9 @@ def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: 
     monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
     for environment in (None, "$(APS_ENVIRONMENT)", "development"):
         with pytest.raises(release.ReleaseError, match="concrete production APNs entitlement"):
-            release.validate_release_entitlements(archive, "macos")
+            release.validate_release_entitlements(archive, "macos", "TEAMID")
     environment = "production"
-    release.validate_release_entitlements(archive, "macos")
+    release.validate_release_entitlements(archive, "macos", "TEAMID")
 
 
 def test_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkeypatch) -> None:
@@ -438,7 +465,7 @@ def test_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkey
 
     monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
     with pytest.raises(release.ReleaseError, match="dev passkey associated domain"):
-        release.validate_release_entitlements(archive, "macos")
+        release.validate_release_entitlements(archive, "macos", "TEAMID")
 
 
 def test_resumed_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkeypatch) -> None:
@@ -462,7 +489,7 @@ def test_resumed_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path
     monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
     with pytest.raises(release.ReleaseError, match="dev passkey associated domain"):
         release.validate_resumed_archive(
-            archive, "macos", "0.23.0", 84, {"archive_identity": identity},
+            archive, "macos", "0.23.0", 84, {"archive_identity": identity}, "TEAMID",
         )
 
 
@@ -487,9 +514,60 @@ def test_archive_rejects_missing_shared_link_domains(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
     with pytest.raises(release.ReleaseError, match="shared-link associated domains"):
-        release.validate_release_entitlements(archive, platform)
+        release.validate_release_entitlements(archive, platform, "TEAMID")
     associated.extend(["applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"])
-    release.validate_release_entitlements(archive, platform)
+    release.validate_release_entitlements(archive, platform, "TEAMID")
+
+
+@pytest.mark.parametrize("tamper", ["missing", "foreign_group", "noninteractive", "workflow_category", "missing_key_grant"])
+@pytest.mark.parametrize("resumed", [False, True])
+def test_ios_direct_reply_archive_requires_usable_scoped_extension(
+    tmp_path: Path, monkeypatch, tamper: str, resumed: bool,
+) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "ios")
+    app = archive / "Products/Applications/OpenMates.app"
+    info_path = app / "PlugIns/OpenMatesNotificationContent.appex/Info.plist"
+    app_entitlements = {
+        "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
+        "keychain-access-groups": ["TEAMID.org.openmates.app"],
+        "com.apple.developer.associated-domains": [
+            "webcredentials:openmates.org", "applinks:openmates.org",
+            "applinks:app.openmates.org", "applinks:app.dev.openmates.org",
+        ],
+    }
+    content_entitlements = extension_entitlements(Path("OpenMatesNotificationContent.appex"))
+    monkeypatch.setattr(release, "signed_entitlements", lambda bundle: (
+        app_entitlements if bundle.name == "OpenMates.app"
+        else content_entitlements if bundle.name == "OpenMatesNotificationContent.appex"
+        else extension_entitlements(bundle)))
+    identity = {"tree_sha256": "unchanged"}
+    monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
+
+    def validate() -> None:
+        if resumed:
+            release.validate_resumed_archive(archive, "ios", "0.21.0", 74,
+                {"archive_identity": identity}, "TEAMID")
+        else:
+            release.validate_release_entitlements(archive, "ios", "TEAMID")
+
+    validate()
+    info = release.load_plist(info_path)
+    if tamper == "missing":
+        info_path.unlink()
+    elif tamper == "foreign_group":
+        info["OpenMatesKeychainAccessGroup"] = "OTHER.org.openmates.app"
+        write_plist(info_path, info)
+    elif tamper == "noninteractive":
+        info["NSExtension"]["NSExtensionAttributes"]["UNNotificationExtensionUserInteractionEnabled"] = False
+        write_plist(info_path, info)
+    elif tamper == "workflow_category":
+        info["NSExtension"]["NSExtensionAttributes"]["UNNotificationExtensionCategory"] = "OPENMATES_WORKFLOW_COMPLETED"
+        write_plist(info_path, info)
+    else:
+        content_entitlements["keychain-access-groups"] = ["TEAMID.org.openmates.app.notification-content"]
+    with pytest.raises(release.ReleaseError):
+        validate()
 
 
 def test_universal_links_claim_only_short_shares_and_workflow_recipients() -> None:
@@ -781,9 +859,9 @@ def test_macos_release_rejects_missing_effective_lab_permissions(
     monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
     with pytest.raises(release.ReleaseError, match=permission):
         if resumed:
-            release.validate_resumed_archive(archive, "macos", "0.27.0", 89, {"archive_identity": identity})
+            release.validate_resumed_archive(archive, "macos", "0.27.0", 89, {"archive_identity": identity}, "TEAMID")
         else:
-            release.validate_release_entitlements(archive, "macos")
+            release.validate_release_entitlements(archive, "macos", "TEAMID")
 
 
 def test_onnx_normalizer_sources_invalidate_release_identity(tmp_path: Path, monkeypatch) -> None:
@@ -896,11 +974,15 @@ def test_compiled_section_identity_ignores_signature_and_detects_code(tmp_path: 
 
 
 @pytest.mark.parametrize("fat_runtime", [False, True])
-def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch, fat_runtime: bool) -> None:
+@pytest.mark.parametrize("minimum", ["17.0", "26.2"])
+def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch, fat_runtime: bool, minimum: str) -> None:
     from types import SimpleNamespace
     release = load_module()
     archive = make_archive(tmp_path, "ios")
     app = archive / "Products/Applications/OpenMates.app"
+    app_info = release.load_plist(app / "Info.plist")
+    app_info["MinimumOSVersion"] = minimum
+    write_plist(app / "Info.plist", app_info)
     framework = app / "Frameworks/onnxruntime.framework"
     info = framework / "Info.plist"
     write_plist(info, {"CFBundleExecutable": "onnxruntime", "CFBundleIdentifier": "com.microsoft.onnxruntime"})
@@ -908,7 +990,7 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
         data = thin_macho_fixture()
         binary.write_bytes(fat_macho_fixture(data) if fat_runtime and binary.name == "onnxruntime" else data)
     monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
-        returncode=0, stdout="platform IOS\nminos 17.0\n"))
+        returncode=0, stdout=f"platform IOS\nminos {minimum}\n"))
     monkeypatch.setattr(release, "signed_entitlements", lambda path: {"application-identifier": "TEAM.org.openmates.app"})
     calls = []
     def run(command, log_path, timeout):
@@ -918,7 +1000,7 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
             Path(prefix + "0").write_bytes(b"original certificate")
     monkeypatch.setattr(release, "run_logged", run)
     receipt = release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
-    assert release.load_plist(info)["MinimumOSVersion"] == "17.0"
+    assert release.load_plist(info)["MinimumOSVersion"] == minimum
     assert receipt["app_entitlements_unchanged"] and receipt["deep_signature_verified"]
     assert receipt["before_archive_identity"] != receipt["after_archive_identity"]
     assert len(list(tmp_path.glob("onnx-ios-packaging-*/framework-Info-original.plist"))) == 1
@@ -965,18 +1047,36 @@ def test_fat_runtime_normalization_rejects_changed_code_or_entitlements(tmp_path
     assert not list(tmp_path.glob("onnx-ios-packaging-*/repair-receipt.json"))
 
 
-@pytest.mark.parametrize("build_info", ["platform MACOS\nminos 17.0\n", "platform IOS\nminos 16.0\n"])
-def test_ios_onnx_packaging_rejects_unknown_runtime_before_mutation(tmp_path: Path, monkeypatch, build_info: str) -> None:
+@pytest.mark.parametrize("build_info,app_minimum", [
+    ("platform MACOS\nminos 17.0\n", "17.0"),
+    ("platform IOS\nminos 16.0\n", "17.0"),
+    ("platform IOS\nminos 26.2\n", "17.0"),
+    ("platform IOS\nminos 26.2\n", None),
+    ("platform IOS\nminos 26.2\n", "26.3"),
+    ("platform MACOS\nminos 26.2\n", "26.2"),
+    ("platform IOS\nminos 26.2\nplatform IOS\nminos 17.0\n", "26.2"),
+    ("platform IOS\nminos 26.3\n", "26.2"),
+])
+def test_ios_onnx_packaging_rejects_unknown_runtime_before_mutation(tmp_path: Path, monkeypatch, build_info: str, app_minimum: str | None) -> None:
     from types import SimpleNamespace
     release = load_module()
     archive = make_archive(tmp_path, "ios")
-    info = archive / "Products/Applications/OpenMates.app/Frameworks/onnxruntime.framework/Info.plist"
+    app = archive / "Products/Applications/OpenMates.app"
+    app_info = release.load_plist(app / "Info.plist")
+    if app_minimum is None:
+        app_info.pop("MinimumOSVersion", None)
+    else:
+        app_info["MinimumOSVersion"] = app_minimum
+    write_plist(app / "Info.plist", app_info)
+    info = app / "Frameworks/onnxruntime.framework/Info.plist"
     write_plist(info, {"CFBundleExecutable": "onnxruntime"})
     before = info.read_bytes()
     monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=build_info))
+    monkeypatch.setattr(release, "run_logged", lambda *args, **kwargs: pytest.fail("Rejected minimum must not sign or extract certificates"))
     with pytest.raises(release.ReleaseError, match="supported Mach-O"):
         release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
     assert info.read_bytes() == before
+    assert not list(tmp_path.glob("onnx-ios-packaging-*"))
 
 
 @pytest.mark.parametrize("key,value,error", [
@@ -1002,9 +1102,9 @@ def test_macos_notification_service_requires_shared_key_signing_for_new_and_resu
     monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
     with pytest.raises(release.ReleaseError, match=error):
         if resumed:
-            release.validate_resumed_archive(archive, "macos", "0.27.0", 95, {"archive_identity": identity})
+            release.validate_resumed_archive(archive, "macos", "0.27.0", 95, {"archive_identity": identity}, "TEAMID")
         else:
-            release.validate_release_entitlements(archive, "macos")
+            release.validate_release_entitlements(archive, "macos", "TEAMID")
 
 
 def test_macos_stamping_rejects_missing_notification_service_before_any_signing(tmp_path: Path, monkeypatch) -> None:
@@ -1016,3 +1116,232 @@ def test_macos_stamping_rejects_missing_notification_service_before_any_signing(
     with pytest.raises(release.ReleaseError, match="Invalid or missing plist"):
         release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
     assert calls == []
+
+
+MACOS_KEYCHAIN_BUNDLES = [
+    "Contents",
+    "Contents/PlugIns/OpenMatesShareExtension_macOS.appex/Contents",
+    "Contents/PlugIns/OpenMatesWidget_macOS.appex/Contents",
+    "Contents/PlugIns/OpenMatesNotificationService_macOS.appex/Contents",
+]
+
+
+def mock_valid_macos_entitlements(release, monkeypatch) -> None:
+    app = release.resolved_macos_entitlements(
+        SCRIPT.parent.parent / "apple/OpenMates/Resources/OpenMatesMacOS.entitlements", "TEAMID", "org.openmates.app")
+    monkeypatch.setattr(release, "signed_entitlements", lambda bundle: (
+        app if bundle.name == "OpenMates.app" else extension_entitlements(bundle)))
+
+
+@pytest.mark.parametrize("bundle_path", MACOS_KEYCHAIN_BUNDLES)
+@pytest.mark.parametrize("configured", [
+    "org.openmates.app", "FOREIGN.org.openmates.app", "$(AppIdentifierPrefix)org.openmates.app", None, ["TEAMID.org.openmates.app"],
+])
+@pytest.mark.parametrize("stage", ["new", "resumed", "stamp"])
+def test_macos_rejects_invalid_configured_shared_group_despite_correct_grants(
+    tmp_path: Path, monkeypatch, bundle_path: str, configured: object, stage: str,
+) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    info_path = archive / "Products/Applications/OpenMates.app" / bundle_path / "Info.plist"
+    info = release.load_plist(info_path)
+    if configured is None:
+        del info["OpenMatesKeychainAccessGroup"]
+    else:
+        info["OpenMatesKeychainAccessGroup"] = configured
+    write_plist(info_path, info)
+    before = info_path.read_bytes()
+    mock_valid_macos_entitlements(release, monkeypatch)
+    identity = {"tree_sha256": "unchanged"}
+    monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
+    calls = []
+    monkeypatch.setattr(release, "run_logged", lambda *args, **kwargs: calls.append(args))
+    with pytest.raises(release.ReleaseError, match="OpenMatesKeychainAccessGroup must equal"):
+        if stage == "new":
+            release.validate_release_entitlements(archive, "macos", "TEAMID")
+        elif stage == "resumed":
+            release.validate_resumed_archive(archive, "macos", "0.21.0", 74, {"archive_identity": identity}, "TEAMID")
+        else:
+            release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
+    assert calls == []
+    assert info_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("bundle_path", MACOS_KEYCHAIN_BUNDLES)
+def test_macos_configured_shared_group_must_be_granted_to_every_bundle(tmp_path: Path, monkeypatch, bundle_path: str) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    target = (archive / "Products/Applications/OpenMates.app" / bundle_path).parent
+    mock_valid_macos_entitlements(release, monkeypatch)
+    signed = release.signed_entitlements
+
+    def without_grant(bundle):
+        result = dict(signed(bundle))
+        if bundle == target:
+            result["keychain-access-groups"] = []
+        return result
+
+    monkeypatch.setattr(release, "signed_entitlements", without_grant)
+    with pytest.raises(release.ReleaseError, match="keychain"):
+        release.validate_release_entitlements(archive, "macos", "TEAMID")
+
+
+@pytest.mark.parametrize("bundle_path", MACOS_KEYCHAIN_BUNDLES)
+@pytest.mark.parametrize("key,value,error", [
+    ("com.apple.developer.team-identifier", "FOREIGN", "signing team"),
+    ("com.apple.application-identifier", "LEGACY.org.openmates.app", "signed App Identifier Prefix"),
+])
+def test_macos_rejects_distribution_signer_inconsistent_with_explicit_prefix(
+    tmp_path: Path, monkeypatch, bundle_path: str, key: str, value: str, error: str,
+) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    target = (archive / "Products/Applications/OpenMates.app" / bundle_path).parent
+    mock_valid_macos_entitlements(release, monkeypatch)
+    signed = release.signed_entitlements
+    monkeypatch.setattr(release, "signed_entitlements", lambda bundle: (
+        {**signed(bundle), key: value} if bundle == target else signed(bundle)))
+    with pytest.raises(release.ReleaseError, match=error):
+        release.validate_release_entitlements(archive, "macos", "TEAMID")
+
+
+def test_macos_accepts_matching_info_and_distribution_entitlements_using_current_config(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    mock_valid_macos_entitlements(release, monkeypatch)
+    signed = release.signed_entitlements
+
+    def distribution_entitlements(bundle):
+        info = release.load_plist(bundle / "Contents/Info.plist")
+        return {**signed(bundle), "com.apple.developer.team-identifier": "TEAMID",
+                "com.apple.application-identifier": f"TEAMID.{info['CFBundleIdentifier']}"}
+
+    monkeypatch.setattr(release, "signed_entitlements", distribution_entitlements)
+    monkeypatch.setattr(release, "read_project_settings", lambda: release.ProjectSettings("0.21.0", 74, "TEAMID"))
+    release.validate_release_entitlements(archive, "macos")
+
+    # Matching foreign Info and grants cannot redefine the configured pipeline prefix.
+    monkeypatch.setattr(release, "read_project_settings", lambda: release.ProjectSettings("0.21.0", 74, "OTHERTEAM"))
+    with pytest.raises(release.ReleaseError, match="OpenMatesKeychainAccessGroup must equal OTHERTEAM"):
+        release.validate_release_entitlements(archive, "macos")
+
+
+@pytest.mark.parametrize("team", ["", "$(DEVELOPMENT_TEAM)", "TEAM."])
+def test_unsigned_macos_archive_requires_concrete_configured_prefix(tmp_path: Path, team: str) -> None:
+    release = load_module()
+    with pytest.raises(release.ReleaseError, match="concrete configured signing team"):
+        release.archive_command("macos", tmp_path, 99, team, None)
+
+
+def configure_ordered_release(tmp_path: Path, monkeypatch):
+    release = load_module()
+    events = []
+    export = tmp_path / ".runtime" / "ExportOptions.plist"
+    export.parent.mkdir(parents=True)
+    export.write_bytes(b"fixture-export-options")
+    monkeypatch.setattr(release, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(release, "read_project_settings", lambda: release.ProjectSettings("0.28.0", 99, "TEAMID"))
+    monkeypatch.setattr(release, "credentials_from_options", lambda *args, **kwargs: None)
+    monkeypatch.setattr(release, "find_export_options", lambda *args: export)
+    monkeypatch.setattr(release, "validate_export_options", lambda *args: "export-digest")
+    monkeypatch.setattr(release, "ensure_disk_space", lambda *args: None)
+    monkeypatch.setattr(release, "prepare_whistle_inputs", lambda *args: None)
+    monkeypatch.setattr(release, "prepare_build_keychain", lambda: False)
+    monkeypatch.setattr(release, "generate_release_inputs", lambda *args: None)
+    monkeypatch.setattr(release, "source_identity", lambda: {"content_sha256": "unchanged-source"})
+    monkeypatch.setattr(release, "archive_command", lambda platform, *args: ["archive", platform])
+    monkeypatch.setattr(release, "export_command", lambda platform, *args: ["upload", platform])
+    monkeypatch.setattr(release, "normalize_ios_onnx_packaging", lambda *args: None)
+    monkeypatch.setattr(release, "stamp_unsigned_macos_archive", lambda *args: None)
+    monkeypatch.setattr(release, "archive_reports_successful_upload", lambda *args: False)
+
+    def identity(path, platform, *args):
+        events.append(("validate", platform))
+        return {"tree_sha256": platform + "-tree"}
+
+    def entitlements(path, platform, *args):
+        events.append(("entitlements", platform))
+
+    def resumed(path, platform, version, build, receipt, team):
+        assert receipt["archive_identity"]["tree_sha256"] == platform + "-tree"
+        entitlements(path, platform, team)
+        return identity(path, platform, version, build)
+
+    def run(command, log_path, **kwargs):
+        events.append(tuple(command))
+        if command[0] == "archive":
+            release.archive_paths(log_path.parent)[command[1]].mkdir(parents=True)
+
+    monkeypatch.setattr(release, "validate_archive", identity)
+    monkeypatch.setattr(release, "validate_release_entitlements", entitlements)
+    monkeypatch.setattr(release, "validate_resumed_archive", resumed)
+    monkeypatch.setattr(release, "run_logged", run)
+    return release, events, run
+
+
+def test_main_uploads_ios_before_archiving_macos_and_keeps_unified_receipts(tmp_path: Path, monkeypatch, capsys) -> None:
+    release, events, _ = configure_ordered_release(tmp_path, monkeypatch)
+    assert release.main(["--build-number", "99"]) == 0
+    stages = [event for event in events if event[0] in {"archive", "upload"}]
+    assert stages == [("archive", "ios"), ("upload", "ios"), ("archive", "macos"), ("upload", "macos")]
+    assert events.index(("entitlements", "ios")) < events.index(("upload", "ios"))
+    assert events.index(("entitlements", "macos")) < events.index(("upload", "macos"))
+    receipts = tmp_path / ".runtime/testflight-build-99/receipts"
+    saved = [json.loads((receipts / (stage + ".json")).read_text()) for stage in
+             ["archive-ios", "upload-ios", "archive-macos", "upload-macos"]]
+    assert len({receipt["fingerprint"] for receipt in saved}) == 1
+    assert all(receipt["status"] == "complete" for receipt in saved)
+    assert "ios=uploaded watch=embedded macos=uploaded" in capsys.readouterr().out
+
+
+def test_macos_archive_failure_retains_ios_upload_and_resume_does_not_upload_ios_again(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    release, events, run = configure_ordered_release(tmp_path, monkeypatch)
+
+    def fail_macos(command, log_path, **kwargs):
+        if command == ["archive", "macos"]:
+            raise release.ReleaseError("fixture macOS archive failure")
+        run(command, log_path, **kwargs)
+
+    monkeypatch.setattr(release, "run_logged", fail_macos)
+    assert release.main(["--build-number", "99"]) == 1
+    receipts = tmp_path / ".runtime/testflight-build-99/receipts"
+    assert (receipts / "upload-ios.json").is_file()
+    assert not (receipts / "upload-macos.json").exists()
+    assert events.count(("upload", "ios")) == 1
+    monkeypatch.setattr(release, "run_logged", run)
+    assert release.main(["--build-number", "99"]) == 0
+    assert events.count(("archive", "ios")) == 1
+    assert events.count(("upload", "ios")) == 1
+    assert events.count(("upload", "macos")) == 1
+
+
+@pytest.mark.parametrize("failure", ["entitlements", "upload"])
+def test_ios_gate_failure_does_not_start_macos(tmp_path: Path, monkeypatch, failure: str) -> None:
+    release, events, run = configure_ordered_release(tmp_path, monkeypatch)
+
+    def fail(command, log_path, **kwargs):
+        if command == ["upload", "ios"]:
+            raise release.ReleaseError("fixture iOS upload failure")
+        run(command, log_path, **kwargs)
+
+    def reject_entitlements(*args):
+        raise release.ReleaseError("fixture iOS entitlement failure")
+
+    if failure == "upload":
+        monkeypatch.setattr(release, "run_logged", fail)
+    else:
+        monkeypatch.setattr(release, "validate_release_entitlements", reject_entitlements)
+    assert release.main(["--build-number", "99"]) == 1
+    assert ("archive", "macos") not in events
+    assert ("upload", "macos") not in events
+
+
+def test_dry_run_reports_same_ios_first_stage_order(tmp_path: Path, monkeypatch, capsys) -> None:
+    release, _, _ = configure_ordered_release(tmp_path, monkeypatch)
+    assert release.main(["--dry-run", "--build-number", "99"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    stages = [line.split(" command=", 1)[0] for line in lines if line.startswith("dry_run_stage=")]
+    assert stages[-4:] == ["dry_run_stage=archive-ios", "dry_run_stage=upload-ios",
+                          "dry_run_stage=archive-macos", "dry_run_stage=upload-macos"]

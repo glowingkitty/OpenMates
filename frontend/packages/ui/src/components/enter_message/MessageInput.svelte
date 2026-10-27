@@ -1,5 +1,8 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
+    import { appsWorkspaceComposerHandoff, takeAppsWorkspaceComposerHandoff,
+      isAppsWorkspaceHandoffCurrent, appsRequestContextDocument, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, appsWorkspaceContextOnlyUrls,
+      rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../../services/appsWorkspaceChatHandoffService';
     import { onMount, onDestroy, tick, untrack, flushSync } from 'svelte';
     import { Editor } from '@tiptap/core';
     import type { WikipediaArticleIdentity } from '../../utils/wikipediaLearning';
@@ -17,12 +20,13 @@
         type ChatModelSelection
     } from '../../services/chatModelSelection';
     import { isTeamAIInvocation } from '../../services/teamService';
-    import { activeTeamId } from '../../stores/teamStore';
+    import { activeTeamContext, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext } from '../../stores/teamStore';
 
     // Services & Stores
     import {
         initializeDraftService,
         cleanupDraftService,
+        getEditorInstance,
         setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
         reconcilePreservedDraftVersion,
@@ -61,6 +65,7 @@
     // Components
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
+    import CompactSendButton from './CompactSendButton.svelte';
     import MapsView from './MapsView.svelte';
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
@@ -99,7 +104,7 @@
     import { voiceCallController } from '../../services/voiceCall';
 
     // Handlers
-    import { handleSend, prepareQueuedMessageRevision } from './handlers/sendHandlers';
+    import { handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './handlers/sendHandlers';
     import type { Message } from '../../types/chat';
     import { shouldAwaitAITaskStart } from './handlers/sendClassification';
     import MentionDropdown from './MentionDropdown.svelte';
@@ -118,13 +123,15 @@
         handleDragLeave as handleFileDragLeave,
         handlePaste as handleFilePaste,
         onFileSelected as handleFileSelectedEvent,
-        extractChatLinkFromYAML
+        extractChatLinkFromYAML,
+        processFiles
     } from './fileHandlers';
     import {
         // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
         insertMap,
-        retryTranscription
+        retryTranscription,
+        insertRecording
     } from './embedHandlers';
     import {
         handleEmbedInteraction as handleMenuEmbedInteraction,
@@ -142,6 +149,9 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { mergeWebPIIMatches } from './services/webPIIMatches';
+    import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
@@ -150,6 +160,7 @@
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
+    import { loadSessionStorageDraft, getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService';
     import { incomingDraftOmitsLocalEmbed, inspectDraftContent } from '../../services/drafts/draftContent';
     // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
     import {
@@ -158,6 +169,7 @@
         getReadyPendingSend,
         removePendingSend,
         findPendingSendByEmbedId,
+        type PendingSendContext,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
     import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
@@ -291,15 +303,82 @@
     // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
+    let quickAttachmentUsesCamera = $state(false);
+    let nativeAttachmentPickerOpen = false;
+
+    onMount(() => {
+        quickAttachmentUsesCamera = !isDesktop();
+        const finishPicker = () => { nativeAttachmentPickerOpen = false; };
+        window.addEventListener('focus', finishPicker);
+        return () => window.removeEventListener('focus', finishPicker);
+    });
     let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
+    let appsHandoffEditorReady = $state(false);
+    let applyingAppsHandoff = false;
+    async function applyAppsComposerHandoff(): Promise<void> {
+      if (!appsHandoffEditorReady || !editor || editor.isDestroyed || applyingAppsHandoff || startNewChatOnClick) return;
+      const request = takeAppsWorkspaceComposerHandoff(currentChatId, isNewChatContext);
+      if (!request) return;
+      applyingAppsHandoff = true;
+      const targetEditor = editor;
+      const targetChat = currentChatId;
+      const valid = () => editor === targetEditor && !targetEditor.isDestroyed && currentChatId === targetChat && isAppsWorkspaceHandoffCurrent(request);
+      try {
+        if (!valid()) return;
+        const contextUrls = appsWorkspaceContextOnlyUrls(request, detectUrlsInText);
+        targetEditor.commands.setContent(appsRequestContextDocument(request));
+        if (targetChat) rememberAppsWorkspaceDraftUrls(request, targetChat,
+          tipTapToCanonicalMarkdown(targetEditor.getJSON()), contextUrls);
+        recordAppsWorkspaceHandoffPhase('document-set');
+        const attachments = request.attachments ?? [];
+        const files = attachments.filter(file => !file.type.startsWith('audio/'));
+        if (files.length) {
+          if (!$authStore.isAuthenticated) setPendingAnonymousFileAttachment(true);
+          await processFiles(files, targetEditor, $authStore.isAuthenticated);
+        }
+        for (const audio of attachments.filter(file => file.type.startsWith('audio/'))) {
+          if (!valid()) return;
+          await insertRecording(targetEditor, audio, audio.type, '0:00', $authStore.isAuthenticated, targetChat);
+        }
+        if (!valid()) return;
+        if (targetChat) rememberAppsWorkspaceDraftUrls(request, targetChat,
+          tipTapToCanonicalMarkdown(targetEditor.getJSON()), contextUrls);
+        hasContent = editorHasSendableText(targetEditor);
+        refreshDraftPreviewState(targetEditor);
+        updateEmbedGroupLayouts(); observeEmbedGroupContainers();
+        await tick();
+        if (valid()) {
+          recordAppsWorkspaceHandoffPhase('send-started');
+          await submitAppsWorkspaceHandoffDraft({
+            submit: async () => {
+              const accepted = await handleSendMessage();
+              if (accepted === true) forgetAppsWorkspaceDraftUrls(request);
+              return accepted;
+            },
+            isCurrent: valid,
+            focusRejectedDraft: focus,
+          });
+          recordAppsWorkspaceHandoffPhase('send-finished');
+        } else recordAppsWorkspaceHandoffPhase('editor-owner-changed');
+      } catch { recordAppsWorkspaceHandoffPhase('editor-error'); if (valid()) notificationStore.error(get(text)('apps_workspace.request_error')); }
+      finally { applyingAppsHandoff = false; }
+    }
+    $effect(() => {
+      void currentChatId; void isNewChatContext;
+      if (appsHandoffEditorReady) untrack(() => { void applyAppsComposerHandoff(); });
+    });
+
     let lastDirectEditOwner: { editor: Editor; chatId: string; userId: string | null; teamId: string | null } | null = null;
+    let trustedDraftInput: { editor: Editor; chatId: string; userId: string | null; team: ReturnType<typeof getActiveTeamContextSnapshot> } | null = null;
+    let deferredContextDraftEdit: { cancel: () => void } | null = null;
     let observedEditorChatId: string | undefined;
 
     $effect(() => {
         if (observedEditorChatId !== currentChatId) {
             observedEditorChatId = currentChatId;
             lastDirectEditOwner = null;
+            deferredContextDraftEdit?.cancel();
         }
     });
     let queuedEdit = $state<{
@@ -320,6 +399,10 @@
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
     let recordingDraftGeneration = $state(0);
     let recordingCorrectionPending = $state(false);
+    let recordingLayoutPending = $state(false);
+    let recordingLayoutActive = $derived(recordingLayoutPending || $recordingState.showRecordAudioUI || $recordingState.isRecordingActive);
+    let recordingStartedWithDraft = $state(false);
+    let recordingShowsDraft = $derived(recordingLayoutActive && recordingStartedWithDraft);
     let recordingContext = $state.raw<{
         generation: number;
         editor: Editor;
@@ -328,6 +411,7 @@
         from: number;
         to: number;
         realtime: AudioRealtimeTranscriptionHandle | null;
+        sendRequested: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
@@ -563,13 +647,29 @@
     let locationSettingsState = $state({ impreciseByDefault: true });
     // Performance: Cache PII store reads to avoid calling get() on every detection run.
     // Updated via store subscriptions; detection reads from cache instead of stores.
-    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIISettings = $state<PIIDetectionSettings | null>(null);
     let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
+    let piiSettingsVersion = 0;
     personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
     // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
     // from cache instead of calling get() on every invocation.
-    personalDataStore.settings.subscribe((s) => { cachedPIISettings = s; });
-    personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
+    const unsubscribePIISettings = personalDataStore.settings.subscribe((s) => {
+        cachedPIISettings = s;
+        piiSettingsVersion += 1;
+        if (editor && !editor.isDestroyed) {
+            lastPIIText = '';
+            if (!s.masterEnabled) resetWebPIIDetector();
+            void runPIIDetectionImmediate(editor);
+        }
+    });
+    const unsubscribePIIEntries = personalDataStore.enabledEntries.subscribe((entries) => {
+        cachedPIIEnabledEntries = entries;
+        piiSettingsVersion += 1;
+        if (editor && !editor.isDestroyed) {
+            lastPIIText = '';
+            void runPIIDetectionImmediate(editor);
+        }
+    });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
 
@@ -592,7 +692,6 @@
 
     const MESSAGE_FIELD_MAX_HEIGHT = 350;
     const MESSAGE_FIELD_MAPS_HEIGHT = 400;
-    const MESSAGE_FIELD_RECORDING_HEIGHT = 220;
     const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
     const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
     const FULLSCREEN_TOP_GUTTER_PX = 20;
@@ -805,7 +904,7 @@
         dispatch('dismissGhostSuggestion');
     }
     let visibleGhostSuggestion = $derived(
-        !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
+        isMessageFieldFocused && !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
         !hasSendableDraft && !queuedEdit && !$editMessageStore &&
         !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
         !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
@@ -822,8 +921,8 @@
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousUsageExhausted);
-    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI);
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -833,7 +932,7 @@
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
-        !startNewChatOnClick && !isDraftPreview && (
+        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && (
             isFullscreen ||
             showActionButtons ||
             anonymousUsageExhausted ||
@@ -845,7 +944,7 @@
         )
     );
     let showBaseEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -1092,8 +1191,10 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let restoreEditorFocusTimer: ReturnType<typeof setTimeout> | null = null;
     let editorFocusGeneration = 0;
     let composerDestroyed = false;
+    const pendingVoiceCallDraftWaits = new Set<() => void>();
     let preserveComposerFocusOnNextBlur = false;
     let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
@@ -1112,11 +1213,28 @@
     let currentPIIDecorations: Decoration[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
+    let lastPIISettingsVersion = -1;
+    let piiPreviewGeneration = 0;
+    let piiModelOwner: string | null = null;
+    let unsubscribePIIModelState = () => {};
+    $effect(() => {
+        const owner = `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}:${$activeTeamContext.epoch}`;
+        untrack(() => {
+            if (piiModelOwner !== null && piiModelOwner !== owner) {
+                piiPreviewGeneration += 1;
+                resetWebPIIDetector();
+                detectedPII = [];
+                currentPIIDecorations = [];
+                lastPIIText = '';
+            }
+            piiModelOwner = owner;
+        });
+    });
     // Debounce timer for PII detection - safety net fallback for edge cases
     let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
     // This catches edge cases like slow typing followed by an immediate send.
-    const PII_DEBOUNCE_MS = 800;
+    const PII_DEBOUNCE_MS = isWebPIIModelEnabled() ? 400 : 800;
     // Characters that trigger immediate PII detection (natural word/token boundaries).
     // PII patterns like emails, phone numbers, and API keys are only fully formed
     // after the user types a delimiter, so we detect at these boundaries instead of
@@ -1506,6 +1624,8 @@
         // Use originalMarkdown to preserve existing json_embed blocks when detecting new URLs
         // Fall back to editor text if originalMarkdown is not available yet
         const sourceText = originalMarkdown || editor.getText();
+        const ignoredUrls = new Set([...ignoredEmbedUrls,
+          ...restoredAppsWorkspaceDraftUrls(currentChatId, tipTapToCanonicalMarkdown(editor.getJSON()))]);
         const lastChar = sourceText.slice(-1);
         
         // Only check for closed URLs if the user just typed a space or newline
@@ -1537,26 +1657,20 @@
         
         // Find all URLs in the source text
         // We'll check each one to see if it's closed (followed by whitespace) and recently added
-        const urlRegex = /https?:\/\/[^\s]+/g;
-        let match;
-        
-        // Reset regex lastIndex to ensure we get all matches
-        urlRegex.lastIndex = 0;
-        
         // Track all URLs and their positions
         const allUrls: Array<{url: string, startPos: number, endPos: number}> = [];
         
-        while ((match = urlRegex.exec(sourceText)) !== null) {
-            const url = match[0];
-            const urlStart = match.index!;
-            const urlEnd = urlStart + url.length;
+        for (const match of detectUrlsInText(sourceText)) {
+            const url = match.url;
+            const urlStart = match.startPos;
+            const urlEnd = match.endPos;
             
             // Check if this URL is inside any code block - skip if it is
             const isInsideCodeBlock = codeBlockRanges.some(range => 
                 urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (!isInsideCodeBlock && !ignoredEmbedUrls.has(url)) {
+            if (!isInsideCodeBlock && !ignoredUrls.has(url)) {
                 allUrls.push({
                     url,
                     startPos: urlStart,
@@ -2169,6 +2283,10 @@
      * to initialise in a zero-height container (making the map invisible).
      */
     let messagePanelStyle = $derived((() => {
+        if (recordingLayoutActive && !recordingShowsDraft) {
+            const height = inlineCompact ? '48px' : 'var(--composer-compact-height, 60px)';
+            return `height: ${height}; max-height: ${height};`;
+        }
         // Fullscreen checks run first so that opening maps/camera while the field
         // is expanded does NOT collapse it back to 400px. The map/camera overlays
         // use `position:absolute; inset:0` and fill whatever height the field has,
@@ -2210,9 +2328,6 @@
         if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
-        if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
-            return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
-        }
         if (isInlineCompact) {
             return 'height: 48px; max-height: 48px;';
         }
@@ -2221,7 +2336,9 @@
 
     // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
     let messagePanelScrollableStyle = $derived(
-        isFullscreen
+        isFullscreen && recordingShowsDraft
+            ? 'max-height: 100%;'
+            : isFullscreen
             ? 'max-height: calc(100% - 120px);'
             : 'max-height: 250px;'
     );
@@ -2253,6 +2370,29 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        const stopModelState = webPIIDetectorState.subscribe((state) => {
+            if (state.status !== 'error' || !cachedPIISettings?.masterEnabled
+                || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
+            notificationStore.addNotificationWithOptions('info', {
+                message: get(text)('enter_message.pii.basic_detection_notice'),
+                duration: 8000,
+                dedupeKey: 'web-pii-basic-mode',
+                actionLabel: get(text)('enter_message.pii.model_retry'),
+                onAction: () => { if (!composerDestroyed) retryPIIModel(); },
+            });
+        });
+        const retryAfterReconnect = () => {
+            if (cachedPIISettings?.masterEnabled && get(webPIIDetectorState).status === 'error') retryPIIModel();
+        };
+        window.addEventListener('online', retryAfterReconnect);
+        unsubscribePIIModelState = () => {
+            stopModelState();
+            window.removeEventListener('online', retryAfterReconnect);
+        };
+        if (cachedPIISettings?.masterEnabled) {
+            // The worker publishes its loading/error state; no private input is logged.
+            void preloadWebPIIDetector().catch(() => {});
+        }
         lastAuthMethod = getLastAuthMethod();
         if ($authStore.isAuthenticated || $demoMode) {
             anonymousStatusChecked = true;
@@ -2569,6 +2709,10 @@
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
                     keydown: (_view, event) => {
+                        // Skip ProseMirror's built-in Enter/Escape capture so
+                        // the open viewer can receive the original event.
+                        if ((event.key === 'Enter' || event.key === 'Escape') &&
+                            document.querySelector('.unified-embed-fullscreen-overlay')) return true;
                         if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
                             handleMessageWrapperKeyDown(event);
                             return true;
@@ -2576,8 +2720,13 @@
                         if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
                             autoConvertedPasteCandidate = null;
                         }
+                        noteTrustedDraftInput(event);
                         return false;
                     },
+                    beforeinput: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    input: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    paste: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    drop: (_view, event) => { noteTrustedDraftInput(event); return false; },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
                         if (target.closest('[data-mention-type="openmates"]')) {
@@ -2613,6 +2762,11 @@
         console.debug('[MessageInput] Blurred editor on mount to prevent auto-focus');
 
         initializeDraftService(editor);
+        // A blank workspace already reserves its shell ID. Bind the editor
+        // before typing so an immediate dismissal can drain its own save.
+        if (isNewChatContext && currentChatId && !get(draftEditorUIState).currentChatId) {
+            void setDraftServiceCurrentChatContext(currentChatId, null, 0);
+        }
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         if (!hasSendableDraft && !isMessageFieldFocused) {
@@ -2709,6 +2863,8 @@
             }
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+        appsHandoffEditorReady = true;
+        const unsubscribeAppsHandoff = appsWorkspaceComposerHandoff.subscribe(() => { void applyAppsComposerHandoff(); });
         function dismissOnOutsidePointer(event: PointerEvent) {
             if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
             const target = event.target;
@@ -2729,6 +2885,8 @@
             unsubscribeAiTyping();
             unsubscribeText();
             unsubscribeComposerFocus();
+            appsHandoffEditorReady = false;
+            unsubscribeAppsHandoff();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
             document.removeEventListener('pointerdown', dismissOnOutsidePointer, true);
             window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
@@ -2737,6 +2895,12 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        piiPreviewGeneration += 1;
+        unsubscribePIISettings();
+        unsubscribePIIEntries();
+        unsubscribePIIModelState();
+        for (const cancel of pendingVoiceCallDraftWaits) cancel();
+        deferredContextDraftEdit?.cancel();
         invalidateRecordingContext('component-destroy');
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
@@ -2825,6 +2989,9 @@
         // or when clicking on UI elements that should maintain focus
         blurTimeoutId = setTimeout(() => {
             blurTimeoutId = null; // Clear the timeout ID
+            // Recording owns the compact panel while the user browses the chat.
+            // Keep its width expanded without stealing DOM focus back.
+            if (recordingLayoutActive || nativeAttachmentPickerOpen) return;
             if (preserveComposerFocusForThisBlur) {
                 isMessageFieldFocused = true;
                 isFocused = true;
@@ -2836,7 +3003,11 @@
             const activeElement = document.activeElement;
             const editorDomIsFocused = !!editorDom &&
                 (activeElement === editorDom || (activeElement instanceof Node && editorDom.contains(activeElement)));
-            if (editor && !editor.isDestroyed && !editorDomIsFocused &&
+            // External composer controls retain the same focus session when
+            // reached by keyboard as when reached by pointerdown.
+            const composerControlIsFocused = activeElement instanceof Element &&
+                !!activeElement.closest('[data-composer-focus-control]');
+            if (editor && !editor.isDestroyed && !editorDomIsFocused && !composerControlIsFocused &&
                 !(activeElement instanceof Node && messageInputWrapper?.contains(activeElement)) && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
@@ -3102,10 +3273,11 @@
         // Skip if text hasn't changed and matching decorations are already present.
         // Context resets can clear decorations while keeping lastPIIText unchanged;
         // in that state we must re-run detection so highlights become visible again.
-        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
+        if (text === lastPIIText && lastPIISettingsVersion === piiSettingsVersion && currentPIIDecorations.length > 0) return;
         
         // If text was cleared, update immediately (no need to debounce cleanup)
         if (!text || text.trim().length === 0) {
+            piiPreviewGeneration += 1;
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
             lastPIIText = text;
             detectedPII = [];
@@ -3143,15 +3315,17 @@
      * 
      * Optimization: skips re-detection if text hasn't changed since last run.
      */
-    function runPIIDetectionImmediate(editor: Editor) {
+    async function runPIIDetectionImmediate(editor: Editor) {
         if (!editor || editor.isDestroyed) return;
         
         const text = editor.getText();
         
         // Skip if text hasn't changed and matching decorations are already present.
         // If decorations were cleared by a chat/draft context reset, re-run detection.
-        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
+        if (text === lastPIIText && lastPIISettingsVersion === piiSettingsVersion && currentPIIDecorations.length > 0) return;
+        const generation = ++piiPreviewGeneration;
         lastPIIText = text;
+        lastPIISettingsVersion = piiSettingsVersion;
         
         if (!text || text.trim().length === 0) {
             detectedPII = [];
@@ -3199,26 +3373,57 @@
         
         // Build detection options with category filtering and personal data entries
         const detectionOptions: PIIDetectionOptions = {
-            excludedIds: piiExclusions,
+            excludedIds: new Set(piiExclusions),
             disabledCategories,
             personalDataEntries: personalDataForDetection,
         };
         
-        // Detect PII with full store-aware options
-        const matches = detectPII(text, detectionOptions);
-        detectedPII = matches;
-        
-        if (matches.length > 0) {
-            console.debug('[MessageInput] PII detected:', matches.length, 'matches');
-            buildPIIDecorations(editor, matches);
-        } else {
-            currentPIIDecorations = [];
+        const document = editor.state.doc;
+        const chatId = currentChatId;
+        const userId = get(userProfile).user_id;
+        const authenticated = get(authStore).isAuthenticated;
+        const team = getActiveTeamContextSnapshot();
+        const settingsVersion = piiSettingsVersion;
+        const stillCurrent = () => !composerDestroyed && !editor.isDestroyed
+            && generation === piiPreviewGeneration && editor.state.doc === document
+            && editor.getText() === text && currentChatId === chatId
+            && get(userProfile).user_id === userId
+            && get(authStore).isAuthenticated === authenticated
+            && isActiveTeamContext(team.teamId, team.epoch)
+            && settingsVersion === piiSettingsVersion;
+        const publish = (matches: PIIMatch[]) => {
+            if (!stillCurrent()) return;
+            detectedPII = matches;
+            if (matches.length > 0) buildPIIDecorations(editor, matches);
+            else currentPIIDecorations = [];
+            rebuildDecorationSet(editor);
+        };
+
+        // Keep known secrets responsive while the on-device model starts.
+        // Full basic protection stays immediate during download and on failure.
+        // The same hybrid adapter reserves exclusions before adding model spans.
+        publish(isWebPIIModelEnabled()
+            ? mergeWebPIIMatches(text, [], detectionOptions)
+            : detectPII(text, detectionOptions));
+        try {
+            publish(await detectPIIForWeb(text, detectionOptions, { purpose: 'preview' }));
+        } catch {
+            // Final send independently verifies this snapshot and blocks on model
+            // failure. A preview must never log the SDK exception or private text.
+            if (stillCurrent()) lastPIIText = '';
         }
-        
-        // Rebuild the full decoration set so PII highlights become visible.
-        // rebuildDecorationSet merges currentPIIDecorations into the view and
-        // dispatches a transaction to refresh the display.
-        rebuildDecorationSet(editor);
+    }
+
+    function retryPIIModel() {
+        resetWebPIIDetector();
+        lastPIIText = '';
+        if (editor && !editor.isDestroyed) void runPIIDetectionImmediate(editor);
+        else void preloadWebPIIDetector().catch(() => {});
+    }
+
+    async function executePendingSendWithPrivacyRetry(context: PendingSendContext, retry = false) {
+        const { dispatchPendingSendWithPrivacyRetry } = await import('./handlers/sendHandlers');
+        await dispatchPendingSendWithPrivacyRetry(context, { retryPrivacy: retry });
     }
     
     /**
@@ -3271,7 +3476,7 @@
             rebuildDecorationSet(editor);
         }
         
-        console.debug('[MessageInput] PII exclusion added:', matchId);
+        console.debug('[MessageInput] PII exclusion added');
     }
     
     /**
@@ -3279,6 +3484,7 @@
      * Excludes all detected PII so nothing gets replaced on send.
      */
     function handlePIIUndoAll() {
+        piiPreviewGeneration += 1;
         // Mark all current detections as excluded
         const newExclusions = new Set(piiExclusions);
         for (const match of detectedPII) {
@@ -3350,6 +3556,49 @@
         };
     }
 
+    function noteTrustedDraftInput(event: Event) {
+        if (!event.isTrusted || !currentChatId || !editor || editor.isDestroyed ||
+            !editor.view.dom.contains(event.target as Node)) return;
+        const input = { editor, chatId: currentChatId, userId: $userProfile.user_id ?? null,
+            team: getActiveTeamContextSnapshot() };
+        trustedDraftInput = input;
+        // Native input can pass through microtask checkpoints before its edit.
+        // Expire at the end of this event task, after ProseMirror processes it.
+        setTimeout(() => { if (trustedDraftInput === input) trustedDraftInput = null; }, 0);
+    }
+
+    function deferUserDraftEditDuringRestore(changedEditor: Editor) {
+        const input = trustedDraftInput;
+        if (!input || input.editor !== changedEditor || queuedEdit || sendClickInProgress ||
+            (recordingContext?.editor === changedEditor && changedEditor.isEmpty) ||
+            !get(draftEditorUIState).isSwitchingContext) return;
+        const editedDocument = changedEditor.state.doc;
+        const stillOwned = () => editor === changedEditor && !changedEditor.isDestroyed && !composerDestroyed &&
+            currentChatId === input.chatId && get(draftEditorUIState).currentChatId === input.chatId &&
+            ($userProfile.user_id ?? null) === input.userId && isActiveTeamContext(input.team.teamId, input.team.epoch) &&
+            !queuedEdit && !sendClickInProgress;
+        if (!stillOwned()) return;
+        deferredContextDraftEdit?.cancel();
+        let unsubscribe = () => {};
+        const pending = { cancel: () => {
+            unsubscribe();
+            if (deferredContextDraftEdit === pending) deferredContextDraftEdit = null;
+        } };
+        deferredContextDraftEdit = pending;
+        unsubscribe = draftEditorUIState.subscribe(state => {
+            if (stillOwned() && state.isSwitchingContext) return;
+            queueMicrotask(() => {
+                if (deferredContextDraftEdit !== pending) return;
+                pending.cancel();
+                // Programmatic restores and navigation must not replay a transient clear.
+                if (stillOwned() && !get(draftEditorUIState).isSwitchingContext &&
+                    changedEditor.state.doc.eq(editedDocument)) triggerSaveDraft(input.chatId, changedEditor);
+            });
+        });
+        draftEditorUIState.update(state => state.currentChatId === input.chatId
+            ? { ...state, hasUnsavedChanges: true } : state);
+    }
+
     export function hasLiveUserEditForChat(chatId: string): boolean {
         return !!editor && !editor.isDestroyed && editor.view.dom.isConnected &&
             currentChatId === chatId && editor.getText().trim().length > 0 &&
@@ -3359,6 +3608,7 @@
     }
 
     function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
+        if (transaction.docChanged) deferUserDraftEditDuringRestore(editor);
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
         // that ProseMirror treats as content changes, triggering onUpdate even though
@@ -3734,6 +3984,7 @@
     }
 
     function cleanup() {
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
         stopPlaceholderCycle();
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
@@ -4179,6 +4430,7 @@
         });
     }
     function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && document.querySelector('.unified-embed-fullscreen-overlay')) return;
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
@@ -4353,6 +4605,71 @@
         return flushSaveDraft(editor, chatId);
     }
 
+    /** Draft ownership includes atomic mentions and embeds without exposing their content. */
+    export function hasMeaningfulDraftForChat(chatId: string): boolean {
+        return !!editor && !editor.isDestroyed && editor.view.dom.isConnected && !queuedEdit &&
+            !!chatId && currentChatId === chatId &&
+            inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
+    }
+
+    export async function prepareVoiceCallDraft(capturedChatId: string): Promise<boolean> {
+        const capturedEditor = editor;
+        const authAtStart = get(authStore).isAuthenticated;
+        const userAtStart = get(userProfile).user_id;
+        const teamAtStart = getActiveTeamContextSnapshot();
+        const initialDraftId = get(draftEditorUIState).currentChatId;
+        const stillOwned = () => !!capturedEditor && !composerDestroyed &&
+            editor === capturedEditor && !capturedEditor.isDestroyed &&
+            getEditorInstance() === capturedEditor && !queuedEdit &&
+            !!capturedChatId && currentChatId === capturedChatId &&
+            get(authStore).isAuthenticated === authAtStart &&
+            get(userProfile).user_id === userAtStart &&
+            isActiveTeamContext(teamAtStart.teamId, teamAtStart.epoch);
+        if (!stillOwned()) return false;
+        // A remounted Project composer can expose its reserved prop before the
+        // existing draft service finishes adopting it. Wait for that handoff;
+        // never assign a context or follow a different navigation destination.
+        const ready = await new Promise<boolean>(resolve => {
+            let settled = false;
+            let matchedCapturedId = false;
+            const unsubscribers: Array<() => void> = [];
+            const finish = (result: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                unsubscribers.forEach(unsubscribe => unsubscribe());
+                pendingVoiceCallDraftWaits.delete(cancel);
+                resolve(result);
+            };
+            const cancel = () => finish(false);
+            const timer = setTimeout(cancel, 2000);
+            pendingVoiceCallDraftWaits.add(cancel);
+            const check = () => {
+                const state = get(draftEditorUIState);
+                if (!stillOwned()) { finish(false); return; }
+                if (state.currentChatId === capturedChatId) matchedCapturedId = true;
+                else if (matchedCapturedId || state.currentChatId !== initialDraftId) { finish(false); return; }
+                if (matchedCapturedId && !state.isSwitchingContext) finish(true);
+            };
+            const watch = (subscribe: (run: () => void) => () => void) => {
+                const unsubscribe = subscribe(check);
+                if (settled) unsubscribe();
+                else unsubscribers.push(unsubscribe);
+            };
+            watch(run => draftEditorUIState.subscribe(run));
+            if (!settled) watch(run => authStore.subscribe(run));
+            if (!settled) watch(run => userProfile.subscribe(run));
+            if (!settled) watch(run => activeTeamContext.subscribe(run));
+        });
+        if (!ready || !stillOwned() || !capturedEditor) return false;
+        syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
+        const saved = await flushSaveDraftAndWaitForIdle(capturedEditor, capturedChatId, {
+            suppressQueuedEditResaves: false,
+        });
+        return saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
+            !get(draftEditorUIState).isSwitchingContext;
+    }
+
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
     function handleBeforeUnload() { if (hasContent || hasEmbedContent) flushCurrentEditorDraft(currentChatId); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && (hasContent || hasEmbedContent)) flushCurrentEditorDraft(currentChatId); }
@@ -4469,9 +4786,20 @@
         // this generic control handler would run after the send's focus snapshot
         // and look like a newer user focus during an asynchronous submission.
         const sendsMessage = target.closest('[data-action="send-message"], .minimized-send-button');
-        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage) {
-            setTimeout(() => {
-                if (editor && !editor.isDestroyed) editor.commands.focus('end');
+        const attachmentControl = target.closest('[data-testid="composer-attachment-menu-button"], [data-testid="composer-attachment-menu"]');
+        // Attachment controls own the keyboard handoff. Refocusing from their
+        // bubbling click can reopen the keyboard over the native picker.
+        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage && !attachmentControl && !nativeAttachmentPickerOpen) {
+            if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+            const editorAtClick = editor;
+            const chatIdAtClick = currentChatId;
+            restoreEditorFocusTimer = setTimeout(() => {
+                restoreEditorFocusTimer = null;
+                if (!nativeAttachmentPickerOpen && editor === editorAtClick && currentChatId === chatIdAtClick && editorAtClick && !editorAtClick.isDestroyed) {
+                    // TipTap commands.focus queues another animation-frame focus;
+                    // synchronous DOM focus cannot escape a later picker handoff.
+                    editorAtClick.view.focus();
+                }
             }, 0);
         }
 
@@ -4483,6 +4811,7 @@
     }
 
     function handleMessageWrapperKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && document.querySelector('.unified-embed-fullscreen-overlay')) return;
         if (event.target === editor?.view.dom || editor?.view.dom.contains(event.target as Node)) {
             if (event.key === 'Escape' && visibleGhostSuggestion) {
                 event.preventDefault();
@@ -4539,8 +4868,8 @@
             return;
         }
         
-        // Recording and text entry are mutually exclusive. Blur TipTap without
-        // collapsing the expanded composer while the recording overlay opens.
+        // Recording keeps a compact height and the full composer width while
+        // the overlay owns text entry.
         if (target.closest('[data-record-audio-trigger="true"], [data-testid="record-audio-button"]')) {
             event.preventDefault();
             prepareEditorForRecording();
@@ -4624,7 +4953,12 @@
             dispatch('heightchange', { height: currentHeight });
         }
     }
-    function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
+    function checkScrollable() {
+        // The compact empty editor can overflow its minimum-height wrapper.
+        // Only real draft content, beyond rounding noise, warrants expansion.
+        isScrollable = hasSendableDraft && !!scrollableContent
+            && scrollableContent.scrollHeight > scrollableContent.clientHeight + 1;
+    }
 
     async function toggleFullscreen() {
         // Serialize toggles so a second click cannot measure an intermediate frame.
@@ -4723,6 +5057,7 @@
         handleFileDragLeave(event, editorElement);
     }
     async function onFileSelected(event: Event) {
+        nativeAttachmentPickerOpen = false;
         const input = event.target as HTMLInputElement;
         if (!$authStore.isAuthenticated && input.files?.length) {
             setPendingAnonymousFileAttachment(true);
@@ -4736,8 +5071,31 @@
         });
     }
     function handleCameraClick() {
-        const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-        if (isMobile) cameraInput?.click(); else showCamera = true;
+        if (!isDesktop()) openNativeAttachmentPicker(cameraInput); else showCamera = true;
+    }
+
+    function openNativeAttachmentPicker(input: HTMLInputElement) {
+        if (!input) return;
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        nativeAttachmentPickerOpen = true;
+        // Dismiss text entry before handing control to the OS without collapsing
+        // the composer or scheduling focus that reopens the keyboard on return.
+        editor?.view.dom.blur();
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement && messageInputWrapper?.contains(activeElement)) {
+            activeElement.blur();
+        }
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        // Stay within this user gesture: deferring click loses iOS picker access.
+        input.click();
+    }
+
+    function handleQuickAttachment() {
+        if (!isDesktop()) handleCameraClick(); else handleFileSelect();
     }
     /**
      * Handle a photo captured from the CameraView (desktop webcam overlay).
@@ -4826,6 +5184,8 @@
         recordRecordingDiagnostic('invalidate', recordingContext, reason);
         recordingDraftGeneration += 1;
         recordingCorrectionPending = false;
+        recordingLayoutPending = false;
+        recordingStartedWithDraft = false;
         const context = recordingContext;
         recordingContext = null;
         context?.releaseEmptyDraftProtection();
@@ -4849,6 +5209,7 @@
             from: selection.from,
             to: selection.to,
             realtime: null as AudioRealtimeTranscriptionHandle | null,
+            sendRequested: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
@@ -4899,8 +5260,17 @@
         return current;
     }
 
+    function handleRecordingSendRequested() {
+        const context = recordingContext;
+        if (!context || !isCurrentRecordingContext(context)) return;
+        context.sendRequested = true;
+        isMessageFieldFocused = false;
+        isFocused = true;
+    }
+
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
     async function handleAudioRecorded(event: CustomEvent<{ realtime?: AudioRealtimeTranscriptionHandle }>) {
+        const overlayAtRecording = recordAudioComponent;
         const context = recordingContext;
         const realtime = event.detail.realtime;
         recordRecordingDiagnostic('audio-recorded', context, realtime ? 'realtime-present' : 'realtime-absent');
@@ -4908,6 +5278,7 @@
             realtime?.cancel();
             if (context && isCurrentRecordingContext(context)) notificationStore.error($text('common.try_again'));
             invalidateRecordingContext('audio-recorded-guard');
+            void overlayAtRecording?.completeSend();
             return;
         }
         context.realtime = realtime;
@@ -4942,16 +5313,35 @@
                 { updateSelection: true },
             );
             recordRecordingDiagnostic('transcript-inserted', context);
-            // The recording overlay remains mounted during its outro. Restore
-            // focus only after the component signals that the overlay is gone.
+            hasContent = editorHasSendableText(context.editor);
+            refreshDraftPreviewState(context.editor);
+            lastEditorUpdateText = context.editor.getText();
+            if (context.sendRequested) {
+                // Keep the compact overlay and full width through normal send
+                // preparation; it closes only after the submission is admitted.
+                const chatAtSend = currentChatId;
+                context.realtime = null;
+                recordingCorrectionPending = false;
+                let accepted: boolean | void;
+                try {
+                    accepted = await handleSendMessage();
+                } finally {
+                    await overlayAtRecording?.completeSend();
+                }
+                if (!accepted && editor === context.editor && !editor.isDestroyed && currentChatId === chatAtSend) {
+                    isMessageFieldFocused = true;
+                    isFocused = true;
+                    await tick();
+                    if (editor === context.editor && !editor.isDestroyed && currentChatId === chatAtSend) editor.view.focus();
+                }
+                return;
+            }
+            // Finish reveals the corrected editor only after the overlay outro.
             await context.overlayRemoved;
             recordRecordingDiagnostic('post-frame', context);
             if (!isCurrentRecordingContext(context)) return;
             context.editor.view.focus();
             recordRecordingDiagnostic('focus-restored', context);
-            hasContent = editorHasSendableText(context.editor);
-            refreshDraftPreviewState(context.editor);
-            lastEditorUpdateText = context.editor.getText();
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
         } catch (error) {
             if (isCurrentRecordingContext(context)) {
@@ -4959,6 +5349,9 @@
                 notificationStore.error($text('common.try_again'));
             }
         } finally {
+            // Context switches and failed admission must also release this
+            // recording's retained overlay, never a newer component instance.
+            if (context.sendRequested) await overlayAtRecording?.completeSend();
             if (recordingContext === context) {
                 context.realtime = null;
                 invalidateRecordingContext('correction-finished');
@@ -5221,16 +5614,7 @@
         }
     }
     function handleFileSelect() {
-        // Cancel any pending blur timeout so the action buttons stay visible after the
-        // OS file picker opens. Without this, the editor blur fires before the file picker
-        // opens and collapses the action buttons bar.
-        if (blurTimeoutId) {
-            clearTimeout(blurTimeoutId);
-            blurTimeoutId = null;
-        }
-        isMessageFieldFocused = true;
-        fileInput.multiple = true;
-        fileInput.click();
+        openNativeAttachmentPicker(fileInput);
     }
     /**
      * Handle the global embedUploadFinished event dispatched by embedHandlers.ts
@@ -5301,6 +5685,11 @@
         console.info(
             `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
         );
+
+        if (isWebPIIModelEnabled()) {
+            await executePendingSendWithPrivacyRetry(readyCtx);
+            return;
+        }
 
         // Remove from store before firing to prevent double-dispatch
         removePendingSend(chatId, readyCtx.pendingId);
@@ -5444,7 +5833,9 @@
         queuedEdit = { ...edit, busy: true, error: null };
         editor.setEditable(false);
         try {
-            const revision = await prepareQueuedMessageRevision(contentSnapshot, new Set(piiExclusions));
+            const revision = await prepareQueuedMessageRevision(contentSnapshot, new Set(piiExclusions),
+              new Set([...ignoredEmbedUrls,
+                ...restoredAppsWorkspaceDraftUrls(edit.chatId, tipTapToCanonicalMarkdown(contentSnapshot))]));
             await chatSyncService.reviseQueuedMessage({
                 chatId: edit.chatId,
                 messageId: edit.messageId,
@@ -5482,6 +5873,10 @@
     });
 
     async function handleSendMessage(event?: Event) {
+        const documentAtClick = editor && !editor.isDestroyed ? tipTapToCanonicalMarkdown(editor.getJSON()) : '';
+        const releaseDraftUrlsAtClick = captureAppsWorkspaceDraftUrlCleanup(currentChatId, documentAtClick);
+        const ignoredUrlsAtClick = new Set([...ignoredEmbedUrls,
+          ...restoredAppsWorkspaceDraftUrls(currentChatId, documentAtClick)]);
         if (recordingCorrectionPending) return;
         if (callOwnsComposer) {
             if (!plainCallTextOnly() || queuedEdit) {
@@ -5675,6 +6070,7 @@
             {
                 // Preserve the first-turn data proof from before preview awaits.
                 firstTurnContextAtClick,
+                ignoredEmbedUrls: ignoredUrlsAtClick,
                 resolveModelSelection: async () => {
                     // A new chat has no saved preference to restore. Keep the
                     // selection visible at this click, including a chosen model.
@@ -5715,8 +6111,9 @@
             if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
                 editor.view.focus();
             }
-            return;
+            return false;
         }
+        releaseDraftUrlsAtClick();
         // The composer may already contain the next message. Keep its focus and
         // detection state when the previous send finishes in the background.
         if (!shouldDismissComposerAfterSend({
@@ -5726,7 +6123,7 @@
                 currentChatId === chatIdAtPreviewWait && $userProfile.user_id === modelOwner.userId &&
                 get(activeTeamId) === modelOwner.teamId,
             hasNewDraft: !editor.isDestroyed && inspectDraftContent(editor.getJSON()).hasMeaningfulContent,
-        })) return;
+        })) return true;
         dismissFocus();
         
         // Clear PII state after sending
@@ -5734,6 +6131,7 @@
         piiExclusions = new Set();
         // Clear the URL ignore list — a new message starts with a clean slate
         ignoredEmbedUrls = new Set();
+        return true;
     }
 
     /**
@@ -6005,13 +6403,16 @@
 
     function handleStopRecordingCleanup() {
         recordRecordingDiagnostic('recording-close', recordingContext);
+        const revealCorrectedDraft = !!recordingContext && !recordingContext.sendRequested &&
+            !!recordingContext.realtime && isCurrentRecordingContext(recordingContext);
         if (recordingContext && !recordingContext.realtime) invalidateRecordingContext('recording-close-without-realtime');
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
+        recordingLayoutPending = false;
         cleanupRecordingState();
-        isMessageFieldFocused = false;
-        isFocused = false;
+        isMessageFieldFocused = revealCorrectedDraft;
+        isFocused = revealCorrectedDraft;
     }
 
     export function stopRecordingForVoiceCall(): void {
@@ -6024,6 +6425,9 @@
         if (!context || context.generation !== event.detail.recordingGeneration) return;
         try {
             if (!isCurrentRecordingContext(context)) return;
+            // Direct Send keeps the composer collapsed through the overlay outro.
+            // Finish still restores the editor for review and editing.
+            if (context.sendRequested) return;
             // The collapsed composer hides TipTap, so view.focus() cannot work
             // until its expanded DOM has rendered after the overlay outro.
             isMessageFieldFocused = true;
@@ -6042,6 +6446,10 @@
     // These now extract the original event from the detail payload
     function prepareEditorForRecording() {
         captureRecordingContext();
+        // Freeze the layout choice at capture start; corrected text must not
+        // expand a recording that began with an empty editor.
+        recordingStartedWithDraft = !!editor && !editor.isDestroyed &&
+            inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
@@ -6053,8 +6461,13 @@
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
         }
-        isMessageFieldFocused = true;
+        recordingLayoutPending = $authStore.isAuthenticated;
+        isMessageFieldFocused = false;
         isFocused = true;
+        if (isFullscreen && !recordingStartedWithDraft) {
+            isFullscreen = false;
+            dispatch('fullscreenToggle', false);
+        }
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
@@ -6127,6 +6540,9 @@
         editor.commands.focus('end');
     }
     export function dismissFocus() {
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        nativeAttachmentPickerOpen = false;
         if (blurTimeoutId) clearTimeout(blurTimeoutId);
         blurTimeoutId = null;
         preserveComposerFocusOnNextBlur = false;
@@ -6151,6 +6567,45 @@
     }
     export function flushCurrentDraft(): Promise<void> | undefined {
         return flushCurrentEditorDraft(currentChatId);
+    }
+    /** Commit the live document before its editor is reused by the workspace. */
+    export async function flushCurrentDraftLocally(): Promise<boolean> {
+        if (!editor || editor.isDestroyed || queuedEdit || sendClickInProgress || !currentChatId) return false;
+        if (inspectDraftContent(editor.getJSON()).hasPendingEmbed || recordingContext) return false;
+        const chatId = currentChatId;
+        if (get(draftEditorUIState).isSwitchingContext) {
+            await new Promise<void>((resolve) => {
+                let unsubscribe = () => {};
+                unsubscribe = draftEditorUIState.subscribe((state) => {
+                    if (state.currentChatId !== chatId || !state.isSwitchingContext) {
+                        resolve();
+                        queueMicrotask(() => unsubscribe());
+                    }
+                });
+            });
+        }
+        if (!editor || editor.isDestroyed || sendClickInProgress || currentChatId !== chatId) return false;
+        syncTextOnlyDomToEditorBeforeDraftSave(editor);
+        await flushSaveDraftAndWaitForIdle(editor, chatId);
+        if (!editor || editor.isDestroyed || sendClickInProgress || currentChatId !== chatId) return false;
+        const state = get(draftEditorUIState);
+        // Guest storage can reject writes (for example when its quota is full).
+        // An older saved draft is insufficient proof that these edits are safe.
+        if (!get(authStore).isAuthenticated) {
+            const content = editor.getJSON();
+            const saved = loadSessionStorageDraft(chatId);
+            const persistenceFailed = inspectDraftContent(content).hasMeaningfulContent
+                ? !getAllDraftChatIdsWithDrafts().includes(chatId) || JSON.stringify(saved) !== JSON.stringify(content)
+                : saved !== null;
+            if (persistenceFailed) {
+                draftEditorUIState.update(s => s.currentChatId === chatId
+                    ? { ...s, hasUnsavedChanges: true, lastSavedContentMarkdown: null }
+                    : s);
+                return false;
+            }
+        }
+        return currentChatId === chatId && state.currentChatId === chatId &&
+            !state.isSaveInProgress && !state.hasUnsavedChanges && !state.isSwitchingContext;
     }
     /** Submit a public wiki question through the normal encrypted send path without editing the composer. */
     export async function sendPublicQuestion(question: string, article: WikipediaArticleIdentity, targetChatId: string | null): Promise<boolean> {
@@ -6189,7 +6644,7 @@
         finally { questionEditor?.destroy(); sendClickInProgress = false; }
     }
 
-    export function sendCurrentMessage() { return handleSendMessage(); }
+    export async function sendCurrentMessage(): Promise<void> { await handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);
@@ -6507,6 +6962,7 @@
      *                          without deleting the previous chat's draft.
      */
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        forgetAppsWorkspaceDraftUrls(currentChatId);
         const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
         if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'clearMessageField',
             chat: currentChatId, boundChat: get(draftEditorUIState).currentChatId,
@@ -6955,16 +7411,19 @@
     {/if}
 
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
+        data-editor-ready={!isInitialMount}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={isInlineCompact}
+        class:recording-with-draft={recordingShowsDraft}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         class:has-ghost-suggestion={visibleGhostSuggestion}
         style={containerStyle}
+        style:--recording-controls-height={inlineCompact ? '48px' : 'var(--composer-compact-height, 60px)'}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
         ondrop={handleDrop}
@@ -6982,7 +7441,14 @@
         {/if}
 
         {#if showEmptyInputAffordances && !callOwnsAudio}
-			<span class="empty-input-ai-icon" aria-hidden="true"></span>
+			<button
+                class="empty-input-attachment-button"
+                type="button"
+                data-testid="composer-attachment-shortcut"
+                aria-label={$text(quickAttachmentUsesCamera ? 'enter_message.attachments.take_photo' : 'enter_message.attachments.attach_files')}
+                onpointerdown={(event) => event.preventDefault()}
+                onclick={handleQuickAttachment}
+            ><span class="clickable-icon {quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}" aria-hidden="true"></span></button>
 			<button
 				class="clickable-icon icon_recordaudio empty-input-mic-button"
 				type="button"
@@ -7104,7 +7570,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || isScrollable) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !recordingLayoutActive && !startNewChatOnClick && (isFullscreen || (hasSendableDraft && isScrollable)) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
@@ -7117,15 +7583,15 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} data-testid="message-file-input" type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
+        <input bind:this={fileInput} data-testid="message-file-input" type="file" oncancel={() => nativeAttachmentPickerOpen = false} onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
-        <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
+        <input bind:this={cameraInput} data-testid="message-camera-input" oncancel={() => nativeAttachmentPickerOpen = false} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
                 {#if visibleGhostSuggestion}
-                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" transition:fade={{ duration: 250 }}>{ghostSuggestion}</div>
+                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" in:fade={{ duration: 250 }}>{ghostSuggestion}</div>
                 {/if}
             </div>
         </div>
@@ -7222,21 +7688,13 @@
             </div>
         {/if}
 
-        {#if hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
-            <button
-                type="button"
-                class="minimized-send-button"
-                data-testid="composer-send-button"
-                data-preserve-composer-focus="true"
-                aria-label={$text('enter_message.send')}
+        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
+            <CompactSendButton
+                floating={true}
                 disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
-                aria-busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 onclick={handleSendMessage}
-            >
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-            </button>
+            />
         {/if}
 
         <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
@@ -7248,7 +7706,7 @@
 
         <!-- Stop Processing Icon - shown when AI task is active -->
         <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if showStopProcessingButton}
+        {#if showStopProcessingButton && !recordingLayoutActive}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 data-testid="stop-processing-button"
@@ -7266,13 +7724,18 @@
         {/if}
 
         {#if $recordingState.showRecordAudioUI}
+            <div class="recording-controls-overlay">
             <!-- Pass the required initialPosition from the store -->
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
                 enableRealtime={$authStore.isAuthenticated}
                 retainUntilCorrection={true}
+                retainUntilSend={true}
+                compact={true}
+                allowSend={true}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
+                on:sendrequested={handleRecordingSendRequested}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:overlayremoved={handleRecordingOverlayRemoved}
@@ -7280,6 +7743,7 @@
                 on:recordingStateChange={handleRecordingLayoutChange}
                 on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />
+            </div>
         {/if}
 
         {#if showMaps}
@@ -7292,10 +7756,6 @@
             />
         {/if}
     </div>
-
-    {#if callOwnsComposer}
-        <p class="voice-call-composer-hint" data-testid="voice-call-composer-hint">{$text('voicecall.text_only_hint')}</p>
-    {/if}
 
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
@@ -7313,10 +7773,9 @@
 <KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
+    @import './composerPresentation.css';
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
-
-    .voice-call-composer-hint { margin:var(--spacing-2) var(--spacing-6) 0; color:var(--color-font-tertiary); font-size:var(--font-size-xs); line-height:1.4; }
 
     .ideabucket-pill {
         background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;
@@ -7360,10 +7819,6 @@
 
     .message-input-wrapper.guest-cta-mode .message-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
         color: var(--color-grey-60);
-    }
-
-    .message-input-wrapper.guest-cta-mode .empty-input-ai-icon {
-        background: var(--color-grey-60);
     }
 
 	.message-field.empty-welcome-field {
@@ -7424,24 +7879,41 @@
         line-height: 48px;
     }
 
-    .empty-input-ai-icon {
+    .empty-input-attachment-button {
         position: absolute;
         top: 50%;
-        left: 22px;
+        left: 14px;
         z-index: 31;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        margin: 0;
+        padding: 8px;
+        box-sizing: border-box;
+        border: none;
+        border-radius: var(--radius-full);
+        background: transparent;
+        filter: none;
+        scale: 1;
+        transform: translateY(-50%);
+        cursor: pointer;
+    }
+
+    .empty-input-attachment-button span {
         width: 24px;
         height: 24px;
-        background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
-        transform: translateY(-50%);
-        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-        mask-image: url('@openmates/ui/static/icons/ai.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        pointer-events: none;
+        /* Use the shared clickable-icon gradient, matching the microphone. */
+    }
+
+    .empty-input-attachment-button:hover {
+        background: var(--color-grey-10);
+    }
+
+    .empty-input-attachment-button:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
     }
 
 	.empty-input-mic-button {

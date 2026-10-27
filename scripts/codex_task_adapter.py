@@ -81,7 +81,7 @@ def load_tasks(config):
             continue
         for task in snapshot["tasks"]:
             key = identity([snapshot["account_scope"], task["task_id"]])
-            tasks[key] = {**task, "scope": snapshot["account_scope"]}
+            tasks[key] = {**task, "scope": snapshot["account_scope"], "snapshot_path": name}
     return tasks
 
 
@@ -241,6 +241,218 @@ def observe_ci(root, config, state, allowed):
         state["ci_seen"][job["id"]] = job["state"]
 
 
+def disk_owner_task(row, tasks, allowed):
+    """Only a unique, locally registered Task owner can receive a grant."""
+    if not row.get("thread"):
+        return None  # Anonymous maintenance callers never authorize a model wake.
+    candidates = [
+        task for task in tasks.values()
+        if (task.get("external_chat") or {}).get("provider") == "codex"
+        and (task.get("external_chat") or {}).get("id") in allowed
+        and (not row.get("thread") or (task.get("external_chat") or {}).get("id") == row["thread"])
+        and (not row.get("task_id") or task.get("task_id") == row["task_id"])
+        and task.get("status") != "done"
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def disk_task_eligible(task):
+    return task and task.get("status") in {"todo", "in_progress", "active"} and not any(
+        task.get(flag) for flag in ("paused", "deleted", "archived")
+    )
+
+
+def sync_disk_task(state, row, task, save):
+    """Version-fenced status edits; any competing Task edit requires review."""
+    try:
+        from scripts.codex_task_queue import enqueue
+    except ModuleNotFoundError:
+        from codex_task_queue import enqueue
+    waits = state.setdefault("disk_task_waits", {})
+    record = waits.get(row["id"])
+    owner = (task.get("external_chat") or {}).get("id")
+    clean = not task.get("blocked_reason") and not task.get("blocked_reason_code")
+    if record is None:
+        if row["state"] != "waiting":
+            return True  # No Task mutation was needed for an immediately admitted job.
+        if task.get("status") not in {"todo", "in_progress"} or not clean or not task.get("snapshot_path"):
+            return False
+        record = waits[row["id"]] = {
+            "task_id": task["task_id"], "owner": owner, "original_status": task["status"],
+            "original_version": task["version"], "state": "blocking",
+        }
+        save()  # Preserve original ownership/version before publishing any mutation.
+    version = record["original_version"]
+    if task["task_id"] != record["task_id"] or owner != record["owner"] or not clean:
+        record["state"] = "needs_review"
+        return False
+    if record["state"] == "needs_review":
+        return False
+    current = (task.get("status"), task.get("version"))
+    original = (record["original_status"], version)
+    blocked = ("blocked", version + 1)
+    restored = (record["original_status"], version + 2)
+    if current == restored and record["state"] == "restoring":
+        # The queue's receipt is authoritative; a coincidentally matching human
+        # status change cannot be mistaken for our acknowledged restoration.
+        restore_id = record.get("restore_delivery") or identity([owner, f"disk-{identity(row['id'])[:32]}-restore"])
+        receipts = list((state_root() / "task-command-delivery").glob(f"*/{restore_id}.json")) if restore_id else []
+        if len(receipts) != 1 or json.loads(receipts[0].read_text()).get("state") != "acknowledged":
+            return False
+        record["state"] = "restored"
+        return True
+    if record["state"] == "restored":
+        return current == restored
+    if current not in {original, blocked}:
+        record["state"] = "needs_review"
+        return False
+
+    def publish(phase, operation):
+        # Freeze the exact authenticated snapshot used for this intent: enqueue
+        # must never pick up a newer version between validation and its read.
+        key = f"disk-{identity(row['id'])[:32]}-{phase}"
+        frozen = state_root() / "disk-task-snapshots" / f"{key}.json"
+        if not frozen.exists():
+            expected_version = version + 1 if phase == "restore" else version
+            if task.get("version") != expected_version:
+                return False
+            source = json.loads(Path(task["snapshot_path"]).read_text())
+            selected = [t for t in source.get("tasks", []) if t.get("task_id") == task["task_id"]]
+            if len(selected) != 1 or selected[0].get("version") != task["version"] or selected[0].get("external_chat") != task.get("external_chat"):
+                return False
+            _save(frozen, source)
+        result = enqueue(frozen, operation, key, owner, state_root())
+        record[phase + "_delivery"] = result["delivery"]["id"]
+        record[phase + "_state"] = result["delivery"]["state"]
+        return result["delivery"]["state"] == "acknowledged"
+
+    if current == original and record["state"] == "blocking":
+        publish("block", {"kind": "edit", "task_id": task["task_id"], "status": "blocked"})
+        publish("activity", {"kind": "activity", "task_id": task["task_id"], "message": "Waiting for host disk capacity; existing work will resume after a reserved grant."})
+    elif current == blocked and row["state"] == "granted":
+        block_ok = publish("block", {"kind": "edit", "task_id": task["task_id"], "status": "blocked"})
+        activity_ok = publish("activity", {"kind": "activity", "task_id": task["task_id"], "message": "Waiting for host disk capacity; existing work will resume after a reserved grant."})
+        if not block_ok or not activity_ok:
+            return False
+        record["state"] = "restoring"
+        save()
+        publish("restore", {"kind": "edit", "task_id": task["task_id"], "status": record["original_status"]})
+    return False
+
+
+def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
+    """One ledger snapshot per loop; one Task-status fence per resource group."""
+    rows = coordinator.requests(str(root))
+    state["disk_requests"] = rows
+    current = {(row["id"], row.get("grant_id")) for row in rows if row["state"] == "granted"}
+    for item in state["deliveries"].values():
+        if item["kind"] == "disk_ready" and (item["data"]["id"], item["data"].get("grant_id")) not in current:
+            if item["state"] == "pending":
+                item["state"] = "superseded"
+    for runtime in state["threads"].values():
+        runtime["resource_waiting"] = False
+    groups = {}
+    for row in rows:
+        if row["state"] not in {"waiting", "granted"}:
+            continue
+        if row.get("thread") and row.get("task_id"):
+            exact = [task for task in tasks.values() if task.get("task_id") == row["task_id"]]
+            if len(exact) == 1:
+                linked = exact[0].get("external_chat") or {}
+                if exact[0].get("status") == "done" or linked.get("provider") != "codex" or linked.get("id") != row["thread"]:
+                    coordinator.cancel(row["id"], "The bound Task completed or changed its conversation owner")
+                    row["state"] = "cancelled"
+                    for item in state["deliveries"].values():
+                        if item["kind"] == "disk_ready" and item["data"]["id"] == row["id"] and item["state"] == "pending":
+                            item["state"] = "superseded"
+                    continue
+        task = disk_owner_task(row, tasks, allowed)
+        owner = (task.get("external_chat") or {}).get("id") if task else row.get("thread")
+        if owner:
+            state["threads"].setdefault(owner, {})["resource_waiting"] = True
+        if not task:
+            continue
+        if not row.get("task_id") and hasattr(coordinator, "bind_task"):
+            if not coordinator.bind_task(row["id"], owner, task["task_id"]):
+                continue  # A concurrent owner/state change cannot authorize routing.
+            row["task_id"] = task["task_id"]
+        row["resolved_task_id"] = task["task_id"]
+        key = identity([owner, task["task_id"], task.get("scope")])
+        groups.setdefault(key, {"owner": owner, "task": task, "rows": []})["rows"].append(row)
+    for key, group in groups.items():
+        owner, task, members = group["owner"], group["task"], group["rows"]
+        runtime = state["threads"][owner]
+        if any(runtime.get(flag) for flag in ("paused", "deleted", "archived")):
+            for row in members:
+                if row["state"] == "granted":
+                    coordinator.defer(row["id"])
+                for item in state["deliveries"].values():
+                    if item["kind"] == "disk_ready" and item["data"]["id"] == row["id"] and item["state"] == "pending":
+                        item["state"] = "superseded"
+            continue
+        active_ids = {row["id"] for row in members}
+        saved = state.setdefault("disk_task_groups", {}).get(key)
+        if not saved or not active_ids.intersection(saved["members"]):
+            saved = state["disk_task_groups"][key] = {"id": members[0]["id"], "members": []}
+        saved["members"] = sorted(active_ids)
+        group_id = saved["id"]
+        for row in members:
+            row["task_wait_id"] = group_id
+        grants = [row for row in members if row["state"] == "granted" and coordinator.valid_grant(row["id"], row.get("grant_id"))]
+        representative = {**members[0], "id": group_id, "state": "granted" if grants else "waiting"}
+        if not grants and group_id not in state.get("disk_task_waits", {}):
+            active_owned = [t for t in tasks.values() if (t.get("external_chat") or {}).get("id") == owner and t.get("status") in {"todo", "in_progress", "blocked"}]
+            if len(active_owned) != 1:
+                continue
+        synchronized = sync_disk_task(state, representative, task, save)
+        if not grants or not synchronized:
+            continue
+        if not disk_task_eligible(task):
+            for row in members:
+                coordinator.defer(row["id"])
+            continue
+        # Deliver the oldest live grant only. Later requests can proceed after
+        # this operation claims/completes; requiring all grants can deadlock.
+        for row in grants[:1]:
+            queue(state, owner, "disk_ready", [row["id"], row["grant_id"]], {**row, "task_id": task["task_id"], "task_wait_id": group_id})
+
+
+def disk_delivery_valid(item, state, tasks, allowed, coordinator):
+    task = disk_owner_task(item["data"], tasks, allowed)
+    runtime = state["threads"].get(item["owner"], {})
+    wait = state.get("disk_task_waits", {}).get(item["data"].get("task_wait_id", item["data"]["id"]))
+    restored = not wait or (wait.get("state") == "restored" and task and task.get("version") == wait["original_version"] + 2 and task.get("status") == wait["original_status"])
+    return bool(
+        restored and coordinator and coordinator.available() and disk_task_eligible(task)
+        and not task.get("blocked_reason") and not task.get("blocked_reason_code")
+        and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
+        and coordinator.valid_grant(item["data"]["id"], item["data"].get("grant_id"))
+    )
+
+
+def disk_start_unresolved(state, item):
+    return any(
+        previous["id"] != item["id"] and previous["owner"] == item["owner"]
+        and previous["kind"] == "disk_ready"
+        and previous["data"]["id"] == item["data"]["id"]
+        and previous["created_at"] < item["created_at"]
+        and previous["state"] in {"uncertain", "needs_review"}
+        for previous in state["deliveries"].values()
+    )
+
+
+def acknowledge_context(state, receipt, owner, coordinator, tasks, allowed):
+    for delivered_id in receipt.get("adapter_events", []):
+        item = state["deliveries"].get(delivered_id)
+        if not item or item["state"] != "pending" or item["owner"] != owner:
+            continue
+        if item["kind"] == "disk_ready":
+            if disk_start_unresolved(state, item) or not disk_delivery_valid(item, state, tasks, allowed, coordinator):
+                continue
+            coordinator.acknowledge(item["data"]["id"], item["data"]["grant_id"])
+        item["state"] = "provided_in_context"
+
+
 def observe_notification(state, message, allowed, parents, tasks):
     params = message.get("params", {})
     owner = params.get("threadId")
@@ -327,6 +539,7 @@ def subscribe_thread(rpc, state, owner):
     )
     runtime = state["threads"].setdefault(owner, {})
     runtime["status"] = result["thread"].get("status", {}).get("type", "unknown")
+    runtime["archived"] = bool(result["thread"].get("archived"))
     turns = (result.get("initialTurnsPage") or {}).get("data", [])
     if turns:
         turn = turns[0]
@@ -375,12 +588,14 @@ def reconcile_uncertain(rpc, item):
         )
 
 
-def deliver(state, rpc, allowed, auto_wake, save, tasks):
+def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, revalidate=None):
     attempted = set()
     for item in state["deliveries"].values():
         owner = item["owner"]
         if owner not in allowed or owner in attempted or item["kind"] == "chat_deleted":
             continue
+        if item["kind"] == "disk_ready" and disk_start_unresolved(state, item):
+            continue  # An expired reservation never resolves uncertain start acceptance.
         if item["state"] not in {"pending", "uncertain"} or time.time() < item.get(
             "retry_at", 0
         ):
@@ -388,10 +603,18 @@ def deliver(state, rpc, allowed, auto_wake, save, tasks):
         attempted.add(owner)
         if item["state"] == "uncertain":
             reconcile_uncertain(rpc, item)
+            if item["kind"] == "disk_ready" and item["state"] == "accepted" and coordinator:
+                coordinator.acknowledge(item["data"]["id"], item["data"]["grant_id"])
             save()
             continue
         runtime = state["threads"].get(owner, {})
-        if not auto_wake or runtime.get("paused") or runtime.get("deleted"):
+        if not auto_wake or runtime.get("paused") or runtime.get("deleted") or runtime.get("archived"):
+            continue
+        if runtime.get("resource_waiting") and item["kind"] != "disk_ready":
+            continue
+        if item["kind"] == "disk_ready" and not disk_delivery_valid(item, state, tasks, allowed, coordinator):
+            item["state"] = "superseded"
+            save()
             continue
         if item["kind"] == "dependency_ready":
             task = next(
@@ -432,8 +655,20 @@ def deliver(state, rpc, allowed, auto_wake, save, tasks):
             if state["threads"][owner].get("paused"):
                 save()
                 continue
-        if status != "idle" or thread.get("archived"):
+        if thread.get("archived"):
+            state["threads"][owner]["archived"] = True
+            if item["kind"] == "disk_ready":
+                coordinator.defer(item["data"]["id"])
             continue
+        if status != "idle":
+            continue
+        if item["kind"] == "disk_ready":
+            if revalidate:
+                allowed, tasks = revalidate()
+            if not disk_delivery_valid(item, state, tasks, allowed, coordinator):
+                item["state"] = "superseded"
+                save()
+                continue
         item["state"] = "uncertain"
         save()  # A crash after this point can never cause a blind duplicate start.
         try:
@@ -466,6 +701,8 @@ def deliver(state, rpc, allowed, auto_wake, save, tasks):
             save()
             raise
         item.update(state="accepted", turn_id=result["turn"]["id"])
+        if item["kind"] == "disk_ready":
+            coordinator.acknowledge(item["data"]["id"], item["data"]["grant_id"])
         save()
 
 
@@ -501,6 +738,33 @@ def refresh_presence(rpc, root, config, state):
     return rpc, False
 
 
+def disk_ledger(root):
+    try:
+        from scripts.disk_coordinator import Coordinator, configured
+    except ModuleNotFoundError:
+        from disk_coordinator import Coordinator, configured
+    return configured(root) or Coordinator()
+
+
+def refresh_disk_authorization(root, state):
+    """Reload opt-in, local routing, Task scope and human controls at start."""
+    config = json.loads((state_root() / "codex-adapter.json").read_text()).get(
+        "repositories", {}
+    ).get(str(root))
+    if not config or not config.get("enabled") or config.get("auto_wake") is not True:
+        return set(), {}
+    allowed = execution_threads(root, config)
+    controls = state_root() / "codex-adapter-controls" / identity(str(root))
+    for owner in allowed:
+        control_path = controls / f"{owner}.json"
+        if control_path.exists():
+            control = json.loads(control_path.read_text())
+            runtime = state["threads"].setdefault(owner, {})
+            if control["updated_at"] > runtime.get("control_at", 0):
+                runtime.update(paused=control["paused"], control_at=control["updated_at"])
+    return allowed, load_tasks(config)
+
+
 def run(root, config):
     path = adapter_path(root)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -511,6 +775,7 @@ def run(root, config):
         def save():
             _save(path, state)
 
+        coordinator = disk_ledger(root)
         rpc = None
         retry_at = 0
         failures = 0
@@ -553,21 +818,16 @@ def run(root, config):
                                 paused=control["paused"],
                                 control_at=control["updated_at"],
                             )
-                    receipt_path = (
-                        state_root() / "codex-context-receipts" / f"{owner}.json"
-                    )
-                    if receipt_path.exists():
-                        receipt = json.loads(receipt_path.read_text())
-                        for delivered_id in receipt.get("adapter_events", []):
-                            item = state["deliveries"].get(delivered_id)
-                            if (
-                                item
-                                and item["state"] == "pending"
-                                and item["owner"] == owner
-                            ):
-                                item["state"] = "provided_in_context"
                 tasks = load_tasks(config)
                 observe_tasks(state, tasks, allowed)
+                if coordinator.available():
+                    observe_disk(root, state, tasks, allowed, coordinator, save)
+                else:
+                    state["disk_service"] = "unavailable"
+                for owner in allowed:
+                    receipt_path = state_root() / "codex-context-receipts" / f"{owner}.json"
+                    if receipt_path.exists():
+                        acknowledge_context(state, json.loads(receipt_path.read_text()), owner, coordinator, tasks, allowed)
                 observe_worker_completion(state, parents, tasks, allowed)
                 # Local CI reads are bounded to one pass every five seconds.
                 if time.time() >= state.get("next_ci_read", 0):
@@ -634,7 +894,8 @@ def run(root, config):
                     item["state"] = json.loads(delivery_path.read_text())["state"]
                 save()
                 deliver(
-                    state, rpc, allowed, config.get("auto_wake") is True, save, tasks
+                    state, rpc, allowed, config.get("auto_wake") is True, save, tasks,
+                    coordinator, lambda: refresh_disk_authorization(root, state)
                 )
                 state["connection"] = {"state": "connected"}
                 failures = 0
@@ -684,6 +945,8 @@ def main():
                 {
                     "threads": state["threads"],
                     "presence": state.get("presence"),
+                    "disk_requests": state.get("disk_requests", []),
+                    "disk_task_waits": state.get("disk_task_waits", {}),
                     "connection": state.get("connection"),
                     "deliveries": [
                         {k: v for k, v in item.items() if k != "data"}

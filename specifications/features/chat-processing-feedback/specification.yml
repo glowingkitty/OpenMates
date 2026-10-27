@@ -1,20 +1,20 @@
 schema_version: 1
 id: feature.chat-processing-feedback
-version: 4
+version: 5
 status: draft
 title: Chat Processing Feedback
-summary: Web chats show current-turn processing inside one assistant response container, with truthful Mate and
+summary: Web and Apple chats show current-turn processing inside one assistant response container, with truthful Mate and
   model identity, an internal bottom glow and expandable completed processing groups at their source positions.
 scope:
   includes:
-  - Web response processing from accepted send through tool cycles and completion.
+  - Web and Apple response processing from accepted send through tool cycles and completion.
   - First-stage Mate/model feedback before detailed second-stage selection.
   - Chronological processing groups, completed summaries and accessible disclosure.
   - Current-turn metadata, responsive layout and reduced-motion presentation.
   excludes:
   - New inference, billing, hidden reasoning disclosure or invented processing durations.
   - Replacing approval gates, compression feedback or existing errors.
-  - Native Apple, CLI or SDK presentation changes in this web increment.
+  - CLI or SDK presentation changes.
 models:
   ProcessingFeedback:
     identity:
@@ -62,7 +62,7 @@ models:
 assertions:
 - id: chat-processing-feedback.selection-after-acceptance
   type: behavior
-  must: Once first-stage routing selects the Mate for the accepted active turn, the web response container immediately
+  must: Once first-stage routing selects the Mate for the accepted active turn, the web and Apple response container immediately
     shows that Mate with localized “Thinking…” and the visible AI icon, without waiting for detailed second-stage
     preprocessing. Before Mate selection the submitted user message retains its sending or accepted state without
     a generic Assistant Thinking container. A local Send click or task-accepted event alone does not create Thinking
@@ -146,12 +146,7 @@ applies_to:
       web:
         required: true
       apple:
-        required: false
-    exceptions:
-    - id: native-presentation-deferred
-      implementation: apple
-      reason: The user explicitly requested this response redesign for the web app.
-      equivalent_outcome: Native clients retain existing processing feedback and consume shared early routing metadata.
+        required: true
 examples:
   file: examples.yml
   required_groups:

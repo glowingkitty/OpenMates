@@ -47,6 +47,17 @@ describe('independent optional chat metadata', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.independent-metadata
+  it('ignores an older acknowledged voice metadata version after a concurrent edit', async () => {
+    const baseline = { chat_id: 'chat-a', encrypted_chat_key: 'key-a', title_v: 1, metadata_v: 2 } as Chat;
+    const storage = database({ ...baseline, metadata_v: 4, encrypted_chat_summary: 'newer-summary' });
+    const result = await persistGeneratedChatMetadata(storage, baseline, {
+      metadata_v: 3, encrypted_chat_summary: 'older-voice-summary',
+    }, () => true);
+    expect(result).toMatchObject({ metadata_v: 4, encrypted_chat_summary: 'newer-summary' });
+    expect(storage.put).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.completion.independent-metadata
   it('rejects a response after account/key scope or the pending user turn changes', async () => {
     invalidateWorkspaceCaches();
     noteChatMetadataTurn('chat-a', 'completed-task', 'user-a');

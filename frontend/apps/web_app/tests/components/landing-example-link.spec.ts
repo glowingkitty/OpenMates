@@ -34,10 +34,10 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const landingUrl = page.url();
     const rail = page.getByTestId('landing-app-rail');
     const prompt = page.getByTestId('landing-prompt');
-    const travel = rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]');
-    await travel.evaluate((button: HTMLButtonElement) => button.click());
-    await expect(prompt).toHaveAttribute('data-active-app', 'travel');
-    const expectedPopupUrl = `${APP}/#chat-id=${encodeURIComponent(landingAppExamples.travel)}`;
+    const web = rail.locator('.rail-group:nth-child(2) [data-app-id="web"]');
+    await web.evaluate((button: HTMLButtonElement) => button.click());
+    await expect(prompt).toHaveAttribute('data-active-app', 'web');
+    const expectedPopupUrl = `${APP}/?lang=en#chat-id=${encodeURIComponent(landingAppExamples.web)}`;
     await expect(prompt).toHaveAttribute('href', expectedPopupUrl);
     await expect(prompt).toHaveAttribute('target', '_blank');
     // Reproduce the missed-observation condition caused by background-tab throttling.
@@ -55,7 +55,8 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       await expect(section).toHaveClass(/revealed/);
       await expect(section.getByRole('heading')).toHaveCSS('opacity', '1');
       await expect(section.locator('.feature-copy p')).toHaveCSS('opacity', '1');
-      await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
+      if (id === 'actionable' || id === 'devices') await expect(section.locator('.feature-example')).toHaveCount(0);
+      else await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
       for (const image of await section.locator('img.device-screen:visible').all()) {
         await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
       }
@@ -88,7 +89,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(prevented).toBe(true);
     expect(await track.evaluate(element => getComputedStyle(element).transform)).not.toBe(beforeWheel);
 
-    const nextApp = landingAppOrder[(landingAppOrder.indexOf('travel') + 1) % landingAppOrder.length];
+    const nextApp = landingAppOrder[(landingAppOrder.indexOf('web') + 1) % landingAppOrder.length];
     await rail.locator(`.rail-group:nth-child(2) [data-app-id="${nextApp}"]`).evaluate((button: HTMLButtonElement) => button.click());
     await expect(prompt).toHaveAttribute('data-active-app', nextApp);
     await expect(rail).toHaveAttribute('data-active-app', nextApp);

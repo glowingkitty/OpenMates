@@ -237,9 +237,9 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveCSS('visibility', 'visible');
       await expectBalancedPanelGutters(page, 'chat');
 
-      await page.goto(getE2EDebugUrl('/#chat-id=example-us-egg-prices-deep'), { waitUntil: 'domcontentloaded' });
-      const transcript = page.getByTestId('user-message-content').filter({ hasText: 'Why did US egg prices stay high after avian flu eased?' });
-      await expect(chat).toHaveAttribute('data-current-chat-id', 'example-us-egg-prices-deep');
+      await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
+      const transcript = page.getByTestId('user-message-content').filter({ hasText: 'Help me find a name for my new product.' });
+      await expect(chat).toHaveAttribute('data-current-chat-id', 'example-gigantic-airplanes');
       // ReadOnlyMessage mounts its editor lazily. At the shorter viewport the
       // header can occupy the scroll area, so bring the known message into view.
       await page.locator('[data-testid="message-user"][data-message-id="dfd8a5dc-b685-4854-8dbf-4b00c71d93cc"]').scrollIntoViewIfNeeded();

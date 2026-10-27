@@ -27,7 +27,22 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, getContext, tick } from 'svelte';
+  import { getAppsLibrary, isAppsSearchSaved, appsSearchQuery, saveAppsSearchWithNotice, type AppsLibrary } from '../../services/appsWorkspaceLibraryService';
+  import { extractResultRoute, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
+  import { searchResultMapMarkers } from './searchResultMapMarkers';
+  import { getLucideIcon } from '../../utils/categoryUtils';
+  import EmbedLeafletMap from './EmbedLeafletMap.svelte';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import AppsRequestComposer from '../apps/AppsRequestComposer.svelte';
+  import { get } from 'svelte/store';
+  import { activeTeamContext } from '../../stores/teamStore';
+  import { notificationStore } from '../../stores/notificationStore';
+  import { userProfile } from '../../stores/userProfile';
+  import { authStore } from '../../stores/authState';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  import { APPS_RESULTS_ACTIONS_CONTEXT, runAppsWorkspaceRequest, type AppsResultsActionsContext, type AppsRequestContext } from '../../services/appsWorkspaceRequestService';
+  import { queueAppsWorkspaceChatHandoff, queueAppsWorkspaceWorkflowHandoff, captureAppsWorkspaceHandoffGuard } from '../../services/appsWorkspaceChatHandoffService';
   import { activeEmbedStore } from '../../stores/activeEmbedStore';
   import {
     restorePreviousFullscreenRoute,
@@ -36,11 +51,13 @@
   } from '../../services/embedFullscreenController';
   import type { Snippet } from 'svelte';
 
+  const DeleteFilterIcon = getLucideIcon('trash-2');
+
   /**
    * Navigation context passed to childFullscreen snippet so the consumer
    * can wire up close/prev/next on the overlay fullscreen component.
    */
-  export interface ChildNavContext<U> {
+  interface ChildNavContext<U> {
     result: U;
     index: number;
     total: number;
@@ -55,6 +72,8 @@
     // ── UnifiedEmbedFullscreen passthrough props ──
     testId?: string;
     closeTestId?: string;
+    headerActions?: Snippet;
+    headerActionCount?: number;
     appId: string;
     skillId?: string;
     embedHeaderTitle?: string;
@@ -79,6 +98,8 @@
     childEmbedTransformer?: (embedId: string, content: Record<string, unknown>) => T;
     /** Legacy results fallback (pre-child-embed format) */
     legacyResults?: unknown[];
+    /** Local fixture/result IDs have no global fullscreen route. */
+    localResults?: boolean;
     /** Transform legacy results to typed results */
     legacyResultTransformer?: (results: unknown[]) => T[];
     /** Initial child embed ID to auto-open (from inline badge click) */
@@ -91,6 +112,7 @@
     // ── Template configuration ──
     /** Minimum card width for the CSS grid (default: '280px') */
     minCardWidth?: string;
+    gridTestId?: string;
     /** Max width for the results grid container (default: '1000px') */
     maxGridWidth?: string;
     /** Number of skeleton cards to show while loading (default: 6) */
@@ -99,10 +121,13 @@
     errorMessage?: string;
     /** Optional data-testid for the empty state. */
     emptyTestId?: string;
+    emptyContent?: Snippet;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Original search query string. Kept for callers that also display it elsewhere. */
     query?: string;
+    /** Domain controls share one predicate across cards and overview markers. */
+    filters?: { controls: Snippet; notices?: Snippet; reset?: () => void; matches: (result: T) => boolean };
 
     // ── Consumer snippets ──
     /** Render a single result preview card. Receives the result and a click handler. */
@@ -117,6 +142,8 @@
     // Unified passthrough
     testId,
     closeTestId,
+    headerActions,
+    headerActionCount,
     appId,
     skillId,
     embedHeaderTitle,
@@ -138,6 +165,7 @@
     embedIds,
     childEmbedTransformer,
     legacyResults,
+    localResults = false,
     legacyResultTransformer,
     initialChildEmbedId,
     onEmbedDataUpdated,
@@ -145,11 +173,15 @@
 
     // Template config
     minCardWidth = '280px',
+    gridTestId = 'search-template-grid',
     maxGridWidth = '1000px',
     skeletonCount = 6,
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
+    emptyContent,
     status = 'finished',
+    query,
+    filters,
 
     // Snippets
     resultCard,
@@ -157,11 +189,157 @@
     embedHeaderCta,
   }: Props = $props();
 
+  const resultOwnerCurrent = captureAppsWorkspaceHandoffGuard();
+  const actions = getContext<AppsResultsActionsContext | undefined>(APPS_RESULTS_ACTIONS_CONTEXT);
+  const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  let parentContent = $state<Record<string, unknown>>({});
+  let parentLoading = $state(false);
+  $effect(() => {
+    let cancelled = false;
+    parentContent = {};
+    parentLoading = Boolean(currentEmbedId);
+    const lookupChatId = sourceChat?.exampleChatId ?? sourceChat?.lookupChatId ?? sourceChat?.chatId ?? null;
+    if (currentEmbedId) void resolveEmbed(currentEmbedId, { chatId: lookupChatId }).then(async embed => {
+      const content = embed ? await decodeToonContent(embed.content) : null;
+      if (!cancelled && content) parentContent = content;
+    }).catch(() => {}).finally(() => { if (!cancelled) parentLoading = false; });
+    return () => { cancelled = true; };
+  });
+  let ownLibrary = $state<AppsLibrary | null>(null);
+  let libraryLoading = $state(false);
+  let savedLocally = $state(false);
+  let savingSearch = $state(false);
+  // Chat-owned search views have no Apps host. Resolve their saved state using
+  // the same scoped library, rejecting responses from an account/team switch.
+  $effect(() => {
+    const owner = $userProfile.user_id;
+    const team = $activeTeamContext.teamId ?? undefined;
+    void $activeTeamContext.epoch; void currentEmbedId; void appId;
+    savedLocally = false;
+    ownLibrary = null;
+    libraryLoading = false;
+    if (actions || !$authStore.isAuthenticated || !owner) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    const refresh = async () => {
+      libraryLoading = true;
+      try { const library = await getAppsLibrary(appId, team, controller.signal); if (!cancelled) ownLibrary = library; }
+      catch { /* Saving remains retryable if library state is temporarily unavailable. */ }
+      finally { if (!cancelled) libraryLoading = false; }
+    };
+    const updated = (event: Event) => {
+      const detail = (event as CustomEvent<{ appId: string; teamId?: string }>).detail;
+      if (detail?.appId === appId && (detail.teamId ?? undefined) === team) void refresh();
+    };
+    void refresh();
+    window.addEventListener('appsWorkspaceLibraryUpdated', updated);
+    return () => { cancelled = true; controller.abort(); window.removeEventListener('appsWorkspaceLibraryUpdated', updated); };
+  });
+  let resultFilter = $state('');
+  let filtersOpen = $state(false);
+  let filterButton = $state<HTMLButtonElement>();
+  let filterPanel = $state<HTMLDivElement>();
+  let filterShell = $state<HTMLDivElement>();
+  let filterInput = $state<HTMLInputElement>();
+  const filterId = $props.id();
+  const filterPanelId = `${filterId}-filters`;
+  let filterPanelHeight = $state(535);
+  function closeFilters(returnFocus = true) {
+    filtersOpen = false;
+    if (returnFocus) filterButton?.focus();
+  }
+  async function toggleFilters() {
+    if (filtersOpen) { closeFilters(); return; }
+    filtersOpen = true;
+    await tick();
+    updateFilterPanelHeight();
+    filterInput?.focus();
+  }
+  function updateFilterPanelHeight() {
+    if (filtersOpen && filterPanel) {
+      const scrollport = filterPanel.closest('.content-area');
+      const composer = filterPanel.closest('.fullscreen-container')?.querySelector('[data-testid="embed-fixed-bottom"]');
+      const bottom = Math.min(window.innerHeight, scrollport?.getBoundingClientRect().bottom ?? window.innerHeight,
+        composer?.getBoundingClientRect().top ?? window.innerHeight);
+      filterPanelHeight = Math.max(160, Math.min(535, bottom - filterPanel.getBoundingClientRect().top - 16));
+    }
+  }
+  function dismissFilters(event: PointerEvent) {
+    if (!filtersOpen || !(event.target instanceof Node) || filterButton?.contains(event.target)) return;
+    // The text search remains a usable outside target for the domain popup.
+    // Let the pointer's default action focus it after dismissing domain controls.
+    if (filters && filterInput?.contains(event.target)) { closeFilters(false); return; }
+    const openPanel = filters ? filterPanel : filterShell;
+    if (!openPanel?.contains(event.target)) closeFilters();
+  }
+  let submittingRequest = $state(false);
+  function displayContext(): AppsRequestContext {
+    return { skill_id: skillId ?? (typeof parentContent.skill_id === 'string' ? parentContent.skill_id : undefined), input: parentContent.input && typeof parentContent.input === 'object' ? parentContent.input as Record<string, unknown> : query ? { query } : undefined, embed_id: currentEmbedId,
+      chat_id: sourceChat?.chatId ?? (typeof parentContent.chat_id === 'string' ? parentContent.chat_id : undefined), result: { ...parentContent, results: allResults } };
+  }
+  function requestContext(): AppsRequestContext {
+    if (!resultOwnerCurrent()) throw new Error('account_context_changed');
+    return displayContext();
+  }
+  const searchSaved = $derived(savedLocally || (resultOwnerCurrent() && (actions?.isSearchSaved?.(displayContext()) ?? isAppsSearchSaved(ownLibrary, displayContext()))));
+  const displayQuery = $derived(query || (typeof parentContent.request_text === 'string' ? parentContent.request_text : '') || (typeof parentContent.query === 'string' ? parentContent.query : '') || embedHeaderTitle || appsSearchQuery(displayContext()));
+  async function saveSearch(): Promise<void> {
+    if (searchSaved || savingSearch || libraryLoading || (!actions && parentLoading)) return;
+    savingSearch = true;
+    try {
+      const context = requestContext();
+      if (actions?.onSaveSearch) { if (await actions.onSaveSearch(context) === false) return; }
+      else ownLibrary = await saveAppsSearchWithNotice(appId, context, undefined, get(activeTeamContext).teamId ?? undefined);
+      if (resultOwnerCurrent()) savedLocally = true;
+    } catch { if (resultOwnerCurrent()) notificationStore.error($text('apps_workspace.request_error')); }
+    finally { savingSearch = false; }
+  }
+  async function createWorkflow(): Promise<void> {
+    try { const context = requestContext(); if (actions?.onCreateWorkflow) await actions.onCreateWorkflow(context); else await queueAppsWorkspaceWorkflowHandoff({ text: $text('apps_workspace.create_workflow_from_search'), context }); }
+    catch { if (resultOwnerCurrent()) notificationStore.error($text('apps_workspace.request_error')); }
+  }
+  function matchesFilter(result: T): boolean {
+    if (filters && !filters.matches(result)) return false;
+    if (!resultFilter.trim()) return true;
+    // Search only actual preview data; no speculative category/price filters.
+    const values = Object.entries(result).filter(([key]) => !['embed_id', 'embed_type'].includes(key));
+    return JSON.stringify(values).toLocaleLowerCase().includes(resultFilter.trim().toLocaleLowerCase());
+  }
+  async function submitFollowup(value: string, attachments: File[]): Promise<boolean> {
+    submittingRequest = true;
+    try {
+      if (actions) return (await actions.onSubmit(value, attachments, requestContext())) !== false;
+      const result = await runAppsWorkspaceRequest({ appId, text: value, attachments, guest: !$authStore.isAuthenticated, teamId: get(activeTeamContext).teamId ?? undefined,
+        context: requestContext(), onAccepted: ({ embedId }) => { setCanonicalFullscreenRoute(embedId); }, onChat: queueAppsWorkspaceChatHandoff, onWorkflow: queueAppsWorkspaceWorkflowHandoff });
+      if (result.action !== 'execute') onClose();
+      return true;
+    } catch { if (resultOwnerCurrent()) notificationStore.error($text('apps_workspace.request_error')); return false; }
+    finally { submittingRequest = false; }
+  }
+
   // ── Drill-down state ──
   /** Index of selected result (-1 = none, show grid) */
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
+  let hoveredResultRef = $state<string>();
+  let focusedResultRef = $state<string>();
+  const activeMapRefs = $derived(new Set([hoveredResultRef ?? focusedResultRef].filter((ref): ref is string => !!ref)));
+  const filteredMapResults = $derived(allResults.filter(matchesFilter));
+  const routeEntries = $derived(appId === 'travel' ? filteredMapResults.map(result => ({
+    ref: result.embed_id,
+    title: typeof (result as Record<string, unknown>).title === 'string' ? String((result as Record<string, unknown>).title) : '',
+    color: 'var(--color-app-travel-start)',
+    route: extractResultRoute(result as Record<string, unknown>),
+  })).filter(entry => entry.route.length > 1) : []);
+  const mapPaths = $derived(buildResultRoutePaths(routeEntries, activeMapRefs));
+  const mapMarkers = $derived(appId === 'travel' && routeEntries.length
+    ? buildResultMapMarkers(routeEntries, activeMapRefs, null, 'search-result')
+    : searchResultMapMarkers(filteredMapResults, {home: appId === 'home', translate: $text}));
+  function openMapResult(ref: string) {
+    const index = allResults.findIndex(result => result.embed_id === ref);
+    if (index >= 0) handleResultSelect(index, allResults);
+  }
   let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
@@ -236,6 +414,11 @@
   });
 
   let errorText = $derived(errorMessageProp || $text('chat.an_error_occured'));
+  let errorNotified = $state(false);
+  $effect(() => {
+    if (status !== 'error') { errorNotified = false; return; }
+    if (!errorNotified) { errorNotified = true; notificationStore.error(errorText); }
+  });
 
   // ── Handlers ──
 
@@ -248,7 +431,7 @@
     // synthetic IDs that are only valid inside this mounted fullscreen; publishing
     // them to the global hash makes the app-level resolver chase an unresolvable
     // embed and can hide the nested child overlay.
-    if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+    if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
       if (currentEmbedId) {
         setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
       } else {
@@ -263,7 +446,7 @@
       onClose();
     } else {
       selectedIndex = -1;
-      restorePreviousFullscreenRoute(currentEmbedId ?? null);
+      if (!localResults) restorePreviousFullscreenRoute(currentEmbedId ?? null);
     }
   }
 
@@ -279,7 +462,7 @@
     if (selectedIndex > 0) {
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+      if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
       }
@@ -290,7 +473,7 @@
     if (selectedIndex < allResults.length - 1) {
       selectedIndex += 1;
       const result = allResults[selectedIndex];
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+      if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
       }
@@ -322,12 +505,43 @@
   a full search grid behind the child fullscreen.
 -->
 
+  {#snippet mapHeader()}
+      <div data-testid="search-results-map" data-route-count={mapPaths.length}>
+        <EmbedLeafletMap center={mapMarkers[0] ?? mapPaths[0]?.points[0]} markers={mapMarkers} paths={mapPaths} height="300px" fitBounds={true} scrollWheelZoom={false}
+          zoomControlPosition="topleft" controlStyle="compact" onMarkerSelect={openMapResult} onRouteSelect={openMapResult} />
+      </div>
+  {/snippet}
+
+  {#snippet followupComposer()}
+    <div class="result-followup">
+      <AppsRequestComposer presentation="embed" {appId} submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
+    </div>
+  {/snippet}
+
+{#snippet searchHeaderActions()}
+  <div class="button-wrapper search-filter-button-wrapper">
+    <button bind:this={filterButton} type="button" class="header-action" data-testid="search-template-filter-button" data-icon={filtersOpen ? 'close' : 'filter'}
+      aria-label={$text('apps_workspace.filter_results')} aria-expanded={filtersOpen}
+      aria-controls={filterPanelId} onclick={toggleFilters}>
+      <span class="clickable-icon search-header-filter-icon top-button" class:search-filter-icon={!filtersOpen} class:close-icon={filtersOpen} aria-hidden="true"></span>
+      <span class="action-label">{$text('apps_workspace.filter_results')}</span>
+    </button>
+  </div>
+{/snippet}
+
+<svelte:window onresize={updateFilterPanelHeight} onpointerdown={dismissFilters} />
+
 <UnifiedEmbedFullscreen
+  escapeScope={{ consume: () => { if (!filtersOpen) return false; closeFilters(); return true; } }}
+  headerPrimaryAction={!initialChildEmbedId ? searchHeaderActions : undefined}
   {testId}
   {closeTestId}
+  {headerActions}
+  {headerActionCount}
   {appId}
   {skillId}
-  {embedHeaderTitle}
+  embedHeaderTitle={displayQuery}
+  embedHeaderTitleTestId={mapMarkers.length ? undefined : 'search-template-query'}
   {embedHeaderSubtitle}
   {embedHeaderFaviconUrl}
   {skillIconName}
@@ -357,17 +571,52 @@
   }}
   {onEmbedDataUpdated}
   {embedHeaderCta}
+  embedHeaderContent={mapMarkers.length > 0 && !initialChildEmbedId ? mapHeader : undefined}
+  floatingBottom={true}
+  fixedBottom={!initialChildEmbedId ? followupComposer : undefined}
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
+    {#if !initialChildEmbedId && status !== 'error'}
+      <div class="search-template-summary" data-testid="search-template-summary">
+        {#if mapMarkers.length}<h2 data-testid="search-template-query">{displayQuery}</h2>{/if}
+        <div class="search-template-actions">
+          {#if skillId && (actions?.onSaveSearch || parentContent.input || query)}
+            <button type="button" class="search-link" class:search-saved={searchSaved}
+              data-testid="search-template-save-search" aria-pressed={searchSaved}
+              disabled={searchSaved || savingSearch || libraryLoading || (!actions && parentLoading)} onclick={saveSearch}>
+              <span class="search-heart" aria-hidden="true"></span>
+              {searchSaved ? $text('apps_workspace.saved_search') : $text('apps_workspace.save_search')}
+            </button>
+          {/if}
+          <button type="button" class="search-link" data-testid="search-template-create-workflow" onclick={createWorkflow}>
+            <span class="search-workflow-icon" aria-hidden="true"></span>{$text('apps_workspace.create_workflow')}
+          </button>
+        </div>
+      </div>
+      {#if filters || filtersOpen}
+        <div bind:this={filterShell} class="search-template-filter-shell" id={!filters ? filterPanelId : undefined}>
+          <div class="search-template-toolbar" data-testid="search-template-toolbar">
+            <input bind:this={filterInput} type="search" bind:value={resultFilter} placeholder={$text('apps_workspace.filter_results')} aria-label={$text('apps_workspace.filter_results')} data-testid="search-template-filter" />
+          </div>
+          {#if filters && filtersOpen}
+            <div bind:this={filterPanel} id={filterPanelId} class="filter-menu" style:height={`${filterPanelHeight}px`} data-testid="search-template-filter-menu" data-layout="results-panel" role="region" aria-label={$text('embeds.results_view.filter')}>
+              <div class="filter-menu-summary">
+                <p class="filter-summary" data-testid="search-template-filter-summary">{$text('embeds.results_view.remaining', {values: {visible: results.filter(matchesFilter).length, total: results.length}})}</p>
+                <button type="button" class="clear-results-filters" data-testid="search-template-clear-filters" onclick={() => { resultFilter = ''; filters?.reset?.(); }}><DeleteFilterIcon size={17} />{$text('embeds.results_view.clear_filters')}</button>
+              </div>
+              <div class="filter-controls">{@render filters.controls()}</div>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    {/if}
+    {#if filters?.notices && !initialChildEmbedId}{@render filters.notices()}{/if}
 
     {#if isOpeningInitialChild || isDirectInitialChildOpen}
       <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
     {:else if status === 'error'}
-      <div class="search-template-error">
-        <div class="error-title">{$text('embeds.search_failed')}</div>
-        <div class="error-message">{errorText}</div>
-      </div>
+      <!-- Failure is reported through the shared notification system. -->
     {:else if results.length === 0}
       {#if ctx.isLoadingChildren}
         <!-- Skeleton loading grid -->
@@ -380,21 +629,35 @@
         </div>
       {:else}
         <div class="search-template-empty" data-testid={emptyTestId}>
+          {#if emptyContent}{@render emptyContent()}{:else}
           <p data-testid="search-no-results-message">
             {$text('embeds.search_no_results')}
           </p>
+          {/if}
         </div>
       {/if}
     {:else}
+      {#if !results.some(matchesFilter)}
+        <div class="search-template-empty" data-testid={emptyTestId} role="status">
+          {#if emptyContent}{@render emptyContent()}{:else}{$text('embeds.search_no_results')}{/if}
+        </div>
+      {/if}
       <!-- Results grid -->
       <div
         class="search-template-grid"
-        data-testid="search-template-grid"
+        data-testid={gridTestId}
+        data-embed-result-context="results"
+        inert={filtersOpen && Boolean(filters)}
         data-selected-index={selectedIndex}
         style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"
       >
         {#each results as result, i (result.embed_id)}
-          {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
+          {#if matchesFilter(result)}<div role="group" class="search-result-card" data-result-ref={result.embed_id}
+            onpointerenter={() => hoveredResultRef = result.embed_id} onpointerleave={() => hoveredResultRef = undefined}
+            onfocusin={() => focusedResultRef = result.embed_id}
+            onfocusout={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) focusedResultRef = undefined; }}>
+            {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
+          </div>{/if}
         {/each}
       </div>
     {/if}
@@ -422,7 +685,37 @@
 {/if}
 
 <style>
+  .search-template-summary { padding: var(--spacing-12) var(--spacing-8) var(--spacing-6); text-align: center; }
+  .search-template-summary h2 { margin: 0; color: var(--color-font-primary); font-size: var(--font-size-h3); overflow-wrap: anywhere; }
+  .search-template-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--spacing-6); margin-top: var(--spacing-5); }
+  .search-template-actions .search-link { all: unset; display: inline-flex; align-items: center; gap: var(--spacing-2); color: var(--color-font-secondary); font-size: var(--font-size-small); text-decoration: none; cursor: pointer; }
+  .search-template-actions .search-link:is(:hover, :active, :focus, :focus-visible) { text-decoration: none; }
+  .search-template-actions .search-link:hover { color: var(--color-primary); }
+  .search-template-actions .search-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: 2px; }
+  .search-template-actions .search-link:disabled { cursor: default; }
+  .search-template-actions .search-saved { color: var(--color-primary); text-decoration: none; }
+  .search-heart, .search-workflow-icon { width: 16px; height: 16px; flex: 0 0 auto; background-color: currentColor; mask-position: center; mask-size: contain; mask-repeat: no-repeat; }
+  .search-heart { mask-image: url('@openmates/ui/static/icons/heart.svg'); }
+  .search-saved .search-heart { background: var(--color-app-health-start); }
+  .search-workflow-icon { mask-image: url('@openmates/ui/static/icons/workflow.svg'); }
+  .search-filter-button-wrapper { position: relative; z-index: 1; background: var(--color-grey-10); border-radius: 40px; padding: var(--spacing-4); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); pointer-events: auto; }
+  .search-filter-button-wrapper .header-action { all: unset; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  .search-header-filter-icon { width: 25px; height: 25px; background: var(--color-primary); mask-position: center; mask-size: contain; mask-repeat: no-repeat; }
+  .search-filter-icon { mask-image: url('@openmates/ui/static/icons/filter.svg'); }
+  .close-icon { mask-image: url('@openmates/ui/static/icons/close.svg'); }
+  .search-template-filter-shell { position: sticky; top: 0; z-index: var(--z-index-dropdown); }
+  .search-template-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 64px 12px 20px; background: var(--color-grey-20); }
+  .search-template-toolbar input { flex: 1; min-width: 140px; border: 1px solid var(--color-grey-30); border-radius: 12px; padding: 10px 12px; background: var(--color-grey-10); color: var(--color-font-primary); }
+
+  .filter-menu { position: absolute; top: 100%; right: 0; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 1.2fr); gap: 24px; width: 100%; height: min(535px, calc(100dvh - 180px)); overflow: hidden; box-sizing: border-box; border: 0; border-radius: 23px; background: var(--color-grey-10); padding: 30px 18px 18px; box-shadow: var(--shadow-sm); }
+  .filter-menu-summary { align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 0; text-align: center; }
+  .filter-summary { margin: 0; color: var(--color-font-secondary); font-size: var(--font-size-h3-mobile); font-weight: 650; line-height: 1.35; }
+  .clear-results-filters { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; padding: 0; background: transparent; box-shadow: none; color: var(--color-primary-start); font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
+  .filter-controls { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 25px; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; padding: 0 4px 20px 0; }
+  .filter-menu button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
+  @container fullscreen (max-width: 520px) { .filter-menu { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 20px; padding: 25px 16px 16px; } .filter-menu-summary { gap: 7px; } .filter-summary { font-size: var(--font-size-small); } }
   /* Results grid -- responsive auto-fill columns */
+  .search-result-card { min-width: 0; }
   .search-template-grid {
     display: grid;
     gap: var(--spacing-8);
@@ -430,8 +723,10 @@
     max-width: var(--max-grid-width, 1000px);
     margin: 0 auto;
     padding: var(--spacing-12) var(--spacing-5);
-    padding-bottom: 120px;
-    grid-template-columns: repeat(auto-fill, minmax(var(--min-card-width, 280px), 1fr));
+    padding-bottom: 100px;
+    box-sizing: border-box;
+    overflow: clip;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min-card-width, 280px)), 1fr));
   }
 
   .search-template-child-transition {
@@ -460,7 +755,7 @@
   /* Ensure each embed preview card fills grid cell properly */
   .search-template-grid :global(.unified-embed-preview) {
     width: 100%;
-    max-width: 320px;
+    max-width: 300px;
     margin: 0 auto;
   }
 
@@ -470,7 +765,7 @@
   .search-template-grid :global(.unified-embed-preview.desktop) {
     width: 100% !important;
     min-width: unset !important;
-    max-width: 320px !important;
+    max-width: 300px !important;
   }
 
   /* Skeleton loading cards */
@@ -502,27 +797,5 @@
     font-size: var(--font-size-p);
   }
 
-  .search-template-error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-12) var(--spacing-8);
-    color: var(--color-font-secondary);
-    text-align: center;
-  }
 
-  .search-template-error .error-title {
-    font-size: var(--font-size-h3-mobile);
-    font-weight: 600;
-    color: var(--color-error);
-  }
-
-  .search-template-error .error-message {
-    font-size: var(--font-size-small);
-    line-height: 1.4;
-    max-width: 520px;
-    word-break: break-word;
-  }
 </style>

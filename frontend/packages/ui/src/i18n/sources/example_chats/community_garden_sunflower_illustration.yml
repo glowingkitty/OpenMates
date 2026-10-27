@@ -114,7 +114,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   de: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -157,7 +156,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   zh: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -200,7 +198,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   es: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -243,7 +240,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   fr: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -286,7 +282,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   pt: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -329,7 +324,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   ru: |-
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -372,7 +366,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   ja: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -415,7 +408,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   ko: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -458,7 +450,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   it: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -501,7 +492,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   tr: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -544,7 +534,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   vi: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -587,7 +576,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   id: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -630,7 +618,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   pl: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -673,7 +660,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   nl: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -716,7 +702,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   ar: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -759,7 +744,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   hi: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -802,7 +786,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   th: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -845,7 +828,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   cs: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -888,7 +870,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   sv: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -931,7 +912,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   he: |
     ```json
     {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
@@ -974,7 +954,6 @@ message_2:
     }
     ```
 
-    [!](embed:generated-media-images-83e98b9b8bcb)
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1

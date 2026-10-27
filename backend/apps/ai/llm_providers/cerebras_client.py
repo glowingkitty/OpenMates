@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
 from .openai_shared import (
+    openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
@@ -64,6 +65,7 @@ async def invoke_cerebras_api(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     top_p: Optional[float] = None,
+    prompt_cache_key: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the Cerebras Inference API with the given parameters.
@@ -99,6 +101,9 @@ async def invoke_cerebras_api(
         "stream": stream
     }
     
+    if prompt_cache_key:
+        payload["prompt_cache_key"] = prompt_cache_key
+
     # Add optional parameters if provided
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
@@ -248,6 +253,7 @@ async def _send_cerebras_request(
             breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
 
             usage = OpenAIUsageMetadata(
+                **openai_usage_details(usage_data, inference_host="cerebras", provider_request_id=response_data.get("id")),
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
                 total_tokens=usage_data.get("total_tokens", 0),
@@ -361,6 +367,8 @@ async def _stream_cerebras_response(
     payload["stream"] = True
     
     # Track usage across chunks
+    reported_usage: Dict[str, Any] = {}
+    provider_request_id = None
     cumulative_usage = {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -443,6 +451,12 @@ async def _stream_cerebras_response(
                     
                     try:
                         chunk = json.loads(line)
+                        provider_request_id = chunk.get("id") or provider_request_id
+                        merge_openai_usage(reported_usage, chunk.get("usage"))
+                        cumulative_usage["input_tokens"] = reported_usage.get("prompt_tokens", cumulative_usage["input_tokens"])
+                        cumulative_usage["output_tokens"] = reported_usage.get("completion_tokens", cumulative_usage["output_tokens"])
+                        cumulative_usage["total_tokens"] = reported_usage.get("total_tokens", cumulative_usage["total_tokens"])
+
                         
                         # Extract content from the chunk
                         choices = chunk.get("choices", [])
@@ -513,18 +527,6 @@ async def _stream_cerebras_response(
                             logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
                             yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
 
-                        # Update usage if present
-                        if "usage" in chunk:
-                            usage_chunk = chunk["usage"]
-                            cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
-                            
-                            # Calculate token breakdown from input messages (estimate)
-                            messages = payload.get("messages", [])
-                            breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
-                            cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")
-                            cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")
                     
                     except json.JSONDecodeError as e:
                         logger.warning(
@@ -535,6 +537,7 @@ async def _stream_cerebras_response(
                 
                 # Yield final usage information
                 yield OpenAIUsageMetadata(
+                    **openai_usage_details(reported_usage, inference_host="cerebras", provider_request_id=provider_request_id),
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
                     total_tokens=cumulative_usage["total_tokens"],

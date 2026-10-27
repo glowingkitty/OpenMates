@@ -1,16 +1,10 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { expect, test } from './helpers/cookie-audit';
+import { api, app, site, useWebsitePreview, watchPrivateStartup, website } from './helpers/website-preview';
 import publicationManifest from '../../../packages/public-site/src/publications/publicationManifest.v1.json';
 import newsReleases from '../../../packages/public-site/src/generated/newsReleases.generated.json';
 import publicApps from '../../../packages/public-site/src/generated/publicApps.generated.json';
 
-test.beforeEach(async ({ page }) => {
-  await page.route('**/api/server-status', route => route.fulfill({
-    json: { anonymous_free_usage: { active: true, can_send_text: true } },
-  }));
-});
+useWebsitePreview();
 
 // playwright-account: not_required reason=isolated_runner_local_public_website
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -23,107 +17,17 @@ const headerProof = defineVideoProof({
   tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
 });
 
-const root = path.resolve(__dirname, '../../../..');
-const website = 'http://127.0.0.1:5180';
-const app = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'http://127.0.0.1:5173').origin;
-const api = 'http://127.0.0.1:8000';
-const environment = {
-  ...process.env,
-  PUBLIC_WEBSITE_URL: website,
-  PUBLIC_WEBAPP_URL: app,
-  PUBLIC_NEWSLETTER_API_BASE_URL: api
-};
-let preview: ChildProcess | null = null;
 
-function terminateGroup(child: ChildProcess | null, signal: NodeJS.Signals = 'SIGTERM'): void {
-  if (!child?.pid) return;
-  try { process.kill(-child.pid, signal); } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
-  }
-}
-
-async function command(args: string[], timeoutMs: number): Promise<string> {
-  const child = spawn('corepack', ['pnpm', ...args], { cwd: root, env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-  let output = '';
-  const append = (chunk: Buffer) => { output = (output + chunk.toString()).slice(-24_000); };
-  child.stdout?.on('data', append);
-  child.stderr?.on('data', append);
-  const timer = setTimeout(() => terminateGroup(child, 'SIGKILL'), timeoutMs);
-  try {
-    const code = await new Promise<number>((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', (status) => resolve(status ?? -1));
-    });
-    if (code !== 0) throw new Error(`pnpm ${args.join(' ')} exited ${code}:\n${output}`);
-    return output;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function waitForWebsite(child: ChildProcess, output: () => string): Promise<void> {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Website preview exited before becoming ready:\n${output()}`);
-    try {
-      const response = await fetch(website, { signal: AbortSignal.timeout(2_000) });
-      if (response.ok) return;
-    } catch { /* The preview socket is not ready yet. */ }
-    await delay(250);
-  }
-  throw new Error(`Website preview did not become ready on port 5180 within 30 seconds:\n${output()}`);
-}
-
-test.beforeAll(async () => {
-  test.setTimeout(180_000);
-  await command(['--filter', 'website...', 'install', '--frozen-lockfile', '--ignore-scripts'], 50_000);
-  const build = await command(['--filter', 'website...', 'run', 'build'], 75_000);
-  expect(build).toContain('[plugin public-bundle-boundary] Website client JS:');
-  preview = spawn('corepack', ['pnpm', '--dir', 'frontend/apps/website', 'exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '5180', '--strictPort'], {
-    cwd: root, env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe']
-  });
-  let previewOutput = '';
-  const append = (chunk: Buffer) => { previewOutput = (previewOutput + chunk.toString()).slice(-4_000); };
-  preview.stdout?.on('data', append);
-  preview.stderr?.on('data', append);
-  preview.once('error', (error) => { previewOutput += `\n${error.message}`; });
-  try { await waitForWebsite(preview, () => previewOutput); } catch (error) { terminateGroup(preview, 'SIGKILL'); throw error; }
-});
-
-test.afterAll(async () => {
-  const child = preview;
-  preview = null;
-  if (!child) return;
-  terminateGroup(child);
-  if (child.exitCode === null && child.signalCode === null) {
-    await Promise.race([new Promise<void>((resolve) => child.once('exit', () => resolve())), delay(5_000)]);
-  }
-  if (child.exitCode === null) terminateGroup(child, 'SIGKILL');
-});
-
-function watchPrivateStartup(page: import('@playwright/test').Page) {
-  const privateRequests: string[] = [];
-  const sockets: string[] = [];
-  page.on('request', (request) => {
-    const url = request.url();
-    if (url.startsWith(app) || /\/v1\/(auth|users|chats|sync|workflows)(?:\/|\?|$)/.test(url)) privateRequests.push(url);
-  });
-  page.on('websocket', (socket) => sockets.push(socket.url()));
-  return () => {
-    expect(privateRequests, 'public routes must not start the app session or owner API').toEqual([]);
-    expect(sockets, 'public routes must not open WebSockets').toEqual([]);
-  };
-}
-
-const site = (pathname: string) => `${website}${pathname}`;
 async function assertPublicHeader(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: /archive/i })).toHaveCount(0);
   const header = page.getByTestId('public-site-header');
+  const language = await page.locator('html').getAttribute('lang');
+  const mode = await header.getAttribute('data-language-mode');
   await expect(header).toBeVisible();
-  await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
+  await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site(`/?lang=${language}`));
   await expect(header.locator('.wordmark')).toHaveText('OpenMates');
-  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/${mode === 'manual' ? `?lang=${language}` : ''}`);
   await expect(header.getByTestId('landing-language-button')).toHaveText('');
   await expect(page.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
   await expect(page.getByTestId('header-login-signup-btn')).toHaveCount(0);
@@ -150,7 +54,7 @@ test('standalone hero uses built app defaults and selects icons without app star
   await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').click();
   const prompt = page.getByTestId('landing-prompt');
   await expect(prompt).toHaveText('Find train connections');
-  await expect(prompt).toHaveAttribute('href', `${app}/#chat-id=${encodeURIComponent(travel.exampleChatId)}`);
+  await expect(prompt).toHaveAttribute('href', `${app}/?lang=en#chat-id=${encodeURIComponent(travel.exampleChatId)}`);
   await expect(prompt).toHaveAttribute('target', '_blank');
   await expect(prompt).toHaveCSS('opacity', '1');
   await expect(rail).toHaveAttribute('data-active-app', 'travel');
@@ -264,6 +168,61 @@ test('canonical news and blog details render in English and German', async ({ pa
   noPrivateStartup();
 });
 
+// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable
+test('switches the developer blog between distinct English and German slugs', async ({ page, request }) => {
+  const noPrivateStartup = watchPrivateStartup(page);
+  const en = '/blog/build-with-ai-openmates-rest-api-cli-sdk';
+  const de = '/de/blog/mit-ki-entwickeln-openmates-rest-api-cli-sdk';
+  await page.goto(site(en));
+  for (const [locale, route, alternateLocale, alternateRoute, title, imageHeading, imageUsage, nextLanguage] of [
+    ['en', en, 'de', de, 'Build with AI: OpenMates REST API, CLI, and SDKs', 'A picture can be part of a decision', 'their image tokens use the same free allowance or account credits', 'Deutsch'],
+    ['de', de, 'en', en, 'Mit KI entwickeln: REST-API, CLI und SDKs von OpenMates', 'Ein Bild kann Teil einer Entscheidung sein', 'Ihre Bildtokens verbrauchen dasselbe kostenlose Kontingent oder Kontoguthaben', 'English'],
+    ['en', en, 'de', de, 'Build with AI: OpenMates REST API, CLI, and SDKs', 'A picture can be part of a decision', 'their image tokens use the same free allowance or account credits', null]
+  ] as const) {
+    await expect(page).toHaveURL(site(route));
+    await assertPublicHeader(page);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', site(route));
+    await expect(page.locator(`link[hreflang="${locale}"]`)).toHaveAttribute('href', site(route));
+    await expect(page.locator(`link[hreflang="${alternateLocale}"]`)).toHaveAttribute('href', site(alternateRoute));
+    await expect(page.locator('link[hreflang="x-default"]')).toHaveAttribute('href', site(en));
+    const article = page.locator('.article-markdown');
+    await expect(article).toContainText('OpenMatesSignupRequiredError');
+    await expect(article).toContainText('detail.signup_required: true');
+    await expect(article.getByRole('heading', { name: imageHeading, exact: true })).toBeVisible();
+    await expect(article).toContainText(imageUsage);
+    await expect(article).toContainText('randomUUID()');
+    await expect(article).toContainText('uuid.uuid4()');
+    await expect(article).toContainText('data_base64');
+    await expect(article).not.toContainText('X-OpenMates-Anonymous-ID');
+    await expect(article).not.toContainText('OPENMATES_ANONYMOUS_ID');
+    await expect(article).not.toContainText('anonymous: true');
+    await expect(article).not.toContainText('anonymous=True');
+    await expect(article).toContainText('new OpenMates()');
+    await expect(article).toContainText('om = OpenMates()');
+    const restExample = article.locator('code.language-bash').filter({ hasText: '/v1/anonymous/apps/ai/skills/decide' });
+    await expect(restExample).toContainText("-H 'Content-Type: application/json'");
+    const statusExample = article.locator('code.language-bash').filter({ hasText: '/v1/anonymous/free-usage/status' });
+    await expect(statusExample).toHaveText('curl https://api.openmates.org/v1/anonymous/free-usage/status');
+    for (const language of ['typescript', 'python', 'bash']) {
+      const code = article.locator(`code.language-${language}`).filter({ has: page.locator('.hljs-string') }).first();
+      const token = code.locator('.hljs-string').first();
+      await expect(token).toBeAttached();
+      expect(await token.evaluate(el => getComputedStyle(el).color)).not.toBe(
+        await code.evaluate(el => getComputedStyle(el).color)
+      );
+    }
+    if (nextLanguage) {
+      await page.getByTestId('landing-language-button').click();
+      await page.getByTestId('landing-language-panel').getByRole('button', { name: nextLanguage, exact: true }).click();
+    }
+  }
+  const sitemap = await request.get(site('/sitemap.xml'));
+  // Local preview stays unindexed; publications.test.ts verifies localized production sitemap entries.
+  expect(sitemap.status()).toBe(404);
+  noPrivateStartup();
+});
+
 for (const width of [390, 1440]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content,marketing-landing.language-theme
   test(`public article language switching preserves its route and shared header (${width}px)`, async ({ page }, testInfo) => {
@@ -317,7 +276,7 @@ test('news subscriptions open the standalone public form in the publication lang
   ] as const) {
     await page.goto(site(route), { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: label }).click();
-    await expect(page).toHaveURL(site('/#newsletter'));
+    await expect(page).toHaveURL(site(`/?lang=${locale}#newsletter`));
     await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', locale);
     await expect(page.getByTestId('landing-newsletter')).toBeInViewport();
     await expect(page.locator('#newsletter input[type="email"]')).toBeVisible();
@@ -325,37 +284,100 @@ test('news subscriptions open the standalone public form in the publication lang
 });
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.public-content
-test('privacy, terms, and imprint are full styled public documents', async ({ page, request }) => {
+test('privacy, terms, and imprint are full styled public documents', async ({ page, request }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const noPrivateStartup = watchPrivateStartup(page);
   for (const slug of ['privacy', 'terms', 'imprint']) {
     let english = '';
-    for (const suffix of ['', '?lang=de']) {
-      const route = `/legal/${slug}${suffix}`;
+    for (const locale of ['en', 'de']) {
+      const route = `/legal/${slug}?lang=${locale}`;
       const response = await request.get(site(route));
       expect(response.status(), route).toBe(200);
       const html = await response.text();
       expect(html).toContain(`href="${site(`/legal/${slug}`)}"`);
+      expect(html).toContain(`<html lang="${locale}" dir="ltr">`);
       expect(html).toMatch(/<main class="legal-document(?:\s|")/);
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
       const article = page.locator('.legal-document article');
       const header = page.getByTestId('public-site-header');
       await expect(header).toBeVisible();
-      await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
-      await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+      await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site(`/?lang=${locale}`));
+      await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/${await header.getAttribute('data-language-mode') === 'manual' ? `?lang=${locale}` : ''}`);
       await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
       await expect(header.locator('.wordmark')).toBeVisible();
       await expect(header.getByTestId('landing-language-button')).toHaveText('');
       await header.getByTestId('landing-language-button').click();
       const languageOptions = header.getByTestId('landing-language-panel').locator('.language-options button');
-      await expect(languageOptions).toHaveCount(2);
-      expect(await languageOptions.evaluateAll((options) => options.map((option) => option.getAttribute('lang')).sort())).toEqual(['de', 'en']);
-      await header.getByTestId('landing-language-panel').getByRole('button', { name: suffix ? 'English' : 'Deutsch', exact: true }).click();
-      await expect(page).toHaveURL(site(`/legal/${slug}${suffix ? '' : '?lang=de'}`));
+      await expect(languageOptions).toHaveCount(3);
+      expect(await header.getByTestId('landing-language-panel').locator('.language-options button[lang]').evaluateAll((options) => options.map((option) => option.getAttribute('lang')).sort())).toEqual(['de', 'en']);
+      await header.getByTestId('landing-language-panel').getByRole('button', { name: locale === 'de' ? 'English' : 'Deutsch', exact: true }).click();
+      await expect(page).toHaveURL(site(`/legal/${slug}?lang=${locale === 'de' ? 'en' : 'de'}`));
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await page.evaluate(() => document.fonts.ready);
       await expect(article.locator('h1')).toBeVisible();
+      for (const width of slug === 'privacy' ? [320, 390, 1440] : [320, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        const layout = await article.evaluate(element => {
+          const title = element.querySelector('h1')!;
+          const footer = document.querySelector('.site-footer')!;
+          return {
+            pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            articleOverflow: element.scrollWidth - element.clientWidth,
+            headingOverflow: [...element.querySelectorAll('h1, h2, h3')].map(heading => heading.scrollWidth - heading.clientWidth),
+            tableWidths: [...element.querySelectorAll('table')].map(table => table.getBoundingClientRect().width),
+            articleWidth: element.getBoundingClientRect().width,
+            titleHeight: title.getBoundingClientRect().height,
+            titleLineHeight: Number.parseFloat(getComputedStyle(title).lineHeight),
+            footerOverflow: footer.scrollWidth - footer.clientWidth,
+          };
+        });
+        // The shared public header has a separate pre-existing 320px minimum;
+        // verify the entire page at larger widths and legal content/footer at all widths.
+        if (width >= 390) expect(layout.pageOverflow, `${route} must fit the viewport at ${width}px`).toBeLessThanOrEqual(1);
+        expect(layout.articleOverflow, `${route} must wrap rather than clip legal text at ${width}px`).toBeLessThanOrEqual(1);
+        expect(layout.footerOverflow, `${route} footer links must wrap at ${width}px`).toBeLessThanOrEqual(1);
+        for (const overflow of layout.headingOverflow) expect(overflow).toBeLessThanOrEqual(1);
+        for (const tableWidth of layout.tableWidths) expect(tableWidth).toBeLessThanOrEqual(layout.articleWidth + 1);
+        if (width === 390 && locale === 'de' && slug === 'privacy') {
+          expect(layout.titleHeight, 'the German privacy title must not strand its ending on a second line').toBeLessThanOrEqual(layout.titleLineHeight + 1);
+        }
+        if (slug === 'privacy') {
+          const providers = article.getByRole('table');
+          const fragmentedWords = await providers.evaluate(table => {
+            const split: string[] = [];
+            for (const cell of table.querySelectorAll('th, td:last-child')) {
+              const bounds = cell.getBoundingClientRect();
+              const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                for (const match of (node.textContent ?? '').matchAll(/\S+/g)) {
+                  const range = document.createRange();
+                  range.setStart(node, match.index);
+                  range.setEnd(node, match.index + match[0].length);
+                  const fragments = [...range.getClientRects()];
+                  if (fragments.length > 1 || fragments.some(fragment => fragment.left < bounds.left - 1 || fragment.right > bounds.right + 1)) split.push(match[0]);
+                }
+              }
+            }
+            return split;
+          });
+          expect(fragmentedWords, `provider headings and date words must remain whole inside their columns at ${width}px`).toEqual([]);
+          await providers.getByRole('columnheader').first().scrollIntoViewIfNeeded();
+          await expect(providers.getByRole('columnheader').last()).toBeInViewport();
+          await expect(providers.locator('tbody tr').first().getByRole('cell').last()).toBeInViewport();
+          await testInfo.attach(`legal-privacy-${locale}-${width}px-table`, { body: await page.screenshot(), contentType: 'image/png' });
+        }
+      }
       const body = await article.innerText();
       expect(body.length, `${route} must contain the complete legal document`).toBeGreaterThan(slug === 'imprint' ? 50 : 1_000);
       await expect(article.locator('h2')).not.toHaveCount(0);
+      if (slug === 'privacy') {
+        const providers = article.getByRole('table');
+        await expect(providers.getByRole('columnheader')).toHaveCount(4);
+        await expect(providers.locator('tbody tr > td:first-child').filter({ hasText: /^AWS Bedrock(?:\s|$)/ })).toHaveCount(1);
+        expect(await providers.getByRole('row').count(), 'the complete provider disclosure stays in its accessible table').toBeGreaterThan(10);
+      }
       if (slug === 'imprint') {
         await expect(article).toContainText('contact@openmates.org');
         await expect(article.locator('img')).toHaveCount(4);
@@ -364,7 +386,7 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
           expect((await request.get(new URL(source!, website).href)).status()).toBe(200);
         }
       }
-      if (!suffix) english = body;
+      if (locale === 'en') english = body;
       else expect(body).not.toBe(english);
       expect(await article.evaluate((element) => getComputedStyle(element).lineHeight)).not.toBe('normal');
       await expect(page.locator('[data-testid="active-chat-container"]')).toHaveCount(0);

@@ -63,6 +63,9 @@ export function resolveRegistryKey(
 	// A recording is user-owned media, even if it carries audio generation metadata.
 	if (normalized === 'recording' && hasFullscreenComponent(normalized)) return normalized;
 
+	// News articles share website storage with web results, but retain News UI.
+	if (appId === 'news' && (normalized === 'web-website' || skillId === 'search')) return 'news-article';
+
 	if (typeof appId === 'string' && typeof skillId === 'string') {
 		const childKey = EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`];
 		if (childKey && childKey in EMBED_FULLSCREEN_COMPONENTS) {
@@ -82,7 +85,7 @@ export function resolveRegistryKey(
  * Check if the registry has a fullscreen component for a given key.
  */
 export function hasFullscreenComponent(key: string): boolean {
-	return key in STATIC_FULLSCREEN_COMPONENTS || key in EMBED_FULLSCREEN_COMPONENTS;
+	return key in STATIC_FULLSCREEN_COMPONENTS || key in FULLSCREEN_PATH_OVERRIDES || key in EMBED_FULLSCREEN_COMPONENTS;
 }
 
 /**
@@ -92,6 +95,10 @@ export function hasFullscreenComponent(key: string): boolean {
 const modules = import.meta.glob<{ default: Component }>(
 	'../components/embeds/**/*EmbedFullscreen.svelte'
 );
+
+const FULLSCREEN_PATH_OVERRIDES: Record<string, string> = {
+	'news-article': 'news/NewsArticleEmbedFullscreen.svelte',
+};
 
 const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
 
@@ -136,7 +143,7 @@ export async function loadFullscreenComponent(
 async function loadFullscreenComponentUncached(
 	key: string
 ): Promise<Component | null> {
-	const path = EMBED_FULLSCREEN_COMPONENTS[key];
+	const path = FULLSCREEN_PATH_OVERRIDES[key] ?? EMBED_FULLSCREEN_COMPONENTS[key];
 	if (!path) return null;
 
 	const importPath = `../components/embeds/${path}`;

@@ -186,3 +186,179 @@ destination. A new TestFlight binary containing this feature is needed for those
 device checks under the authorized delivery route. Installed apps and account data
 remain preserved. The Plan remains implementing and TASK-2444 remains in progress;
 the feature is **not yet natively verified**.
+
+## Apple release and evidence audit — 2026-10-14
+
+The approved source was published as
+`df80a02f4bf54d87120c85b161551639d31ba9c4`. All 1,174 published shipping
+inputs match the local archive inputs. Both signed archive receipts bind native
+content SHA-256
+`95f6c934ead6751ecebcd27aa98cfabc0b35cb24f3a24c44c54ca2167fa862f8`;
+their original local Git identity is retained separately rather than rewritten
+to the publication commit.
+
+**0.27.0 (98)** compiles and is available through TestFlight for iPhone, iPad,
+the embedded Watch app, and universal macOS (Apple Silicon and Intel). The
+existing Mac installation was updated through TestFlight and opens with its
+account preserved. The Tasks board renders without the earlier cancellation
+error. These observations close the previous compilation and delivery gaps;
+they do not establish scheduled notification receipt or destination behavior.
+Apple accepted the Mac upload with a missing-symbol warning for the bundled
+ONNX framework. The app's signed archives, available symbols, logs and warning
+receipt are retained.
+
+The three focused test files and examined notification implementation files
+remain hash-identical to the historical 68-test pass. Lifecycle, authentication,
+socket and project inputs have changed, so the historical 515-test result is
+not a fresh test of build 98 or all its dependencies.
+
+The source audit found a remaining Personal-context handoff defect:
+`MainAppView.openPendingWorkflowCompletion` resolves a Personal completion
+without first completing initial Team restoration and switching to Personal.
+Workflow list/detail calls capture the current Team, so a selected Team can
+prevent the exact Personal run from resolving. A simple early context reset
+would race cold-launch restoration. The scoped correction must wait for the
+current owner's restoration, switch once before capturing destination scope,
+and invalidate on identity changes or a later deliberate Team selection.
+Focused regressions and physical-device proof remain required after correction.
+
+**Still pending:** real scheduled-completion APNs receipt and native taps;
+exact created/responded-to chat and message or exact no-Send run; cold launch,
+login handoff and Team-to-Personal routing; unavailable/deleted/mismatched
+destinations without fallback; encrypted preview consent/privacy; owner
+claim/persist/acknowledgment and duplicate/competing-device handling; and actual
+email Universal Link handoff. Intercepted provider dispatch, unit tests and
+TestFlight availability do not prove these outcomes. TASK-2444 remains in
+progress and the feature is **not yet natively verified**.
+
+
+## macOS encrypted preview packaging defect — 2026-10-14
+
+Read-only inspection of the installed TestFlight **0.27.0 (98)** confirms that
+the app, notification service, widget and share extension configure an
+unprefixed `OpenMatesKeychainAccessGroup`, while their actual distribution
+signatures grant the team-prefixed shared group. The unsigned Mac archive
+command omitted `AppIdentifierPrefix`; later signing resolved entitlements
+without correcting the already-expanded Info.plists. The corresponding iOS
+archive uses the correct prefixed configuration.
+
+This is a confirmed packaging defect and a candidate cause of generic Mac
+notification previews. Both platforms register through the APNs path, and the
+examined server code includes encrypted previews and `mutable-content` for
+Mac as for iOS. There is no observed Mac-specific content-consent exclusion.
+A bounded unified-log query returned no retained entries, so it does not prove
+whether the reported notification lacked ciphertext or failed local decryption.
+
+The release helper now supplies the explicit configured prefix and rejects
+incorrect app/extension Info.plist groups or missing signed grants before
+signing, on archive resume, and after export. The focused Python release
+suite passes **181 tests**. Existing notification-key migration preserves the
+recipient key and uses the Mac shared data-protection Keychain; generic fallback
+remains fail closed. Fresh native compilation, a corrected distribution archive,
+and actual background/terminated Mac push receipt are still required.
+
+
+## Fresh focused Simulator follow-up — 2026-10-14
+
+The updated iOS app and embedded Watch app compile successfully. The
+source-matched Debug Simulator binary is **0.27.0 (12)**, distinct from
+TestFlight **0.27.0 (98)**. Its focused unit run passes **308 tests**, including
+all **78** current notification destination/privacy/workflow regressions:
+`AppDeepLinkRoutingTests` (33), `NotificationPreviewCryptoTests` (9), and
+`WorkflowsParityTests` (36). The required test files, notification implementation
+and Personal handoff source remain identical to that tested snapshot.
+
+Native337 retains the successful build and its source manifest; native342
+retains the matching test-product reuse receipt, finalized unit result bundle
+and exact Xcode result summary. An earlier test start and the subsequent long
+UI batch were interrupted by the unchanged 12 GiB disk reserve. The unit result
+is complete; the interrupted UI result has no finalized Info.plist, so its
+recordings cannot be exported through xcresulttool. That incomplete UI bundle
+and the export failure remain retained. Fixture/test corrections and smaller
+UI runs are pending; the unit pass does not establish those visual outcomes.
+
+These Simulator tests cover the Personal-context correction and scoped
+notification logic. They do not establish Mac extension invocation, real APNs
+receipt, native notification taps, competing-device delivery, or completion
+email Universal Links. TASK-2444 remains in progress and is not yet natively
+verified.
+
+
+## Source-bound native regression follow-up — 2026-10-20
+
+The current iOS/embedded Watch build-for-testing succeeds with the new iOS
+notification content extension. The tested Simulator product is **0.28.0 (12)**;
+it is not a TestFlight delivery. Native475 records the successful build and
+unchanged full release/test inputs; native478 records the finalized focused run.
+Both use actual checkout HEAD `234ff583686c7a832845a8a65ba82c1217a2e7f4`
+with the retained overlay, shipping content SHA-256
+`835b7cfee53afba739ba9a9601c24da19d290da71429a5a25457fc29a03dddae`
+(1,843 shipping files; 2,151 total release/test inputs).
+
+All **78** required regressions pass: AppDeepLinkRoutingTests (33),
+NotificationPreviewCryptoTests (9), and WorkflowsParityTests (36).
+NotificationReplyContextTests also passes all 17 tests. The broader selected
+run finishes with **519 passed, two failed, and one skipped**; it is not an
+overall passing run. The failures concern a notification preflight test's
+phase assumption and the Billing route inventory, with scoped repairs prepared
+for focused rerun. The skipped opt-in Watch socket check is not device proof.
+The run stays above the unchanged 12 GiB reserve and all captured inputs remain
+unchanged during compilation and execution.
+
+Expanded notification editing, sole-Send interaction, real APNs receipt,
+notification taps and email Universal Link destinations still require native
+UI/device evidence. Current source and unit tests do not close those gaps.
+The installed Mac remains the earlier TestFlight build until a new delivery
+and installed-binary check establish otherwise. TASK-2444 remains in progress
+and is **not yet natively verified**.
+
+
+## Native and publication checkpoint — 21 October 2026, 13:24 Berlin
+
+TASK-2444 remains **in progress and not yet natively verified**. The managed
+Apple integration is published to dev as
+`c8e7d4f6f09bcb077cd9c940a27a52888853c17d`; its normal deployment and
+wait-deploy checks pass. This establishes source publication and web deployment,
+not Apple notification delivery or TestFlight availability.
+
+Native509 passes all 78 requested iOS Simulator notification regressions:
+AppDeepLinkRoutingTests (33), NotificationPreviewCryptoTests (9), and
+WorkflowsParityTests (36). Its broader run has 597 passes, two failures and one
+skip; it is not an overall pass. The two Project/Watch failures were repaired
+and the focused native522 run passes 191 tests with one opt-in skip. Neither
+run is a macOS unit result: the current Mac route has no unit-test runner;
+retained Mac qualification is compile-only.
+
+Native544 successfully builds the iOS/embedded Watch test product, with no
+changed captured inputs. Its frozen shipping identity is
+`c3be49edbbeb4a9f46046a4adad8eb2ded6fc330c557c8769c65916ab5c5b026`
+(1,842 release inputs; 2,151 release/test inputs), mapped to original immutable
+candidate `2add06a357e046b8d4b2edacfad64b9ed9d594f6`. The active archive uses
+that frozen source. Published dev `c8e7d4f6…` separately includes upstream
+reconciliation and auxiliary publication differences: derived locale and
+Specification artifacts, the exact upstream lockfile, and Whistle packaging
+test classification/lint fixes. These identities are not interchangeable;
+publication does not prove every published auxiliary byte was in the archive.
+
+Native545 UI execution stopped at the disk reserve (exit 143) without an
+accepted proof clip. The query/activity/Loaded Memories corrections from the
+native537 investigation are applied, but no final passing UI run establishes
+their visible result. In particular, expanded notification editing, sole-Send
+interaction, real APNs receipt, native taps, competing-device/duplicate/privacy
+behavior and completion-email Universal Link destinations remain open.
+
+At this checkpoint, the third release attempt (release557), version **0.28.0
+(99)**, is still compiling. **No accepted upload, processing completion,
+TestFlight availability or installed-binary verification is claimed.** The
+release owner must append the final iOS/iPadOS/Watch result, then Mac result,
+with accepted upload/processing receipts and the installed versions. This
+checkpoint deliberately leaves those outcomes pending.
+
+
+## Release-owner delivery checkpoint
+
+At **21 October 2026, 13:39 Berlin**, release557 is still compiling the iOS production application after the embedded Watch app linked and signed. No iOS or Mac archive/upload completion receipt exists yet. **No new TestFlight upload, processing completion, availability or installed build is claimed.** The last confirmed installed/delivered release remains **0.27.0 (98)**. The requested new release is **0.28.0 (99)** for iOS/iPadOS/Watch followed by macOS, minimum OS26.2.
+
+Two earlier attempts stopped at the unchanged12GiB free-space reserve; their logs and source checks are retained. This third attempt remains active with the same frozen native source. Its normal serial release helper will validate/upload iOS before building/uploading Mac. Signed archives, account data and recovery evidence are preserved.
+
+The exact running stage and any subsequent accepted-upload outcome must be read from the release receipts and final release-owner report. This dated checkpoint is not a claim that the session's delivery objective is complete.

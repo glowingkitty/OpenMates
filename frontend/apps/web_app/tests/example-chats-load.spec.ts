@@ -30,6 +30,7 @@ const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
 	'audio-speak-welcome-message'
 ];
 
+
 const GENERATED_AUDIO_EXAMPLE_CASES = [
 	{
 		chatId: 'example-community-garden-volunteer-chime',
@@ -37,13 +38,6 @@ const GENERATED_AUDIO_EXAMPLE_CASES = [
 		skillId: 'generate',
 		promptSnippet: 'Create a short, warm notification sound for a community garden app',
 		embedPromptSnippet: 'Warm and gentle two-note acoustic chime'
-	},
-	{
-		chatId: 'example-audio-speak-openmates-welcome-message',
-		slug: 'audio-speak-openmates-welcome-message',
-		skillId: 'speak',
-		promptSnippet: 'Say this as a warm, natural welcome message',
-		embedPromptSnippet: 'Say this as a warm, natural welcome message'
 	}
 ] as const;
 
@@ -174,6 +168,7 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
 		page
@@ -253,42 +248,19 @@ test.describe('Example chats loading for new users', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(60000);
-
-		await page.goto(getE2EDebugUrl('/#chat-id=example-us-egg-prices-deep'), {
-			waitUntil: 'domcontentloaded'
-		});
-
-		const userMessage = page.getByTestId('user-message-content').filter({
-			hasText: 'Why did US egg prices stay high after avian flu eased?'
-		});
-		await expect(userMessage).toBeVisible({ timeout: 15000 });
-		await expect(
-			userMessage,
-			'Deep research example should demonstrate auto-selection, not @focus forcing.'
-		).not.toContainText('@focus:');
-
-		const carousel = page.getByTestId('sub-chats-carousel');
-		await expect(carousel).toBeVisible({ timeout: 15000 });
-		await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(3);
-
-		const focusBar = page.getByTestId('focus-mode-bar');
-		await expect(focusBar).toBeVisible({ timeout: 15000 });
-		await expect(focusBar.getByTestId('focus-status-label')).toContainText('Deep research');
-		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
-	});
+  // contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  test('retained web search replacement shows its real natural request', async ({ page }: { page: any }) => {
+    await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('user-message-content').filter({ hasText: 'rocket' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('sub-chats-carousel')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
+  });
 
 	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('chat edge fade stays shallow and fullscreen results restore the hidden chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(getE2EDebugUrl('/#chat-id=example-ai-workshops-meetups-berlin'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
 		const history = page.getByTestId('chat-history-container');
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 		for (const width of [900, 1440]) {
@@ -298,6 +270,7 @@ test.describe('Example chats loading for new users', () => {
 			await expect.poll(() => history.evaluate((element: HTMLElement) => getComputedStyle(element).maskImage)).toMatch(/rgba\(0, 0, 0, 0\) 0%, rgb\(0, 0, 0\) 30px/);
 		}
 
+		await page.getByTestId('assistant-activity-toggle').first().click();
 		const preview = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
 		const parent = await openFullscreen(page, preview);
 		const chatClose = page.getByTestId('chat-close-button');
@@ -324,7 +297,7 @@ test.describe('Example chats loading for new users', () => {
 		page: any;
 	}) => {
 		test.setTimeout(60000);
-		const exampleChatId = 'example-ai-workshops-meetups-berlin';
+		const exampleChatId = 'example-gigantic-airplanes';
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
 			waitUntil: 'domcontentloaded'
@@ -332,33 +305,20 @@ test.describe('Example chats loading for new users', () => {
 
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 
+		await page.getByTestId('assistant-activity-toggle').first().click();
 		const appSkillGroup = page.getByTestId('app-skill-embed-group').first();
-		await expect(appSkillGroup, 'Berlin AI workshops example should render its grouped app-skill previews').toBeVisible({ timeout: 15000 });
-		await expect(appSkillGroup.getByText('5 app skills used:', { exact: true })).toBeVisible({
-			timeout: 15000
-		});
-
-		const appSkillItems = appSkillGroup.locator('[data-embed-type="app-skill-use"][data-embed-item-id]');
-		await expect(appSkillItems, 'Berlin AI workshops example should keep all five parent embeds in the group').toHaveCount(5, {
-			timeout: 15000
-		});
-
-		const finishedPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-status="finished"]');
-		await expect(finishedPreviews, 'Berlin AI workshops example should mount all five finished app-skill previews').toHaveCount(5, {
-			timeout: 15000
-		});
-
-		const eventsPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
-		await expect(eventsPreviews, 'Berlin AI workshops example should render three event-search previews').toHaveCount(3);
-		const webPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]');
-		await expect(webPreviews, 'Berlin AI workshops example should render two web-search previews').toHaveCount(2);
-		for (let index = 0; index < 2; index += 1) {
-			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should use decoded result_count`).toContainText('+ 6 more');
-			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should not hide a known result count behind a generic fallback`).not.toContainText('Open to view results');
-		}
-		for (let index = 0; index < 3; index += 1) {
-			await expect(eventsPreviews.nth(index), `event-search preview ${index + 1} should use decoded result_count`).toContainText('+ 10 more');
-		}
+		await expect(appSkillGroup).toBeVisible({ timeout: 15000 });
+		await expect(appSkillGroup.getByText('4 app skills used:', { exact: true })).toBeVisible();
+		await expect(appSkillGroup.locator('[data-embed-type="app-skill-use"][data-embed-item-id]')).toHaveCount(4);
+		await expect(appSkillGroup.locator('[data-testid="embed-preview"][data-status="finished"]')).toHaveCount(4);
+		await expect(appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"]')).toHaveCount(3);
+		const webPreview = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]');
+		await expect(webPreview).toHaveCount(1);
+		await expect.poll(async () => {
+      const remaining = Number((await webPreview.getByTestId('search-preview-remaining-count').innerText()).match(/\d+/)?.[0]);
+      return remaining + await webPreview.locator('img.favicon').count();
+    }).toBe(6);
+		await expect(webPreview).not.toContainText('Open to view results');
 
 		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
@@ -567,14 +527,18 @@ test.describe('Example chats loading for new users', () => {
 		await expect(selectedRecipeCard.getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
 		await selectedRecipeCard.click();
 		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
-		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
-		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('american');
+		await expect(page.getByTestId('result-facts')).toContainText('4 servings');
+		await page.getByTestId('nutrition-recipe-tags').getByRole('button').click();
+		await expect(page.getByRole('tooltip')).toContainText('Vegetarian');
+		await page.keyboard.press('Escape');
+		await page.getByTestId('nutrition-recipe-categories').getByRole('button').click();
+		await expect(page.getByRole('tooltip')).toContainText('american');
+		await page.keyboard.press('Escape');
 		// Reviewed selected result: 81.44995g total protein / 4 servings.
 		await expect(page.locator('body')).toContainText('20.4g');
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-generate.surface-parity
 	test('generated audio examples use natural prompts and recording-style playback', async ({
 		page,
 		request
@@ -646,16 +610,16 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=audio-speak.output.playable-audio,public-example-chats.transcript.safe-rendering
-	test('generated audio speech example renders mobile playback controls', async ({
+	// contract-test: direct surface=gui.web assertions=audio-generate.output.playable-audio,public-example-chats.transcript.safe-rendering
+	test('generated audio chime example renders mobile playback controls', async ({
 		page
 	}: {
 		page: any;
 	}) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 390, height: 844 });
-		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[1];
-		expect(exampleCase.skillId, 'audio.speak example case should exist').toBe('speak');
+		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[0];
+		expect(exampleCase.skillId, 'audio.generate example case should exist').toBe('generate');
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
 			waitUntil: 'domcontentloaded'
@@ -663,154 +627,51 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 
 		const preview = page
-			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="speak"][data-status="finished"]')
+			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="generate"][data-status="finished"]')
 			.first();
-		await expect(preview, 'mobile audio.speak example should render a finished generated-audio preview').toBeVisible({
+		await expect(preview, 'mobile audio.generate example should render a finished generated-audio preview').toBeVisible({
 			timeout: 15000
 		});
 		await preview.scrollIntoViewIfNeeded();
-		await expect(preview.getByTestId('audio-speak-preview-play-button')).toBeVisible({ timeout: 15000 });
-		const previewAudio = preview.getByTestId('audio-speak-audio');
+		await expect(preview.getByTestId('audio-generate-preview-play-button')).toBeVisible({ timeout: 15000 });
+		const previewAudio = preview.getByTestId('audio-generate-audio');
 		await expect(previewAudio).toBeAttached({ timeout: 15000 });
-		await expectAudioCanPlay(previewAudio, 'mobile audio.speak preview audio');
+		await expectAudioCanPlay(previewAudio, 'mobile audio.generate preview audio');
 
 		const fullscreenOverlay = await openFullscreen(page, preview);
-		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen')).toBeVisible({ timeout: 15000 });
-		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
-		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-speak-fullscreen-audio');
+		await expect(fullscreenOverlay.getByTestId('audio-generate-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay.getByTestId('audio-generate-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
+		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-generate-fullscreen-audio');
 		await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
-		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.speak fullscreen audio');
+		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.generate fullscreen audio');
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-processing-feedback.completed-processing-summary
-	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(120000);
+	test('historical transport results retain route geometry and child drilldown without a public example', async ({ page }: { page: any }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-
-		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), {
-			waitUntil: 'domcontentloaded'
-		});
-
-		const assistantMessage = page.locator('[data-testid="message-assistant"][data-message-id="9d5fe6e2-bb2b-5491-91fa-7483132bfde0"]');
-		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
-
-		const activity = assistantMessage.getByTestId('assistant-activity-group');
-		const toggle = activity.getByTestId('assistant-activity-toggle');
-		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-		await expect(activity.getByTestId('assistant-activity-summary-text')).not.toBeEmpty();
-		await expect(activity.getByTestId('assistant-activity-body')).toHaveCount(0);
-		await expect(assistantMessage.locator('[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"]')).toHaveCount(0);
-		// Result routes stay inline while the invocation is collapsed.
-		await expect(assistantMessage.getByTestId('embeds-map-view')).toBeVisible();
-		await toggle.click();
-		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-		await expect(activity.getByTestId('assistant-activity-body')).toBeVisible();
-
-		const travelSearchCards = assistantMessage.locator(
-			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
-		);
-		await expect.poll(async () => travelSearchCards.count(), {
-			message: 'Deutschlandticket example should render at least one finished travel search preview',
-			timeout: 15000
-		}).toBeGreaterThan(0);
-
-		const travelSearchCount = await travelSearchCards.count();
-		for (let index = 0; index < travelSearchCount; index += 1) {
-			const card = travelSearchCards.nth(index);
-			await expect(card, `travel search preview ${index + 1} should keep route metadata`).toContainText(
-				/Bonn.*M(unich|ünchen)/i
-			);
-			await expect(card, `travel search preview ${index + 1} should keep date metadata`).toContainText(
-				/(Aug 12|2026-08-12)/i
-			);
+		await page.goto('/dev/preview/embeds/travel/TravelSearchEmbedFullscreen?chrome=0&variant=routeOverview&width=390');
+		const map = page.getByTestId('search-results-map');
+		await expect(map).toHaveAttribute('data-route-count', '2');
+		await expect(map.getByTestId('search-result-route-path')).toHaveCount(2);
+		const cards = page.locator('.search-result-card');
+		await expect(cards).toHaveCount(2);
+		await expect(cards.first()).toContainText('Hamburg Central Station');
+		await expect(cards.last()).toContainText('Leipzig Central Station');
+		for (const card of await cards.all()) {
+			const details = card.getByTestId('connection-preview-details');
+			await expect(details).toBeVisible();
+			await expectNoPreviewOverflow(details, 'historical transport card details');
 		}
-
-		const firstTravelSearch = travelSearchCards.first();
-		await expect(firstTravelSearch, 'parent preview should use result_count/embed_ids instead of showing 0').toContainText('5 connections');
-
-		await toggle.click();
-		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-		await expect(activity.getByTestId('assistant-activity-body')).toHaveCount(0);
-
-		const mapView = assistantMessage.getByTestId('embeds-map-view');
-		await expect(mapView, 'Deutschlandticket example should include a grouped route map view').toBeVisible({ timeout: 15000 });
-		await expect(mapView).toContainText('Bonn');
-		await mapView.scrollIntoViewIfNeeded();
-		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
-			message: 'grouped Deutschlandticket map should render all route polylines',
-			timeout: 15000
-		}).toBeGreaterThanOrEqual(5);
-		const initialRouteCount = Number(
-			await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')
-		);
-		await expect.poll(async () => mapView.getByTestId('embeds-map-view-map').getAttribute('data-map-hydrated'), {
-			message: 'grouped Deutschlandticket map should lazy-hydrate once visible',
-			timeout: 15000
-		}).toBe('true');
-		await expect(mapView.getByTestId('embed-leaflet-map')).toHaveCount(1, { timeout: 15000 });
-
-		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
-		await expect(filterButton).toBeVisible();
-		await filterButton.click();
-		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
-		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
-		await expect(filterMenu).toContainText('Departure time');
-		await expect(filterMenu).toContainText('Duration');
-		await expect(filterMenu).toContainText('Stops');
-		await expect(filterMenu).toContainText('Train line');
-		const filterMenuBox = await filterMenu.boundingBox();
-		expect(filterMenuBox, 'mobile map-view filter sheet should be measurable').not.toBeNull();
-		expect(filterMenuBox!.x, 'mobile map-view filter sheet should not be clipped off the left edge').toBeGreaterThanOrEqual(0);
-		expect(
-			filterMenuBox!.x + filterMenuBox!.width,
-			'mobile map-view filter sheet should not be clipped off the right edge'
-		).toBeLessThanOrEqual(390);
-		expect(filterMenuBox!.height, 'mobile map-view filter panel should replace the full results body').toBeCloseTo(535, 0);
-		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
-		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
-		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
-		await filterButton.click();
-		await expect(filterMenu).toBeHidden();
-		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
-			message: 'train-line filtering should keep matching route polylines after returning to the map',
-			timeout: 15000
-		}).toBeGreaterThan(0);
-		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
-			message: 'train-line filtering should reduce visible route polylines without reloading the chat',
-			timeout: 15000
-		}).toBeLessThan(initialRouteCount);
-		await filterButton.click();
-		await mapView.getByTestId('embeds-map-view-clear-filters').click();
-
-		await toggle.click();
-		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
-		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);
-		const cardsToCheck = Math.min(3, await resultCards.count());
-		for (let index = 0; index < cardsToCheck; index += 1) {
-			const previewDetails = resultCards.nth(index).getByTestId('connection-preview-details');
-			await expect(previewDetails).toBeVisible({ timeout: 5000 });
-			await expectNoPreviewOverflow(previewDetails, `travel result card ${index + 1} should not clip visible preview details`);
-		}
-
-		await resultCards.first().click();
-		await expect(page.getByTestId('flight-details-card')).toBeVisible({ timeout: 15000 });
-
-		const routePaths = page.locator('[data-testid="travel-route-path"]');
-		await expect.poll(async () => routePaths.count(), {
-			message: 'travel connection fullscreen should draw visible route lines between stops',
-			timeout: 15000
-		}).toBeGreaterThanOrEqual(2);
-
-		const transportTypes = await routePaths.evaluateAll((paths: SVGPathElement[]) =>
-			paths.map((path) => path.getAttribute('data-transport-type')).filter(Boolean)
-		);
-		expect(transportTypes).toContain('regional_train');
-		expect(transportTypes).not.toContain('long_distance_train');
+		await page.getByTestId('search-template-filter-button').click();
+		const filter = page.getByTestId('search-template-filter');
+		await filter.fill('Hamburg');
+		await expect(cards).toHaveCount(1);
+		await expect(map).toHaveAttribute('data-route-count', '1');
+		await filter.clear();
+		await expect(cards).toHaveCount(2);
+		await expect(map).toHaveAttribute('data-route-count', '2');
+		await cards.first().click();
+		await expect(page.locator('.child-embed-overlay').getByTestId('flight-details-card')).toContainText('Hamburg Central Station');
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity

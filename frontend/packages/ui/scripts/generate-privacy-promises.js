@@ -2,7 +2,7 @@
 // frontend/packages/ui/scripts/generate-privacy-promises.js
 //
 // Build step that mirrors shared/docs/privacy_promises.yml into a typed
-// TypeScript module consumed by frontend/packages/ui/src/legal/buildLegalContent.ts.
+// TypeScript module consumed by frontend/packages/public-site/src/legal/buildLegalContent.ts.
 //
 // We generate a small browser-safe module instead of parsing YAML at runtime —
 // the registry is a build-time artifact, so the browser never ships a YAML
@@ -68,7 +68,7 @@ function main() {
 
   const lines = [
     "// frontend/packages/ui/src/legal/privacyPromises.generated.ts",
-    "// ",
+    "//",
     "// AUTO-GENERATED from /shared/docs/privacy_promises.yml by",
     "// frontend/packages/ui/scripts/generate-privacy-promises.js",
     "// DO NOT EDIT BY HAND — run `npm run generate-privacy-promises` instead.",

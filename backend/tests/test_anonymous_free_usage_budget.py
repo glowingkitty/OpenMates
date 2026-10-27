@@ -863,3 +863,46 @@ async def test_official_cloud_meter_fails_closed_without_transaction_auth(monkey
 
     with pytest.raises(RuntimeError, match="INTERNAL_API_SHARED_TOKEN is required"):
         await service.get_budget_status()
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.daily-remaining-percent,billing.anonymous.hard-capped-provider-metering
+async def test_headerless_status_checks_ip_cap_without_exposing_percentage() -> None:
+    service, directus = make_service()
+    await service.save_budget(enabled=True, monthly_budget_credits=1000, daily_hard_cap_percent=100,
+                              weekly_cap_percent=100, per_identity_daily_cap_credits=10, admin_user_id="admin")
+    ip = "203.0.113.7"
+    assert service.request_identity(None, ip) == service.request_identity(None, ip)
+    assert ip not in service.request_identity(None, ip)
+    initial = await service.get_public_status(ip_address=ip)
+    assert initial["active"] is True
+    assert initial["daily_remaining_percent"] is None
+    admitted = await service.reserve_budget(request_id="headerless", anonymous_id=None, ip_address=ip, estimated_credits=10)
+    assert admitted.accepted
+    for caller_id in (None, "new-caller"):
+        exhausted = await service.get_public_status(anonymous_id=caller_id, ip_address=ip)
+        assert exhausted["active"] is False
+        assert exhausted["reason"] == "per_identity_exhausted"
+        if caller_id is None:
+            assert exhausted["daily_remaining_percent"] is None
+    assert {name for name, _ in directus.created_payloads} <= {
+        ANONYMOUS_BUDGET_COLLECTION, ANONYMOUS_IDENTITY_DAILY_COLLECTION, ANONYMOUS_RESERVATIONS_COLLECTION,
+    }
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.daily-remaining-percent
+async def test_headerless_zero_identity_cap_denies_without_percentage() -> None:
+    service, directus = make_service()
+    with pytest.raises(ValueError, match="must be >= 1 when enabled"):
+        await service.save_budget(enabled=True, monthly_budget_credits=1000, daily_hard_cap_percent=100,
+                                  weekly_cap_percent=100, per_identity_daily_cap_credits=0, admin_user_id="admin")
+    await service.save_budget(enabled=False, monthly_budget_credits=1000, daily_hard_cap_percent=100,
+                              weekly_cap_percent=100, per_identity_daily_cap_credits=0, admin_user_id="admin")
+    # A legacy or externally edited enabled row must fail closed as well.
+    directus.budget["enabled"] = True
+    status = await service.get_public_status(ip_address="8.8.8.8")
+    assert status["active"] is False
+    assert status["can_send_text"] is False
+    assert status["reason"] == "per_identity_exhausted"
+    assert status["daily_remaining_percent"] is None

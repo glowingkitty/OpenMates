@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import contextmanager
 import hashlib
 import hmac
 import json
@@ -85,6 +86,36 @@ class WorkflowSkillBillingError(RuntimeError):
         self.credit_cost = credit_cost if isinstance(credit_cost, int) and not isinstance(credit_cost, bool) and credit_cost >= 0 else 0
 
 
+@contextmanager
+def _workflow_ai_authority(app_id: str, skill_id: str, user_id: str | None):
+    """Bind AI dispatch to the owner resolved by the authorized workflow runner.
+
+    Authored node inputs never supply this principal. Workflow AI currently uses
+    the runner's Personal billing context; an ambient Team or different owner
+    must not be silently replaced with Personal authority.
+    """
+    if (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+        yield
+        return
+    from backend.shared.python_utils.volatile_embed_authority import (
+        AuthenticatedVolatileAI,
+        active_authenticated_volatile_ai,
+    )
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise PermissionError("Workflow AI owner is unavailable")
+    principal = AuthenticatedVolatileAI(
+        owner_id=user_id, owner_hash=hashlib.sha256(user_id.encode()).hexdigest(), mode="external",
+    )
+    active = active_authenticated_volatile_ai.get()
+    if active is not None and active != principal:
+        raise PermissionError("Workflow AI authority does not match its owner")
+    token = active_authenticated_volatile_ai.set(principal)
+    try:
+        yield
+    finally:
+        active_authenticated_volatile_ai.reset(token)
+
+
 class WorkflowAppSkillAdapter:
     """Dispatch workflow app-skill nodes and normalize their workflow outputs."""
 
@@ -95,11 +126,13 @@ class WorkflowAppSkillAdapter:
         *,
         secrets_manager: Any | None = None,
         cache_service: Any | None = None,
+        directus_service: Any | None = None,
     ) -> None:
         self.registry = registry
         self.binding_revalidator = binding_revalidator
         self.secrets_manager = secrets_manager
         self.cache_service = cache_service
+        self.directus_service = directus_service
 
     async def revalidate_binding(self, binding_ref: Any, user_id: str, app_id: str, skill_id: str) -> None:
         """Require a runtime resolver to re-check opaque provider bindings."""
@@ -169,8 +202,10 @@ class WorkflowAppSkillAdapter:
                 user_id=user_id,
                 metadata=metadata,
                 max_credits_remaining=remaining,
+                team_id=billing_context.get("team_id"),
+                directus_service=self.directus_service,
             )
-        with central_app_skill_dispatch():
+        with central_app_skill_dispatch(), _workflow_ai_authority(app_id, skill_id, user_id):
             raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
@@ -268,7 +303,7 @@ class WorkflowAppSkillAdapter:
         if remaining is not None:
             skill_request["workflow_budget"] = sign_workflow_ai_budget(user_id, billing_context, remaining)
         skill_request["stream"] = True
-        with central_app_skill_dispatch():
+        with central_app_skill_dispatch(), _workflow_ai_authority("ai", "ask", user_id):
             response = await registry.dispatch_skill("ai", "ask", skill_request)
         if not isinstance(response, StreamingResponse):
             raise WorkflowSkillBillingError("WORKFLOW_AI_STREAM_UNAVAILABLE", "Ask AI streaming is unavailable")
@@ -463,7 +498,14 @@ def _require_workflow_runtime_safe(app_id: str, skill_id: str, metadata: Any) ->
         workflow_runtime_unavailable_reason,
     )
 
+    from backend.shared.python_schemas.app_metadata_schemas import skill_has_provider_support
+
     definition = _find_skill_definition(metadata, skill_id)
+    if definition is not None and not skill_has_provider_support(definition):
+        raise WorkflowSkillBillingError(
+            "WORKFLOW_SKILL_NOT_REGISTERED",
+            "This app skill is unavailable: no permitted provider is configured",
+        )
     declared = definition.get("workflow") if isinstance(definition, Mapping) else getattr(definition, "workflow", None)
     if hasattr(declared, "model_dump"):
         declared = declared.model_dump(mode="json")
@@ -484,6 +526,8 @@ async def _precheck_workflow_skill_billing(
     user_id: str | None,
     metadata: Any,
     max_credits_remaining: int | None = None,
+    team_id: str | None = None,
+    directus_service: Any | None = None,
 ) -> None:
     if not user_id or metadata is None or _find_skill_definition(metadata, skill_id) is None:
         raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
@@ -507,6 +551,13 @@ async def _precheck_workflow_skill_billing(
             raise WorkflowSkillBillingError(
                 "WORKFLOW_FOR_EACH_CREDITS", "For-each credit limit would be exceeded",
             )
+    if team_id:
+        from backend.core.api.app.services.team_billing_service import TeamBillingService
+        if directus_service is None:
+            raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Team billing is unavailable")
+        if not await TeamBillingService(directus_service).has_spending_headroom(team_id, user_id, required_credits):
+            raise WorkflowSkillBillingError("INSUFFICIENT_TEAM_CREDITS", "Insufficient Team credits")
+        return
     try:
         await ensure_credit_headroom(
             user_id=user_id,
@@ -606,6 +657,9 @@ async def _charge_workflow_skill_result(
                 usage_details=usage_details,
                 idempotency_key=operation_id,
                 raise_on_error=True,
+                **({"server_result_group": result["results"][item_index]}
+                   if (app_id, skill_id) == ("web", "read") else {}),
+                **({"team_id": billing_context["team_id"]} if billing_context.get("team_id") else {}),
             )
             actual_credits = charge_result.get("charged_credits") if isinstance(charge_result, dict) else None
             if not isinstance(actual_credits, int) or actual_credits < 0:

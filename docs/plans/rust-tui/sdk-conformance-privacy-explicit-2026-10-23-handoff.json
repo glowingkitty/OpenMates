@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "kind": "explicit-credential-final-conformance-handoff",
+  "sourceAggregateSha256": "f5515446b3697929b4555facf2602530eff67cc170de18d6395ea5e559b664bd",
+  "sourceInputCount": 615,
+  "buildManifestSha256": "b9b3a6956ecf6387d5e6e730bfee28383b2632bf4266464b24a86914c81ecf28",
+  "buildSourceDigest": "76c08c4146f9d02a809185e927b10278a10be4008df82047b703591933670d6b",
+  "buildSourceInputCount": 130,
+  "sourceUnchanged": true,
+  "nativeArtifactsUnchanged": true,
+  "lockfilesBefore": {
+    "packages/openmates-rust/Cargo.lock": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+    "packages/openmates-session-bindings/Cargo.lock": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+    "frontend/packages/openmates-tui-native/Cargo.lock": "1b1b8f4a046bd82be8bdcb553f2f0aaf767ac5cb231c19efe4624707625cddfa"
+  },
+  "lockfilesAfter": {
+    "packages/openmates-rust/Cargo.lock": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+    "packages/openmates-session-bindings/Cargo.lock": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+    "frontend/packages/openmates-tui-native/Cargo.lock": "1b1b8f4a046bd82be8bdcb553f2f0aaf767ac5cb231c19efe4624707625cddfa"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8",
+    "node": "v22.19.0",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "artifacts": {
+    "npm": {
+      "path": "frontend/packages/openmates-cli/native/linux-arm64.node",
+      "sha256": "d2d1cd718af35c523e73c1af1efca68657dfb5858aadfa3d6b6cf55dc9c409e3",
+      "bytes": 41883728,
+      "identity": {
+        "st_dev": 2049,
+        "st_ino": 7920130,
+        "st_size": 41883728,
+        "st_mtime_ns": 1792752267635753259,
+        "st_ctime_ns": 1792752267738753665,
+        "st_mode": 33152,
+        "st_uid": 1001,
+        "st_gid": 1001
+      }
+    },
+    "python": {
+      "path": "packages/openmates-python/openmates/_native.abi3.so",
+      "sha256": "4765e15d817d218c4cd0fd61178055ee1ff7ef76c00f909ac750fd16d186bf40",
+      "bytes": 47896736,
+      "identity": {
+        "st_dev": 2049,
+        "st_ino": 7922067,
+        "st_size": 47896736,
+        "st_mtime_ns": 1792752267918754374,
+        "st_ctime_ns": 1792752268039754851,
+        "st_mode": 33152,
+        "st_uid": 1001,
+        "st_gid": 1001
+      }
+    }
+  },
+  "minimumFreeGiB": 37.58747100830078,
+  "adapters": 42,
+  "vectorResults": 417,
+  "openGaps": 141,
+  "releaseEligible": false,
+  "reportSha256": "0f86fa6ac71b128612214ec84cce9b63e6fd56cfbcab2382167c709ad6e5b7c7",
+  "inputsSha256": "ee04145614198e86a14c172e36757d80736a8c76c897898e5e14eac9feeb8717",
+  "hostCredentialChecks": {
+    "npm": 50,
+    "python": 136,
+    "total": 186,
+    "ruff": "passed",
+    "eslint": "passed",
+    "independentReview": "clear",
+    "strictTypescript": "qualified_failure",
+    "unchangedBaselineAndCanonicalDevErrors": 3,
+    "errorsOutsideEightFileFix": true
+  },
+  "capacityRecovery": {
+    "receiptSha256": "515763b52230f241698d8827c48c70bfeaf828c590a0bcfec47d93c550348996",
+    "operationId": "docker-74760684",
+    "explicitUserApproval": true,
+    "unusedUntaggedImagesRemoved": 68,
+    "containersAndTheirImagesUnchanged": true,
+    "taggedImagesVolumesSourcesEvidencePreserved": true,
+    "availableBeforeGiB": 25.189,
+    "availableAfterGiB": 39.478
+  },
+  "qualification": "Fresh matching native libraries and actual three-SDK gate after explicit-credential policy correction. Earlier 417 checkpoint retained unchanged. This bounded gate does not establish complete SDK parity, product CI success, installation, publication, staged watch behavior or macOS acceptance. No private environment or container/image identifiers are copied into this sanitized handoff."
+}

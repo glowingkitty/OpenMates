@@ -1,23 +1,7 @@
 [
   {
-    "appId": "events",
-    "chatId": "example-ai-workshops-meetups-berlin"
-  },
-  {
-    "appId": "travel",
-    "chatId": "example-deutschlandticket-train-fare-breakdown"
-  },
-  {
     "appId": "code",
     "chatId": "example-habit-garden-web-application"
-  },
-  {
-    "appId": "home",
-    "chatId": "example-furnished-apartments-berlin"
-  },
-  {
-    "appId": "health",
-    "chatId": "example-berlin-english-speaking-gp"
   },
   {
     "appId": "social_media",
@@ -28,20 +12,12 @@
     "chatId": "example-private-plumber-email"
   },
   {
-    "appId": "jobs",
-    "chatId": "example-adjacent-career-portfolio-experiments"
-  },
-  {
     "appId": "web",
-    "chatId": "example-us-egg-prices-deep"
+    "chatId": "example-gigantic-airplanes"
   },
   {
     "appId": "weather",
     "chatId": "example-berlin-weather-bike-commute"
-  },
-  {
-    "appId": "shopping",
-    "chatId": "example-air-fryers-amazon-germany"
   },
   {
     "appId": "nutrition",
@@ -72,10 +48,6 @@
     "chatId": "example-community-garden-volunteer-chime"
   },
   {
-    "appId": "videos",
-    "chatId": "example-ted-talk-transcript-summary"
-  },
-  {
     "appId": "books",
     "chatId": "example-books-after-left-hand"
   },
@@ -86,18 +58,6 @@
   {
     "appId": "design",
     "chatId": "example-dashboard-sidebar-svg-icons"
-  },
-  {
-    "appId": "electronics",
-    "chatId": "example-buck-converters-24v-5v"
-  },
-  {
-    "appId": "hosting",
-    "chatId": "example-social-app-name-domain"
-  },
-  {
-    "appId": "models3d",
-    "chatId": "example-printable-benchy-phone-stand"
   },
   {
     "appId": "music",

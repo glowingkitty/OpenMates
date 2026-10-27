@@ -158,6 +158,7 @@ describe("Team notification preview transport", () => {
 });
 const {
   decryptBytesWithAesGcm,
+  deriveEmbedKeyFromChatKey,
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
   hashEmail,
@@ -2479,6 +2480,25 @@ describe("CLI streamed embed persistence", () => {
     };
 
     await persist("version one", 1);
+    // Typed sealed recovery owns the next revision and keeps the original wrappers.
+    const originalHead = frames.find(frame => frame.type === "store_embed")!.payload;
+    const originalWrappers = frames.find(frame => frame.type === "store_embed_keys")!.payload.keys;
+    const key = await deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const v2Snapshot = await encryptWithAesGcmCombined("version two\n", key);
+    const v2Patch = await encryptWithAesGcmCombined(replacementPatch, key);
+    const canonicalHead = { ...originalHead, embed_id: "embed-123",
+      hashed_embed_id: createHash("sha256").update("embed-123").digest("hex"),
+      version_number: 2, encrypted_content: v2Snapshot };
+    (client as any).http.get = async (path: string) => path.includes("/versions/2?")
+      ? { ok: true, status: 200, data: { embed_id: "embed-123", version_number: 2,
+        rows: [{ version_number: 2, encrypted_snapshot: v2Snapshot, encrypted_patch: v2Patch }] } }
+      : { ok: true, status: 200, data: { embed: canonicalHead, embed_keys: originalWrappers } };
+    (client as any).http.post = async (_path: string, body: Record<string, unknown>) => {
+      assert.deepEqual(body, { embed_ids: ["embed-123"], required_recovery_versions: { "embed-123": 2 } });
+      return { ok: true, status: 200, data: { results: [{ embed_id: "embed-123", state: "ready",
+        recovery_ack: { state: "ACKNOWLEDGED", version: 2,
+          canonical_digest: createHash("sha256").update(v2Snapshot).digest("hex") } }] } };
+    };
     await persist("version two\n", 2);
 
     const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
@@ -2486,8 +2506,9 @@ describe("CLI streamed embed persistence", () => {
     const expectedUserHash = createHash("sha256").update("user-uuid-123").digest("hex");
     const storeFrames = frames.filter((frame) => frame.type === "store_embed");
     assert.equal(storeFrames[0].payload.hashed_user_id, expectedUserHash);
-    assert.equal(keyFrames.length, 2);
-    assert.equal(diffFrames.length, 2);
+    assert.equal(keyFrames.length, 1, "v2 reuses the canonical wrappers without rewriting");
+    assert.equal(diffFrames.length, 1, "typed recovery already persisted the immutable v2 history");
+    assert.equal(storeFrames.length, 1, "terminal v2 must reuse the sealed canonical head");
     assert.ok(
       frames.findIndex((frame) => frame.type === "store_embed_keys") <
         frames.findIndex((frame) => frame.type === "store_embed_diff"),
@@ -2496,7 +2517,7 @@ describe("CLI streamed embed persistence", () => {
     const firstMasterWrapper = keyFrames[0].payload.keys.find(
       (entry: Record<string, unknown>) => entry.key_type === "master",
     );
-    const secondMasterWrapper = keyFrames[1].payload.keys.find(
+    const secondMasterWrapper = originalWrappers.find(
       (entry: Record<string, unknown>) => entry.key_type === "master",
     );
     const firstKey = await decryptBytesWithAesGcm(firstMasterWrapper.encrypted_embed_key, masterKey);
@@ -2509,11 +2530,11 @@ describe("CLI streamed embed persistence", () => {
       "version one",
     );
     assert.equal(
-      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
+      await decryptWithAesGcmCombined(v2Snapshot, secondKey),
       "version two\n",
     );
     assert.equal(
-      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_patch, secondKey),
+      await decryptWithAesGcmCombined(v2Patch, secondKey),
       replacementPatch,
     );
   });
@@ -4993,7 +5014,7 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  for (const missingChild of [false, true, "unavailable"]) {
+  for (const missingChild of [false, true, "unavailable", "no-final"]) {
   it(`persists terminal recovery embeds including missing children: ${missingChild}`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -5076,12 +5097,19 @@ describe("CLI saved-chat recovery preflight", () => {
                   chat_id: frame.payload.chat_id,
                   user_message_id: message.message_id,
                   message_id: assistantMessageId,
-                  full_content_so_far: "ok",
-                  is_final_chunk: true,
+                  full_content_so_far: missingChild === "no-final" ? "Provisional prefix" : "ok",
+                  is_final_chunk: missingChild !== "no-final",
                   recovery_job_id: recoveryJobId,
                   recovery_protocol_version: 1,
                 },
               }));
+              if (missingChild === "no-final") {
+                ws.send(JSON.stringify({ type: "recovery_jobs_available", payload: { jobs: [{
+                  job_id: recoveryJobId, chat_id: frame.payload.chat_id,
+                  turn_id: captured.preflightPayload?.turn_id,
+                  assistant_message_id: assistantMessageId, chat_key_version: 1,
+                }] } }));
+              }
               ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: frame.payload.chat_id } }));
             }, 10);
           }
@@ -5135,14 +5163,29 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      let canonicalReads = 0;
+      if (missingChild === "no-final") {
+        client.getChatMessages = async (id, options) => {
+          canonicalReads += 1;
+          assert.equal(id, captured.preflightPayload?.chat_id);
+          assert.deepEqual(options, { freshChatOnly: true, maxHistoryPages: 1, personal: true, teamId: null });
+          return { chat: { id } as any, messages: [{ id: assistantMessageId, chatId: id,
+            role: "assistant", content: "ok", category: "general_knowledge", modelName: "test-model" } as any] };
+        };
+      }
       if (missingChild === "unavailable") {
         await assert.rejects(client.sendMessage({ message: "Make HTML from this screenshot" }), /original finished child data is unavailable/);
         assert.deepEqual(storedIds, []);
         return;
       }
-      const result = await client.sendMessage({ message: "Make HTML from this screenshot" });
+      const streamEvents: Array<{ content: string; responseTerminal?: boolean }> = [];
+      const result = await client.sendMessage({ message: "Make HTML from this screenshot", onStream: event => streamEvents.push(event) });
 
       assert.equal(result.assistant, "ok");
+      if (missingChild === "no-final") {
+        assert.equal(canonicalReads, 1);
+        assert.deepEqual(streamEvents.filter(event => event.responseTerminal).map(event => event.content), ["ok"]);
+      }
       assert.deepEqual(storedIds, missingChild ? [embedId, childId, grandchildId] : [embedId]);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), false);
       assert.equal(captured.storeEmbedPayload?.embed_id, embedId);

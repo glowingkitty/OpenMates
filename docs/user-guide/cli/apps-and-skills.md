@@ -148,7 +148,7 @@ The 3D Models app has a dedicated search command that returns provider link-out 
 
 ```
 openmates apps models3d search --query benchy
-openmates apps models3d search --query benchy --count 2 --providers Printables --json
+openmates apps models3d search --query benchy --count 2 --json
 openmates apps models3d search --query "phone stand" --sort newest --free-only
 ```
 

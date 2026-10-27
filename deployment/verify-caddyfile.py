@@ -37,6 +37,7 @@ FASTAPI_ROUTES = [
     ("/v1/auth", "Authentication", False),
     ("/v1/chats", "Session-authenticated native chat reads", False),
     ("/v1/email", "Email template previews (dev-only, no auth)", True),
+    ("/v1/email/reminder-preview", "Recipient-held private reminder image capability", False),
     ("/v1/invoice", "Invoice PDF previews (dev-only, no auth)", True),
     ("/v1/credit-note", "Credit note PDF previews (dev-only, no auth)", True),
     ("/v1/payments", "Payments", False),

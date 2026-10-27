@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Any
@@ -245,3 +246,66 @@ def normalize_string_query_request_items(
     normalized = arguments.copy()
     normalized["requests"] = normalized_requests
     return normalized, normalized_string_items
+
+
+def web_search_request_key(arguments: dict, request: Any) -> str | None:
+    """Identify equivalent read-only requests without correlation/internal fields.
+
+    Keys remain private turn state and must never be included in diagnostics.
+    Preserve every search option, including unknown future options.
+    """
+    if not isinstance(request, dict) or not isinstance(request.get("query"), str):
+        return None
+    item = {k: v for k, v in request.items() if k != "id" and not k.startswith("_") and v is not None}
+    item["query"] = item["query"].strip()
+    item.setdefault("count", 10)
+    for field, default in (("provider", "brave"), ("country", "us"), ("search_lang", "en"), ("safesearch", "moderate")):
+        value = item.get(field, default)
+        item[field] = value.strip().lower() if isinstance(value, str) else value
+    if isinstance(item.get("relevance_criteria", ""), str) and not item.get("relevance_criteria", "").strip():
+        item.pop("relevance_criteria", None)
+    options = {k: v for k, v in arguments.items() if k not in {"requests", "id"} and not k.startswith("_")}
+    encoded = json.dumps([options, item], sort_keys=True, ensure_ascii=False)
+    return "web-search-request:" + hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def search_request_key(app_id: str, arguments: dict, request: Any) -> str | None:
+    """Identify a read-only search member while preserving search constraints.
+
+    Event dates, counts, providers and selection criteria remain part of the key:
+    a narrower date window can retrieve new events after a capped first search.
+    Correlation IDs and internal transport metadata do not change the search.
+    """
+    if app_id == "web":
+        return web_search_request_key(arguments, request)
+    if app_id != "events" or not isinstance(request, dict):
+        return None
+    if not any(isinstance(request.get(field), str) and request[field].strip()
+               for field in ("query", "conference")):
+        return None
+    item = {key: value for key, value in request.items()
+            if key != "id" and not key.startswith("_") and value is not None}
+    if isinstance(item.get("query"), str):
+        item["query"] = item["query"].strip()
+    item.setdefault("count", 10)
+    item.setdefault("radius_miles", 25)
+    item.setdefault("past_events", False)
+    options = {key: value for key, value in arguments.items()
+               if key not in {"requests", "id"} and not key.startswith("_")}
+    encoded = json.dumps([options, item], sort_keys=True, ensure_ascii=False)
+    return "events-search-request:" + hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def reuse_completed_search_requests(app_id: str, arguments: dict, completed: dict) -> tuple[dict, list[dict]]:
+    """Partition completed web/event requests before any new work is admitted."""
+    requests = arguments.get("requests")
+    if not isinstance(requests, list) or not requests:
+        return arguments, []
+    fresh, reused = [], []
+    for request in requests:
+        key = search_request_key(app_id, arguments, request)
+        if key is not None and key in completed:
+            reused.append(completed[key])
+        else:
+            fresh.append(request)
+    return ({**arguments, "requests": fresh}, reused) if reused else (arguments, [])

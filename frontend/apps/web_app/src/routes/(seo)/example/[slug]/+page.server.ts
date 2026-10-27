@@ -12,13 +12,13 @@
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getExampleChatBySlug } from '@repo/ui';
+import { getAllExampleChatData } from '@repo/ui';
 import { resolveExampleChatI18nKey as t } from '@repo/ui/src/demo_chats/resolveI18nServer';
 import { getSiteOrigin } from '$lib/backendUrl';
 
 const OG_IMAGE_URL = 'https://openmates.org/images/og-image.jpg';
 
-type ExampleChat = NonNullable<ReturnType<typeof getExampleChatBySlug>>;
+type ExampleChat = ReturnType<typeof getAllExampleChatData>[number];
 
 type SeoSource = {
 	label: string;
@@ -297,7 +297,7 @@ function buildStructuredData({
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const { slug } = params;
 
-	const chat = getExampleChatBySlug(slug);
+	const chat = getAllExampleChatData().find((example) => example.slug === slug);
 	if (!chat) {
 		error(404, 'Example chat not found');
 	}

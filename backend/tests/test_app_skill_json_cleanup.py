@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
-    strip_failed_app_skill_json_blocks,
 )
 
 
@@ -85,7 +84,7 @@ def test_app_skill_payloads_with_typographic_quotes_are_canonicalized() -> None:
 
 
 # contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
-def test_failed_app_skill_payloads_with_typographic_quotes_are_stripped() -> None:
+def test_failed_app_skill_payloads_with_typographic_quotes_keep_execution_identity() -> None:
     text = (
         "Intro\n\n"
         "```json\n"
@@ -96,14 +95,11 @@ def test_failed_app_skill_payloads_with_typographic_quotes_are_stripped() -> Non
         "Visible answer text\n"
     )
 
-    cleaned, stripped_count = strip_failed_app_skill_json_blocks(
-        text,
-        {"failed-embed"},
-    )
-    assert stripped_count == 1
-    assert "app_skill_use" not in cleaned
-    assert "failed-embed" not in cleaned
-    assert cleaned == "Intro\n\nVisible answer text"
+    cleaned = canonicalize_app_skill_json_blocks(text)
+    assert '"embed_id":"failed-embed"' in cleaned
+    assert '"app_id":"images","skill_id":"generate"' in cleaned
+    assert cleaned.startswith("Intro\n\n```json")
+    assert cleaned.endswith("Visible answer text")
 
 
 # contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity

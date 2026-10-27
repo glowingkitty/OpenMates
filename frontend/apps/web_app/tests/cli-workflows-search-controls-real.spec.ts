@@ -29,6 +29,8 @@ const NEWS_SEARCH_FIXTURE_QUERY = 'openmates_e2e_news_fixture_ai';
 test.describe('CLI Workflows search skills and controls', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: supporting surface=cli assertions=workflows.actions.skill-contract,workflows.control.typed-data,workflows.execution.lifecycle-visible
+
 	test('runs search skills and persists inspectable control-step results', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -59,8 +61,8 @@ steps:
     use_app_skill: events.search
     input:
       requests:
-        - query: AI meetup
-          location: Berlin
+        - query: AI
+          provider: GPN24
           count: 1
   - id: gate
     if:

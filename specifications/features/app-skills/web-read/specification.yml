@@ -1,0 +1,76 @@
+schema_version: 1
+id: feature.app-skill.web-read
+version: 1
+status: draft
+title: Public Web Page Reading
+summary: Read selected public pages with crawler exclusions and bounded direct transport while retaining complete extracted text in encrypted saved results.
+inherits:
+  - architecture.app-skill-execution@1
+scope:
+  includes:
+    - Existing authenticated web/read REST, assistant, workflow, CLI and SDK invocation.
+    - Direct public HTTPS HTML or plain-text reading and existing grouped results.
+    - Applicable robots.txt exclusions, access-denial handling and transport limits.
+    - Complete extracted markdown in existing saved embeds, history and fullscreen readers.
+  excludes:
+    - Platform-specific connectors, hidden APIs, site-wide crawling or access-control evasion.
+    - Proxies, CAPTCHA solving, authenticated browsing, browser automation or JavaScript execution.
+    - A content licence inferred from public access or robots.txt, reduced saved text or deletion of user data.
+models:
+  PublicPageRead:
+    requests: {type: array, required: true, constraints: {minimum: 1, maximum: 5, preserve_order_and_correlation_ids: true}}
+    url: {type: string, required: true, constraints: {scheme: https, public_address: true, port: 443, credentials: forbidden}}
+    formats: {type: array, default: [markdown], constraints: {supported: [markdown], unsupported: visible_failure}}
+    max_age: {type: integer, nullable: true, constraints: {compatibility_input: true, source_fetch: fresh}}
+    timeout: {type: integer, nullable: true, constraints: {unit: milliseconds, bounded: true}}
+  SavedPage:
+    markdown: {type: string, required: true, constraints: {complete_extracted_text: true, inherited_output_safety: true, silent_truncation: forbidden}}
+    metadata: {type: existing_web_read_result, constraints: {source_url_title_language_images_hash_status: preserved}}
+    persistence: {type: existing_encrypted_embed_and_history, constraints: {full_text: retained, existing_reader_rendering: preserved}}
+  ReaderBilling:
+    successful_page_credits: {type: integer, value: 20}
+    creator_income_credits: {type: integer, value: 10, constraints: {payment_enabled_only: true, successful_funded_page_only: true, best_effort: true}}
+assertions:
+  - id: web-read.public-page
+    type: behavior
+    must: The available reader accepts one to five selected public page requests, preserves request IDs and order,
+      and returns complete extracted markdown with existing source metadata, hash and visible per-page failures.
+      It fetches fresh source content and does not execute scripts or fetch linked resources. Existing successful
+      page pricing and funded creator accounting are preserved; failed reads do not create creator income.
+    depends_on: [models.PublicPageRead, models.ReaderBilling, examples.public_page]
+  - id: web-read.crawler-exclusions
+    type: security
+    must: Before each page request, including a redirected target, the identified reader checks applicable
+      OpenMatesReader and wildcard robots.txt rules. An explicit disallow prevents that page request. An absent
+      robots file may permit retrieval; unavailable, denied or oversized crawler policy returns a visible failure.
+      Access denials and detected login, paywall or CAPTCHA barriers produce no successful page content or bypass retry.
+    depends_on: [examples.crawler_exclusions]
+  - id: web-read.transport-boundary
+    type: security
+    must: The reader uses verified public HTTPS transport, validates and pins resolved destinations and validates
+      every bounded redirect. It sends no credentials, cookies or proxy traffic and performs no impersonation,
+      CAPTCHA solving or access-block evasion. Request count, host concurrency and spacing, bytes and elapsed
+      time are bounded. Invalid, private, oversized or unsupported responses fail visibly rather than silently truncating.
+    depends_on: [models.PublicPageRead, examples.transport_boundary]
+  - id: web-read.saved-full-text
+    type: parity
+    must: Successful reads retain their complete safety-processed extracted text and metadata through the existing
+      encrypted embed and chat-history path. Reopening or reloading the saved fullscreen reader includes the last
+      paragraph without re-reading the source. Existing saved pages remain readable; no summary-only replacement,
+      retention reduction or user-data deletion is introduced.
+    depends_on: [models.SavedPage, examples.saved_full_text]
+  - id: web-read.billing
+    type: behavior
+    must: Server-produced grouped results determine successful-page charges at the existing twenty credits per
+      usable page; failed or excluded pages cost zero, including in mixed batches. Caller-supplied usage cannot
+      set charges. Existing payment-enabled, best-effort ten-credit creator income applies only to successful
+      funded reads. Assistant, REST, workflow, CLI and SDK billing share these result semantics.
+    depends_on: [models.ReaderBilling, examples.billing]
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks: {required: true, parity: semantic, implementations: {npm: {required: true}, pip: {required: true}}}
+  gui: {required: true, parity: semantic, implementations: {web: {required: true}, apple: {required: false, reason: Existing saved-reader contracts are preserved without native code changes.}}}
+examples:
+  file: examples.yml
+  required_groups: [public_page, crawler_exclusions, transport_boundary, saved_full_text, billing]

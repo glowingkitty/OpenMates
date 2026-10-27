@@ -111,7 +111,11 @@ preprocess_request_tool:
       - Default llm_response_temp to 0.4; lower it for factual/code precision and
         raise it for creative work.
       - Select the minimum reasoning depth needed for a high-quality answer.
-        Most requests are low, including factual Q&A and skill-backed searches.
+        Classify the reasoning the main assistant must perform, rather than work
+        delegated to a skill. Most requests are low, including factual Q&A and
+        known-query skill-backed searches. A Shopping search that forwards a
+        supplied query and reference images for the skill's visual comparison is
+        low; forty candidates or three photos do not themselves increase its tier.
         Use medium for bounded multi-step reasoning, comparisons, synthesis, or
         moderately nuanced writing and debugging. Use high for intricate debugging,
         proofs, difficult judgment, or sustained reasoning across interacting constraints.
@@ -136,6 +140,12 @@ preprocess_request_tool:
         for broad retrieval, videos-search for useful demonstrations, and images-search for
         explicit image requests or visual/physical subjects (not abstract/code/data tasks).
         Select URL read/transcript skills only when asked to understand that URL.
+        For image-consuming skills, pass exact image references directly when the
+        request already supplies enough information for the operation. Shopping,
+        reverse image search and image editing do not require images-view first.
+        Select images-view when the main assistant must inspect pixels to answer
+        a visual question or identify a photo-only subject before forming a query.
+        An unrelated historical upload alone is not a reason to select images-view.
       - For short same-intent follow-ups, offer the relevant prior skills using
         recent messages and the activity ledger. The main model decides whether
         another call is useful or the existing results suffice.
@@ -170,6 +180,10 @@ preprocess_request_tool:
           type: "string"
           description: "Required reasoning depth; follow the rules above."
           enum: ["low", "medium", "high", "max"]
+        reasoning_level:
+          type: "string"
+          description: "Optional reasoning effort independent of model-routing complexity: low only for trivial/simple requests, medium for normal analysis/synthesis, high selectively for difficult tasks, extra_high only for exceptional reasoning needs. Exclude work delegated to app skills. This does not select a model."
+          enum: ["low", "medium", "high", "extra_high"]
         task_area:
           type: "string"
           description: "Primary task area for model selection."
@@ -207,7 +221,7 @@ preprocess_request_tool:
             type: "string"
         relevant_embedded_previews:
           type: "array"
-          description: "Useful supported embedded-preview types; otherwise []."
+          description: "Relevant supported preview types or app-qualified authored-result kinds from the public catalogue. Select every relevant kind for mixed result sets, independently of discovery skill availability; otherwise []."
           items:
             type: "string"
         topic_area:

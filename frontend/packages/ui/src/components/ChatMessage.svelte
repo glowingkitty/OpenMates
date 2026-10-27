@@ -1,13 +1,18 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
-  import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import MessageBookmarkButton from './MessageBookmarkButton.svelte';
+  import { tooltip } from '../actions/tooltip';
+  import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
+  import { lostImageParents, recoverGeneratedImageDocument } from '../message_parsing/generatedImageRecovery';
+  import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
+  import { activeTeamId } from '../stores/teamStore';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import ChatContextMenu from './chats/ChatContextMenu.svelte';
@@ -52,8 +57,9 @@
   import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
-  import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
-  import type { TipTapNode } from '../message_parsing/types';
+  import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
+  import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
+  import type { TipTapDoc, TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
@@ -161,6 +167,7 @@
     isForgottenMessage = false,
     onSpeak = undefined,
     queueActions = undefined,
+    bookmarkAction = undefined,
   }: {
     role?: MessageRole;
     category?: string;
@@ -211,6 +218,7 @@
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
     onSpeak?: () => void;
+    bookmarkAction?: { active: boolean; onToggle: () => Promise<void> };
     /** Present only while this user message is waiting for assistant work. */
     queueActions?: {
       mode: 'follow_up' | 'steer';
@@ -228,7 +236,40 @@
   });
   
   // State for thinking section expansion
-  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(content) : null);
+  // Keep source identity intact when props contain a plain saved document.
+  let recoveredImageSource = $state.raw<unknown>(null);
+  let recoveredImageDocument = $state<AssistantDocument | null>(null);
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(
+    recoveredImageSource === content ? recoveredImageDocument ?? content : content,
+  ) : null);
+
+  $effect(() => {
+    const source = content;
+    const chatId = original_message?.chat_id;
+    // Discard abandoned reads when the account, Team, message, or source changes.
+    void $userProfile.user_id;
+    void $activeTeamId;
+    void _embedUpdateTimestamp;
+    recoveredImageSource = null;
+    recoveredImageDocument = null;
+    if (role !== 'assistant' || responseActive || !chatId || !lostImageParents(source).length) return;
+    let cancelled = false;
+    async function recover() {
+      const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+      if (cancelled) return;
+      const recovered = await recoverGeneratedImageDocument(source as AssistantDocument, async (id) => {
+        if (cancelled) return null;
+        const parent = await resolveEmbed(id, { chatId });
+        return parent ? decodeToonContent(parent.content) : null;
+      });
+      if (!cancelled) {
+        recoveredImageSource = source;
+        recoveredImageDocument = recovered;
+      }
+    }
+    void recover().catch((error) => console.warn('[ChatMessage] Generated image recovery unavailable:', error));
+    return () => { cancelled = true; };
+  });
   const hasSkillActivity = $derived(activityRuns?.some((run) => run.kind === 'skills') ?? false);
   const firstSkillActivityId = $derived(activityRuns?.find((run) => run.kind === 'skills')?.id);
   const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
@@ -1251,9 +1292,6 @@
    *  pollute highlight-anchor capture/resolution. */
   let messageBodyElement = $state<HTMLElement>();
 
-  // State for report button hover
-  let isReportHovered = $state(false);
-
   /**
    * Counter incremented each time ReadOnlyMessage signals that its TipTap editor has
    * finished creating and text nodes are now in the DOM. This acts as an extra reactive
@@ -1852,11 +1890,11 @@
    * This allows pasting the message into MessageInput and having the embeds rendered
    * as live embed cards rather than plain markdown text.
    */
-  async function handleCopyMessage() {
+  async function handleCopyMessage(copySelection = true) {
     try {
       let contentToCopy: string;
       const selection = window.getSelection();
-      const isCopyingSelection = selectable && selection && selection.toString().length > 0;
+      const isCopyingSelection = copySelection && selectable && selection && selection.toString().length > 0;
       
       // If there's a selection and it's within this message, copy only the selection
       if (isCopyingSelection) {
@@ -1868,7 +1906,9 @@
         // When PII is hidden, the raw content already has placeholders — use as-is.
         contentToCopy = typeof original_message?.content === 'string' 
           ? original_message.content 
-          : JSON.stringify(content);
+          : typeof content === 'string'
+            ? content
+            : tipTapToCanonicalMarkdown(content as TipTapDoc);
         
         if (piiRevealed && piiMappings && piiMappings.length > 0) {
           // Revealed mode: user wants originals — restore placeholders → originals
@@ -1895,7 +1935,7 @@
           const { parse_message } = await import('../message_parsing/parse_message');
           const rawMarkdown = typeof original_message?.content === 'string'
             ? original_message.content
-            : '';
+            : contentToCopy;
           if (rawMarkdown) {
             const tiptapDoc = parse_message(rawMarkdown, 'read', {
               unifiedParsingEnabled: true,
@@ -2229,6 +2269,35 @@
     const snapshotAttrs = selectedNode.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes;
     // Snapshot DOM embed ID too — selectedDomEmbedId is nulled by onClose alongside selectedNode.
     const snapshotDomEmbedId = selectedDomEmbedId;
+
+    // Image-file actions apply to direct, grouped, small-reference and highlighted
+    // nodes alike. Resolve the clicked child before the menu clears selection.
+    if (selectedAppId === 'images' && selectedSkillId !== 'search' && (action === 'copy' || action === 'download')) {
+      const embedId = (snapshotDomEmbedId || getEmbedIdFromNode(selectedNode))?.replace(/^embed:/, '');
+      if (!embedId) return;
+      const imageAttrs = {
+        ...snapshotAttrs, id: embedId, contentRef: `embed:${embedId}`,
+        type: selectedSkillId === 'image_result' ? 'images-image-result'
+          : selectedSkillId === 'view' || selectedSkillId === 'upload' ? 'image' : 'app-skill-use',
+        app_id: 'images', skill_id: selectedSkillId || undefined,
+      };
+      try {
+        // No await precedes copyImageEmbed: Safari needs the active click gesture.
+        if (action === 'copy') await copyImageEmbed(embedId, imageAttrs);
+        else await downloadImageEmbed(embedId);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.success(action === 'copy' ? $text('embeds.copied_to_clipboard') : 'Image downloaded');
+      } catch (error) {
+        console.error('[ChatMessage] Image action failed:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error($text(action === 'copy' ? 'embeds.copy_failed' : 'embeds.action_failed'));
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+        selectedDomEmbedId = null;
+      }
+      return;
+    }
 
     // Legacy node handlers removed - now using unified embed system
     // Actions are handled directly below
@@ -3103,23 +3172,24 @@
     
     isLoadingFullContent = true;
     try {
-      // Import chatDB dynamically to avoid circular dependencies
-      const { chatDB } = await import('../services/db');
-      
-      // Load full content from IndexedDB
-      const fullMessage = await chatDB.getMessage(original_message.message_id);
-      if (fullMessage) {
-        // Convert the full markdown content to TipTap JSON with unified parsing (includes embed parsing)
-        const { parse_message } = await import('../message_parsing/parse_message');
-        const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
-
-        const tiptapJson = parse_message(fullMessage.content, 'read', {
-          unifiedParsingEnabled: true,
-          role,
-        });
-        fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
-        showFullMessage = true;
-      }
+      // The live row owns full decoded content even before its optimistic save.
+      // Re-reading disk here can miss the row and silently leave it collapsed.
+      const source = original_message;
+      const sourceContent = source.content;
+      const markdown = await loadExpandedMessageMarkdown(source, async (id) => {
+        const { chatDB } = await import('../services/db');
+        return chatDB.getMessage(id);
+      });
+      if (markdown === null) return;
+      const { parse_message } = await import('../message_parsing/parse_message');
+      const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
+      const tiptapJson = parse_message(markdown, 'read', { unifiedParsingEnabled: true, role });
+      // Status publications may replace the row object; a different message or
+      // edited document must not receive an older asynchronous expansion.
+      if (original_message?.message_id !== source.message_id || original_message?.chat_id !== source.chat_id
+          || original_message?.content !== sourceContent) return;
+      fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      showFullMessage = true;
     } catch (error) {
       console.error('Error loading full message:', error);
     } finally {
@@ -3604,6 +3674,7 @@
               {#if run.kind === 'skills'}
                 <AssistantActivityGroup
                   document={run.document} appIds={run.appIds}
+                  trackPendingSkills={isVoiceCallTranscript}
                   thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
                   thinkingStreaming={run.id === firstSkillActivityId && isThinkingStreaming}
                   loadedMemories={run.id === firstSkillActivityId ? loadedMemories : []}
@@ -3780,30 +3851,37 @@
     {#if role === 'assistant' && responseActive && model_name}
       <div class="generated-by-container active-attribution" data-testid="generated-by-container"><span class="generated-by" data-testid="using-model">{$text('chat.using_model', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</span></div>
     {/if}
-    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak)}
+    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak || bookmarkAction)}
       <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
-          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60); flex-basis: {shouldStackMobile ? '100%' : 'auto'};" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
+        {/if}
+        <button
+          type="button"
+          class="message-action-btn copy-message-btn"
+          data-testid="copy-message-button"
+          onclick={() => handleCopyMessage(false)}
+          aria-label={$text('chat.copy_message')}
+          use:tooltip
+        >
+          <span class="clickable-icon icon_copy" aria-hidden="true"></span>
+        </button>
+        {#if bookmarkAction}
+          <MessageBookmarkButton active={bookmarkAction.active} onToggle={bookmarkAction.onToggle} />
         {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
           </button>
         {/if}
-        <button 
-          class="report-bad-answer-btn" 
-          class:hovered={isReportHovered}
-          onmouseenter={() => isReportHovered = true}
-          onmouseleave={() => isReportHovered = false}
+        <button
+          type="button"
+          class="message-action-btn report-bad-answer-btn"
           onclick={handleReportBadAnswer}
           aria-label={$text('chat.report_bad_answer.button_text')}
+          use:tooltip
         >
-          <div class="clickable-icon icon_thumbsdown"></div>
-          {#if isReportHovered}
-            <span class="report-text" in:fade={{ duration: 150 }}>
-              {$text('chat.report_bad_answer.button_text')}
-            </span>
-          {/if}
+          <span class="clickable-icon icon_thumbsdown" aria-hidden="true"></span>
         </button>
       </div>
     {/if}
@@ -4593,7 +4671,7 @@
 
   .generated-by-cost:hover,
   .generated-by-cost:focus-visible {
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     text-decoration: underline;
   }
 
@@ -4636,7 +4714,7 @@
   .assistant-speech-action:hover,
   .assistant-speech-action:focus-visible {
     max-width: 180px;
-    color: var(--color-primary);
+    color: var(--color-primary-start);
   }
 
   .assistant-speech-action:focus-visible {
@@ -4656,6 +4734,7 @@
 
   .generated-by-container {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-4);
     margin-top: var(--spacing-3);
@@ -4668,33 +4747,53 @@
     text-align: center;
   }
 
-  .report-bad-answer-btn {
+  .message-action-btn {
     all: unset;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--spacing-3);
-    cursor: pointer;
-    padding: var(--spacing-1) var(--spacing-3);
+    gap: var(--spacing-2);
+    justify-content: center;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    padding: var(--spacing-1);
+    scale: 1;
+    transform: none;
     border-radius: var(--radius-2);
-    transition: all var(--duration-normal) var(--easing-default);
+    cursor: pointer;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
+    white-space: nowrap;
+    text-decoration: none;
   }
 
-  .report-bad-answer-btn:hover {
+  .message-action-btn:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+  }
+
+  .message-action-btn:hover,
+  .message-action-btn:focus-visible {
     background-color: var(--color-grey-20);
-    color: var(--color-primary);
+    color: var(--color-primary-start);
   }
 
-  .report-bad-answer-btn .clickable-icon {
+  .message-action-btn .clickable-icon {
+    scale: 1;
     width: 16px;
     height: 16px;
-    background-color: currentColor;
+    flex-shrink: 0;
+    background: var(--color-grey-60);
   }
 
-  .report-text {
-    font-size: var(--font-size-xxs);
-    white-space: nowrap;
+  .message-action-btn:hover .clickable-icon,
+  .message-action-btn:focus-visible .clickable-icon {
+    background: var(--gradient-primary);
   }
+
+  .message-action-btn:is(:hover, :active, :focus) { scale: 1; transform: none; }
+  @media (pointer: coarse) { .message-action-btn { width: 44px; height: 44px; } }
 
   /* Note: .mate-message-content.highlighted and @keyframes highlight-animation have been
    * removed. Clicking a search result now highlights the matched text (mark.search-match-active)
@@ -4812,7 +4911,7 @@
   }
 
   .embed-error-link {
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     cursor: pointer;
     text-decoration: underline;
     text-decoration-style: dotted;
@@ -4890,7 +4989,7 @@
   .hide-full-message-btn {
     background: none;
     border: none;
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     cursor: pointer;
     font-size: 0.9em;
     text-decoration: underline;

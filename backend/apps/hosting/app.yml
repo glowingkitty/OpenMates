@@ -1,12 +1,5 @@
 landing:
-  order: 28
-  capability:
-    type: skill
-    id: search_domains
-  caption:
-    en: Find available domains
-    de: Finde verfügbare Domains
-  example_chat_id: example-social-app-name-domain
+  enabled: false
 
 id: hosting
 name_translation_key: hosting
@@ -17,6 +10,9 @@ last_updated: "2026-10-01"
 # Parent search and independently openable checked-domain children.
 embed_types:
   - id: search_domains
+    authoring:
+      kind: hosting.hosting_domain
+      schema_id: hosting.hosting_domain
     category: app-skill-use
     skill_id: search_domains
     frontend_type: app-skill-use
@@ -43,24 +39,12 @@ skills:
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Check an exact domain name or discover available domain names through Gandi.
-      Use one grouped request per independent name or idea. A fully qualified domain
-      is checked exactly. Put explicitly requested suffixes in tlds and explicit
-      tax country and currency in country and currency; defaults are DE and EUR.
-      Use availability=prefer_available by default: show confirmed available names
-      first and checked in-use names only to fill remaining result slots.
-      Use available_only only when the user wants no in-use names, and all when the
-      user asks to inspect all checked statuses. Unknown checks never mean in-use.
-      Copy a stated branding, price, renewal, term, premium, or restriction goal
-      into relevance_criteria when it should affect ordering. Keep query focused
-      on the requested name or topic and do not invent preferences. Omit criteria
-      for neutral checks. Never claim availability is guaranteed or buy a domain.
+      This capability is currently unavailable because no permitted provider is configured.
     class_path: backend.apps.hosting.skills.search_domains.SearchDomainsSkill
     pricing:
       fixed: 1
-    providers:
-      - name: Gandi
-        no_api_key: true
+    provider_required: true
+    providers: []
     example_translation_keys:
       - settings.app_store_examples.hosting.search_domains.1
       - settings.app_store_examples.hosting.search_domains.2

@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createProjectFileJobExecutor, type ProjectFileJob } from "../../ui/src/services/projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, hostedProjectFileIdentity, projectFileContentHash, type HostedProjectFileAdapter, type HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { decryptWithAesGcmCombined, encryptWithAesGcmCombined, encryptBytesWithAesGcm, decryptBytesWithAesGcm } from "../src/crypto.js";
-import { prepareCliProjectFocusForPreflight } from "../src/projectFileExecutor.js";
+import { prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "../src/projectFileExecutor.js";
+import type { OpenMatesClient } from "../src/client.js";
 import type { OpenMatesWsClient } from "../src/ws.js";
 
 const projectId = "72dcdd3a-c264-4291-812b-02e820ca88c9";
@@ -14,6 +18,109 @@ function job(overrides: Partial<ProjectFileJob> = {}): ProjectFileJob {
     operation: "create_file", arguments: { path: "README.md", expected_base: null, content: "hello\n" },
     lease_token: "fixture-lease-token-long", lease_generation: 1, lease_expires_at: Math.floor(Date.now() / 1000) + 60, ...overrides };
 }
+
+// contract-test: supporting surface=cli assertions=projects.files.hosted-ciphertext-commit,projects.files.commit-replay
+test("CLI hosted commit observer ignores reads and rejected writes and awaits each committed mutation", { timeout: 10_000 }, async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "om-project-commit-observer-"));
+  const previousStateDir = process.env.OPENMATES_STATE_DIR;
+  process.env.OPENMATES_STATE_DIR = directory;
+  t.after(async () => {
+    if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR = previousStateDir;
+    await rm(directory, { recursive: true, force: true });
+  });
+  const existingEmbedId = "fixture-existing-file";
+  const existingContent = "hello\n";
+  let headRevision = 7;
+  const items = [{ item_type: "embed", target_id_encrypted: await encryptWithAesGcmCombined(existingEmbedId, projectKey),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify({ path: "README.md" }), projectKey) }];
+  const client = {
+    getActiveProjectFocus: async () => ({ project_id: projectId, team_id: null }),
+    getChatMessages: async () => ({ messages: [] }),
+    getProject: async () => ({ project: {}, items }),
+    getProjectSettings: async () => ({ selection_required: false, write_mode: "apply_and_show" }),
+    listProjectSources: async () => [],
+    decryptProjectKey: async () => projectKey,
+    readEncryptedProjectFile: async () => ({ embedKey: projectKey, content: { code: existingContent }, revision: headRevision, hasInitialHistory: true }),
+    getProjectFileRevisionReceipt: async () => null,
+  } as unknown as OpenMatesClient;
+  const listeners = new Map<string, (payload: unknown) => void>();
+  let commitReply: Record<string, unknown> = { status: "committed", current_revision: 1 };
+  let pendingCommit: ((value: unknown) => void) | undefined;
+  let operationFinished: ((value: Record<string, unknown>) => void) | undefined;
+  let commitCount = 0;
+  const ws = {
+    onMessageType: (event: string, callback: (payload: unknown) => void) => { listeners.set(event, callback); return () => listeners.delete(event); },
+    onClose: () => {},
+    waitForMessage: (event: string) => {
+      assert.equal(event, "commit_embed_revision_result");
+      return new Promise((resolve) => { pendingCommit = resolve; });
+    },
+    sendAsync: async (event: string, payload: Record<string, unknown>) => {
+      if (event === "commit_embed_revision") {
+        commitCount++;
+        pendingCommit!({ payload: commitReply });
+      } else if (event === "project_file_operation_result") operationFinished!(payload);
+    },
+  } as unknown as OpenMatesWsClient;
+  const notifications: Array<{ embed_id: string; revision: number }> = [];
+  let observerEntered: (() => void) | undefined;
+  let releaseObserver: (() => void) | undefined;
+  let observerGate = Promise.resolve();
+  const stop = registerCliProjectFileExecutor({ client, ws, chatId, chatKey: projectKey,
+    onHostedVersionCommitted: async (result) => {
+      notifications.push(result);
+      observerEntered?.();
+      await observerGate;
+    },
+  });
+  t.after(stop);
+  const dispatch = (request: ProjectFileJob) => new Promise<Record<string, unknown>>((resolve) => {
+    operationFinished = resolve;
+    listeners.get("project_file_operation_request")!(request);
+  });
+
+  const read = await dispatch(job({ operation: "read_text", operation_id: "observer-read", arguments: { path: "README.md" } }));
+  assert.equal(read.status, "completed");
+  assert.equal((read.result as Record<string, unknown>).revision, 7);
+  assert.deepEqual(notifications, [], "Reading an existing revision must not announce a new commit");
+  assert.equal(commitCount, 0);
+
+  const entered = new Promise<void>((resolve) => { observerEntered = resolve; });
+  observerGate = new Promise<void>((resolve) => { releaseObserver = resolve; });
+  let completed = false;
+  const created = dispatch(job({ operation_id: "observer-create", arguments: { path: "NEW.md", expected_base: null, content: existingContent } }))
+    .then((result) => { completed = true; return result; });
+  await entered;
+  assert.equal(completed, false, "The job must await its commit observer before reporting completion");
+  releaseObserver!();
+  assert.equal((await created).status, "completed");
+  const createdEmbedId = await hostedProjectFileIdentity(projectKey, "NEW.md", "embed");
+  assert.deepEqual(notifications, [{ embed_id: createdEmbedId, revision: 1 }]);
+  items.push({ item_type: "embed", target_id_encrypted: await encryptWithAesGcmCombined(createdEmbedId, projectKey),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify({ path: "NEW.md" }), projectKey) });
+  headRevision = 1;
+  const readCreated = await dispatch(job({ operation: "read_text", operation_id: "observer-read-created", arguments: { path: "NEW.md" } }));
+  assert.equal(readCreated.status, "completed");
+  assert.equal((readCreated.result as Record<string, unknown>).revision, 1);
+  assert.equal(notifications.length, 1);
+
+  observerGate = Promise.resolve();
+  commitReply = { status: "committed", current_revision: 2 };
+  const updateArguments = { path: "NEW.md", expected_base: await projectFileContentHash(existingContent),
+    patch: "--- a/NEW.md\n+++ b/NEW.md\n@@ -1 +1 @@\n-hello\n+world\n" };
+  const updated = await dispatch(job({ operation: "update_file", operation_id: "observer-update", arguments: updateArguments }));
+  assert.equal(updated.status, "completed");
+  assert.deepEqual(notifications[1], { embed_id: createdEmbedId, revision: 2 });
+  assert.equal(notifications.length, 2);
+
+  commitReply = { status: "conflict", current_revision: 9 };
+  const rejected = await dispatch(job({ operation: "update_file", operation_id: "observer-rejected", arguments: updateArguments }));
+  assert.equal(rejected.status, "conflict");
+  assert.equal((rejected.result as Record<string, unknown>).code, "revision_conflict");
+  assert.equal(commitCount, 3);
+  assert.equal(notifications.length, 2, "Rejected commits must not invoke the observer");
+});
 
 // contract-test: supporting surface=cli assertions=projects.files.chat-focus-required,chats.persistence.client-encrypted
 test("Project focus preparation persists a new encrypted shell before activation and leaves existing chats stable", async () => {

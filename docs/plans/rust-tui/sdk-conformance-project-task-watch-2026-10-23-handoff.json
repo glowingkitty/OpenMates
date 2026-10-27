@@ -1,0 +1,59 @@
+{
+  "status": "passed_for_recorded_source",
+  "report": "docs/plans/rust-tui/sdk-conformance-project-task-watch-2026-10-23.json",
+  "provenance": "docs/plans/rust-tui/sdk-conformance-project-task-watch-2026-10-23-inputs.json",
+  "reportSha256": "52d21391e93188b4bf5ce515bd4f1449a575c78fc7ecd96536d3a0751179771f",
+  "provenanceSha256": "2ec576d807bd5a7535db36b4bfe91d96deeb5c3405c689354f729ea509548f40",
+  "sourceAggregateSha256": "57ac1347e740485cdac1559662b7bc9c9e23faa051f3b864ed10a52426d96836",
+  "adapters": 45,
+  "vectorResults": 492,
+  "watchVectorsPerLanguage": 25,
+  "watchFixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
+  "openSdkGaps": 144,
+  "releaseEligible": false,
+  "minimumAvailableGiB": 34.31427764892578,
+  "sourceAndNativeArtifactsUnchanged": true,
+  "threeLockfilesUnchanged": true,
+  "nativeBuild": {
+    "sourceInputCount": 204,
+    "manifestSha256": "fba02fda0bfc05d98b8064586de7d32b8d51287587a8ecd7b255fc212a5b5d7a",
+    "nativeCompilerInputsUnchangedAfterBuild": true,
+    "artifacts": {
+      "npm": {
+        "sha256": "7b113370f41597fbf45dbbf591e684e618a4d4c8a69a46f3f32e35c34e453618",
+        "bytes": 43985216
+      },
+      "python": {
+        "sha256": "0dcdba902f4edfd15868a710a0342dbfe700864c71a1f32a7a9a98502200632f",
+        "bytes": 50440296
+      }
+    }
+  },
+  "postBuildNoncompiledCorrections": [
+    {
+      "source": "frontend/packages/openmates-cli/src/sdkProjectTaskWatch.ts",
+      "beforeSha256": "b1f489c4a5aa0d845bc541459aa1a5a41f8cb3fc8a1a2c7f1042a849cf77c9b6",
+      "afterSha256": "4bfd0511d851dec3c6f43f4bdde97fc2a214f8f0f49e2d66707f9c04ae51ba39",
+      "receiptSha256": "8fea9a11edda83610331b8127ac9b42fcaa7f1b6e9fe0cd37d10a8d2edd09909",
+      "qualification": "Noncompiled TypeScript facade: erasable constructor declarations/assignments, accurate header and explanatory GC-only catch comment. No API or native runtime policy change."
+    },
+    {
+      "source": "tests/sdk-conformance/runners/session-project-task-watch.py",
+      "beforeSha256": "d89fcda2ed823ee0107501273517ab7827ef987a32a1e8b84647699441abf295",
+      "afterSha256": "d9882b55360d313f5189ff50bc0a3d49945bdd91b1ea46a1c9bd2918ce37af5a",
+      "receiptSha256": "f93b30c0db6c7860056b8ba1b45266a6e638c1a50c5ae81135105a9360d8ab19",
+      "qualification": "Noncompiled Python conformance harness: explicit required allow_private_operations=False, matching Rust/npm; ensure peer/client cleanup on constructor/scenario failures and preserve original test error during cleanup. SDK policy and fixture bytes unchanged."
+    }
+  ],
+  "priorAttempts": {
+    "initialAggregate": "Generated-skills npm import failed before invocation because a new facade used nonerasable TypeScript constructor syntax. Fixed without changing native compiler inputs.",
+    "pythonWatch": "Initial harness omitted required explicit private-operation policy. Corrected to false with constructor/cleanup tests; final actual Python25 passes.",
+    "ownershipInterruption": "Root stopped a corrected aggregate after an accidental Cargo ownership overlap; no conformance assertion failed.",
+    "diskReserveInterruption": "A later gate stopped below30.75GiB. Source and three locks held; coordinated disposable builder/image cleanup preceded this fresh pass."
+  },
+  "scopeLimits": [
+    "Watch remains a partial SDK facet. Exact actor/serialization races are separate required Rust tests.",
+    "No complete remote-access source host/files/approved commands/Codex integration, global installation, publication, macOS or web/backend acceptance.",
+    "Native ff71 product CI failed in the new Workflow fixture before application preparation; this library gate does not establish product/performance success."
+  ]
+}

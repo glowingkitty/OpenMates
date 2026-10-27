@@ -298,7 +298,7 @@ class WorkflowNLPlanner:
             metrics["jev_calls"] += 1
             metrics["jev_seconds"] = round(metrics.get("jev_seconds", 0) + time.perf_counter() - began, 3)
             tokens = response.usage.input_tokens
-            metrics["input_tokens"]["jev-1.13"] = metrics["input_tokens"].get("jev-1.13", 0) + tokens
+            metrics["input_tokens"]["jev-1.14"] = metrics["input_tokens"].get("jev-1.14", 0) + tokens
             metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
             if not isinstance(answer, ChoiceAnswer) or answer.choice not in criteria or answer.confidence < 0.55:
                 raise WorkflowNLDecisionUncertain("Jev could not identify one workflow")
@@ -388,7 +388,7 @@ class WorkflowNLPlanner:
                 metrics["jev_calls"] += 1
                 metrics["jev_seconds"] = round(metrics.get("jev_seconds", 0) + time.perf_counter() - began, 3)
                 tokens = response.usage.input_tokens
-                metrics["input_tokens"]["jev-1.13"] = metrics["input_tokens"].get("jev-1.13", 0) + tokens
+                metrics["input_tokens"]["jev-1.14"] = metrics["input_tokens"].get("jev-1.14", 0) + tokens
                 metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
                 try:
                     decisions: dict[str, str] = {}
@@ -552,7 +552,7 @@ class WorkflowNLPlanner:
         payload = {
             "task": "Extract only the NEW event-search topics the user wants to ADD to this selected workflow. "
                     "Return one short topical query per distinct topic (for example AI and queer community are two queries). "
-                    "Omit provider words such as meetup, Luma and Eventbrite from queries. Do not include an existing query. "
+                    "Keep source selectors in the providers field instead of the query. Do not include an existing query. "
                     "Set location only when the user explicitly names a city in this edit, otherwise use an empty string. "
                     "Set online_only only when the user explicitly requests virtual or online events. "
                     "Return an empty queries array if the request does not clearly add event-search topics.",

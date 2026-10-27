@@ -1,0 +1,43 @@
+schema_version: 2
+profile: concise
+id: calendar-event-embeds
+title: Standalone Calendar Event Embeds
+status: verified
+goal: >
+  Add standalone calendar event embeds generated through optimized assistant
+  instructions, with shared Expand/More and separate Add to calendar controls,
+  a details/week-calendar split, optional dimmed contextual events, fullscreen
+  details, and primary-only calendar export.
+specification: feature.calendar-event-embeds@1
+task: TASK-7680
+approval:
+  fingerprint: d5649be2b51c55836910302e5e257c98d332fb2d40478cfb965c037893c8ab55
+  confirmation: Explicit user approval in this Codex chat on 2026-10-25.
+stages:
+  - Backend structured-event validation, relevance-gated instructions, and encrypted streaming lifecycle.
+  - Current CLI/SDK generation, retrieval, persistence, and primary-only export evidence, with native Rust integration deferred by the user.
+  - Extract reusable weekly results-calendar presentation and add registered preview/fullscreen components.
+  - Focused component and assistant/export E2E coverage in isolated CI, dev deployment, and visual review.
+decisions:
+  - Reuse the Calendar app without requiring connected-account skills.
+  - Reuse shared preview/fullscreen controls and existing results calendar; do not duplicate their layout systems.
+  - Context events are included now and never exported with the primary event.
+  - Real OpenMates inference retains automatic routing, following the user's explicit global instruction.
+  - Cloud-calendar operations and Apple implementation remain outside this stage.
+waivers:
+  - date: '2026-10-25'
+    user_quote: Proceed; defer Rust integration
+    scope: >
+      Implement and verify the web feature with the current CLI/SDK and shared
+      calendar helpers. Native Rust SDK/export integration is deferred until the
+      ongoing Rust migration lands; it does not block this web implementation.
+    source: Explicit reply to this chat's native Rust dependency question.
+verification:
+  report: docs/plans/calendar-event-embeds/verification.md
+  required:
+    - Focused backend validation/streaming unit tests and relevant lint.
+    - Real dev inference through the current CLI and local SDK export checks; native Rust integration is waived for this stage.
+    - Isolated CI component and assistant/export checks for compact/large, phone/laptop, light/dark, context overlap, and invalid data.
+    - Deployed visual review and delivery of selected E2E recordings.
+implementation_notes:
+  - Native Rust SDK/export integration belongs to the ongoing Rust migration and is explicitly deferred by the user. Shared export fixtures are retained for that integration.

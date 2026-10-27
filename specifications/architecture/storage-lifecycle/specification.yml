@@ -28,6 +28,7 @@ scope:
     - Bucket inventory, checksums, replication lag, deletion completion, orphan detection, and visible operational failure state.
     - Temporary buffer/review media upload fallback without cross-region replication.
     - Architecture capacity verification with synthetic model outputs and real isolated processing and storage, with zero real inference requests.
+    - Shared Rust client persistence policy behind thin platform adapters, retaining existing IndexedDB and SwiftData stores and user data during client migration.
   excludes:
     - A custom media.openmates.org domain, CDN origin failover, or initial replication of openmates-product-media.
     - Cross-provider disaster recovery outside Hetzner.
@@ -309,6 +310,10 @@ models:
       constraints: {independently_readable: true, complete_account_in_memory: forbidden}
 
 assertions:
+  - id: storage.client.shared-policy-existing-adapters
+    type: invariant
+    must: Shared Rust owns reusable client persistence policy, including owner/Team partitioning, encryption boundaries, revisions, deletion and recovery decisions; thin explicit adapters perform platform IO. Browser IndexedDB and Apple SwiftData may remain the initial persistence engines, preserving existing data and behavior rather than forcing SQLite or OPFS migration. Migrating client code never resets credentials, drops caches or user data, weakens durable logout/deletion fencing, or changes server hot/cold and authorization authority merely to fit a new adapter. A future storage-engine change requires its own safe data migration and verification.
+    depends_on: [examples.client_persistence_adapters]
   - id: storage.regions.configurable-redundancy
     type: invariant
     must: Official OpenMates deployments configure nbg1, fsn1, and hel1 by default, may reduce that set through one explicit non-empty environment region list, and resolve every replicated logical bucket through the same region policy instead of persisting one hardcoded endpoint as storage authority.
@@ -419,7 +424,7 @@ assertions:
     depends_on: [models.ReplicatedObject, models.DeletionTombstone, examples.integrity]
   - id: storage.surface.semantic-parity
     type: parity
-    must: REST, WebSocket, CLI, npm SDK, pip SDK, web, and Apple preserve the same authorized hot/cold discovery, archive-aware read, promotion, deletion, export completeness, regional failure, and visible-error semantics wherever each surface implements the affected resource operation.
+    must: REST, WebSocket, CLI, Rust SDK, npm SDK, Python SDK, web and Apple preserve the same authorized hot/cold discovery, archive-aware read, promotion, deletion, export completeness, regional failure and visible-error semantics wherever each surface implements the affected resource operation. Shared client policy and thin persistence adapters preserve these semantics without making a platform storage engine the server's authority.
     depends_on: [models, examples, applies_to]
 
 applies_to:
@@ -433,6 +438,7 @@ applies_to:
     required: true
     parity: semantic
     implementations:
+      rust: {required: true}
       npm: {required: true}
       pip: {required: true}
   gui:
@@ -445,4 +451,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [region_replication, archive_eligibility, cold_discovery, shared_team_access, pin_share_policy, rehydration, deletion, account_export, media_scope, integrity, archive_unit_safety, initial_rollout, working_cache, background_recovery, background_retention, synthetic_capacity, warm_chat_limits, compression_segments, subchat_archive, message_page_reads, archive_read_latency, version_index_reads, version_reconstruction]
+  required_groups: [region_replication, archive_eligibility, cold_discovery, shared_team_access, pin_share_policy, rehydration, deletion, account_export, media_scope, integrity, archive_unit_safety, initial_rollout, working_cache, background_recovery, background_retention, synthetic_capacity, warm_chat_limits, compression_segments, subchat_archive, message_page_reads, archive_read_latency, version_index_reads, version_reconstruction, client_persistence_adapters]

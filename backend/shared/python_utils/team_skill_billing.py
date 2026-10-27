@@ -28,19 +28,22 @@ def skill_billing_request(
 ) -> tuple[str, dict[str, Any]]:
     """Return the internal billing path and payload for one completed skill job.
 
-    Only the route supplies Team context to dispatched jobs. Team charges use the
-    same role-checked ledger as chat and carry one stable event ID per job.
+    Both ledgers require a stable identity per output. Preserve existing Personal
+    identities (including audio task/segment keys); otherwise derive one from the
+    server-owned event ID. Only the route supplies Team context to dispatched jobs.
     """
-    if not team_id:
+    if not team_id and payload.get("idempotency_key"):
         return "/internal/billing/charge", payload
-    user_id = str(payload["user_id"])
-    usage_details = dict(payload.get("usage_details") or {})
-    usage_details["workspace_type"] = "apps"
     if not event_id:
-        raise ValueError("Team app skill billing requires an event ID")
+        raise ValueError("App skill billing requires an event ID")
     idempotency_key = f"app-skill:{event_id}"
     if len(idempotency_key) > 255:
         idempotency_key = f"app-skill:{hashlib.sha256(event_id.encode()).hexdigest()}"
+    if not team_id:
+        return "/internal/billing/charge", {**payload, "idempotency_key": idempotency_key}
+    user_id = str(payload["user_id"])
+    usage_details = dict(payload.get("usage_details") or {})
+    usage_details["workspace_type"] = "apps"
     return "/internal/billing/team/charge", {
         "team_id": team_id,
         "actor_user_id": user_id,

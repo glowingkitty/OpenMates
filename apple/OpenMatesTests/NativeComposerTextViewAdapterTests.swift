@@ -18,6 +18,87 @@ import AppKit
 @MainActor
 final class NativeComposerTextViewAdapterTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testLatestValidOverflowCancelsQueuedFalseAndInvalidProbesPreserveState() throws {
+        #if canImport(UIKit)
+        var queued: [@MainActor () -> Void] = []
+        let publication = NativeComposerOverflowPublication(schedule: { queued.append($0) })
+        var overflowing = true
+        var writes: [Bool] = []
+        let binding = Binding<Bool>(get: { overflowing }, set: {
+            overflowing = $0
+            writes.append($0)
+        })
+        publication.submit(false, to: binding)
+        publication.submit(true, to: binding)
+        XCTAssertEqual(queued.count, 1, "One callback must consume the latest valid result")
+        queued.removeFirst()()
+        XCTAssertTrue(overflowing)
+        XCTAssertTrue(writes.isEmpty, "An equal-current true must cancel the queued false, without flicker")
+
+        let session = NativeComposerSession(canonicalMarkdown: "One\nTwo\nThree\nFour\nFive")
+        let coordinator = NativeComposerEditorView.Coordinator(session: session, accessibilityHint: "Synthetic")
+        let view = coordinator.adapter.makePlatformView()
+        view.frame = CGRect(x: 0, y: 0, width: 362, height: 104.8)
+        view.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        view.selectedRange = NSRange(location: 1, length: 2)
+        let selection = view.selectedRange
+        let revision = session.controller.revision
+        let limit = MessageComposerMetric.collapsedTextEditorMaxHeight
+        XCTAssertEqual(coordinator.overflowMeasurement(view, width: 362, limit: limit), true)
+        let invalidWidths: [CGFloat] = [0, -1, .infinity, .nan, .greatestFiniteMagnitude]
+        for width in invalidWidths {
+            let measurement = coordinator.overflowMeasurement(view, width: width, limit: limit)
+            XCTAssertNil(measurement, "Speculative invalid/unbounded width is not a false overflow measurement")
+            publication.submit(measurement, to: binding)
+        }
+        XCTAssertTrue(queued.isEmpty)
+        XCTAssertTrue(overflowing)
+        XCTAssertTrue(writes.isEmpty)
+        XCTAssertEqual(view.selectedRange, selection)
+        XCTAssertEqual(session.controller.revision, revision)
+        XCTAssertEqual(view.bounds.width, 362)
+
+        // A valid clear still reaches the binding; invalid probes must not
+        // cancel that valid pending result either.
+        publication.submit(false, to: binding)
+        publication.submit(nil, to: binding)
+        XCTAssertEqual(queued.count, 1)
+        queued.removeFirst()()
+        XCTAssertFalse(overflowing)
+        XCTAssertEqual(writes, [false])
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testFullscreenNativeControlOwnsEntire44PointHitRectangleAndOneAction() {
+        #if canImport(UIKit)
+        let button = NativeComposerFullscreenUIKitButton()
+        let parent = UIView(frame: CGRect(x: 0, y: 0, width: 386, height: 165))
+        button.frame.origin = CGPoint(x: parent.bounds.width - 15 - 44, y: 10)
+        parent.addSubview(button)
+        button.layoutIfNeeded()
+        XCTAssertEqual(button.bounds.size, CGSize(width: 44, height: 44))
+        XCTAssertEqual(button.artwork.view.frame, CGRect(x: 7, y: 7, width: 30, height: 30))
+        for point in [CGPoint(x: 1, y: 1), CGPoint(x: 43, y: 1),
+                      CGPoint(x: 1, y: 43), CGPoint(x: 43, y: 43), CGPoint(x: 22, y: 22)] {
+            XCTAssertTrue(parent.hitTest(button.convert(point, to: parent), with: nil) === button,
+                          "The real control must own corners as well as its sparse SVG center")
+        }
+        XCTAssertTrue(button.isAccessibilityElement)
+        XCTAssertTrue(button.accessibilityTraits.contains(.button))
+        XCTAssertTrue(button.artwork.view.accessibilityElementsHidden)
+        XCTAssertFalse(button.artwork.view.isUserInteractionEnabled)
+        var firstActionCount = 0
+        var currentActionCount = 0
+        button.onPress = { firstActionCount += 1 }
+        button.onPress = { currentActionCount += 1 }
+        button.sendActions(for: .touchUpInside)
+        XCTAssertEqual(firstActionCount, 0, "A redraw must not retain an obsolete fullscreen action")
+        XCTAssertEqual(currentActionCount, 1)
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testActualNativeScrollingEnablesAndRemovesTopMaskWithoutReplacingDelegateOrSelection() throws {
         #if canImport(UIKit)
         let session = NativeComposerSession()

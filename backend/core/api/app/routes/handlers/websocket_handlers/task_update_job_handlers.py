@@ -9,6 +9,7 @@ the task key, then sends only encrypted fields back for durable persistence.
 from __future__ import annotations
 
 import logging
+import json
 import secrets
 import time
 from typing import Any
@@ -66,12 +67,38 @@ async def send_available_task_update_jobs(
     cache_service: Any,
     user_id: str,
     device_fingerprint_hash: str,
+    complete_inventory: bool = False,
+    inventory_request_id: str | None = None,
 ) -> None:
-    jobs = await _list_available_jobs(cache_service, user_id)
-    if not jobs:
+    # First-party authenticated session/device socket only. This offer reads
+    # summaries; it cannot claim a lease, decrypt a working copy, persist, bill
+    # or execute work. Existing owner filtering and ordinary offers remain.
+    complete = False
+    if complete_inventory:
+        capable = getattr(manager, "supports_task_update_jobs", None)
+        if not callable(capable) or not capable(user_id, device_fingerprint_hash):
+            return
+        try:
+            jobs = await _list_complete_available_jobs(cache_service, user_id)
+            complete = True
+        except Exception:
+            # The compatible cache wrappers hide operational failure as empty.
+            # Preserve their old nonempty offers, never certify their absence.
+            logger.warning("Complete Task job discovery unavailable; ordinary offers retained")
+            jobs = await _list_available_jobs(cache_service, user_id)
+    else:
+        jobs = await _list_available_jobs(cache_service, user_id)
+    if complete_inventory and not manager.supports_task_update_jobs(user_id, device_fingerprint_hash):
         return
+    if not jobs and not complete:
+        return
+    payload: dict[str, Any] = {"jobs": [_job_summary(job) for job in jobs]}
+    if complete:
+        payload["complete"] = True
+        if inventory_request_id is not None:
+            payload["inventory_request_id"] = inventory_request_id
     await manager.send_personal_message(
-        {"type": "task_update_jobs_available", "payload": {"jobs": [_job_summary(job) for job in jobs]}},
+        {"type": "task_update_jobs_available", "payload": payload},
         user_id,
         device_fingerprint_hash,
     )
@@ -342,6 +369,65 @@ async def handle_task_update_job_event_confirmed(
         )
     except Exception as exc:
         await _send_error(manager, user_id, device_fingerprint_hash, job_id, request_id, exc)
+
+
+# The compatible helper below uses KEYS over this same authoritative Redis job
+# prefix and intentionally suppresses cache outages. Only the opt-in inventory
+# proof uses bounded SCAN and unsuppressed GET; no new source or broader prefix.
+_COMPLETE_JOB_SCAN_PAGES = 16
+_COMPLETE_JOB_SCAN_KEYS = 4096
+
+
+async def _list_complete_available_jobs(cache_service: Any, user_id: str) -> list[dict[str, Any]]:
+    client = await cache_service.client
+    if client is None:
+        raise RuntimeError("Task inventory Redis unavailable")
+    keys: set[str] = set()
+    cursor = 0
+    for _ in range(_COMPLETE_JOB_SCAN_PAGES):
+        cursor, page = await client.scan(cursor=cursor, match=f"{TASK_TOOL_JOB_CACHE_PREFIX}*", count=256)
+        if isinstance(cursor, bool) or not isinstance(cursor, int) or cursor < 0 or not isinstance(page, (list, tuple)):
+            raise RuntimeError("Task inventory returned malformed page")
+        for raw in page:
+            key = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+            if not isinstance(key, str) or not key.startswith(TASK_TOOL_JOB_CACHE_PREFIX):
+                raise RuntimeError("Task inventory returned malformed key")
+            keys.add(key)
+            if len(keys) > _COMPLETE_JOB_SCAN_KEYS:
+                raise RuntimeError("Task inventory exceeds bounded scan")
+        if cursor in (0, "0", b"0"):
+            break
+    else:
+        raise RuntimeError("Task inventory exceeds bounded pages")
+    owner_hash = hash_id(user_id)
+    now = int(time.time())
+    jobs = []
+    for key in sorted(keys):
+        raw = await client.get(key)
+        if raw is None:  # A key may authoritatively expire between SCAN and GET.
+            continue
+        job = json.loads(raw)
+        if not isinstance(job, dict) or not isinstance(job.get("owner_hash"), str):
+            raise RuntimeError("Task inventory returned malformed job")
+        if job["owner_hash"] != owner_hash:
+            continue
+        # Validate before certifying success; malformed records cannot imply an
+        # empty inventory. Summary validation stays consistent with client capture.
+        if not isinstance(job.get("state"), str):
+            raise RuntimeError("Task inventory returned malformed state")
+        expires = job.get("expires_at")
+        if isinstance(expires, bool) or not isinstance(expires, int):
+            raise RuntimeError("Task inventory returned malformed expiry")
+        if job["state"] != "TERMINAL" and expires > now:
+            summary = _job_summary(job)
+            if any(not isinstance(summary.get(field), str) or not summary[field]
+                   for field in ("job_id", "task_id", "chat_id")):
+                raise RuntimeError("Task inventory returned malformed identity")
+            if any(isinstance(summary.get(field), bool) or not isinstance(summary.get(field), int)
+                   for field in ("revision", "task_key_version")):
+                raise RuntimeError("Task inventory returned malformed revision")
+            jobs.append(job)
+    return jobs
 
 
 async def _list_available_jobs(cache_service: Any, user_id: str) -> list[dict[str, Any]]:

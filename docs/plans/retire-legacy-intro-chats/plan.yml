@@ -45,7 +45,6 @@ scope:
     - Neutral auth-recovery last_opened behavior instead of demo-for-everyone.
     - Focused web and backend verification plus deployed web proof.
   out:
-    - Manual social-media, Luma, Meetup, Eventbrite, Discord, and YouTube account edits.
     - New docs.openmates.org information architecture, user-guide landing page, or blog.
     - Apple builds, Apple tests, or Apple proof in this speed-focused slice.
     - Removing the unrelated Directus demo_chats collection or Vault bootstrap key.

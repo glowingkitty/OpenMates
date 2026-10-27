@@ -452,29 +452,7 @@ const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  const authenticated = getAuthenticatedFallbackInspirations(locale);
-  const lang = locale.split("-")[0].toLowerCase();
-  const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
-  return authenticated.map((inspiration) => inspiration.inspiration_id === "authenticated-fallback-export"
-    ? {
-      inspiration_id: "guest-fallback-events",
-      phrase: copy.events.phrase,
-      title: copy.events.title,
-      category: "openmates_official",
-      content_type: "feature",
-      video: null,
-      feature: {
-        feature_id: "events-search",
-        icon: "calendar-days",
-        title: copy.events.title,
-        description: copy.events.description,
-        settings_path: "apps/events/skill/search",
-        requires_authentication: false,
-      },
-      assistant_response: copy.events.assistant_response,
-      generated_at: inspiration.generated_at,
-    }
-    : inspiration);
+  return getAuthenticatedFallbackInspirations(locale);
 }
 
 /** Useful localized video fallback for authenticated sessions when recovery APIs fail. */
@@ -530,6 +508,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.antikythera.title,
         wiki_title: "Antikythera_mechanism",
         description: copy.antikythera.description,
@@ -548,6 +527,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.bioluminescence.title,
         wiki_title: "Bioluminescence",
         description: copy.bioluminescence.description,
@@ -566,6 +546,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.fermi.title,
         wiki_title: "Fermi_paradox",
         description: copy.fermi.description,
@@ -624,7 +605,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
     },
   ];
 
-  return [...videos, ...wiki, ...features];
+  return [...videos, ...wiki, ...features].map((inspiration) => ({ ...inspiration, language: lang }));
 }
 
 

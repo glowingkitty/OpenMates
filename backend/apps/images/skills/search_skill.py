@@ -1,51 +1,9 @@
-# backend/apps/images/skills/search_skill.py
-#
-# Images search skill — finds images via text query or reverse image search.
-#
-# Architecture:
-#   Two search modes:
-#     1. Text query → Brave Search Images API (/res/v1/images/search)
-#     2. Image input (embed_ref) → SerpAPI Google Lens reverse image search
-#
-#   For reverse image search with user-uploaded images:
-#     - The image is stored encrypted on private S3.
-#     - This skill downloads + decrypts the image server-side (same as view_skill).
-#     - The plaintext bytes are temporarily uploaded to the PRIVATE `temp_images`
-#       bucket via the internal API route POST /internal/s3/upload-temp-image.
-#     - That route returns a short-lived (15 min) presigned URL which is passed
-#       to SerpAPI Google Lens — SerpAPI fetches the object exactly once.
-#     - After the search completes, the temp image is deleted immediately.
-#       The 1-day S3 lifecycle policy is a safety net for any failures.
-#     - Prior to GDPR audit finding C6 (fixed 2026-04-08 / OPE-372) this bucket
-#       was public-read and the URL was a plain public S3 URL, which exposed
-#       decrypted user images to anyone holding the URL for up to 24h.
-#       See docs/architecture/compliance/gdpr-audit.md.
-#
-#   For image search results (search-result child embeds):
-#     - The child embed stores image_url (the external full-res URL) and thumbnail_url.
-#     - The embed_ref for a search result resolves to an embed with `image_url` set.
-#     - When the LLM calls this skill with the embed_ref of a result image, the skill
-#       detects the `image_url` field in the resolved embed and passes it directly to
-#       Google Lens — no temp upload needed since the URL is already public.
-#
-#   Output:
-#     - Parent app_skill_use embed with child image_result embeds.
-#     - Each child embed stores: title, image_url, thumbnail_url, source_page_url, source,
-#       favicon_url (all external URLs — no S3 storage for search results).
-#     - The frontend proxies thumbnails via preview.openmates.org to protect user IP.
-#
-#   See docs/architecture/app-skills.md for skill execution model details.
-# Tests: backend/tests/apps/images/test_search_skill.py (TODO)
+# Text image search via the supported Brave Search Images API.
 
-import base64
-import json as json_lib
 import logging
 import os
-import uuid
 from typing import Any, Dict, List, Optional
 
-import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
@@ -62,10 +20,6 @@ MAX_IMAGE_RESULTS = 20
 DEFAULT_IMAGE_RESULTS = 10
 # Maximum number of parallel search requests in a single skill call
 MAX_PARALLEL_REQUESTS = 5
-# Image content type returned by S3 decrypt (WEBP from our storage pipeline)
-DECRYPTED_IMAGE_CONTENT_TYPE = "image/webp"
-# Timeout for internal API calls (temp upload + delete)
-INTERNAL_API_TIMEOUT_SECONDS = 30
 E2E_IMAGE_FIXTURE_QUERY_TOKEN = "openmates_e2e_image_fixture_sunset"
 E2E_IMAGE_FIXTURE_RESULTS = [
     {
@@ -105,7 +59,7 @@ def _build_e2e_image_fixture_results(requested_count: int | None) -> List[Dict[s
 # ── Pydantic models (auto-discovered by apps_api.py for OpenAPI docs) ────────
 
 class ImageSearchRequestItem(BaseModel):
-    """A single image search request (text or reverse image search)."""
+    """A text image search request."""
 
     id: Optional[Any] = Field(
         default=None,
@@ -116,12 +70,12 @@ class ImageSearchRequestItem(BaseModel):
     query: Optional[str] = Field(
         default=None,
         description="Text description of images to search for (e.g. 'sunset over mountains'). "
-        "Mutually exclusive with file_path.",
+        "Reverse image search is unavailable.",
     )
     file_path: Optional[str] = Field(
         default=None,
-        description="The original filename (embed_ref) of an image in the conversation to "
-        "reverse-search. Mutually exclusive with query.",
+        deprecated=True,
+        description="Legacy field; reverse image search is unavailable and this input is rejected.",
     )
     count: int = Field(default=6, description="Number of image results to return (default 6, max 20).")
     country: str = Field(default="us", description="Country code for localised results (default 'us').")
@@ -145,14 +99,13 @@ class SearchRequest(BaseModel):
     """
     Request model for the images.search skill.
     Always uses 'requests' array for parallel processing consistency.
-    Each request must have either 'query' (text search) or 'file_path' (reverse image search).
+    Each supported request contains a text 'query'.
     """
     requests: List[ImageSearchRequestItem] = Field(
         ...,
         description=(
-            "Array of image search request objects. Each object must contain either "
-            "'query' (text image search) or 'file_path' (reverse image search using an "
-            "uploaded image's embed_ref). Optional: 'count' (default 6, max 20), "
+            "Array of text image search request objects, each containing 'query'. "
+            "Optional: 'count' (default 6, max 20), "
             "'country' (default 'us'), 'search_lang' (default 'en')."
         ),
     )
@@ -187,254 +140,7 @@ class SearchResponse(BaseModel):
 # ── Skill implementation ─────────────────────────────────────────────────────
 
 class SearchSkill(BaseSkill):
-    """
-    Skill that searches for images either by text query or by reverse image search.
-
-    Text mode: Calls Brave Search Images API for the given text query.
-    Reverse mode: Decrypts the referenced image server-side, uploads it temporarily to
-                  a public S3 bucket, calls SerpAPI Google Lens, then deletes the temp file.
-
-    Results are returned as child embeds (has_children=true in app.yml) so the frontend
-    renders a parent card with a scrollable image grid fullscreen.
-    """
-
-    # ── Shared infrastructure helpers ────────────────────────────────────────
-
-    VAULT_TOKEN_PATH: str = "/vault-data/api.token"
-
-    def _load_vault_token(self) -> str:
-        """Load the Vault service token from the mounted token file."""
-        with open(self.VAULT_TOKEN_PATH, "r") as f:
-            token = f.read().strip()
-        if not token:
-            raise RuntimeError("Vault token file is empty")
-        return token
-
-    async def _resolve_embed_content(
-        self, embed_id: str, user_vault_key_id: str
-    ) -> Dict[str, Any]:
-        """
-        Look up and decrypt an embed's content from the Redis cache.
-
-        Identical flow to view_skill._lookup_embed_content — decrypt via Vault Transit,
-        TOON-decode, return the content dict.
-        """
-        import redis.asyncio as aioredis
-        from toon_format import decode as toon_decode
-        from urllib.parse import quote as url_quote
-
-        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
-        redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
-        redis_client = aioredis.from_url(redis_url, decode_responses=True)
-
-        try:
-            cache_key = f"embed:{embed_id}"
-            embed_json = await redis_client.get(cache_key)
-            if not embed_json:
-                raise RuntimeError(
-                    f"Embed {embed_id} not found in cache. "
-                    "Please re-upload the image or perform a new image search."
-                )
-
-            embed_data = json_lib.loads(embed_json)
-            encrypted_content = embed_data.get("encrypted_content")
-            if not encrypted_content:
-                raise RuntimeError(f"Embed {embed_id} has no encrypted_content in cache")
-
-            vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-            token = self._load_vault_token()
-            decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
-            context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
-            payload = {"ciphertext": encrypted_content, "context": context}
-
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(
-                    decrypt_url,
-                    json=payload,
-                    headers={"X-Vault-Token": token},
-                )
-
-            if resp.status_code != 200:
-                raise RuntimeError(
-                    f"Vault transit decrypt failed: HTTP {resp.status_code} — {resp.text[:200]}"
-                )
-
-            plaintext_b64 = resp.json()["data"]["plaintext"]
-            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
-            decoded = toon_decode(plaintext_toon)
-            if not isinstance(decoded, dict):
-                raise RuntimeError(
-                    f"Embed content decoded to {type(decoded).__name__}, expected dict"
-                )
-            return decoded
-
-        finally:
-            await redis_client.aclose()
-
-    async def _unwrap_aes_key(self, vault_wrapped_aes_key: str, vault_key_id: str) -> bytes:
-        """Unwrap a Vault Transit-wrapped AES key to recover the raw key bytes."""
-        vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-        token = self._load_vault_token()
-        decrypt_url = f"{vault_url}/v1/transit/decrypt/{vault_key_id}"
-        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
-        payload = {"ciphertext": vault_wrapped_aes_key, "context": context}
-
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                decrypt_url, json=payload, headers={"X-Vault-Token": token}
-            )
-
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Vault transit decrypt failed for key {vault_key_id}: "
-                f"HTTP {resp.status_code} — {resp.text[:200]}"
-            )
-
-        aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
-        return base64.b64decode(aes_key_b64)
-
-    async def _download_from_s3(self, s3_base_url: str, s3_key: str) -> bytes:
-        """Download an encrypted file from S3 via the internal API."""
-        download_url = (
-            f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}"
-            "/internal/s3/download"
-        )
-        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.get(
-                download_url,
-                params={"bucket_key": "chatfiles", "s3_key": s3_key},
-                headers={"X-Internal-Service-Token": shared_token},
-            )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"S3 download failed for {s3_key}: HTTP {resp.status_code} — {resp.text[:200]}"
-            )
-        return resp.content
-
-    async def _decrypt_image_bytes(
-        self,
-        embed_content: Dict[str, Any],
-        user_vault_key_id: str,
-    ) -> bytes:
-        """
-        Decrypt an uploaded image from S3 and return the plaintext bytes.
-
-        Uses the vault_wrapped_aes_key in embed_content to unwrap the AES key,
-        downloads the encrypted blob from S3, and decrypts with AES-256-GCM.
-        Prefers 'full' variant (highest quality without being the raw original).
-        """
-        vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
-        s3_base_url = embed_content.get("s3_base_url")
-        aes_nonce = embed_content.get("aes_nonce")
-        files = embed_content.get("files", {})
-
-        if not vault_wrapped_aes_key:
-            raise RuntimeError("Embed content missing vault_wrapped_aes_key")
-        if not s3_base_url:
-            raise RuntimeError("Embed content missing s3_base_url")
-        if not aes_nonce:
-            raise RuntimeError("Embed content missing aes_nonce")
-
-        s3_key = None
-        for variant_name in ("full", "original", "preview"):
-            variant = files.get(variant_name)
-            if variant and variant.get("s3_key"):
-                s3_key = variant["s3_key"]
-                logger.info("[images.search] Using '%s' variant: %s", variant_name, s3_key)
-                break
-
-        if not s3_key:
-            raise RuntimeError(
-                f"Embed content has no file variants with s3_key "
-                f"(available: {list(files.keys())})"
-            )
-
-        aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, user_vault_key_id)
-        encrypted_bytes = await self._download_from_s3(s3_base_url, s3_key)
-        nonce_bytes = base64.b64decode(aes_nonce)
-        aesgcm = AESGCM(aes_key_bytes)
-        return aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
-
-    async def _upload_temp_image(
-        self, image_bytes: bytes, content_type: str
-    ) -> tuple[str, str]:
-        """
-        Upload plaintext image bytes to the temporary (private) S3 bucket and
-        obtain a short-lived presigned URL for SerpAPI Google Lens.
-
-        Returns (image_url, s3_key) — a 15-minute presigned URL that SerpAPI
-        can fetch once, and the S3 key needed to delete the file after the
-        search completes.
-
-        The temp_images bucket is private with a 1-day lifecycle safety net;
-        immediate cleanup is done via `_delete_temp_image` in the finally block
-        of the caller. Before GDPR audit finding C6 this bucket was public-read
-        and the returned URL was a plain public S3 URL — see
-        docs/architecture/compliance/gdpr-audit.md.
-        """
-        ext_map = {
-            "image/webp": "webp",
-            "image/jpeg": "jpg",
-            "image/jpg": "jpg",
-            "image/png": "png",
-        }
-        ext = ext_map.get(content_type, "webp")
-        filename = f"{uuid.uuid4().hex[:16]}.{ext}"
-
-        upload_url = (
-            f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}"
-            "/internal/s3/upload-temp-image"
-        )
-        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
-
-        payload = {
-            "image_bytes_b64": base64.b64encode(image_bytes).decode("utf-8"),
-            "content_type": content_type,
-            "filename": filename,
-        }
-
-        async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT_SECONDS) as client:
-            resp = await client.post(
-                upload_url,
-                json=payload,
-                headers={"X-Internal-Service-Token": shared_token},
-            )
-
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Temp image upload failed: HTTP {resp.status_code} — {resp.text[:200]}"
-            )
-
-        data = resp.json()
-        return data["image_url"], data["s3_key"]
-
-    async def _delete_temp_image(self, s3_key: str) -> None:
-        """Delete a previously uploaded temporary image. Best-effort — never raises."""
-        delete_url = (
-            f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}"
-            "/internal/s3/temp-image"
-        )
-        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
-        try:
-            async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT_SECONDS) as client:
-                resp = await client.delete(
-                    delete_url,
-                    params={"s3_key": s3_key},
-                    headers={"X-Internal-Service-Token": shared_token},
-                )
-            if resp.status_code not in (200, 204):
-                logger.warning(
-                    "[images.search] Temp image delete returned %d for key %s",
-                    resp.status_code, s3_key,
-                )
-        except Exception as exc:
-            # Best-effort cleanup — the 1-day lifecycle policy is the safety net
-            logger.warning(
-                "[images.search] Failed to delete temp image %s: %s", s3_key, exc
-            )
-
-    # ── Search mode implementations ─────────────────────────────────────────
+    """Search for images by text through Brave Search Images API."""
 
     async def _text_search(
         self,
@@ -474,33 +180,6 @@ class SearchSkill(BaseSkill):
 
         return response.get("results", []), "Brave Search"
 
-    async def _reverse_image_search(
-        self,
-        image_url: str,
-        secrets_manager: SecretsManager,
-        query: Optional[str] = None,
-        count: int = DEFAULT_IMAGE_RESULTS,
-    ) -> tuple[List[Dict[str, Any]], str]:
-        """
-        Reverse-search an image via SerpAPI Google Lens.
-
-        image_url must be a publicly accessible URL.
-        Returns (results_list, provider_name).
-        """
-        from backend.shared.providers.serpapi import google_lens_reverse_search
-
-        response = await google_lens_reverse_search(
-            image_url=image_url,
-            secrets_manager=secrets_manager,
-            query=query,
-            max_results=min(count, MAX_IMAGE_RESULTS),
-        )
-
-        if response.get("error"):
-            raise RuntimeError(f"Google Lens reverse search failed: {response['error']}")
-
-        return response.get("results", []), "Google Lens"
-
     # ── Single-request processor ─────────────────────────────────────────────
 
     async def _process_single_request(
@@ -508,20 +187,15 @@ class SearchSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        file_path_index: Dict[str, str],
-        user_vault_key_id: Optional[str],
         cache_service: Optional[Any] = None,
     ) -> tuple[Any, List[Dict[str, Any]], str, Optional[str]]:
         """
         Process one search request and return (request_id, results, provider, error_msg).
 
-        Routing:
-        - 'file_path' present → resolve embed → check if it has 'image_url' (search result)
-          or S3 files (uploaded image) → reverse image search via Google Lens.
-        - 'query' only → text image search via Brave.
         """
         query: Optional[str] = req.get("query")
-        file_path: Optional[str] = req.get("file_path")
+        if req.get("file_path") is not None:
+            return request_id, [], "", "Reverse image search is unavailable. Use a text query to search for images."
         count: int = min(int(req.get("count", DEFAULT_IMAGE_RESULTS)), MAX_IMAGE_RESULTS)
         country: str = req.get("country", "us")
         search_lang: str = req.get("search_lang", "en")
@@ -529,73 +203,7 @@ class SearchSkill(BaseSkill):
         log_prefix = f"[images.search] [req:{request_id}]"
 
         try:
-            if file_path:
-                # ── Reverse image search ──────────────────────────────────────
-                if not user_vault_key_id:
-                    raise RuntimeError(
-                        "user_vault_key_id not available — cannot resolve image embed for reverse search"
-                    )
-
-                embed_id = file_path_index.get(file_path)
-                if not embed_id:
-                    raise RuntimeError(
-                        f"file_path '{file_path}' not found in file_path_index "
-                        f"(available: {list(file_path_index.keys())})"
-                    )
-
-                logger.info(
-                    "%s Resolving embed %s for reverse image search", log_prefix, embed_id[:8]
-                )
-                embed_content = await self._resolve_embed_content(embed_id, user_vault_key_id)
-
-                # Determine if this embed is a search-result child (has image_url field)
-                # or an uploaded/generated image (has S3 files + AES keys).
-                image_url_field = embed_content.get("image_url")
-
-                if image_url_field:
-                    # Search result child embed — image_url is already a public URL
-                    logger.info(
-                        "%s Using public image_url from search result embed: %s",
-                        log_prefix, str(image_url_field)[:80],
-                    )
-                    results, provider = await self._reverse_image_search(
-                        image_url=str(image_url_field),
-                        secrets_manager=secrets_manager,
-                        query=query,
-                        count=count,
-                    )
-                else:
-                    # Uploaded/generated image — decrypt from private S3,
-                    # upload to private temp bucket, get a short-lived presigned URL,
-                    # call Google Lens, delete temp file.
-                    logger.info(
-                        "%s Decrypting uploaded image for reverse search", log_prefix
-                    )
-                    image_bytes = await self._decrypt_image_bytes(
-                        embed_content, user_vault_key_id
-                    )
-                    logger.info(
-                        "%s Uploading %d bytes to temp bucket", log_prefix, len(image_bytes)
-                    )
-                    image_url, temp_s3_key = await self._upload_temp_image(
-                        image_bytes, DECRYPTED_IMAGE_CONTENT_TYPE
-                    )
-                    logger.info(
-                        "%s Calling Google Lens with presigned temp URL (key=%s)",
-                        log_prefix, temp_s3_key,
-                    )
-                    try:
-                        results, provider = await self._reverse_image_search(
-                            image_url=image_url,
-                            secrets_manager=secrets_manager,
-                            query=query,
-                            count=count,
-                        )
-                    finally:
-                        # Always clean up the temp file, even on error
-                        await self._delete_temp_image(temp_s3_key)
-
-            elif query:
+            if query:
                 # ── Text image search ────────────────────────────────────────
                 logger.info("%s Text image search: '%s'", log_prefix, query[:80])
                 results, provider = await self._text_search(
@@ -609,7 +217,7 @@ class SearchSkill(BaseSkill):
                     color=req.get("color"),
                 )
             else:
-                raise ValueError("Each request must have either 'query' or 'file_path'")
+                raise ValueError("Each request must contain a text 'query'")
 
             # Inject result hashes for dedup tracking
             for result in results:
@@ -654,20 +262,10 @@ class SearchSkill(BaseSkill):
 
         Args:
             request: SearchRequest with 'requests' array. Each element must have
-                     'query' (text search) or 'file_path' (reverse image search).
+                     a text 'query'.
             secrets_manager: Injected by BaseApp for provider API key resolution.
-            **kwargs: Pipeline context (file_path_index, user_vault_key_id, etc.).
+            **kwargs: Pipeline context, including cache_service.
         """
-        # Get or create SecretsManager using BaseSkill helper (loads API keys from Vault)
-        secrets_manager, error_response = await self._get_or_create_secrets_manager(
-            secrets_manager=secrets_manager,
-            skill_name="ImagesSearchSkill",
-            error_response_factory=lambda msg: SearchResponse(results=[], error=msg),
-            logger=logger
-        )
-        if error_response:
-            return error_response
-
         requests_list = request.requests
         if not requests_list:
             return SearchResponse(results=[], provider="Brave Search", error="No requests provided")
@@ -682,12 +280,19 @@ class SearchSkill(BaseSkill):
             for r in requests_list
         ]
 
-        # Determine provider string from first request (for the response header)
-        first_has_file_path = bool(requests_as_dicts[0].get("file_path"))
-        default_provider = "Google Lens" if first_has_file_path else "Brave Search"
+        # Reject legacy image inputs without reading secrets, resolving embeds, or uploading data.
+        if any(req.get("file_path") is None and req.get("query") for req in requests_as_dicts):
+            # Get or create SecretsManager using BaseSkill helper (loads API keys from Vault)
+            secrets_manager, error_response = await self._get_or_create_secrets_manager(
+                secrets_manager=secrets_manager,
+                skill_name="ImagesSearchSkill",
+                error_response_factory=lambda msg: SearchResponse(results=[], error=msg),
+                logger=logger
+            )
+            if error_response:
+                return error_response
 
-        file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
-        user_vault_key_id: Optional[str] = kwargs.get("user_vault_key_id")
+        default_provider = "Brave Search"
         cache_service = kwargs.get("cache_service")
 
         # Normalise request IDs (use provided id or index+1)
@@ -703,8 +308,6 @@ class SearchSkill(BaseSkill):
                 req=req,
                 request_id=req_id,
                 secrets_manager=secrets_manager,
-                file_path_index=file_path_index,
-                user_vault_key_id=user_vault_key_id,
                 cache_service=cache_service,
             )
             for req_id, req in normalised

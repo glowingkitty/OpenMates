@@ -26,7 +26,7 @@ it('terminal fullscreen retains records, filters, failures and safe official lin
   const data = { result_count: 1, match: 'exact', status_filter: 'all', nice_classes: [9],
     matches: [{ mark: 'PUBLIC MARK', status: 'registered', region: 'US', owners: ['Public owner'],
       application_number: '12345678', goods_services: ['Software'], nice_classes: [9],
-      source_url: 'https://tsdr.uspto.gov/#caseNumber=12345678' }],
+      source_url: 'https://www.wipo.int/branddb/en/' }],
     coverage: [{ query: 'PUBLIC MARK', region: 'US', status: 'partial', checked_at: '2026-10-12', more_results: true },
       { region: 'DE', status: 'unsupported', source_url: 'https://register.dpma.de/DPMAregister/marke/uebersicht' }],
     limitation: 'No matches do not establish legal availability.' };
@@ -36,10 +36,10 @@ it('terminal fullscreen retains records, filters, failures and safe official lin
   assert.match(output, /Filters: exact · all · classes 9/);
   assert.match(output, /Partial · 2026-10-12/);
   assert.match(output, /More matching records/);
-  assert.match(output, /https:\/\/tsdr.uspto.gov\/#caseNumber=12345678/);
+  assert.match(output, /https:\/\/www\.wipo\.int\/branddb\/en\//);
   assert.match(output, /legal availability/);
   assert.match(output, /https:\/\/register.dpma.de/);
-  data.matches[0].source_url = 'https://tsdr.uspto.gov.evil.example/';
+  data.matches[0].source_url = 'https://evil.example/trademark';
   assert.doesNotMatch((await formatEmbedFullscreenLines(embed(data), {} as never)).join('\n'), /evil\.example/);
   const failed = (await formatEmbedFullscreenLines(embed({ status: 'error', matches: [], error: 'Provider unavailable',
     coverage: [{ region: 'US', status: 'error' }] }), {} as never)).join('\n');

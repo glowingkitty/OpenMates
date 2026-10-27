@@ -134,8 +134,8 @@ function seedFitnessEmbeds(apiUrl: string, home: string, cli: string, fixture: C
 				detail_url:'https://example.org/fitness/yoga'}
 		];
 		const parent={app_id:'fitness',skill_id:'search_classes',status:'finished',
-			provider:'Urban Sports Club',query:'Dance in Berlin',embed_ids:input.embedIds.slice(1),
-			results:[{provider:'Urban Sports Club',filters:{city:'Berlin',radius_km:5},
+			provider:'ExampleFitness',query:'Dance in Berlin',embed_ids:input.embedIds.slice(1),
+			results:[{provider:'ExampleFitness',filters:{city:'Berlin',radius_km:5},
 				summary:'Two nearby classes',result_count:2,
 				results:input.embedIds.slice(1).map(embed_id=>({embed_id}))}]};
 		const {ws}=await client.openWsClient({taskUpdateJobs:false});

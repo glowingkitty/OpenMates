@@ -24,7 +24,7 @@ The Images app is a complete toolkit for working with images. You can create new
 
 - **Generate** -- Creates high-quality images from your text descriptions. Supports different aspect ratios (square, widescreen, portrait, and more) and can output PNG, JPG, or SVG files. For vector graphics like logos and icons, your mate automatically uses SVG output.
 - **Generate Draft** -- Creates a quick preview image at lower cost and faster speed. Good for getting a rough idea before committing to a full-quality generation.
-- **Search** -- Searches the web for images by description. Also supports reverse image search -- upload an image and find where it appears online or find visually similar images.
+- **Search** -- Searches the web for images by text description. Reverse image search is currently unavailable.
 - **Vectorise** -- Converts a regular image (PNG, JPG, or WEBP) into a scalable SVG vector graphic. Perfect for logos, icons, and illustrations that need to work at any size.
 - **View** -- When you upload an image, your mate can look at it to describe what is in it, read text from it, identify objects, or answer questions about it.
 
@@ -38,10 +38,14 @@ The Images app is a complete toolkit for working with images. You can create new
 - Get a quick draft: "Make a quick sketch of a robot playing guitar"
 - Create a logo: "Design a minimalist logo for a coffee shop called 'Bean There'"
 - Search for images: "Find images of golden retriever puppies"
-- Reverse image search: Upload an image and ask "Find similar images" or "Where does this image appear online?"
 - Edit a photo: Upload an image and say "Add a rainbow in the sky"
 - Vectorise: Upload a logo and ask "Convert this to SVG"
 - Describe an image: Upload a photo and ask "What is in this picture?"
+
+Image editing can use your uploaded image directly.
+Your mate does not need to view it first unless answering your request requires
+visual inspection. An image attached to an older message does not by itself
+require viewing again.
 
 ## Memories
 

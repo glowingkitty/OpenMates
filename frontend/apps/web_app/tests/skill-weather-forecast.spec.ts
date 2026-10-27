@@ -45,30 +45,9 @@ function expectForecastPayload(parsed: any, expectedProvider: string, expectedPr
 }
 
 const linkedExampleChatCases = [
-	{
-		appId: 'images',
-		skillId: 'generate',
-		chatId: 'example-privacy-website-hero-background',
-		titlePattern: /privacy|website|hero|background/i
-	},
-	{
-		appId: 'electronics',
-		skillId: 'search_components',
-		chatId: 'example-buck-converters-24v-5v',
-		titlePattern: /buck|converter|24v|5v/i
-	},
-	{
-		appId: 'nutrition',
-		skillId: 'search_recipes',
-		chatId: 'example-vegetarian-recipes-from-fridge',
-		titlePattern: /vegetarian|recipe|fridge|staples/i
-	},
-	{
-		appId: 'home',
-		skillId: 'search',
-		chatId: 'example-furnished-apartments-berlin',
-		titlePattern: /furnished|apartments|Berlin/i
-	}
+  { appId: 'images', skillId: 'search', chatId: 'example-gigantic-airplanes', titlePattern: /gigantic|airplanes|rocket/i },
+  { appId: 'nutrition', skillId: 'search_recipes', chatId: 'example-vegetarian-recipes-from-fridge', titlePattern: /vegetarian|recipe|fridge|staples/i },
+  { appId: 'web', skillId: 'search', chatId: 'example-gigantic-airplanes', titlePattern: /gigantic|airplanes|rocket/i },
 ];
 
 async function expectImageLoaded(locator: any, label = 'image'): Promise<void> {
@@ -341,7 +320,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(grid).toBeVisible({ timeout: 30_000 });
 			const firstDay = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]').first();
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
-			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
+			await expect(firstDay).toHaveAttribute('data-app-id', 'weather');
+			await expect(firstDay.locator('.result-corner')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
 			await expect(grid).toHaveAttribute('data-selected-index', '0', { timeout: 15_000 });
 			const dayFullscreen = page.getByTestId('weather-day-fullscreen');

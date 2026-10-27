@@ -14,10 +14,8 @@ copy:
     tryNow: Try out now
     actionableTitle1: Actionable chats.
     actionableTitle2: Not just a wall of text.
-    actionableBody: OpenMates finds you doctor appointments in seconds. As well as events, apartments, travel connections
-      and much more. Unlike other AI chatbots, it doesn’t just rely on searching the web - but instead interacts directly
-      with external platforms. To find the infos no web search can give you. And with the workflows feature you can even automate
-      regular searches, freeing up your time for the more enjoyable things in life.
+    actionableBody: Search the web, read public sources, and turn useful information into documents, tables,
+      and code. Keep the results together in your chat and use workflows for recurring tasks.
     exploreApps: Explore apps in OpenMates
     openExample: Open example chat
     privacyTitle1: Privacy & safety
@@ -99,10 +97,8 @@ copy:
     tryNow: Jetzt ausprobieren
     actionableTitle1: Chats, die etwas bewegen.
     actionableTitle2: Nicht nur eine Wand aus Text.
-    actionableBody: OpenMates findet in Sekunden Arzttermine für dich. Ebenso Veranstaltungen, Wohnungen, Reiseverbindungen
-      und vieles mehr. Anders als andere KI-Chatbots durchsucht es nicht einfach nur das Web, sondern interagiert direkt mit
-      externen Plattformen. So findet es Informationen, die dir keine Websuche liefern kann. Mit Workflows kannst du sogar
-      regelmäßige Suchen automatisieren und hast mehr Zeit für die schönen Dinge im Leben.
+    actionableBody: Durchsuche das Web, lies öffentliche Quellen und verwandle nützliche Informationen in Dokumente,
+      Tabellen und Code. Behalte die Ergebnisse in deinem Chat und nutze Workflows für wiederkehrende Aufgaben.
     exploreApps: Apps in OpenMates entdecken
     openExample: Beispielchat öffnen
     privacyTitle1: Privatsphäre & Sicherheit

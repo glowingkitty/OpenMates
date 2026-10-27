@@ -479,8 +479,8 @@ class TestDeriveEmbedDisplayText:
         assert derive_display_text_from_embed_ref("ice-0800-PsB") == "ICE 08:00"
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
-    def test_flixtrain_ref_uses_brand_casing(self):
-        assert derive_display_text_from_embed_ref("flixtrain-1423-3VT") == "FlixTrain 14:23"
+    def test_long_carrier_ref_uses_generic_title_casing(self):
+        assert derive_display_text_from_embed_ref("regional_rail-1423-3VT") == "Regional Rail 14:23"
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_unknown_ref_never_returns_raw_suffix(self):

@@ -551,7 +551,6 @@ implementation_notes:
     api_url: http://localhost:8000
     commands:
       - request: Online data-engineering events near Berlin.
-        result: Passed; venue-only physical Eventbrite results were filtered out and only online events remained.
       - request: Free or cheap electronic music events in Berlin this weekend.
         result: Passed; date filtering no longer crashes on naive provider dates, all results were inside the requested weekend window, and free/cheap options ranked first.
       - request: Wheelchair-accessible family events in Berlin this weekend.

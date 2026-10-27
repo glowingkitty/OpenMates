@@ -10,6 +10,7 @@ final class SettingsBillingParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=billing.access.authenticated-first-party
     func testPublicSettingsMenuExposesStablePreferenceIdentifiers() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache"]
@@ -50,11 +51,55 @@ final class SettingsBillingParityUITests: XCTestCase {
         attachScreenshot(name: "Public settings identifiers")
     }
 
+    // contract-test: direct surface=gui.apple assertions=billing.access.authenticated-first-party
+    func testGuestBillingDeepLinkRequestsAuthenticationWithoutShowingUsage() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launchEnvironment["UI_TEST_SETTINGS_LINK_PATH"] = "billing/usage"
+        app.launch()
+
+        let link = app.descendants(matching: .any)["ui-test-settings-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["auth-entry-header"].waitForExistence(timeout: 10),
+                      "A real guest following a Billing link must authenticate")
+        assertBillingHidden(in: app)
+        attachScreenshot(name: "Guest Billing link requires authentication")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=billing.access.authenticated-first-party
+    func testGuestHeaderReferralPreselectionCannotExposeBilling() {
+        let app = XCUIApplication()
+        // The header-only fixture exposes the CTA without granting an account.
+        // Deliberately omit the separate Billing fixture.
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-authenticated-header",
+                               "--ui-test-show-workspace-tabs"]
+        app.launch()
+        let referralCTA = app.buttons["referral-cta"]
+        XCTAssertTrue(referralCTA.waitForExistence(timeout: 15))
+        XCTAssertTrue(referralCTA.isHittable)
+        referralCTA.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 10))
+        assertBillingHidden(in: app)
+        attachScreenshot(name: "Guest referral preselection keeps Billing private")
+    }
+
+    private func assertBillingHidden(in app: XCUIApplication) {
+        for identifier in ["settings-billing-row", "settings-billing-hub", "settings-billing-usage-page",
+                           "settings-billing-usage-tabs", "settings-billing-referral-code-page"] {
+            XCTAssertFalse(app.descendants(matching: .any)[identifier].exists,
+                           "Guest must not expose \(identifier)")
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=billing.access.authenticated-first-party
     func testHeaderReferralCTAOpensReferralSettingsSubpage() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-authenticated-header",
+            "--ui-test-billing-fixture",
             "--ui-test-show-workspace-tabs"
         ]
         app.launch()

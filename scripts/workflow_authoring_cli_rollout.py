@@ -462,7 +462,6 @@ steps:
     input:
       requests:
         - query: AI
-          providers: [Luma, Eventbrite]
           location: Berlin
           event_type: PHYSICAL
           start_date:

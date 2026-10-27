@@ -1,0 +1,38 @@
+{
+  "returncode": 0,
+  "stopped_by_supervisor": null,
+  "wall_seconds": 2.8176480485126376,
+  "sampled_peak_rss_bytes": 74465280,
+  "rss_sample_interval_seconds": 0.1,
+  "rss_limit_mib": 1536,
+  "wall_limit_seconds": 120,
+  "affinity_cpus": [
+    0,
+    1
+  ],
+  "niceness_increment": 10,
+  "source_sha256": "b00e533cd469ca3693f373e73f44193ffb515e0b929e06d290eebf3005d9b1b8",
+  "rust_source_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "binary_sha256": "cb6e28e374404ecdb4229b9736bd99c5eb37f0a0beee3d641c8c1ba269a8230b",
+  "input_sha256": "da6bf9a31b6d8d2bb4567ec8ebf2fbd1a091a374beb4662507a65a18458eb6d2",
+  "native_files": [
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75079512,
+      "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8"
+    },
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    }
+  ],
+  "carry": 1,
+  "quality": {
+    "expected_values": 24,
+    "fully_hidden": 0,
+    "letters_digits_marks_hidden": 20,
+    "negative_cases": 4,
+    "false_positive_cases": 0
+  }
+}

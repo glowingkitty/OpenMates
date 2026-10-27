@@ -1,0 +1,78 @@
+schema_version: 2
+profile: concise
+id: apps-workspace-natural-language
+title: Natural-language Apps workspace on web and TUI
+status: verified
+task: TASK-7174
+specification_refs:
+  - id: feature.apps-workspace
+approval_prompt_waiver:
+  source: codex:01a15a3b-183d-7cf2-83ab-399aed837821/79e5fbda23a2fdc85822c0eb7b3f6787485a7cf10c765dc60e9dfd7aa4d17e9e
+  instruction: |-
+    Ask only for material unresolved decisions;
+    do not repeat approval.
+contracts:
+  - specifications/features/apps-workspace/specification.yml
+goal: >-
+  Replace the Apps workspace forms with natural-language app use, implement the
+  supplied Figma workspace and shared fullscreen result design, and update the
+  TUI including meaningful child embed previews.
+authorization: >-
+  User requested implementation after five sequential clarifying questions and
+  approved the final scrolling recommendation on 2026-10-20. The intervening
+  answers approve the dedicated JEV/Mercury flow, paid default-on daily searches,
+  encrypted expiring disk storage, and web/TUI scope. No additional approval
+  round is needed to transcribe these decisions.
+decisions:
+  - Natural-language input replaces forms on web and TUI. A separate app-specific
+    JEV route chooses direct skill execution, chat, or Workflow authoring; bounded
+    argument choices and Mercury 3 free-value extraction follow skill selection.
+  - Only the most recently saved search per app reruns daily, charging the user.
+    First save explains this with OK and Turn off; app settings retain a Daily
+    searches switch. Runs require user activity within seven days.
+  - Public app recommendations contain no personalized inputs and cost OpenMates.
+  - Private recommendation payloads use per-user Vault encryption on temporary
+    disk. Saved queries, scheduled parameters and preferences use encrypted
+    durable database storage. A successful batch replaces its predecessor;
+    recommendation expiry is twenty-four hours regardless of activity. Temporary
+    payloads are excluded from backups.
+  - Default app views use clipped horizontal preview carousels. Fullscreen
+    results use a vertical responsive grid with pinned filters and follow-up
+    input while the map/header scrolls away. TUI omits the map.
+  - Sidebar order is saved entries, recent entries, then actual example chat links.
+  - Keep one settings gear for pricing/provider configuration. Tentative Finance
+    and OpenMates removal notes do not authorize deleting app functionality.
+  - Reuse configured client PII protection for model-bound request, prior-result
+    and ranking text. Keep replacement maps local and restore native arguments
+    before validation; preserve exact opaque identifiers and upload capabilities.
+  - Preserve supplied result context as literal chat data. Incidental URLs in
+    that context must not create new website embeds; explicit links in the
+    user's request retain ordinary behavior and all context retains PII protection.
+design:
+  file_key: PzgE78TVxG0eWuEeO6o8ve
+  nodes: ['6248:81406', '6255:15581', '6255:82389']
+  reference: User-provided 1512x921 screenshots; MCP plan limit and direct API403
+    prevent fresh Figma extraction. Match the approved layout using existing
+    design tokens, unified embeds and live data; placeholder checkerboards and
+    unrelated chat/sidebar chrome are directional examples only.
+  evidence: test-results/figma/apps-workspace-natural-language
+verification:
+  required:
+    - Focused backend, shared web service and TUI unit checks.
+    - Changed-file lint and build/type validation.
+    - Isolated CI bare component proof before full web and CLI E2E.
+    - Isolated API coverage of scope, expiry, billing idempotency and routing.
+    - Deployed laptop/mobile visual smoke and latest selected E2E recordings.
+  constraints:
+    - Product E2E uses isolated GitHub CI; only actual provider inference uses dev.
+    - OpenMates test chats retain automatic routing with no model overrides.
+
+reported_regressions_2026_10_21:
+  - Reuse the global Header hamburger for the Apps sidebar and match bounded chat sidebar rows.
+  - Restore canonical Settings > Apps > selected app, including pricing, providers and Daily searches.
+  - Fit each app landing page without vertical scrolling; use daily-inspiration-sized headers.
+  - Render News articles as News previews and open the selected child rather than its search parent.
+  - Show a persistent fullscreen filter button and centered query/save/workflow actions; saved searches show an active pink heart.
+  - Text links never use underlines, including hover, active, visited and focus states.
+  - Report failures through existing notifications and fix the library CORS and oversized Workflow context causes.
+  - Verify with the actual personal dev account as explicitly requested, keeping personal evidence private; keep synthetic component/API coverage in isolated CI.

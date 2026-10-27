@@ -1,0 +1,39 @@
+schema_version: 1
+specification: feature.app-skill.home-search@1
+boundary_and_history:
+- id: home-search-listings-rich-provider-evidence
+  given: A saved listing has cold rent and utilities but no floor number.
+  when: Alice opens its details.
+  then: The rent components remain distinct and its floor stays unknown.
+  assertion_ids:
+  - home-search.listings.rich-provider-evidence
+- id: home-search-images-complete-gallery
+  given: A saved listing has one cover photo and eighteen recorded gallery entries.
+  when: Alice opens the gallery.
+  then: The stored order remains intact and no listing-detail request is made.
+  assertion_ids:
+  - home-search.images.complete-gallery
+- id: home-search-filters-explicit-and-unknown
+  given: Two saved listings differ in recorded balcony evidence.
+  when: Alice filters the saved view for a balcony.
+  then: The filter uses only the recorded facts and does not label an unknown balcony as confirmed.
+  assertion_ids:
+  - home-search.filters.explicit-and-unknown
+- id: home-search-location-precision
+  given: A saved listing has a district-level position.
+  when: Alice opens its map pin.
+  then: The map retains its approximate label and does not imply a known building.
+  assertion_ids:
+  - home-search.location.precision
+- id: home-search-web-map-and-filter
+  given: A saved result contains two listings and one has no coordinates.
+  when: Alice filters the cards and opens a mapped listing.
+  then: The map and cards remain consistent while the unmapped listing remains usable.
+  assertion_ids:
+  - home-search.web.map-and-filter
+- id: home-search-output-safe-and-truthful
+  given: A saved description contains an instruction to reveal private chat history.
+  when: Alice opens it and then submits a new housing query.
+  then: The text cannot authorize actions; the new query fails visibly without network disclosure.
+  assertion_ids:
+  - home-search.output.safe-and-truthful

@@ -1,11 +1,10 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-13'
-generated_at: '2026-10-14T00:20:31+00:00'
+generated_at: '2026-10-19T00:45:53+00:00'
 range:
   since: '2026-10-13T00:00:00+00:00'
   until: '2026-10-14T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -19,9 +18,9 @@ summary:
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 21
   user_facing_items: 27
-  dev_only_items: 37
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -237,16 +213,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: allow future starts for recurring workflows'
     section: features
     commits:
@@ -280,8 +256,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -289,15 +265,14 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
     section: features
     commits:
@@ -309,16 +284,10 @@ sections:
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/routes/apps_api.py
     - backend/core/api/app/services/embed_service.py
-    - backend/providers/eighty_thousand_hours.yml
-    - backend/providers/hard_problems.yml
-    - backend/shared/providers/jobs/eighty_thousand_hours.py
-    - backend/shared/providers/jobs/hard_problems.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_jobs_impact_providers.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/eighty-thousand-hours.md
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - docs/plans/jobs-search/plan.yml
     - docs/user-guide/apps/jobs.md
@@ -382,44 +351,37 @@ sections:
     - scripts/ci_coverage_manifest.json
     - shared/docs/privacy_policy.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
@@ -427,7 +389,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:jobs, embed:jobs:job_result, embed:jobs:search, skill:jobs:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add key-free Jobs Search and workflow execution'
     section: features
     commits:
@@ -440,12 +402,8 @@ sections:
     - backend/apps/jobs/skills/__init__.py
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/services/workflow_app_skill_adapter.py
-    - backend/providers/arbeitnow.yml
-    - backend/providers/arbeitsagentur.yml
     - backend/providers/jobtech.yml
     - backend/shared/providers/jobs/__init__.py
-    - backend/shared/providers/jobs/arbeitnow.py
-    - backend/shared/providers/jobs/arbeitsagentur.py
     - backend/shared/providers/jobs/common.py
     - backend/shared/providers/jobs/jobtech.py
     - backend/shared/providers/jobs/models.py
@@ -456,8 +414,6 @@ sections:
     - backend/tests/test_jobs_search_skill.py
     - backend/tests/test_models3d_generate_task.py
     - backend/tests/test_workflow_app_skill_adapter.py
-    - docs/apis/arbeitnow.md
-    - docs/apis/arbeitsagentur.md
     - docs/apis/jobs-search-research.md
     - docs/apis/jobtech.md
     - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts
@@ -479,8 +435,8 @@ sections:
     - scripts/tests/test_ci_environment.py
     - shared/docs/privacy_policy.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -488,35 +444,27 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
@@ -524,7 +472,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:jobs, embed:jobs:search, platform:workflows, skill:jobs:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   bug_fixes:
   - title: 'fix: reuse exact prepared dependencies for integration'
     section: bug_fixes
@@ -534,7 +483,7 @@ sections:
     changed_paths:
     - scripts/sessions.py
     - scripts/tests/test_sessions_worktree_bootstrap.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -542,7 +491,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore fast routing for ordinary chat requests'
     section: bug_fixes
     commits:
@@ -553,24 +502,22 @@ sections:
     - backend/tests/test_stage_one_task.py
     - docs/plans/chat-latency-improvements/critical-path-2026-10-13.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: scope cached integration dependencies to affected workspaces'
     section: bug_fixes
     commits:
@@ -579,7 +526,7 @@ sections:
     changed_paths:
     - scripts/sessions.py
     - scripts/tests/test_sessions_worktree_bootstrap.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -587,7 +534,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore backend skill completion and recovery'
     section: bug_fixes
     commits:
@@ -623,31 +570,27 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:politics'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: align public examples and stabilize landing hero'
     section: bug_fixes
     commits:
@@ -679,16 +622,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: admit complete real example chats and reviewed media'
     section: bug_fixes
     commits:
@@ -701,7 +644,7 @@ sections:
     - scripts/tests/create_example_chat_from_share.test.mjs
     - scripts/tests/example_media_manifest.test.mjs
     - scripts/tests/test_publish_example_media.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -709,7 +652,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: complete text skills in the same assistant turn'
     section: bug_fixes
     commits:
@@ -837,8 +780,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -846,245 +789,197 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     feature_metadata_changed: true
@@ -1097,7 +992,8 @@ sections:
       embed:social_media:search, embed:videos:create, embed:videos:generate, skill:ai:ask, skill:audio:generate, skill:audio:speak,
       skill:code:image_to_html, skill:images:generate, skill:images:vectorize, skill:models3d:generate, skill:music:generate,
       skill:social_media:search, skill:videos:create, skill:videos:generate'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: skill:models3d:generate'
   - title: 'fix: share website navigation on news and blog'
     section: bug_fixes
     commits:
@@ -1113,16 +1009,16 @@ sections:
     - frontend/packages/ui/src/components/newsroom/PublicNewsroomPreview.svelte
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: improve landing responsiveness and public navigation'
     section: bug_fixes
     commits:
@@ -1142,16 +1038,16 @@ sections:
     - specifications/features/marketing-landing/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: repair optional answer recovery and device email discovery'
     section: bug_fixes
     commits:
@@ -1165,24 +1061,22 @@ sections:
     - backend/tests/test_answer_recovery_integration.py
     - backend/tests/test_celery_config.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep Jobs details readable on phones'
     section: bug_fixes
     commits:
@@ -1195,23 +1089,21 @@ sections:
     - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.preview.ts
     - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: false
@@ -1219,7 +1111,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:jobs:job_result, embed:jobs:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: use correct tooling for bounded worker diagnostics'
     section: bug_fixes
     commits:
@@ -1241,7 +1133,7 @@ sections:
     - scripts/tests/test_ci_environment.py
     - scripts/tests/test_ci_schema_bundle.py
     - scripts/tests/test_isolated_worker_broker_probe.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1249,7 +1141,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep team selection in quick access'
     section: bug_fixes
     commits:
@@ -1277,16 +1169,16 @@ sections:
     - frontend/packages/ui/src/stores/__tests__/teamStore.test.ts
     - frontend/packages/ui/src/stores/teamStore.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep Jobs city filters and ranking warnings truthful'
     section: bug_fixes
     commits:
@@ -1299,30 +1191,26 @@ sections:
     - backend/tests/test_jobs_search_skill.py
     - frontend/apps/web_app/tests/skill-jobs-search-api.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: false
@@ -1330,7 +1218,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:jobs, embed:jobs:search, skill:jobs:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: show loaded memories on pending assistant replies'
     section: bug_fixes
     commits:
@@ -1340,16 +1228,16 @@ sections:
     - frontend/apps/web_app/tests/components/chat-history-loaded-memories.spec.ts
     - frontend/packages/ui/src/components/ChatMessage.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover landing reveals and add wheel momentum'
     section: bug_fixes
     commits:
@@ -1362,16 +1250,16 @@ sections:
     - frontend/packages/public-site/src/components/landing/LandingPage.svelte
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: compact activity summaries and loaded memory pills'
     section: bug_fixes
     commits:
@@ -1402,24 +1290,22 @@ sections:
     - frontend/packages/ui/src/utils/loadedMemoryReceipt.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve trademark evidence in Workflow outputs'
     section: bug_fixes
     commits:
@@ -1434,8 +1320,8 @@ sections:
     - frontend/apps/web_app/tests/skill-business-trademarks-workflow.spec.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1443,15 +1329,14 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   - title: 'fix: allow atomic chat admission through the service dispatcher'
     section: bug_fixes
     commits:
@@ -1463,16 +1348,16 @@ sections:
     - frontend/apps/web_app/tests/auth-session-rotation.spec.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf: narrow Project eligibility and trace routing waits'
     section: improvements
@@ -1491,7 +1376,7 @@ sections:
     - docs/plans/chat-latency-improvements/implemented-flow.md
     - docs/plans/chat-latency-improvements/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1499,7 +1384,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: batch first Personal Project routing discovery'
     section: improvements
     commits:
@@ -1520,8 +1405,8 @@ sections:
     - specifications/features/chats/examples.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1530,14 +1415,14 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'perf: overlap chat context with admission and reuse first-turn history'
     section: improvements
     commits:
@@ -1559,16 +1444,16 @@ sections:
     - specifications/features/chats/examples.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: prioritize chat context and allow concurrent admission reads'
     section: improvements
     commits:
@@ -1597,24 +1482,22 @@ sections:
     - frontend/packages/ui/src/services/sendersDrafts.ts
     - frontend/packages/ui/src/services/sendersSync.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: overlap chat setup and routing for faster first response'
     section: improvements
     commits:
@@ -1662,8 +1545,8 @@ sections:
     - frontend/packages/ui/src/utils/chatDraftState.ts
     - scripts/benchmark_chat_latency_ordinary_web.cjs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1671,22 +1554,20 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'perf: streamline first chat routing and model dispatch'
     section: improvements
     commits:
@@ -1729,24 +1610,22 @@ sections:
     - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
     - frontend/packages/openmates-cli/tests/ws.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: reduce chat admission and first-text latency'
     section: improvements
     commits:
@@ -1780,24 +1659,22 @@ sections:
     - frontend/packages/openmates-cli/tests/ws.test.ts
     - scripts/ci_run_tests.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: consolidate fresh chat context preparation'
     section: improvements
     commits:
@@ -1824,23 +1701,20 @@ sections:
     - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
     - frontend/packages/ui/src/services/websocketService.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -1848,7 +1722,7 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: repair chat auth churn and fail context preparation promptly'
     section: improvements
     commits:
@@ -1885,24 +1759,22 @@ sections:
     - frontend/packages/ui/src/services/serverCapabilityGate.ts
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: record voice calling verification evidence'
     section: docs
@@ -1911,7 +1783,7 @@ sections:
     authored_at: '2026-10-13T19:06:06+00:00'
     changed_paths:
     - docs/plans/integrated-voice-video-calling/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1919,7 +1791,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: mark Jobs Search plan verified'
     section: docs
     commits:
@@ -1927,7 +1799,7 @@ sections:
     authored_at: '2026-10-13T12:59:55+00:00'
     changed_paths:
     - docs/plans/jobs-search/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1935,7 +1807,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: enable WebKit for iPad example multitab regression'
     section: tests
@@ -1945,7 +1817,7 @@ sections:
     changed_paths:
     - .github/workflows/isolated-tests.yml
     - frontend/apps/web_app/playwright.config.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1953,7 +1825,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify the recovery failure without repeating passing cases'
     section: tests
     commits:
@@ -1965,7 +1837,7 @@ sections:
     - scripts/ci_results.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_case_filter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1973,7 +1845,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'chore: clean uploaded CI recordings and register Jobs preview metadata'
     section: infrastructure
@@ -1992,7 +1864,7 @@ sections:
     - scripts/tests/test_codex_evidence.py
     - scripts/tests/test_response_media.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2000,1438 +1872,851 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: reuse exact prepared dependencies for integration'
-    commits:
-    - cbbda747b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore fast routing for ordinary chat requests'
-    commits:
-    - 62549591a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: scope cached integration dependencies to affected workspaces'
-    commits:
-    - 7e02c294a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore backend skill completion and recovery'
-    commits:
-    - 3d3432e49
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:politics
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/politics/app.yml
-  - title: 'perf: narrow Project eligibility and trace routing waits'
-    commits:
-    - ecb105de0
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: align public examples and stabilize landing hero'
-    commits:
-    - 13bc4dfc4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: admit complete real example chats and reviewed media'
-    commits:
-    - 02b5eb592
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: complete text skills in the same assistant turn'
-    commits:
-    - 80e523cee
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: app:docs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/docs/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: app:models3d
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/models3d/app.yml
-    - id: app:music
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/music/app.yml
-    - id: app:nutrition
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/nutrition/app.yml
-    - id: app:politics
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/politics/app.yml
-    - id: app:social_media
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/social_media/app.yml
-    - id: app:videos
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/videos/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    - id: embed:audio:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-    - id: embed:audio:speak
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate_draft
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:vectorize
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:models3d:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:models3d
-      source: backend/apps/models3d/app.yml
-    - id: embed:models3d:generated_model
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:models3d
-      source: backend/apps/models3d/app.yml
-    - id: embed:music:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:music
-      source: backend/apps/music/app.yml
-    - id: embed:social_media:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:social_media
-      source: backend/apps/social_media/app.yml
-    - id: embed:videos:create
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    - id: embed:videos:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-    - id: skill:audio:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-    - id: skill:audio:speak
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-    - id: skill:code:image_to_html
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-    - id: skill:images:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: skill:images:vectorize
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: skill:models3d:generate
-      kind: skill
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: app:models3d
-      source: backend/apps/models3d/app.yml
-    - id: skill:music:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:music
-      source: backend/apps/music/app.yml
-    - id: skill:social_media:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:social_media
-      source: backend/apps/social_media/app.yml
-    - id: skill:videos:create
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    - id: skill:videos:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-  - title: 'perf: batch first Personal Project routing discovery'
-    commits:
-    - 0d7822dd0
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'test: enable WebKit for iPad example multitab regression'
-    commits:
-    - 83854df7a
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf: overlap chat context with admission and reuse first-turn history'
-    commits:
-    - b57dadf12
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: record voice calling verification evidence'
-    commits:
-    - 0c8b84fd6
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: add chat-bound Gemini voice calls'
-    commits:
-    - 4a088fd84
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: prioritize chat context and allow concurrent admission reads'
-    commits:
-    - eb0af3a86
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: share website navigation on news and blog'
-    commits:
-    - 7b9e541e1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: improve landing responsiveness and public navigation'
-    commits:
-    - bd688588d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: overlap chat setup and routing for faster first response'
-    commits:
-    - a9e3e575a
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'test: verify the recovery failure without repeating passing cases'
-    commits:
-    - 7182ae5cb
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: mark Jobs Search plan verified'
-    commits:
-    - 0996fe695
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: repair optional answer recovery and device email discovery'
-    commits:
-    - dc62fdd06
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: keep Jobs details readable on phones'
-    commits:
-    - 579a1660b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:jobs:job_result
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-  - title: 'fix: use correct tooling for bounded worker diagnostics'
-    commits:
-    - f7ab97e69
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: allow future starts for recurring workflows'
-    commits:
-    - 61351a30b
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
-    commits:
-    - c5ef75c5a
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:job_result
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: skill:jobs:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-  - title: 'fix: keep team selection in quick access'
-    commits:
-    - f486d07f5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep Jobs city filters and ranking warnings truthful'
-    commits:
-    - 79b3cfd17
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: skill:jobs:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-  - title: 'feat: add key-free Jobs Search and workflow execution'
-    commits:
-    - ed24a2fe2
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: skill:jobs:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-  - title: 'fix: show loaded memories on pending assistant replies'
-    commits:
-    - b8469508c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: recover landing reveals and add wheel momentum'
-    commits:
-    - 5f768ab3f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: compact activity summaries and loaded memory pills'
-    commits:
-    - 5979a80c0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'chore: clean uploaded CI recordings and register Jobs preview metadata'
-    commits:
-    - 60e5d05fe
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve trademark evidence in Workflow outputs'
-    commits:
-    - f7efbf5d4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: allow atomic chat admission through the service dispatcher'
-    commits:
-    - 1c7d8e294
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: streamline first chat routing and model dispatch'
-    commits:
-    - 149dc6000
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: reduce chat admission and first-text latency'
-    commits:
-    - 58a36dee0
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: consolidate fresh chat context preparation'
-    commits:
-    - 3d64cfe15
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'perf: repair chat auth churn and fail context preparation promptly'
-    commits:
-    - 94d03b1aa
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix: restore backend skill completion and recovery'
     commits:
     - 3d3432e49
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
   - title: 'fix: complete text skills in the same assistant turn'
     commits:
     - 80e523cee
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - title: 'perf: overlap chat context with admission and reuse first-turn history'
     commits:
     - b57dadf12
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'perf: prioritize chat context and allow concurrent admission reads'
     commits:
     - eb0af3a86
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: overlap chat setup and routing for faster first response'
     commits:
     - a9e3e575a
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
     commits:
     - c5ef75c5a
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'feat: add key-free Jobs Search and workflow execution'
     commits:
     - ed24a2fe2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'chore: clean uploaded CI recordings and register Jobs preview metadata'
     commits:
     - 60e5d05fe
     section: infrastructure
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
 marketing_candidates:
-  newsletter: []
+  newsletter:
+  - title: 'fix: restore fast routing for ordinary chat requests'
+    commits:
+    - 62549591a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore backend skill completion and recovery'
+    commits:
+    - 3d3432e49
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:politics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/politics/app.yml
+  - title: 'fix: align public examples and stabilize landing hero'
+    commits:
+    - 13bc4dfc4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: overlap chat context with admission and reuse first-turn history'
+    commits:
+    - b57dadf12
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add chat-bound Gemini voice calls'
+    commits:
+    - 4a088fd84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: prioritize chat context and allow concurrent admission reads'
+    commits:
+    - eb0af3a86
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: share website navigation on news and blog'
+    commits:
+    - 7b9e541e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve landing responsiveness and public navigation'
+    commits:
+    - bd688588d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair optional answer recovery and device email discovery'
+    commits:
+    - dc62fdd06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep Jobs details readable on phones'
+    commits:
+    - 579a1660b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+  - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
+    commits:
+    - c5ef75c5a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+  - title: 'fix: keep team selection in quick access'
+    commits:
+    - f486d07f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep Jobs city filters and ranking warnings truthful'
+    commits:
+    - 79b3cfd17
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+  - title: 'fix: show loaded memories on pending assistant replies'
+    commits:
+    - b8469508c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover landing reveals and add wheel momentum'
+    commits:
+    - 5f768ab3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: compact activity summaries and loaded memory pills'
+    commits:
+    - 5979a80c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: allow atomic chat admission through the service dispatcher'
+    commits:
+    - 1c7d8e294
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: streamline first chat routing and model dispatch'
+    commits:
+    - 149dc6000
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'perf: reduce chat admission and first-text latency'
+    commits:
+    - 58a36dee0
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'perf: consolidate fresh chat context preparation'
+    commits:
+    - 3d64cfe15
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'perf: repair chat auth churn and fail context preparation promptly'
+    commits:
+    - 94d03b1aa
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
   social_or_video:
   - title: 'fix: restore fast routing for ordinary chat requests'
     commits:
     - 62549591a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: restore backend skill completion and recovery'
     commits:
     - 3d3432e49
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: align public examples and stabilize landing hero'
     commits:
     - 13bc4dfc4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: complete text skills in the same assistant turn'
     commits:
     - 80e523cee
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     newsletter_ready: false
@@ -3439,258 +2724,227 @@ marketing_candidates:
     commits:
     - 0d7822dd0
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'perf: overlap chat context with admission and reuse first-turn history'
     commits:
     - b57dadf12
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: add chat-bound Gemini voice calls'
     commits:
     - 4a088fd84
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: prioritize chat context and allow concurrent admission reads'
     commits:
     - eb0af3a86
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: share website navigation on news and blog'
     commits:
     - 7b9e541e1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: improve landing responsiveness and public navigation'
     commits:
     - bd688588d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: overlap chat setup and routing for faster first response'
     commits:
     - a9e3e575a
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: repair optional answer recovery and device email discovery'
     commits:
     - dc62fdd06
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep Jobs details readable on phones'
     commits:
     - 579a1660b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: allow future starts for recurring workflows'
     commits:
     - 61351a30b
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
     commits:
     - c5ef75c5a
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep team selection in quick access'
     commits:
     - f486d07f5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep Jobs city filters and ranking warnings truthful'
     commits:
     - 79b3cfd17
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: add key-free Jobs Search and workflow execution'
     commits:
     - ed24a2fe2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: false
@@ -3698,123 +2952,110 @@ marketing_candidates:
     commits:
     - b8469508c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: recover landing reveals and add wheel momentum'
     commits:
     - 5f768ab3f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: compact activity summaries and loaded memory pills'
     commits:
     - 5979a80c0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: preserve trademark evidence in Workflow outputs'
     commits:
     - f7efbf5d4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: allow atomic chat admission through the service dispatcher'
     commits:
     - 1c7d8e294
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: streamline first chat routing and model dispatch'
     commits:
     - 149dc6000
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: reduce chat admission and first-text latency'
     commits:
     - 58a36dee0
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: consolidate fresh chat context preparation'
     commits:
     - 3d64cfe15
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: repair chat auth churn and fail context preparation promptly'
     commits:
     - 94d03b1aa
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3826,7 +3067,7 @@ sources:
     short_sha: cbbda747b
     authored_at: '2026-10-13T23:44:56+00:00'
     subject: 'fix: reuse exact prepared dependencies for integration'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/sessions.py
@@ -3836,7 +3077,7 @@ sources:
     short_sha: 62549591a
     authored_at: '2026-10-13T23:26:45+00:00'
     subject: 'fix: restore fast routing for ordinary chat requests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stage_one_task.py
@@ -3849,7 +3090,7 @@ sources:
     short_sha: 7e02c294a
     authored_at: '2026-10-13T23:07:53+00:00'
     subject: 'fix: scope cached integration dependencies to affected workspaces'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/sessions.py
@@ -3859,7 +3100,7 @@ sources:
     short_sha: 3d3432e49
     authored_at: '2026-10-13T23:02:31+00:00'
     subject: 'fix: restore backend skill completion and recovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -3898,7 +3139,7 @@ sources:
     short_sha: ecb105de0
     authored_at: '2026-10-13T22:40:30+00:00'
     subject: 'perf: narrow Project eligibility and trace routing waits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/directus/project_methods.py
@@ -3917,7 +3158,7 @@ sources:
     short_sha: 13bc4dfc4
     authored_at: '2026-10-13T21:40:11+00:00'
     subject: 'fix: align public examples and stabilize landing hero'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
@@ -3950,7 +3191,7 @@ sources:
     short_sha: 02b5eb592
     authored_at: '2026-10-13T21:07:11+00:00'
     subject: 'fix: admit complete real example chats and reviewed media'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/create-example-chat-from-share.mjs
@@ -3964,7 +3205,7 @@ sources:
     short_sha: 80e523cee
     authored_at: '2026-10-13T21:03:34+00:00'
     subject: 'fix: complete text skills in the same assistant turn'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4128,7 +3369,7 @@ sources:
     short_sha: 0d7822dd0
     authored_at: '2026-10-13T20:51:54+00:00'
     subject: 'perf: batch first Personal Project routing discovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/projects.py
@@ -4151,7 +3392,7 @@ sources:
     short_sha: 83854df7a
     authored_at: '2026-10-13T20:25:13+00:00'
     subject: 'test: enable WebKit for iPad example multitab regression'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4161,7 +3402,7 @@ sources:
     short_sha: b57dadf12
     authored_at: '2026-10-13T19:34:07+00:00'
     subject: 'perf: overlap chat context with admission and reuse first-turn history'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_admit_handler.py
@@ -4184,7 +3425,7 @@ sources:
     short_sha: 0c8b84fd6
     authored_at: '2026-10-13T19:06:06+00:00'
     subject: 'docs: record voice calling verification evidence'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/integrated-voice-video-calling/plan.yml
@@ -4193,7 +3434,7 @@ sources:
     short_sha: 4a088fd84
     authored_at: '2026-10-13T18:48:40+00:00'
     subject: 'feat: add chat-bound Gemini voice calls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
@@ -4270,7 +3511,7 @@ sources:
     short_sha: eb0af3a86
     authored_at: '2026-10-13T17:45:23+00:00'
     subject: 'perf: prioritize chat context and allow concurrent admission reads'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -4301,7 +3542,7 @@ sources:
     short_sha: 7b9e541e1
     authored_at: '2026-10-13T17:25:34+00:00'
     subject: 'fix: share website navigation on news and blog'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/public-newsroom-header.spec.ts
@@ -4318,7 +3559,7 @@ sources:
     short_sha: bd688588d
     authored_at: '2026-10-13T16:43:06+00:00'
     subject: 'fix: improve landing responsiveness and public navigation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
@@ -4339,7 +3580,7 @@ sources:
     short_sha: a9e3e575a
     authored_at: '2026-10-13T14:31:42+00:00'
     subject: 'perf: overlap chat setup and routing for faster first response'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/preprocessor.py
@@ -4390,7 +3631,7 @@ sources:
     short_sha: 7182ae5cb
     authored_at: '2026-10-13T13:17:19+00:00'
     subject: 'test: verify the recovery failure without repeating passing cases'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4403,7 +3644,7 @@ sources:
     short_sha: 0996fe695
     authored_at: '2026-10-13T12:59:55+00:00'
     subject: 'docs: mark Jobs Search plan verified'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/jobs-search/plan.yml
@@ -4412,7 +3653,7 @@ sources:
     short_sha: dc62fdd06
     authored_at: '2026-10-13T12:37:56+00:00'
     subject: 'fix: repair optional answer recovery and device email discovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/answer_recovery.py
@@ -4428,7 +3669,7 @@ sources:
     short_sha: 579a1660b
     authored_at: '2026-10-13T12:31:44+00:00'
     subject: 'fix: keep Jobs details readable on phones'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
@@ -4444,7 +3685,7 @@ sources:
     short_sha: f7ab97e69
     authored_at: '2026-10-13T12:17:18+00:00'
     subject: 'fix: use correct tooling for bounded worker diagnostics'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4467,7 +3708,7 @@ sources:
     short_sha: 61351a30b
     authored_at: '2026-10-13T12:16:13+00:00'
     subject: 'feat: allow future starts for recurring workflows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/workflow_authoring_compiler.py
@@ -4503,7 +3744,7 @@ sources:
     short_sha: c5ef75c5a
     authored_at: '2026-10-13T12:06:02+00:00'
     subject: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/app_skill_result_groups.py
@@ -4511,16 +3752,10 @@ sources:
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/routes/apps_api.py
     - backend/core/api/app/services/embed_service.py
-    - backend/providers/eighty_thousand_hours.yml
-    - backend/providers/hard_problems.yml
-    - backend/shared/providers/jobs/eighty_thousand_hours.py
-    - backend/shared/providers/jobs/hard_problems.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_jobs_impact_providers.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/eighty-thousand-hours.md
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - docs/plans/jobs-search/plan.yml
     - docs/user-guide/apps/jobs.md
@@ -4594,7 +3829,7 @@ sources:
     short_sha: f486d07f5
     authored_at: '2026-10-13T11:15:32+00:00'
     subject: 'fix: keep team selection in quick access'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/team-context-picker-preview.spec.ts
@@ -4623,7 +3858,7 @@ sources:
     short_sha: 79b3cfd17
     authored_at: '2026-10-13T10:30:37+00:00'
     subject: 'fix: keep Jobs city filters and ranking warnings truthful'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/jobs/skills/search_skill.py
@@ -4640,7 +3875,7 @@ sources:
     short_sha: ed24a2fe2
     authored_at: '2026-10-13T09:54:15+00:00'
     subject: 'feat: add key-free Jobs Search and workflow execution'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4649,12 +3884,8 @@ sources:
     - backend/apps/jobs/skills/__init__.py
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/services/workflow_app_skill_adapter.py
-    - backend/providers/arbeitnow.yml
-    - backend/providers/arbeitsagentur.yml
     - backend/providers/jobtech.yml
     - backend/shared/providers/jobs/__init__.py
-    - backend/shared/providers/jobs/arbeitnow.py
-    - backend/shared/providers/jobs/arbeitsagentur.py
     - backend/shared/providers/jobs/common.py
     - backend/shared/providers/jobs/jobtech.py
     - backend/shared/providers/jobs/models.py
@@ -4665,8 +3896,6 @@ sources:
     - backend/tests/test_jobs_search_skill.py
     - backend/tests/test_models3d_generate_task.py
     - backend/tests/test_workflow_app_skill_adapter.py
-    - docs/apis/arbeitnow.md
-    - docs/apis/arbeitsagentur.md
     - docs/apis/jobs-search-research.md
     - docs/apis/jobtech.md
     - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts
@@ -4698,7 +3927,7 @@ sources:
     short_sha: b8469508c
     authored_at: '2026-10-13T09:43:16+00:00'
     subject: 'fix: show loaded memories on pending assistant replies'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/chat-history-loaded-memories.spec.ts
@@ -4709,7 +3938,7 @@ sources:
     short_sha: 5f768ab3f
     authored_at: '2026-10-13T09:22:55+00:00'
     subject: 'fix: recover landing reveals and add wheel momentum'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/landing-example-link.spec.ts
@@ -4723,7 +3952,7 @@ sources:
     short_sha: 5979a80c0
     authored_at: '2026-10-13T09:15:58+00:00'
     subject: 'fix: compact activity summaries and loaded memory pills'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/agentic_context.py
@@ -4756,7 +3985,7 @@ sources:
     short_sha: 60e5d05fe
     authored_at: '2026-10-13T08:50:25+00:00'
     subject: 'chore: clean uploaded CI recordings and register Jobs preview metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
@@ -4775,7 +4004,7 @@ sources:
     short_sha: f7efbf5d4
     authored_at: '2026-10-13T08:32:26+00:00'
     subject: 'fix: preserve trademark evidence in Workflow outputs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/workflow_app_skill_adapter.py
@@ -4792,7 +4021,7 @@ sources:
     short_sha: 1c7d8e294
     authored_at: '2026-10-13T05:09:29+00:00'
     subject: 'fix: allow atomic chat admission through the service dispatcher'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/chat_recovery_service.py
@@ -4805,7 +4034,7 @@ sources:
     short_sha: 149dc6000
     authored_at: '2026-10-13T04:45:48+00:00'
     subject: 'perf: streamline first chat routing and model dispatch'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -4850,7 +4079,7 @@ sources:
     short_sha: 58a36dee0
     authored_at: '2026-10-13T02:48:31+00:00'
     subject: 'perf: reduce chat admission and first-text latency'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4886,7 +4115,7 @@ sources:
     short_sha: 3d64cfe15
     authored_at: '2026-10-13T01:00:58+00:00'
     subject: 'perf: consolidate fresh chat context preparation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4916,7 +4145,7 @@ sources:
     short_sha: 94d03b1aa
     authored_at: '2026-10-13T00:01:31+00:00'
     subject: 'perf: repair chat auth churn and fail context preparation promptly'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4952,147 +4181,203 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused on a significant performance overhaul to reduce chat latency and expanded the Jobs Search application
-    with multi-country support. Development also began on integrated voice calling and advanced workflow scheduling.
-  released_changes: []
+  overview: OpenMates introduced integrated Gemini voice calls and expanded the Jobs app with country-scoped searching and
+    impact boards. A major performance suite was also released, significantly reducing chat latency by overlapping context
+    preparation and streamlining routing. Quality updates focused on landing page stability, mobile readability for job results,
+    and improved memory display in chats.
+  released_changes:
+  - text: OpenMates added chat-bound Gemini voice calls, allowing users to initiate voice sessions directly from the chat
+      interface.
+    evidence:
+      commits:
+      - 4a088fd84
+    release_status: released_main
+  - text: The Jobs app now supports country-scoped searches and includes impact boards for better result visualization.
+    evidence:
+      commits:
+      - c5ef75c5a
+    release_status: released_main
+  - text: A suite of performance improvements was implemented to reduce chat admission and first-text latency, including overlapping
+      context preparation with admission and streamlining model dispatch.
+    evidence:
+      commits:
+      - b57dadf12
+      - eb0af3a86
+      - 149dc6000
+      - 58a36dee0
+      - 3d64cfe15
+      - 94d03b1aa
+    release_status: released_main
   bug_fixes:
-  - text: The landing page received several refinements, including improved responsiveness, stabilized hero animations, and
-      the addition of wheel momentum for reveals.
+  - text: Fast routing for ordinary chat requests has been restored to improve response times.
+    evidence:
+      commits:
+      - 62549591a
+    release_status: released_main
+  - text: Backend skill completion and recovery mechanisms were repaired to ensure assistant reliability.
+    evidence:
+      commits:
+      - 3d3432e49
+    release_status: released_main
+  - text: The marketing landing page received several stability updates, including improved responsiveness, wheel momentum,
+      and corrected reveal animations.
     evidence:
       commits:
       - 13bc4dfc4
       - bd688588d
       - 5f768ab3f
-    release_status: dev_only
-  - text: Website navigation was updated to ensure consistent headers across the newsroom and blog sections.
+    release_status: released_main
+  - text: Website navigation is now shared across the newsroom and blog sections.
     evidence:
       commits:
       - 7b9e541e1
-    release_status: dev_only
-  - text: AI chat interactions now feature more compact activity summaries and correctly display loaded memory pills during
-      pending assistant replies.
+    release_status: released_main
+  - text: Optional answer recovery and device email discovery processes were fixed.
     evidence:
       commits:
-      - b8469508c
-      - 5979a80c0
-    release_status: dev_only
-  - text: Jobs Search UI was adjusted for better mobile readability and more accurate city filtering.
+      - dc62fdd06
+    release_status: released_main
+  - text: Jobs search results now maintain readability on mobile devices and provide accurate city filters and ranking warnings.
     evidence:
       commits:
       - 579a1660b
       - 79b3cfd17
-    release_status: dev_only
-  - text: The team context picker was fixed to ensure selections remain available in the quick access menu.
+    release_status: released_main
+  - text: Team selection is now correctly preserved within the quick access settings.
     evidence:
       commits:
       - f486d07f5
-    release_status: dev_only
+    release_status: released_main
+  - text: Memory display was improved to show loaded memories on pending replies and use more compact activity summaries.
+    evidence:
+      commits:
+      - b8469508c
+      - 5979a80c0
+    release_status: released_main
+  - text: Chat admission through the service dispatcher is now atomic to prevent session conflicts.
+    evidence:
+      commits:
+      - 1c7d8e294
+    release_status: released_main
   unreleased_progress:
-  - text: A major performance initiative is underway to reduce chat latency. Improvements include overlapping chat setup with
-      routing, concurrent admission reads, and streamlined model dispatch to achieve faster first-text responses.
-    evidence:
-      commits:
-      - a9e3e575a
-      - 58a36dee0
-      - 149dc6000
-      - eb0af3a86
-      - b57dadf12
-      - 3d64cfe15
-      - 94d03b1aa
-      - 62549591a
-    release_status: dev_only
-  - text: The Jobs Search application now supports country-scoped searches and impact boards, with new providers added for
-      key-free execution.
-    evidence:
-      commits:
-      - c5ef75c5a
-      - ed24a2fe2
-    release_status: dev_only
-  - text: Initial support for chat-bound voice calls powered by Gemini Live was added to the backend and frontend.
-    evidence:
-      commits:
-      - 4a088fd84
-    release_status: dev_only
-  - text: Workflow capabilities were expanded to allow future start dates for recurring schedules and improved preservation
-      of trademark evidence in outputs.
+  - text: Progress was made on recurring workflows, including future start dates, key-free search execution, and trademark
+      evidence preservation.
     evidence:
       commits:
       - 61351a30b
+      - ed24a2fe2
       - f7efbf5d4
-    release_status: dev_only
-  - text: Project routing logic was optimized to batch discovery requests and narrow eligibility criteria.
+    release_status: released_main
+  - text: Project-related performance work continued with batched routing discovery and overlapping setup phases.
     evidence:
       commits:
       - 0d7822dd0
-      - ecb105de0
-    release_status: dev_only
-  - text: Core AI processing was strengthened with better skill recovery, same-turn skill completion, and atomic chat admission
-      through the service dispatcher.
+      - a9e3e575a
+    release_status: released_main
+  - text: Text skill completion within the same assistant turn was improved, including updates for 3D model generation.
     evidence:
       commits:
-      - 3d3432e49
       - 80e523cee
-      - dc62fdd06
-      - 1c7d8e294
-    release_status: dev_only
+    release_status: released_main
   internal_progress:
-  - text: CI infrastructure was improved with better dependency caching for integration tests and more efficient recovery
-      failure diagnostics.
+  - text: Integration dependency management was refined to reuse exact prepared dependencies and scope them to affected workspaces.
     evidence:
       commits:
       - cbbda747b
       - 7e02c294a
+    release_status: released_main
+  - text: The project now admits complete real example chats and reviewed media for testing.
+    evidence:
+      commits:
+      - 02b5eb592
+    release_status: released_main
+  - text: Tooling for bounded worker diagnostics was updated to improve CI reliability.
+    evidence:
+      commits:
       - f7ab97e69
+    release_status: released_main
+  - text: WebKit testing was enabled for iPad to catch multitab regressions.
+    evidence:
+      commits:
+      - 83854df7a
+    release_status: released_main
+  - text: CI coordination was updated to verify recovery failures without repeating passing test cases.
+    evidence:
+      commits:
       - 7182ae5cb
-    release_status: dev_only
-  - text: Project documentation and verification plans were updated for voice calling and jobs search features.
+    release_status: released_main
+  - text: Infrastructure maintenance included cleaning CI recordings and registering Jobs preview metadata.
+    evidence:
+      commits:
+      - 60e5d05fe
+    release_status: released_main
+  - text: Verification evidence was recorded for voice calling and Jobs search plans.
     evidence:
       commits:
       - 0c8b84fd6
       - 0996fe695
-      - 60e5d05fe
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Integrated Gemini voice calling.
+    include:
+    - text: Integrated Gemini voice calling directly within the chat interface.
       evidence:
         commits:
         - 4a088fd84
-      reason: Feature is currently in development and marked as dev_only.
-    - text: Country-scoped Jobs Search and impact boards.
+      reason: Major new user-facing capability using Gemini.
+    - text: Expanded Jobs search with country-scoped results and new impact boards.
       evidence:
         commits:
         - c5ef75c5a
-        - ed24a2fe2
-      reason: Jobs Search updates are currently dev_only.
-    - text: Future start dates for recurring workflows.
+      reason: Significant expansion of the Jobs app functionality.
+    - text: Significant chat performance optimizations, including overlapping context preparation and streamlined model dispatch
+        for faster first responses.
+      evidence:
+        commits:
+        - b57dadf12
+        - eb0af3a86
+        - 149dc6000
+        - 58a36dee0
+        - 3d64cfe15
+        - 94d03b1aa
+      reason: Comprehensive performance suite reducing chat latency.
+    exclude:
+    - text: Workflow scheduling and key-free search updates.
       evidence:
         commits:
         - 61351a30b
-      reason: Workflows are a disabled feature and this update is dev_only.
-    - text: Major chat latency and admission performance overhaul.
+        - ed24a2fe2
+        - f7efbf5d4
+      reason: Workflows are currently a disabled feature.
+    - text: Project routing and setup optimizations.
       evidence:
         commits:
+        - 0d7822dd0
         - a9e3e575a
-        - 58a36dee0
-        - 149dc6000
-        - eb0af3a86
-        - b57dadf12
-        - 3d64cfe15
-        - 94d03b1aa
-      reason: These performance optimizations are part of an unreleased latency improvement plan.
-    rationale: All changes from this period are marked as dev_only and are not yet reachable from the main branch or ready
-      for public communication.
+      reason: Projects are currently a disabled feature.
+    - text: Same-turn text skill completion.
+      evidence:
+        commits:
+        - 80e523cee
+      reason: Contains updates for disabled 3D model generation skills.
+    rationale: The update introduces high-value features like voice calling and expanded job searching, alongside a major
+      performance overhaul for the core chat experience. Features related to workflows and projects are excluded as they remain
+      disabled in the current configuration.
   social_video_recommendations:
-  - idea: A preview of the chat-bound voice calling interface showing real-time interaction with Gemini.
-    priority: medium
-    reason: Voice calling is a high-impact visual and auditory feature suitable for social demonstration once it reaches a
-      stable release state.
+  - idea: A demonstration of the new Gemini voice calling feature, showing a seamless transition from text to voice within
+      a chat.
+    priority: high
+    reason: Voice calling is a highly interactive and visual feature that demonstrates the platform's multimodal capabilities.
     evidence:
       commits:
       - 4a088fd84
+  - idea: A walkthrough of the expanded Jobs search, highlighting the new country filters and impact boards.
+    priority: medium
+    reason: Shows concrete utility and the growing ecosystem of integrated apps.
+    evidence:
+      commits:
+      - c5ef75c5a
   quality_notes:
-  - Extensive performance benchmarking was conducted to optimize the critical path for chat admission and first-text response.
-  - Mobile responsiveness was a key focus for both the marketing landing page and the Jobs Search interface.
+  - Chat latency was a primary focus, with multiple commits targeting admission and routing speed.
+  - Mobile UX for the Jobs app was improved through better result formatting.
+  - Landing page stability was addressed through responsiveness and animation fixes.
   validation_warnings: []

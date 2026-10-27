@@ -1,0 +1,418 @@
+{
+  "assessment": "Automated source-only EN/DE audit; no human/native-speaker gold.",
+  "bundle_sha256": "7b933e7c9c387a59a0bcccafcdbd5191a60c6e984a094fa6cf9c0ef1e6c1facc",
+  "fixed_audit_sha256": "9c8761f08ecafc4483c27e2fcf52f3c77f6fd0b101a98c8bdd0b20034440fe54",
+  "adjudication_before_unblinding": "Reviewed all five material flags and one uncertain flag against exact evidence; retained the fixed source-grounding labels and uncertainty. Some source-coverage extrapolations may be true outside the supplied passages; these are not all unsafe or factually false claims.",
+  "by_arm": {
+    "gemini38_only": {
+      "pass": 8,
+      "minor": 2,
+      "material": 1
+    },
+    "mercury3_only": {
+      "material": 4,
+      "pass": 6,
+      "uncertain": 1
+    },
+    "mercury3_clear": {
+      "pass": 10
+    }
+  },
+  "labels": [
+    {
+      "id": "21e79a12f285",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-1-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "673812e9dedd",
+      "verdict": "material",
+      "issues": [
+        {
+          "field": "phrase",
+          "reason": "“über weite Strecken” presupposes long-distance dispersal; the supplied passage describes travel and dispersal methods without establishing travel distance.",
+          "evidence_reference": "evidence[0].description: “how seeds travel, survive, and thrive in the diverse ecosystems”; “From explosive launches to hitchhiking on animals.” No distance claim is supplied."
+        }
+      ],
+      "row": "de-video-2-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "ead1988a206d",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-1-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "c5063b996ba9",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-0-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "41c61bbdf258",
+      "verdict": "minor",
+      "issues": [
+        {
+          "field": "assistant_response",
+          "reason": "The final “Möchten Sie mehr ... erfahren?” is a yes/no invitation rather than the requested open question; content remains faithful.",
+          "evidence_reference": "Draft ends “Möchten Sie mehr über diesen Vorgang erfahren?”; evidence[0].extract supports both preceding statements."
+        }
+      ],
+      "row": "de-wiki-2-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "3add7cf7d3bc",
+      "verdict": "material",
+      "issues": [
+        {
+          "field": "follow_up_suggestions[2]",
+          "reason": "“nur wenig Altpapierstoff direkt genutzt” adds a limited-direct-use premise. The small-extent qualifier instead belongs to producing an intermediate material for later paper manufacture.",
+          "evidence_reference": "evidence[0].extract: “In geringem Umfang ... zunächst Altpapierstoff als Halbstoff hergestellt, der erst später zur Herstellung neuen Papiers eingesetzt wird.”"
+        },
+        {
+          "field": "assistant_response",
+          "reason": "Four sentences rather than the requested three; this is a formatting issue.",
+          "evidence_reference": "Draft has three statements followed by “Welche Schritte sind nötig ...?”"
+        }
+      ],
+      "row": "de-wiki-1-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "31d72b55b7a4",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-0-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "b7555b1609c7",
+      "verdict": "material",
+      "issues": [
+        {
+          "field": "follow_up_suggestions[0]",
+          "reason": "“nur nahe der Magnetpole” changes mostly-visible-near-the-poles into an exclusive location restriction.",
+          "evidence_reference": "evidence[0].extract: “Polarlichter sind meistens ... in der Nähe der Magnetpole zu sehen”; draft asks “Warum sieht man Polarlichter nur nahe der Magnetpole?”"
+        },
+        {
+          "field": "assistant_response",
+          "reason": "Four sentences rather than the requested three; this is a formatting issue.",
+          "evidence_reference": "Draft has three statements followed by “Was könnte das Leuchten ... verursachen?”"
+        }
+      ],
+      "row": "de-wiki-0-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "33142743005f",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-1-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "b60864f50c72",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-2-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "34e257c29032",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-video-2-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "3ac307a0dc41",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-1-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "30b2240335d7",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-0-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "b3cb4b92da1f",
+      "verdict": "material",
+      "issues": [
+        {
+          "field": "phrase",
+          "reason": "“What science and cultural meaning create this natural phenomenon?” assigns cultural meaning a causal role in producing the aurora. The source presents cultural significance as a topic alongside the science, not a physical cause.",
+          "evidence_reference": "evidence[0].description: “the science behind the auroras, their cultural significance, and the best places to witness them.”"
+        }
+      ],
+      "row": "en-video-0-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "86fe85a95a84",
+      "verdict": "material",
+      "issues": [
+        {
+          "field": "follow_up_suggestions[0]",
+          "reason": "“Welche Papiersorten lassen sich nicht recyceln?” presupposes non-recyclable paper types, a restriction absent from this source. Sorting by type and general challenges do not establish that premise.",
+          "evidence_reference": "evidence[0].description lists “Sorting Paper by Type” and “Challenges in Paper Recycling”, but no paper type or category that cannot be recycled."
+        },
+        {
+          "field": "assistant_response",
+          "reason": "Minor German case error: “Welcher Schritt ... findest du” should use an accusative object; the meaning remains clear.",
+          "evidence_reference": "Draft: “Welcher Schritt im Prozess findest du am spannendsten?”"
+        }
+      ],
+      "row": "de-video-1-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "926d7f3ed368",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-1-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "fecd1d9ee1ee",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-1-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "9322164d4773",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-1-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "24b3054915f7",
+      "verdict": "uncertain",
+      "issues": [
+        {
+          "field": "phrase",
+          "reason": "“paint the night sky with color” may be ordinary aurora imagery, but the exact passage never supplies night-time visibility or colors. Source-only support for these descriptive additions is unresolved; no causal error is alleged.",
+          "evidence_reference": "evidence[0].description calls the Northern Lights a “mesmerizing natural phenomenon” with “enchanting visuals”, without specifying colors or night-time visibility."
+        }
+      ],
+      "row": "en-video-0-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "0882dfc90bac",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-2-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "137622ec2e46",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-2-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "a58b08afd6d9",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-0-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "b6b0cf4515ea",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-wiki-2-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "60e6c4ef6a14",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-0-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "ea6d869a641a",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-2-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "7faa961e3ecc",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-0-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    },
+    {
+      "id": "2e8f00464e6c",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-video-2-mercury3_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_only"
+    },
+    {
+      "id": "e68b3be8a86a",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-wiki-0-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "252e5154f18e",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-2-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "caef44db1691",
+      "verdict": "minor",
+      "issues": [
+        {
+          "field": "assistant_response",
+          "reason": "The final “Would you like to learn more ...?” is a yes/no invitation rather than the requested open question; content remains faithful.",
+          "evidence_reference": "Draft ends “Would you like to learn more about this process?”; evidence[0].extract supports both preceding statements."
+        }
+      ],
+      "row": "en-wiki-2-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "093d83b098eb",
+      "verdict": "pass",
+      "issues": [],
+      "row": "de-video-0-gemini38_only.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "gemini38_only"
+    },
+    {
+      "id": "5796ee7f18e0",
+      "verdict": "pass",
+      "issues": [],
+      "row": "en-video-0-mercury3_clear.json",
+      "attempt": 0,
+      "draft_index": 0,
+      "arm": "mercury3_clear"
+    }
+  ],
+  "flags": [
+    {
+      "id": "673812e9dedd",
+      "arm": "mercury3_only",
+      "admitted": false,
+      "row": "de-video-2-mercury3_only.json",
+      "verdict": "material"
+    },
+    {
+      "id": "3add7cf7d3bc",
+      "arm": "mercury3_only",
+      "admitted": false,
+      "row": "de-wiki-1-mercury3_only.json",
+      "verdict": "material"
+    },
+    {
+      "id": "b7555b1609c7",
+      "arm": "mercury3_only",
+      "admitted": false,
+      "row": "de-wiki-0-mercury3_only.json",
+      "verdict": "material"
+    },
+    {
+      "id": "b3cb4b92da1f",
+      "arm": "gemini38_only",
+      "admitted": false,
+      "row": "en-video-0-gemini38_only.json",
+      "verdict": "material"
+    },
+    {
+      "id": "86fe85a95a84",
+      "arm": "mercury3_only",
+      "admitted": false,
+      "row": "de-video-1-mercury3_only.json",
+      "verdict": "material"
+    },
+    {
+      "id": "24b3054915f7",
+      "arm": "mercury3_only",
+      "admitted": false,
+      "row": "en-video-0-mercury3_only.json",
+      "verdict": "uncertain"
+    }
+  ]
+}

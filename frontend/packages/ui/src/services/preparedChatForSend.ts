@@ -11,6 +11,7 @@ import { chatDB } from "./db";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { isPublicChat } from "../demo_chats/convertToChat";
 import type { Chat } from "../types/chat";
+import { canBindUnclaimedFreshShell, reserveInitialFreshShellId } from "../utils/chatDraftState";
 
 interface PreparedChat {
   scope: string;
@@ -33,6 +34,32 @@ function currentScope(): { scope: string; accountId: string; teamEpoch: number }
 
 function matchesScope(entry: PreparedChat, scope: NonNullable<ReturnType<typeof currentScope>>): boolean {
   return entry.scope === scope.scope && entry.accountId === scope.accountId && entry.teamEpoch === scope.teamEpoch;
+}
+
+/** Reserve and bind the visible welcome owner before its editor can focus. */
+export function reserveInitialComposerChatId(input: {
+  chat: Chat | null | undefined;
+  temporaryChatId: string | null;
+  selectedChatId: string | null;
+  showWelcome: boolean;
+  hasMessages: boolean;
+  hasLiveDraftContent: boolean;
+}, createId: () => string = () => crypto.randomUUID()): string | null {
+  const state = get(draftEditorUIState);
+  const scope = currentScope();
+  const draftId = state.currentChatId;
+  const chatId = reserveInitialFreshShellId({ ...input,
+    preparedDraftChatId: draftId && getPreparedChatForSend(draftId) ? draftId : null,
+  }, createId);
+  if (scope && canBindUnclaimedFreshShell({ ...input,
+    temporaryChatId: chatId, composerChatId: chatId ?? "", draftChatId: draftId,
+    activeChatId: input.selectedChatId, pendingDraftSelection: !!state.newlyCreatedChatIdToSelect,
+    authenticated: true, accountId: scope.accountId, teamId: null, incognito: false,
+  })) {
+    draftEditorUIState.update(current => current.currentChatId
+      ? current : { ...current, currentChatId: chatId });
+  }
+  return chatId;
 }
 
 /**

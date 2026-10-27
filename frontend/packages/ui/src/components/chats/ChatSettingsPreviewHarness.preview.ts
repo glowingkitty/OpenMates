@@ -9,5 +9,5 @@ export const variants = {
   shared: { tab: 'share', shared: true },
   public: { tab: 'share', example: true },
   anonymous: { tab: 'share', anonymous: true },
-  publicUsage: { tab: 'usage', example: true, exampleChatId: 'example-audio-speak-openmates-welcome-message' },
+  publicUsage: { tab: 'usage', example: true, exampleChatId: 'example-private-plumber-email' },
 };

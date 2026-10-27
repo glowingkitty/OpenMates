@@ -1,7 +1,10 @@
+import { normalizeEventResult } from '../components/embeds/events/eventResult';
 import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
 import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
 import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/embeds/generatedMediaGroup';
+import ResolvedEmbedPreview from '../components/embeds/ResolvedEmbedPreview.svelte';
+import { getEmbedPreviewPresentation } from '../types/embedPreviewPresentation';
 
 /**
  * embedPreviewRegistry.ts
@@ -203,6 +206,12 @@ resolvers.set('jobs-job-result', async ({ embedId, decodedContent, onFullscreen 
   return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
 });
 
+resolvers.set('calendar-event', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const component = (await import('../components/embeds/calendar/CalendarEventEmbedPreview.svelte')).default;
+  return { component, props: { id: embedId, content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen } };
+});
+
 for (const skillId of ["search", "read"] as const) {
   resolvers.set(`app:projects:${skillId}`, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } = await import("../components/embeds/projects/ProjectReferenceEmbedPreview.svelte");
@@ -241,7 +250,12 @@ resolvers.set("hosting-domain", async ({ embedId, decodedContent, onFullscreen }
 // Website children retain the search skill that produced them, but have their
 // own preview contract. Resolve their concrete type before the parent skill.
 resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
-  const { default: component } = await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
+  // News and web share the persisted website child type. Preserve the creating
+  // app when choosing the article card, just as News search fullscreen does.
+  const appId = decodedContent.app_id || embedData.app_id;
+  const { default: component } = appId === 'news'
+    ? await import("../components/embeds/news/NewsEmbedPreview.svelte")
+    : await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
   const status = normalizeStatus(embedData.status);
   return {
     component,
@@ -252,6 +266,7 @@ resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFull
       description: firstText(decodedContent.description, decodedContent.snippet),
       favicon: firstText(nestedRecord(decodedContent, 'meta_url')?.favicon, decodedContent['meta_url.favicon'], decodedContent.meta_url_favicon, decodedContent.favicon_url, decodedContent.favicon),
       image: searchResultImageUrl(decodedContent),
+      ...(appId === 'news' ? {publicationDate: firstText(decodedContent.publication_date, decodedContent.published_at, decodedContent.page_age, decodedContent.age)} : {}),
       status: status === "cancelled" ? "error" : status,
       onFullscreen,
     },
@@ -419,7 +434,7 @@ const eventResolver: PreviewResolver = async ({
     component,
     props: {
       id: embedId,
-      event: decodedContent,
+      event: normalizeEventResult(decodedContent, embedId),
       isMobile: false,
       onFullscreen,
     },
@@ -451,6 +466,21 @@ resolvers.set(
     };
   },
 );
+
+// Native batch transcriptions reuse the recording preview with exact uploaded metadata.
+resolvers.set('app:audio:transcribe', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const [{ default: component }, { audioTranscriptionResultContent }] = await Promise.all([
+    import('../components/embeds/audio/RecordingEmbedPreview.svelte'),
+    import('../components/embeds/audio/audioTranscriptionResult'),
+  ]);
+  const content = audioTranscriptionResultContent(decodedContent);
+  const status = normalizeStatus(embedData.status);
+  return { component, props: { id: embedId, status: status === 'processing' ? 'transcribing' : status === 'cancelled' ? 'error' : status,
+    filename: content.filename, transcript: content.transcript, title: content.title, duration: content.duration,
+    transcriptOriginal: content.transcript_original, transcriptCorrected: content.transcript_corrected,
+    useCorrected: content.use_corrected, s3Files: content.s3_files, s3BaseUrl: content.s3_base_url,
+    aesKey: content.aes_key, aesNonce: content.aes_nonce, onFullscreen } };
+});
 
 // ── App-skill-use: code / get_docs ────────────────────────────────────────────
 
@@ -618,6 +648,7 @@ const imageGenerateResolver: PreviewResolver = async ({
       skillId: skillId as "generate" | "generate_draft",
       prompt: decodedContent.prompt || "",
       model: decodedContent.model || embedData.model || "",
+      provider: decodedContent.provider || embedData.provider || "",
       s3BaseUrl: decodedContent.s3_base_url || embedData.s3_base_url || "",
       files: decodedContent.files || embedData.files || undefined,
       aesKey: decodedContent.aes_key || embedData.aes_key || "",
@@ -741,6 +772,19 @@ resolvers.set("app:design:icon_result", designIconResultResolver);
 
 // ── Direct / child: maps place ───────────────────────────────────────────────
 
+function mapsPlaceCategory(content: Record<string, unknown>): string | undefined {
+  // `type` identifies the embed (e.g. place_result), never its business category.
+  const internalTypes = new Set(['place_result', 'place', 'maps-place', 'map-location', 'app:maps:place', 'app:maps:location']);
+  const genericTypes = new Set(['point_of_interest', 'establishment', 'food', 'store']);
+  const types = typeof content.types === 'string' ? content.types.split('|') : Array.isArray(content.types) ? content.types : [];
+  const candidates = [content.placeType, content.place_type, content.category, ...types];
+  const category = candidates.find((value): value is string => typeof value === 'string'
+    && Boolean(value.trim()) && !internalTypes.has(value.trim()) && !genericTypes.has(value.trim()));
+  if (!category) return undefined;
+  const label = category.trim().replace(/_/g, ' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 const mapsPlaceResolver: PreviewResolver = async ({
   embedId,
   decodedContent,
@@ -759,7 +803,7 @@ const mapsPlaceResolver: PreviewResolver = async ({
       formattedAddress: firstText(decodedContent.formattedAddress, decodedContent.formatted_address, decodedContent.address, location?.address, venue?.address),
       rating: firstNumber(decodedContent.rating, decodedContent.stars, decodedContent.review_score),
       userRatingCount: firstNumber(decodedContent.userRatingCount, decodedContent.user_rating_count, decodedContent.review_count, decodedContent.rating_count),
-      placeType: firstText(decodedContent.placeType, decodedContent.place_type, decodedContent.category, decodedContent.type),
+      placeType: mapsPlaceCategory(decodedContent),
       dataSource: firstText(decodedContent.data_source, decodedContent.dataSource),
       distanceMeters: firstNumber(decodedContent.distance_meters, decodedContent.distanceMeters),
       imageUrl: firstText(decodedContent.imageUrl, decodedContent.image_url, decodedContent.photo_url, decodedContent.thumbnail),
@@ -785,9 +829,15 @@ const travelConnectionResolver: PreviewResolver = async ({
 }) => {
   const { default: component } =
     await import("../components/embeds/travel/TravelConnectionEmbedPreview.svelte");
+  const legs = Array.isArray(decodedContent.legs) ? decodedContent.legs as Record<string, unknown>[] : [];
+  const firstLeg = legs[0];
+  const lastLeg = legs.at(-1);
+  const firstSegment = (Array.isArray(firstLeg?.segments) ? firstLeg.segments[0] : undefined) as Record<string, unknown> | undefined;
+  const lastSegment = (Array.isArray(lastLeg?.segments) ? lastLeg.segments.at(-1) : undefined) as Record<string, unknown> | undefined;
   return {
     component,
     props: {
+      connection: decodedContent,
       id: embedId,
       price: decodedContent.price ?? decodedContent.total_price,
       currency: decodedContent.currency || "EUR",
@@ -795,14 +845,14 @@ const travelConnectionResolver: PreviewResolver = async ({
       fareIsPartial: firstBoolean(decodedContent.fare_is_partial, decodedContent.fareIsPartial),
       transportMethod: firstText(decodedContent.transport_method, decodedContent.transportMethod, decodedContent.mode) || "airplane",
       tripType: firstText(decodedContent.trip_type, decodedContent.tripType) || "one_way",
-      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from),
-      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to),
-      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure),
-      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival),
-      duration: firstText(decodedContent.duration, decodedContent.duration_minutes),
+      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from, firstLeg?.origin),
+      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to, lastLeg?.destination),
+      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure, firstLeg?.departure, firstSegment?.departure_time),
+      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival, lastLeg?.arrival, lastSegment?.arrival_time),
+      duration: firstText(decodedContent.duration, decodedContent.duration_minutes, firstLeg?.duration),
       stops: firstNumber(decodedContent.stops, decodedContent.transfers, decodedContent.transfer_count),
-      arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes),
-      hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation),
+      arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes, lastLeg?.arrival_delay_minutes, lastSegment?.arrival_delay_minutes),
+      hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation) ?? legs.some(leg => Array.isArray(leg.segments) && leg.segments.some((segment: Record<string, unknown>) => segment.cancelled === true)),
       carriers: stringList(decodedContent.carriers ?? decodedContent.carrier),
       bookingProvider: firstText(decodedContent.booking_provider, decodedContent.provider, decodedContent.source_provider),
       airlineLogo: firstText(decodedContent.airline_logo, decodedContent.logo_url, decodedContent.provider_logo),
@@ -845,6 +895,8 @@ const healthAppointmentResolver: PreviewResolver = async ({
       price: firstNumber(decodedContent.price, decodedContent.service_price),
       providerPlatform: firstText(decodedContent.providerPlatform, decodedContent.provider_platform, decodedContent.provider),
       additionalSlotCount: firstNumber(decodedContent.additionalSlotCount, decodedContent.additional_slot_count) ?? 0,
+      gpsCoordinates: { latitude: firstNumber((decodedContent.gps_coordinates && typeof decodedContent.gps_coordinates === 'object' ? decodedContent.gps_coordinates as Record<string, unknown> : {}).latitude, decodedContent.gps_coordinates_latitude), longitude: firstNumber((decodedContent.gps_coordinates && typeof decodedContent.gps_coordinates === 'object' ? decodedContent.gps_coordinates as Record<string, unknown> : {}).longitude, decodedContent.gps_coordinates_longitude) },
+      bookingUrl: firstText(decodedContent.booking_url, decodedContent.practice_url),
       status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
       isMobile: false,
       onFullscreen,
@@ -1165,7 +1217,15 @@ async function resolve(
 
   try {
     const resolver = resolvers.get(key)!;
-    return await resolver(ctx);
+    const resolved = await resolver(ctx);
+    if (!resolved) return null;
+    const actualType = key.startsWith('app:')
+      ? String(ctx.decodedContent.type ?? ctx.embedData.type ?? '') : key;
+    return { component: ResolvedEmbedPreview, props: {
+      ...resolved.props,
+      __previewComponent: resolved.component,
+      __previewPresentation: getEmbedPreviewPresentation(actualType, key),
+    } };
   } catch (error) {
     console.error(
       "[embedPreviewRegistry] Error resolving preview for key:",

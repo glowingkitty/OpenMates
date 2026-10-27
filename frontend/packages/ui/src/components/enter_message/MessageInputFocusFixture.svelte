@@ -5,7 +5,7 @@
   import { draftEditorUIState } from '../../services/drafts/draftState';
 
   let composer = $state<{ setDraftContent: (id: string, content: typeof textOnlyDraft, version: number) => Promise<void>; dismissFocus: () => void }>();
-  let { emptyDraft = false, mathDraft = false }: { emptyDraft?: boolean; mathDraft?: boolean } = $props();
+  let { emptyDraft = false, mathDraft = false, imageDraft = false }: { emptyDraft?: boolean; mathDraft?: boolean; imageDraft?: boolean } = $props();
   let restored = $state(false);
   const ready = $derived(restored && !$draftEditorUIState.isSwitchingContext);
   let focused = $state(false);
@@ -16,7 +16,11 @@
   // The production write-mode editor keeps math as raw Markdown text.
   const textOnlyDraft = $derived({ type: 'doc', content: [{ type: 'paragraph', content: [{
     type: 'text', text: emptyDraft ? '   ' : mathDraft ? '$$x^2 + y^2$$' : 'Unsent multiline\nsecond line',
-  }] }] });
+  }] }, ...(imageDraft ? [{ type: 'paragraph', content: [{ type: 'embed', attrs: {
+    id: 'synthetic-finished-image', type: 'image', status: 'finished',
+    filename: 'Fixture image.jpg', src: '/images/examples/group1.jpg',
+    contentRef: 'embed:synthetic-finished-image',
+  } }] }] : [])] });
 
   onMount(() => {
     const restore = () => void composer?.setDraftContent(chatId, textOnlyDraft, 2);
@@ -53,7 +57,7 @@
 </script>
 
 <div class="fixture" data-testid="composer-focus-fixture" data-ready={ready} data-switched={switched} data-attachments-added={attachments}>
-  <MessageInput bind:this={composer} currentChatId={activeChatId} showActionButtons={false} bind:isFocused={focused}
+  <MessageInput bind:this={composer} currentChatId={activeChatId} showActionButtons={false} bind:isFocused={focused} inlineCompact={imageDraft}
     onAssistantSpeechPreferenceChange={() => {}} />
   {#if focused}<button type="button" data-testid="fixture-composer-cancel" data-composer-focus-control onclick={() => composer?.dismissFocus()}>Cancel</button>{/if}
 </div>

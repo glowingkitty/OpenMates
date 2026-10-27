@@ -191,7 +191,6 @@ export function findProviderByName(name: string): ProviderMetadata | undefined {
     const aliases: Record<string, string> = {
         "bfl": "bfl",
         "brave": "brave",
-        "flixbus / flixtrain": "flix",
         "google calendar": "google",
         "mistral": "mistral",
         "protonmail": "protonmail",

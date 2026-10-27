@@ -2,7 +2,7 @@
 #
 # Celery task for Social Media get-posts.
 # Collects posts/comments in the background and updates the processing embed that
-# the AI stream already placed in chat. This keeps broad Reddit/Bluesky collection
+# the AI stream already placed in chat. This keeps broad social post collection
 # from blocking the assistant response loop.
 #
 # Architecture: docs/architecture/apps/social-media.md
@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -31,17 +30,6 @@ from backend.shared.python_utils.chat_recovery_context import (
 
 logger = logging.getLogger(__name__)
 
-WEBSHARE_SECRET_PATH = "kv/data/providers/webshare"
-WEBSHARE_USERNAME_KEY = "proxy_username"
-WEBSHARE_PASSWORD_KEY = "proxy_password"
-WEBSHARE_USERNAME_ENV = "SECRET__WEBSHARE__PROXY_USERNAME"
-WEBSHARE_PASSWORD_ENV = "SECRET__WEBSHARE__PROXY_PASSWORD"
-WEBSHARE_PROXY_HOST = "p.webshare.io"
-WEBSHARE_PROXY_PORT = 80
-WEBSHARE_UNAVAILABLE_WARNING = (
-    "Reddit is currently unavailable because the provider proxy is not configured. "
-    "Try Bluesky or Mastodon, or ask an admin to configure Reddit access."
-)
 
 
 @app.task(
@@ -82,11 +70,8 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
             )
 
         started = datetime.now(timezone.utc)
-        reddit_proxy_url = await _get_webshare_proxy_url(task)
         results = await collect_posts(
             arguments.get("requests") or [],
-            reddit_proxy_url=reddit_proxy_url,
-            reddit_proxy_warning=None if reddit_proxy_url else WEBSHARE_UNAVAILABLE_WARNING,
         )
         elapsed_seconds = (datetime.now(timezone.utc) - started).total_seconds()
         total_requests = sum(item.request_count for item in results)
@@ -276,30 +261,3 @@ def _request_label(results: list[GetPostsResponseItem]) -> str:
     if len(labels) == 1:
         return labels[0]
     return f"{len(labels)} social media sources"
-
-
-async def _get_webshare_proxy_url(task: BaseServiceTask) -> str | None:
-    username = await _get_webshare_secret(task, WEBSHARE_USERNAME_KEY, WEBSHARE_USERNAME_ENV)
-    password = await _get_webshare_secret(task, WEBSHARE_PASSWORD_KEY, WEBSHARE_PASSWORD_ENV)
-    if not username or not password:
-        logger.warning("Webshare proxy credentials are unavailable for social media Reddit collection")
-        return None
-    return f"http://{username}-rotate:{password}@{WEBSHARE_PROXY_HOST}:{WEBSHARE_PROXY_PORT}/"
-
-
-async def _get_webshare_secret(task: BaseServiceTask, key: str, env_var: str) -> str | None:
-    if task._secrets_manager:
-        try:
-            value = await task._secrets_manager.get_secret(
-                secret_path=WEBSHARE_SECRET_PATH,
-                secret_key=key,
-            )
-            if value and value.strip():
-                return value.strip()
-        except Exception as exc:
-            logger.warning("Failed to retrieve Webshare secret '%s' from Vault: %s", key, exc)
-
-    env_value = os.environ.get(env_var, "").strip()
-    if env_value and env_value != "IMPORTED_TO_VAULT":
-        return env_value
-    return None

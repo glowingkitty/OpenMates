@@ -318,41 +318,33 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		const messageEditor = page.getByTestId('message-editor');
 		await insertComposerText(page, messageEditor, visibleDraft, visibleDraft);
 		await expectDraftComposer(page, visibleDraft);
-		if (IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone') {
-			await messageEditor.locator('[contenteditable="true"]').evaluate((element: HTMLElement) => element.blur());
-			await expect(page.getByTestId('message-draft-summary-text')).toBeVisible();
-			const composerGeometry = await page.evaluate(() => {
-				const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
-				const messageEditor = document.querySelector<HTMLElement>('[data-testid="message-editor"]');
-				const contentEditable = messageEditor?.querySelector<HTMLElement>('[contenteditable="true"]');
-				const draftSummaryText = document.querySelector<HTMLElement>('[data-testid="message-draft-summary-text"]');
-				if (!messageField || !messageEditor || !contentEditable || !draftSummaryText) {
-					throw new Error('Composer geometry targets are unavailable');
-				}
-				const fieldRect = messageField.getBoundingClientRect();
-				const editorRect = messageEditor.getBoundingClientRect();
-				const draftSummaryStyle = getComputedStyle(draftSummaryText);
-				return {
-					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-					editorContentOverflow: contentEditable.scrollWidth - contentEditable.clientWidth,
-					draftSummaryOverflow: draftSummaryText.scrollWidth - draftSummaryText.clientWidth,
-					draftSummaryOverflowX: draftSummaryStyle.overflowX,
-					draftSummaryTextOverflow: draftSummaryStyle.textOverflow,
-					fieldRight: fieldRect.right,
-					editorRight: editorRect.right,
-					viewportWidth: window.innerWidth
-				};
-			});
-			expect(composerGeometry.documentOverflow, 'Phone composer must not create horizontal page overflow').toBeLessThanOrEqual(1);
-			expect(composerGeometry.editorContentOverflow, 'Phone message editor content must fit its editor').toBeLessThanOrEqual(1);
-			expect(composerGeometry.draftSummaryOverflow, 'Phone draft summary should exercise the ellipsis state').toBeGreaterThan(1);
-			expect(composerGeometry.draftSummaryOverflowX, 'Phone draft summary should clip inside its text box').toBe('hidden');
-			expect(composerGeometry.draftSummaryTextOverflow, 'Phone draft summary should show an ellipsis when clipped').toBe('ellipsis');
-			expect(composerGeometry.fieldRight, 'Phone message field must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
-			expect(composerGeometry.editorRight, 'Phone message editor must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
-		}
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
+		if (IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone') {
+			await messageEditor.locator('[contenteditable="true"]').evaluate((element: HTMLElement) => element.blur());
+			const draftCard = page.locator(`[data-testid="resume-chat-draft-card"][data-chat-id="${draftChatId}"]`);
+			await expect(draftCard).toBeVisible();
+			await expect(messageEditor.locator('.ProseMirror')).toBeEmpty();
+			const geometry = await draftCard.evaluate((card: HTMLElement) => {
+				const preview = card.querySelector<HTMLElement>('.resume-chat-draft-preview')!;
+				return {
+					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+					previewOverflow: preview.scrollWidth - preview.clientWidth,
+					previewOverflowX: getComputedStyle(preview).overflowX,
+					previewTextOverflow: getComputedStyle(preview).textOverflow,
+					cardRight: card.getBoundingClientRect().right,
+					viewportWidth: window.innerWidth,
+				};
+			});
+			expect(geometry.documentOverflow, 'Phone workspace must fit the viewport').toBeLessThanOrEqual(1);
+			expect(geometry.previewOverflow, 'Phone draft card should exercise its ellipsis').toBeGreaterThan(1);
+			expect(geometry.previewOverflowX).toBe('hidden');
+			expect(geometry.previewTextOverflow).toBe('ellipsis');
+			expect(geometry.cardRight).toBeLessThanOrEqual(geometry.viewportWidth);
+			await draftCard.click();
+			await expectDraftComposer(page, visibleDraft);
+		}
+
 		if (proof) {
 			await dismissSecurityReminderIfPresent(page, logCheckpoint);
 			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);

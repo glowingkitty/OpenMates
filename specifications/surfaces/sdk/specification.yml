@@ -4,25 +4,32 @@ version: 1
 status: draft
 title: SDK Surface
 summary: >
-  The npm and pip SDKs are API-key programmatic OpenMates clients that preserve
-  approved-device authorization, local client-side encryption, and semantic
-  parity with each other and with safe CLI product/account capabilities.
+  Rust, npm and pip are supported headless library SDKs with the same public
+  capabilities, explicit credentials, local client-side encryption and automated
+  conformance. Shared Rust owns reusable headless client behavior across the native
+  CLI/TUI, web and Apple applications, behind thin UI and persistence adapters.
 
 scope:
   includes:
-    - npm and pip public SDK facades, generated app-skill namespaces, and publish-gated packages.
+    - Rust, npm and pip public library SDK facades, generated app-skill namespaces, and publish-gated packages.
+    - Shared headless Rust client core for all reusable application operations, crypto, authentication, storage policy, synchronization, reconnect and recovery across CLI/TUI, web and Apple.
+    - Staged client migration, thin browser/native adapters, preserved platform data and measured web JavaScript/WASM and runtime performance.
+    - Separate Rust SDK publication on crates.io alongside synchronized direct npm and Python libraries.
+    - Maintained three-language capability matrix, shared schemas/protocol fixtures/cryptographic vectors, executable cross-SDK conformance and release synchronization gates.
     - API-key authentication with SDK name, stable device identity, device approval, scopes, expiration, and budget enforcement before work starts.
     - Client-generated setup credentials whose bearer authentication component is separate from client-only decryption material, with one-time reveal, hashed lookup, and encrypted labels and prefixes.
     - Client-only wrapped account or grant-scoped resource keys and local encryption/decryption for encrypted chats, memories, embeds, projects, tasks, plans, workflows, API-key labels, and account imports.
     - Revocation and expiry enforcement for cached SDK authorization, including replacement of legacy keys that combine bearer access and account-key unwrapping.
     - Generated native app-skill methods, async task polling, prompt-injection opt-out metadata, and connected-account token-ref transport through SDK-only endpoints.
     - Chat send helpers that default to non-persistent mode, support focus-mode metadata, and preflight saved chats with local encrypted chat/recovery material before server submission.
-    - Semantic parity between npm and pip SDK namespaces, method inputs, typed outputs, typed unavailable exclusions, explicit destructive confirmations, and public unauthenticated reads where intentionally exposed.
+    - Semantic parity between Rust, npm and pip SDK namespaces, method inputs, typed outputs, typed unavailable exclusions, explicit destructive confirmations, and public unauthenticated reads where intentionally exposed.
+    - Keyless inline app skills and transient text chat through the existing anonymous free-usage routes, allowance status, and actionable signup-required outcomes.
     - Live dev-server SDK smoke coverage that cleans up created resources and revokes temporary API keys.
   excludes:
     - Password, passkey, 2FA, recovery-key, active-session, browser checkout, or Apple login management through SDK API keys.
     - CLI terminal UI, self-hosted server operations, local remote-access filesystem bridges, local test-account artifact commands, and newsletter management.
-    - SDK-owned startup sync queues, user-facing chat recovery takeover, or bypasses of feature-owned REST/WebSocket safety contracts.
+    - UI rendering, DOM interaction, terminal parsing, interactive profile selection, implicit CLI stored-login inheritance, SDK execution through a CLI subprocess, or bypasses of feature-owned REST/WebSocket safety contracts.
+    - Backend Rust implementation in this client migration or mandatory replacement of IndexedDB and SwiftData with SQLite or OPFS.
     - Server-side plaintext storage of API keys, account master keys, chat keys, private chat content, encrypted memory content, or API-key display labels.
     - Generic app-skill passthrough namespaces that bypass generated app metadata, disabled skill visibility rules, or typed SDK method contracts.
 
@@ -30,7 +37,7 @@ models:
   SDKDeviceIdentity:
     sdk_name:
       type: enum
-      values: [cli, npm, pip]
+      values: [cli, rust, npm, pip]
       required: true
       constraints: {cli_value_for_cli_owned_callers_only: true}
     device_identity:
@@ -49,7 +56,7 @@ models:
       constraints: {plaintext_persistence: forbidden, server_lookup: hash_only, account_key_unwrap: forbidden}
     sdk_name:
       type: enum
-      values: [npm, pip]
+      values: [rust, npm, pip]
       required: true
     device_identity:
       type: stable_device_id
@@ -191,6 +198,9 @@ models:
     pip_method:
       type: method_path
       nullable: true
+    rust_method:
+      type: method_path
+      nullable: true
     exclusion_reason:
       type: enum_or_string
       nullable: true
@@ -216,9 +226,33 @@ models:
       constraints: {must_remain_false: true}
 
 assertions:
+  - id: sdk.library.explicit-headless
+    type: parity
+    must: Rust, npm and Python packages provide direct headless library interfaces and never launch a CLI to implement SDK operations. Shared Rust owns all reusable headless application operations, crypto, authentication, storage policy, sync, reconnect and recovery across CLI/TUI, web and Apple. UI, parsing, interactive profile selection and thin platform IO stay in adapters; storage access is explicit rather than ambient SDK discovery. Credentials are explicitly supplied or configured by consumers, never inherited from the CLI login. Equivalent public SDK capabilities preserve authentication boundaries; API keys never acquire session-login privileges.
+    depends_on: [examples.sdk_architecture]
+  - id: sdk.client.thin-platform-boundary
+    type: parity
+    must: Web Svelte/TypeScript implements UI, DOM and thin browser-only APIs such as media and WebRTC, calling shared Rust through browser-compatible bindings. Apple retains native SwiftUI and platform hooks over the same reusable Rust behavior. Neither platform independently reimplements reusable operations, crypto, auth, storage policy, sync, reconnect or recovery. Thin platform persistence adapters preserve existing data under architecture.storage-lifecycle; this boundary does not require a storage-engine migration.
+    depends_on: [examples.client_platforms]
+  - id: sdk.migration.ordered-client-rollout
+    type: invariant
+    must: First prove essential authentication, encrypted chat, streaming/cancellation, persistence and synchronization/reconnect/recovery through the entirely Rust CLI/TUI. Once those essential flows are verified, begin browser/WASM integration immediately; exhaustive CLI command and app parity remains required as a separate workstream and is not a browser prerequisite. Make Rust available alongside the installed npm CLI early for daily testing, retaining the old command and source until full parity/security proof and explicit agent plus user retirement acceptance. Complete and verify web before Apple migration through the coordinated Mac workflow. Backend Rust migration may begin only after all client migrations and accepted cleanup are complete; backend implementation is outside this scope. Architecture approval or unverified essential flows do not admit browser implementation, and essential-flow proof alone does not establish full CLI parity, publication readiness or retirement acceptance.
+    depends_on: [examples.client_rollout]
+  - id: sdk.web.before-after-performance
+    type: behavior
+    must: Capture a reproducible web baseline before browser/WASM integration and comparable after measurements for download/transfer, JavaScript and WASM sizes, cold startup including WASM initialization, usable-chat latency, essential core-flow responsiveness, CPU and RAM for the full application. Report compressed JavaScript and WASM separately and their combined transfer with the same scenarios, account data, browser conditions and cache state. Include authentication, encrypted chat, streaming/cancellation, persistence and sync/reconnect/recovery scenarios. Do not assume Rust or WASM overhead is minimal; report regressions, failed measurements and limits. Renderer-only timings, a smaller JavaScript bundle or a warm cache alone cannot establish web migration performance or completion.
+    depends_on: [examples.web_migration_performance]
+  - id: sdk.distribution.separate-rust-crate
+    type: parity
+    must: Publish the reusable Rust SDK as its own crates.io library crate, separate from the installable CLI application crate, with explicit versioned development prereleases. npm and Python remain supported direct SDK libraries and retain shared capability, schema, crypto-vector and executable conformance release obligations. This migration does not add GitHub prebuilt executable release assets.
+    depends_on: [examples.sdk_distribution]
+  - id: sdk.parity.executable-release-gate
+    type: parity
+    must: A maintained Rust/npm/Python capability matrix covers public authentication modes, operations, encryption, streaming, recovery and error behavior. Shared schemas, protocol fixtures and cryptographic test vectors exercise actual library implementations through automated cross-SDK conformance. Release checks reject missing or unsynchronized capabilities and untracked public capability additions. Idiomatic language API shapes may differ; preserve existing compatibility where practical and document and version required breaking changes. A documented migration gap remains open work rather than an implicit parity waiver.
+    depends_on: [models.SDKParityMapping, examples.sdk_architecture]
   - id: sdk.auth.approved-api-key-device
     type: security
-    must: npm and pip SDK operations authenticate with the bearer component, SDK identity, and stable device identity; the backend must reject missing, malformed, expired, revoked, over-budget, under-scoped, or unapproved-device requests before executing the operation or charging credits, and SDK credential creation stores only bearer hashes, ciphertext labels, ciphertext prefixes, and wrapped key material.
+    must: Rust, npm and pip SDK account operations authenticate with the bearer component, SDK identity, and stable device identity; the backend must reject missing, malformed, expired, revoked, over-budget, under-scoped, or unapproved-device requests before executing the operation or charging credits, and SDK credential creation stores only bearer hashes, ciphertext labels, ciphertext prefixes, and wrapped key material. Explicitly anonymous operations use only the reviewed public anonymous routes and cannot access private account capabilities.
     depends_on: [models.SDKDeviceIdentity, models.SDKAuthRequest, models.SDKApiKeyCreateMaterial, models.SDKSessionKeyWrapper.approval_state]
   - id: sdk.encryption.local-only
     type: privacy
@@ -238,13 +272,21 @@ assertions:
     depends_on: [models.SDKApiKeyCreateMaterial]
   - id: sdk.surface.semantic-parity
     type: parity
-    must: npm and pip SDKs preserve the same public namespaces, method semantics, typed outputs, generated app-skill behavior, async task resolution, cleartext input contracts, concrete SDK endpoints, typed unavailable exclusions, explicit destructive confirmations, and cleanup behavior for every SDK-accessible safe CLI product/account capability.
+    must: Rust, npm and pip SDKs preserve the same public namespaces, method semantics, typed outputs, generated app-skill behavior, async task resolution, cleartext input contracts, concrete SDK endpoints, typed unavailable exclusions, explicit destructive confirmations, and cleanup behavior for every SDK-accessible safe CLI product/account capability.
     depends_on: [models.SDKAppSkillInvocation, models.SDKParityMapping, models.SDKLiveSmokeCleanup, examples.sdk_parity, applies_to]
+  - id: sdk.anonymous.execution
+    type: security
+    must: Without an API key, all three SDKs route supported inline app skills and transient text chat through the existing anonymous endpoints with a stable locally persisted or explicitly supplied guest identity and expose public allowance status. Explicit anonymous mode ignores environment API keys and rejects a conflicting explicit key. Account-dependent options and private operations fail closed, provider selection stays server-controlled, and invalid or exhausted authenticated credentials never fall back to anonymous execution. Anonymous content is not promoted into account storage.
+    depends_on: [examples.sdk_anonymous]
+  - id: sdk.anonymous.signup-required
+    type: failure
+    must: Anonymous allowance refusals expose OpenMatesSignupRequiredError with a signup-required marker, the server reason, and an actionable message explaining that the free allowance is unavailable or cannot cover the request and an account is needed to continue. The SDK does not label that outcome as a generic processing failure, retry it as a provider failure, or confuse real provider, network, meter or authenticated authorization failures with signup-required allowance exhaustion.
+    depends_on: [examples.sdk_anonymous_failures]
 
 applies_to:
   rest_api:
     required: true
-    role: API-key authorized /v1 and /v1/sdk routes own scope, budget, expiration, device approval, and ciphertext/wrapper transport enforcement.
+    role: API-key authorized /v1 and /v1/sdk routes own scope, budget, expiration, device approval, and ciphertext/wrapper transport enforcement; explicit public anonymous routes own sponsored usage admission and transient results.
   cli:
     required: true
     parity: semantic
@@ -253,16 +295,18 @@ applies_to:
     required: true
     parity: semantic
     implementations:
+      rust: {required: true}
       npm: {required: true}
       pip: {required: true}
   gui:
-    required: false
-    role: Web and Apple developer settings may manage API keys and device approval, but this surface contract verifies SDK client behavior.
+    required: true
+    parity: semantic
+    role: Web and Apple reuse shared Rust headless client behavior through thin UI and platform adapters; developer API-key privileges remain separate from first-party session authority.
     implementations:
-      web: {required: false}
-      apple: {required: false}
+      web: {required: true}
+      apple: {required: true}
     exceptions: []
 
 examples:
   file: examples.yml
-  required_groups: [sdk_auth, sdk_encryption, sdk_parity]
+  required_groups: [sdk_auth, sdk_encryption, sdk_parity, sdk_anonymous, sdk_anonymous_failures, sdk_architecture, client_platforms, client_rollout, web_migration_performance, sdk_distribution]

@@ -292,6 +292,12 @@ describe("parseMentions", () => {
       assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2025-11-13" }, new Date("2026-11-14T00:00:00Z")), false);
     });
 
+    it("expires legacy Haiku immediately after its one-year availability boundary", () => {
+      const haiku = CHAT_MODELS.find((model) => model.id === "claude-haiku-4-5-20251001")!;
+      assert.equal(isAvailableChatModel(haiku, new Date("2026-10-15T23:59:59Z")), true);
+      assert.equal(isAvailableChatModel(haiku, new Date("2026-10-16T00:00:00Z")), false);
+    });
+
     it("resolves model name to wire syntax", () => {
       const result = parseMentions(
         "@Claude-Opus-5.5 explain this code",

@@ -9,11 +9,30 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|landing(?:/|$)|events(?:/|$)|docs|status|announcements|news|blog|social|de/news|de/blog|de/social|tips|legal/|privacy|oauth/|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
+			"source": "/((?!_app|static|pii-runtime(?:/|$)|landing(?:/|$)|example(?:/|$)|events(?:/|$)|docs|status|announcements|news|blog|social|de/news|de/blog|de/social|tips|legal/|privacy|oauth/|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
 			"destination": "/"
 		}
 	],
 	"headers": [
+		{
+			"source": "/pii-runtime/(.*).wasm",
+			"headers": [
+				{ "key": "Content-Type", "value": "application/wasm" },
+				{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+			]
+		},
+		{
+			"source": "/pii-runtime/:version/worker.js",
+			"headers": [
+				{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+			]
+		},
+		{
+			"source": "/pii-runtime/:version/version.json",
+			"headers": [
+				{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+			]
+		},
 		{
 			"source": "/.well-known/apple-app-site-association",
 			"headers": [

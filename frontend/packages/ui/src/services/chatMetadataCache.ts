@@ -6,7 +6,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat } from "../types/chat";
 import { formatDraftPreview } from "../utils/draftPreview";
-import { invalidateRecentChatWindow } from "./recentChatWindowCache";
+import { invalidateRecentChatWindow, type RecentChatInvalidationCategory } from "./recentChatWindowCache";
 
 /**
  * Represents decrypted chat metadata for display in chat lists
@@ -303,8 +303,16 @@ class ChatMetadataCache {
    * Call this when a chat's encrypted data changes
    * @param chatId The chat ID to invalidate
    */
-  invalidateChat(chatId: string): void {
-    invalidateRecentChatWindow(chatId);
+  invalidateChat(chatId: string, category: RecentChatInvalidationCategory = 'metadata'): void {
+    invalidateRecentChatWindow(chatId, category);
+    this.invalidateDraftProjection(chatId);
+  }
+
+  /** Refresh draft previews without revoking settled history or its header.
+   * Only draft-field writers may use this; other mutations use invalidateChat.
+   * Retire pending decrypts synchronously so old draft text cannot repopulate.
+   */
+  invalidateDraftProjection(chatId: string): void {
     this.pendingReads.get(chatId)?.clear();
     this.pendingReads.delete(chatId);
     this.cache.delete(chatId);
@@ -319,7 +327,7 @@ class ChatMetadataCache {
     if (!this.chatsAwaitingKeys.delete(chatId)) {
       return false;
     }
-    this.invalidateChat(chatId);
+    this.invalidateChat(chatId, 'key');
     return true;
   }
 

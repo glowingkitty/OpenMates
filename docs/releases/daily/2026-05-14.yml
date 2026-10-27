@@ -9,10 +9,10 @@ range:
   to_ref: origin/main
   assume_released: false
 summary:
-  total_commits: 29
+  total_commits: 26
   section_counts:
-    features: 2
-    bug_fixes: 25
+    features: 1
+    bug_fixes: 23
     improvements: 0
     docs: 0
     tests: 1
@@ -29,98 +29,58 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
   features:
-  - title: 'feat(newsletter): prepare meetup email'
-    section: features
-    commits:
-    - 95d3a256b
-    authored_at: '2026-05-14T14:42:49+00:00'
-    changed_paths:
-    - backend/core/api/templates/email/newsletter.mjml
-    - backend/newsletters/issues/openmates-meetup-may-19.yml
-    - backend/scripts/publish_newsletter.py
-    - backend/scripts/send_newsletter.py
-    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_openmates_meetup_may_19.yml
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - commit is reachable from main
   - title: 'feat: add DeepSeek V4 model support'
     section: features
     commits:
@@ -477,38 +437,6 @@ sections:
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'fix: update OpenMates meetup coordinates'
-    section: bug_fixes
-    commits:
-    - 8a921a338
-    authored_at: '2026-05-14T10:58:59+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/data/openmatesEvents.ts
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is reachable from main
-  - title: 'fix: update OpenMates meetup location'
-    section: bug_fixes
-    commits:
-    - 0f89d7918
-    authored_at: '2026-05-14T10:57:03+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/data/openmatesEvents.ts
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
     - commit is reachable from main
   - title: 'fix: improve event embed preview layout'
     section: bug_fixes
@@ -1049,12 +977,10 @@ sources:
   - sha: 95d3a256b1d80eb4dc418d24f661dc03fdea937a
     short_sha: 95d3a256b
     authored_at: '2026-05-14T14:42:49+00:00'
-    subject: 'feat(newsletter): prepare meetup email'
     in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/templates/email/newsletter.mjml
-    - backend/newsletters/issues/openmates-meetup-may-19.yml
     - backend/scripts/publish_newsletter.py
     - backend/scripts/send_newsletter.py
     - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_openmates_meetup_may_19.yml
@@ -1108,7 +1034,6 @@ sources:
   - sha: 8a921a338e5399e4f8f48b3ce560824086a7ffe3
     short_sha: 8a921a338
     authored_at: '2026-05-14T10:58:59+00:00'
-    subject: 'fix: update OpenMates meetup coordinates'
     in_main: true
     in_dev: true
     changed_paths:
@@ -1117,7 +1042,6 @@ sources:
   - sha: 0f89d79183be0a60947ace8fa2d017600a252a2f
     short_sha: 0f89d7918
     authored_at: '2026-05-14T10:57:03+00:00'
-    subject: 'fix: update OpenMates meetup location'
     in_main: true
     in_dev: true
     changed_paths:
@@ -1256,8 +1180,7 @@ llm_summary:
       - d29773d88
       - '706096817'
     release_status: released_main
-  - text: Infrastructure for the upcoming May 19 meetup was prepared, including email templates and updated location coordinates.
-    evidence:
+  - evidence:
       commits:
       - 95d3a256b
       - 8a921a338
@@ -1293,8 +1216,7 @@ llm_summary:
         - f85a56890
       reason: Improves the readability of links and references within chat messages.
     exclude:
-    - text: Meetup email template preparation.
-      evidence:
+    - evidence:
         commits:
         - 95d3a256b
       reason: This commit involves internal preparation for a future event and is marked as not user-facing.

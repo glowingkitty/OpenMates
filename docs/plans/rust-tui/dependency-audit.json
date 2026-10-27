@@ -1,0 +1,1441 @@
+{
+  "schema_version": 1,
+  "audited_at_utc": "2026-10-22T22:21:29.188437+00:00",
+  "tool": {
+    "name": "cargo-audit",
+    "version": "0.22.2",
+    "installation": "cargo install cargo-audit --locked --root /tmp/rust-tui-audit-tools",
+    "rustc": "1.98.1 (48a229cea 2026-09-01)",
+    "host": "aarch64-unknown-linux-gnu"
+  },
+  "lockfile": {
+    "sha256": "1b1b8f4a046bd82be8bdcb553f2f0aaf767ac5cb231c19efe4624707625cddfa",
+    "dependency_count": 428,
+    "path": "frontend/packages/openmates-tui-native/Cargo.lock"
+  },
+  "database": {
+    "url": "https://github.com/RustSec/advisory-db",
+    "commit": "640bf5a9f06e66d8721e8772766531fe77c8630d",
+    "last_updated": "2026-10-22T12:49:47+02:00",
+    "advisory_count": 1349,
+    "fresh_fetch": false,
+    "fetched_before_follow_up": true,
+    "clean_git_identity_before_after": true
+  },
+  "command": [
+    "cargo",
+    "audit",
+    "--db",
+    "/home/superdev/.cargo/advisory-db",
+    "--file",
+    "frontend/packages/openmates-tui-native/Cargo.lock",
+    "--no-fetch",
+    "--deny",
+    "unsound",
+    "--deny",
+    "yanked",
+    "--json"
+  ],
+  "execution": {
+    "binary": "/tmp/rust-tui-audit-tools/bin/cargo-audit",
+    "database_path": "/home/superdev/.cargo/advisory-db",
+    "exit_code": 0,
+    "target_filters": [],
+    "advisory_ignores": [],
+    "denied": [
+      "vulnerabilities (cargo-audit default)",
+      "unsound",
+      "yanked"
+    ],
+    "unmaintained": "Reported separately; not denied and not suppressed."
+  },
+  "summary": {
+    "status": "passed_with_maintenance_notices",
+    "vulnerabilities": 0,
+    "unsound": 0,
+    "yanked": 0,
+    "unmaintained": 3
+  },
+  "maintenance_notices": [
+    {
+      "advisory": "RUSTSEC-2026-0371",
+      "url": "https://rustsec.org/advisories/RUSTSEC-2026-0371.html",
+      "package": "zbus_names",
+      "version": "3.0.0",
+      "classification": "unmaintained",
+      "dependency_path": [
+        "openmates-tui-native 0.1.0",
+        "keyring 3.6.3",
+        "zbus 4.4.0",
+        "zbus_names 3.0.0"
+      ],
+      "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+    },
+    {
+      "advisory": "RUSTSEC-2026-0370",
+      "url": "https://rustsec.org/advisories/RUSTSEC-2026-0370.html",
+      "package": "zvariant",
+      "version": "4.2.0",
+      "classification": "unmaintained",
+      "dependency_path": [
+        "openmates-tui-native 0.1.0",
+        "keyring 3.6.3",
+        "zbus 4.4.0",
+        "zvariant 4.2.0"
+      ],
+      "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+    },
+    {
+      "advisory": "RUSTSEC-2026-0372",
+      "url": "https://rustsec.org/advisories/RUSTSEC-2026-0372.html",
+      "package": "zvariant_derive",
+      "version": "4.2.0",
+      "classification": "unmaintained",
+      "dependency_path": [
+        "openmates-tui-native 0.1.0",
+        "keyring 3.6.3",
+        "zbus 4.4.0",
+        "zvariant 4.2.0",
+        "zvariant_derive 4.2.0"
+      ],
+      "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+    }
+  ],
+  "limitations": [
+    "Known published RustSec advisories in this exact database snapshot only.",
+    "The lockfile scan includes all locked platforms and development/build dependencies, not only the currently running binary.",
+    "Does not establish application security equivalence, exploit reachability, build provenance, exhaustive vulnerability absence or license compliance.",
+    "Re-run after Cargo.lock changes and before later release promotion.",
+    "Task-order implementation, actual-library conformance and patched exact-source product CI remain separate required checks; this report only establishes these three unchanged lockfiles against the explicit clean RustSec snapshot."
+  ],
+  "report": {
+    "database": {
+      "advisory-count": 1349,
+      "last-commit": null,
+      "last-updated": null
+    },
+    "lockfile": {
+      "dependency-count": 428
+    },
+    "settings": {
+      "target_arch": [],
+      "target_os": [],
+      "severity": null,
+      "ignore": [],
+      "informational_warnings": [
+        "unmaintained",
+        "unsound",
+        "notice"
+      ]
+    },
+    "vulnerabilities": {
+      "found": false,
+      "count": 0,
+      "list": []
+    },
+    "warnings": {
+      "unmaintained": [
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zbus_names",
+            "version": "3.0.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "4b9b1fef7d021261cc16cba64c351d291b715febe0fa10dc3a443ac5a5022e6c",
+            "dependencies": [
+              {
+                "name": "serde",
+                "version": "1.0.229",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "static_assertions",
+                "version": "1.1.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0371",
+            "package": "zbus_names",
+            "title": "`zbus_names` is unmaintained",
+            "description": "The `zbus_names` crate is no longer maintained as a standalone crate.\n\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `names` module.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus name types.",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        },
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zvariant",
+            "version": "4.2.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "2084290ab9a1c471c38fc524945837734fbf124487e105daec2bb57fd48c81fe",
+            "dependencies": [
+              {
+                "name": "endi",
+                "version": "1.1.1",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "enumflags2",
+                "version": "0.7.12",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "serde",
+                "version": "1.0.229",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "static_assertions",
+                "version": "1.1.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant_derive",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0370",
+            "package": "zvariant",
+            "title": "`zvariant` is unmaintained",
+            "description": "The `zvariant` crate is no longer maintained as a standalone crate.\n\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `wire` module.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format. Users of the GVariant format should migrate to [`zgvariant`](https://crates.io/crates/zgvariant).",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        },
+        {
+          "kind": "unmaintained",
+          "package": {
+            "name": "zvariant_derive",
+            "version": "4.2.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "73e2ba546bda683a90652bac4a279bc146adad1386f25379cf73200d2002c449",
+            "dependencies": [
+              {
+                "name": "proc-macro-crate",
+                "version": "3.5.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "proc-macro2",
+                "version": "1.0.107",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "quote",
+                "version": "1.0.47",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "syn",
+                "version": "2.0.119",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "zvariant_utils",
+                "version": "2.1.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          },
+          "advisory": {
+            "id": "RUSTSEC-2026-0372",
+            "package": "zvariant_derive",
+            "title": "`zvariant_derive` is unmaintained",
+            "description": "The `zvariant_derive` crate is no longer maintained as a standalone crate.\n\nIts derive macros are provided by [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format.",
+            "date": "2026-10-16",
+            "aliases": [],
+            "related": [],
+            "collection": "crates",
+            "categories": [],
+            "keywords": [],
+            "cvss": null,
+            "informational": "unmaintained",
+            "references": [],
+            "source": null,
+            "url": "https://github.com/z-galaxy/zbus/issues/2043",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "affected": null,
+          "versions": {
+            "patched": [],
+            "unaffected": []
+          }
+        }
+      ]
+    }
+  },
+  "additional_lockfiles": [
+    {
+      "path": "packages/openmates-rust/Cargo.lock",
+      "sha256": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+      "dependency_count": 227,
+      "vulnerabilities": 0,
+      "warnings": {},
+      "report": {
+        "database": {
+          "advisory-count": 1349,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 227
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {}
+      }
+    },
+    {
+      "path": "packages/openmates-session-bindings/Cargo.lock",
+      "sha256": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+      "dependency_count": 247,
+      "vulnerabilities": 0,
+      "warnings": {},
+      "report": {
+        "database": {
+          "advisory-count": 1349,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 247
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {}
+      }
+    }
+  ],
+  "dependency_changes": [
+    "The self-host YAML parser now uses yaml_serde 0.10.7 with libyaml-rs 0.3.0; unsafe-libyaml is absent from this lockfile.",
+    "Rust SDK and binding package audits are separate from application runtime measurements.",
+    "Task ordering adds six pure-Rust ICU collation dependency packages without upgrading the pre-existing package set.",
+    "Fresh RustSec data identified existing Tokio 1.54.0 as vulnerable and yanked (RUSTSEC-2026-0384); all three manifests now pin =1.54.1 and each lock changes only Tokio for that security patch."
+  ],
+  "rejected_follow_up": {
+    "lockfile_sha256": "4693d0ccd386baa79b55bf54625976df2dbf2e8a4a35d64c33c4e78f8aa75a39",
+    "database": {
+      "advisory-count": 1349,
+      "last-commit": "640bf5a9f06e66d8721e8772766531fe77c8630d",
+      "last-updated": "2026-10-22T12:49:47+02:00"
+    },
+    "vulnerabilities": {
+      "found": true,
+      "count": 1,
+      "list": [
+        {
+          "advisory": {
+            "id": "RUSTSEC-2026-0384",
+            "package": "tokio",
+            "title": "Race condition in `tokio::time::Interval` on Tokio v1.54.0",
+            "description": "## Summary\n\nOn the multi-threaded runtime, there is a race condition between `Interval::poll_tick` and the runtime's time driver.\n\nThis affects `Interval` only. `Sleep` and `Timeout` are **not** affected.\n\n## Details\n\nIn Tokio v1.54.0, a race condition between `tokio::time::Interval::poll_tick` (including `.tick().await`) and the runtime time driver can drop an internal timer entry without synchronizing with the driver thread that is firing it. This causes a data race and use-after-free on the timer's waker and task state in safe Rust, leading to assertion panics, task reference-count corruption, or heap memory corruption.\n\nThis bug was introduced by https://github.com/tokio-rs/tokio/pull/8458, and it was fixed by https://github.com/tokio-rs/tokio/pull/8692.\n\n## Impact\n\nThis may lead to crashes and use-after-frees in applications using `Interval` on a multi-threaded runtime.\n\nSince this issue is known to lead to crashes in production systems, the v1.54.0 release of Tokio has been yanked.\n\n## Credits\n\nThank you to [creepycode](https://github.com/ByteZ1337) and [carabistouille](https://github.com/carabistouflette) for reporting this privately using the procedure outlined in our security policy. They both reported the issue independently of each other.",
+            "date": "2026-10-21",
+            "aliases": [
+              "GHSA-5wjr-9356-4wc8"
+            ],
+            "related": [],
+            "collection": "crates",
+            "categories": [
+              "memory-corruption",
+              "thread-safety"
+            ],
+            "keywords": [
+              "race condition",
+              "use-after-free"
+            ],
+            "cvss": null,
+            "informational": null,
+            "references": [],
+            "source": null,
+            "url": "https://github.com/tokio-rs/tokio/pull/8692",
+            "withdrawn": null,
+            "license": "CC0-1.0",
+            "expect-deleted": false
+          },
+          "versions": {
+            "patched": [
+              ">=1.54.1"
+            ],
+            "unaffected": [
+              "<1.54.0"
+            ]
+          },
+          "affected": null,
+          "package": {
+            "name": "tokio",
+            "version": "1.54.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "a0c168a474b95bfecfe908a65d4bdffc523144b649a74c09c286afb35d53e0bc",
+            "dependencies": [
+              {
+                "name": "bytes",
+                "version": "1.12.1",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "libc",
+                "version": "0.2.191",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "mio",
+                "version": "1.2.4",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "pin-project-lite",
+                "version": "0.2.17",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "signal-hook-registry",
+                "version": "1.4.8",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "socket2",
+                "version": "0.6.5",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "tokio-macros",
+                "version": "2.7.2",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "tracing",
+                "version": "0.1.44",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              },
+              {
+                "name": "windows-sys",
+                "version": "0.61.2",
+                "source": "registry+https://github.com/rust-lang/crates.io-index"
+              }
+            ],
+            "replace": null
+          }
+        }
+      ]
+    },
+    "yanked": [
+      {
+        "kind": "yanked",
+        "package": {
+          "name": "tokio",
+          "version": "1.54.0",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "a0c168a474b95bfecfe908a65d4bdffc523144b649a74c09c286afb35d53e0bc",
+          "dependencies": [
+            {
+              "name": "bytes",
+              "version": "1.12.1",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "libc",
+              "version": "0.2.191",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "mio",
+              "version": "1.2.4",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "pin-project-lite",
+              "version": "0.2.17",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "signal-hook-registry",
+              "version": "1.4.8",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "socket2",
+              "version": "0.6.5",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "tokio-macros",
+              "version": "2.7.2",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "tracing",
+              "version": "0.1.44",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            },
+            {
+              "name": "windows-sys",
+              "version": "0.61.2",
+              "source": "registry+https://github.com/rust-lang/crates.io-index"
+            }
+          ],
+          "replace": null
+        },
+        "advisory": null,
+        "affected": null,
+        "versions": null
+      }
+    ],
+    "qualification": "Failed native lockfile audit before the security patch. The affected Tokio version already existed before ICU additions; no ignore or target filter was used. Older source2d94 and its private pinned binary remain ineligible for adoption even if functional CI passes."
+  },
+  "previous_audits": [
+    {
+      "schema_version": 1,
+      "audited_at_utc": "2026-10-21T13:08:37.880185+00:00",
+      "tool": {
+        "name": "cargo-audit",
+        "version": "0.22.2",
+        "installation": "cargo install cargo-audit --locked --root /tmp/rust-tui-audit-tools",
+        "rustc": "1.98.1 (48a229cea 2026-09-01)",
+        "host": "aarch64-unknown-linux-gnu"
+      },
+      "lockfile": {
+        "path": "frontend/packages/openmates-tui-native/Cargo.lock",
+        "sha256": "3bee3aec123f896940160d14db8be6c98464032d04880072cbe0f582766a7aad",
+        "dependency_count": 422
+      },
+      "database": {
+        "url": "https://github.com/RustSec/advisory-db",
+        "commit": "4b587f00996ebe5c05a73eaef105ef241e876414",
+        "last_updated": "2026-10-21T08:20:38+02:00",
+        "advisory_count": 1348,
+        "fresh_fetch": false
+      },
+      "command": [
+        "cargo",
+        "audit",
+        "--file",
+        "frontend/packages/openmates-tui-native/Cargo.lock",
+        "--no-fetch",
+        "--deny",
+        "unsound",
+        "--deny",
+        "yanked",
+        "--json"
+      ],
+      "execution": {
+        "binary": "/tmp/rust-tui-audit-tools/bin/cargo-audit",
+        "database_path": "/tmp/rust-tui-audit-tools/advisory-db",
+        "exit_code": 0,
+        "target_filters": [],
+        "advisory_ignores": [],
+        "denied": [
+          "vulnerabilities (cargo-audit default)",
+          "unsound",
+          "yanked"
+        ],
+        "unmaintained": "Reported separately; not denied and not suppressed."
+      },
+      "summary": {
+        "status": "passed_with_maintenance_notices",
+        "vulnerabilities": 0,
+        "unsound": 0,
+        "yanked": 0,
+        "unmaintained": 3
+      },
+      "maintenance_notices": [
+        {
+          "advisory": "RUSTSEC-2026-0371",
+          "url": "https://rustsec.org/advisories/RUSTSEC-2026-0371.html",
+          "package": "zbus_names",
+          "version": "3.0.0",
+          "classification": "unmaintained",
+          "dependency_path": [
+            "openmates-tui-native 0.1.0",
+            "keyring 3.6.3",
+            "zbus 4.4.0",
+            "zbus_names 3.0.0"
+          ],
+          "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+        },
+        {
+          "advisory": "RUSTSEC-2026-0370",
+          "url": "https://rustsec.org/advisories/RUSTSEC-2026-0370.html",
+          "package": "zvariant",
+          "version": "4.2.0",
+          "classification": "unmaintained",
+          "dependency_path": [
+            "openmates-tui-native 0.1.0",
+            "keyring 3.6.3",
+            "zbus 4.4.0",
+            "zvariant 4.2.0"
+          ],
+          "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+        },
+        {
+          "advisory": "RUSTSEC-2026-0372",
+          "url": "https://rustsec.org/advisories/RUSTSEC-2026-0372.html",
+          "package": "zvariant_derive",
+          "version": "4.2.0",
+          "classification": "unmaintained",
+          "dependency_path": [
+            "openmates-tui-native 0.1.0",
+            "keyring 3.6.3",
+            "zbus 4.4.0",
+            "zvariant 4.2.0",
+            "zvariant_derive 4.2.0"
+          ],
+          "disposition": "Recorded maintenance follow-up; not ignored or represented as a demonstrated vulnerability. Requires upstream keyring/D-Bus dependency migration; no unrelated upgrade performed."
+        }
+      ],
+      "limitations": [
+        "Known published RustSec advisories in this exact database snapshot only.",
+        "The lockfile scan includes all locked platforms and development/build dependencies, not only the currently running binary.",
+        "Does not establish application security equivalence, exploit reachability, build provenance, exhaustive vulnerability absence or license compliance.",
+        "Re-run after Cargo.lock changes and before later release promotion."
+      ],
+      "report": {
+        "database": {
+          "advisory-count": 1348,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 422
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {
+          "unmaintained": [
+            {
+              "kind": "unmaintained",
+              "package": {
+                "name": "zbus_names",
+                "version": "3.0.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index",
+                "checksum": "4b9b1fef7d021261cc16cba64c351d291b715febe0fa10dc3a443ac5a5022e6c",
+                "dependencies": [
+                  {
+                    "name": "serde",
+                    "version": "1.0.229",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "static_assertions",
+                    "version": "1.1.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "zvariant",
+                    "version": "4.2.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  }
+                ],
+                "replace": null
+              },
+              "advisory": {
+                "id": "RUSTSEC-2026-0371",
+                "package": "zbus_names",
+                "title": "`zbus_names` is unmaintained",
+                "description": "The `zbus_names` crate is no longer maintained as a standalone crate.\n\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `names` module.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus name types.",
+                "date": "2026-10-16",
+                "aliases": [],
+                "related": [],
+                "collection": "crates",
+                "categories": [],
+                "keywords": [],
+                "cvss": null,
+                "informational": "unmaintained",
+                "references": [],
+                "source": null,
+                "url": "https://github.com/z-galaxy/zbus/issues/2043",
+                "withdrawn": null,
+                "license": "CC0-1.0",
+                "expect-deleted": false
+              },
+              "affected": null,
+              "versions": {
+                "patched": [],
+                "unaffected": []
+              }
+            },
+            {
+              "kind": "unmaintained",
+              "package": {
+                "name": "zvariant",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index",
+                "checksum": "2084290ab9a1c471c38fc524945837734fbf124487e105daec2bb57fd48c81fe",
+                "dependencies": [
+                  {
+                    "name": "endi",
+                    "version": "1.1.1",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "enumflags2",
+                    "version": "0.7.12",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "serde",
+                    "version": "1.0.229",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "static_assertions",
+                    "version": "1.1.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "zvariant_derive",
+                    "version": "4.2.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  }
+                ],
+                "replace": null
+              },
+              "advisory": {
+                "id": "RUSTSEC-2026-0370",
+                "package": "zvariant",
+                "title": "`zvariant` is unmaintained",
+                "description": "The `zvariant` crate is no longer maintained as a standalone crate.\n\nIt has been merged into [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`, as its `wire` module.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format. Users of the GVariant format should migrate to [`zgvariant`](https://crates.io/crates/zgvariant).",
+                "date": "2026-10-16",
+                "aliases": [],
+                "related": [],
+                "collection": "crates",
+                "categories": [],
+                "keywords": [],
+                "cvss": null,
+                "informational": "unmaintained",
+                "references": [],
+                "source": null,
+                "url": "https://github.com/z-galaxy/zbus/issues/2043",
+                "withdrawn": null,
+                "license": "CC0-1.0",
+                "expect-deleted": false
+              },
+              "affected": null,
+              "versions": {
+                "patched": [],
+                "unaffected": []
+              }
+            },
+            {
+              "kind": "unmaintained",
+              "package": {
+                "name": "zvariant_derive",
+                "version": "4.2.0",
+                "source": "registry+https://github.com/rust-lang/crates.io-index",
+                "checksum": "73e2ba546bda683a90652bac4a279bc146adad1386f25379cf73200d2002c449",
+                "dependencies": [
+                  {
+                    "name": "proc-macro-crate",
+                    "version": "3.5.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "proc-macro2",
+                    "version": "1.0.107",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "quote",
+                    "version": "1.0.47",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "syn",
+                    "version": "2.0.119",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  },
+                  {
+                    "name": "zvariant_utils",
+                    "version": "2.1.0",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"
+                  }
+                ],
+                "replace": null
+              },
+              "advisory": {
+                "id": "RUSTSEC-2026-0372",
+                "package": "zvariant_derive",
+                "title": "`zvariant_derive` is unmaintained",
+                "description": "The `zvariant_derive` crate is no longer maintained as a standalone crate.\n\nIts derive macros are provided by [`zbus`](https://crates.io/crates/zbus) starting with version `6.0.0`.\n\nUsers should migrate to [`zbus`](https://crates.io/crates/zbus), with its default features disabled if they only need the D-Bus wire format.",
+                "date": "2026-10-16",
+                "aliases": [],
+                "related": [],
+                "collection": "crates",
+                "categories": [],
+                "keywords": [],
+                "cvss": null,
+                "informational": "unmaintained",
+                "references": [],
+                "source": null,
+                "url": "https://github.com/z-galaxy/zbus/issues/2043",
+                "withdrawn": null,
+                "license": "CC0-1.0",
+                "expect-deleted": false
+              },
+              "affected": null,
+              "versions": {
+                "patched": [],
+                "unaffected": []
+              }
+            }
+          ]
+        }
+      },
+      "additional_lockfiles": [
+        {
+          "path": "packages/openmates-rust/Cargo.lock",
+          "sha256": "e26ae445ac93963d8699bcdc0959379a8984509894e0e71f2e5521dac088ae7a",
+          "dependency_count": 221,
+          "vulnerabilities": 0,
+          "warnings": {},
+          "report": {
+            "database": {
+              "advisory-count": 1348,
+              "last-commit": null,
+              "last-updated": null
+            },
+            "lockfile": {
+              "dependency-count": 221
+            },
+            "settings": {
+              "target_arch": [],
+              "target_os": [],
+              "severity": null,
+              "ignore": [],
+              "informational_warnings": [
+                "unmaintained",
+                "unsound",
+                "notice"
+              ]
+            },
+            "vulnerabilities": {
+              "found": false,
+              "count": 0,
+              "list": []
+            },
+            "warnings": {}
+          }
+        }
+      ],
+      "dependency_changes": [
+        "The self-host YAML parser now uses yaml_serde 0.10.7 with libyaml-rs 0.3.0; unsafe-libyaml is absent from this lockfile.",
+        "Rust SDK and binding package audits are separate from application runtime measurements."
+      ]
+    }
+  ],
+  "latest_audit": "follow_up_2026_10_24",
+  "follow_up_2026_10_24": {
+    "schemaVersion": 1,
+    "audited_at_utc": "2026-10-24T10:10:51.211008+00:00",
+    "source_head": "25dfaf520724c693dac4d743abb20064f41c9d49",
+    "tool": {
+      "version": "cargo-audit 0.22.2",
+      "sha256": "41198cbed8d0ee09181752f795d15d4c28820c5fad9a98ccc948c0a506f8f028"
+    },
+    "database": {
+      "origin": "https://github.com/RustSec/advisory-db.git",
+      "commit": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+      "tree": "e48a5ffdb569c69337911adf13262a0058ebccc5",
+      "commit_date": "2026-10-24T10:30:13+02:00",
+      "clean": true,
+      "fresh_fetch_succeeded": true,
+      "shared_database_mutated": false,
+      "note": "First audit fetched normally; three subsequent audits used --no-fetch against same independently recorded clean snapshot. Their JSON last-commit fields are null."
+    },
+    "policy": {
+      "deny": [
+        "unsound",
+        "yanked"
+      ],
+      "ignore": [],
+      "target_arch": [],
+      "target_os": [],
+      "severity_filter": null,
+      "no_yanked": false,
+      "maintenance_notices_suppressed": false
+    },
+    "all_locks_unchanged": true,
+    "audit_passed": false,
+    "locks": [
+      {
+        "path": "packages/openmates-rust/Cargo.lock",
+        "sha256_before": "66019fa0680e5ad7daf779d380713f974332c7a249eb39322176628636901844",
+        "bytes": 56871,
+        "sha256_after": "66019fa0680e5ad7daf779d380713f974332c7a249eb39322176628636901844",
+        "unchanged": true,
+        "report": "rust-sdk.json",
+        "execution": "rust-sdk.execution.json",
+        "exit_code": 1,
+        "dependency_count": 228,
+        "vulnerabilities": [
+          {
+            "id": "RUSTSEC-2026-0387",
+            "package": "crypto-bigint",
+            "version": "0.5.5",
+            "title": "Multiple timing variability issues in operations intended to be constant-time",
+            "date": "2026-10-23",
+            "patched": [
+              ">=0.7.6"
+            ]
+          }
+        ],
+        "warnings": {},
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "report_sha256": "a748eb741a4aafb2c7522ea49fa1a535dc07c94cd2797cda92f6db0dbde64b7e",
+        "execution_sha256": "32ccaeb9fa3c6a5fed2716517f2ea3939aa66b25850cddedd19ac0026e4111f4"
+      },
+      {
+        "path": "packages/openmates-session-bindings/Cargo.lock",
+        "sha256_before": "9068feb0965839fe950919c44fd65466c438a61d5d353b0ec91310b43bd90993",
+        "bytes": 61981,
+        "sha256_after": "9068feb0965839fe950919c44fd65466c438a61d5d353b0ec91310b43bd90993",
+        "unchanged": true,
+        "report": "session-bindings.json",
+        "execution": "session-bindings.execution.json",
+        "exit_code": 1,
+        "dependency_count": 248,
+        "vulnerabilities": [
+          {
+            "id": "RUSTSEC-2026-0387",
+            "package": "crypto-bigint",
+            "version": "0.5.5",
+            "title": "Multiple timing variability issues in operations intended to be constant-time",
+            "date": "2026-10-23",
+            "patched": [
+              ">=0.7.6"
+            ]
+          }
+        ],
+        "warnings": {},
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "report_sha256": "e46e8f16dda21b55d733d5766485e8ce065aa12f9c16d50a1d190eb93b3eefe9",
+        "execution_sha256": "63a9b1746134034fbcdb0e25dfba79841ff8ca8619ceb115e7976987836f5424"
+      },
+      {
+        "path": "frontend/packages/openmates-tui-native/Cargo.lock",
+        "sha256_before": "d95b72f2b4caca9ad47d07bec2db961dbee9763b9274cd6c9476478a6de0a106",
+        "bytes": 107251,
+        "sha256_after": "d95b72f2b4caca9ad47d07bec2db961dbee9763b9274cd6c9476478a6de0a106",
+        "unchanged": true,
+        "report": "native-cli.json",
+        "execution": "native-cli.execution.json",
+        "exit_code": 1,
+        "dependency_count": 429,
+        "vulnerabilities": [
+          {
+            "id": "RUSTSEC-2026-0387",
+            "package": "crypto-bigint",
+            "version": "0.5.5",
+            "title": "Multiple timing variability issues in operations intended to be constant-time",
+            "date": "2026-10-23",
+            "patched": [
+              ">=0.7.6"
+            ]
+          }
+        ],
+        "warnings": {
+          "unmaintained": [
+            {
+              "id": "RUSTSEC-2026-0371",
+              "package": "zbus_names",
+              "version": "3.0.0",
+              "title": "`zbus_names` is unmaintained"
+            },
+            {
+              "id": "RUSTSEC-2026-0370",
+              "package": "zvariant",
+              "version": "4.2.0",
+              "title": "`zvariant` is unmaintained"
+            },
+            {
+              "id": "RUSTSEC-2026-0372",
+              "package": "zvariant_derive",
+              "version": "4.2.0",
+              "title": "`zvariant_derive` is unmaintained"
+            }
+          ]
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "report_sha256": "6942128c1570b3b187f4b39340e757e9511fc6768dba7a133a18520ccf071663",
+        "execution_sha256": "e12ff728f7eeddede32d85173ad86d296c841c35ad9c15b2fe22f1506ea67f0e"
+      },
+      {
+        "path": "packages/openmates-browser-bindings/Cargo.lock",
+        "sha256_before": "679409372e48ee9ed774a5bd6e53502c4a8c9395e4292ea8449e308615a02886",
+        "bytes": 56564,
+        "sha256_after": "679409372e48ee9ed774a5bd6e53502c4a8c9395e4292ea8449e308615a02886",
+        "unchanged": true,
+        "report": "browser-bindings.json",
+        "execution": "browser-bindings.execution.json",
+        "exit_code": 1,
+        "dependency_count": 227,
+        "vulnerabilities": [
+          {
+            "id": "RUSTSEC-2026-0387",
+            "package": "crypto-bigint",
+            "version": "0.5.5",
+            "title": "Multiple timing variability issues in operations intended to be constant-time",
+            "date": "2026-10-23",
+            "patched": [
+              ">=0.7.6"
+            ]
+          }
+        ],
+        "warnings": {},
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "report_sha256": "9155fe93c165a26b25caebccd0d8666977ac304a6d93d19ab9759ba660e11197",
+        "execution_sha256": "581dc8f9117d1fc5bdc3d6d8215f86091324bafa6c9fec4aa7500e158fec6f99"
+      }
+    ],
+    "limitations": [
+      "Lockfile advisory analysis only; no compilation, dependency installation, product execution, CI or source changes.",
+      "Presence in lockfile establishes affected dependency resolution, not practical exploitability of each operation or target.",
+      "Patched crypto-bigint >=0.7.6 crosses the current0.5.x dependency line; remediation needs dependency-chain compatibility review and unchanged locked verification, not a fabricated lock edit."
+    ],
+    "publication_status": "blocked_pending_dependency_chain_remediation_and_reverification",
+    "reachability_status": "no_source_level_secret_arithmetic_path_found_for_selected_Ristretto_suite_bounded_evidence_not_audit_clearance",
+    "reachability_assessment": {
+      "schema_version": 1,
+      "assessment_kind": "bounded_read_only_dependency_and_source_reachability",
+      "recorded_at_utc": "2026-10-24T10:15:49.660425+00:00",
+      "workspace": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4",
+      "session": "sessiond1c4",
+      "task": "TASK-1233",
+      "advisory": {
+        "id": "RUSTSEC-2026-0387",
+        "advisory_db_commit": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+        "affected_locked_version": "0.5.5",
+        "patched_requirement": ">=0.7.6",
+        "local_advisory": "/tmp/d1c4-four-lock-security-audit-20261024/advisory-db/crates/crypto-bigint/RUSTSEC-2026-0387.md",
+        "upstream_resolution_url": "https://github.com/RustCrypto/crypto-bigint/pull/1365"
+      },
+      "status": {
+        "installation_and_release_hold": "retained",
+        "audit_pass_claimed": false,
+        "waiver_or_ignore_recommended": false,
+        "supported_manifest_only_fix_identified": false
+      },
+      "operations": {
+        "source_changes": false,
+        "builds": false,
+        "cargo_resolution": false,
+        "ci_execution": false,
+        "evidence_methods": [
+          "existing lock TOML inspection",
+          "cached crate archives read in memory; SHA256 checked against all four locks",
+          "first-party selected ciphersuite source inspection",
+          "existing native debug/release Cargo fingerprints",
+          "official upstream source and crates.io read-only queries during completed assessment"
+        ]
+      },
+      "archive_evidence": [
+        {
+          "crate": "opaque-ke",
+          "version": "4.0.0",
+          "cached_archive": "/home/superdev/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/opaque-ke-4.0.0.crate",
+          "sha256": "59f84f1c2242fdac95be9592fa00c36ec221291e9b79155f70633afadb3dedf3",
+          "lock_checks": [
+            {
+              "lock": "packages/openmates-rust/Cargo.lock",
+              "version": "4.0.0",
+              "checksum": "59f84f1c2242fdac95be9592fa00c36ec221291e9b79155f70633afadb3dedf3",
+              "matches_archive": true
+            },
+            {
+              "lock": "frontend/packages/openmates-tui-native/Cargo.lock",
+              "version": "4.0.0",
+              "checksum": "59f84f1c2242fdac95be9592fa00c36ec221291e9b79155f70633afadb3dedf3",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-session-bindings/Cargo.lock",
+              "version": "4.0.0",
+              "checksum": "59f84f1c2242fdac95be9592fa00c36ec221291e9b79155f70633afadb3dedf3",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-browser-bindings/Cargo.lock",
+              "version": "4.0.0",
+              "checksum": "59f84f1c2242fdac95be9592fa00c36ec221291e9b79155f70633afadb3dedf3",
+              "matches_archive": true
+            }
+          ]
+        },
+        {
+          "crate": "voprf",
+          "version": "0.5.0",
+          "cached_archive": "/home/superdev/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/voprf-0.5.0.crate",
+          "sha256": "28f59c30c76e2fea54cdece6a054e2662feffa7ab19658a7887524265ee39470",
+          "lock_checks": [
+            {
+              "lock": "packages/openmates-rust/Cargo.lock",
+              "version": "0.5.0",
+              "checksum": "28f59c30c76e2fea54cdece6a054e2662feffa7ab19658a7887524265ee39470",
+              "matches_archive": true
+            },
+            {
+              "lock": "frontend/packages/openmates-tui-native/Cargo.lock",
+              "version": "0.5.0",
+              "checksum": "28f59c30c76e2fea54cdece6a054e2662feffa7ab19658a7887524265ee39470",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-session-bindings/Cargo.lock",
+              "version": "0.5.0",
+              "checksum": "28f59c30c76e2fea54cdece6a054e2662feffa7ab19658a7887524265ee39470",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-browser-bindings/Cargo.lock",
+              "version": "0.5.0",
+              "checksum": "28f59c30c76e2fea54cdece6a054e2662feffa7ab19658a7887524265ee39470",
+              "matches_archive": true
+            }
+          ]
+        },
+        {
+          "crate": "elliptic-curve",
+          "version": "0.13.8",
+          "cached_archive": "/home/superdev/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/elliptic-curve-0.13.8.crate",
+          "sha256": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47",
+          "lock_checks": [
+            {
+              "lock": "packages/openmates-rust/Cargo.lock",
+              "version": "0.13.8",
+              "checksum": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47",
+              "matches_archive": true
+            },
+            {
+              "lock": "frontend/packages/openmates-tui-native/Cargo.lock",
+              "version": "0.13.8",
+              "checksum": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-session-bindings/Cargo.lock",
+              "version": "0.13.8",
+              "checksum": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-browser-bindings/Cargo.lock",
+              "version": "0.13.8",
+              "checksum": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47",
+              "matches_archive": true
+            }
+          ]
+        },
+        {
+          "crate": "crypto-bigint",
+          "version": "0.5.5",
+          "cached_archive": "/home/superdev/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/crypto-bigint-0.5.5.crate",
+          "sha256": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+          "lock_checks": [
+            {
+              "lock": "packages/openmates-rust/Cargo.lock",
+              "version": "0.5.5",
+              "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+              "matches_archive": true
+            },
+            {
+              "lock": "frontend/packages/openmates-tui-native/Cargo.lock",
+              "version": "0.5.5",
+              "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-session-bindings/Cargo.lock",
+              "version": "0.5.5",
+              "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+              "matches_archive": true
+            },
+            {
+              "lock": "packages/openmates-browser-bindings/Cargo.lock",
+              "version": "0.5.5",
+              "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+              "matches_archive": true
+            }
+          ]
+        }
+      ],
+      "dependency_graph": {
+        "only_parent_of_crypto_bigint_in_four_locks": "elliptic-curve 0.13.8",
+        "chains": [
+          [
+            "openmates-sdk 0.1.0",
+            "opaque-ke 4.0.0",
+            "elliptic-curve 0.13.8",
+            "crypto-bigint 0.5.5"
+          ],
+          [
+            "openmates-sdk 0.1.0",
+            "opaque-ke 4.0.0",
+            "voprf 0.5.0",
+            "elliptic-curve 0.13.8",
+            "crypto-bigint 0.5.5"
+          ]
+        ],
+        "native_cli": "Also directly declares opaque-ke =4.0.0; runtime pairing module reexports shared SDK pairing.",
+        "lock_presence_qualification": "Optional ECDSA edges are recorded in Cargo.lock; lock presence alone does not establish enabled features or runtime reachability.",
+        "unconditional_dependencies": [
+          "opaque-ke 4.0.0 -> elliptic-curve ^0.13",
+          "voprf 0.5.0 -> elliptic-curve ^0.13",
+          "elliptic-curve 0.13.8 -> crypto-bigint ^0.5"
+        ]
+      },
+      "selected_suite": {
+        "source": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/packages/openmates-rust/src/pairing.rs",
+        "sha256": "bfa8fe31731f7eb413f80aec2405254784c9ac80a98e06ddcf8e5ed8142c47d9",
+        "source_lines": "21-25",
+        "oprf_cs": "opaque_ke::Ristretto255",
+        "key_exchange": "opaque_ke::TripleDh<opaque_ke::Ristretto255, sha2::Sha512>",
+        "ksf": "PairKsf; Argon2id V0x13, memory8192/time3/parallelism1, zero salt; preserve exact existing protocol parameters"
+      },
+      "enabled_feature_evidence": {
+        "native_existing_release_fingerprints": [
+          {
+            "fingerprint": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/release/.fingerprint/opaque-ke-161f6d92c1ef17c8/lib-opaque_ke.json",
+            "sha256": "e41fd489e8db5e702dd55aac55757a16c0e39779e107c0792d9854572145ebff",
+            "features": [
+              "argon2",
+              "default",
+              "ristretto255",
+              "serde"
+            ]
+          },
+          {
+            "fingerprint": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/release/.fingerprint/voprf-12083be08628027c/lib-voprf.json",
+            "sha256": "6436cba379b92194029bf0c040ea4a91dfbe0bd8fa47e5426d60b746f196a955",
+            "features": [
+              "danger",
+              "ristretto255",
+              "ristretto255-ciphersuite",
+              "serde"
+            ]
+          },
+          {
+            "fingerprint": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/release/.fingerprint/elliptic-curve-8bfe8ad904b8ad6d/lib-elliptic_curve.json",
+            "sha256": "55b0f94c5233b18b2719e4e0b5bdd2f994ad1af09b71a62ca1dd01833087727f",
+            "features": [
+              "alloc",
+              "arithmetic",
+              "default",
+              "digest",
+              "ff",
+              "group",
+              "hash2curve",
+              "pkcs8",
+              "sec1",
+              "serde",
+              "voprf"
+            ]
+          },
+          {
+            "fingerprint": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/release/.fingerprint/crypto-bigint-a5b2db2a4ee217b3/lib-crypto_bigint.json",
+            "sha256": "5f4cacd6d5ceff61e65089e7bab3ad2efcc1e2ab36e6f28be09d946f365cae68",
+            "features": [
+              "generic-array",
+              "rand_core",
+              "zeroize"
+            ]
+          }
+        ],
+        "qualification": "Existing on-disk native release build fingerprints, corroborated by multiple existing debug/release fingerprints; no new build or Cargo feature resolution performed. This does not freshly prove current-source builds, browser target feature resolution, final linked machine-code absence, or runtime timing behavior.",
+        "voprf_danger": "Already selected by opaque-ke upstream; not introduced as a workaround."
+      },
+      "reachability": {
+        "finding": "No source-level path identified from the selected Ristretto suite secret arithmetic into affected crypto-bigint operations.",
+        "opaque_ristretto": "KeyExchange group implementation uses curve25519-dalek Scalar/RistrettoPoint for generation, deserialization, public-key multiplication and DH. Its OPRF group delegates to voprf::Ristretto255.",
+        "voprf_ristretto": "Uses Dalek RistrettoPoint/Scalar, including Scalar::invert. elliptic_curve usage is ExpandMsg/ExpandMsgXmd/Expander byte expansion.",
+        "elliptic_curve_expander": "Reviewed ExpandMsgXmd and Domain helper use digest operations, byte arrays, integer lengths and indexing; no crypto-bigint operations identified.",
+        "limitations": [
+          "Source inspection is bounded reachability evidence, not full machine-code/callgraph proof or an exploitability proof.",
+          "Advisory remains present in resolved locks and compiled dependency fingerprints.",
+          "Practical side-channel exploitability depends on operations, compiler, CPU and observer; lock presence alone does not prove exploitation.",
+          "No assertion that legacy implementation is unaffected or that comparative security acceptance has passed."
+        ]
+      },
+      "upstream_checked": {
+        "registry_latest_stable_observed": {
+          "opaque-ke": "4.0.1",
+          "voprf": "0.5.0",
+          "elliptic-curve": "0.14.1",
+          "crypto-bigint": "0.7.6"
+        },
+        "opaque_ke_latest_stable": "4.0.1 retains elliptic-curve ^0.13 and voprf ^0.5",
+        "opaque_ke_development": "4.1.0-pre.2 retains elliptic-curve ^0.13 and voprf ^0.5",
+        "voprf_development": "0.6.0-pre.1 retains elliptic-curve ^0.13",
+        "elliptic_curve_development": "0.14.1 requires crypto-bigint 0.7.6 but changes array/digest/RNG ecosystem and lacks old hash2curve feature; not a drop-in substitution"
+      },
+      "authoritative_urls": {
+        "opaque_ke_4_0_0_manifest": "https://raw.githubusercontent.com/facebook/opaque-ke/v4.0.0/Cargo.toml",
+        "opaque_ke_4_0_1_manifest": "https://raw.githubusercontent.com/facebook/opaque-ke/v4.0.1/Cargo.toml",
+        "opaque_ke_development_manifest": "https://raw.githubusercontent.com/facebook/opaque-ke/main/Cargo.toml",
+        "opaque_ke_ristretto": "https://raw.githubusercontent.com/facebook/opaque-ke/v4.0.0/src/key_exchange/group/ristretto255.rs",
+        "opaque_ke_generic_ec": "https://raw.githubusercontent.com/facebook/opaque-ke/v4.0.0/src/key_exchange/group/elliptic_curve.rs",
+        "voprf_0_5_0_manifest": "https://raw.githubusercontent.com/facebook/voprf/v0.5.0/Cargo.toml",
+        "voprf_development_manifest": "https://raw.githubusercontent.com/facebook/voprf/main/Cargo.toml",
+        "voprf_ristretto": "https://raw.githubusercontent.com/facebook/voprf/v0.5.0/src/group/ristretto.rs",
+        "elliptic_curve_0_13_8_manifest": "https://raw.githubusercontent.com/RustCrypto/traits/elliptic-curve-v0.13.8/elliptic-curve/Cargo.toml",
+        "elliptic_curve_development_manifest": "https://raw.githubusercontent.com/RustCrypto/traits/master/elliptic-curve/Cargo.toml",
+        "xmd_expander": "https://raw.githubusercontent.com/RustCrypto/traits/elliptic-curve-v0.13.8/elliptic-curve/src/hash2curve/hash2field/expand_msg/xmd.rs",
+        "domain_helper": "https://raw.githubusercontent.com/RustCrypto/traits/elliptic-curve-v0.13.8/elliptic-curve/src/hash2curve/hash2field/expand_msg.rs",
+        "registry_queries": [
+          "https://crates.io/api/v1/crates/opaque-ke",
+          "https://crates.io/api/v1/crates/voprf",
+          "https://crates.io/api/v1/crates/elliptic-curve",
+          "https://crates.io/api/v1/crates/crypto-bigint"
+        ]
+      },
+      "remediation_recommendation": {
+        "retain_hold": true,
+        "preferred": "Upstream-supported dependency migration or feature split removing unused generic EC adapters while retaining a maintained XMD implementation and exact existing Ristretto wire protocol.",
+        "manifest_only_feature_removal": "Disabling opaque-ke defaults/serde does not remove unconditional elliptic-curve -> crypto-bigint dependency.",
+        "avoid": [
+          "Audit ignores or weakened security checks",
+          "Forcing crypto-bigint 0.7 into an incompatible ^0.5 requirement",
+          "Relabeling a fork as patched",
+          "Casual cryptographic arithmetic or protocol changes"
+        ],
+        "required_verification": [
+          "Fresh audits of all four resolved locks pass with no advisory ignore.",
+          "Published JavaScript OPAQUE transcript and authenticated encrypted bundle fixture remains byte-for-byte compatible.",
+          "Existing wrong PIN/context, malformed serialization, tampering, replay, abort and single-use tests remain unchanged and pass.",
+          "Native CLI, direct bindings and browser WASM interoperate with existing JavaScript authorizer using exact Ristretto/TripleDH/SHA512 suite, Argon2 parameters, transcript and encrypted bundle format.",
+          "Independent review confirms no algorithm or protocol change and validates any dependency source changes."
+        ]
+      }
+    }
+  }
+}

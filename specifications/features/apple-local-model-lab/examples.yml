@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.apple-local-model-lab@8
+specification: feature.apple-local-model-lab@9
 downloads:
 - id: verified-download-and-offline-reopen
   given: No laboratory models are installed.
@@ -122,3 +122,14 @@ neural_tts:
   given: A native operation returns a WAV immediately before Cancel or an account/server/scope change.
   when: Cancellation or ownership validation rejects publication.
   then: The request destination remains owned until drain/unload, then is removed even if the result handle was cleared. Private text/playback/results cannot cross the new owner boundary.
+october_bundled_transcription:
+- id: included-whistle-and-optional-pack-stay-distinct
+  assertion_ids: [apple-local-model-lab.optional-downloads, apple-local-model-lab.availability]
+  given: A supported Apple app includes Whistle while the optional Whisper, Supertonic3 and Privacy Filter pack is absent.
+  when: The user opens Offline models, selects Whistle or removes an optional installed model.
+  then: Whistle is shown as included with truthful bundle storage and no download/delete action; optional weights remain consented downloads with their real removal controls, and an unsupported runtime never silently selects a provider.
+- id: included-runtime-drain-is-truthful
+  assertion_ids: [apple-local-model-lab.availability, apple-local-model-lab.serialized-cancellation]
+  given: A recording transcription runtime is active while the user changes its explicit selection to Off.
+  when: Cancellation drains the active native operation and a stale transcript later completes.
+  then: New transcription admission stays closed, stale text is suppressed, and the app does not claim that process-resident bundled weights were unloaded or storage reclaimed.

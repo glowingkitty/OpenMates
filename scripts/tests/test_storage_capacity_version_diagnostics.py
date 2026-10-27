@@ -138,3 +138,37 @@ process.stdout.write(JSON.stringify({ results, malformed }));
     ]
     assert observed["malformed"] == {}
     assert "private-" not in result.stdout
+
+
+def test_version_identity_failure_retains_only_numeric_revision_and_match_flag():
+    repo = Path(__file__).resolve().parents[2]
+    script = r"""
+import { writeVersion, sanitizeVersionDiagnostics } from './scripts/storage_capacity_version_adapter.mjs';
+const observed = [];
+for (const result of [{ embed_id: 'private-embed', revision: 1 },
+                      { embed_id: 'private-other-embed', revision: 2 }]) {
+  try {
+    await writeVersion({ project: { projectId: 'private-project', revision: 1,
+      embedId: 'private-embed', currentContent: 'private-old' },
+      chatId: 'private-chat', content: 'private-new', client: {
+        sendMessage: async ({ onHostedVersionCommitted }) => {
+          onHostedVersionCommitted(result); return { status: 'completed' };
+        },
+      } });
+  } catch (error) {
+    observed.push({ phase: error.capacityPhase, diagnostic: error.capacityDiagnostics });
+  }
+}
+const malformed = sanitizeVersionDiagnostics({ actual_revision: -1, embed_matches: 'private-string',
+  embed_id: 'private-embed', content: 'private-content' });
+process.stdout.write(JSON.stringify({ observed, malformed }));
+"""
+    result = subprocess.run(["node", "--input-type=module", "--eval", script],
+                            cwd=repo, capture_output=True, text=True, check=True)
+    observed = json.loads(result.stdout)
+    assert observed["observed"] == [
+        {"phase": "version_callback_count", "diagnostic": {"expected_revision": 2, "actual_revision": 1, "embed_matches": True}},
+        {"phase": "version_callback_count", "diagnostic": {"expected_revision": 2, "actual_revision": 2, "embed_matches": False}},
+    ]
+    assert observed["malformed"] == {}
+    assert "private-" not in result.stdout

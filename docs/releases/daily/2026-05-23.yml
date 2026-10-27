@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -133,10 +113,6 @@ sections:
     - backend/apps/electronics/skills/search_components.py
     - backend/apps/pcb_design/app.yml
     - backend/config/backend_config.yml
-    - backend/shared/providers/ti_webench/__init__.py
-    - backend/shared/providers/ti_webench/client.py
-    - backend/shared/providers/ti_webench/models.py
-    - docs/apis/ti-webench.md
     - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
     - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
@@ -153,7 +129,6 @@ sections:
     - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
     - frontend/packages/ui/src/legal/buildLegalContent.ts
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - scripts/api_tests/test_ti_webench_api.py
     - shared/docs/privacy_policy.yml
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -544,10 +519,6 @@ sources:
     - backend/apps/electronics/skills/search_components.py
     - backend/apps/pcb_design/app.yml
     - backend/config/backend_config.yml
-    - backend/shared/providers/ti_webench/__init__.py
-    - backend/shared/providers/ti_webench/client.py
-    - backend/shared/providers/ti_webench/models.py
-    - docs/apis/ti-webench.md
     - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
     - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
@@ -564,7 +535,6 @@ sources:
     - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
     - frontend/packages/ui/src/legal/buildLegalContent.ts
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - scripts/api_tests/test_ti_webench_api.py
     - shared/docs/privacy_policy.yml
     related_feature_ids: []
   - sha: ff6894095ddb1ff677ccd197429f8512909df6dc
@@ -629,9 +599,7 @@ llm_summary:
   overview: OpenMates introduced a new electronics component search tool and implemented a furry mode customization suite,
     though the latter was disabled shortly after release.
   released_changes:
-  - text: OpenMates added an electronics component search feature, integrating TI Webench data into new search and component
-      embeds.
-    evidence:
+  - evidence:
       commits:
       - 181e5d10f
     release_status: released_main
@@ -668,8 +636,7 @@ llm_summary:
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Electronics component search integration with TI Webench.
-      evidence:
+    - evidence:
         commits:
         - 181e5d10f
       reason: This adds a significant new functional capability for electronics engineering workflows.

@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
 
   Fullscreen view for a single maps-place result (child embed of a Maps Search).
-  Based on EntryWithMapTemplate — shows interactive map background with a
+  Based on ResultEmbedFullscreen — shows interactive map background with a
   detail card on the left (wide viewports) or stacked below map (narrow).
 
   Displays:
@@ -20,7 +20,8 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -189,7 +190,14 @@
   }
 </script>
 
-<EntryWithMapTemplate
+  {#snippet resultMedia()}
+      {#if proxiedImageUrl}
+        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
+      {/if}
+  {/snippet}
+<ResultEmbedFullscreen
+  media={proxiedImageUrl ? resultMedia : undefined}
+  result={dc as unknown as Record<string, unknown>}
   appId="maps"
   skillId="location"
   {onClose}
@@ -209,11 +217,13 @@
   mapZoom={zoom}
   {mapMarkers}
 >
-  {#snippet detailContent(_ctx)}
+  {#snippet summary()}
+    {#if ratingText}<ResultEmbedInfo icon="star" label="Place rating" value={ratingText}>{userRatingCount != null ? `${userRatingCount.toLocaleString()} reviews` : 'Review count not supplied.'}</ResultEmbedInfo>{/if}
+    {#if placeType}<ResultEmbedInfo icon="map-pin" label="Place type" value={placeType}>{dataSource || provider || placeType}</ResultEmbedInfo>{/if}
+  {/snippet}
+
+  {#snippet detailContent()}
     <div class="place-details" data-testid="map-location-fullscreen">
-      {#if proxiedImageUrl}
-        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
-      {/if}
 
       {#if displayName}
         <h2 class="place-title">{displayName}</h2>
@@ -258,7 +268,7 @@
       <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Maps')} onclick={handleOpenInGoogleMaps} />
     {/if}
   {/snippet}
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 
 <style>
   .place-image {

@@ -1,300 +1,203 @@
-# Architecture Doc → Code Path Mapping
-#
-# Used by scripts/sessions.py to detect stale architecture docs.
-# When code files are newer than their corresponding doc by >24 hours,
-# the session start command flags the doc as potentially stale.
-#
-# Format:
-#   subcategory/doc-name.md:
-#     - glob/pattern/to/related/code/**/*.py
-#
-# Glob patterns are relative to the project root.
-# Doc paths are relative to docs/architecture/.
-
-# === core/ ===
-
 core/account-backup.md:
-  - backend/core/api/app/routes/profile_api.py
-  - frontend/packages/ui/src/services/accountExportService.ts
-  - frontend/packages/ui/src/services/zipExportService.ts
-
+- backend/core/api/app/routes/profile_api.py
+- frontend/packages/ui/src/services/accountExportService.ts
+- frontend/packages/ui/src/services/zipExportService.ts
 core/account-recovery.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/components/signup/**/*.svelte
-
+- backend/core/api/app/routes/auth.py
+- frontend/packages/ui/src/components/signup/**/*.svelte
 core/passkeys.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/components/signup/**/*.svelte
-  - frontend/packages/ui/src/stores/authStore.ts
-
+- backend/core/api/app/routes/auth.py
+- frontend/packages/ui/src/components/signup/**/*.svelte
+- frontend/packages/ui/src/stores/authStore.ts
 core/security.md:
-  - backend/core/vault/**/*.py
-  - backend/shared/python_utils/encryption*.py
-  - frontend/packages/ui/src/services/cryptoService.ts
-  - frontend/packages/ui/src/services/cryptoKeyStorage.ts
-
+- backend/core/vault/**/*.py
+- backend/shared/python_utils/encryption*.py
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/cryptoKeyStorage.ts
 core/servers.md:
-  - backend/core/docker-compose.yml
-  - backend/core/docker-compose.override.yml
-
+- backend/core/docker-compose.yml
+- backend/core/docker-compose.override.yml
 core/signup-and-auth.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/components/signup/**/*.svelte
-  - frontend/packages/ui/src/stores/signupStore.ts
-  - frontend/packages/ui/src/stores/signupState.ts
-
+- backend/core/api/app/routes/auth.py
+- frontend/packages/ui/src/components/signup/**/*.svelte
+- frontend/packages/ui/src/stores/signupStore.ts
+- frontend/packages/ui/src/stores/signupState.ts
 core/zero-knowledge-storage.md:
-  - frontend/packages/ui/src/services/cryptoService.ts
-  - frontend/packages/ui/src/services/encryption/**/*.ts
-  - backend/core/vault/**/*.py
-
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/encryption/**/*.ts
+- backend/core/vault/**/*.py
 core/chat-encryption-implementation.md:
-  - frontend/packages/ui/src/services/cryptoService.ts
-  - frontend/packages/ui/src/services/encryption/**/*.ts
-  - backend/core/vault/**/*.py
-
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/encryption/**/*.ts
+- backend/core/vault/**/*.py
 core/delete-account.md:
-  - backend/core/api/app/routes/profile_api.py
-  - backend/core/api/app/routes/auth.py
-
+- backend/core/api/app/routes/profile_api.py
+- backend/core/api/app/routes/auth.py
 core/guest-mode.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/stores/authStore.ts
-
-# === messaging/ ===
-
+- backend/core/api/app/routes/auth.py
+- frontend/packages/ui/src/stores/authStore.ts
 messaging/embeds.md:
-  - backend/apps/*/skills/*/embed*.py
-  - frontend/packages/ui/src/components/embeds/**/*.svelte
-  - frontend/packages/ui/src/components/embeds/**/*.ts
-  - frontend/packages/ui/src/services/embedResolver.ts
-  - frontend/packages/ui/src/services/embedStore.ts
-  - frontend/packages/ui/src/services/embedStateMachine.ts
-  - frontend/packages/ui/src/services/embedSenders.ts
-  - backend/shared/python_schemas/embed*.py
-
+- backend/apps/*/skills/*/embed*.py
+- frontend/packages/ui/src/components/embeds/**/*.svelte
+- frontend/packages/ui/src/components/embeds/**/*.ts
+- frontend/packages/ui/src/services/embedResolver.ts
+- frontend/packages/ui/src/services/embedStore.ts
+- frontend/packages/ui/src/services/embedStateMachine.ts
+- frontend/packages/ui/src/services/embedSenders.ts
+- backend/shared/python_schemas/embed*.py
 messaging/message-input-field.md:
-  - frontend/packages/ui/src/components/enter_message/**/*.svelte
-  - frontend/packages/ui/src/components/enter_message/**/*.ts
-
+- frontend/packages/ui/src/components/enter_message/**/*.svelte
+- frontend/packages/ui/src/components/enter_message/**/*.ts
 messaging/message-parsing.md:
-  - frontend/packages/ui/src/components/chats/**/*.svelte
-  - frontend/packages/ui/src/components/chats/**/*.ts
-
+- frontend/packages/ui/src/components/chats/**/*.svelte
+- frontend/packages/ui/src/components/chats/**/*.ts
 messaging/message-previews-grouping.md:
-  - frontend/packages/ui/src/components/embeds/**/*.ts
-  - frontend/packages/ui/src/services/embedPreviewRegistry.ts
-
+- frontend/packages/ui/src/components/embeds/**/*.ts
+- frontend/packages/ui/src/services/embedPreviewRegistry.ts
 messaging/message-processing.md:
-  - backend/core/api/app/routes/websockets.py
-  - backend/apps/ai/skills/*/skill.py
-  - backend/apps/base_skill.py
-
-# === ai/ ===
-
+- backend/core/api/app/routes/websockets.py
+- backend/apps/ai/skills/*/skill.py
+- backend/apps/base_skill.py
 ai/ai-model-selection.md:
-  - backend/apps/ai/skills/*/skill.py
-  - backend/shared/config/**/*.py
-  - backend/shared/providers/**/*.py
-
+- backend/apps/ai/skills/*/skill.py
+- backend/shared/config/**/*.py
+- backend/shared/providers/**/*.py
 ai/followup-suggestions.md:
-  - backend/apps/ai/skills/*/skill.py
-  - frontend/packages/ui/src/stores/suggestionTracker.ts
-
+- backend/apps/ai/skills/*/skill.py
+- frontend/packages/ui/src/stores/suggestionTracker.ts
 ai/hallucination-mitigation.md:
-  - backend/apps/ai/skills/*/skill.py
-
+- backend/apps/ai/skills/*/skill.py
 ai/mates.md:
-  - backend/apps/ai/**/*.py
-  - frontend/packages/ui/src/stores/teamStore.ts
-
+- backend/apps/ai/**/*.py
+- frontend/packages/ui/src/stores/teamStore.ts
 ai/thinking-models.md:
-  - backend/shared/providers/**/*.py
-  - backend/apps/ai/skills/*/skill.py
-
+- backend/shared/providers/**/*.py
+- backend/apps/ai/skills/*/skill.py
 ai/learning-mode.md:
-  - backend/apps/ai/skills/*/skill.py
-  - frontend/packages/ui/src/stores/teamStore.ts
-
+- backend/apps/ai/skills/*/skill.py
+- frontend/packages/ui/src/stores/teamStore.ts
 ai/multi-agents.md:
-  - backend/apps/ai/**/*.py
-  - frontend/packages/ui/src/stores/teamStore.ts
-
+- backend/apps/ai/**/*.py
+- frontend/packages/ui/src/stores/teamStore.ts
 ai/preprocessing-model-comparison.md:
-  - backend/apps/ai/llm_providers/**/*.py
-  - backend/shared/providers/**/*.py
-
+- backend/apps/ai/llm_providers/**/*.py
+- backend/shared/providers/**/*.py
 ai/weekly-review.md:
-  - backend/apps/ai/skills/*/skill.py
-
-# === privacy/ ===
-
+- backend/apps/ai/skills/*/skill.py
 privacy/email-privacy.md:
-  - backend/core/api/app/routes/email.py
-  - backend/core/api/app/routes/email_block.py
-  - frontend/packages/ui/src/services/encryption/**/*.ts
-
+- backend/core/api/app/routes/email.py
+- backend/core/api/app/routes/email_block.py
+- frontend/packages/ui/src/services/encryption/**/*.ts
 privacy/pii-protection.md:
-  - frontend/packages/ui/src/stores/embedPIIStore.ts
-  - frontend/packages/ui/src/stores/piiVisibilityStore.ts
-
+- frontend/packages/ui/src/stores/embedPIIStore.ts
+- frontend/packages/ui/src/stores/piiVisibilityStore.ts
 privacy/prompt-injection.md:
-  - backend/apps/ai/skills/*/skill.py
-  - backend/shared/python_utils/security*.py
-
+- backend/apps/ai/skills/*/skill.py
+- backend/shared/python_utils/security*.py
 privacy/sensitive-data-redaction.md:
-  - backend/apps/ai/skills/*/skill.py
-  - backend/shared/python_utils/pii*.py
-
+- backend/apps/ai/skills/*/skill.py
+- backend/shared/python_utils/pii*.py
 privacy/pii-detection-phase2.md:
-  - backend/shared/python_utils/pii*.py
-  - frontend/packages/ui/src/stores/embedPIIStore.ts
-
+- backend/shared/python_utils/pii*.py
+- frontend/packages/ui/src/stores/embedPIIStore.ts
 privacy/remove-website.md:
-  - backend/core/api/app/routes/profile_api.py
-
-# === data/ ===
-
+- backend/core/api/app/routes/profile_api.py
 data/device-sessions.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/stores/authSessionActions.ts
-  - frontend/packages/ui/src/stores/authStore.ts
-
+- backend/core/api/app/routes/auth.py
+- frontend/packages/ui/src/stores/authSessionActions.ts
+- frontend/packages/ui/src/stores/authStore.ts
 data/sync.md:
-  - frontend/packages/ui/src/services/chatSyncService*.ts
-  - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
-  - backend/core/api/app/routes/websockets.py
-  - backend/core/api/app/routes/debug_sync.py
-
+- frontend/packages/ui/src/services/chatSyncService*.ts
+- frontend/packages/ui/src/stores/phasedSyncStateStore.ts
+- backend/core/api/app/routes/websockets.py
+- backend/core/api/app/routes/debug_sync.py
 data/translations.md:
-  - scripts/manage_translations.py
-  - scripts/auto_translate.py
-  - frontend/packages/ui/src/i18n/**/*.yml
-
-# === payments/ ===
-
+- scripts/manage_translations.py
+- scripts/auto_translate.py
+- frontend/packages/ui/src/i18n/**/*.yml
 payments/payment-processing.md:
-  - backend/core/api/app/routes/payments.py
-  - backend/core/api/app/routes/invoice.py
-  - backend/core/api/app/routes/credit_note.py
-  - frontend/packages/ui/src/components/payment/**/*.svelte
-
+- backend/core/api/app/routes/payments.py
+- backend/core/api/app/routes/invoice.py
+- backend/core/api/app/routes/credit_note.py
+- frontend/packages/ui/src/components/payment/**/*.svelte
 payments/auto-topup.md:
-  - backend/core/api/app/routes/payments.py
-  - frontend/packages/ui/src/components/payment/**/*.svelte
-
-# === apps/ ===
-
+- backend/core/api/app/routes/payments.py
+- frontend/packages/ui/src/components/payment/**/*.svelte
 apps/app-skills.md:
-  - backend/apps/base_app.py
-  - backend/apps/base_skill.py
-  - backend/apps/base_main.py
-  - backend/apps/base_app.yml
-
+- backend/apps/base_app.py
+- backend/apps/base_skill.py
+- backend/apps/base_main.py
+- backend/apps/base_app.yml
 apps/rest-api.md:
-  - backend/core/api/app/routes/apps_api.py
-  - backend/core/api/app/routes/embeds_api.py
-  - backend/core/api/app/routes/tasks_api.py
-
+- backend/core/api/app/routes/apps_api.py
+- backend/core/api/app/routes/embeds_api.py
+- backend/core/api/app/routes/tasks_api.py
 apps/action-confirmation.md:
-  - backend/apps/base_skill.py
-  - frontend/packages/ui/src/components/chats/**/*.svelte
-
+- backend/apps/base_skill.py
+- frontend/packages/ui/src/components/chats/**/*.svelte
 platforms/cli-package.md:
-  - frontend/packages/openmates-cli/src/**/*.ts
-
+- frontend/packages/openmates-cli/src/**/*.ts
 apps/cli-remote-access.md:
-  - frontend/packages/openmates-cli/src/server.ts
-  - frontend/packages/openmates-cli/src/client.ts
-
+- frontend/packages/openmates-cli/src/server.ts
+- frontend/packages/openmates-cli/src/client.ts
 apps/focus-modes-implementation.md:
-  - backend/apps/base_app.py
-  - backend/apps/base_app.yml
-  - frontend/packages/ui/src/stores/teamStore.ts
-
+- backend/apps/base_app.py
+- backend/apps/base_app.yml
+- frontend/packages/ui/src/stores/teamStore.ts
 apps/function-calling.md:
-  - backend/apps/ai/skills/*/skill.py
-  - backend/apps/base_skill.py
-
-# === frontend/ ===
-
+- backend/apps/ai/skills/*/skill.py
+- backend/apps/base_skill.py
 frontend/daily-inspiration.md:
-  - backend/core/api/app/routes/daily_inspirations_api.py
-  - backend/core/api/app/routes/default_inspirations.py
-  - frontend/packages/ui/src/stores/dailyInspirationStore.ts
-  - frontend/packages/ui/src/services/dailyInspirationDB.ts
-
+- backend/core/api/app/routes/daily_inspirations_api.py
+- backend/core/api/app/routes/default_inspirations.py
+- frontend/packages/ui/src/stores/dailyInspirationStore.ts
+- frontend/packages/ui/src/services/dailyInspirationDB.ts
 frontend/web-app.md:
-  - frontend/apps/web_app/src/**/*.ts
-  - frontend/apps/web_app/src/**/*.svelte
-
+- frontend/apps/web_app/src/**/*.ts
+- frontend/apps/web_app/src/**/*.svelte
 frontend/accessibility.md:
-  - frontend/packages/ui/src/components/**/*.svelte
-  - frontend/apps/web_app/tests/a11y-helpers.ts
-
+- frontend/packages/ui/src/components/**/*.svelte
+- frontend/apps/web_app/tests/a11y-helpers.ts
 frontend/docs-web-app.md:
-  - frontend/apps/web_app/src/**/*.ts
-  - frontend/apps/web_app/src/**/*.svelte
-
-# === infrastructure/ ===
-
+- frontend/apps/web_app/src/**/*.ts
+- frontend/apps/web_app/src/**/*.svelte
 infrastructure/admin-console-log-forwarding.md:
-  - backend/core/api/app/routes/admin_client_logs.py
-  - frontend/packages/ui/src/services/clientLogForwarder.ts
-  - frontend/packages/ui/src/services/logCollector.ts
-
+- backend/core/api/app/routes/admin_client_logs.py
+- frontend/packages/ui/src/services/clientLogForwarder.ts
+- frontend/packages/ui/src/services/logCollector.ts
 infrastructure/developer-settings.md:
-  - backend/core/api/app/routes/settings.py
-  - frontend/packages/ui/src/components/settings/**/*.svelte
-
+- backend/core/api/app/routes/settings.py
+- frontend/packages/ui/src/components/settings/**/*.svelte
 infrastructure/file-upload-pipeline.md:
-  - backend/upload/**/*.py
-  - backend/core/api/app/routes/skills.py
-  - frontend/packages/ui/src/services/presignedUrlService.ts
-  - frontend/packages/ui/src/stores/pendingUploadStore.ts
-
+- backend/upload/**/*.py
+- backend/core/api/app/routes/skills.py
+- frontend/packages/ui/src/services/presignedUrlService.ts
+- frontend/packages/ui/src/stores/pendingUploadStore.ts
 infrastructure/health-checks.md:
-  - backend/core/api/app/routes/internal_api.py
-  - frontend/packages/ui/src/stores/appHealthStore.ts
-  - frontend/packages/ui/src/stores/serverStatusStore.ts
-
+- backend/core/api/app/routes/internal_api.py
+- frontend/packages/ui/src/stores/appHealthStore.ts
+- frontend/packages/ui/src/stores/serverStatusStore.ts
 infrastructure/logging.md:
-  - backend/shared/python_utils/logging*.py
-  - backend/core/monitoring/**/*.py
-
+- backend/shared/python_utils/logging*.py
+- backend/core/monitoring/**/*.py
 infrastructure/status-page.md:
-  - backend/status/**/*.py
-
+- backend/status/**/*.py
 infrastructure/vector-personalization.md:
-  - frontend/packages/ui/src/services/searchService.ts
-  - frontend/packages/ui/src/stores/searchStore.ts
-
+- frontend/packages/ui/src/services/searchService.ts
+- frontend/packages/ui/src/stores/searchStore.ts
 infrastructure/analytics.md:
-  - backend/core/api/app/routes/analytics_beacon.py
-
+- backend/core/api/app/routes/analytics_beacon.py
 infrastructure/cronjobs.md:
-  - backend/core/workers/**/*.py
-
-# === integrations/ ===
-
+- backend/core/workers/**/*.py
 integrations/calendar-sync.md:
-  - backend/apps/events/**/*.py
-
+- backend/apps/events/**/*.py
 integrations/email-openmates.md:
-  - backend/core/api/app/routes/email.py
-  - backend/core/api/app/routes/email_block.py
-
-integrations/luma.md:
-  - backend/apps/images/**/*.py
-
+- backend/core/api/app/routes/email.py
+- backend/core/api/app/routes/email_block.py
 integrations/media-generation.md:
-  - backend/apps/images/**/*.py
-
+- backend/apps/images/**/*.py
 integrations/voice-calling.md:
-  - backend/apps/audio/**/*.py
-
-# === storage/ ===
-
+- backend/apps/audio/**/*.py
 storage/embed-cold-storage.md:
-  - backend/shared/python_schemas/embed*.py
-  - frontend/packages/ui/src/services/embedStore.ts
+- backend/shared/python_schemas/embed*.py
+- frontend/packages/ui/src/services/embedStore.ts

@@ -1,12 +1,5 @@
 landing:
-  order: 29
-  capability:
-    type: skill
-    id: search
-  caption:
-    en: Find 3D models
-    de: Finde 3D-Modelle
-  example_chat_id: example-printable-benchy-phone-stand
+  enabled: false
 
 id: models3d
 name_translation_key: models3d
@@ -45,6 +38,9 @@ embed_types:
       - name: preview_results
         type: object
   - id: model_result
+    authoring:
+      kind: models3d.model_result
+      schema_id: models3d.model_result
     category: direct
     frontend_type: models3d-model-result
     backend_type: model_result
@@ -161,17 +157,10 @@ skills:
       expose_get: false
       expose_post: true
     preprocessor_hint: >
-      Search public catalogs for existing printable or downloadable 3D models;
-      do not generate models. Use relevance_criteria only for an explicit
-      user-stated purpose, compatibility need, quality, or preference that should
-      change ordering. Never infer printability, quality, popularity,
-      portability, or compatibility. Plain discovery such as "Find adjustable
-      laptop stand 3D models" is neutral: omit relevance_criteria. Keep query
-      focused on the object and keep free-only and sort constraints structured.
+      This capability is currently unavailable because no permitted provider is configured.
     class_path: backend.apps.models3d.skills.search_skill.SearchSkill
-    providers:
-      - name: Printables
-        no_api_key: true
+    provider_required: true
+    providers: []
     exclude_fields_for_llm:
       - preview_image_url
       - thumbnail_url
@@ -201,8 +190,7 @@ skills:
                 type: array
                 items:
                   type: string
-                  enum: [Printables]
-                description: Optional provider filter. Defaults to Printables.
+                description: Optional provider filter. No provider is currently configured.
               count:
                 x-ui:
                   basic: true

@@ -170,6 +170,7 @@ class OpenAIUsageMetadata(BaseModel):
     cache_creation_5m_input_tokens: Optional[int] = None
     cache_creation_1h_input_tokens: Optional[int] = None
     usage_source: str = "provider_reported"
+    reasoning_tokens: Optional[int] = None
     inference_host: Optional[str] = None
     provider_request_id: Optional[str] = None
 
@@ -187,6 +188,57 @@ def openai_cache_read_tokens(usage: Dict[str, Any], *, responses: bool = False) 
 
 def openai_cache_write_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
     return _openai_cache_tokens(usage, "cache_write_tokens", responses=responses)
+
+
+def openai_usage_details(usage: Any, *, inference_host: str,
+                         provider_request_id: Optional[str] = None) -> Dict[str, Any]:
+    """Preserve reported cache/reasoning counters on every compatible transport.
+
+    SDKs expose nested objects while HTTP clients expose dictionaries. Missing
+    counters stay unknown, including for servers that do not support caching.
+    Reasoning is a subset of completion tokens, never an additional charge.
+    """
+    def field(value: Any, name: str) -> Any:
+        return value.get(name) if isinstance(value, dict) else getattr(value, name, None)
+
+    prompt = field(usage, "prompt_tokens_details")
+    completion = field(usage, "completion_tokens_details")
+    read = field(prompt, "cached_tokens")
+    if read is None:
+        read = field(usage, "cached_tokens")
+    if read is None:
+        read = field(usage, "cachedContentTokenCount")
+    complete = all(
+        isinstance(value := field(usage, name), int) and not isinstance(value, bool) and value >= 0
+        for name in ("prompt_tokens", "completion_tokens", "total_tokens")
+    )
+    return {
+        "cache_read_input_tokens": read,
+        "cache_creation_input_tokens": field(prompt, "cache_write_tokens"),
+        "reasoning_tokens": field(completion, "reasoning_tokens"),
+        "inference_host": inference_host,
+        "provider_request_id": provider_request_id,
+        "usage_source": "provider_reported" if complete else "estimated",
+    }
+
+
+def merge_openai_usage(current: Dict[str, Any], update: Any) -> None:
+    """Replace cumulative counters, retaining fields omitted by later chunks."""
+    if not isinstance(update, dict):
+        if callable(getattr(update, "model_dump", None)):
+            update = update.model_dump(exclude_none=True)
+        else:
+            update = {name: getattr(update, name) for name in (
+                "prompt_tokens", "completion_tokens", "total_tokens",
+                "prompt_tokens_details", "completion_tokens_details", "cached_tokens", "cachedContentTokenCount",
+            ) if getattr(update, name, None) is not None}
+    for name, value in update.items():
+        if value is None:
+            continue
+        if isinstance(value, dict) and isinstance(current.get(name), dict):
+            current[name] = {**current[name], **value}
+        else:
+            current[name] = value
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """

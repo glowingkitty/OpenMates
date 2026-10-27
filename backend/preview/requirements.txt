@@ -7,9 +7,10 @@ uvicorn[standard]==0.40.0
 
 # HTTP client for fetching external resources
 httpx==0.28.1
-aiohttp==3.14.3
+aiohttp==3.14.5
 
 # Brotli decompression support (for Accept-Encoding: br)
+# CVE-2026-111497: reject invalid block switches before decoder memory corruption.
 brotli==1.2.1
 
 # HTML parsing for Open Graph metadata extraction
@@ -17,16 +18,13 @@ beautifulsoup4==4.12.3
 lxml==6.1.0
 
 # Image processing and validation
-Pillow==12.3.0
+Pillow==13.0.0
 
 # URL parsing and validation
 validators==0.34.0
 
 # Security - prevent SSRF attacks
 ipaddress>=1.0.23
-
-# Anti-detection - random User-Agent generation
-user-agents==2.2.0
 
 # Environment and configuration
 python-dotenv==1.2.2

@@ -1,2 +1,2 @@
 export default {};
-export const variants = { saveFailure: { failFirst: true } };
+export const variants = { saveFailure: { failFirst: true }, saving: { holdSave: true } };

@@ -1,3 +1,6 @@
+import { authStore } from '../../stores/authStore';
+import { webSocketService } from '../../services/websocketService';
+
 /**
  * Deterministic props for the isolated MessageInput preview.
  * The default state mirrors the minimized unauthenticated composer.
@@ -9,6 +12,8 @@ export default {
 };
 
 export const variants = {
+  recording: { showActionButtons: false },
+  recordingInline: { showActionButtons: false, inlineCompact: true },
   ghostSuggestion: {
     showActionButtons: false,
     ghostSuggestion: 'Could you compare the two approaches for me?',
@@ -36,3 +41,14 @@ export const variants = {
     onFocusPillDeactivate: () => {},
   },
 };
+
+// A synthetic account is scoped to these provider-free microphone previews.
+export const ready = (() => {
+  if (typeof window === 'undefined') return;
+  const variant = new URLSearchParams(window.location.search).get('variant');
+  if (variant !== 'recording' && variant !== 'recordingInline') return;
+  const connect = webSocketService.connect;
+  webSocketService.connect = () => Promise.resolve();
+  window.addEventListener('pagehide', () => { webSocketService.connect = connect; }, { once: true });
+  authStore.set({ isAuthenticated: true, isInitialized: true });
+})();

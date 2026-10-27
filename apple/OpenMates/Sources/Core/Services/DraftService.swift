@@ -56,7 +56,17 @@ final class DraftService: ObservableObject {
     )
 
     @Published private(set) var currentDraft = ""
-    @Published private(set) var draftPreviews: [String: String] = [:]
+    @Published private(set) var draftPreviews: [String: String] = [:] {
+        didSet {
+            // Cache display text when a draft changes, never from a SwiftUI body.
+            displayDraftPreviews = displayDraftPreviews.filter { draftPreviews[$0.key] != nil }
+            for (chatID, preview) in draftPreviews where oldValue[chatID] != preview {
+                displayDraftPreviews[chatID] = ChatDraftPreviewFormatter.format(preview)
+            }
+        }
+    }
+    @Published private(set) var displayDraftPreviews: [String: String] = [:]
+    private var displayLocaleSubscription: AnyCancellable?
 
     private let repository: any ComposerDraftRepository
     private let legacyStore: any LegacyComposerDraftStore
@@ -99,6 +109,10 @@ final class DraftService: ObservableObject {
         self.legacyStore = legacyStore
         self.masterKeyProvider = masterKeyProvider
         self.crypto = CryptoManager.shared
+        displayLocaleSubscription = LocalizationManager.shared.$currentLanguage.dropFirst().sink { [weak self] _ in
+            guard let self else { return }
+            self.displayDraftPreviews = self.draftPreviews.mapValues { ChatDraftPreviewFormatter.format($0) }
+        }
     }
 
     func configureSync(

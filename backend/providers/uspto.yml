@@ -1,6 +1,0 @@
-provider_id: uspto
-name: USPTO
-description: US trademark search website records, including applications and registrations.
-region: US
-logo_svg: icons/business.svg
-privacy_policy: https://www.uspto.gov/privacy-policy # verified 2026-10-11

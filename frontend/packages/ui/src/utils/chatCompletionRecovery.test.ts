@@ -17,6 +17,7 @@ import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   openRecoveryOutputEnvelope,
+  openChatMetadataRecoveryEnvelope,
   sealChatCompletionRecoveryPayload,
   sealChatCompletionRecoveryPayloadForTest,
 } from "./chatCompletionRecovery";
@@ -227,4 +228,20 @@ describe("chat completion recovery shared vectors", () => {
       )).rejects.toThrow("plaintext must be no larger than");
     });
   }
+});
+
+
+it("opens purpose-bound Python metadata and rejects stage, identity and reply substitution", async () => {
+  const vector = JSON.parse(readFileSync(
+    new URL("../../../../../backend/tests/fixtures/chat_metadata_recovery_vectors.json", import.meta.url), "utf8"));
+  const envelope = JSON.parse(vector.job.sealed_payload);
+  const identity = { recoveryPrivateKey: vector.private_key, ownerId: vector.identity.owner_id,
+    chatId: vector.identity.chat_id, taskId: vector.identity.task_id, jobId: vector.identity.job_id,
+    stage: vector.identity.stage, keyVersion: vector.identity.key_version };
+  expect(await openChatMetadataRecoveryEnvelope(envelope, identity)).toEqual(vector.build.metadata);
+  await expect(openChatMetadataRecoveryEnvelope(envelope, { ...identity, stage: "initial" })).rejects.toThrow();
+  await expect(openChatMetadataRecoveryEnvelope(envelope, { ...identity, taskId: vector.identity.owner_id })).rejects.toThrow();
+  await expect(openChatMetadataRecoveryEnvelope({ ...envelope, v: 2 }, identity)).rejects.toThrow();
+  await expect(openChatMetadataRecoveryEnvelope({ ...envelope, unexpected: true }, identity)).rejects.toThrow();
+  await expect(openChatMetadataRecoveryEnvelope({ ...envelope, ciphertext: "A".repeat(90_000) }, identity)).rejects.toThrow();
 });

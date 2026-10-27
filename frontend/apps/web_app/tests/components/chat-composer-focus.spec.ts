@@ -78,7 +78,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(field).toHaveCSS('background-color', 'rgb(230, 234, 255)');
     await expect.poll(async () => {
       const [sendBox, micBox] = await Promise.all([page.getByTestId('composer-send-button').boundingBox(), page.getByTestId('record-audio-button').boundingBox()]);
-      return micBox!.x - (sendBox!.x + sendBox!.width);
+      return sendBox!.x - (micBox!.x + micBox!.width);
     }).toBeGreaterThan(0);
     await editor.fill('Unsent multiline draft\nsecond line\n' + Array.from({ length: 20 }, (_, index) => `More draft details ${index + 1}`).join('\n'));
     await page.getByTestId('message-expand-button').click();
@@ -292,13 +292,15 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(side).toBeVisible();
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-restored-${width}x${height}.png`) });
-    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
+    await expect(page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Keep this second line' }).last()).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await page.getByTestId('input-dismiss-button').click();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).not.toBeFocused();
     await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
-    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
+    await expect(page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Keep this second line' }).last()).toBeVisible();
   });
   }
 });
@@ -346,4 +348,129 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 		await expect(carousel).toBeInViewport();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeInViewport();
 	}
+});
+
+for (const width of [390, 1280]) {
+  // contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,message-input.focus.workspace-suppression,drafts.draft-only.lifecycle
+  test(`dismissed unsent drafts return to the workspace and reopen for editing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/dev/preview/ActiveChatFocusFixture?chrome=0&theme=light&background=%23dbeafe&width=${Math.min(width, 1100)}`);
+    await waitForComponentPreview(page);
+    const field = page.getByTestId('message-field');
+    const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    const welcome = page.getByTestId('welcome-content');
+    const draft = 'Remember this unsent draft\nKeep the complete second line';
+    await expect(welcome).toBeVisible();
+    const welcomeNode = await welcome.elementHandle();
+    const editorNode = await editor.elementHandle();
+    await field.click();
+    await editor.fill(draft);
+    // Dismiss before the debounce: the workspace must wait for local persistence.
+    await page.getByTestId('input-dismiss-button').click();
+    await test.step('Workspace shows the saved draft beside an empty inactive input', async () => {
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await expect(welcome).toBeVisible();
+      await expect(editor).toBeEmpty();
+      const card = page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Remember this unsent draft' });
+      await expect(card).toBeVisible();
+      await expect(card).toContainText('Keep the complete second line');
+      await expect(page.getByTestId('message-user')).toHaveCount(0);
+      expect(await welcomeNode!.evaluate(node => node.isConnected)).toBe(true);
+      expect(await editorNode!.evaluate(node => node.isConnected)).toBe(true);
+      await card.click();
+    });
+    await test.step('Opening the card restores the full draft and activates the same editor', async () => {
+      await expect(field).toHaveAttribute('data-focused', 'true');
+      await expect(editor).toContainText('Keep the complete second line');
+      await expect(editor).toBeFocused();
+      await editor.press('ControlOrMeta+End');
+      await page.keyboard.insertText(' and another edit');
+      await page.getByTestId('input-dismiss-button').click();
+      await expect(editor).toBeEmpty();
+      await expect(page.getByTestId('resume-chat-draft-card')).toContainText('and another edit');
+    });
+    await test.step('Reload preserves workspace discovery without refilling the inactive field', async () => {
+      await page.reload();
+      await waitForComponentPreview(page);
+      await expect(welcome).toBeVisible();
+      await expect(editor).toBeEmpty();
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await page.getByTestId('resume-chat-draft-card').click();
+      await expect(editor).toContainText('and another edit');
+      await expect(editor).toBeFocused();
+      const draftId = await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
+      await editor.press('ControlOrMeta+A');
+      await editor.press('Backspace');
+      // Immediate editing after restore must persist without requiring a blur.
+      await expect.poll(() => page.evaluate(id => sessionStorage.getItem(`draft_${id}`), draftId)).toBeNull();
+      await expect(field).toHaveAttribute('data-focused', 'true');
+      await page.getByTestId('input-dismiss-button').click();
+      await expect(welcome).toBeVisible();
+      await expect(editor).toBeEmpty();
+      await expect(page.getByTestId('resume-chat-draft-card')).toHaveCount(0);
+    });
+  });
+}
+
+// contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,drafts.persistence.local-first-encrypted
+test('a rejected guest storage write keeps newer unsent edits in the composer', async ({ page }) => {
+  await page.goto(preview('ActiveChatFocusFixture'));
+  await waitForComponentPreview(page);
+  const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+  await page.getByTestId('message-field').click();
+  await editor.fill('Previously saved draft');
+  await page.getByTestId('input-dismiss-button').click();
+  const card = page.getByTestId('resume-chat-draft-card');
+  await expect(card).toContainText('Previously saved draft');
+  await card.click();
+  await expect(editor).toBeFocused();
+  await page.evaluate(() => {
+    const setItem = Storage.prototype.setItem;
+    (window as typeof window & { restoreDraftStorageWrites?: () => void }).restoreDraftStorageWrites = () => {
+      Storage.prototype.setItem = setItem;
+    };
+    Storage.prototype.setItem = function(key: string, value: string) {
+      if (this === sessionStorage && key.startsWith('draft_')) {
+        throw new DOMException('Synthetic storage quota exceeded', 'QuotaExceededError');
+      }
+      return setItem.call(this, key, value);
+    };
+  });
+  await editor.fill('Newer edits must survive a failed draft save');
+  await page.getByTestId('input-dismiss-button').click();
+  await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false');
+  await expect(editor).toContainText('Newer edits must survive a failed draft save');
+  await page.getByTestId('message-field').click();
+  await expect(editor).toBeFocused();
+  await expect(editor).toContainText('Newer edits must survive a failed draft save');
+  await page.evaluate(() => {
+    (window as typeof window & { restoreDraftStorageWrites?: () => void }).restoreDraftStorageWrites?.();
+  });
+  await page.getByTestId('input-dismiss-button').click();
+  await expect(editor).toBeEmpty();
+  await expect(card).toContainText('Newer edits must survive a failed draft save');
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,drafts.draft-only.lifecycle
+test('a guest draft stays editable when its discovery index cannot be saved', async ({ page }) => {
+  await page.goto(preview('ActiveChatFocusFixture'));
+  await waitForComponentPreview(page);
+  await page.evaluate(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key: string, value: string) {
+      if (this === sessionStorage && key === 'draft_chat_ids') {
+        throw new DOMException('Synthetic draft index quota exceeded', 'QuotaExceededError');
+      }
+      return setItem.call(this, key, value);
+    };
+  });
+  const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+  await page.getByTestId('message-field').click();
+  await editor.fill('Keep this draft reachable when the index write fails');
+  await page.getByTestId('input-dismiss-button').click();
+  await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false');
+  await expect(editor).toContainText('Keep this draft reachable when the index write fails');
+  await page.getByTestId('message-field').click();
+  await expect(editor).toBeFocused();
+  await expect(editor).toContainText('Keep this draft reachable when the index write fails');
 });

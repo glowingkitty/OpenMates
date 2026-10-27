@@ -14,6 +14,28 @@ const BILLING_PATH = '/v1/settings/billing';
 const ROOT = path.resolve(__dirname, '../../../..');
 const COMPOSE = path.join(ROOT, 'test-results/ci-private/compose.json');
 
+// contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge,audio-speak.billing.success-only,assistant-speech.billing.segment-success-once
+test('completed media helpers debit the real ledger once per output including speech', async () => {
+  test.setTimeout(240_000);
+  if (process.env.OPENMATES_CI_ISOLATED !== '1' || !existsSync(COMPOSE)) {
+    throw new Error('Disposable isolated product stack required for media billing proof.');
+  }
+  const profile = JSON.parse(readFileSync(COMPOSE, 'utf8'));
+  expect(profile.services?.api?.environment?.SERVER_ENVIRONMENT).toBe('development');
+  expect(profile.services?.api?.environment?.PRODUCTION_URL).toBe('http://localhost:5173');
+  const email = getTestAccount(1).email;
+  if (!email) throw new Error('Fresh isolated test account required.');
+  const output = execFileSync('docker', ['compose', '-f', COMPOSE, 'exec', '-T', 'api',
+    'python', '/app/backend/scripts/test_generated_media_billing_contract.py'], {
+    cwd: ROOT, input: JSON.stringify({ email }), encoding: 'utf8', timeout: 210_000,
+  });
+  const receipt = JSON.parse(output.trim());
+  expect(receipt).toMatchObject({ passed: true, charges: 10, usage_rows: 10,
+    replay_debits: 0, balance_restored: true });
+  expect(receipt.flows).toEqual(['video', 'image', 'music', 'remotion', 'image-to-html',
+    'vectorize', 'models3d', 'tts-child-0', 'tts-child-1', 'assistant-speech']);
+});
+
 // contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
 test('billing reservation totals require a session and contain no private hold identifiers',
   async ({ page, playwright }: { page: any; playwright: any }) => {

@@ -16,12 +16,16 @@ from backend.apps.ai.daily_inspiration.content_filter import (
     check_daily_inspiration_entry,
     is_blocked_topic,
 )
-from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES, INSPIRATION_MODEL_ID
+from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
+from backend.apps.ai.daily_inspiration.writer import write_reviewed_cards
+from backend.apps.ai.daily_inspiration.writer_prompt import build_writer_request
+from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationWiki
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.wikipedia.wikipedia_api import (
     batch_validate_topics,
+    search_wikipedia_titles,
     fetch_page_summary,
     fetch_wikidata_entity,
 )
@@ -116,80 +120,81 @@ async def generate_wiki_inspirations(
         return []
 
     filtered_topics = [t for t in dict.fromkeys(topic_suggestions) if not is_blocked_topic(t)]
-    if filtered_topics:
-        sampled_topics = random.sample(filtered_topics, min(15, len(filtered_topics)))
-        topic_context = "Recent user topics:\n" + "\n".join(f"- {topic}" for topic in sampled_topics)
-    else:
-        topic_context = "No recent topics are available. Pick broadly interesting educational articles."
-
     lang_base = _language_base(language)
-    lang_instruction = "" if lang_base == "en" else f"\nWrite all user-facing text in ISO language {lang_base}."
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"Generate {count} Wikipedia article daily inspirations.\n\n"
-                f"{topic_context}\n\n"
-                "Choose notable, specific, non-promotional Wikipedia articles that match the user's interests. "
-                "ABSOLUTE RULE: Do not choose pages about companies, brands, products, apps, or commercial services. "
-                "If a recent topic mentions a company or product, reframe it to the underlying non-commercial concept, "
-                "science, engineering principle, historical event, or social question instead. "
-                "Avoid product promotion, party politics, religious promotion, explicit/sensitive content, "
-                "and OpenMates-related topics. Prefer concepts, people, places, scientific ideas, history, culture, "
-                "or technology topics with broad educational value. Use canonical Wikipedia titles with underscores."
-                f"{lang_instruction}"
-            ),
-        }
+    queries = random.sample(filtered_topics, min(3, len(filtered_topics))) if filtered_topics else [
+        "Biolumineszenz" if lang_base == "de" else "Bioluminescence",
+        "Antikythera", "Wasserkreislauf" if lang_base == "de" else "Water cycle",
     ]
-
-    result = await call_preprocessing_llm(
-        observability_purpose="inspiration",
-        task_id=task_id,
-        model_id=INSPIRATION_MODEL_ID,
-        message_history=messages,
-        tool_definition=_build_wiki_tool_definition(language),
-        secrets_manager=secrets_manager,
+    titles = []
+    for query in queries:
+        try:
+            found = await search_wikipedia_titles(query, language=lang_base, limit=4)
+            titles.extend(item.key for item in found if not item.disambiguation)
+        except Exception as error:
+            logger.warning("Wiki discovery unavailable: %s", type(error).__name__)
+    validated = await batch_validate_topics(list(dict.fromkeys(titles))[:12], language=lang_base)
+    sources = {}
+    candidates = []
+    for valid in validated:
+        summary = await fetch_page_summary(valid.wiki_title.replace(" ", "_"), language=lang_base)
+        if not summary or not summary.get("extract"):
+            continue
+        entity = await fetch_wikidata_entity(valid.wikidata_id) if valid.wikidata_id else None
+        metadata = {"title": summary.get("title") or valid.wiki_title,
+                    "description": summary.get("description") or valid.description,
+                    "extract": summary["extract"], "wiki_title": valid.wiki_title}
+        if check_daily_inspiration_entry({"content_type": "wiki", "title": valid.wiki_title,
+                "wiki_metadata": metadata}, wikidata_entity=entity)["verdict"] == "REJECT":
+            continue
+        sources[_canonical_title_key(valid.wiki_title)] = (valid, summary, entity)
+        candidates.append({**metadata, "wiki_title": valid.wiki_title})
+    selected = await review_candidates(candidates, secrets_manager, rank=True, task_id=task_id)
+    selected = selected[:count]
+    if not selected:
+        return []
+    selected_by_title = {_canonical_title_key(row["wiki_title"]): row for row in selected}
+    request = build_writer_request(
+        "wiki", lang_base, selected, _build_wiki_tool_definition(language),
     )
-    if result.error_message or not result.arguments:
-        logger.warning("[DailyInspiration][%s] Wiki LLM failed: %s", task_id, result.error_message)
-        return []
+    rejection_feedback = {}
 
-    raw_articles = result.arguments.get("articles", [])
-    if not isinstance(raw_articles, list):
-        return []
+    async def accept(arguments):
+        return await _assemble_wiki_inspirations(
+            arguments["articles"], selected_by_title, sources, count, secrets_manager, task_id, language=lang_base,
+            rejection_feedback=rejection_feedback,
+        )
 
-    candidate_titles = [
-        str(item.get("wiki_title", "")).strip()
-        for item in raw_articles
-        if isinstance(item, dict) and item.get("wiki_title")
-    ]
-    validated = await batch_validate_topics(candidate_titles, language=lang_base)
-    valid_by_title = {topic.wiki_title.lower(): topic for topic in validated}
-    valid_by_original = {topic.topic.lower(): topic for topic in validated}
+    return await write_reviewed_cards(
+        writer_call=call_preprocessing_llm, accept=accept, count=len(selected),
+        collection="articles", task_id=task_id, message_history=request["message_history"],
+        source_ids=list(selected_by_title),
+        raw_source_id=lambda raw: _canonical_title_key(raw.get("wiki_title", "")),
+        card_source_id=lambda card: _canonical_title_key(card.wiki.wiki_title),
+        rejection_feedback=rejection_feedback,
+        tool_definition=request["tool_definition"], secrets_manager=secrets_manager,
+    )
 
+
+async def _assemble_wiki_inspirations(
+    raw_articles, selected_by_title, sources, count, secrets_manager, task_id, *, language="en",
+    rejection_feedback=None,
+):
+    """Review each copy attempt against the already fetched Wikipedia evidence."""
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
+    used_titles = set()
     for raw in raw_articles:
         if len(inspirations) >= count or not isinstance(raw, dict):
             break
         raw_title = str(raw.get("wiki_title", "")).strip()
-        valid = valid_by_title.get(raw_title.lower()) or valid_by_original.get(raw_title.lower())
-        if not valid:
+        key = _canonical_title_key(raw_title)
+        if key in used_titles or key not in selected_by_title or key not in sources:
             continue
-        if _canonical_title_key(raw_title) != _canonical_title_key(valid.wiki_title):
-            logger.info(
-                "[DailyInspiration][%s] Skipping redirected wiki candidate %r -> %r",
-                task_id,
-                raw_title,
-                valid.wiki_title,
-            )
-            continue
-
-        summary = await fetch_page_summary(valid.wiki_title.replace(" ", "_"), language=lang_base)
+        valid, summary, wikidata_entity = sources[key]
         phrase = str(raw.get("phrase", "")).strip()
         title = str(raw.get("title", "")).strip() or valid.wiki_title
         assistant_response = str(raw.get("assistant_response", "")).strip() or None
-        category = str(raw.get("category", "general_knowledge")).strip()
+        category = selected_by_title[key]["editorial_category"]
         raw_suggestions = raw.get("follow_up_suggestions", [])
         follow_up_suggestions = (
             [s.strip() for s in raw_suggestions if isinstance(s, str) and s.strip()][:3]
@@ -202,7 +207,6 @@ async def generate_wiki_inspirations(
         summary_title = summary.get("title") if summary else valid.wiki_title
         summary_description = (summary or {}).get("description") or valid.description
         summary_extract = (summary or {}).get("extract")
-        wikidata_entity = await fetch_wikidata_entity(valid.wikidata_id) if valid.wikidata_id else None
         wiki_metadata = {
             "title": summary_title,
             "wiki_title": valid.wiki_title,
@@ -220,7 +224,7 @@ async def generate_wiki_inspirations(
             ),
             "video_channel_name": "Wikipedia",
             "category": category,
-            "content_type": "wiki",
+            "content_type": "wiki", "language": language,
             "wiki_metadata": wiki_metadata,
         }
         policy_result = check_daily_inspiration_entry(
@@ -237,6 +241,7 @@ async def generate_wiki_inspirations(
             continue
 
         wiki = DailyInspirationWiki(
+            source_language=language,
             title=summary_title,
             wiki_title=valid.wiki_title.replace(" ", "_"),
             description=summary_description,
@@ -244,8 +249,10 @@ async def generate_wiki_inspirations(
             wikidata_id=valid.wikidata_id,
             extract=summary_extract,
         )
+        used_titles.add(key)
         inspirations.append(
             DailyInspiration(
+                language=language,
                 inspiration_id=str(uuid.uuid4()),
                 phrase=phrase,
                 title=title,
@@ -258,5 +265,19 @@ async def generate_wiki_inspirations(
             )
         )
 
-    logger.info("[DailyInspiration][%s] Generated %d/%d wiki inspirations", task_id, len(inspirations), count)
+    # Article existence and keyword matching cannot establish editorial quality.
+    # Review the completed copy, all follow-ups and the actual fetched summary.
+    candidates = [{
+        "title": item.wiki.title, "description": item.wiki.description or "",
+        "extract": item.wiki.extract or "", "wiki_title": item.wiki.wiki_title,
+        "content_type": "wiki", "language": language, "card_title": item.title, "phrase": item.phrase,
+        "assistant_response": item.assistant_response or "",
+        "follow_up_suggestions": item.follow_up_suggestions,
+        "record": item, "_review_identity": _canonical_title_key(item.wiki.wiki_title),
+    } for item in inspirations if item.wiki]
+    reviewed = await review_candidates(candidates, secrets_manager, rank=True, task_id=task_id,
+                                       rejection_feedback=rejection_feedback)
+    inspirations = [row["record"].model_copy(update={"category": row["editorial_category"]})
+                    for row in reviewed]
+    logger.info("[DailyInspiration][%s] Generated %d/%d reviewed wiki inspirations", task_id, len(inspirations), count)
     return inspirations

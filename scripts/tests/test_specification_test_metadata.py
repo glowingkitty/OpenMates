@@ -193,3 +193,109 @@ def test_test_index_separates_direct_and_supporting_proof(tmp_path):
 
     assert len(record["direct_tests"]) == 1
     assert len(record["supporting_tests"]) == 1
+
+
+# contract-test: tooling
+def test_parses_only_attributed_rust_sync_and_async_cases(tmp_path):
+    module = load_module()
+    path = tmp_path / "authority_tests.rs"
+    path.write_text(
+        '''fn fixture() {}
+async fn helper() {}
+fn test_named_helper() {}
+// #[test] is documentation, not an attribute.
+#[cfg(test)]
+fn configuration_helper() {}
+// contract-test: supporting surface=sdks.rust assertions=web-search.request.validated
+#[test]
+fn cancels_original_parent() {}
+// contract-test: supporting surface=sdks.rust assertions=web-search.surface-parity
+#[tokio::test(flavor = "current_thread")]
+async fn refuses_after_allocation() {}
+// contract-test: supporting surface=sdks.rust assertions=web-search.request.validated
+#[tokio::test(
+    flavor = "multi_thread",
+    worker_threads = 2,
+)]
+#[cfg(not(target_arch = "wasm32"))]
+async fn reads_original_response() {}
+''',
+        encoding="utf-8",
+    )
+
+    records = module.parse_test_metadata(path)
+
+    assert [record.name for record in records] == [
+        "cancels_original_parent",
+        "refuses_after_allocation",
+        "reads_original_response",
+    ]
+    assert [record.line for record in records] == [8, 11, 14]
+    assert all(record.classification == "supporting" for record in records)
+    assert all(record.surface == "sdks.rust" for record in records)
+    assert module.check_test_file(path, registry(), changed=True) == []
+
+
+# contract-test: tooling
+def test_rust_helpers_and_unrelated_attributes_do_not_create_test_cases(tmp_path):
+    module = load_module()
+    path = tmp_path / "helpers.rs"
+    path.write_text(
+        "// contract-test: supporting surface=sdks.rust assertions=web-search.request.validated\n"
+        "fn test_named_helper() {}\n"
+        "#[cfg(test)]\nfn fixture() {}\n"
+        "#[test_helper]\nasync fn helper() {}\n",
+        encoding="utf-8",
+    )
+
+    assert module.parse_test_metadata(path) == []
+    assert any(
+        "no recognized test cases" in error
+        for error in module.check_test_file(path, registry(), changed=True)
+    )
+
+
+# contract-test: tooling
+def test_changed_rust_cases_require_metadata_and_validate_existing_assertion_rules(tmp_path):
+    module = load_module()
+    path = tmp_path / "unmapped.rs"
+    path.write_text("#[test]\nfn ordinary_case() {}\n", encoding="utf-8")
+    assert any(
+        "missing contract-test metadata" in error
+        for error in module.check_test_file(path, registry(), changed=True)
+    )
+    path.write_text(
+        "// contract-test: supporting assertions=unknown.assertion\n"
+        "#[tokio::test]\nasync fn bad_metadata() {}\n",
+        encoding="utf-8",
+    )
+    errors = module.check_test_file(path, registry(), changed=True)
+    assert any("requires a surface" in error for error in errors)
+    assert any("unknown assertion" in error for error in errors)
+
+
+# contract-test: tooling
+def test_explicit_rust_files_reach_supporting_index_without_expanding_discovery(tmp_path):
+    module = load_module()
+    path = tmp_path / "authority_tests.rs"
+    path.write_text(
+        "// contract-test: supporting surface=sdks.rust assertions=web-search.request.validated\n"
+        "#[tokio::test]\nasync fn retains_original_authority() {}\n",
+        encoding="utf-8",
+    )
+    singular = tmp_path / "authority_test.rs"
+    singular.write_text(
+        "// contract-test: supporting surface=sdks.rust assertions=web-search.surface-parity\n"
+        "#[test]\nfn retains_denial() {}\n",
+        encoding="utf-8",
+    )
+    # This parser fix deliberately leaves automatic discovery's old scope held.
+    # Explicit check-test/index-tests can validate supplied Rust source now.
+    assert not module._is_test_file(str(path))
+    assert not module._is_test_file(str(singular))
+    assert module._repository_test_files(tmp_path) == []
+    assert module.check_test_file(path, registry(), changed=True) == []
+    assert module.check_test_file(singular, registry(), changed=True) == []
+    index = module.build_test_index([path, singular], registry(), repo_root=tmp_path)
+    assert len(index["assertions"]["web-search.request.validated"]["supporting_tests"]) == 1
+    assert len(index["assertions"]["web-search.surface-parity"]["supporting_tests"]) == 1

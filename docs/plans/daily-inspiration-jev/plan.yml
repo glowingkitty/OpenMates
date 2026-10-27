@@ -1,0 +1,226 @@
+schema_version: 2
+profile: concise
+id: daily-inspiration-jev
+title: Evaluate clearer Mercury writing against Gemini with unchanged Jev gates
+status: verified
+goal: Optimize the prompting and input given to Mercury 3 so the model has clearer instructions, evaluate
+  whether this fixes the issues, and decide whether it can replace Gemini 3.8 Flash for daily inspirations.
+scope_notes:
+- Keep one Jev 1.14 decision model and one writing LLM. No additional runtime LLM reviewer, cross-model
+  fallback, account model override or activity-gate change.
+- Build a lean source-bound writer request with consistent tool descriptions and a single copy brief.
+  Preserve approved source identities, source passages, requested language, policy thresholds and thumbnail
+  gates.
+- Benchmark current Gemini, original-prompt Mercury and clearer-prompt Mercury on the same frozen EN/DE
+  evidence, keeping Mercury sampling and reasoning unchanged between its arms.
+- Inspect all raw drafts against the exact evidence independently of admission, separating malformed/provider
+  output, real copy errors and conservative Jev rejection.
+- Switch the sole daily writer to Mercury only if its output is practically comparable to Gemini, source/format
+  reliability and unchanged admission do not materially regress, and measured cost/latency favor replacement.
+  Otherwise retain Gemini and report the specific remaining cause.
+- Use scoped dev deployment for real-inference candidates; no production-server deployment or broad multilingual
+  optimization.
+- Latest user steering explicitly requests further optimization to use Mercury. Integrate the clear source-bound
+  request and LOW/0.5 sole Mercury writer; verify before final dev rollout.
+- Correct Jev language-question wording to name the target language and allow headings/fragments without
+  wrongly banning English for English. Keep choices, uncertainty handling, finite-confidence threshold,
+  grounding/relevance/policy and actual pixel checks unchanged; invalidate old proof/cache.
+checks:
+- Focused provider-free prompt/source-whitelist/schema/retry and benchmark-isolation tests, scoped lint,
+  isolated GitHub CI.
+- One fresh paired cohort of twelve planned EN/DE source slots across auroras, recycling and seed dispersal;
+  one native writing attempt per arm/source. Record terminal source shortages rather than resample after
+  outputs.
+- Automated model/admission-blind source-only audit of every draft, plus current production Jev admission,
+  source identity, actual thumbnails, supplier usage and latency.
+- If replacement is supported, cover and verify actual runtime configuration and writer integration before
+  scoped dev rollout.
+- One separately identified native release smoke on four fixed public sources, freshly reviewed under
+  current gates, including the previously cancelled Mercury source; gate-only recheck of the ten clear
+  positives, five real grounding negatives and explicit wrong-language/off-topic controls. Preserve the
+  original one-attempt comparison unchanged.
+- 'After the observed v9 qualifier false admission, one v10 gate-only native recheck on the same fixed
+  nineteen cases plus four actual release drafts and one independent English exclusivity mutation: fourteen
+  positives and ten negatives. No further LLM writing calls; preserve failed v9 evidence.'
+decision_notes:
+- 'The previous three-source check did not establish Mercury incapability: all responses were structured
+  correctly and all five withholds appeared to be Jev false holds in source-only automated review.'
+- 'Current video instructions conflict: rich three-to-five-sentence schema vs exact-three grounded system
+  brief; stale writer selection duties and unrelated examples remain. Clarify the request without relaxing
+  admission criteria.'
+- 'Follow Inception prompt guidance: short role/style, structured evidence, current task and critical
+  checks last. Keep LOW reasoning and temperature 0.5 in both Mercury arms to isolate prompt changes.'
+- Provider/prompt internals remain implementation details under existing feature.daily-inspiration@2 and
+  feature.language-preferences@1. Source-only review is automated, not native-speaker gold.
+previous_v7_evidence:
+  implementation_commit: be96267b0894c144e54aec6d914946067a06251e
+  core_implementation_commit: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
+  policy_version: daily-editorial-v7
+  public_cache_version: v16
+  focused_local: 227 focused backend tests and 29 benchmark-accounting checks passed in their respective
+    selections; counts overlap and are not summed.
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39595728586
+  isolated_ci_source: 4193f508d19f8d795f67de231379a51b315e77df
+  isolated_ci_result: 226 selected tests passed; receipt retrieved and evidence command completed with
+    no unit-test recording inventory. Core implementation matched the tested candidate; the follow-up
+    tracing-label correction passed 36 focused local tests with the real provider-span validator and scoped
+    Ruff.
+  english_german_controls: Fourteen of fourteen fixed real-provider labels matched; seven valid cards
+    accepted and seven negative cards withheld. One timeout succeeded on its allowed retry. Automated
+    controls, not native-speaker gold.
+  independent_review: No blocking code issues found; independent automated inspection of all ten corrected-sample
+    admissions against retained source projections found no obvious material copy/relevance blocker.
+  current_report: docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+  runtime: Corrected-source reload docker-0d806d4a completed with all seventeen consumers healthy. Both
+    exact-source Vercel checks passed for be96267b0894c144e54aec6d914946067a06251e; twelve runtime module
+    hashes verified before paid calls.
+  integration_regression: Initial EN/DE live diagnostic exposed an unregistered tracing label before Gemini
+    dispatch. Corrected to the existing inspiration purpose and covered with the real provider-span validator;
+    no prompt/model/threshold changes.
+  final_refresh: Corrected English sample delivered three video, three wiki and four static cards in 202.66
+    seconds; German delivered one video, three wiki and four static cards in 60.94 seconds. German source
+    shortage retains localized public fallback and prior personal set. Both samples observed all four
+    intended models; no account/pool writes.
+  german_shortfall: Two generated German videos were excluded by the existing five-year science age cap
+    (2017 and 2019 publications), despite successful retrieval, thumbnail checks and writer fallback.
+    Improve replacement discovery rather than weaken that policy.
+  final_refresh_receipt: /app/test-results/d115-v7-corrected-refresh-20261021/summary.json
+  release_costs: Original English incomplete attempt USD0.018906930; corrected English complete ten USD0.059215606
+    captured-response estimate plus three unpriced cancellations; German incomplete eight USD0.042219968.
+    Google cache counters absent; captured Google responses use uncached upper estimates. No savings claim
+    or historical German comparison.
+  release_cost_aggregate: docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.json
+  accepted_scope_result: Practical English/German dev rollout delivered with strict source/copy/thumbnail
+    gates and complete localized public recovery. German recent-video discovery and other-locale copy
+    precision remain bounded follow-ups; no claim of full twenty-language production qualification or
+    production-server deployment.
+previous_v6_evidence:
+  implementation_commit: 76419cba88796db635c80e0c5218ece0783a581c
+  policy_version: daily-editorial-v6
+  public_cache_version: v15
+  focused_local: 163 focused backend and benchmark-tooling tests passed; scoped lint passed.
+  isolated_boundary_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39573343486
+  isolated_public_feed_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39574090167
+  isolated_writer_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39579556331
+  isolated_generator_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39582942072
+  evidence_delivery: Receipt evidence commands completed; latest DE, JA and static-fallback browser recordings
+    uploaded successfully.
+  runtime: docker-78d5bd31 completed with all seventeen affected consumers healthy; both exact-source
+    Vercel deployments succeeded.
+  text_controls: All sixty negatives withheld, but only ten of sixty valid multilingual positives admitted;
+    zero unavailable decisions.
+  historical_regressions: Nineteen of twenty-three scored labels matched; one Turkish causal-role negative
+    admitted, three positives withheld, one additional uncertain case unscored. Original valid Japanese
+    paraphrase accepted.
+  thumbnail_controls: All one hundred actual JPEG-panel decisions matched; sixty honest and forty deceptive.
+    Five translated templates, not one hundred independent natural thumbnails.
+  language_pilots: Two exploratory twenty-four-case pilots improved positive acceptance but each admitted
+    a known wrong-English-introduction control; neither adopted.
+  fresh_paired: All twenty locales and one hundred fifty-six paired batches complete; two hundred planned
+    slots per arm, one hundred sixty-eight eligible, thirty-two frozen source shortfalls. Mercury fifteen
+    first / thirty-four final admissions; Gemini twenty-one / thirty-nine.
+  blinded_review: All seventy-three admitted cards and forty sampled withholds reviewed provider/admission-blind;
+    twenty-one flags adjudicated before unblinding. Mercury zero material / zero uncertain among thirty-four;
+    Gemini five material / one uncertain among thirty-nine. Automated review, not human/native gold.
+  recovery: Approved source-bound cards preserved; fallback request conversion fixed and all four Gemini
+    full-refresh fallback calls succeeded. Neither sampled full-refresh architecture produced a complete
+    personal set; localized ten-card public recovery verified in browser CI.
+  original_baseline: c94ebe85a14f87aa3223eacfe129aa85ec93d939
+  full_refresh_costs: Declared thirty-second original-architecture replay averaged USD0.019273155 per
+    attempt; current USD0.029581853 launch / USD0.034852118 regular. No completed-set price, original
+    production invoice or saving established.
+  qualification: Failed for production; language precision, known causal-role false admission and complete
+    personal-refresh yield remain unresolved. Keep the Mercury retry chain as the preferred dev candidate;
+    do not weaken thresholds or adopt failed pilots.
+  experiment_delivery: Authorized granular implementation, native comparison, source-only audit, historical
+    cost overview and scoped dev deployment delivered. Production qualification remains active; no production
+    deployment performed.
+  current_report: docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+  cost_aggregate: docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json
+  paired_aggregate: docs/plans/daily-inspiration-jev/granular-paired-aggregate-2026-10-21.json
+  blind_audit: docs/plans/daily-inspiration-jev/blinded-review-2026-10-21.json
+  historical_reports:
+  - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
+  - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+  - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+  - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
+  - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+  - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+previous_v8_evidence:
+  policy_version: daily-editorial-v8
+  public_cache_version: v17
+  current_report: docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+  status: Approved single-LLM dev workflow implemented, tested and deployed; bounded native comparison
+    completed with conservative Jev admission limitations recorded.
+  implementation_commit: 1c60de459e0a4e828f6c886e8e8cf68bc23fa710
+  focused_local: 264 relevant backend/tooling tests passed; scoped Ruff passed.
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39644743177
+  isolated_ci_source: d85a8207a65847aec978da593fa0d44271ba6d52
+  isolated_ci_result: 264 selected tests passed; exact receipt retrieved and evidence command completed
+    with empty unit-recording inventory. All 26 scoped deployment paths matched the tested candidate;
+    local dispatcher-adoption files were excluded from deployment.
+  independent_review: No material blocker in core writer, decisions, source binding, activity guard or
+    proof/cache version review.
+  runtime: Coordinated docker-4120c7ff reload completed with all seventeen consumers healthy. Exact-source
+    frontend readiness passed for implementation commit 1c60de459e0a4e828f6c886e8e8cf68bc23fa710. Thirteen
+    runtime module hashes matched before native calls.
+  paired_comparison: Four planned EN/DE source slots, three eligible, one frozen English-video source
+    shortfall. Each model made three writing calls with no retry, fallback or LLM review. Gemini admitted
+    one card, Mercury zero under the same Jev gates; all six drafts had valid structures and source identities.
+  paired_report: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
+  paired_aggregate: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
+  source_only_audit: Independent automated review of all six drafts against retained source evidence found
+    no obvious material copy blocker. Gemini holds were correct-choice language/grounding answers below
+    the existing confidence threshold. Not native-speaker gold or a writer-quality ranking.
+  remaining_work: Medium-priority EN/DE Jev false-rejection calibration and recent German-video discovery
+    can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
+    cover incomplete results. No additional paid sweeps or production-server deployment.
+evidence:
+  status: Sole Mercury writer and bounded v10 grounding clarification verified and deployed to dev.
+    Final native checks passed; failed v9 evidence retained. No production-server deployment.
+  policy_version: daily-editorial-v10
+  public_cache_version: v19
+  current_report: docs/plans/daily-inspiration-jev/mercury-prompt-evaluation-2026-10-22.md
+  diagnostic_commit: 0b8885c012fbf3de81e8888210b330a15ff5527f
+  focused_local: Final focused selection passed all 297 checks; scoped Ruff passed. Earlier selections
+    overlap and are not added.
+  initial_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39744938433
+  initial_ci_result: 75 focused diagnostic checks passed; receipt and evidence command retrieved, empty
+    unit recording inventory.
+  initial_native: Twelve planned sources; eleven eligible and one terminal source shortfall. Thirty-three
+    one-attempt writer rows complete, thirty-two returned structured drafts; one clearer-Mercury cancellation
+    at thirty seconds has unknown spend.
+  blind_audit: 'Labels fixed before unblinding: clear Mercury ten pass; original Mercury six pass/four
+    material/one uncertain; Gemini eight pass/two minor/one material. All material and uncertain outputs
+    withheld by unchanged v8 Jev. Automated source-only audit, not native-speaker gold.'
+  audit_report: docs/plans/daily-inspiration-jev/mercury-prompt-blind-audit-2026-10-22.json
+  cost_aggregate: docs/plans/daily-inspiration-jev/mercury-prompt-costs-2026-10-22.json
+  mercury_integration_commit: 32d62b7f4adf328ce5530d6f71ef670eaffc35d1
+  implementation_commit: 161e2df3f927cf615d70c3fec8575c9086bc189c
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39750076090
+  isolated_ci_source: 614628cfee1e969bbca63712b3684320122e6bb7
+  isolated_ci_result: All 297 focused checks passed; all fifteen scoped paths matched the tested candidate.
+    Three unrelated dispatcher-adoption files were excluded. Receipt/evidence command retrieved with
+    empty unit recording inventory. Independent integration review found no material issues.
+  runtime: Final docker-e7ca37eb operation completed with all seventeen consumers healthy; fourteen exact
+    module hashes verified before the v10 native diagnostic. Exact-source frontend readiness passed for
+    implementation commit 161e2df3f927cf615d70c3fec8575c9086bc189c.
+  v9_native: All four fresh source gates eligible, all four Mercury writing calls parsed and admitted;
+    previously cancelled source recovered. All nineteen controls available; six of ten positives admitted,
+    four of five material negatives withheld and all four wrong-language/off-topic negatives withheld.
+    One real mostly-to-only false admission makes this gate check FAIL; raw receipts retained.
+  v9_release_report: docs/plans/daily-inspiration-jev/mercury-release-check-2026-10-22.json
+  v10_repair: Clarify scope, qualifiers/quantifiers and causal roles locally in every existing grounding
+    question; usually/mostly does not imply always/only/all, including question premises. Choices and
+    confidence threshold unchanged. New native-boundary unit cases green.
+  v10_native: All twenty-four decisions available; all ten negatives withheld, including the known German
+    qualifier error and added English exclusivity mutation. Eleven of fourteen positives admitted,
+    including all four completed actual Mercury runtime drafts. Fresh native decisions and thumbnail
+    pixels on saved evidence; no new writer/discovery calls or reruns.
+  v10_gate_report: docs/plans/daily-inspiration-jev/mercury-v10-gates-2026-10-22.json
+  v10_gate_cost: USD0.004169046 for twenty-eight native Jev responses; no unknown usage or provider errors.
+    Diagnostic expense, not a production card price.
+  remaining_work: Medium-priority conservative Jev yield calibration for three valid-draft holds and
+    the previously recorded recent German-video discovery improvement. Localized recovery and prior
+    personal-set retention cover incomplete results. Practical English/German scope delivered; no further
+    paid sweeps or twenty-language quality certification required for this outcome.

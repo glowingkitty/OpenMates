@@ -9,6 +9,7 @@ const forDomain = (domain: (typeof domainFixtures)[keyof typeof domainFixtures])
 const defaultProps = forDomain(domainFixtures.com);
 export default defaultProps;
 export const variants = {
+  missingData: forDomain(domainFixtures.unknown),
   unavailable: forDomain(domainFixtures.org),
   unknown: forDomain(domainFixtures.unknown),
   premium: forDomain(domainFixtures.premium),

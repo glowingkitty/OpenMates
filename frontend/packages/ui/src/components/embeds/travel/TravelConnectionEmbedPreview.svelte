@@ -13,14 +13,18 @@
 -->
 
 <script lang="ts">
+  import transportIconUrl from '../../../../static/icons/travel.svg';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import Luggage from '@lucide/svelte/icons/luggage';
+  import Slash from '@lucide/svelte/icons/slash';
+  import { text } from '@repo/ui';
+  import TravelTimeBadge from './TravelTimeBadge.svelte';
+  import { countryCodeToFlag } from '../../../utils/countryFlag';
+  import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
+  import { extractResultRoute } from '../resultMapRoutes';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
   import { formatTravelFare, type TravelFare } from './fareDisplay';
 
-  const PROVIDER_FAVICONS = [
-    { match: 'deutsche bahn', url: 'https://www.bahn.de/favicon.ico' },
-    { match: 'flix', url: 'https://www.flixbus.com/favicon.ico' },
-  ];
   
   /**
    * Props for travel connection embed preview
@@ -28,6 +32,8 @@
    * raw TOON-decoded embed content into this structured format
    */
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
+    connection?: Record<string, unknown>;
     /** Unique embed ID */
     id: string;
     /** Total price (e.g., '245.50') */
@@ -60,7 +66,7 @@
     hasCancellation?: boolean;
     /** Carrier names */
     carriers?: string[];
-    /** Provider used for booking/search, e.g. Deutsche Bahn or FlixBus / FlixTrain */
+    /** Provider used for booking/search, supplied by the stored connection */
     bookingProvider?: string;
     /** Primary provider/logo URL from the connection result */
     airlineLogo?: string;
@@ -79,14 +85,14 @@
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
     isMobile?: boolean;
-    /** Optional fixed desktop height for constrained preview surfaces */
-    customHeight?: number;
     /** Click handler for fullscreen */
     onFullscreen: () => void;
   }
   
   let {
+    resultContext = 'auto',
     id,
+    connection,
     price,
     currency = 'EUR',
     fare,
@@ -98,23 +104,34 @@
     departure,
     arrival: _arrival,
     duration,
-    stops = 0,
+    stops: _stops = 0,
     arrivalDelayMinutes,
     hasCancellation = false,
     carriers: carriersProp = [],
     bookingProvider,
     airlineLogo,
     carrierCodes: carrierCodesProp = [],
-    bookableSeats,
+    bookableSeats: _bookableSeats,
     optimization,
     // isCheapest not used in redesigned preview — price is always green
     isCheapest: _isCheapest = false,
     status = 'finished',
     isMobile = false,
-    customHeight = 250,
     onFullscreen
   }: Props = $props();
   
+  let previewLegs = $derived.by(() => {
+    const legs = Array.isArray(connection?.legs) ? connection.legs as Record<string, unknown>[] : [];
+    return legs.length ? legs : [{ origin, destination, departure, arrival: _arrival, duration }];
+  });
+  function legDate(value: unknown) {
+    if (typeof value !== 'string') return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function legText(value: unknown) { return typeof value === 'string' ? value : ''; }
+  let routeMap = $derived(extractResultRoute(connection || {}));
+
   // Defensive: TOON serialization may collapse arrays into bare strings.
   // Ensure carriers and carrierCodes are always arrays even if a non-array
   // value slips through from the renderer. Belt-and-suspenders with the
@@ -134,7 +151,7 @@
     return formatTravelFare({ fare, total_price: price, currency, fare_is_partial: fareIsPartial });
   });
   
-  // BasicInfosBar shows the compact route title; the card itself shows travel times.
+  // Match the existing fullscreen locale-aware travel times.
   function formatTime(value?: string): string {
     if (!value) return '';
     const date = new Date(value);
@@ -142,48 +159,8 @@
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  let departureTime = $derived(formatTime(departure));
-  let arrivalTime = $derived(formatTime(_arrival));
+  let failedCarrierLogos = $state<string[]>([]);
 
-  let timeLine = $derived.by(() => {
-    if (departureTime && arrivalTime) return `${departureTime} → ${arrivalTime}`;
-    return departureTime || arrivalTime;
-  });
-  
-  // Format departure date for display (e.g., "Sat, Mar 28")
-  let departureDate = $derived.by(() => {
-    if (!departure) return '';
-    try {
-      const date = new Date(departure);
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    } catch {
-      return '';
-    }
-  });
-
-  // Trip type label for price display
-  let tripTypeLabel = $derived.by(() => {
-    switch (tripType) {
-      case 'round_trip': return 'Round trip';
-      case 'multi_city': return 'Multi-city';
-      default: return 'One way';
-    }
-  });
-
-  // Combined meta line: "Sat, Mar 28 · 31h 20m · 2 stops"
-  let metaLine = $derived.by(() => {
-    const parts: string[] = [];
-    if (departureDate) parts.push(departureDate);
-    if (duration) parts.push(duration);
-    parts.push(stopsLabel);
-    return parts.join(' · ');
-  });
-  
-  let providerFaviconUrl = $derived.by(() => {
-    if (airlineLogo) return airlineLogo;
-    const normalizedProvider = (bookingProvider || _carriers[0] || '').toLowerCase();
-    return PROVIDER_FAVICONS.find(provider => normalizedProvider.includes(provider.match))?.url || undefined;
-  });
 
   let carrierLogos = $derived.by(() => {
     if (transportMethod === 'airplane') {
@@ -197,29 +174,16 @@
       return [];
     }
 
-    if (!providerFaviconUrl) return [];
-    return [{ label: bookingProvider || _carriers[0] || 'Provider', url: proxyImage(providerFaviconUrl, MAX_WIDTH_AIRLINE_LOGO) }];
+    if (!airlineLogo) return [];
+    return [{ label: bookingProvider || _carriers[0] || 'Provider', url: proxyImage(airlineLogo, MAX_WIDTH_AIRLINE_LOGO) }];
   });
   
-  // Stops label
-  let stopsLabel = $derived.by(() => {
-    if (stops === 0) return 'Direct';
-    if (stops === 1) return '1 stop';
-    return `${stops} stops`;
-  });
-
   let realtimeStatus = $derived.by(() => {
     if (hasCancellation) return 'Cancellation on route';
     if (arrivalDelayMinutes == null) return '';
     if (arrivalDelayMinutes === 0) return 'On time';
     if (arrivalDelayMinutes > 0) return `+${arrivalDelayMinutes} min arrival`;
     return `${arrivalDelayMinutes} min arrival`;
-  });
-
-  let realtimeStatusTone = $derived.by(() => {
-    if (hasCancellation) return 'cancelled';
-    if (arrivalDelayMinutes == null || arrivalDelayMinutes === 0) return 'ontime';
-    return arrivalDelayMinutes > 0 ? 'late' : 'early';
   });
 
   let optimizationBadge = $derived.by(() => {
@@ -251,6 +215,29 @@
     return location.replace(/\s*\([^)]*\)/g, '').split(' ')[0] || location;
   }
   
+  function segmentFor(leg: Record<string, unknown>, end: 'departure' | 'arrival') {
+    const segments = Array.isArray(leg.segments) ? leg.segments as Record<string, unknown>[] : [];
+    return (end === 'departure' ? segments[0] : segments.at(-1)) || {};
+  }
+  function journeyTime(leg: Record<string, unknown>, end: 'departure' | 'arrival') {
+    const segment = segmentFor(leg, end);
+    return formatTime(legText(leg[end] || segment[`${end}_time`]) || (end === 'departure' ? departure : _arrival));
+  }
+  function journeyCountry(leg: Record<string, unknown>, end: 'departure' | 'arrival', index: number) {
+    const value = segmentFor(leg, end)[`${end}_country_code`] || leg[end === 'departure' ? 'origin_country_code' : 'destination_country_code']
+      || (index === 0 || (index === 1 && tripType === 'round_trip') ? connection?.[index % 2 === (end === 'departure' ? 0 : 1) ? 'origin_country_code' : 'destination_country_code'] : undefined);
+    return typeof value === 'string' ? countryCodeToFlag(value) : '';
+  }
+  function journeyLocation(leg: Record<string, unknown>, end: 'departure' | 'arrival') {
+    const value = leg[end === 'departure' ? 'origin' : 'destination'] || segmentFor(leg, end)[`${end}_station`] || (end === 'departure' ? origin : destination);
+    return typeof value === 'string' ? extractCode(value) : '';
+  }
+  let luggageExcluded = $derived.by(() => {
+    const states = [connection?.luggage_included, connection?.baggage_included, connection?.checked_baggage_included];
+    // Conflicting inclusion metadata is uncertain, so it must not show an exclusion.
+    return states.includes(false) && !states.includes(true);
+  });
+
   // No-op stop handler (connections don't have cancellable tasks)
   async function handleStop() {
     // Not applicable for child connection embeds
@@ -258,6 +245,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="travel"
   skillId="connection"
@@ -269,213 +258,84 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  {customHeight}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
-      <!-- Price row: green price + trip type + airline logos -->
-      <div class="price-row">
-        {#if formattedPrice}
-          <span class="connection-price" data-testid="connection-price">{formattedPrice}</span>
-          <span class="trip-type-separator">|</span>
-          <span class="trip-type-label">{tripTypeLabel}</span>
+  {#snippet details()}
+    <div class="connection-result-layout" class:has-map={routeMap.length > 1} data-testid="connection-preview-details">
+      <div class="connection-information">
+        {#if carrierLogos.length > 0}
+          <div class="airline-logos" data-testid="airline-logos">
+            {#each carrierLogos as logo}
+              <img class="airline-logo" src={failedCarrierLogos.includes(logo.url) ? transportIconUrl : logo.url}
+                alt={logo.label} width="22" height="22" loading="lazy"
+                onerror={() => { if (!failedCarrierLogos.includes(logo.url)) failedCarrierLogos = [...failedCarrierLogos, logo.url]; }} />
+            {/each}
+          </div>
         {/if}
-      </div>
-
-      <!-- Carrier/provider logos row -->
-      {#if carrierLogos.length > 0}
-        <div class="airline-logos" data-testid="airline-logos">
-          {#each carrierLogos as logo}
-            <img
-              class="airline-logo"
-              src={logo.url}
-              alt={logo.label}
-              width="22"
-              height="22"
-              loading="lazy"
-            />
+        <div class="itinerary-columns" data-testid="connection-route" class:single-journey={previewLegs.length === 1}>
+          {#each previewLegs as leg, index}
+            <div class="itinerary-leg">
+              <small class="journey-date">{legDate(leg.departure || segmentFor(leg, 'departure').departure_time)}</small>
+              <div class="journey-departure" data-testid="connection-time"><TravelTimeBadge time={journeyTime(leg, 'departure')} isDaytime={segmentFor(leg, 'departure').departure_is_daytime as boolean | undefined} /></div>
+              <strong class="journey-airport" title={legText(leg.origin) || origin}>{journeyCountry(leg, 'departure', index)} {journeyLocation(leg, 'departure')}</strong>
+              <span class="journey-duration" data-testid="connection-meta">{legText(leg.duration) || duration || ''}</span>
+              <strong class="journey-airport" title={legText(leg.destination) || destination}>{journeyCountry(leg, 'arrival', index)} {journeyLocation(leg, 'arrival')}</strong>
+              <div class="journey-arrival"><TravelTimeBadge time={journeyTime(leg, 'arrival')} isDaytime={segmentFor(leg, 'arrival').arrival_is_daytime as boolean | undefined} /></div>
+            </div>
           {/each}
         </div>
-      {/if}
-
-      <!-- Route: "Berlin (BER) → Bangkok (BKK)" -->
-      {#if origin && destination}
-        <div class="connection-route" data-testid="connection-route">
-          <span class="route-text">{origin} → {destination}</span>
+        <div class="connection-footer" data-testid="connection-footer">
+          {#if luggageExcluded}<span class="luggage-excluded" role="img" aria-label={$text('result_embed.luggage_not_included')} title={$text('result_embed.luggage_not_included')} data-testid="connection-no-luggage"><Luggage size={21} aria-hidden="true" /><span class="luggage-slash"><Slash size={25} aria-hidden="true" /></span></span>{/if}
+          {#if formattedPrice}<strong class="connection-price" data-testid="connection-price">{formattedPrice}</strong>{/if}
         </div>
-      {/if}
-
-      {#if timeLine}
-        <div class="connection-time" data-testid="connection-time">{timeLine}</div>
-      {/if}
-
-      <!-- Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" -->
-      <div class="connection-meta" data-testid="connection-meta">{metaLine}</div>
-
-      {#if realtimeStatus}
-        <div class="realtime-status" class:late={realtimeStatusTone === 'late'} class:early={realtimeStatusTone === 'early'} class:ontime={realtimeStatusTone === 'ontime'} class:cancelled={realtimeStatusTone === 'cancelled'} data-testid="connection-realtime-status">
-          {realtimeStatus}
-        </div>
-      {/if}
-
-      {#if optimizationBadge}
-        <div class="optimization-badge" data-testid="connection-optimization-badge">
-          {optimizationBadge}
-        </div>
-      {/if}
-
-      <!-- Seats remaining warning -->
-      {#if bookableSeats !== undefined && bookableSeats > 0 && bookableSeats <= 4}
-        <div class="seats-warning">
-          {bookableSeats} {bookableSeats === 1 ? 'seat' : 'seats'} left
-        </div>
-      {/if}
+        {#if realtimeStatus}<div class="realtime-status" data-testid="connection-realtime-status">{realtimeStatus}</div>{/if}
+        {#if optimizationBadge}<div class="optimization-badge" data-testid="connection-optimization-badge">{optimizationBadge}</div>{/if}
+      </div>
+      {#if routeMap.length > 1}<div class="connection-map"><ResultEmbedMapPreview center={routeMap[0]} path={routeMap} zoom={5} interactive /></div>{/if}
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  /* Connection Preview — Redesigned Card Layout
-     Matches Figma: node 4950-44635 (preview section) */
-
-  .connection-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    height: 100%;
-    min-height: 0;
-    justify-content: flex-start;
-    padding: 2px 0;
+  .connection-result-layout { display: flex; height: 100%; width: 100%; min-width: 0; }
+  .connection-information { position: relative; width: 100%; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; padding: 42px 14px 30px; }
+  .airline-logos { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+  .airline-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; background: var(--color-grey-0); }
+  .itinerary-columns { display: flex; justify-content: center; align-items: stretch; width: 240px; max-width: 100%; min-width: 0; }
+  .itinerary-leg { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; padding: 0 8px; flex: 1 1 0; box-sizing: border-box; text-align: center; }
+  .single-journey { width: 120px; }
+  .itinerary-leg + .itinerary-leg { border-left: 1px solid var(--color-grey-20); }
+  .journey-date, .journey-duration { font-size: var(--font-size-xxs); font-weight: 600; line-height: 1.15; color: var(--color-font-secondary); white-space: nowrap; }
+  .journey-airport { max-width: 100%; font-size: var(--font-size-xs); line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .journey-departure :global(.time-badge), .journey-arrival :global(.time-badge) { font-size: var(--font-size-xxs); padding: 3px 7px; gap: 4px; }
+  .journey-arrival { display: none; }
+  .connection-footer { position: absolute; bottom: 8px; left: 48px; right: 48px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .connection-price { font-size: 1.2rem; font-weight: 800; line-height: 1.2; color: var(--color-success); white-space: nowrap; }
+  .luggage-excluded { position: relative; display: inline-flex; color: var(--color-font-secondary); }
+  .luggage-slash { position: absolute; inset: -2px; display: inline-flex; transform: scaleX(-1); }
+  .realtime-status, .optimization-badge { font-size: var(--font-size-xxs); line-height: 1.2; text-align: center; }
+  .realtime-status { color: var(--color-font-secondary); }
+  .optimization-badge { color: var(--color-primary); }
+  .connection-map { display: none; }
+  @container result-card (max-width: 200px) {
+    .connection-information { padding: 72px 10px 30px; }
+    .airline-logos { top: 46px; }
+    .itinerary-columns { width: 130px; }
+    .single-journey { width: 65px; }
+    .itinerary-leg { padding-left: 2px; padding-right: 2px; }
+    .journey-date, .journey-duration { font-size: var(--font-size-micro); }
+    .journey-airport { font-size: var(--font-size-tiny); }
+    .journey-departure :global(.time-badge) { font-size: var(--font-size-micro); padding: 3px; gap: 2px; }
+    .connection-footer { left: 10px; right: 10px; }
+    .connection-price { font-size: 1rem; }
   }
-
-  .connection-details.mobile {
-    justify-content: flex-start;
-  }
-
-  /* Price row: "1.111 EUR | One way" */
-  .price-row {
-    display: flex;
-    align-items: baseline;
-    column-gap: var(--spacing-2);
-    row-gap: var(--spacing-1);
-    flex-wrap: wrap;
-  }
-
-  .connection-price {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-success, #00a313);
-    line-height: 1.2;
-  }
-
-  .connection-details.mobile .connection-price {
-    font-size: 1.1rem;
-  }
-
-  .trip-type-separator {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .trip-type-label {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .connection-details.mobile .trip-type-separator,
-  .connection-details.mobile .trip-type-label {
-    font-size: 1.1rem;
-  }
-
-  /* Airline logos — overlapping circle stack */
-  .airline-logos {
-    display: flex;
-    align-items: center;
-  }
-
-  .airline-logos .airline-logo + .airline-logo {
-    margin-left: -6px;
-  }
-
-  .airline-logo {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: white;
-    border: 1.5px solid var(--color-grey-20, #e2e2e2);
-    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-    flex-shrink: 0;
-  }
-
-  /* Route: "Berlin (BER) → Bangkok (BKK)" */
-  .connection-route {
-    font-size: 0.875rem;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .route-text {
-    font-weight: 600;
-  }
-
-  .connection-time {
-    font-size: 0.95rem;
-    color: var(--color-font-primary);
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */
-  .connection-meta {
-    font-size: 0.8125rem;
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .realtime-status {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    line-height: 1.2;
-  }
-
-  .realtime-status.late,
-  .realtime-status.cancelled {
-    color: #991b1b;
-    background: #fee2e2;
-  }
-
-  .realtime-status.early,
-  .realtime-status.ontime {
-    color: #166534;
-    background: #dcfce7;
-  }
-
-  .optimization-badge {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--color-primary, #4867cd);
-    background: rgba(var(--color-primary-rgb), 0.1);
-  }
-
-  /* Seats warning */
-  .seats-warning {
-    font-size: 0.75rem;
-    color: var(--color-warning, #f59e0b);
-    font-weight: 600;
-    margin-top: 1px;
+  @container result-card (min-width: 401px) {
+    .connection-information { padding: 54px 24px 48px; }
+    .has-map .connection-information { width: 42%; min-width: 288px; flex-shrink: 0; }
+    .connection-map { display: block; flex: 1; height: 100%; min-width: 0; }
+    .journey-arrival { display: block; }
+    .itinerary-leg { gap: 8px; }
+    .connection-footer { bottom: 14px; left: 24px; right: 24px; }
+    .journey-date, .journey-duration, .journey-airport { font-size: var(--font-size-xs); }
+    .journey-departure :global(.time-badge), .journey-arrival :global(.time-badge) { font-size: var(--font-size-xs); }
   }
 </style>

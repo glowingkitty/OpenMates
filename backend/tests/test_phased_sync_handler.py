@@ -42,6 +42,12 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
 )
 
 
+@pytest.fixture
+def anyio_backend():
+    # The handler schedules asyncio tasks, as does its FastAPI/Uvicorn runtime.
+    return "asyncio"
+
+
 def _hash(value: str) -> str:
     import hashlib
 
@@ -793,14 +799,17 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
 
     manager = SimpleNamespace(sent=[])
 
-    async def send_personal_message(message, user_id, device_fingerprint_hash):
+    originating_socket = SimpleNamespace()
+
+    async def send_bound_personal_message(message, user_id, device_fingerprint_hash, *, expected_websocket=None):
+        assert expected_websocket is originating_socket
         manager.sent.append(message)
 
-    manager.send_personal_message = send_personal_message
+    manager.send_personal_message = send_bound_personal_message
 
     await asyncio.wait_for(
         handle_phased_sync_request(
-            websocket=None,
+            websocket=originating_socket,
             manager=manager,
             cache_service=SimpleNamespace(),
             directus_service=SimpleNamespace(),
@@ -901,9 +910,9 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
 
 
 @pytest.mark.anyio
-async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_assert) -> None:
+async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(monkeypatch, doc_assert) -> None:
     doc_assert("phase1-full-content-limited-to-recent-parent-chats")
-    parent_ids = [f"parent-{idx}" for idx in range(12)]
+    parent_ids = [f"parent-{idx}" for idx in range(60)]
     recent_ids = ["last-sub"]
     for idx, parent_id in enumerate(parent_ids):
         recent_ids.append(parent_id)
@@ -957,6 +966,7 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
             "is_sub_chat": True,
         }
 
+    metadata[parent_ids[0]]["pinned"] = True
     for chat_metadata in metadata.values():
         chat_metadata["hashed_user_id"] = _hash("user-1")
         chat_metadata["hashed_team_id"] = None
@@ -985,7 +995,10 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
             return []
 
         async def get_user_chats_metadata(self, user_id, limit=100, sort=None, admin_required=True, team_id=None):
-            del user_id, sort, admin_required, team_id
+            assert user_id == "user-1"
+            assert limit == 100
+            assert sort == "-pinned,-last_edited_overall_timestamp"
+            assert admin_required is True and team_id is None
             return [metadata[chat_id] for chat_id in recent_ids[:limit] if chat_id in metadata]
 
         async def get_chats_metadata_batch(self, chat_ids):
@@ -1000,7 +1013,10 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
             self.chat = FakeDirectusChat()
 
         async def get_items(self, collection, params, admin_required=True):
+            assert params["limit"] == 50
+            assert params["filter[hashed_user_id][_eq]"] == _hash("user-1")
             parent_filter = params["filter[parent_id][_in]"].split(",")
+            assert parent_filter == parent_ids[:20]
             return [
                 {"id": f"preview-{idx}", "parent_id": parent_id, "is_sub_chat": True}
                 for idx, parent_id in enumerate(parent_filter)
@@ -1024,14 +1040,61 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
         sent_embed_ids=set(),
     )
 
-    assert content_ids == parent_ids[:10]
+    assert content_ids == parent_ids[:20]
     phase1_payload = manager.sent[0]["payload"]
     assert phase1_payload["chat_details"]["id"] == "last-sub"
     sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
-    assert set(parent_ids[:10]).issubset(sent_metadata_ids)
+    assert set(parent_ids[:20]).issubset(sent_metadata_ids)
     assert "preview-0" in sent_metadata_ids
     assert "sub-0" not in content_ids
     assert "last-sub" not in content_ids
+
+    assert len(content_ids) == 20
+    assert phase1_payload["messages"] is None
+    assert all(not str(chat_id).startswith(("sub-", "preview-")) for chat_id in content_ids)
+    assert next(chat for chat in phase1_payload["recent_chat_metadata"] if chat["id"] == parent_ids[0])["pinned"] is True
+
+    fetched_content_ids = []
+
+    async def content_window(**kwargs):
+        fetched_content_ids.append(kwargs["chat_id"])
+        assert kwargs["chat_id"] in parent_ids[:20]
+        return {"messages": ["encrypted-ciphertext"], "server_message_count": 1,
+                "has_more_before": False, "start_cursor": None}
+
+    async def no_checkpoint(*args, **kwargs):
+        return None
+
+    async def no_sidecars(*args, **kwargs):
+        return [], {}
+
+    async def no_wrappers(*args, **kwargs):
+        return [], {}
+
+    class ContentCache:
+        async def get_chat_versions(self, user_id, chat_id):
+            return SimpleNamespace(messages_v=1)
+
+    class ContentEmbeds:
+        async def get_embed_window_by_hashed_chat_id(self, *args, **kwargs):
+            return {"embeds": [], "has_more_before": False, "start_cursor": None, "oversized_embed_id": None}
+
+        async def get_sync_embed_key_window_for_page(self, *args, **kwargs):
+            return {"embed_keys": [], "has_more_after": False, "end_cursor": None, "oversized_key_id": None}
+
+    directus = FakeDirectus()
+    directus.embed = ContentEmbeds()
+    monkeypatch.setattr(phased_sync_handler, "load_bounded_sync_message_window", content_window)
+    monkeypatch.setattr(phased_sync_handler, "get_latest_chat_compression_checkpoint", no_checkpoint)
+    monkeypatch.setattr(phased_sync_handler, "load_sync_sidecars_for_chats", no_sidecars)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_chat_key_wrappers_for_chats", no_wrappers)
+    await _handle_phase1b_sync(
+        manager=manager, cache_service=ContentCache(), directus_service=directus,
+        user_id="user-1", device_fingerprint_hash="device-1", phase1_chat_ids=content_ids,
+        client_chat_versions={}, sent_embed_ids=set(),
+    )
+    assert fetched_content_ids == parent_ids[:20]
+    assert [row["chat_id"] for row in manager.sent[-1]["payload"]["chats"]] == parent_ids[:20]
 
 
 @pytest.mark.anyio
@@ -1230,3 +1293,83 @@ async def test_phase1_emits_keyless_direct_sub_chat_metadata_for_client_key_reco
     phase1_payload = manager.sent[0]["payload"]
     sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
     assert "keyless-sub" in sent_metadata_ids
+
+
+# contract-test: supporting surface=gui.web assertions=sync.phase2.metadata-only,sync.phase2.drafts.authoritative-encrypted
+@pytest.mark.anyio
+async def test_phase2_window_stays_100_with_pinned_and_draft_only_metadata() -> None:
+    cache_insertions = []
+
+    class FakeChat:
+        async def get_user_chat_count(self, user_id, team_id=None):
+            assert user_id == "user-1" and team_id is None
+            return 125
+
+        async def get_core_chats_and_user_drafts_for_cache_warming(self, user_id, limit=100, team_id=None):
+            assert user_id == "user-1" and team_id is None
+            assert limit == 100
+            return [{
+                "chat_details": {"id": f"recent-{index}", "encrypted_chat_key": "opaque-key",
+                                 "encrypted_title": "opaque-title", "pinned": index == 0,
+                                 "messages_v": 3, "last_edited_overall_timestamp": 200 - index},
+                "messages": None,
+                "server_message_count": None,
+                "user_encrypted_draft_content": "recent-draft-cipher" if index == 14 else None,
+                "user_draft_version_db": 5 if index == 14 else 0,
+            } for index in range(limit)]
+
+        async def get_all_user_drafts(self, user_id):
+            assert user_id == "user-1"
+            return {"draft-only": {"encrypted_content": "draft-only-cipher", "version": 7}}
+
+        async def get_message_window_for_chat(self, **kwargs):
+            raise AssertionError("Phase 2 must not fetch message content")
+
+    class FakeDirectus:
+        chat = FakeChat()
+
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "chats" and params["filter[id][_in]"] == "draft-only"
+            return []
+
+    class FakeCache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            return []
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None
+
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {}
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return False
+
+        async def add_chat_to_ids_versions(self, user_id, chat_id, timestamp):
+            cache_insertions.append(chat_id)
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    await phased_sync_handler._handle_phase2_sync(
+        manager=manager, cache_service=FakeCache(), directus_service=FakeDirectus(),
+        user_id="user-1", device_fingerprint_hash="device-1", client_chat_versions={},
+        client_chat_ids=[], sent_embed_ids=set(),
+    )
+    assert len(manager.sent) == 1
+    payload = manager.sent[0]["payload"]
+    assert payload["total_chat_count"] == 125
+    assert payload["chat_count"] == 101  # Existing draft discovery remains additive.
+    assert [row["chat_details"]["id"] for row in payload["chats"][:100]] == [f"recent-{i}" for i in range(100)]
+    by_id = {row["chat_details"]["id"]: row["chat_details"] for row in payload["chats"]}
+    assert by_id["recent-0"]["pinned"] is True
+    assert by_id["recent-14"]["encrypted_draft_md"] == "recent-draft-cipher"
+    assert by_id["recent-14"]["draft_v"] == 5
+    assert by_id["draft-only"]["encrypted_draft_md"] == "draft-only-cipher"
+    assert by_id["draft-only"]["draft_v"] == 7
+    assert cache_insertions == ["draft-only"]
+    assert all(row.get("messages") is None for row in payload["chats"])
+    assert not ({"embeds", "embed_keys", "chat_key_wrappers"} & payload.keys())

@@ -1,47 +1,15 @@
 #!/usr/bin/env python3
-"""
-Fetches AI model rankings from LMArena.ai using Firecrawl for JavaScript rendering.
+"""Offline parsing utilities for saved leaderboard data. Live collection is unavailable."""
 
-This script:
-1. Uses Firecrawl API (via Vault) to scrape the dynamically-rendered leaderboard page
-2. Parses the leaderboard table (model, score, votes, organization)
-3. Validates the output to detect when the scraper breaks
-4. Outputs formatted text or JSON
-
-Usage:
-    docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py
-    docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --category coding
-    docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --json
-    docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py -o /app/lmarena.json
-
-Options:
-    --category CAT    Category to fetch (text, webdev, coding, math, etc.)
-    --json            Output as JSON instead of formatted text
-    -o, --output FILE Save output to file
-    --limit N         Max models to return (default: 50)
-    --list-categories List all available categories
-
-Note: This script is designed to run inside the Docker container where it has
-access to Vault for the Firecrawl API key.
-
-LMArena has NO official API - this uses Firecrawl to render JavaScript and
-extract leaderboard data from the rendered page.
-"""
-
-import asyncio
-import argparse
 import json
 import logging
 import re
 import sys
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 # Add the backend directory to the Python path for imports
 sys.path.insert(0, '/app/backend')
 
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 
 # Configure logging - suppress verbose library logs
 logging.basicConfig(
@@ -62,7 +30,6 @@ logging.getLogger('backend').setLevel(logging.WARNING)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-BASE_URL = "https://lmarena.ai"
 
 # Available leaderboard categories and their URL paths
 CATEGORIES = {
@@ -111,7 +78,7 @@ EXPECTED_MODELS = [
 
 def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]:
     """
-    Parse LMArena leaderboard data from Firecrawl markdown output.
+    Parse LMArena leaderboard data from saved markdown.
     
     LMArena has used both separate and combined score/CI columns. Its current
     table puts the organization after the model link and follows Votes with
@@ -122,7 +89,7 @@ def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]
     - ![Qwen Icon](img)<br>[qwen3-max]...
     
     Args:
-        markdown: Full markdown content from Firecrawl
+        markdown: Saved markdown content
         category: Category being parsed (for context)
         
     Returns:
@@ -305,11 +272,11 @@ def validate_markdown_structure(markdown: str) -> List[str]:
     """
     Validate the raw markdown contains expected table structure.
     
-    This helps detect when Firecrawl returns unexpected content (e.g., Cloudflare
+    This helps detect when saved input contains unexpected content (e.g., Cloudflare
     block page, error page, or completely different page structure).
     
     Args:
-        markdown: Raw markdown content from Firecrawl
+        markdown: Saved markdown content
         
     Returns:
         List of warning strings (empty if structure looks valid)
@@ -606,107 +573,8 @@ def validate_rankings(rankings: List[Dict], category: str, markdown: str = "") -
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def fetch_lmarena_rankings(category: str = "text", limit: int = 50) -> Dict[str, Any]:
-    """
-    Fetch LMArena rankings for a category using Firecrawl.
-    
-    Args:
-        category: Category name (text, webdev, coding, etc.)
-        limit: Max number of models to return
-    
-    Returns:
-        Dict with rankings data and metadata
-    """
-    # Normalize category
-    category_lower = category.lower().strip()
-    if category_lower not in CATEGORIES:
-        available = ", ".join(sorted(CATEGORIES.keys()))
-        script_logger.warning(f"Unknown category '{category}'. Available: {available}")
-        category_lower = "text"
-    
-    url_path = CATEGORIES[category_lower]
-    url = f"{BASE_URL}{url_path}"
-    
-    script_logger.info(f"Fetching LMArena leaderboard ({category_lower})...")
-    script_logger.info(f"URL: {url}")
-    
-    try:
-        # Initialize SecretsManager for Vault access
-        secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-        
-        # Scrape with Firecrawl (handles JS rendering)
-        result = await scrape_url(
-            url=url,
-            secrets_manager=secrets_manager,
-            formats=["markdown"],
-            only_main_content=True,
-            sanitize_output=False  # Don't sanitize ranking data
-        )
-        
-        # Clean up SecretsManager
-        await secrets_manager.aclose()
-        
-        if result.get("error"):
-            script_logger.error(f"Firecrawl error: {result['error']}")
-            return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": url,
-                "category": category_lower,
-                "rankings": [],
-                "model_count": 0,
-                "validation": {"valid": False, "warnings": [f"FIRECRAWL_ERROR: {result['error']}"]}
-            }
-        
-        # Extract markdown content
-        markdown_content = result.get("data", {}).get("markdown", "")
-        
-        if not markdown_content:
-            script_logger.error("Firecrawl returned empty markdown")
-            return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": url,
-                "category": category_lower,
-                "rankings": [],
-                "model_count": 0,
-                "validation": {"valid": False, "warnings": ["EMPTY_RESPONSE: Firecrawl returned empty content"]}
-            }
-        
-        script_logger.info(f"Received {len(markdown_content)} chars of markdown")
-        
-        # Parse rankings from markdown
-        rankings = parse_lmarena_markdown(markdown_content, category_lower)
-        
-        # Add organization info
-        for r in rankings:
-            org = extract_organization(r.get("model", ""))
-            if org:
-                r["organization"] = org
-        
-        # Limit results
-        rankings = rankings[:limit]
-        
-        # Validate with raw markdown for structure checks
-        validation = validate_rankings(rankings, category_lower, markdown=markdown_content)
-        
-        return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "source": url,
-            "category": category_lower,
-            "rankings": rankings,
-            "model_count": len(rankings),
-            "validation": validation,
-        }
-        
-    except Exception as e:
-        script_logger.error(f"Error fetching rankings: {e}", exc_info=True)
-        return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "source": url,
-            "category": category_lower,
-            "rankings": [],
-            "model_count": 0,
-            "validation": {"valid": False, "warnings": [f"EXCEPTION: {str(e)}"]}
-        }
+    """Report unavailable collection without credentials or outbound requests."""
+    raise RuntimeError("No supported leaderboard data source is configured.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -829,48 +697,7 @@ def list_categories() -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    """Main entry point for the script."""
-    parser = argparse.ArgumentParser(
-        description="Fetch LMArena (Chatbot Arena) leaderboard rankings",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Run inside Docker (uses Vault API key)
-  docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py
-  docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py --category coding
-  docker exec -it api python /app/backend/scripts/fetch_lmarena_rankings.py -o /app/lmarena.json
-
-Categories: text, webdev, vision, coding, math, creative-writing, search, etc.
-Use --list-categories to see all available categories.
-        """
-    )
-    parser.add_argument("--category", "-c", default="text", help="Category (text, webdev, coding, etc.)")
-    parser.add_argument("--limit", "-n", type=int, default=50, help="Max models to return (default: 50)")
-    parser.add_argument("--json", "-j", action="store_true", help="JSON output")
-    parser.add_argument("--output", "-o", help="Save to file")
-    parser.add_argument("--list-categories", "-l", action="store_true", help="List available categories")
-    
-    args = parser.parse_args()
-    
-    if args.list_categories:
-        list_categories()
-        return
-    
-    # Run async fetch
-    data = asyncio.run(fetch_lmarena_rankings(args.category, args.limit))
-    
-    # Print warnings to stderr
-    validation = data.get("validation", {})
-    if validation.get("warnings"):
-        for w in validation["warnings"]:
-            script_logger.warning(w)
-    
-    if args.output:
-        with open(args.output, "w") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"✓ Saved to {args.output}")
-    else:
-        print_rankings(data, as_json=args.json)
+    raise SystemExit("No supported leaderboard data source is configured.")
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@
 	import { replaceState } from '$app/navigation';
 	import { mount, unmount } from 'svelte';
 	import { theme } from '@repo/ui';
+	import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getComponentPreviewPresentation } from '@repo/ui/types/embedPreviewPresentation';
 
 	const MAX_URL_PROPS_LENGTH = 10_000;
 	const MIN_VIEWPORT_WIDTH = 240;
@@ -208,6 +209,7 @@
 			width: parsedWidth,
 			background: parsedBackground.value,
 			captureMode: params.get('chrome') === '0',
+			assistantEmbed: params.get('context') === 'chat',
 			props: parsedProps.props,
 			propsError: parsedProps.error,
 			configError: widthError || parsedBackground.error
@@ -301,6 +303,7 @@
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
 		'embeds/wiki/WikipediaFullscreen',
 		'apps/AppsResultFullscreen',
+		'embeds/StandaloneEmbedFullscreen',
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',
 		'embeds/pdf/PdfSearchEmbedFullscreen'
@@ -525,7 +528,9 @@
 		let secondFrame = 0;
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic glob import yields unknown type
-			mountedInstance = mount(component as any, { target, props });
+			mountedInstance = mount(component as any, { target, props, context: new Map([
+				[EMBED_PREVIEW_PRESENTATION_CONTEXT, getComponentPreviewPresentation(componentPath)],
+			]) });
 			firstFrame = requestAnimationFrame(() => {
 				secondFrame = requestAnimationFrame(() => {
 					if (!errorCaught) previewReady = true;
@@ -839,6 +844,8 @@
 			-->
 			<div
 				class="preview-viewport"
+				class:assistant-embed-host={urlConfig.assistantEmbed}
+				class:embed-preview-large-container={urlConfig.assistantEmbed}
 				data-testid="component-preview-viewport"
 				class:preview-viewport--constrained={viewportWidth !== null}
 				style={viewportWidth ? `max-width: ${viewportWidth}px; margin: 0 auto;` : ''}
@@ -1270,6 +1277,11 @@
 
 	.preview-viewport {
 		width: 100%;
+	}
+
+	/* Match the named container used by assistant embeds in ReadOnlyMessage. */
+	.assistant-embed-host {
+		container: embed-preview / inline-size;
 	}
 
 	/**

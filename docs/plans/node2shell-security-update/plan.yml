@@ -1,0 +1,47 @@
+schema_version: 2
+profile: concise
+id: node2shell-security-update
+title: Patch Brotli decoders and verify production exposure
+status: implementing
+goal: >-
+  Implement the security update, summarize the actual risk for our server and
+  production server, and advise whether to update the production backend today.
+scope:
+  - Patch Python preview Brotli, Directus Node 22, and worker/frontend/build Node 24 runtimes.
+  - Upgrade PyMuPDF to a release whose bundled native Brotli decoder contains the fix.
+  - Update active dev-host Node and Bun commands using verified upstream downloads.
+  - Inspect production runtimes and exposure through the user-opened SSH connection.
+constraints:
+  - Preserve Directus application version and Node 22 native-module ABI.
+  - Preserve user data, encryption, inference routing, and provider settings.
+  - Production mutations require the user's production rollout decision.
+required_checks:
+  - Native preview decoder accepts valid responses and rejects the upstream invalid-block-switch regression.
+  - Isolated self-host smoke verifies the built CMS decoder and existing signup behavior.
+  - Worker image builds with patched Node and its existing glTF CLI.
+  - Verify the actual MuPDF decoder fix and PDF text/thumbnail compatibility in focused isolated CI.
+  - Managed dev deployment and scoped runtime restart with a coordinator lease.
+evidence:
+  task: 893cbb2c-52f5-4fcd-8f79-3b75dca91bde
+  production_before:
+    cms_node: 22.14.0
+    cms_brotli: 1.1.0
+    cms_public_port: false
+    cms_caddy_route: false
+    api_python_brotli_installed: false
+    sampled_worker_node_installed: false
+  host_after:
+    active_node: 24.22.1
+    node_block_switch_error: -17
+    bun: 1.4.4
+  first_phase:
+    dev_commit: 0fef93e2cea08195ccda3de11943bfd514454571
+    focused_ci_run: 39957872126
+    selfhost_ci_run: 39957883321
+    selfhost_result: Four cases passed; no skipped or flaky cases.
+    dev_runtime_restart: docker-3fd9b4d7; all scoped and source-mount-dependent services healthy.
+  residual_native_risk:
+    debian_system_brotli: 1.1.0; no distribution fix available at investigation time.
+    pillow_bundled_brotli: 1.2.0; error -17 is INVALID in dev and production wheels.
+    native_build_scope: Awaiting the user's timing/scope choice for custom system/Pillow builds.
+  deferred_preview_access: User deferred to this evening; tracked in TASK-6209.

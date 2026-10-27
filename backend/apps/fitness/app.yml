@@ -9,6 +9,9 @@ category: personal
 last_updated: '2025-11-12'
 embed_types:
   - id: search_locations
+    authoring:
+      kind: fitness.location
+      schema_id: fitness.location
     category: app-skill-use
     skill_id: search_locations
     frontend_type: app-skill-use
@@ -25,6 +28,9 @@ embed_types:
     gradient_var: "--color-app-fitness"
     i18n_namespace: embeds.fitness.search_locations
   - id: search_classes
+    authoring:
+      kind: fitness.class
+      schema_id: fitness.class
     category: app-skill-use
     skill_id: search_classes
     frontend_type: app-skill-use
@@ -46,16 +52,7 @@ skills:
     name_translation_key: fitness.search_locations
     description_translation_key: fitness.search_locations.description
     preprocessor_hint: >
-      Search Urban Sports Club public fitness locations. Use this when the user
-      asks for gyms, studios, pools, or Urban Sports locations near a city,
-      address, or radius. Do not use it for class availability; use
-      fitness.search_classes for dated class searches. Keep query focused on the activity or
-      venue type. Whenever the user states a fitness purpose, intended activity, accessibility
-      need, desired quality, or preference that should change venue ordering, put it in
-      relevance_criteria even if related words could also be added to query. Example: "Prioritize
-      broad yoga variety with explicit central-Berlin evidence." Keep city, radius, plan, and
-      category structured. Omit relevance_criteria only for a neutral venue search; never invent
-      beginner level, intensity, accessibility, equipment, atmosphere, or schedule preferences.
+      This capability is currently unavailable because no permitted provider is configured.
     tool_schema:
       type: object
       properties:
@@ -132,27 +129,14 @@ skills:
       backend.apps.fitness.skills.search_locations.SearchLocationsSkill
     pricing:
       fixed: 5
-    providers:
-      - name: Urban Sports Club
-        id: urban_sports_club
-        scope: city
-        region: Europe
-        no_api_key: true
+    provider_required: true
+    providers: []
   - id: search_classes
     anonymous_access: inline
     name_translation_key: fitness.search_classes
     description_translation_key: fitness.search_classes.description
     preprocessor_hint: >
-      Search available Urban Sports Club public fitness classes. Use this when
-      the user asks for dated fitness classes, course availability, free spots,
-      on-site classes, online classes, or plan-filtered Urban Sports classes.
-      Omit plan unless the user explicitly asks for Essential, Classic,
-      Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness
-      purpose, intended activity, audience level, desired quality, or preference that should change
-      class ordering, put it in relevance_criteria even if related words could also be added to query.
-      Example: "Prioritize evening on-site yoga classes with explicit remaining spots." Keep date,
-      location, radius, plan, attendance mode, minimum spots, category, and venue structured. Omit
-      relevance_criteria only for a neutral class search; never invent preferences.
+      This capability is currently unavailable because no permitted provider is configured.
     tool_schema:
       type: object
       required: [requests]
@@ -239,7 +223,7 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: Urban Sports activity name (for example Dance or Yoga) or numeric provider ID.
+                description: Fitness activity name (for example Dance or Yoga) or numeric provider ID.
               venue_id:
                 x-ui:
                   basic: false
@@ -267,9 +251,5 @@ skills:
       backend.apps.fitness.skills.search_classes.SearchClassesSkill
     pricing:
       fixed: 5
-    providers:
-      - name: Urban Sports Club
-        id: urban_sports_club
-        scope: city
-        region: Europe
-        no_api_key: true
+    provider_required: true
+    providers: []

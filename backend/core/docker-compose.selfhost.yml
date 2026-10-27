@@ -1,7 +1,7 @@
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
-  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.27.0}
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.28.0}
 
 x-openmates-worker-base: &openmates-worker-base
   <<: *openmates-api-image
@@ -50,6 +50,7 @@ services:
     stop_grace_period: 15s
     env_file: ../../.env
     environment:
+      APPS_RECOMMENDATIONS_DIR: "/app/data/apps-recommendations"
       PYTHONPATH: "/app"
       REST_API_PORT: 8000
       CMS_URL: "http://cms:8055"
@@ -73,6 +74,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
+      - apps-recommendations-data:/app/data/apps-recommendations
       - api-logs:/app/logs
       - ../../config:/app_config
       - vault-setup-data:/vault-data
@@ -97,7 +99,7 @@ services:
 
   cms:
     container_name: cms
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.28.0}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -161,7 +163,7 @@ services:
 
   cms-setup:
     container_name: cms-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.28.0}
     env_file: ../../.env
     environment:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
@@ -193,13 +195,19 @@ services:
     container_name: task-worker
     mem_limit: "${TASK_WORKER_MEMORY_LIMIT:-3g}"
     environment:
+      APPS_RECOMMENDATIONS_DIR: "/app/data/apps-recommendations"
       <<: *openmates-worker-env
       CELERY_QUEUES: "email"
       CELERY_AUTOSCALE_MAX: "${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9101"
+    volumes:
+      - api-logs:/app/logs
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - apps-recommendations-data:/app/data/apps-recommendations
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   user-init-worker:
     <<: *openmates-worker-base
@@ -350,7 +358,7 @@ services:
 
   app-docs-worker:
     <<: *openmates-worker-base
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.28.0}
     container_name: app-docs-worker
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
@@ -427,7 +435,7 @@ services:
 
   vault-setup:
     container_name: vault-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.28.0}
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -552,7 +560,7 @@ services:
 
   admin-sidecar:
     container_name: core-admin-sidecar
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.28.0}
     restart: unless-stopped
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
@@ -588,7 +596,7 @@ services:
 
   webapp:
     container_name: webapp
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.27.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.28.0}
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -610,6 +618,10 @@ networks:
     name: openmates
 
 volumes:
+  apps-recommendations-data:
+    labels:
+      openmates.backup.exclude: "true"
+      openmates.data.retention: "temporary-recommendations-24h"
   openmates-postgres-data:
     name: openmates-postgres-data
   directus-uploads:

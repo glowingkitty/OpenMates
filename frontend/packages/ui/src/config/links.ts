@@ -3,6 +3,7 @@
  * This makes it easier to maintain and update links in one place
  */
 import { parse } from "yaml";
+import { env } from "$env/dynamic/public";
 
 // Load shared URL configuration
 interface SharedUrls {
@@ -52,9 +53,8 @@ export const externalLinks = {
     sharedUrls?.urls?.contact?.bluesky || "https://bsky.app/profile/openmates.bsky.social",
   mastodon:
     sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
-  meetup:
-    sharedUrls?.urls?.contact?.meetup ||
-    "https://www.meetup.com/openmates-meetup-group/",
+  // Ordinary community registration pages; these links do not enable discovery providers.
+  meetup: sharedUrls?.urls?.contact?.meetup || "https://www.meetup.com/openmates-meetup-group/",
   luma: "https://luma.com/openmates",
   eventbrite: "https://www.eventbrite.com/o/121655417243",
   pixelfed:
@@ -137,13 +137,14 @@ export const routes = {
   },
 } as const;
 
+// Canonical links (including Inception) live in public-site/legal/privacyPolicyLinks.ts.
 // Privacy-policy links for every third-party provider referenced in the
 // privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
 // provider_groups. When adding a new provider to a skill or
 // app.yml, add its privacy-policy link here AND update:
 //   - shared/docs/privacy_policy.yml
 //   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
-//   - frontend/packages/ui/src/legal/buildLegalContent.ts
+//   - frontend/packages/public-site/src/legal/buildLegalContent.ts
 export { privacyPolicyLinks } from '@repo/public-site/legal/privacyPolicyLinks';
 
 // Update routes to include full URLs when needed
@@ -151,15 +152,18 @@ export function getWebsiteUrl(path: string): string {
   return `${getBaseUrl("website")}${path}`;
 }
 
-/** Legal links stay on this origin until the separate public website is configured. */
+/** Legal documents live on the standalone public website in every app flow. */
 export function getPublicLegalUrl(path: string): string {
-  const configured = import.meta.env.PUBLIC_LANDING_WEBSITE_URL;
+  const configured = env.PUBLIC_LANDING_WEBSITE_URL;
   if (typeof configured === 'string' && /^https?:\/\//i.test(configured)) {
     try {
       return new URL(path, new URL(configured).origin).href;
     } catch {
-      // Keep legal pages reachable on the current app origin if configuration is malformed.
+      // Fall back to the deployed website for this app environment.
     }
   }
-  return path;
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const development = import.meta.env.DEV || hostname === 'localhost' || hostname === '127.0.0.1'
+    || hostname.includes('.dev.') || hostname.startsWith('dev.') || hostname.endsWith('.vercel.app');
+  return new URL(path, development ? 'https://landing.dev.openmates.org' : 'https://openmates.org').href;
 }

@@ -1,0 +1,98 @@
+schema_version: 1
+id: feature.tv-title-embeds
+version: 1
+status: draft
+title: TV Movie and Series Embeds
+summary: >
+  Show researched, supplied, or explicitly requested draft movies and series as
+  rich TV cards with posters and useful details, individually or in groups.
+related_contracts:
+  - specification: feature.assistant-authored-result-embeds@1
+    relationship: Explicitly admit tv.movie and tv.series through the shared authoring, source/draft, encrypted lifecycle, grouping, sharing and instruction-selection contract without altering its approved initial inventory.
+scope:
+  includes:
+    - Two new direct result kinds in the existing TV app, using the shared authoring mechanism.
+    - Poster images, useful film/series metadata, sourced scores and supplied season details.
+    - Individual movie/series cards and mixed or multiple-title groups.
+    - Existing encrypted sharing and explicit opening of supplied source links.
+  excludes:
+    - Wiki embeds, new discovery providers, automatic streaming-availability lookup, or playback.
+    - Automatic watched-history/watchlist mutations or reuse of personal ratings as public scores.
+    - Apple implementation before the existing web-first parity stage.
+models:
+  Movie:
+    title: {type: string, required: true, constraints: {nonblank: true}}
+    poster: {type: permitted_image_url_or_authorized_image_reference, required: false}
+    details: {type: synopsis_release_date_year_runtime_genres_directors_cast_language_countries_content_rating, required: false}
+    score: {type: sourced_value_scale_votes_and_observation_context, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+  Series:
+    title: {type: string, required: true, constraints: {nonblank: true}}
+    poster: {type: permitted_image_url_or_authorized_image_reference, required: false}
+    details: {type: synopsis_air_dates_years_status_genres_creators_cast_language_content_rating_episode_runtime, required: false}
+    season_count: {type: nonnegative_integer, required: false}
+    episode_count: {type: nonnegative_integer, required: false}
+    seasons: {type: array, items: supplied_season_number_title_synopsis_first_air_date_episode_count_and_poster, required: false}
+    score: {type: sourced_value_scale_votes_and_observation_context, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+assertions:
+  - id: tv-titles.authoring.relevant-and-flexible
+    type: behavior
+    must: >
+      Register tv.movie and tv.series as direct authorable TV result types. Load
+      only the relevant movie/series instructions when a title question, useful
+      recommendation list, supplied information, or explicit draft warrants a
+      card; unrelated answers receive neither schema. Work from permitted web
+      research, existing skills, user messages, or accessible uploads without a
+      TV discovery provider. Preserve source and clearly labelled draft semantics.
+    depends_on: [examples.authoring]
+  - id: tv-titles.presentation.posters-and-details
+    type: behavior
+    must: >
+      Reuse the shared rich-result layouts for previews and fullscreen details.
+      Display a supplied poster without cropping away its content, with title
+      and useful known movie/series facts. Fullscreen supports the synopsis,
+      dates, runtime, genres, credits and supplied source. Missing or failed
+      posters use a deliberate fallback while the title and details remain usable.
+      Missing facts, scores and availability remain unknown; do not fetch or
+      infer them merely to populate the card. Public scores retain their scale
+      and source and are distinct from personal TV-memory ratings.
+    depends_on: [examples.presentation]
+  - id: tv-titles.series.supplied-seasons
+    type: validation
+    must: >
+      Series details show supplied season and episode totals and supplied season
+      rows without assuming a complete episode guide. Preserve specials as
+      season zero. Counts and season numbers are nonnegative integers, supplied
+      season numbers are unique, and supplied dates are valid. Report conflicting
+      or malformed facts instead of silently inventing or repairing totals.
+    depends_on: [examples.seasons]
+  - id: tv-titles.lifecycle.groups-and-actions
+    type: parity
+    must: >
+      Movie and series records use the same typed API/CLI/SDK payloads and
+      encrypted lifecycle as other authored results. Individual and mixed-title
+      groups preserve identity and order, open the correct fullscreen, retain
+      sources/posters/draft labels across reload, and support existing explicit
+      encrypted sharing. Opening a supplied source is explicit. Creating or
+      opening a card does not mark a title watched, edit the watchlist, start
+      playback, or assert current streaming availability. Verify web phone/laptop
+      and light/dark states before later Apple parity.
+    depends_on: [examples.lifecycle]
+applies_to:
+  rest_api: {required: true, role: Existing chat/embed transport; no new TV provider endpoint.}
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    implementations:
+      rust: {required: true}
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Later web-first parity stage.}
+examples:
+  file: examples.yml
+  required_groups: [authoring, presentation, seasons, lifecycle]

@@ -8,10 +8,14 @@ summary: >
   encrypted human slugs for user-owned encrypted objects locally, sends only
   canonical object ids to server/API operations, and renders actionable
   human-readable output without exposing private plaintext in durable backend
-  state. Generated app-skill artifacts download to explicit, predictable local paths.
+  state. One native Rust application supplies the complete CLI and TUI, using
+  the shared headless Rust SDK. Generated app-skill artifacts download to explicit,
+  predictable local paths.
 
 scope:
   includes:
+    - Complete native Rust CLI and TUI migration, including every supported command, flag, scripting contract, structured output, exit code, streaming, cancellation, self-hosting operation and platform.
+    - Early side-by-side native Rust CLI use on dev while retaining the installed npm CLI and command; legacy retirement only after verified parity/security and explicit agent plus user acceptance.
     - Human-readable CLI handling for workflows, projects, plans, tasks, and saved chats.
     - Client-generated encrypted_slug fields and keyed slug_lookup_hash metadata for object create, update, list, show, and command resolution where each object surface supports the operation.
     - Local CLI decryption, slug display, slug-to-id resolution, duplicate detection, ambiguity handling, and canonical-id transport to REST/WebSocket/SDK-backed server calls.
@@ -101,6 +105,26 @@ models:
       constraints: {prefer_slug_handles: true, avoid_opaque_ids_by_default: true}
 
 assertions:
+  - id: cli.runtime.native-rust
+    type: parity
+    must: One native Rust application implements the entire supported CLI and TUI without delegating application functionality to TypeScript, Node, Python, sidecars or hidden fallbacks. Both surfaces use shared Rust for all reusable headless operations, crypto, auth, storage policy, sync, reconnect and recovery; terminal UI, parsing, interactive profile selection and explicit platform IO remain adapters. Existing backend services and separate test or benchmark harnesses are outside this runtime requirement.
+    depends_on: [examples.native_migration]
+  - id: cli.distribution.cargo-prereleases
+    type: behavior
+    must: The primary CLI distribution is cargo install of the application crate from crates.io, separate from the reusable Rust SDK library crate. Development builds use explicit versioned prereleases rather than silently selecting stable or an unversioned development branch. Preserve version, update and recovery behavior with truthful channel reporting. GitHub prebuilt executable assets are outside this migration scope, and npm/Python remain direct library SDK distributions.
+    depends_on: [examples.native_distribution]
+  - id: cli.validation.linux-mac-windows-waiver
+    type: parity
+    must: Required platform acceptance exercises the actual Linux dev installation and macOS through an explicit coordinated Mac-chat handoff or an admitted typed apple_remote operation, in addition to existing required isolated GitHub product and self-host CI. Windows testing is explicitly waived for this migration, with no additional CPU-architecture matrix required. The waiver is not Windows build, security or support evidence; unsupported behavior and remaining gaps stay explicit, and unrelated required CI or self-host assertions are not waived.
+    depends_on: [examples.native_platform_validation]
+  - id: cli.migration.complete-compatible
+    type: parity
+    must: Migration preserves the complete supported command set, flags, scripting behavior, structured output, output channels, exit codes, streaming, cancellation, authentication, privacy and security controls. A maintained command and platform inventory records replacement mappings and unresolved gaps explicitly. GitHub CI verifies self-hosting edition setup through the Rust CLI. Unsupported placeholders do not satisfy replacement parity.
+    depends_on: [examples.native_migration]
+  - id: cli.migration.transition-acceptance
+    type: behavior
+    must: The existing npm CLI and command stay operational during transition. Make the verified Rust CLI available alongside them early for daily use and user testing through an explicit separate command or installation path; do not automatically replace the global command. Essential auth, encrypted chat, streaming/cancellation, persistence and synchronization/reconnect/recovery are proved through the entirely Rust CLI/TUI before browser/WASM integration begins; exhaustive command and app parity remains required but proceeds separately and does not block that browser stage. npm CLI/TUI source and command are retired only after full parity and security are verified and both the agent and user explicitly confirm feature completeness and reliable operation. Original TypeScript benchmark inputs remain reproducible; renderer measurements and standalone full-application measurements are reported separately.
+    depends_on: [examples.native_migration]
   - id: cli.slugs.encrypted-stable
     type: privacy
     must: Workflows, Projects, Plans, Tasks, and saved Chats expose stable user-facing slugs as encrypted_slug plus owner/context-scoped slug_lookup_hash metadata; slugs are generated on create, remain stable across title/name changes, and change only through explicit slug mutation.
@@ -173,6 +197,7 @@ applies_to:
     required: true
     parity: semantic
     implementations:
+      rust: {required: true}
       npm: {required: true}
       pip: {required: true}
     role: SDKs preserve encrypted slug fields and slug lookup hashes for SDK-created or SDK-mutated objects where those namespaces expose the object surface; terminal rendering remains CLI-only.
@@ -190,4 +215,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [encrypted_slugs, local_resolution, human_output, generated_file_downloads, generated_file_failures, credential_storage, pairing_session]
+  required_groups: [encrypted_slugs, local_resolution, human_output, generated_file_downloads, generated_file_failures, credential_storage, pairing_session, native_migration, native_distribution, native_platform_validation]

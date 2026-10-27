@@ -37,12 +37,13 @@ import { forcedLogoutInProgress } from "../../../stores/signupState";
 import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
 import { notificationStore } from "../../../stores/notificationStore";
 import {
-  detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
   type PIIDetectionOptions,
+  type PIIMatch,
   type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
+import { detectPIIForWeb, isWebPIIModelEnabled, resetWebPIIDetector } from "../services/webPIIDetectionService";
 import { rewriteKnownPIIPlaceholders } from "../services/placeholderRewriteService";
 import { getActivePIIMappingsForRewrite } from "../../../stores/embedPIIStore";
 import {
@@ -109,7 +110,7 @@ const URL_REGEX =
  * @param text The text content to search
  * @returns Array of {url, startPos, endPos} objects
  */
-function detectUrlsInText(
+export function detectUrlsInText(
   text: string,
 ): Array<{ url: string; startPos: number; endPos: number }> {
   const urls: Array<{ url: string; startPos: number; endPos: number }> = [];
@@ -220,8 +221,8 @@ function protectEmbedRefsFromPII(markdown: string): {
  * @param markdown The markdown content to process
  * @returns Updated markdown with URLs replaced by embed references
  */
-async function processUrlsBeforeSend(markdown: string): Promise<string> {
-  const urls = detectUrlsInText(markdown);
+async function processUrlsBeforeSend(markdown: string, ignoredEmbedUrls?: ReadonlySet<string>): Promise<string> {
+  const urls = detectUrlsInText(markdown).filter(({ url }) => !ignoredEmbedUrls?.has(url));
 
   if (urls.length === 0) {
     console.debug("[sendHandlers] No URLs to process in message");
@@ -423,17 +424,220 @@ function setSubmittedEmbedContentRef(
  * (chat creation + dispatch + WebSocket send).
  */
 let sendInProgress = false;
+// Keep only the current owner's fixed phase name and start time. A duplicate
+// invocation replaces the last-step snapshot, so retain its owner's phase
+// separately to identify a stalled await without retaining message content.
+let activeSendDebugPhase: { step: string; timestamp: string } | null = null;
 
 const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
 
-function getExcludedOriginalsForCurrentSend(
+class PrivacyScanFailedError extends Error {
+  constructor(readonly notificationId?: string) {
+    super("On-device privacy scan failed");
+    this.name = "PrivacyScanFailedError";
+  }
+}
+
+class PrivacySendContextChangedError extends Error {
+  constructor() {
+    super("Send context changed during privacy preparation");
+    this.name = "PrivacySendContextChangedError";
+  }
+}
+
+/** Capture settings and authority before an asynchronous scan can yield. */
+function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActivePIIMappingsForRewrite()) {
+  const settings: PIIDetectionSettings = structuredClone(get(personalDataStore.settings));
+  const entries = structuredClone(get(personalDataStore.enabledEntries));
+  const settingsFingerprint = JSON.stringify([settings, entries]);
+  const team = getActiveTeamContextSnapshot();
+  const userId = get(userProfile).user_id;
+  const authenticated = get(authStore).isAuthenticated;
+  const enhanced = isWebPIIModelEnabled();
+  // ActiveChat's Svelte state exposes mapping objects through reactive proxies.
+  // Copy the primitive fields into an owner-local snapshot: structuredClone
+  // rejects proxies even when their contents are plain serializable strings.
+  const mappingSnapshot = mappings.map(({ placeholder, original, type }) => ({ placeholder, original, type }));
+  const placeholderOwners = new Map(mappingSnapshot.map((mapping) => [mapping.placeholder, mapping.original]));
+  let placeholderSequence = 0;
+  const options: PIIDetectionOptions = {
+    excludedIds: new Set(exclusions),
+    disabledCategories: new Set(Object.entries(settings.categories)
+      .filter(([, enabled]) => !enabled).map(([category]) => category)),
+    personalDataEntries: entries.map((entry: PersonalDataEntry): PersonalDataForDetection => ({
+      id: entry.id, textToHide: entry.textToHide, replaceWith: entry.replaceWith,
+      type: entry.type === "address" ? "ADDRESS" : undefined,
+      additionalTexts: entry.type === "address" && entry.addressLines
+        ? [entry.addressLines.street, entry.addressLines.city].filter((value): value is string => !!value)
+        : undefined,
+    })),
+  };
+  const assertAuthorityCurrent = () => {
+    if (!isActiveTeamContext(team.teamId, team.epoch) || get(userProfile).user_id !== userId ||
+        get(authStore).isAuthenticated !== authenticated || get(forcedLogoutInProgress)) {
+      throw new PrivacySendContextChangedError();
+    }
+  };
+  return {
+    enabled: settings.masterEnabled,
+    enhanced,
+    options,
+    mappings: mappingSnapshot,
+    failureNotificationId: undefined as string | undefined,
+    uniqueMatches(matches: PIIMatch[]): PIIMatch[] {
+      return matches.map((match) => {
+        let placeholder = match.placeholder;
+        if (enhanced && placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match) {
+          do {
+            placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replaceAll("-", "")}]`;
+          } while (placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match);
+        }
+        placeholderOwners.set(placeholder, match.match);
+        return placeholder === match.placeholder ? match : { ...match, placeholder };
+      });
+    },
+    assertAuthorityCurrent,
+    assertCurrent() {
+      assertAuthorityCurrent();
+      if (enhanced && settingsFingerprint !== JSON.stringify([
+        get(personalDataStore.settings), get(personalDataStore.enabledEntries),
+      ])) {
+        throw new PrivacySendContextChangedError();
+      }
+    },
+  };
+}
+
+type SendPrivacySnapshot = ReturnType<typeof captureSendPrivacy>;
+// Pending contexts are memory-only; retain click authority without persisting private state.
+const deferredSendPrivacy = new WeakMap<object, SendPrivacySnapshot>();
+const pendingPrivacyNotificationIds = new WeakMap<object, string>();
+const deferredSubmittedDrafts = new WeakMap<object, {
+  editor: Editor;
+  document: Editor["state"]["doc"];
+  chatId: string;
+}>();
+
+function failEnhancedPrivacyScan(privacy: SendPrivacySnapshot): never {
+  // SDK failures can contain input text. Only a fixed local message leaves this boundary.
+  const notificationId = privacy.failureNotificationId ?? notificationStore.error(get(text)("enter_message.pii.enhanced_scan_failed"));
+  throw new PrivacyScanFailedError(notificationId);
+}
+
+async function redactTextForSend(markdown: string, privacy: SendPrivacySnapshot) {
+  privacy.assertCurrent();
+  if (!privacy.enabled) return { markdown, mappings: [] as PIIMapping[], excludedOriginals: new Set<string>() };
+  try {
+    const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+    const excludedOriginals = await getExcludedOriginalsForCurrentSend(safeMarkdown, privacy.options);
+    privacy.assertCurrent();
+    const rewrite = rewriteKnownPIIPlaceholders(safeMarkdown, {
+      mappings: privacy.mappings,
+      excludedOriginals,
+    });
+    const detected = await detectPIIForWeb(rewrite.markdown, privacy.options);
+    privacy.assertCurrent();
+    const matches = privacy.uniqueMatches(detected);
+    return {
+      markdown: restore(matches.length ? replacePIIWithPlaceholders(rewrite.markdown, matches) : rewrite.markdown),
+      mappings: mergePIIMappingsForStorage(rewrite.appliedMappings, createPIIMappingsForStorage(matches)),
+      excludedOriginals,
+    };
+  } catch (error) {
+    if (error instanceof PrivacySendContextChangedError) throw error;
+    if (privacy.enhanced) failEnhancedPrivacyScan(privacy);
+    throw error;
+  }
+}
+
+/** Recording references include human text inside the protected embed JSON. */
+async function redactRecordingFieldsForSend(document: JSONContent, privacy: SendPrivacySnapshot): Promise<PIIMapping[]> {
+  if (!privacy.enabled || !privacy.enhanced) return [];
+  try {
+    let mappings: PIIMapping[] = [];
+    let recordingMappings: PIIMapping[] = [];
+    const scanned = new Map<string, Awaited<ReturnType<typeof redactTextForSend>>>();
+    const redact = async (value: string): Promise<string> => {
+      let result = scanned.get(value);
+      if (!result) {
+        result = await redactTextForSend(value, privacy);
+        scanned.set(value, result);
+      }
+      mappings = mergePIIMappingsForStorage(mappings, result.mappings);
+      recordingMappings = mergePIIMappingsForStorage(recordingMappings, result.mappings);
+      return result.markdown;
+    };
+    for (const node of submittedEmbedNodes(document)) {
+      if (node.attrs?.type !== "recording") continue;
+      recordingMappings = [];
+      for (const field of ["title", "filename", "transcript", "transcriptOriginal", "transcriptCorrected"]) {
+        const value = node.attrs[field];
+        if (typeof value === "string" && value) node.attrs[field] = await redact(value);
+      }
+      // Deferred uploads have already registered their TOON. Sanitize only human
+      // text in that cache too; opaque upload IDs and encryption material stay intact.
+      if (privacy.enhanced && typeof node.attrs.contentRef === "string") {
+        const { embedStore } = await import("../../../services/embedStore");
+        const piiKey = `embed_pii:${node.attrs.contentRef.replace(/^embed:/, "")}`;
+        const previousPII = await embedStore.get(piiKey);
+        privacy.assertCurrent();
+        if (previousPII && typeof previousPII === "object" && Array.isArray(previousPII.pii_mappings)) {
+          recordingMappings = mergePIIMappingsForStorage(previousPII.pii_mappings as PIIMapping[], recordingMappings);
+          mappings = mergePIIMappingsForStorage(mappings, recordingMappings);
+        }
+        const persistMappings = async () => {
+          if (!recordingMappings.length) return;
+          privacy.assertCurrent();
+          // Existing owner-only master-key mapping format; never put originals in TOON.
+          await embedStore.put(piiKey, {
+            embed_id: node.attrs!.contentRef.replace(/^embed:/, ""),
+            pii_mappings: recordingMappings,
+            created_at: Date.now(),
+          }, "audio-recording");
+          privacy.assertCurrent();
+        };
+        const rawStored = await embedStore.get(node.attrs.contentRef);
+        privacy.assertCurrent();
+        const stored: Record<string, unknown> | undefined = typeof rawStored === "string" ? { content: rawStored } : rawStored;
+        if (stored && typeof stored.content !== "string") failEnhancedPrivacyScan(privacy);
+        if (!stored && !node.attrs.uploadEmbedId) failEnhancedPrivacyScan(privacy);
+        if (stored && typeof stored.content === "string") {
+          const { decode, encode } = await import("@toon-format/toon");
+          let content: unknown;
+          try { content = JSON.parse(stored.content); }
+          catch { content = decode(stored.content); }
+          if (!content || typeof content !== "object" || Array.isArray(content)) failEnhancedPrivacyScan(privacy);
+          const fields = content as Record<string, unknown>;
+          for (const field of ["title", "filename", "transcript", "transcript_original", "transcript_corrected"]) {
+            const value = fields[field];
+            if (typeof value === "string" && value) fields[field] = await redact(value);
+          }
+          const textPreview = typeof stored.text_preview === "string" ? await redact(stored.text_preview) : stored.text_preview;
+          privacy.assertCurrent();
+          await persistMappings();
+          await embedStore.put(node.attrs.contentRef, { ...stored, content: encode(fields), text_preview: textPreview }, "audio-recording");
+          privacy.assertCurrent();
+        } else {
+          await persistMappings();
+        }
+      }
+    }
+    return mappings;
+  } catch (error) {
+    if (error instanceof PrivacyScanFailedError || error instanceof PrivacySendContextChangedError) throw error;
+    if (privacy.enhanced) failEnhancedPrivacyScan(privacy);
+    throw error;
+  }
+}
+
+async function getExcludedOriginalsForCurrentSend(
   markdown: string,
   detectionOptions: PIIDetectionOptions,
-): Set<string> {
+): Promise<Set<string>> {
   const excludedIds = detectionOptions.excludedIds;
   if (!excludedIds || excludedIds.size === 0) return new Set<string>();
 
-  const matchesWithoutExclusions = detectPII(markdown, {
+  const matchesWithoutExclusions = await detectPIIForWeb(markdown, {
     ...detectionOptions,
     excludedIds: new Set<string>(),
   });
@@ -466,53 +670,37 @@ function mergePIIMappingsForStorage(
 export async function prepareQueuedMessageRevision(
   editorContent: Record<string, unknown>,
   piiExclusions: Set<string>,
+  ignoredEmbedUrls?: ReadonlySet<string>,
 ): Promise<{ content: string; piiMappings: PIIMapping[] }> {
-  let markdown = tipTapToCanonicalMarkdown(editorContent).replace(/^\n+/, "");
+  const privacy = captureSendPrivacy(piiExclusions);
+  const ignoredEmbedUrlsAtClick = new Set(ignoredEmbedUrls);
+  const document = structuredClone(editorContent) as JSONContent;
+  const recordingMappings = await redactRecordingFieldsForSend(document, privacy);
+  let markdown = tipTapToCanonicalMarkdown(document).replace(/^\n+/, "");
   if (!markdown.trim()) throw new Error("Queued message cannot be empty");
-  markdown = await processUrlsBeforeSend(markdown);
-
-  const settings: PIIDetectionSettings = get(personalDataStore.settings);
-  if (!settings.masterEnabled) return { content: markdown, piiMappings: [] };
-  const disabledCategories = new Set(
-    Object.entries(settings.categories).filter(([, enabled]) => !enabled).map(([category]) => category),
-  );
-  const entries: PersonalDataForDetection[] = get(personalDataStore.enabledEntries).map((entry: PersonalDataEntry) => ({
-    id: entry.id,
-    textToHide: entry.textToHide,
-    replaceWith: entry.replaceWith,
-    type: entry.type === "address" ? "ADDRESS" : undefined,
-    additionalTexts: entry.type === "address" && entry.addressLines
-      ? [entry.addressLines.street, entry.addressLines.city].filter((value): value is string => !!value)
-      : undefined,
-  }));
-  const options: PIIDetectionOptions = { excludedIds: piiExclusions, disabledCategories, personalDataEntries: entries };
-  const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
-  const rewrite = rewriteKnownPIIPlaceholders(safeMarkdown, {
-    mappings: getActivePIIMappingsForRewrite(),
-    excludedOriginals: getExcludedOriginalsForCurrentSend(safeMarkdown, options),
-  });
-  const matches = detectPII(rewrite.markdown, options);
-  const content = restore(matches.length
-    ? replacePIIWithPlaceholders(rewrite.markdown, matches)
-    : rewrite.markdown);
-  const piiMappings = mergePIIMappingsForStorage(
-    rewrite.appliedMappings,
-    createPIIMappingsForStorage(matches),
-  );
-  return { content, piiMappings };
+  markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
+  privacy.assertCurrent();
+  const scanPrivacy = privacy.enhanced ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set());
+  const redacted = await redactTextForSend(markdown, scanPrivacy);
+  return { content: redacted.markdown, piiMappings: mergePIIMappingsForStorage(recordingMappings, redacted.mappings) };
 }
 
 function recordSendDebugStep(
   step: string,
   details: Record<string, unknown> = {},
 ): void {
+  const timestamp = new Date().toISOString();
+  if (sendInProgress && step !== "send_invoked" && step !== "send_guard_rejected" &&
+      step !== "send_set_active_chat_complete") {
+    activeSendDebugPhase = { step, timestamp };
+  }
   const debugWindow = window as Window & {
     __openmatesLastSendDebug?: Record<string, unknown>;
   };
   debugWindow.__openmatesLastSendDebug = {
     step,
     details,
-    timestamp: new Date().toISOString(),
+    timestamp,
   };
 }
 
@@ -581,8 +769,9 @@ export async function handleSend(
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
   projectFocusDocumentAtSendRequest?: unknown,
-  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean } = {},
+  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean; ignoredEmbedUrls?: ReadonlySet<string> } = {},
 ) {
+  const ignoredEmbedUrlsAtClick = new Set(options.ignoredEmbedUrls);
   // Direct callers must not start a second text inference for the chat owned by
   // a live call. MessageInput routes supported plain text through the call.
   const voiceCall = get(voiceCallController);
@@ -590,8 +779,10 @@ export async function handleSend(
       voiceCall.chatId === currentChatId) return false;
   // Bind this click to its workspace before URL, PII, and draft work can yield.
   const sendContext = getActiveTeamContextSnapshot();
-  const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch);
   const senderProfile = get(userProfile);
+  const authenticatedAtClick = get(authStore).isAuthenticated;
+  const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch) &&
+    get(userProfile).user_id === senderProfile.user_id && get(authStore).isAuthenticated === authenticatedAtClick;
   const teamSenderName = sendContext.teamId ? senderProfile.username.trim() || "Team member" : "user";
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -643,6 +834,10 @@ export async function handleSend(
   // created, leading to messages being routed to the wrong chat (e.g., the user sees
   // their message in the "for everyone" intro chat instead of the new chat).
   if (sendInProgress) {
+    recordSendDebugStep("send_guard_rejected", {
+      activeSendPhase: activeSendDebugPhase?.step ?? null,
+      activeSendPhaseStartedAt: activeSendDebugPhase?.timestamp ?? null,
+    });
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
       { currentChatId, textLength: editorTextLength },
@@ -650,7 +845,10 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  try {
+  recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
+  const privacyAtClick = captureSendPrivacy(activePIIExclusions);
   const submittedEditorDoc = editor.state.doc;
   const submittedEditorText = editor.getText();
   const submittedEditorJSON = structuredClone(editor.getJSON());
@@ -675,8 +873,10 @@ export async function handleSend(
   let chatBeforeSend: import("../../../types/chat").Chat | null = null;
   const clearSubmittedEditor = () => {
     if (options.preserveDraft || editor.isDestroyed || editor.state.doc !== submittedEditorDoc) return;
-    setHasContent(false);
     resetEditorContent(editor, false);
+    // The callback also reads attachment/preview state. Publish only after the
+    // silent clear so it observes the empty document rather than sent embeds.
+    setHasContent(false);
     clearedEditorDoc = editor.state.doc;
   };
   const restoreRejectedDraft = () => {
@@ -725,8 +925,6 @@ export async function handleSend(
       console.warn("[handleSend] Could not prepare immediate history row:", error);
     }
   }
-  recordSendDebugStep("send_guard_acquired", { currentChatId });
-
   // OTel instrumentation: root span covering the entire send pipeline
   const tracer = getTracer();
   const rootSpan = tracer.startSpan('message.send.pipeline', {
@@ -990,7 +1188,7 @@ export async function handleSend(
     // reconstruct the final markdown later without needing the live editor.
     // The upload callbacks in embedHandlers.ts will store finished embed data in
     // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
-    const { addPendingSend, removePendingSend } =
+    const { addPendingSend } =
       await import("../../../stores/pendingUploadStore");
     if (!contextIsCurrent()) {
       return;
@@ -1057,8 +1255,9 @@ export async function handleSend(
       blockingEmbedIds: stillBlockingEmbedIds,
       embedProgress: embedProgressMap,
       createdAt: Date.now(),
-      piiExclusions: new Set(activePIIExclusions),
-      piiRewriteMappings: getActivePIIMappingsForRewrite(),
+      piiExclusions: new Set(privacyAtClick.options.excludedIds),
+      ignoredEmbedUrls: [...ignoredEmbedUrlsAtClick],
+      piiRewriteMappings: structuredClone(privacyAtClick.mappings),
       modelSelection: selectedChatModel,
       partialMarkdown: "",
     };
@@ -1071,6 +1270,7 @@ export async function handleSend(
     if (!contextIsCurrent()) {
       return;
     }
+    if (privacyAtClick.enhanced) deferredSendPrivacy.set(pendingContext, privacyAtClick);
     addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
@@ -1081,26 +1281,26 @@ export async function handleSend(
     // and interact freely. Upload callbacks in embedHandlers.ts will try to update
     // TipTap nodes but the nodes won't exist anymore — that's fine, the callbacks
     // already store embed data in EmbedStore independently.
-    setHasContent(false);
     editor.commands.clearContent(false);
+    setHasContent(false);
+    if (privacyAtClick.enhanced) {
+      deferredSubmittedDrafts.set(pendingContext, { editor, document: editor.state.doc, chatId: deferredChatId });
+    }
     editor.commands.blur();
 
     console.info(
       `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${stillBlockingEmbedIds.size} embed(s), editor cleared`,
     );
     if (stillBlockingEmbedIds.size === 0) {
-      removePendingSend(deferredChatId, pendingContext.pendingId);
-      void executeDeferredSend(pendingContext).catch((error) => {
-        console.error(
-          `[handleSend] Immediate deferred send failed for chat ${deferredChatId.slice(-6)}:`,
-          error,
-        );
-      });
+      void dispatchPendingSendWithPrivacyRetry(pendingContext);
     }
     rootSpan.setAttribute('message.send.deferred', true);
     queuedDeferredSend = true;
     return true; // Durable deferred queue accepted the message; upload completion sends it.
   }
+
+  const recordingPIIMappings = await redactRecordingFieldsForSend(submittedEditorContent, privacyAtClick);
+  privacyAtClick.assertCurrent();
 
   // OTel: embed registration span (image + audio embeds, includes dynamic imports)
   const embedRegSpan = tracer.startSpan('message.send.embed_registration');
@@ -1285,6 +1485,7 @@ export async function handleSend(
         (attrs.filename as string) ||
         "Voice note";
 
+      privacyAtClick.assertCurrent();
       await audioEmbedStore.put(
         `embed:${uploadEmbedId}`,
         {
@@ -1313,6 +1514,8 @@ export async function handleSend(
     );
     throw recEmbedRegError;
   }
+
+  privacyAtClick.assertCurrent();
 
   // NOTE: PDF embed registration is intentionally NOT done here.
   // PDF dedup is disabled (see internal_api.py). Every PDF upload triggers
@@ -1364,7 +1567,7 @@ export async function handleSend(
   recordSendDebugStep("url_processing_started", { currentChatId });
   try {
     if (get(authStore).isAuthenticated) {
-      markdown = await processUrlsBeforeSend(markdown);
+      markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
       recordSendDebugStep("url_processing_complete", {
         currentChatId,
         markdownLength: markdown.length,
@@ -1384,6 +1587,8 @@ export async function handleSend(
     urlSpan.end();
   }
 
+  privacyAtClick.assertCurrent();
+
   // OTel: PII detection span
   const piiSpan = tracer.startSpan('message.send.pii_detection');
   // PII ANONYMIZATION: Detect and replace sensitive data with placeholders
@@ -1396,119 +1601,20 @@ export async function handleSend(
   // - If masterEnabled is false, skip ALL PII detection
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
-  let piiMappingsForStorage: PIIMapping[] = [];
+  let piiMappingsForStorage: PIIMapping[] = recordingPIIMappings;
   let privacyExcludedOriginals = new Set<string>();
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
-    // Read current privacy settings from the store
-    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
-
-    // Only run PII detection if the master toggle is enabled
-    if (piiSettings.masterEnabled) {
-      // Build the set of disabled categories (categories where the toggle is OFF)
-      const disabledCategories = new Set<string>();
-      for (const [category, enabled] of Object.entries(
-        piiSettings.categories,
-      )) {
-        if (!enabled) disabledCategories.add(category);
-      }
-
-      // Get user-defined personal data entries that are enabled
-      const enabledEntries: PersonalDataEntry[] = get(
-        personalDataStore.enabledEntries,
-      );
-      const personalDataForDetection: PersonalDataForDetection[] =
-        enabledEntries.map((entry) => {
-          const result: PersonalDataForDetection = {
-            id: entry.id,
-            textToHide: entry.textToHide,
-            replaceWith: entry.replaceWith,
-            type: entry.type === "address" ? "ADDRESS" : undefined,
-          };
-          // For address entries, include individual address lines as additional search texts
-          if (entry.type === "address" && entry.addressLines) {
-            const additionalTexts: string[] = [];
-            if (entry.addressLines.street)
-              additionalTexts.push(entry.addressLines.street);
-            if (entry.addressLines.city)
-              additionalTexts.push(entry.addressLines.city);
-            result.additionalTexts = additionalTexts;
-          }
-          return result;
-        });
-
-      // Build detection options with category filtering and personal data entries
-      const detectionOptions: PIIDetectionOptions = {
-        excludedIds: activePIIExclusions,
-        disabledCategories,
-        personalDataEntries: personalDataForDetection,
-      };
-
-      // CRITICAL: Protect embed reference blocks (```json {"embed_id":…} ```) from the
-      // PII anonymizer. UUID segments can match PII patterns (e.g. "051-4369" fires the
-      // local phone-number regex), which corrupts embed IDs and causes message sends to
-      // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
-      // the rest of the markdown, then restore the original blocks afterwards.
-      const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
-      privacyExcludedOriginals = getExcludedOriginalsForCurrentSend(safeMarkdown, detectionOptions);
-      const rewriteResult = rewriteKnownPIIPlaceholders(safeMarkdown, {
-        mappings: getActivePIIMappingsForRewrite(),
-        excludedOriginals: getExcludedOriginalsForCurrentSend(
-          safeMarkdown,
-          detectionOptions,
-        ),
-      });
-      const rewrittenSafeMarkdown = rewriteResult.markdown;
-
-      const piiMatches = detectPII(rewrittenSafeMarkdown, detectionOptions);
-      if (piiMatches.length > 0) {
-        console.debug(
-          "[handleSend] Detected PII to anonymize:",
-          piiMatches.map((m) => ({
-            type: m.type,
-            placeholder: m.placeholder,
-            // Don't log the actual match value for security
-            matchLength: m.match.length,
-          })),
-        );
-
-        // Create PII mappings for storage - these will be encrypted with the message
-        // and used to restore original values when rendering messages
-        piiMappingsForStorage = mergePIIMappingsForStorage(
-          rewriteResult.appliedMappings,
-          createPIIMappingsForStorage(piiMatches),
-        );
-
-        markdown = restore(
-          replacePIIWithPlaceholders(rewrittenSafeMarkdown, piiMatches),
-        );
-        console.debug(
-          "[handleSend] PII anonymization complete, replaced",
-          piiMatches.length,
-          "sensitive items. Mappings will be stored with message.",
-        );
-      } else {
-        // No PII found, but still restore embed blocks (restore is a no-op if none
-        // were protected, so this is always safe).
-        piiMappingsForStorage = mergePIIMappingsForStorage(
-          rewriteResult.appliedMappings,
-          [],
-        );
-        markdown = restore(rewrittenSafeMarkdown);
-      }
-    } else {
-      console.debug(
-        "[handleSend] PII detection disabled by user (masterEnabled=false)",
-      );
-    }
+    // Outside the dev trial retain the existing final-stage settings read.
+    const scanPrivacy = privacyAtClick.enhanced ? privacyAtClick : captureSendPrivacy(privacyAtClick.options.excludedIds ?? new Set());
+    const redacted = await redactTextForSend(markdown, scanPrivacy);
+    markdown = redacted.markdown;
+    piiMappingsForStorage = mergePIIMappingsForStorage(recordingPIIMappings, redacted.mappings);
+    privacyExcludedOriginals = redacted.excludedOriginals;
   } catch (error) {
+    if (privacyAtClick.enhanced || error instanceof PrivacySendContextChangedError) throw error;
     console.error("[handleSend] Error in PII anonymization:", error);
-    // Continue with original markdown if PII detection fails - user privacy is important
-    // but we shouldn't block sending messages entirely
-    recordSendDebugStep("pii_detection_failed", {
-      currentChatId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    recordSendDebugStep("pii_detection_failed", { currentChatId });
   } finally {
     piiSpan.end();
   }
@@ -1584,6 +1690,7 @@ export async function handleSend(
         vibrateMessageField();
         return;
       }
+      privacyAtClick.assertCurrent();
       const anonymousResult = await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,
@@ -1902,13 +2009,12 @@ export async function handleSend(
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
         try {
-          const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } =
+          const { DEMO_CHATS, getDemoMessages } =
             await import("../../../demo_chats");
           const demoMessages = getDemoMessages(
             sourceDemoId,
             DEMO_CHATS,
-            LEGAL_CHATS,
-          );
+                    );
 
           if (demoMessages && demoMessages.length > 0) {
             console.info(
@@ -2109,6 +2215,7 @@ export async function handleSend(
                 };
                 await chatDB.saveMessage(sibMsgPayload);
                 console.debug(`[handleSend:Broadcast] Saved message copy to sibling sub-chat: ${sib.chat_id}`);
+                privacyAtClick.assertCurrent();
                 await chatSyncService.sendNewMessage(sibMsgPayload);
               }
             }
@@ -2368,6 +2475,7 @@ export async function handleSend(
 			messageId: messagePayload.message_id,
 		});
 		recordSendPreparationPhase('send_new_message_begin');
+		privacyAtClick.assertCurrent();
 		await chatSyncService.sendNewMessage(
 			serverMessagePayload,
 			encryptedSuggestionToDelete,
@@ -2376,15 +2484,15 @@ export async function handleSend(
 			isNewChatCreation || isUsingDraftChat,
 			earlyEmptyConnectedAccounts,
 		);
-    if (options.preserveDraft) {
-      // A local admission guard can resolve sendNewMessage after marking the
-      // message failed. Separate wiki submissions must retain their fullscreen
-      // on this rejection rather than reporting acceptance to the caller.
-      const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
-      if (submittedMessage?.status === 'failed') {
-        wsSpan.end();
-        return false;
-      }
+    recordSendDebugStep("send_transport_resolved");
+    // A local admission guard can resolve after marking the message failed.
+    // Every composer must retain its draft on rejection; cleanup requires acceptance.
+    recordSendDebugStep("send_admission_read_started");
+    const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
+    recordSendDebugStep("send_admission_read_complete");
+    if (submittedMessage?.status === 'failed') {
+      wsSpan.end();
+      return false;
     }
     sendAccepted = true;
 		recordSendDebugStep("send_new_message_complete", {
@@ -2403,7 +2511,10 @@ export async function handleSend(
 
     const wasCancelledAfterSend = isSendCancelled(chatIdToUse);
     if (wasCancelledAfterSend) {
+      recordSendDebugStep("send_cancelled_message_delete_started");
       await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_message_delete_complete");
+      recordSendDebugStep("send_cancelled_remote_delete_started");
       await chatSyncService.sendDeleteMessage(chatIdToUse, messagePayload.message_id);
       recordSendDebugStep("sent_message_deleted_after_cancellation", {
         chatIdToUse,
@@ -2418,8 +2529,8 @@ export async function handleSend(
     const composerStillContainsSentDocument = editor.state.doc === submittedEditorDoc;
     const composerStillContainsClearedDocument = !!clearedEditorDoc && editor.state.doc === clearedEditorDoc;
     if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
-      setHasContent(false);
       resetEditorContent(editor, false);
+      setHasContent(false);
     }
 
     // OTel: cleanup span (draft clearing)
@@ -2431,7 +2542,9 @@ export async function handleSend(
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
+      recordSendDebugStep("send_draft_cleanup_started");
       await clearCurrentDraft({ editor, document: composerStillContainsClearedDocument ? clearedEditorDoc! : submittedEditorDoc, chatId: chatIdToUse });
+      recordSendDebugStep("send_draft_cleanup_complete");
     } else {
       // This case might happen if a message is sent for a chat that isn't the one
       // currently active in the MessageInput's draft context (e.g., programmatic send).
@@ -2490,9 +2603,15 @@ export async function handleSend(
     // CRITICAL: Always release the send guard, even on error,
     // so the user can retry sending after a failure.
   }
+  } catch (error) {
+    if (error instanceof PrivacyScanFailedError || error instanceof PrivacySendContextChangedError) {
+      return false;
+    }
+    throw error;
   } finally {
     if (!sendAccepted && !queuedDeferredSend) {
       if (createdLocalChatId || persistedMessageId) {
+        recordSendDebugStep("send_rollback_started");
         try {
           if (messageStoredIncognito) {
             const { incognitoChatService } = await import("../../../services/incognitoChatService");
@@ -2527,6 +2646,7 @@ export async function handleSend(
         } catch (rollbackError) {
           console.error("[handleSend] Failed to roll back rejected local message:", rollbackError);
         }
+        recordSendDebugStep("send_rollback_complete");
       }
       restoreRejectedDraft();
       if (optimisticMessageDispatched && dispatchedMessage) {
@@ -2536,14 +2656,82 @@ export async function handleSend(
         });
       }
     }
-    sendInProgress = false;
     rootSpan.end();
+  }
+  } finally {
+    // Synchronous snapshot/tracing preparation above can throw before the
+    // pipeline's rollback block exists. Every acquired guard must be released.
+    sendInProgress = false;
+    activeSendDebugPhase = null;
+    recordSendDebugStep("send_guard_released");
   }
 }
 
 // =============================================================================
 // Deferred Send Execution
 // =============================================================================
+
+/** Dispatch a retained trial queue head, preserving one actionable failure toast. */
+export async function dispatchPendingSendWithPrivacyRetry(
+  context: import("../../../stores/pendingUploadStore").PendingSendContext,
+  options: { retryPrivacy?: boolean } = {},
+): Promise<void> {
+  const { claimPendingSendPrivacy, markPendingSendPrivacyFailure, removePendingSend, getReadyPendingSend } =
+    await import("../../../stores/pendingUploadStore");
+  const enhanced = deferredSendPrivacy.get(context)?.enhanced ?? isWebPIIModelEnabled();
+  if (!enhanced) {
+    // Keep the established production deferred path outside the trial.
+    removePendingSend(context.chatId, context.pendingId);
+    try {
+      await executeDeferredSend(context);
+    } catch (error) {
+      console.error("[dispatchPendingSendWithPrivacyRetry] Deferred send failed:", error);
+    }
+    return;
+  }
+  let ready: import("../../../stores/pendingUploadStore").PendingSendContext | undefined = context;
+  let retry = options.retryPrivacy === true;
+  while (ready && claimPendingSendPrivacy(ready, retry)) {
+    const existingId = pendingPrivacyNotificationIds.get(ready);
+    if (existingId) notificationStore.updateNotification(existingId, { actionsDisabled: true });
+    try {
+      await executeDeferredSend(ready, { retryPrivacy: retry });
+      removePendingSend(ready.chatId, ready.pendingId);
+      if (existingId) {
+        notificationStore.removeNotification(existingId);
+        pendingPrivacyNotificationIds.delete(ready);
+      }
+      ready = getReadyPendingSend(ready.chatId);
+      retry = false;
+    } catch (error) {
+      const failedContext = ready;
+      markPendingSendPrivacyFailure(failedContext);
+      const notificationOptions = {
+        message: get(text)("enter_message.pii.model_pending_error"),
+        actionLabel: get(text)("enter_message.pii.model_retry_message"),
+        duration: 0,
+        dismissible: false,
+        keepOnAction: true,
+        actionsDisabled: false,
+        dedupeKey: `pending-message-privacy:${failedContext.pendingId}`,
+        onAction: () => {
+          resetWebPIIDetector();
+          void dispatchPendingSendWithPrivacyRetry(failedContext, { retryPrivacy: true });
+        },
+      };
+      const notificationId = existingId ?? (error instanceof PrivacyScanFailedError ? error.notificationId : undefined);
+      if (notificationId) {
+        notificationStore.cancelAutoDismiss(notificationId);
+        notificationStore.updateNotification(notificationId, notificationOptions);
+        pendingPrivacyNotificationIds.set(failedContext, notificationId);
+      } else {
+        const addedId = notificationStore.addNotificationWithOptions("error", notificationOptions);
+        pendingPrivacyNotificationIds.set(failedContext, addedId);
+      }
+      return;
+    }
+  }
+}
 
 /**
  * Execute a deferred send by reconstructing final markdown from the snapshotted
@@ -2564,7 +2752,18 @@ export async function handleSend(
  */
 export async function executeDeferredSend(
   readyCtx: import("../../../stores/pendingUploadStore").PendingSendContext,
+  options: { retryPrivacy?: boolean } = {},
 ): Promise<void> {
+  const originalPrivacy = deferredSendPrivacy.get(readyCtx) ?? captureSendPrivacy(readyCtx.piiExclusions, readyCtx.piiRewriteMappings ?? []);
+  if (originalPrivacy.enhanced && !deferredSendPrivacy.has(readyCtx)) deferredSendPrivacy.set(readyCtx, originalPrivacy);
+  originalPrivacy.assertAuthorityCurrent();
+  if (readyCtx.privacyScanState === "failed" && !options.retryPrivacy) throw new PrivacySendContextChangedError();
+  // Only a fresh user action may adopt changed settings, retaining click authority.
+  const privacy = options.retryPrivacy
+    ? captureSendPrivacy(originalPrivacy.options.excludedIds ?? new Set(), originalPrivacy.mappings)
+    : originalPrivacy;
+  privacy.failureNotificationId = pendingPrivacyNotificationIds.get(readyCtx);
+  privacy.assertCurrent();
   const reservedTurn = reservePersonalChatTurn(readyCtx.chatId, readyCtx.messageId);
   try {
   console.info(
@@ -2665,6 +2864,7 @@ export async function executeDeferredSend(
   }
 
   patchEmbedNodes((snapshot as TipTapNode).content);
+  const recordingPIIMappings = await redactRecordingFieldsForSend(snapshot as JSONContent, privacy);
 
   // -------------------------------------------------------------------------
   // 3. Serialize to markdown
@@ -2677,7 +2877,7 @@ export async function executeDeferredSend(
   // 4. Process URLs → embed references
   // -------------------------------------------------------------------------
   try {
-    markdown = await processUrlsBeforeSend(markdown);
+    markdown = await processUrlsBeforeSend(markdown, new Set(readyCtx.ignoredEmbedUrls));
   } catch (error) {
     console.error(
       "[executeDeferredSend] Error processing URLs before send:",
@@ -2688,81 +2888,18 @@ export async function executeDeferredSend(
   // -------------------------------------------------------------------------
   // 5. PII anonymization
   // -------------------------------------------------------------------------
-  let piiMappingsForStorage: PIIMapping[] = [];
+  let piiMappingsForStorage: PIIMapping[] = recordingPIIMappings;
   try {
-    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
-    if (piiSettings.masterEnabled) {
-      const disabledCategories = new Set<string>();
-      for (const [category, enabled] of Object.entries(
-        piiSettings.categories,
-      )) {
-        if (!enabled) disabledCategories.add(category);
-      }
-
-      const enabledEntries: PersonalDataEntry[] = get(
-        personalDataStore.enabledEntries,
-      );
-      const personalDataForDetection: PersonalDataForDetection[] =
-        enabledEntries.map((entry) => {
-          const result: PersonalDataForDetection = {
-            id: entry.id,
-            textToHide: entry.textToHide,
-            replaceWith: entry.replaceWith,
-            type: entry.type === "address" ? "ADDRESS" : undefined,
-          };
-          if (entry.type === "address" && entry.addressLines) {
-            const additionalTexts: string[] = [];
-            if (entry.addressLines.street)
-              additionalTexts.push(entry.addressLines.street);
-            if (entry.addressLines.city)
-              additionalTexts.push(entry.addressLines.city);
-            result.additionalTexts = additionalTexts;
-          }
-          return result;
-        });
-
-      const detectionOptions: PIIDetectionOptions = {
-        excludedIds: readyCtx.piiExclusions,
-        disabledCategories,
-        personalDataEntries: personalDataForDetection,
-      };
-
-      // Protect embed reference blocks from PII corruption (same reason as in
-      // handleSend: UUID segments can match phone/other PII patterns).
-      const { safeMarkdown: safeMd, restore: restoreMd } =
-        protectEmbedRefsFromPII(markdown);
-      const rewriteResult = rewriteKnownPIIPlaceholders(safeMd, {
-        mappings: readyCtx.piiRewriteMappings ?? [],
-        excludedOriginals: getExcludedOriginalsForCurrentSend(
-          safeMd,
-          detectionOptions,
-        ),
-      });
-      const rewrittenSafeMd = rewriteResult.markdown;
-
-      const piiMatches = detectPII(rewrittenSafeMd, detectionOptions);
-      if (piiMatches.length > 0) {
-        piiMappingsForStorage = mergePIIMappingsForStorage(
-          rewriteResult.appliedMappings,
-          createPIIMappingsForStorage(piiMatches),
-        );
-        markdown = restoreMd(
-          replacePIIWithPlaceholders(rewrittenSafeMd, piiMatches),
-        );
-        console.debug(
-          `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
-        );
-      } else {
-        piiMappingsForStorage = mergePIIMappingsForStorage(
-          rewriteResult.appliedMappings,
-          [],
-        );
-        markdown = restoreMd(rewrittenSafeMd);
-      }
-    }
+    privacy.assertCurrent();
+    const scanPrivacy = privacy.enhanced ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set(), privacy.mappings);
+    const redacted = await redactTextForSend(markdown, scanPrivacy);
+    markdown = redacted.markdown;
+    piiMappingsForStorage = mergePIIMappingsForStorage(recordingPIIMappings, redacted.mappings);
   } catch (error) {
+    if (privacy.enhanced || error instanceof PrivacySendContextChangedError) throw error;
     console.error("[executeDeferredSend] PII anonymization error:", error);
   }
+  privacy.assertCurrent();
 
   // -------------------------------------------------------------------------
   // 6. Build message payload and update IndexedDB
@@ -2830,6 +2967,8 @@ export async function executeDeferredSend(
     );
   }
 
+  privacy.assertCurrent();
+
   // Build a full message payload for chatSyncService (it needs all fields)
   const messagePayload: Message = {
     message_id: readyCtx.messageId,
@@ -2853,6 +2992,7 @@ export async function executeDeferredSend(
   try {
     // Notify backend about the active chat (it may be a different chat now)
     await chatSyncService.sendSetActiveChat(readyCtx.chatId);
+    privacy.assertCurrent();
     await chatSyncService.sendNewMessage(
       messagePayload,
       undefined,
@@ -2864,6 +3004,7 @@ export async function executeDeferredSend(
       `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
     );
   } catch (sendError) {
+    if (privacy.enhanced || sendError instanceof PrivacySendContextChangedError) throw sendError;
     console.error(
       "[executeDeferredSend] Failed to send deferred message:",
       sendError,
@@ -2882,10 +3023,18 @@ export async function executeDeferredSend(
   // Without this call, Device B (and any other device) would continue showing
   // the draft in the chat list even after the message was sent.
   try {
-    await clearCurrentDraft();
-    console.info(
-      `[executeDeferredSend] Draft cleared for chat ${readyCtx.chatId.slice(-6)}`,
-    );
+    const submittedDraft = deferredSubmittedDrafts.get(readyCtx);
+    // A retry may complete after navigation or after typing another draft in
+    // the same chat. Only the exact cleared document still belongs to this send.
+    if (!privacy.enhanced || (submittedDraft && !submittedDraft.editor.isDestroyed &&
+        submittedDraft.editor.state.doc === submittedDraft.document &&
+        get(draftEditorUIState).currentChatId === readyCtx.chatId)) {
+      privacy.assertAuthorityCurrent();
+      await clearCurrentDraft(submittedDraft);
+      console.info(
+        `[executeDeferredSend] Draft cleared for chat ${readyCtx.chatId.slice(-6)}`,
+      );
+    }
   } catch (clearError) {
     console.error(
       "[executeDeferredSend] Failed to clear draft after deferred send:",

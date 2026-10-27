@@ -2,9 +2,22 @@
 # This file contains Pydantic models for AI skill requests and responses
 # that might be shared between the core API and the AI app services.
 
-from typing import List, Dict, Any, Optional, Literal
-from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
+from typing import List, Dict, Any, Optional, Literal, Annotated
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer, ConfigDict, StringConstraints
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
+
+RoutingModelId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$")]
+RoutingServerId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
+RoutingServerList = Annotated[List[RoutingServerId], Field(max_length=16)]
+
+
+class ModelRoutingRestrictions(BaseModel):
+    """First-party authenticated per-turn metadata, never an account-settings write."""
+    model_config = ConfigDict(extra="forbid")
+    disabled_ai_models: List[RoutingModelId] = Field(default_factory=list, max_length=256)
+    disabled_ai_servers: Dict[RoutingModelId, RoutingServerList] = Field(default_factory=dict, max_length=256)
+
 
 class AskSkillRequest(BaseModel):
     @field_validator("message_history", mode="before")
@@ -33,9 +46,17 @@ class AskSkillRequest(BaseModel):
     current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
     current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
+    voice_mode: bool = Field(default=False, description="Server-validated call delivery for this ordinary chat turn; does not override model routing.")
+    voice_call_id: Optional[str] = Field(default=None, max_length=64)
+    voice_turn_id: Optional[str] = Field(default=None, max_length=64)
+    voice_heard_boundary: Optional[VoiceHeardBoundary] = None
     assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
+    # Authenticated WebSocket requests must serialize the worker's complete
+    # scope before queueing; missing booleans compare as None during handoff.
+    is_external: Literal[False] = Field(default=False, description="First-party WebSocket requests are never external API requests.")
+    is_anonymous: Literal[False] = Field(default=False, description="This schema is used only after WebSocket authentication.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted Focus phase state; server authority is rechecked.")

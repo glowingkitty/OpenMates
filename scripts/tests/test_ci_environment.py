@@ -29,6 +29,19 @@ from scripts.ci_environment import (
 )
 
 
+def test_apps_library_storage_is_explicit_and_shared_in_isolated_runtime():
+    profile = compose_profile("a" * 40)
+    target = "/app/data/apps-recommendations"
+    for name in ("api", "core-worker"):
+        service = profile["services"][name]
+        assert service["environment"]["APPS_RECOMMENDATIONS_DIR"] == target
+        mounts = [mount for mount in service["volumes"]
+                  if isinstance(mount, dict) and mount.get("target") == target]
+        assert mounts == [{"type": "volume", "source": "apps-recommendations-data",
+                           "target": target, "volume": {"nocopy": True}}]
+    assert profile["volumes"]["apps-recommendations-data"]["labels"]["openmates.backup.exclude"] == "true"
+
+
 def test_profile_is_private_and_source_bound():
     profile = compose_profile("a" * 40)
     assert profile["name"] == "openmates-ci"
@@ -572,6 +585,44 @@ def test_committed_ai_fixtures_have_worker_and_no_external_network():
     assert "ai-worker" not in compose_profile("a" * 40)["services"]
 
 
+
+def test_camera_voice_spec_reuses_guarded_ai_worker_for_video_and_real_uploads():
+    source = Path(__file__).resolve().parents[2]
+    manifest = json.loads((source / "scripts/ci_coverage_manifest.json").read_text())
+    spec = "voice-call.spec.ts"
+    assert spec in upload_specs(manifest, source)
+    assert spec in ai_fixture_specs(manifest, source)
+    profile = compose_profile("a" * 40, ai_fixtures=True, uploads=True, voice_camera=True)
+    ordinary = compose_profile("a" * 40, ai_fixtures=True, uploads=True)
+    assert set(profile["services"]) == set(ordinary["services"]) | {"speech-worker"}
+    worker = profile["services"]["ai-worker"]
+    assert worker["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing,app_videos"
+    assert "--queues=app_ai,app_ai_routing,app_videos" in worker["command"]
+    assert worker["image"] == profile["services"]["api"]["image"]
+    speech = profile["services"]["speech-worker"]
+    assert speech["environment"]["CELERY_QUEUES"] == "app_music"
+    assert "--queues=app_music" in speech["command"]
+    assert "--concurrency=1" in speech["command"] and "--concurrency=1" in worker["command"]
+    assert speech["image"] == worker["image"] and speech["volumes"] == worker["volumes"]
+    assert "app_music" not in worker["environment"]["CELERY_QUEUES"]
+    for name in ("api", "ai-worker", "speech-worker"):
+        environment = profile["services"][name]["environment"]
+        assert {key: environment[key] for key in (
+            "CI", "OPENMATES_CI_ISOLATED", "OPENMATES_CI_AI_FIXTURES", "MOCK_EXTERNAL_APIS"
+        )} == {"CI": "true", "OPENMATES_CI_ISOLATED": "1", "OPENMATES_CI_AI_FIXTURES": "1", "MOCK_EXTERNAL_APIS": "true"}
+    assert {"uploads", "clamav", "object-storage"}.issubset(profile["services"])
+    assert profile["networks"]["default"]["internal"] is True
+    assert ordinary["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
+    assert profile["services"]["core-worker"]["command"] == ordinary["services"]["core-worker"]["command"]
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"] == ordinary["services"]["core-worker"]["environment"]["CELERY_QUEUES"]
+
+
+@pytest.mark.parametrize("requirements", [{}, {"ai_fixtures": True}, {"uploads": True}])
+def test_camera_voice_fixture_cannot_enable_video_worker_without_ai_and_upload_guards(requirements):
+    with pytest.raises(ValueError, match="Voice camera fixture requires"):
+        compose_profile("a" * 40, voice_camera=True, **requirements)
+
+
 def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path, monkeypatch):
     from scripts import ci_environment as runtime
     import json
@@ -1006,3 +1057,136 @@ def test_team_billing_readiness_uses_frozen_source_capability(tmp_path, monkeypa
     ordinary = compose_profile("a" * 40)
     for service in ("api", "core-worker", "cms"):
         assert "TEAM_STORAGE_BILLING_ENABLED" not in ordinary["services"][service]["environment"]
+
+
+@pytest.mark.parametrize("command,environment,voice_camera,expected", [
+    (["worker", "--queues=app_ai,app_ai_routing,app_videos"], "app_ai,app_ai_routing,app_videos", True,
+     ["app_ai", "app_ai_routing", "app_videos"]),
+    (["worker", "--queues", "app_videos,app_ai_routing,app_ai"], "app_ai,app_videos,app_ai_routing", True,
+     ["app_ai", "app_ai_routing", "app_videos"]),
+    (["worker", "-Q", "app_ai,app_ai_routing"], "app_ai,app_ai_routing", False, ["app_ai", "app_ai_routing"]),
+    (["worker", "--queues=app_ai,app_ai_routing"], "app_ai,app_ai_routing", True, None),
+    (["worker", "--queues=app_ai,app_videos"], "app_ai,app_videos", True, None),
+    (["worker", "--queues=app_ai,app_ai_routing,app_videos"], "app_ai,app_ai_routing", True, None),
+    (["worker", "--queues=app_ai"], "", False, None),
+    (["worker"], "app_ai", False, None),
+    (["worker", "--queues=app_ai", "--queues=app_ai"], "app_ai", False, None),
+    (["worker", "--queues=private://sensitive"], "private://sensitive", False, None),
+])
+def test_actual_ai_worker_queue_inputs_are_verified_without_private_output(command, environment, voice_camera, expected):
+    from scripts.ci_environment import validate_ai_worker_queues
+    if expected is None:
+        with pytest.raises(RuntimeError) as caught:
+            validate_ai_worker_queues(command, environment, voice_camera=voice_camera)
+        assert "sensitive" not in str(caught.value)
+    else:
+        assert validate_ai_worker_queues(command, environment, voice_camera=voice_camera) == expected
+
+
+@pytest.mark.parametrize("actual", ["app_ai,app_ai_routing", "app_ai,app_music", "app_music"])
+def test_verify_reads_running_worker_queues_instead_of_planned_profile(tmp_path, monkeypatch, actual):
+    import socket
+    import urllib.request
+    from types import SimpleNamespace
+    from scripts import ci_environment as runtime
+
+    source = "a" * 40
+    results = tmp_path / "test-results"
+    results.mkdir()
+    evidence_path = results / "ci-environment.json"
+    evidence_path.write_text(json.dumps({"source_commit": source}))
+    profile = {"services": {name: {} for name in (
+        "api", "core-worker", "cms", "cms-database", "cache", "vault", "ai-worker", "speech-worker", "runner-gateway")}}
+    profile["services"]["api"]["environment"] = {}
+    # The planned source is correct in both cases; only the actual running
+    # worker inspection can catch the stale-harness regression.
+    profile["services"]["ai-worker"]["command"] = ["worker", "--queues=app_ai,app_ai_routing,app_videos"]
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runtime, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(runtime, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runtime, "require_runner", lambda: None)
+    monkeypatch.setattr(runtime.sys, "argv", ["ci_environment.py", "verify"])
+    monkeypatch.setenv("CI_SPECS_JSON", '["voice-call.spec.ts"]')
+    monkeypatch.setenv("RUNNER_ENVIRONMENT", "github-hosted")
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: [(None, None, None, None, ("127.0.0.2", 443))])
+    def reject_connection(*args, **kwargs):
+        raise OSError("shared egress rejected")
+    monkeypatch.setattr(socket, "create_connection", reject_connection)
+    class Health:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: Health())
+    monkeypatch.setattr(runtime, "compose", lambda *args, **kwargs: SimpleNamespace(stdout=args[-1]))
+    filtered_calls = []
+    def inspect(command, **kwargs):
+        if command[:3] == ["docker", "network", "inspect"]:
+            return json.dumps([{"Internal": True}])
+        if "--format" in command:
+            template = command[command.index("--format") + 1]
+            assert '"CELERY_QUEUES"' in template and "{{json .Config.Env}}" not in template
+            assert command[-1] in {"ai-worker", "speech-worker"}
+            filtered_calls.append(command)
+            queues = actual if command[-1] == "speech-worker" else "app_ai,app_ai_routing,app_videos"
+            return json.dumps(["worker", f"--queues={queues}"]) + f"\nCELERY_QUEUES={queues}\n\n"
+        return json.dumps([{"Image": "synthetic-image", "State": {"Running": True}, "Config": {
+            "Labels": {"org.openmates.source": source}, "Env": ["UNRELATED_PRIVATE_KEY=must-not-be-retained"]},
+            "Mounts": [{"Destination": "/app/backend", "Source": str(tmp_path / "backend"), "RW": False}]}])
+    monkeypatch.setattr(runtime.subprocess, "check_output", inspect)
+    if actual != "app_music":
+        with pytest.raises(RuntimeError, match="independent shared-speech queue consumer"):
+            runtime.main()
+    else:
+        runtime.main()
+        evidence = json.loads(evidence_path.read_text())
+        assert evidence["services"]["ai-worker"]["queues"] == ["app_ai", "app_ai_routing", "app_videos"]
+        assert evidence["services"]["speech-worker"]["queues"] == ["app_music"]
+        assert "must-not-be-retained" not in evidence_path.read_text()
+        assert "CELERY_QUEUES" not in evidence_path.read_text()
+    assert len(filtered_calls) == (2 if actual == "app_music" else 1)
+
+
+def test_voice_fixture_queue_imports_register_the_real_shared_speech_tasks():
+    """Connect the isolated queue profile to declarative Celery task registration.
+
+    Evaluate only the pure queue-selection functions and literal task catalogue;
+    importing the application would initialize operator services on the dev host.
+    """
+    import ast
+
+    root = Path(__file__).resolve().parents[2]
+    tree = ast.parse((root / "backend/core/api/app/tasks/celery_config.py").read_text())
+    catalog = next(node for node in tree.body if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "TASK_CONFIG" for target in node.targets))
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+        and node.name in {"_task_configs_for_worker_queues", "_task_modules_for_worker_queues"}]
+    namespace = {"TASK_CONFIG": ast.literal_eval(catalog.value)}
+    exec(compile(ast.Module(body=functions, type_ignores=[]), "celery-queue-selection", "exec"), namespace)
+    worker = compose_profile("a" * 40, ai_fixtures=True, uploads=True, voice_camera=True)["services"]["speech-worker"]
+    modules = namespace["_task_modules_for_worker_queues"](worker["environment"]["CELERY_QUEUES"])
+    from celery import Celery, Task
+    from typing import Any
+    app = Celery("voice-fixture-registration", broker="memory://", set_as_current=False)
+    expected = {
+        "backend.apps.audio.assistant_speech.segment_task": "apps.audio.tasks.assistant_speech_segment",
+        "backend.apps.audio.assistant_speech.billing_task": "apps.audio.tasks.assistant_speech_billing",
+    }
+    for module, task_name in expected.items():
+        assert module in modules
+        source = ast.parse((root / (module.replace(".", "/") + ".py")).read_text())
+        declarations = [decorator for node in source.body if isinstance(node, ast.FunctionDef)
+            for decorator in node.decorator_list if isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute) and decorator.func.attr == "task"]
+        assert any(any(keyword.arg == "name" and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == task_name for keyword in declaration.keywords) for declaration in declarations)
+
+        task_functions = [node for node in source.body if isinstance(node, ast.FunctionDef)
+            and any(isinstance(decorator, ast.Call) and any(keyword.arg == "name"
+                and isinstance(keyword.value, ast.Constant) and keyword.value.value == task_name
+                for keyword in decorator.keywords) for decorator in node.decorator_list)]
+        exec(compile(ast.Module(body=task_functions, type_ignores=[]), str(module), "exec"),
+             {"app": app, "BaseServiceTask": Task, "Any": Any})
+        assert task_name in app.tasks
+        assert app.tasks[task_name]._get_exec_options()["queue"] == "app_music"
+    app.close()

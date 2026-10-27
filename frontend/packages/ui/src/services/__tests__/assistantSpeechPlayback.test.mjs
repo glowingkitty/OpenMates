@@ -68,6 +68,21 @@ test('multiline and long embed metadata never leaks into narrated chunks', () =>
   assert.deepEqual(output.map(({ speakableText }) => speakableText), ['Intro.', 'Search results are available.', 'Summary.']);
 });
 
+// contract-test: supporting surface=gui.web assertions=assistant-speech.segmentation.immutable-source,assistant-speech.projection.deterministic-semantic
+test('paragraphs remain separate and oversized paragraphs split into complete bounded sentences', () => {
+  const first = 'A complete sentence. '.repeat(70).trim();
+  const second = 'The following sentence has more words. '.repeat(30).trim();
+  const paragraph = `${first} ${second}`;
+  const segments = projectAssistantSpeech(`Introduction.\n\n${paragraph}\n\nConclusion.`);
+  assert.equal(segments[0].speakableText, 'Introduction.');
+  assert.equal(segments.at(-1).speakableText, 'Conclusion.');
+  assert.equal(segments.slice(1, -1).map(segment => segment.speakableText).join(' '), paragraph);
+  assert.ok(segments.every(segment => segment.speakableText.length <= 2000));
+  assert.ok(segments.every(segment => segment.speakableText.endsWith('.')));
+  const longToken = projectAssistantSpeech('x'.repeat(4001));
+  assert.deepEqual(longToken.map(segment => segment.speakableText.length), [2000, 2000, 1]);
+});
+
 // contract-test: supporting surface=gui.web assertions=assistant-speech.projection.deterministic-semantic
 test('duplicate semantic search announcements are narrated once', () => {
   const fence = '```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search"}\n```';

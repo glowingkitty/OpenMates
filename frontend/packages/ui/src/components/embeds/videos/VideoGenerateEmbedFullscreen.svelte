@@ -7,7 +7,8 @@
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
   const audioUrlOwner = createAudioUrlOwner();
   const fetchAndDecryptAudio = audioUrlOwner.fetch;
@@ -71,7 +72,9 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ prompt, model, resolution }}
+  mediaLayout="immersive"
   appId="videos"
   skillId="generate"
   skillIconName="videos"
@@ -84,14 +87,17 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
-  {navigateDirection}
+  navigateDirection={navigateDirection ?? undefined}
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content()}
+  {#snippet summary()}
+    {#if resolution}<ResultEmbedInfo icon="maximize" label={resolution} value={resolution} />{/if}
+  {/snippet}
+  {#snippet media()}
     <div class="video-fullscreen" data-testid="video-generate-fullscreen">
     {#if videoUrl}
-      <video src={videoUrl} poster={previewImageUrl || undefined} controls playsinline autoplay data-testid="video-generate-fullscreen-video">
+      <video class="result-primary-media" src={videoUrl} poster={previewImageUrl || undefined} controls playsinline autoplay data-testid="video-generate-fullscreen-video">
         <track kind="captions" src="data:text/vtt,WEBVTT" />
       </video>
     {:else if error}
@@ -99,17 +105,20 @@
     {:else}
       <p>Loading video...</p>
     {/if}
+
+  </div>
+  {/snippet}
+  {#snippet detailContent()}
     <dl>
       {#if prompt}<dt>Prompt</dt><dd>{prompt}</dd>{/if}
       {#if model}<dt>Model</dt><dd>{model}</dd>{/if}
       {#if resolution}<dt>Resolution</dt><dd>{resolution}</dd>{/if}
     </dl>
-  </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .video-fullscreen { display: grid; gap: 16px; padding: 24px; }
+  .video-fullscreen { display: grid; gap: 16px; padding: 0; }
   video { width: 100%; max-height: 70vh; border-radius: 16px; background: var(--color-grey-100); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; color: var(--color-font-primary); }
   dt { font-weight: 700; }

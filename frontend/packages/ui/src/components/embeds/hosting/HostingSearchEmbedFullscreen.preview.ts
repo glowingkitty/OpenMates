@@ -8,6 +8,7 @@ const defaultProps = {
 };
 export default defaultProps;
 export const variants = {
+  missingData: { ...defaultProps, data: { decodedContent: { ...parentContent, selected_embed_ids: [domainFixtures.unknown.embed_id] }, embedData: { status: 'finished' } }, previewChildren: [domainFixtures.unknown] },
   partial: { ...defaultProps, data: { decodedContent: { ...parentContent, partial: true, warnings: ['One check failed'] }, embedData: { status: 'finished' } } },
   empty: { ...defaultProps, data: { decodedContent: { ...parentContent, embed_ids: [], selected_embed_ids: [], result_count: 0, checked_count: 0, available_count: 0, unavailable_count: 0, unknown_count: 0 }, embedData: { status: 'finished' } }, previewChildren: [] },
   error: { ...defaultProps, data: { decodedContent: { ...parentContent, error: 'Domain availability could not be checked', selected_embed_ids: [], result_count: 0, checked_count: 1, available_count: 0, unavailable_count: 0, unknown_count: 1 }, embedData: { status: 'error' } }, previewChildren: [domainFixtures.unknown] },

@@ -1,6 +1,44 @@
+guest_inference:
+  - id: public-budget-and-local-conversation
+    assertion_ids: [apple-watch.guest.public-inference]
+    given: A signed-out Watch has public free text admission and no paired account runtime.
+    when: The user starts a guest conversation, sends a question, and later reopens it.
+    then: The current public budget admits only the selected local guest history; the validated answer and draft are encrypted locally, the available daily percentage is shown, and examples and Login remain available without private account credentials or caches.
+  - id: offline-draft-and-unconfirmed-post
+    assertion_ids: [apple-watch.guest.public-inference]
+    given: A guest has an edited draft, or a public POST whose response is lost.
+    when: Connectivity returns, status refreshes, or the app reopens after process loss.
+    then: The encrypted draft remains recoverable without automatic submission; an ambiguous dispatched request remains unconfirmed and cannot replay, while a new conversation is an explicit separate choice.
 schema_version: 1
-specification: feature.apple-watch@3
+specification: feature.apple-watch@6
 
+guest_workspace:
+  - id: signed-out-watch-opens-public-chats
+    given: A Watch has no authenticated account and is offline.
+    when: The user launches OpenMates.
+    then: Chats opens with create, search, and settings above Login, followed by bundled public examples; the controls and rows fit the Watch viewport, and no pairing attempt or main-app inspiration or topic carousel starts.
+  - id: search-read-and-return-to-examples
+    given: The signed-out Watch displays its bundled public examples.
+    when: The user searches for Artemis, opens the matching example, reads its transcript and available previews, returns with Back, and clears the search.
+    then: The selected public conversation is readable, Back returns to the guest workspace, and clearing search restores the full allowed example list with Login and workspace controls reachable.
+guest_pairing:
+  - id: enter-and-complete-current-login
+    given: A signed-out Watch shows public examples beside a matching authenticated iPhone.
+    when: The user taps Login and completes the current pairing attempt.
+    then: The existing iPhone-first approval and short-URL fallback remain available, and successful pairing opens the authenticated Watch workspace.
+  - id: leave-pairing-and-ignore-late-approval
+    given: The user has entered Login from the guest workspace and a pairing attempt is waiting for approval.
+    when: The user taps Back and an approval or completion for that departed attempt arrives, then the user opens Login again.
+    then: Back restores the public workspace and cancels the departed attempt; its late response cannot change the screen or identity, and the next Login uses a new current attempt.
+guest_isolation:
+  - id: public-reading-never-opens-private-state
+    given: A signed-out Watch has public examples and retained private records from an earlier authenticated scope.
+    when: The user searches for a private chat title and opens a public example.
+    then: Only allowed public examples are searchable and readable, retired introductions and private records remain absent, authenticated sync and private handoffs do not start, and public navigation does not change private last-opened state or enqueue an authenticated send.
+  - id: cached-account-survives-transient-network-failure
+    given: A Watch has a valid cached authenticated account and its keys and private offline content.
+    when: The app launches during a temporary network failure that prevents session refresh.
+    then: Existing authentication restoration preserves the account and permitted private offline workspace; guest entry does not replace it or erase keys, cookies, or caches, while explicit server revocation still follows existing authentication cleanup.
 pairing:
   - id: iphone-offer-and-short-url
     given: A new Watch is next to an authenticated iPhone on the same OpenMates server.
@@ -62,21 +100,25 @@ audio:
   - id: one-send-audio-embed
     given: A conversation is open on the Watch and microphone permission is granted.
     when: The user records audio and taps Send once.
-    then: The recording is processed and transcribed by the server, remains in the original conversation, and appears as a normal audio embed on Watch, iPhone, and web.
+    then: Finishing prepares editable local words without sending; explicit Send keeps the original conversation and attaches one normal encrypted audio embed when selected, readable on Watch, iPhone and web without a duplicate transcription turn.
 chat_layout:
   - id: small-watch-conversation
+    assertion_ids: [apple-watch.chats.compact-layout]
     given: A conversation with a website embed is open on a small Watch.
     when: The user views the transcript and reply area.
     then: The embed fits the viewport and the text and audio reply controls remain reachable.
   - id: mobile-preview-hierarchy-and-readable-text
+    assertion_ids: [apple-watch.chats.compact-layout]
     given: A Watch conversation contains a hydrated sheet with a declared 58 cells and previews from the other supported embed families.
     when: The user reads the transcript, views the previews, and increases Dynamic Type.
     then: Transcript text starts at a scalable 15 points; long-press Zoom in and Zoom out resize it and retain only the preference; every preview is 156 points wide with its bounded payload visual above the full-width gradient app-icon bar and its centered title and metadata below. The sheet shows bounded real cells and reports 58 cells.
   - id: markers-with-incomplete-or-missing-payload
+    assertion_ids: [apple-watch.embeds.read-only-fullscreen]
     given: A message contains actual embed markers while its supplied embed-reference list is empty or partial, and one referenced embed has no decrypted payload.
     when: The Watch renders the message and the user opens the unavailable preview's continuation action.
     then: Actual marker references are merged without duplicating or discarding richer supplied data; the missing payload is visibly unavailable with no invented preview content, and continuation remains usable.
   - id: inline-group-and-read-only-detail
+    assertion_ids: [apple-watch.embeds.read-only-fullscreen]
     given: A Watch message contains text before and after two consecutive sheet previews, with available real cells, and another message has image thumbnails and valid map coordinates.
     when: The user scrolls the previews horizontally and opens the selected sheet, image, or map.
     then: The group stays between the original text blocks in iPhone ordering; fullscreen reads the selected hydrated content including full cells, thumbnails, and the coordinate map with Back and explicit iPhone continuation, and exposes no edit control. Unavailable content remains explicit.
@@ -89,3 +131,21 @@ offline_cohort:
     given: A Watch maintenance request is in progress or returns a partial response or a mismatched full message count.
     when: The user opens a foreground detail, the app backgrounds, or the account or server changes before completion.
     then: Maintenance stops and late responses cannot commit a receipt or alter visible content; valid receipts remain usable in their original scope, another account or server cannot open them, maintenance can resume when eligible, and logout removes the encrypted cohort files.
+input_actions:
+  - id: three-controls-with-existing-text
+    given: The user opens either a new Watch chat or an existing chat and types an unsent question.
+    when: The user operates keyboard, microphone and phone from the fixed bottom action row.
+    then: All three actions remain reachable, typing never hides the microphone or clears the draft, and a call opens only through a qualified physical route with explicit consent and exclusive audio ownership.
+  - id: call-blocks-recording-and-retains-typed-input
+    given: A verified Watch call owns audio in chat A while chat B also has an unsent draft.
+    when: The user tries to record, submits text to A, opens B, or receives a rejection for A's typed submission.
+    then: Competing recording is unavailable, A's text uses its existing call exactly once, B keeps ordinary text behavior, and a rejected A submission is retained without being restored into B.
+local_transcription:
+  - id: finish-locally-edit-then-send
+    given: A supported Watch has the included Whistle assets, an existing draft and a new microphone recording.
+    when: The user finishes recording offline, edits the appended words, chooses whether to attach audio and later explicitly sends.
+    then: Finishing performs local transcription only, preserves the prior draft, and retains the draft through encrypted scoped storage; explicit Send uses one original chat turn and at most one selected audio embed.
+  - id: cancellation-or-unsupported-runtime
+    given: Local transcription is pending or the current Watch build lacks a supported native runtime.
+    when: The user cancels, leaves the foreground or changes account, or attempts transcription on the unsupported build.
+    then: No late text enters another draft, existing owned text remains available, unsupported execution is truthful, and no network transcription fallback or duplicate live-call transcript starts.

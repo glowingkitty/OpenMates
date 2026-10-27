@@ -5,7 +5,6 @@ generated_at: '2026-08-25T12:43:54+00:00'
 range:
   since: '2026-08-20T00:00:00+00:00'
   until: '2026-08-21T00:00:00+00:00'
-  from_ref: null
   to_ref: origin/dev
   assume_released: false
 summary:
@@ -30,132 +29,110 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -193,7 +170,6 @@ sections:
     - frontend/apps/web_app/static/event-assets/openmates/ai-everyday-tasks-webinar-2026-08-27.jpg
     - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-09-10.jpg
     - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
-    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
     - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
     - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-09-03.jpg
     - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-09-15.jpg
@@ -336,8 +312,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1737,8 +1711,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: clean up failed passkey sessions'
     commits:
@@ -1896,8 +1868,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: clean up failed passkey sessions'
@@ -2241,7 +2211,6 @@ sources:
     - frontend/apps/web_app/static/event-assets/openmates/ai-everyday-tasks-webinar-2026-08-27.jpg
     - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-09-10.jpg
     - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
-    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
     - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
     - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-09-03.jpg
     - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-09-15.jpg

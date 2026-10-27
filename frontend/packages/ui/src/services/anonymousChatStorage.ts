@@ -7,6 +7,7 @@
  * master key before normal sync uploads encrypted chat/message records.
  */
 
+import { ANONYMOUS_ID_STORAGE, getAnonymousClientId } from './anonymousChatIdentity';
 import { getApiEndpoint } from "../config/api";
 import { getAnonymousLearningModeContext } from "../stores/learningModeStore";
 import { getCurrentLanguage } from "../i18n/setup";
@@ -26,7 +27,6 @@ import {
 import { ANONYMOUS_CHAT_PREFIX, isAnonymousChatId } from "./anonymousChatIds";
 
 const LEGACY_ANONYMOUS_PAYLOAD_STORAGE = "openmates_anonymous_chats_v1";
-const ANONYMOUS_ID_STORAGE = "openmates_anonymous_id";
 const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
 const ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS = 18;
@@ -453,8 +453,8 @@ class AnonymousChatStorage {
 
   private async getPublicSourceMessages(sourceDemoId: string, chatId: string): Promise<Message[]> {
     try {
-      const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isExampleChat, getExampleChatEmbeds } = await import("../demo_chats");
-      const messages = getDemoMessages(sourceDemoId, DEMO_CHATS, LEGAL_CHATS);
+      const { DEMO_CHATS, getDemoMessages, isExampleChat, getExampleChatEmbeds } = await import("../demo_chats");
+      const messages = getDemoMessages(sourceDemoId, DEMO_CHATS);
       if (isExampleChat(sourceDemoId)) {
         try {
           const { embedStore } = await import("./embedStore");
@@ -955,12 +955,7 @@ class AnonymousChatStorage {
   }
 
   getAnonymousId(): string {
-    let anonymousId = localStorage.getItem(ANONYMOUS_ID_STORAGE);
-    if (!anonymousId) {
-      anonymousId = crypto.randomUUID();
-      localStorage.setItem(ANONYMOUS_ID_STORAGE, anonymousId);
-    }
-    return anonymousId;
+    return getAnonymousClientId();
   }
 
   private clearLegacyPayload(): void {

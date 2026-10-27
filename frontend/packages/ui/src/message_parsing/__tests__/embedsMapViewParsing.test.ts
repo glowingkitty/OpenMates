@@ -22,7 +22,7 @@ describe("embeds_results_view parsing", () => {
 
 \`\`\`embeds_results_view
 title: Berlin AI events
-embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
+embeds: ai-founders-Gathering-7f3a91, llm-hack-night-22b8c0
 \`\`\``;
 
     const [mapView] = parseEmbedNodes(markdown, "read");
@@ -31,7 +31,7 @@ embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
       type: "embeds-map-view",
       status: "finished",
       title: "Berlin AI events",
-      mapEmbedRefs: ["ai-founders-meetup-7f3a91", "llm-hack-night-22b8c0"],
+      mapEmbedRefs: ["ai-founders-Gathering-7f3a91", "llm-hack-night-22b8c0"],
       mapSourceRefs: [],
       mapHighlightRefs: [],
     });

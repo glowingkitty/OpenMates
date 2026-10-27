@@ -4,23 +4,38 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
 // contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
-test('a generated image child displays its actual media from a public preview URL', async ({ page }) => {
+test('a generated image child displays its actual media from a public preview URL', async ({ page }, testInfo) => {
   await page.goto('/dev/preview/embeds/images/ImageGenerateEmbedPreview?chrome=0&variant=publicChild');
   await waitForComponentPreview(page);
   const image = page.locator('.preview-image');
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
-  await expect(page.locator('.image-model-badge')).toContainText(/Gemini|gemini/);
+  await expect(image).toHaveCSS('object-fit', 'contain');
+  await expect(page.locator('.result-card')).toHaveClass(/media-only/);
+  await expect(page.locator('.card-copy')).toHaveCount(0);
+  const bounds = await image.evaluate(element => {
+    const media = element.closest('[data-testid="result-card-media"]')!.getBoundingClientRect();
+    const card = element.closest('[data-testid="embed-preview"]')!.getBoundingClientRect();
+    return { width: Math.abs(media.width - card.width), height: Math.abs(media.height - card.height) };
+  });
+  expect(bounds.width).toBeLessThan(1); expect(bounds.height).toBeLessThan(1);
+  await testInfo.attach('image-full-card-preview', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 // contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
-test('generated image fullscreen retains the complete prompt and actual model', async ({ page }) => {
+test('generated image fullscreen retains the complete prompt and actual model', async ({ page }, testInfo) => {
   await page.goto('/dev/preview/embeds/images/ImageGenerateEmbedFullscreen?chrome=0&variant=completePrompt');
   await waitForComponentPreview(page);
   await expect(page.getByTestId('component-preview-viewport')).toContainText(
     'An observatory on a windswept coast, blue-hour fog, copper telescope, and three bright stars above the horizon',
   );
-  await expect(page.getByTestId('component-preview-viewport')).toContainText(/Gemini|gemini/);
+  await expect(page.locator('.generated-by-text')).toContainText(/Gemini|gemini/);
+  await expect(page.locator('.generated-by-text')).toContainText('Google');
+  await expect(page.locator('.embed-header')).toContainText('observatory_coast.png');
+  await page.locator('.prompt-text').scrollIntoViewIfNeeded();
+  await expect(page.locator('.prompt-text')).toBeInViewport();
+  await expect(page.locator('.generated-by-text')).toBeInViewport();
+  await testInfo.attach('image-filename-and-full-prompt', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 // contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.media.parent-children-and-attribution

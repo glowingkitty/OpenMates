@@ -300,16 +300,22 @@ def build_registry(specifications_root: Path) -> dict[str, Any]:
     specifications: dict[str, Any] = {}
     assertions: dict[str, Any] = {}
     bundles = discover_bundles(specifications_root)
-    by_versioned_id = {bundle.versioned_id: bundle for bundle in bundles}
+    by_id = {bundle.specification_id: bundle for bundle in bundles}
+    resolved_successors: dict[str, str] = {}
     for bundle in bundles:
         if bundle.specification_id in specifications:
             raise SpecificationError(f"duplicate Specification id: {bundle.specification_id}")
         successor = bundle.specification.get("superseded_by")
         if successor is not None:
-            if bundle.status != "superseded" or not isinstance(successor, str) or successor not in by_versioned_id:
+            # A tombstone retains the version that originally replaced it.
+            # Later active versions must not invalidate that immutable history.
+            reference = re.fullmatch(r"(.+)@([1-9][0-9]*)", successor) if isinstance(successor, str) else None
+            target = by_id.get(reference.group(1)) if reference else None
+            if bundle.status != "superseded" or target is None or int(reference.group(2)) > target.version:
                 raise SpecificationError(f"invalid superseded_by for {bundle.versioned_id}: {successor}")
-            if by_versioned_id[successor].status == "superseded":
+            if target.status == "superseded":
                 raise SpecificationError(f"superseded_by must name an active Specification: {successor}")
+            resolved_successors[bundle.specification_id] = target.versioned_id
         specifications[bundle.specification_id] = {
             "version": bundle.version,
             "status": bundle.status,
@@ -331,7 +337,7 @@ def build_registry(specifications_root: Path) -> dict[str, Any]:
                 existing = assertions[assertion_id]
                 if (
                     bundle.status != "superseded"
-                    or bundle.specification.get("superseded_by") != existing["specification"]
+                    or resolved_successors.get(bundle.specification_id) != existing["specification"]
                     or assertion_id in migrated_ids
                     or active_contracts.get(assertion_id)
                     != (assertion["type"], " ".join(assertion["must"].split()))
@@ -390,7 +396,7 @@ def _resolve_bundle_dependency(bundle: SpecificationBundle, dependency: str) -> 
 def build_coverage(registry: dict[str, Any], test_index: dict[str, Any]) -> dict[str, Any]:
     assertions = registry.get("assertions", {})
     indexed = test_index.get("assertions", {}) if isinstance(test_index, dict) else {}
-    surface_names = ("rest_api", "cli", "sdks.npm", "sdks.pip", "gui.web", "gui.apple")
+    surface_names = ("rest_api", "cli", "sdks.npm", "sdks.pip", "sdks.rust", "gui.web", "gui.apple")
     surface_parity: dict[str, dict[str, int]] = {}
     for surface in surface_names:
         required = sum(surface in record.get("required_applies_to", []) for record in assertions.values())
@@ -438,8 +444,16 @@ _TYPESCRIPT_TEST = re.compile(
     r"(?:\.each\s*\(.*?\))?\s*\(\s*['\"`]([^'\"`]+)",
     re.DOTALL,
 )
+# Rust test identity comes from the test attribute, never a helper's fn name.
+_RUST_TEST_START = re.compile(r"^\s*#\[\s*(?:test|tokio::test)\s*(?=[(\]])")
+_RUST_TEST = re.compile(
+    r"^\s*#\[\s*(?:test|tokio::test)\s*(?:\([^\]]*\))?\s*\]\s*"
+    r"(?:(?:#\[[^\]]*\]|//[^\n]*)\s*)*"
+    r"(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+    re.DOTALL,
+)
 _VALID_TEST_CLASSIFICATIONS = {"direct", "supporting", "infrastructure", "tooling", "legacy_unmapped"}
-_VALID_TEST_SURFACES = {"rest_api", "cli", "sdks.npm", "sdks.pip", "gui.web", "gui.apple", "tooling"}
+_VALID_TEST_SURFACES = {"rest_api", "cli", "sdks.npm", "sdks.pip", "sdks.rust", "gui.web", "gui.apple", "tooling"}
 
 
 def _test_name(source: str, path: Path) -> str | None:
@@ -448,6 +462,8 @@ def _test_name(source: str, path: Path) -> str | None:
         patterns = (_PYTHON_TEST,)
     elif name.endswith(".swift"):
         patterns = (_SWIFT_TEST, _SWIFT_MACRO_TEST)
+    elif name.endswith(".rs"):
+        patterns = (_RUST_TEST,)
     else:
         patterns = (_TYPESCRIPT_TEST,)
     for pattern in patterns:
@@ -463,6 +479,8 @@ def _could_start_test(line: str, path: Path) -> bool:
         return stripped.startswith(("def test_", "async def test_"))
     if path.name.endswith(".swift"):
         return stripped.startswith(("func test", "@Test"))
+    if path.name.endswith(".rs"):
+        return _RUST_TEST_START.match(line) is not None
     return stripped.startswith(("test(", "test.", "it(", "it."))
 
 
@@ -869,7 +887,9 @@ def _repository_test_files(repo_root: Path) -> list[Path]:
         ".venv",
         "build",
         "dist",
+        "logs",
         "node_modules",
+        "target",
         "test-results",
     }
     files: list[Path] = []
@@ -992,6 +1012,22 @@ def generate_specification_artifacts(repo_root: Path, *, specifications_root: Pa
     _write_output(build_coverage(registry, test_index), generated / "coverage.yml", False)
 
 
+def _standing_prompt_waiver(repo_root: Path, session_id: str, specification_id: str) -> bool:
+    """Only approval ceremony may honor a recorded standing human instruction.
+
+    Structural/registry/test/generated checks and direct fingerprint approval
+    queries remain independent. Missing or invalid evidence grants no waiver.
+    """
+    try:
+        from scripts.specification_prompt_waiver import permits_prompt_waiver
+    except ModuleNotFoundError:
+        try:
+            from specification_prompt_waiver import permits_prompt_waiver
+        except ModuleNotFoundError:
+            return False
+    return permits_prompt_waiver(repo_root, _control_plane_root(repo_root), session_id, specification_id)
+
+
 def check_changed_files(
     repo_root: Path,
     changed_paths: list[str],
@@ -1043,7 +1079,7 @@ def check_changed_files(
             bundle.specification_id,
             bundle.fingerprint,
         )
-        if approval_error:
+        if approval_error and not _standing_prompt_waiver(root, session_id, bundle.specification_id):
             errors.append(approval_error)
     if verify_generated and (specifications_root / "generated").exists():
         try:
@@ -1234,7 +1270,7 @@ def verify_plan_specifications(
                 ref["id"],
                 specifications[ref["id"]]["fingerprint"],
             )
-            if error:
+            if error and not _standing_prompt_waiver(Path(specifications_root).resolve().parent, session_id, ref["id"]):
                 errors.append(error)
     return errors
 

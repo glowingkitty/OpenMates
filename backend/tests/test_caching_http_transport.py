@@ -59,8 +59,8 @@ def test_record_mode_requires_request_scoped_candidate_root(tmp_path) -> None:
 async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
     group_id = "replay_decoded_body"
-    category = "printables"
-    url = "https://api.printables.com/graphql/"
+    category = "public_catalog"
+    url = "https://catalog.example/api/items"
     fingerprint = cache.fingerprint_http_request(method="GET", url=url)
     cache.save(
         group_id=group_id,
@@ -75,7 +75,7 @@ async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_pat
                 "content-length": "999",
                 "transfer-encoding": "chunked",
             },
-            "body": '{"data":{"searchPrints2":{"items":[{"id":"3161"}]}}}',
+            "body": '{"data":{"searchItems":{"items":[{"id":"3161"}]}}}',
         },
     )
 
@@ -88,7 +88,7 @@ async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_pat
     finally:
         deactivate_mock_mode()
 
-    assert response.json()["data"]["searchPrints2"]["items"] == [{"id": "3161"}]
+    assert response.json()["data"]["searchItems"]["items"] == [{"id": "3161"}]
     assert "content-encoding" not in response.headers
     assert response.headers.get("content-length") != "999"
     assert "transfer-encoding" not in response.headers
@@ -98,8 +98,8 @@ async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_pat
 async def test_record_mode_rejects_variable_price_http_before_dispatch(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
     group_id = "reject_http_record"
-    category = "rewe"
-    url = "https://shop.rewe.de/api/products?search=bio+joghurt"
+    category = "public_catalog"
+    url = "https://catalog.example/api/products?search=yogurt"
     real_transport = _StaticAsyncTransport(
         {
             url: httpx.Response(
@@ -223,8 +223,8 @@ async def test_replay_reads_selected_candidate_run_without_canonical_fallback(tm
 async def test_real_mode_rejects_variable_price_http_before_dispatch(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
     group_id = "reject_http_real"
-    category = "rewe"
-    url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
+    category = "public_catalog"
+    url = "https://www.catalog.example/api/products?search=yogurt"
     real_transport = _StaticAsyncTransport(
         {
             url: httpx.Response(
@@ -255,9 +255,9 @@ async def test_real_mode_rejects_variable_price_http_before_dispatch(tmp_path) -
 async def test_cached_redirect_replay_follows_location(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
     group_id = "redirect_replay"
-    category = "rewe"
-    original_url = "https://shop.rewe.de/api/products?search=bio+joghurt"
-    redirected_url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
+    category = "public_catalog"
+    original_url = "https://catalog.example/api/products?search=yogurt"
+    redirected_url = "https://www.catalog.example/api/products?search=yogurt"
     original_fingerprint = cache.fingerprint_http_request(
         method="GET",
         url=original_url,

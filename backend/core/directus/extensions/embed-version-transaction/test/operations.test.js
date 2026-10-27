@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { isAuthorized } from '../src/index.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy, pruneEmbedArchivePayload,
-  publishEmbedSnapshot, writeLegacyEmbed, ProtocolError, testing } from '../src/operations.js';
+  publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, ProtocolError, testing } from '../src/operations.js';
 
 const ACTOR = 'a'.repeat(64);
 const PROJECT_ID = 'project-1';
@@ -81,13 +81,17 @@ function fakeDatabase(initial) {
       };
       return query;
     };
-    knex.raw = async (sql) => String(sql).includes('AS pending')
-      ? { rows: [{ pending: database.pendingRecovery ?? false }] } : undefined;
+    knex.raw = async (sql, bindings) => {
+      if (String(sql).includes('pg_advisory_xact_lock')) database.locks.push(bindings[0]);
+      return String(sql).includes('AS pending')
+        ? { rows: [{ pending: database.pendingRecovery ?? false }] } : undefined;
+    };
     return knex;
   };
 
   const database = client(rows);
   database.rows = rows;
+  database.locks = [];
   database.pendingRecovery = false;
   database.transaction = async (callback) => {
     const transaction = tail.then(async () => {
@@ -425,7 +429,8 @@ test('ordinary legacy write cannot downgrade a newer head or bypass the current 
     await assert.rejects(writeLegacyEmbed(database, { embed_id: body.embed_id, actor_user_hash: ACTOR,
       payload: { embed_id: body.embed_id, hashed_user_id: ACTOR,
         version_number: version, encrypted_content: 'rewritten-cipher' } }),
-    (error) => error.code === 'acknowledged_embed_revision_immutable');
+    (error) => error.code === (version === 0 ? 'invalid_canonical_embed_version'
+      : 'acknowledged_embed_revision_immutable'));
     assert.deepEqual(database.rows, seed);
   }
   const { seed, body } = metadataEnrichmentFixture();
@@ -436,6 +441,121 @@ test('ordinary legacy write cannot downgrade a newer head or bypass the current 
       encrypted_content: 'stale-v1' } }),
   (error) => error.code === 'legacy_embed_revision_conflict');
   assert.deepEqual(database.rows, seed);
+});
+
+function sealedNextRootFixture() {
+  const { seed, body, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs.push({
+    id: 'sealed-v2', subject_id: body.embed_id, hashed_user_id: ACTOR,
+    root_chat_id: 'metadata-chat', target_chat_id: 'metadata-chat',
+    root_hashed_team_id: null, output_kind: 'embed', output_version: 2,
+    state: 'PENDING', deleted_at: null, sealed_payload_digest: 'd'.repeat(64),
+  });
+  seed.embed_diffs = [{ id: 'history-v1', embed_id: body.embed_id,
+    hashed_user_id: ACTOR, version_number: 1, encrypted_snapshot: 'original-v1-snapshot',
+    encrypted_patch: null }];
+  seed.embed_keys = [
+    { id: 'master', hashed_embed_id: hash(body.embed_id), hashed_user_id: ACTOR,
+      key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'old-master-wrap' },
+    { id: 'chat', hashed_embed_id: hash(body.embed_id), hashed_user_id: ACTOR,
+      key_type: 'chat', hashed_chat_id: hash('metadata-chat'), encrypted_embed_key: 'old-chat-wrap' },
+  ];
+  const advance = { embed_id: body.embed_id, actor_user_hash: ACTOR, payload: {
+    embed_id: body.embed_id, hashed_user_id: ACTOR, hashed_chat_id: hash('metadata-chat'),
+    hashed_team_id: null, app_id: 'web', skill_id: 'search',
+    root_embed_id: body.embed_id, encrypted_type: 'sealed-type',
+    encrypted_content: 'sealed-v2-cipher', version_number: 2,
+  } };
+  return { seed, advance };
+}
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('sealed next root revision advances an ACKed head while retaining old history and key wrappers', async () => {
+  const { seed, advance } = sealedNextRootFixture();
+  const database = fakeDatabase(seed);
+  const oldHistory = structuredClone(seed.embed_diffs);
+  const oldKeys = structuredClone(seed.embed_keys);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  assert.equal(database.rows.embeds[0].version_number, 2);
+  assert.equal(database.rows.embeds[0].encrypted_content, 'sealed-v2-cipher');
+  assert.deepEqual(database.rows.embed_diffs, oldHistory);
+  assert.deepEqual(database.rows.embed_keys, oldKeys);
+  await assert.rejects(writeLegacyEmbed(database, { ...advance,
+    payload: { ...advance.payload, version_number: 1, encrypted_content: 'stale-v1' },
+  }), (error) => error.code === 'legacy_embed_revision_conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('sealed v3 advances only an ACKed v2 with intact v2 patch and exact next output', async () => {
+  const { seed, advance } = sealedNextRootFixture();
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  seed.embeds[0].version_number = 2;
+  seed.embeds[0].encrypted_content = 'sealed-v2-cipher';
+  seed.chat_recovery_outputs[0].output_version = 2;
+  seed.chat_recovery_outputs[0].canonical_digest = hash('sealed-v2-cipher');
+  seed.chat_recovery_outputs[1].output_version = 3;
+  seed.embed_diffs.push({ id: 'history-v2', embed_id: advance.embed_id,
+    hashed_user_id: ACTOR, version_number: 2, encrypted_snapshot: null,
+    encrypted_patch: 'sealed-v2-patch' });
+  advance.payload.version_number = 3;
+  advance.payload.encrypted_content = 'sealed-v3-cipher';
+  const database = fakeDatabase(seed);
+  const oldHistory = structuredClone(seed.embed_diffs);
+  const oldKeys = structuredClone(seed.embed_keys);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  assert.equal(database.rows.embeds[0].version_number, 3);
+  assert.deepEqual(database.rows.embed_diffs, oldHistory);
+  assert.deepEqual(database.rows.embed_keys, oldKeys);
+  for (const mutation of [
+    ({ seed }) => { seed.embed_diffs[1].encrypted_patch = null; },
+    ({ seed }) => { seed.embed_diffs.pop(); },
+    ({ advance }) => { advance.payload.version_number = 4; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].output_version = 4; },
+  ]) {
+    const fixture = sealedNextRootFixture();
+    fixture.seed.embeds[0].version_number = 2;
+    fixture.seed.embeds[0].encrypted_content = 'sealed-v2-cipher';
+    fixture.seed.chat_recovery_outputs[0].output_version = 2;
+    fixture.seed.chat_recovery_outputs[0].canonical_digest = hash('sealed-v2-cipher');
+    fixture.seed.chat_recovery_outputs[1].output_version = 3;
+    fixture.seed.embed_diffs.push({ id: 'history-v2', embed_id: fixture.advance.embed_id,
+      hashed_user_id: ACTOR, version_number: 2, encrypted_snapshot: null,
+      encrypted_patch: 'sealed-v2-patch' });
+    fixture.advance.payload.version_number = 3;
+    fixture.advance.payload.encrypted_content = 'sealed-v3-cipher';
+    mutation(fixture);
+    const denied = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(denied, fixture.advance),
+      (error) => error instanceof ProtocolError);
+    assert.deepEqual(denied.rows, fixture.seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed next root revision denies unregistered, foreign, stale, or unarchived advances', async () => {
+  for (const mutation of [
+    ({ seed }) => { seed.chat_recovery_outputs.pop(); },
+    ({ seed }) => { seed.chat_recovery_outputs[1].hashed_user_id = 'b'.repeat(64); },
+    ({ seed }) => { seed.chat_recovery_outputs[1].target_chat_id = 'foreign-chat'; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].output_version = 3; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].state = 'PREPARING'; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].deleted_at = 1; },
+    ({ seed }) => { seed.embed_diffs = []; },
+    ({ seed }) => { seed.embed_keys.pop(); },
+    ({ advance }) => { advance.payload.version_number = 3; },
+    ({ advance }) => { advance.payload.encrypted_type = 'changed-type'; },
+    ({ advance }) => { advance.payload.parent_embed_id = 'foreign-parent';
+      advance.payload.root_embed_id = 'foreign-parent'; },
+    ({ advance }) => { advance.payload.root_embed_id = 'foreign-root'; },
+  ]) {
+    const fixture = sealedNextRootFixture();
+    mutation(fixture);
+    const database = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(database, fixture.advance),
+      (error) => error instanceof ProtocolError
+        && ['acknowledged_embed_revision_immutable', 'invalid_catalog_context'].includes(error.code));
+    assert.deepEqual(database.rows, fixture.seed);
+  }
 });
 
 // contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
@@ -1402,4 +1522,272 @@ test('acknowledged legacy heads reject explicit ciphertext clearing and encrypte
     } })).status, 'updated');
   seed.embeds[0].hashed_embed_id = createHash('sha256').update(body.embed_id).digest('hex');
   assert.deepEqual(database.rows, seed);
+});
+
+
+function legacyKeySeed() {
+  const body = bundleWrite({ chatId: 'chat-a', allowNew: false });
+  const seed = existingSeed();
+  seed.embeds.push({ id: 'legacy-key-head', ...body.payload,
+    hashed_embed_id: bundleHash(body.embed_id) });
+  return { seed, body, key: { embed_id: body.embed_id, actor_user_hash: ACTOR,
+    wrapper: body.bundle_context.key_wrappers[1] } };
+}
+
+// contract-test: direct surface=rest_api assertions=projects.files.concurrent-chat-safety
+test('serialized legacy wrapper creates and bundle retries share one canonical identity', async () => {
+  const { seed, body, key } = legacyKeySeed();
+  const database = fakeDatabase(seed);
+  await Promise.all([writeLegacyEmbedKey(database, key), writeLegacyEmbedKey(database, key),
+    writeLegacyEmbed(database, body)]);
+  assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'chat').length, 1);
+  assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'master').length, 1);
+  assert.deepEqual(database.locks, Array(3).fill(`embed:${body.embed_id}`));
+});
+
+// contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit
+test('legacy wrapper ambiguity preserves all ciphertext and rejects rather than choosing a row', async () => {
+  const { seed, key } = legacyKeySeed();
+  seed.embed_keys = [{ id: 'first', ...key.wrapper }, { id: 'second', ...key.wrapper,
+    encrypted_embed_key: 'conflicting-key' }];
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error.code === 'embed_key_ambiguous');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit
+test('legacy wrapper transaction rechecks canonical owner, Project links, and active chat authorization', async () => {
+  for (const mutation of ['owner', 'project', 'chat-owner', 'deleting']) {
+    const { seed, key } = legacyKeySeed();
+    if (mutation === 'owner') seed.embeds.at(-1).hashed_user_id = 'f'.repeat(64);
+    if (mutation === 'project') seed.project_items.push({ item_type: 'embed', target_id_hash: key.wrapper.hashed_embed_id });
+    if (mutation === 'chat-owner') seed.chats[0].hashed_user_id = 'f'.repeat(64);
+    if (mutation === 'deleting') seed.chats[0].storage_state = 'deleting';
+    const database = fakeDatabase(seed), before = structuredClone(database.rows);
+    await assert.rejects(writeLegacyEmbedKey(database, key), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('recovery bundle correlates the pending output and rolls back before changing any ciphertext', async () => {
+  const { seed, body } = legacyKeySeed();
+  body.bundle_context.recovery_record_id = 'recovery-output-1';
+  body.payload.version_number = 1;
+  seed.embeds.at(-1).version_number = 1;
+  seed.chat_recovery_outputs = [{ id: 'recovery-output-1', hashed_user_id: ACTOR,
+    subject_id: body.embed_id, root_chat_id: 'chat-a', target_chat_id: 'chat-a', output_kind: 'embed',
+    output_version: 1, state: 'PENDING', root_hashed_team_id: null }];
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  const saved = structuredClone(database.rows);
+  database.rows.chat_recovery_outputs[0].subject_id = 'foreign-embed';
+  const before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body), error => error.code === 'recovery_bundle_scope_mismatch');
+  assert.deepEqual(database.rows, before);
+  assert.equal(saved.embed_keys.length, 2);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('recovery root revocation or deletion preserves head and wrappers without publishing', async () => {
+  for (const change of ['missing', 'deleting', 'owner', 'team']) {
+    const { seed, body } = legacyKeySeed();
+    seed.embeds.pop();
+    seed.chats.push({ id: 'recovery-root', hashed_user_id: ACTOR, hashed_team_id: null, storage_state: 'hot' });
+    body.bundle_context.recovery_record_id = 'root-output';
+    seed.chat_recovery_outputs = [{ id: 'root-output', hashed_user_id: ACTOR,
+      subject_id: body.embed_id, root_chat_id: 'recovery-root', target_chat_id: 'chat-a',
+      output_kind: 'embed', output_version: 1, state: 'PENDING', root_hashed_team_id: null }];
+    if (change === 'missing') seed.chats.pop();
+    if (change === 'deleting') seed.chats.at(-1).storage_state = 'deleting';
+    if (change === 'owner') seed.chats.at(-1).hashed_user_id = 'f'.repeat(64);
+    if (change === 'team') seed.chats.at(-1).hashed_team_id = 'f'.repeat(64);
+    const database = fakeDatabase(seed), before = structuredClone(database.rows);
+    await assert.rejects(writeLegacyEmbed(database, body), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('ambiguous existing wrappers roll back a recovery bundle head creation without deleting data', async () => {
+  const { seed, body } = legacyKeySeed();
+  seed.embeds.pop();
+  seed.embed_keys = ['first', 'second'].map(id => ({ id, ...body.bundle_context.key_wrappers[0] }));
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body), error => error.code === 'bundle_wrapper_ambiguous');
+  assert.deepEqual(database.rows, before);
+});
+
+
+function directLegacySeed() {
+  const state = legacyKeySeed(), peer = 'b'.repeat(64), team = 'c'.repeat(64);
+  Object.assign(state.seed.chats[0], { hashed_team_id: team, chat_visibility: 'direct',
+    encrypted_chat_key: null, participant_user_hashes: [ACTOR, peer],
+    participant_key_envelopes: Object.fromEntries([ACTOR, peer].map(hash => [hash,
+      { key_id: 'key-1', encrypted_chat_key: 'OMDM1.' + 'x'.repeat(16) }])) });
+  state.seed.team_memberships = [{ hashed_team_id: team, hashed_user_id: ACTOR,
+    status: 'active', role: 'viewer' }];
+  state.seed.teams = [{ hashed_team_id: team, status: 'active' }];
+  state.body.bundle_context.hashed_team_id = team;
+  return state;
+}
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('direct participant viewers retain wrapper and atomic bundle writes; outsiders and revoked members cannot write', async () => {
+  for (const mode of ['wrapper', 'bundle']) {
+    const { seed, body, key } = directLegacySeed();
+    const database = fakeDatabase(seed);
+    const write = () => mode === 'wrapper' ? writeLegacyEmbedKey(database, key) : writeLegacyEmbed(database, body);
+    await write();
+    database.rows.team_memberships[0].status = 'removed';
+    const before = structuredClone(database.rows);
+    await assert.rejects(write(), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+  const { seed, key } = directLegacySeed();
+  seed.chats[0].participant_user_hashes[0] = 'd'.repeat(64);
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error.code === 'chat_not_found');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('Team master wrapper writes recheck current source membership without changing Personal cross-chat keys', async () => {
+  const { seed, body, key } = directLegacySeed();
+  seed.embeds.at(-1).hashed_team_id = seed.chats[0].hashed_team_id;
+  key.wrapper = body.bundle_context.key_wrappers[0];
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbedKey(database, key);
+  database.rows.team_memberships[0].status = 'removed';
+  const before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error instanceof ProtocolError);
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('canonical precondition serializes concurrent same-version ciphertext writers and permits exact replay', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs = [];
+  seed.embeds[0].version_number = null; // Real legacy v1, never migrated by reads.
+  const database = fakeDatabase(seed);
+  const head = seed.embeds[0];
+  const payload = { ...head, encrypted_content: 'writer-one' };
+  delete payload.id;
+  const body = { embed_id: head.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash(head.encrypted_content) } };
+  const raced = await Promise.allSettled([
+    writeLegacyEmbed(database, body),
+    writeLegacyEmbed(database, { ...body, payload: { ...payload, encrypted_content: 'writer-two' } }),
+  ]);
+  assert.equal(raced.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(raced[1].reason.code, 'canonical_precondition_mismatch');
+  assert.equal(database.rows.embeds[0].encrypted_content, 'writer-one');
+  assert.equal(database.rows.embeds[0].version_number, null);
+  const beforeReplay = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  assert.deepEqual(database.rows, beforeReplay);
+  await assert.rejects(writeLegacyEmbed(database, { ...body,
+    payload: { ...payload, updated_at: head.updated_at + 1 } }),
+  (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, beforeReplay);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('absence precondition creates explicit v1, rejects changed replay, and never recreates a missing observed head', async () => {
+  for (const suppliedVersion of [undefined, null, 1]) {
+    const database = fakeDatabase({ embeds: [], project_items: [] });
+    const payload = { embed_id: 'cas-create', hashed_user_id: ACTOR, encrypted_content: 'sealed-create' };
+    if (suppliedVersion !== undefined) payload.version_number = suppliedVersion;
+    const body = { embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+      canonical_precondition: { version: null, ciphertext_sha256: null } };
+    assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+    assert.equal(database.rows.embeds[0].version_number, 1);
+    const afterCreate = structuredClone(database.rows);
+    assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+    await assert.rejects(writeLegacyEmbed(database, { ...body,
+      payload: { ...payload, encrypted_content: 'different' } }),
+    (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+    assert.deepEqual(database.rows, afterCreate);
+  }
+  const database = fakeDatabase({ embeds: [], project_items: [] });
+  await assert.rejects(writeLegacyEmbed(database, {
+    embed_id: 'cas-missing', actor_user_hash: ACTOR,
+    payload: { embed_id: 'cas-missing', hashed_user_id: ACTOR, encrypted_content: 'sealed' },
+    canonical_precondition: { version: 1, ciphertext_sha256: 'a'.repeat(64) },
+  }), (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows.embeds, []);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('nullable acknowledged legacy v1 rejects replacement even with an exact canonical precondition', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.embeds[0].version_number = null;
+  const database = fakeDatabase(seed);
+  const payload = { ...seed.embeds[0], encrypted_content: 're-encrypted' };
+  delete payload.id;
+  await assert.rejects(writeLegacyEmbed(database, {
+    embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash(seed.embeds[0].encrypted_content) },
+  }), (error) => error.status === 409 && error.code === 'acknowledged_embed_revision_immutable');
+  assert.deepEqual(database.rows, seed);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('canonical precondition and logical versions reject coercion, partial nulls and malformed digests', async () => {
+  const base = { embed_id: 'cas-invalid', actor_user_hash: ACTOR,
+    payload: { embed_id: 'cas-invalid', hashed_user_id: ACTOR, encrypted_content: 'sealed' } };
+  for (const precondition of [null, {}, { version: null, ciphertext_sha256: 'a'.repeat(64) },
+    { version: 1, ciphertext_sha256: null }, { version: '1', ciphertext_sha256: 'a'.repeat(64) },
+    { version: true, ciphertext_sha256: 'a'.repeat(64) }, { version: 0, ciphertext_sha256: 'a'.repeat(64) },
+    { version: 1, ciphertext_sha256: 'bad' }, { version: 2 ** 53, ciphertext_sha256: 'a'.repeat(64) }]) {
+    await assert.rejects(writeLegacyEmbed(fakeDatabase({}), { ...base, canonical_precondition: precondition }),
+      (error) => error.status === 400);
+  }
+  for (const version of [true, '1', 0, -1, 1.5, 2 ** 53]) {
+    await assert.rejects(writeLegacyEmbed(fakeDatabase({}), { ...base,
+      payload: { ...base.payload, version_number: version } }), (error) => error.status === 400);
+    const seed = { embeds: [{ id: 'bad-version-row', ...base.payload, version_number: version }], project_items: [] };
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, base), (error) => error.status === 409);
+    assert.deepEqual(database.rows, seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('initial processing root completion compares nullable-v1 empty ciphertext under the canonical lock', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs = [];
+  seed.embeds[0].version_number = null;
+  seed.embeds[0].status = 'processing';
+  seed.embeds[0].encrypted_content = null;
+  const database = fakeDatabase(seed);
+  const payload = { ...seed.embeds[0], encrypted_content: 'completed-cipher', status: 'finished' };
+  delete payload.id;
+  const body = { embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash('') } };
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'updated');
+  assert.equal(database.rows.embeds[0].encrypted_content, 'completed-cipher');
+  assert.equal(database.rows.embeds[0].status, 'finished');
+  const completed = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  await assert.rejects(writeLegacyEmbed(database, { ...body,
+    payload: { ...payload, encrypted_content: 'competing-cipher' } }),
+  (error) => error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, completed);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('stale absence bundle retry verifies existing wrappers without repairing or replacing them', async () => {
+  const database = fakeDatabase(existingSeed());
+  const body = { ...bundleWrite(), canonical_precondition: { version: null, ciphertext_sha256: null } };
+  body.payload.version_number = null;
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  const created = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  assert.deepEqual(database.rows, created);
+  database.rows.embed_keys.pop();
+  const missingWrapper = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, missingWrapper);
 });

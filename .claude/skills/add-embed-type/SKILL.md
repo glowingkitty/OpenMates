@@ -20,6 +20,10 @@ You are scaffolding a new embed type. This is a multi-file, multi-step process â
 
 ### Step 0: Load the Full Guide
 
+For result embeds, first read `docs/design-guide/result-embeds.md`. Its shared
+preview/fullscreen structure is mandatory; reuse `ResultEmbedFullscreen` and
+`ResultEmbedInfo` instead of implementing per-type layout or tooltip systems.
+
 ```bash
 python3 scripts/sessions.py context --doc embed
 ```

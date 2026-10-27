@@ -21,7 +21,8 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
     AppSkillDefinition,
     AppFocusDefinition,
-    AppMemoryFieldDefinition
+    AppMemoryFieldDefinition,
+    skill_has_provider_support,
 )
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
@@ -395,6 +396,8 @@ class BaseApp:
         Request object. The body of this method was lifted unchanged from the old
         ``_execute_skill_route`` after the JSON parsing block.
         """
+        if not skill_has_provider_support(skill_definition):
+            raise HTTPException(status_code=503, detail="No supported provider is configured for this capability.")
         logger.info(f"[SKILL_DISPATCH] Dispatching skill '{self.app_id}.{skill_definition.id}' (keys={list(request_body.keys())})")
 
         try:
@@ -931,7 +934,9 @@ class BaseApp:
         skill_id: str,
         app_id: str,
         idempotency_key: str,
-        usage_details: Optional[Dict[str, Any]] = None
+        usage_details: Optional[Dict[str, Any]] = None,
+        api_key_hash: Optional[str] = None,
+        device_hash: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self.is_valid:
             raise HTTPException(status_code=500, detail="App is not properly configured to charge credits.")
@@ -948,6 +953,10 @@ class BaseApp:
             "idempotency_key": idempotency_key,
             "usage_details": usage_details or {}
         }
+        if api_key_hash:
+            charge_payload["api_key_hash"] = api_key_hash
+        if device_hash:
+            charge_payload["device_hash"] = device_hash
         
         logger.info(f"Requesting credit charge for user {user_id}: {credits_to_charge} credits for skill {skill_id} in app {app_id}.")
         try:

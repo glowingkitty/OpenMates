@@ -4,7 +4,8 @@ import json
 import asyncio # Added asyncio
 import time
 import uuid
-from typing import Callable, Optional
+import os
+from typing import Any, Callable, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI, HTTPException
 from starlette.websockets import WebSocketState
 from backend.core.api.app.utils.websocket_lifecycle import (
@@ -51,7 +52,7 @@ from .handlers.websocket_handlers.active_chat_handler import (
     ai_stream_snapshot_cache_key,
     handle_set_active_chat,
 )
-from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
+from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat, handle_delete_empty_call_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
     handle_add_message_highlight,
@@ -86,10 +87,9 @@ from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_su
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
-from .handlers.websocket_handlers.voice_action_completed_handler import (
-    handle_voice_action_completed, send_pending_voice_actions,
+from .handlers.websocket_handlers.encrypted_chat_metadata_handler import (
+    handle_encrypted_chat_metadata, handle_voice_call_chat_prepare,
 )
-from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
 from .handlers.websocket_handlers.chat_turn_admit_handler import ContextAdmissionLane, handle_chat_turn_admit
 from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
@@ -98,6 +98,7 @@ from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
 )
 from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     begin_initial_recovery_discovery,
+    _bound_recovery_inventory_manager,
     handle_recovery_job_claim,
     handle_recovery_job_persist,
     handle_recovery_job_renew,
@@ -190,17 +191,21 @@ logger = logging.getLogger(__name__)
 _workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
 
-async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager) -> bool:
+async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager,
+                                            inventory_request_id: str | None = None) -> bool:
     """Send the startup frame, releasing registration if startup cannot continue."""
     sent = False
     reason = "Initial capability send failed"
     try:
-        await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
+        payload = {"capabilities": [
             "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
             "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
             "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
             "personal_project_routing_directory_v1",
-        ]}})
+        ]}
+        if inventory_request_id is not None:
+            payload["inventory_request_id"] = inventory_request_id
+        await websocket.send_json({"type": "server_capabilities", "payload": payload})
         sent = True
         return True
     except WebSocketDisconnect as exc:
@@ -538,13 +543,31 @@ def _reconcile_recovery_lifecycle_discovery(
         schedule()
 
 
+def _validated_inventory_request_id(value: object) -> str | None:
+    """Accept only canonical v4 IDs from this authenticated connection request."""
+    if not isinstance(value, str) or len(value) != 36:
+        return None
+    try:
+        parsed = uuid.UUID(value)
+    except (ValueError, AttributeError):
+        return None
+    return value if parsed.version == 4 and str(parsed) == value else None
+
+
 async def _discover_foreground_recovery(
     *, manager: ConnectionManager, cache_service: CacheService,
     directus_service: DirectusService, user_id: str, user_id_hash: str,
     device_fingerprint_hash: str, supports_typed_recovery_outputs: bool,
     user_otel_attrs: dict,
+    request_id: str | None = None,
+    inventory_empty_ack: bool = False,
+    inventory_request_id: str | None = None,
 ) -> None:
-    # Both v1 jobs and typed outputs require the authoritative recovery epoch.
+    manager = _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash, inventory_request_id)
+    discovery = {"request_id": request_id} if request_id else {}
+    if inventory_request_id is not None:
+        discovery["inventory_request_id"] = inventory_request_id
+    # Work offers require the authoritative epoch; opt-in absence is read-only.
     try:
         epoch = await ChatRecoveryCutoverController(
             cache_service, directus_service,
@@ -553,31 +576,49 @@ async def _discover_foreground_recovery(
         logger.exception("Foreground recovery discovery epoch read failed")
         if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         return
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
         return
     if epoch < 1:
+        if inventory_empty_ack and inventory_request_id is not None and epoch == 0:
+            try:
+                await send_available_recovery_jobs(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    user_otel_attrs=user_otel_attrs, empty_only=True,
+                    **discovery,
+                )
+            except Exception:
+                # Missing schema/columns and read outages cannot imply absence.
+                # Preserve the disabled fence; without a jobs ACK the SDK falls back.
+                logger.exception("Paused recovery inventory read unavailable")
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
         await manager.send_personal_message(
-            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled", **discovery}},
             user_id, device_fingerprint_hash,
         )
         return
     # Job discovery must finish before the typed output completion fence.
     try:
-        await send_available_recovery_jobs(
+        discovered = await send_available_recovery_jobs(
             manager=manager, directus_service=directus_service,
             user_id=user_id, user_id_hash=user_id_hash,
             device_fingerprint_hash=device_fingerprint_hash,
             user_otel_attrs=user_otel_attrs,
+            **discovery,
         )
+        if discovered is False:
+            raise RuntimeError("Completion job discovery did not finish")
     except Exception:
         logger.exception("Foreground recovery job discovery failed")
         if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         return
@@ -588,6 +629,7 @@ async def _discover_foreground_recovery(
             manager=manager, directus_service=directus_service,
             user_id=user_id, user_id_hash=user_id_hash,
             device_fingerprint_hash=device_fingerprint_hash,
+            **discovery,
         )
     except Exception:
         logger.exception("Foreground recovery output discovery failed")
@@ -602,8 +644,12 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "retryable",
     "sequence",
     "kind",
+    "language",
+    "voice_call_id", "turn_track_id",
+    "source_version",
+    "execution_version",
 )
-SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
+SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error", "sealed"}
 SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
@@ -625,21 +671,85 @@ async def _send_available_recovery_jobs_for_final_stream(
     user_id: str,
     user_id_hash: str,
     device_fingerprint_hash: str,
-) -> None:
+    websocket: WebSocket,
+    device_ordinal: int,
+) -> bool:
+    """Require origin-bound first-party discovery before forwarding a final frame."""
     # Directus is the only authoritative recovery-job state. Do not synthesize
     # AVAILABLE jobs from Redis final-frame metadata; another tab may already
     # hold the lease, which creates noisy lease_conflict rejections.
-    await send_available_recovery_jobs(
-        manager=manager,
-        directus_service=directus_service,
-        user_id=user_id,
-        user_id_hash=user_id_hash,
-        device_fingerprint_hash=device_fingerprint_hash,
+    origin = _bound_recovery_inventory_manager(
+        manager, user_id, device_fingerprint_hash, None,
+        websocket=websocket, require_origin=True,
     )
-    await send_available_recovery_outputs(
-        manager=manager, directus_service=directus_service,
-        user_id=user_id, user_id_hash=user_id_hash,
-        device_fingerprint_hash=device_fingerprint_hash,
+
+    class RequiredDiscoveryDelivery:
+        """Void-returning typed discovery must still fail closed on a failed send."""
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(origin, name)
+
+        async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
+            sent = await origin.send_personal_message(message, user_id, device_fingerprint_hash)
+            if sent is not True:
+                raise RuntimeError("Final recovery discovery delivery failed")
+            return True
+
+    manager = RequiredDiscoveryDelivery()
+    _trace_final_stream_delivery("jobs_begin", device_ordinal)
+    try:
+        jobs_sent = await send_available_recovery_jobs(
+            manager=manager,
+            directus_service=directus_service,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+    except Exception as exc:
+        _trace_final_stream_delivery("jobs_result", device_ordinal, False, exc)
+        raise
+    jobs_ready = jobs_sent is True and manager.is_connection_completion_capable(user_id, device_fingerprint_hash)
+    _trace_final_stream_delivery("jobs_result", device_ordinal, jobs_ready)
+    if not jobs_ready:
+        return False
+    _trace_final_stream_delivery("outputs_begin", device_ordinal)
+    try:
+        await send_available_recovery_outputs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+    except Exception as exc:
+        _trace_final_stream_delivery("outputs_result", device_ordinal, False, exc)
+        raise
+    outputs_ready = manager.is_connection_completion_capable(user_id, device_fingerprint_hash)
+    _trace_final_stream_delivery("outputs_result", device_ordinal, outputs_ready)
+    return outputs_ready
+
+
+def _trace_final_stream_delivery(
+    stage: str, device_ordinal: int = 0, success: bool | None = None,
+    error: Exception | None = None,
+) -> None:
+    """Emit only fixed CI diagnostic categories, never response or owner data."""
+    if os.getenv("OPENMATES_CI_ISOLATED") != "1":
+        return
+    if stage not in {"final_received", "jobs_begin", "jobs_result", "outputs_begin", "outputs_result", "final_send"}:
+        return
+    exception = "none" if error is None else type(error).__name__
+    if exception not in {"none", "RuntimeError", "ValueError", "TypeError", "PermissionError", "TimeoutError",
+                         "ConnectionError", "WebSocketDisconnect", "ChatRecoveryProtocolError",
+                         "ReadTimeout", "PoolTimeout", "WriteTimeout", "ConnectTimeout", "ConnectError",
+                         "ReadError", "RemoteProtocolError", "AttributeError", "KeyError", "IndexError",
+                         "JSONDecodeError", "HTTPException"}:
+        exception = "other"
+    code = getattr(error, "code", "none") if error is not None else "none"
+    if not isinstance(code, str) or code not in {"none", "forbidden", "not_found", "invalid_request", "lease_conflict", "transaction_failed"}:
+        code = "other"
+    ordinal = max(0, min(device_ordinal, 128)) if type(device_ordinal) is int else 0
+    logger.info(
+        "Final stream delivery stage=%s device=%s success=%s exception=%s code=%s",
+        stage, ordinal, "true" if success is True else "false" if success is False else "none", exception, code,
     )
 
 
@@ -658,6 +768,7 @@ async def _check_user_offline_and_send_email(
     delay_seconds: int = 5,
     model_name: Optional[str] = None,
     category: Optional[str] = None,
+    message_id: Optional[str] = None,
 ) -> None:
     """
     Check if user is offline with retries, then notify via push notification and/or email.
@@ -676,7 +787,8 @@ async def _check_user_offline_and_send_email(
         user_id: The user's UUID
         chat_id: The chat ID where the AI response was delivered
         response_preview: Preview of the AI response for the email
-        task_id: The AI task ID (message_id) for deduplication
+        task_id: Processing task identity; continuations can have a different message ID
+        message_id: Exact completed assistant message identity from the stream event
         max_attempts: Number of connection check attempts (default 3)
         delay_seconds: Delay between attempts in seconds (default 5)
     """
@@ -708,7 +820,7 @@ async def _check_user_offline_and_send_email(
             delivery_payload = {
                 "type": "ai_response",  # Distinguishes from "reminder" system messages
                 "chat_id": chat_id,
-                "message_id": task_id or str(uuid.uuid4()),
+                "message_id": message_id or task_id or str(uuid.uuid4()),
                 "content": response_preview,  # Full AI response plaintext
                 "user_id": user_id,
                 "fired_at": int(time.time()),
@@ -744,6 +856,7 @@ async def _check_user_offline_and_send_email(
             user_id=user_id,
             chat_id=chat_id,
             response_preview=response_preview,
+            message_id=message_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -755,6 +868,7 @@ async def _send_push_notification_if_enabled(
     user_id: str,
     chat_id: str,
     response_preview: str,
+    message_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -822,6 +936,19 @@ async def _send_push_notification_if_enabled(
     if await has_active_human(cache_service, user_id, chat_id):
         return False
 
+    # Load workspace from durable chat authority, never infer Personal from
+    # absent metadata or use a client profile URL supplied in a push envelope.
+    workspace = None
+    directus_service = getattr(app.state, "directus_service", None)
+    if message_id and directus_service is not None:
+        try:
+            from backend.core.api.app.services.push_reply_context import reply_workspace
+
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            workspace = reply_workspace(metadata, user_id, chat_id)
+        except Exception:
+            logger.warning("[PUSH_NOTIFY] Reply routing metadata unavailable; sending legacy alert")
+
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
 
@@ -836,6 +963,8 @@ async def _send_push_notification_if_enabled(
                 "chat_id": chat_id,
                 "category": "OPENMATES_CHAT_MESSAGE",
                 "user_id": user_id,
+                "message_id": message_id,
+                "workspace": workspace,
             },
             queue="push",
         )
@@ -1006,25 +1135,6 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
-                    elif event_type == "voice_action_completed":
-                        if not isinstance(payload, dict):
-                            continue
-                        session_id = payload.get("initiator_session_id")
-                        request_id = payload.get("request_id")
-                        if not session_id or not request_id:
-                            continue
-                        for device_id, connection in manager.get_connections_for_user(user_id).items():
-                            # Scope to the authenticated original session, including
-                            # reconnections, independently of Live speech lifecycle.
-                            if connection.scope.get("voice_action_session_hash") != session_id:
-                                continue
-                            await send_pending_voice_actions(manager=manager,
-                                cache_service=cache_service,
-                                directus_service=app.state.directus_service,
-                                encryption_service=app.state.encryption_service,
-                                user_id=user_id, user_id_hash=connection.scope["voice_action_user_hash"],
-                                session_hash=session_id, device_fingerprint_hash=device_id,
-                                request_id=request_id)
                     elif event_type == "send_connected_account_action_receipt":
                         chat_id = payload.get("chat_id")
                         action_id = payload.get("action_id")
@@ -1212,6 +1322,19 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                 # The 'data' field from cache_service.subscribe_to_channel is already a dict if it was JSON
                 redis_payload = message["data"]
                 redis_channel_name = message.get("channel", "") # e.g., "chat_stream::some_chat_id"
+
+                if redis_payload.get("type") == "assistant_speech_audio":
+                    # Internal transient bytes: authenticated exact live-call
+                    # session only. Never use active-chat/public/sync routing or
+                    # the content-free assistant_speech_status whitelist below.
+                    from backend.shared.python_utils.assistant_speech_audio import route_assistant_speech_audio
+                    audio_route = await route_assistant_speech_audio(
+                        envelope=redis_payload, channel=redis_channel_name,
+                        manager=manager, cache=cache_service,
+                    )
+                    if audio_route != "delivered":
+                        logger.debug("AI Stream Listener: Speech audio not delivered category=%s", audio_route)
+                    continue
                 
                 # Validate payload structure (basic check)
                 if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
@@ -1325,14 +1448,42 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             if field in speech_payload
                         },
                     }
+                    if event_type == "assistant_speech_status" and speech_payload.get("status") == "sealed":
+                        from backend.shared.python_utils.assistant_speech_audio import validate_assistant_speech_sealed_segments
+                        try:
+                            client_payload["segments"] = validate_assistant_speech_sealed_segments(speech_payload)
+                        except ValueError:
+                            logger.warning("AI Stream Listener: Invalid sealed speech membership")
+                            continue
                     owner_id = owner_ids[0]
-                    for device_hash in manager.get_connections_for_user(owner_id):
-                        if chat_id == manager.get_active_chat(owner_id, device_hash):
-                            await manager.send_personal_message(
-                                message={"type": event_type, "payload": client_payload},
-                                user_id=owner_id,
-                                device_fingerprint_hash=device_hash,
+                    call_id = speech_payload.get("voice_call_id")
+                    call_session = None
+                    if call_id is not None:
+                        from backend.shared.python_utils.voice_call_registry import active_call_session
+                        try:
+                            call_session = await active_call_session(
+                                cache_service, user_id=owner_id, chat_id=chat_id, call_id=call_id,
                             )
+                        except Exception as exc:
+                            logger.warning("AI Stream Listener: Call speech authority unavailable category=%s",
+                                           type(exc).__name__)
+                            continue
+                        if call_session is None:
+                            continue
+                    for device_hash, connection in manager.get_connections_for_user(owner_id).items():
+                        if call_id is not None:
+                            # A minimized call keeps its audio owner independently
+                            # from visible-chat navigation and other signed-in devices.
+                            scope = getattr(connection, "scope", {})
+                            if scope.get("voice_call_session_hash") != call_session:
+                                continue
+                        elif chat_id != manager.get_active_chat(owner_id, device_hash):
+                            continue
+                        await manager.send_personal_message(
+                            message={"type": event_type, "payload": client_payload},
+                            user_id=owner_id,
+                            device_fingerprint_hash=device_hash,
+                        )
                     continue
 
                 if event_type in ("task_event", "task_update_jobs_available"):
@@ -1357,6 +1508,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     continue
 
                 elif event_type == "ai_message_chunk":
+                    if redis_payload.get("is_final_chunk", False):
+                        _trace_final_stream_delivery("final_received")
                     user_id_uuid = redis_payload.get("user_id_uuid") # Use UUID for ConnectionManager
                     user_id_hash_for_logging = redis_payload.get("user_id_hash") # Keep for logging if needed
                     chat_id_from_payload = redis_payload.get("chat_id")
@@ -1403,10 +1556,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     )
 
                     # Iterate over all connections for this user (using UUID)
-                    user_connections = manager.get_connections_for_user(user_id_uuid)
-                    # CRITICAL: Send messages immediately without blocking on completion
-                    # WebSocket.send_json() is fast (just queues in buffer), so we can await it
-                    # but we process all devices in parallel to avoid sequential delays
+                    user_connections = list(manager.get_connections_for_user(user_id_uuid).items())
+                    # Bound independent final discovery so a slow peer does not hold
+                    # up another device, while preserving each peer's event order.
                     should_announce_final_recovery_job = (
                         directus_service is not None
                         and redis_payload.get("is_final_chunk", False)
@@ -1416,132 +1568,181 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         )
                     )
 
-                    for device_hash, websocket_conn in user_connections.items():
-                        if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
-                            logger.debug(
-                                f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
+                    delivery_limit = asyncio.Semaphore(4)
+
+                    async def deliver_to_device(device_ordinal: int, device_hash: str, websocket_conn: WebSocket) -> None:
+                        def connection_ready() -> bool:
+                            return (
+                                manager.get_connections_for_user(user_id_uuid).get(device_hash) is websocket_conn
+                                and manager.is_connection_completion_capable(user_id_uuid, device_hash)
                             )
-                            continue
-                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
-                        
-                        if chat_id_from_payload == active_chat_on_device:
-                            # Check for errors in the stream content (both old "[ERROR:" format and new standardized format)
-                            full_content = redis_payload.get("full_content_so_far", "")
-                            standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
-                            if full_content and isinstance(full_content, str):
-                                if "[ERROR" in full_content:
-                                    logger.warning(
-                                        "AI Stream Listener: Detected error marker in stream "
-                                        f"for chat {chat_id_from_payload}. Replacing with generic key."
+
+                        async with delivery_limit:
+                            final_sent = False
+                            try:
+                                if not connection_ready():
+                                    if redis_payload.get("is_final_chunk", False):
+                                        _trace_final_stream_delivery("final_send", device_ordinal, False)
+                                    logger.debug(
+                                        f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
                                     )
-                                    # Overwrite with a generic key for the frontend
-                                    redis_payload["full_content_so_far"] = "chat.an_error_occured"
-                                elif full_content.strip() == standardized_error:
-                                    # New standardized error format - already user-friendly, but convert to translation key for consistency
-                                    logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
-                                    redis_payload["full_content_so_far"] = "chat.an_error_occured"
+                                    return
+                                active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
 
-                            # The final frame lets the browser/test proceed to logout, so recovery
-                            # discovery must be ordered before it instead of racing in the background.
-                            if should_announce_final_recovery_job:
-                                await _send_available_recovery_jobs_for_final_stream(
-                                    manager=manager,
-                                    directus_service=directus_service,
-                                    user_id=user_id_uuid,
-                                    user_id_hash=redis_payload.get("user_id_hash"),
-                                    device_fingerprint_hash=device_hash,
-                                )
+                                if chat_id_from_payload == active_chat_on_device:
+                                    # Check for errors in the stream content (both old "[ERROR:" format and new standardized format)
+                                    full_content = redis_payload.get("full_content_so_far", "")
+                                    standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
+                                    if full_content and isinstance(full_content, str):
+                                        if "[ERROR" in full_content:
+                                            logger.warning(
+                                                "AI Stream Listener: Detected error marker in stream "
+                                                f"for chat {chat_id_from_payload}. Replacing with generic key."
+                                            )
+                                            # Overwrite with a generic key for the frontend
+                                            redis_payload["full_content_so_far"] = "chat.an_error_occured"
+                                        elif full_content.strip() == standardized_error:
+                                            # New standardized error format - already user-friendly, but convert to translation key for consistency
+                                            logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
+                                            redis_payload["full_content_so_far"] = "chat.an_error_occured"
 
-                            # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
-                            # This ensures chunks are forwarded as soon as they arrive from Redis
-                            await manager.send_personal_message(
-                                message={"type": "ai_message_update", "payload": redis_payload},
-                                user_id=user_id_uuid, # Use UUID
-                                device_fingerprint_hash=device_hash
-                            )
-                            logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
-                        else:
-                            # Chat is not active on this device.
-                            # For background processing: only send completed response when final marker arrives
-                            is_final_marker = redis_payload.get("is_final_chunk", False)
+                                    # The final frame lets the browser/test proceed to logout, so recovery
+                                    # discovery must be ordered before it instead of racing in the background.
+                                    if should_announce_final_recovery_job:
+                                        if not await _send_available_recovery_jobs_for_final_stream(
+                                            manager=manager,
+                                            directus_service=directus_service,
+                                            user_id=user_id_uuid,
+                                            user_id_hash=redis_payload.get("user_id_hash"),
+                                            device_fingerprint_hash=device_hash,
+                                            websocket=websocket_conn, device_ordinal=device_ordinal,
+                                        ):
+                                            _trace_final_stream_delivery("final_send", device_ordinal, False)
+                                            return
 
-                            if is_final_marker:
-                                # For inactive devices, send the completed AI response as a background update
-                                # This allows AI processing to continue in the background
-                                # Client will store the completed message and show it when the chat is opened
-                                
-                                # Check for errors in the stream content (same as active chat)
-                                full_content = redis_payload.get("full_content_so_far", "")
-                                standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
-                                if full_content and isinstance(full_content, str):
-                                    if "[ERROR" in full_content:
-                                        logger.warning(
-                                            "AI Stream Listener: Detected error marker in background stream "
-                                            f"for chat {chat_id_from_payload}. Replacing with generic key."
-                                        )
-                                        # Overwrite with a generic key for the frontend
-                                        full_content = "chat.an_error_occured"
-                                    elif full_content.strip() == standardized_error:
-                                        # New standardized error format - already user-friendly, but convert to translation key for consistency
-                                        logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
-                                        full_content = "chat.an_error_occured"
-                                
-                                # The background final frame can also trigger logout/navigation, so
-                                # deliver recovery discovery first and let reconnects pick up any
-                                # lease released by logout.
-                                if should_announce_final_recovery_job:
-                                    await _send_available_recovery_jobs_for_final_stream(
-                                        manager=manager,
-                                        directus_service=directus_service,
-                                        user_id=user_id_uuid,
-                                        user_id_hash=redis_payload.get("user_id_hash"),
+                                    if not connection_ready():
+                                        if redis_payload.get("is_final_chunk", False):
+                                            _trace_final_stream_delivery("final_send", device_ordinal, False)
+                                        return
+                                    # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
+                                    # This ensures chunks are forwarded as soon as they arrive from Redis
+                                    sent = await manager.send_personal_message(
+                                        message={"type": "ai_message_update", "payload": redis_payload},
+                                        user_id=user_id_uuid, # Use UUID
                                         device_fingerprint_hash=device_hash,
+                                        expected_websocket=websocket_conn,
                                     )
+                                    if redis_payload.get("is_final_chunk", False):
+                                        final_sent = sent is True
+                                        _trace_final_stream_delivery("final_send", device_ordinal, final_sent)
+                                    logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
+                                else:
+                                    # Chat is not active on this device.
+                                    # For background processing: only send completed response when final marker arrives
+                                    is_final_marker = redis_payload.get("is_final_chunk", False)
 
-                                # Send background completion event with full response
-                                background_completion_payload = {
-                                    "chat_id": chat_id_from_payload,
-                                    "message_id": redis_payload.get("message_id"), # AI's message ID
-                                    "user_message_id": redis_payload.get("user_message_id"),
-                                    "created_at": redis_payload.get("created_at"),
-                                    "is_final_chunk": True,
-                                    "task_id": redis_payload.get("task_id"),
-                                    "full_content": full_content,
-                                    "model_name": redis_payload.get("model_name"),
-                                    "category": redis_payload.get("category"),
-                                    "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
-                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
-                                    "rejection_reason": redis_payload.get("rejection_reason"),
-                                    "recovery_job_id": redis_payload.get("recovery_job_id"),
-                                    "recovery_turn_id": redis_payload.get("recovery_turn_id"),
-                                    "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
-                                    "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
-                                    "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
-                                    "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
-                                    "is_async_skill_continuation": redis_payload.get("is_async_skill_continuation", False),
-                                    "original_user_message_id": redis_payload.get("original_user_message_id"),
-                                    "async_skill_task_id": redis_payload.get("async_skill_task_id"),
-                                    "awaiting_async_skill_continuation": redis_payload.get("awaiting_async_skill_continuation", False),
-                                }
-                                await manager.send_personal_message(
-                                    message={"type": "ai_background_response_completed", "payload": background_completion_payload},
-                                    user_id=user_id_uuid,
-                                    device_fingerprint_hash=device_hash
-                                )
-                                logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
+                                    if is_final_marker:
+                                        # For inactive devices, send the completed AI response as a background update
+                                        # This allows AI processing to continue in the background
+                                        # Client will store the completed message and show it when the chat is opened
 
-                                # Also send typing ended event for UI cleanup
-                                typing_ended_payload = {
-                                    "chat_id": chat_id_from_payload,
-                                    "message_id": redis_payload.get("message_id") # AI's message ID
-                                }
-                                await manager.send_personal_message(
-                                     message={"type": "ai_typing_ended", "payload": typing_ended_payload},
-                                     user_id=user_id_uuid, # Use UUID
-                                     device_fingerprint_hash=device_hash
-                                )
-                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
-                    
+                                        # Check for errors in the stream content (same as active chat)
+                                        full_content = redis_payload.get("full_content_so_far", "")
+                                        standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
+                                        if full_content and isinstance(full_content, str):
+                                            if "[ERROR" in full_content:
+                                                logger.warning(
+                                                    "AI Stream Listener: Detected error marker in background stream "
+                                                    f"for chat {chat_id_from_payload}. Replacing with generic key."
+                                                )
+                                                # Overwrite with a generic key for the frontend
+                                                full_content = "chat.an_error_occured"
+                                            elif full_content.strip() == standardized_error:
+                                                # New standardized error format - already user-friendly, but convert to translation key for consistency
+                                                logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
+                                                full_content = "chat.an_error_occured"
+
+                                        # The background final frame can also trigger logout/navigation, so
+                                        # deliver recovery discovery first and let reconnects pick up any
+                                        # lease released by logout.
+                                        if should_announce_final_recovery_job:
+                                            if not await _send_available_recovery_jobs_for_final_stream(
+                                                manager=manager,
+                                                directus_service=directus_service,
+                                                user_id=user_id_uuid,
+                                                user_id_hash=redis_payload.get("user_id_hash"),
+                                                device_fingerprint_hash=device_hash,
+                                                websocket=websocket_conn, device_ordinal=device_ordinal,
+                                            ):
+                                                _trace_final_stream_delivery("final_send", device_ordinal, False)
+                                                return
+
+                                        if not connection_ready():
+                                            _trace_final_stream_delivery("final_send", device_ordinal, False)
+                                            return
+                                        # Send background completion event with full response
+                                        background_completion_payload = {
+                                            "chat_id": chat_id_from_payload,
+                                            "message_id": redis_payload.get("message_id"), # AI's message ID
+                                            "user_message_id": redis_payload.get("user_message_id"),
+                                            "created_at": redis_payload.get("created_at"),
+                                            "is_final_chunk": True,
+                                            "task_id": redis_payload.get("task_id"),
+                                            "full_content": full_content,
+                                            "model_name": redis_payload.get("model_name"),
+                                            "category": redis_payload.get("category"),
+                                            "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
+                                            "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
+                                            "rejection_reason": redis_payload.get("rejection_reason"),
+                                            "recovery_job_id": redis_payload.get("recovery_job_id"),
+                                            "recovery_turn_id": redis_payload.get("recovery_turn_id"),
+                                            "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
+                                            "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
+                                            "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
+                                            "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
+                                            "is_async_skill_continuation": redis_payload.get("is_async_skill_continuation", False),
+                                            "original_user_message_id": redis_payload.get("original_user_message_id"),
+                                            "async_skill_task_id": redis_payload.get("async_skill_task_id"),
+                                            "awaiting_async_skill_continuation": redis_payload.get("awaiting_async_skill_continuation", False),
+                                        }
+                                        sent = await manager.send_personal_message(
+                                            message={"type": "ai_background_response_completed", "payload": background_completion_payload},
+                                            user_id=user_id_uuid,
+                                            device_fingerprint_hash=device_hash,
+                                            expected_websocket=websocket_conn,
+                                        )
+                                        final_sent = sent is True
+                                        _trace_final_stream_delivery("final_send", device_ordinal, final_sent)
+                                        logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
+
+                                        # Also send typing ended event for UI cleanup
+                                        typing_ended_payload = {
+                                            "chat_id": chat_id_from_payload,
+                                            "message_id": redis_payload.get("message_id") # AI's message ID
+                                        }
+                                        await manager.send_personal_message(
+                                             message={"type": "ai_typing_ended", "payload": typing_ended_payload},
+                                             user_id=user_id_uuid, # Use UUID
+                                             device_fingerprint_hash=device_hash,
+                                             expected_websocket=websocket_conn,
+                                        )
+                                        logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
+                            except Exception as exc:
+                                # One peer's discovery/transport failure must not
+                                # abort completion delivery to the remaining peers.
+                                if redis_payload.get("is_final_chunk", False) and not final_sent:
+                                    _trace_final_stream_delivery("final_send", device_ordinal, False, exc)
+                                logger.warning("AI Stream Listener: Device delivery failed")
+
+                    if redis_payload.get("is_final_chunk", False):
+                        await asyncio.gather(*(
+                            deliver_to_device(ordinal, device_hash, websocket_conn)
+                            for ordinal, (device_hash, websocket_conn) in enumerate(user_connections, 1)
+                        ))
+                    else:
+                        for ordinal, (device_hash, websocket_conn) in enumerate(user_connections, 1):
+                            await deliver_to_device(ordinal, device_hash, websocket_conn)
+
                     # =====================================================================
                     # Completed messages queue IDs only. The worker independently
                     # rechecks human presence, consent and viewed state after grace.
@@ -1571,6 +1772,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     chat_id=chat_id_from_payload,
                                     response_preview=redis_payload.get("full_content_so_far", ""),
                                     task_id=redis_payload.get("task_id"),
+                                    message_id=redis_payload.get("message_id"),
                                     max_attempts=3,
                                     delay_seconds=5,
                                     model_name=redis_payload.get("model_name"),
@@ -2743,8 +2945,8 @@ async def _deliver_pending_embeds(
                     embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json
                 )
 
-                # Only re-send finished embeds
-                if embed_data.get("status") != "finished":
+                # Re-send completed output and visible failed app-skill executions.
+                if embed_data.get("status") != "finished" and not (embed_data.get("status") == "error" and embed_data.get("type") == "app_skill_use"):
                     continue
 
                 # Decrypt vault-encrypted content
@@ -2770,7 +2972,7 @@ async def _deliver_pending_embeds(
                     "embed_id": embed_id,
                     "type": embed_data.get("type", "app_skill_use"),
                     "content": plaintext_toon,
-                    "status": "finished",
+                    "status": embed_data["status"],
                     "chat_id": embed_data.get("chat_id", ""),
                     "message_id": embed_data.get("message_id", ""),
                     "user_id": user_id,
@@ -2981,10 +3183,17 @@ async def websocket_endpoint(
     queued_revision_request_times: list[float] = []
     queued_snapshot_request_times: list[float] = []
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
+    # Optional completeness evidence on the existing authenticated offer frame.
+    complete_task_inventory = "task_update_jobs_inventory_v1" in connection_capabilities
+    # Immutable per-original-request correlation, never read from manager routing
+    # after an await: a replacement socket must not inherit old proof responses.
+    inventory_request_id = (_validated_inventory_request_id(websocket.query_params.get("inventory_request_id"))
+                            if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
+    supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
 
     supports_storage_archive = declares_archive_capability(raw_capabilities)
     if not supports_storage_archive:
@@ -3022,6 +3231,21 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
+    if not supports_empty_call_cleanup:
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        # Retain eligibility loss durably before a legacy tab can discover any
+        # current candidate through initial sync, even if it later disconnects.
+        manager.empty_call_cleanup_unsafe_owners.add(user_id)
+        try:
+            await ChatRecoveryService(directus_service).execute("disqualify_call_cleanup_owner", {
+                "protocol_version": 1, "hashed_user_id": user_id_hash,
+            })
+        except Exception:
+            # Keep normal old-client sync available; automatic cleanup stays
+            # disabled for this owner when durable exclusion is unavailable.
+            logger.warning("Empty-call rollout exclusion unavailable")
+        else:
+            manager.empty_call_cleanup_unsafe_owners.discard(user_id)
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
@@ -3034,12 +3258,16 @@ async def websocket_endpoint(
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+        supports_empty_call_cleanup=supports_empty_call_cleanup,
         volatile_session_revoker=lambda nonce: revoke_volatile_ai_live_session(
             cache_service, nonce,
         ),
     )
 
-    if not await _send_initial_server_capabilities(websocket, manager):
+    recovery_inventory_manager = _bound_recovery_inventory_manager(
+        manager, user_id, device_fingerprint_hash, inventory_request_id, websocket,
+    )
+    if not await _send_initial_server_capabilities(websocket, manager, inventory_request_id):
         return
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -3058,8 +3286,7 @@ async def websocket_endpoint(
     # terminate an idle socket as well as reject its next message.
     session_watch_task: asyncio.Task | None = None
     session_hash = auth_data.get("session_hash")
-    websocket.scope["voice_action_session_hash"] = session_hash
-    websocket.scope["voice_action_user_hash"] = user_id_hash
+    websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
         from backend.core.api.app.services.session_security_state import get_session_state_cached
@@ -3110,7 +3337,7 @@ async def websocket_endpoint(
     phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
     initial_recovery_discovery_tasks = await begin_initial_recovery_discovery(
-        manager=manager, directus_service=directus_service,
+        manager=recovery_inventory_manager, directus_service=directus_service,
         user_id=user_id, user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
@@ -3118,6 +3345,7 @@ async def websocket_endpoint(
             cache_service, directus_service,
         ).get_epoch(authoritative=True),
         user_otel_attrs=user_otel_attrs,
+        inventory_request_id=inventory_request_id,
     )
 
     asyncio.create_task(
@@ -3134,6 +3362,7 @@ async def websocket_endpoint(
         asyncio.create_task(send_available_metadata_jobs(
             manager=manager, directus_service=directus_service, user_id=user_id,
             user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+            inventory_request_id=inventory_request_id,
         ))
 
     if supports_task_update_jobs:
@@ -3143,6 +3372,8 @@ async def websocket_endpoint(
                 cache_service=cache_service,
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash,
+                complete_inventory=complete_task_inventory,
+                inventory_request_id=inventory_request_id,
             )
         )
 
@@ -3158,11 +3389,6 @@ async def websocket_endpoint(
                 chat_id=reconnect_chat_id,
             )
         )
-
-    asyncio.create_task(send_pending_voice_actions(manager=manager, cache_service=cache_service,
-        directus_service=directus_service, encryption_service=encryption_service,
-        user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
-        device_fingerprint_hash=device_fingerprint_hash))
 
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
@@ -3201,18 +3427,21 @@ async def websocket_endpoint(
     else:
         manager.mark_volatile_session_unavailable(websocket)
 
-    def schedule_foreground_recovery_discovery(*, replace: bool) -> None:
+    def schedule_foreground_recovery_discovery(*, replace: bool, request_id: str | None = None) -> None:
         nonlocal foreground_recovery_discovery_task
         if foreground_recovery_discovery_task is not None and not foreground_recovery_discovery_task.done():
             if not replace:
                 return
             foreground_recovery_discovery_task.cancel()
         foreground_recovery_discovery_task = asyncio.create_task(_discover_foreground_recovery(
-            manager=manager, cache_service=cache_service,
+            manager=recovery_inventory_manager, cache_service=cache_service,
             directus_service=directus_service, user_id=user_id,
             user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
             supports_typed_recovery_outputs=supports_typed_recovery_outputs,
             user_otel_attrs=user_otel_attrs,
+            request_id=request_id,
+            inventory_empty_ack=complete_task_inventory,
+            inventory_request_id=inventory_request_id,
         ))
 
     disconnect_reason = "Server closed connection"
@@ -3482,6 +3711,11 @@ async def websocket_endpoint(
                     await send_available_metadata_jobs(
                         manager=manager, directus_service=directus_service, user_id=user_id,
                         user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+                        # Echo only the original request's nonce, and only when
+                        # the retry itself names that same discovery. Never echo
+                        # a caller-supplied foreign nonce or a manager lookup.
+                        inventory_request_id=(inventory_request_id
+                            if payload.get("inventory_request_id") == inventory_request_id else None),
                     )
                 else:
                     await handle_metadata_recovery(
@@ -3683,6 +3917,14 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "delete_empty_call_chat":
+                await handle_delete_empty_call_chat(
+                    websocket=websocket, manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload, user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "delete_chat":
@@ -4180,7 +4422,16 @@ async def websocket_endpoint(
                         }}, user_id, device_fingerprint_hash,
                     )
                 else:
-                    schedule_foreground_recovery_discovery(replace=False)
+                    request_id = payload.get("request_id")
+                    if request_id is not None and (not isinstance(request_id, str) or not 0 < len(request_id) <= 128):
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"code": "invalid_request_id", "message": "Invalid recovery discovery request."}},
+                            user_id, device_fingerprint_hash,
+                        )
+                        continue
+                    # A correlated send needs all pages from a fresh scan. Old
+                    # background fences cannot release its history snapshot.
+                    schedule_foreground_recovery_discovery(replace=request_id is not None, request_id=request_id)
             elif message_type == "chat_message_viewed":
                 try:
                     viewed = await handle_notification_read_receipt(
@@ -4339,15 +4590,14 @@ async def websocket_endpoint(
                     directus_service=directus_service, user_id=user_id,
                     user_id_hash=user_id_hash, session_hash=session_hash,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
-                    encryption_service=encryption_service,
                 )
 
-            elif message_type in {"voice_action_completed_get", "voice_action_completed_confirmed"}:
-                await handle_voice_action_completed(manager=manager, cache_service=cache_service,
-                    directus_service=directus_service, encryption_service=encryption_service,
-                    user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
+            elif message_type == "voice_call_chat_prepare":
+                await handle_voice_call_chat_prepare(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
-                    confirmed=message_type == "voice_action_completed_confirmed")
+                )
 
             elif message_type == "encrypted_chat_metadata":
                 payload = await filter_generated_metadata_storage(payload=payload,

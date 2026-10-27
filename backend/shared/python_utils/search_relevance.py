@@ -108,17 +108,37 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
             "Score how well this single event matches both the search topic in "
             "state.search_parameters.query and the stated real-world relevance goal after all "
             "structured filters. A score of 1 requires a weak but defensible relationship to "
-            "the requested topic or goal; score 0 when neither relationship is supported. "
+            "the requested topic; score 0 when that relationship is unsupported, even if "
+            "a generic goal such as networking could be satisfied. "
             "Prefer explicit evidence about audience, format, organizer, speaking, showcasing, "
             "networking, or other goal-specific opportunities. Similar title words alone are "
             "insufficient and missing facts remain unknown."
         ),
         criteria=(
-            "No credible relationship to the requested topic or goal",
-            "Weak but defensible topic or goal relationship with little stated evidence",
+            "No credible relationship to the requested topic",
+            "Weak but defensible topic relationship with little stated goal evidence",
             "Plausible topic and goal fit supported by some event details",
             "Strong topic and goal fit supported by explicit event evidence",
             "Exceptional direct topic match and opportunity for the stated goal",
+        ),
+    ),
+    "events_topic": SearchRelevanceProfile(
+        instructions=(
+            "Check whether this single event has a defensible relationship to the explicit "
+            "event topic in state.search_parameters.query. This is topic filtering, not "
+            "preference ranking: do not invent an audience, networking, promotion, speaking, "
+            "price, or accessibility goal. Use explicit title, description and organizer "
+            "evidence. A clear topical title can establish the relationship when details "
+            "are sparse; incidental substrings, ambiguous abbreviations or generic event "
+            "words alone cannot. Score 0 for an unrelated or unsupported topic; at least "
+            "1 requires a weak but defensible topic relationship. Missing facts remain unknown."
+        ),
+        criteria=(
+            "No credible relationship to the requested topic",
+            "Weak but defensible topic relationship",
+            "Plausible topic relationship supported by explicit event evidence",
+            "Strong topic relationship supported by explicit event evidence",
+            "Direct match to the requested event topic",
         ),
     ),
     "home": SearchRelevanceProfile(
@@ -290,7 +310,7 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
 RELEVANCE_CANDIDATE_COUNTS: Dict[str, int] = {
     "jobs": DEFAULT_RELEVANCE_CANDIDATE_COUNT,
     "maps": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
-    "shopping": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
+    "shopping": DEFAULT_RELEVANCE_CANDIDATE_COUNT,
     "travel_stays": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
 }
 

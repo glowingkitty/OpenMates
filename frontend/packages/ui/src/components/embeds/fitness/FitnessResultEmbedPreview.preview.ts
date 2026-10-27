@@ -1,5 +1,5 @@
 /**
- * Preview fixtures for a single Urban Sports fitness result card.
+ * Preview fixtures for a single fitness source fitness result card.
  *
  * These direct component props cover both location and class registry aliases
  * used by the generated embed registry and generic component preview route.
@@ -10,6 +10,7 @@ const defaultProps = {
   result: {
     id: "appointment-1",
     name: "Morning Yoga Flow",
+    image_url: "/preview-fixtures/fitness-yoga-studio.svg",
     date: "2026-07-10",
     time_range: "07:30 - 08:30",
     venue_name: "Yoga Studio Kreuzberg",
@@ -25,6 +26,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  assistant: { ...defaultProps, resultContext: 'chat' as const },
+  noImage: { result: { ...defaultProps.result, image_url: null } },
+  zero: { result: { ...defaultProps.result, distance_km: 0, spots_display: '0 spots left' } },
+  longTitle: { result: { ...defaultProps.result, name: 'Morning restorative yoga flow and guided mindful movement for all experience levels in Kreuzberg' } },
   location: {
     ...defaultProps,
     result: {

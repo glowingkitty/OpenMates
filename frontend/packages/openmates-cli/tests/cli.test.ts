@@ -2387,6 +2387,16 @@ async function withSkillFormattingMockApi<T>(
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
+      if (request.method === "POST" && request.url === "/v1/apps/home/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: { results: [{ id: 1, results: [] }], provider: "ExampleHousingB" },
+          credits_charged: 0,
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
         const body = await readJsonBody(request);
         const firstRequest = (body.requests as Array<{ query?: string }> | undefined)?.[0];
@@ -2414,9 +2424,9 @@ async function withSkillFormattingMockApi<T>(
               id: 1,
               results: [{
                 type: "event_result",
-                title: "Accessible Tech Meetup",
+                title: "Accessible Tech Gathering",
                 description: "A very long event description that should not dominate default CLI output.",
-                provider: "meetup",
+                provider: "Gathering",
                 date_start: "2026-06-13T14:00:00+02:00",
                 date_end: "2026-06-13T16:00:00+02:00",
                 venue: { name: "Community Hall", city: "Berlin" },
@@ -2542,22 +2552,39 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/shopping/skills/search_products") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "ExampleRetail",
+            results: [{ id: 1, results: [{
+              type: "product", title: "Compact Travel Bag", provider: "ExampleRetail",
+              price_cents: 12890, currency: "EUR",
+              purchase_url: "https://www.ExampleRetail.de/dp/TESTBAG001",
+            }] }],
+          },
+          credits_charged: 0,
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_locations") {
         const body = await readJsonBody(request);
         requests.push({ url: request.url, body });
         writeJson(response, {
           success: true,
           data: {
-            provider: "Urban Sports Club",
+            provider: "ExampleFitness",
             results: [{
               id: "nearby",
-              provider: "Urban Sports Club",
+              provider: "ExampleFitness",
               result_count: 1,
               filters: { query: "hiit", address: "Sorauer Str. 12", radius_km: 1, plan: "all" },
-              summary: "Found 1 Urban Sports locations. Searched all Urban Sports plans.",
+              summary: "Found 1 fitness source locations. Searched all fitness source plans.",
               results: [{
                 id: "beat81-paul-lincke-ufer",
-                provider: "Urban Sports Club",
+                provider: "ExampleFitness",
                 venue_id: "beat81-paul-lincke-ufer",
                 name: "BEAT81 - Paul-Lincke-Ufer",
                 address: "Paul-Lincke-Ufer 19, 10999 Berlin",
@@ -2567,7 +2594,7 @@ async function withSkillFormattingMockApi<T>(
                 image_url: "https://example.test/fitness.jpg",
                 lat: 52.493788701,
                 lon: 13.430159621,
-                url: "https://urbansportsclub.com/en/venues/beat81-paul-lincke-ufer",
+                url: "https://example.com/fixture",
               }],
             }],
             ignore_fields_for_inference: ["image_url", "lat", "lon"],
@@ -2582,16 +2609,16 @@ async function withSkillFormattingMockApi<T>(
         writeJson(response, {
           success: true,
           data: {
-            provider: "Urban Sports Club",
+            provider: "ExampleFitness",
             results: [{
               id: "classes",
-              provider: "Urban Sports Club",
+              provider: "ExampleFitness",
               result_count: 1,
               filters: { query: "yoga", address: "Sorauer Str. 12", radius_km: 1, plan: "all", attendance_mode: "onsite" },
-              summary: "Found 1 Urban Sports classes in onsite mode. Searched all Urban Sports plans.",
+              summary: "Found 1 fitness source classes in onsite mode. Searched all fitness source plans.",
               results: [{
                 id: "appointment-1",
-                provider: "Urban Sports Club",
+                provider: "ExampleFitness",
                 appointment_id: "appointment-1",
                 name: "Morning Yoga Flow",
                 category: "Yoga",
@@ -2603,7 +2630,7 @@ async function withSkillFormattingMockApi<T>(
                 distance_km: 0.9,
                 spots_display: "5 spots left",
                 plans_required: ["Classic", "Premium", "Max"],
-                detail_url: "https://urbansportsclub.com/en/class-details/appointment-1",
+                detail_url: "https://example.com/fixture",
                 image_url: "https://example.test/class.jpg",
                 venue_lat: 52.5,
                 venue_lon: 13.4,
@@ -2712,19 +2739,19 @@ async function withSkillFormattingMockApi<T>(
             app_id: "models3d",
             skill_id: "search",
             status: "finished",
-            provider: "Printables",
+            provider: "ExampleModels",
             result_count: 1,
             results: [{
               id: 1,
               query: "benchy",
-              providers: ["Printables"],
+              providers: ["ExampleModels"],
               result_count: 1,
               results: [{
                 type: "model_result",
                 title: "Bench Boat",
-                provider: "Printables",
-                source_page_url: "https://www.printables.com/model/3161-bench-boat",
-                preview_image_url: "https://media.printables.com/bench.jpg",
+                provider: "ExampleModels",
+                source_page_url: "https://example.com/fixture",
+                preview_image_url: "https://example.com/fixture",
                 description: "A small calibration boat for printer tuning.",
                 creator_name: "Creative Tools",
                 published_at: "2024-01-02T03:04:05Z",
@@ -3654,14 +3681,14 @@ describe("apps code run command variants", () => {
 });
 
 describe("apps travel search_connections typed request", () => {
-  // contract-test: supporting surface=cli assertions=travel-search.departure-window.upstream,travel-search.surface-parity
+  // contract-test: supporting surface=cli assertions=travel-search.realtime.source-faithful,travel-search.surface-parity
   it("maps pass-aware train flags into the app-skill request", () => {
     const request = buildTravelConnectionsRequest([], {
       origin: "Potsdam Hbf",
       destination: "Munich Hbf",
       date: "2026-06-01",
       transport: "train",
-      providers: "deutsche_bahn,transitous",
+      providers: "example_rail,ExampleTransit",
       "owned-passes": "deutschland_ticket",
       "pass-only": true,
       "rail-products": "regional,s_bahn",
@@ -3674,7 +3701,7 @@ describe("apps travel search_connections typed request", () => {
     assert.deepEqual(request, {
       legs: [{ origin: "Potsdam Hbf", destination: "Munich Hbf", date: "2026-06-01" }],
       transport_methods: ["train"],
-      providers: ["deutsche_bahn", "transitous"],
+      providers: ["example_rail", "ExampleTransit"],
       owned_passes: ["deutschland_ticket"],
       rail_products: ["regional", "s_bahn"],
       pass_only: true,
@@ -3760,6 +3787,34 @@ describe("apps metadata commands", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=home-search.filters.explicit-and-unknown,app-skills.history.renderable
+  it("forwards home amenity rent and water constraints through generated typed flags", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
+      await runCliAsync([
+        "--api-url", apiUrl, "apps", "home", "search", "Berlin",
+        "--required-amenities", "balcony,elevator",
+        "--excluded-amenities", "furnished",
+        "--preferred-amenities", "garden,terrace",
+        "--max-warm-rent-eur", "1500", "--max-cold-rent-eur", "1200",
+        "--available-by", "2026-12-01", "--include-unconfirmed", "true",
+        "--visual-analysis", "false", "--neighborhood-categories", "water,park,transit",
+        "--neighborhood-radius-m", "2000", "--max-water-distance-m", "500",
+        "--max-water-walk-minutes", "10", "--max-results", "3", "--json",
+      ]);
+      assert.deepEqual(requests, [{
+        url: "/v1/apps/home/skills/search",
+        body: { requests: [{
+          query: "Berlin", required_amenities: ["balcony", "elevator"],
+          excluded_amenities: ["furnished"], preferred_amenities: ["garden", "terrace"],
+          max_warm_rent_eur: 1500, max_cold_rent_eur: 1200, available_by: "2026-12-01",
+          include_unconfirmed: true, visual_analysis: false,
+          neighborhood_categories: ["water", "park", "transit"], neighborhood_radius_m: 2000,
+          max_water_distance_m: 500, max_water_walk_minutes: 10, max_results: 3,
+        }] },
+      }]);
+    });
+  });
+
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards relevance criteria through generated typed app-skill flags", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
@@ -3784,6 +3839,44 @@ describe("apps metadata commands", () => {
           }],
         },
       });
+    });
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.history.renderable
+  it("forwards shopping reference images through generated typed flags with provider and price filters", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
+      const references = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "shopping", "search_products",
+        "--query", "travel bag",
+        "--provider", "ExampleRetail",
+        "--country", "de",
+        "--max-results", "3",
+        "--min-price", "50.5",
+        "--max-price", "150",
+        "--reference-images", references.join(","),
+        "--relevance-criteria", "compact olive bag matching the reference images for train travel",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests, [{
+        url: "/v1/apps/shopping/skills/search_products",
+        body: { requests: [{
+          query: "travel bag",
+          provider: "ExampleRetail",
+          country: "de",
+          max_results: 3,
+          min_price: 50.5,
+          max_price: 150,
+          reference_images: references,
+          relevance_criteria: "compact olive bag matching the reference images for train travel",
+        }] },
+      }]);
+      const product = JSON.parse(output).data.results[0].results[0];
+      assert.equal(product.price_cents, 12890);
+      assert.equal(product.currency, "EUR");
+      assert.equal(product.provider, "ExampleRetail");
     });
   });
 
@@ -3828,7 +3921,7 @@ describe("apps metadata commands", () => {
 
   it("lists public example chats linked to an app skill as JSON", () => {
     const output = runCliWithoutSession([
-      "apps", "examples", "travel", "search_connections", "--json",
+      "apps", "examples", "web", "search", "--json",
     ]);
     const parsed = JSON.parse(output) as {
       app_id?: string;
@@ -3836,36 +3929,38 @@ describe("apps metadata commands", () => {
       examples?: Array<{ chat_id?: string; slug?: string; linked_app_skills?: string[]; commands?: Record<string, string> }>;
     };
 
-    assert.equal(parsed.app_id, "travel");
-    assert.equal(parsed.skill_id, "search_connections");
-    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown"));
+    assert.equal(parsed.app_id, "web");
+    assert.equal(parsed.skill_id, "search");
+    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-gigantic-airplanes"));
     assert.equal(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"), false);
-    assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("travel.search_connections")));
+    assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("web.search")));
     assert.equal(
-      parsed.examples?.find((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown")?.commands?.show,
-      "openmates chats show example-deutschlandticket-train-fare-breakdown",
+      parsed.examples?.find((example) => example.chat_id === "example-gigantic-airplanes")?.commands?.show,
+      "openmates chats show example-gigantic-airplanes",
     );
   });
 
   it("renders public example chats linked to an app skill in human output", () => {
-    const output = runCliWithoutSession(["apps", "examples", "weather", "rain_radar"]);
-
-    assert.match(output, /Example chats for weather\/rain_radar/);
-    assert.match(output, /example-rostock-heavy-rain-radar/);
-    assert.match(output, /Show: openmates chats show example-rostock-heavy-rain-radar/);
-    assert.match(output, /Open: openmates chats open rostock-heavy-rain-radar/);
+    const output = runCliWithoutSession(["apps", "examples", "web", "search"]);
+    assert.match(output, /Example chats for web\/search/);
+    assert.match(output, /example-gigantic-airplanes/);
+    assert.match(output, /Show: openmates chats show example-gigantic-airplanes/);
+    assert.match(output, /Open: openmates chats open gigantic-airplanes-transporting-rocket-parts/);
   });
 
-  it("surfaces linked example chats in skill-info output", async () => {
+  it("does not discover unpublished provider examples through app skills", () => {
+    for (const [app, skill] of [["shopping", "search_products"], ["travel", "search_connections"], ["hosting", "search_domains"], ["jobs", "search"]]) {
+      const parsed = JSON.parse(runCliWithoutSession(["apps", "examples", app, skill, "--json"]));
+      assert.deepEqual(parsed.examples, []);
+    }
+  });
+
+  it("does not advertise retired rain-radar examples in skill-info output", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "skill-info", "weather", "rain_radar",
+        "--api-url", apiUrl, "apps", "skill-info", "weather", "rain_radar",
       ]);
-
-      assert.match(output, /Example chats/);
-      assert.match(output, /openmates apps examples weather rain_radar/);
-      assert.match(output, /example-rostock-heavy-rain-radar/);
+      assert.doesNotMatch(output, /example-rostock-heavy-rain-radar/);
     });
   });
 
@@ -3892,7 +3987,7 @@ describe("apps metadata commands", () => {
         "apps", "models3d", "search",
         "--query", "benchy",
         "--count", "2",
-        "--providers", "Printables",
+        "--providers", "ExampleModels",
         "--sort", "newest",
         "--free-only",
         "--relevance-criteria", "compact models with explicit print and license evidence",
@@ -3908,7 +4003,7 @@ describe("apps metadata commands", () => {
           requests: [{
             query: "benchy",
             count: 2,
-            providers: ["Printables"],
+            providers: ["ExampleModels"],
             sort: "newest",
             free_only: true,
             relevance_criteria: "compact models with explicit print and license evidence",
@@ -5040,7 +5135,7 @@ describe("unauthenticated example chats", () => {
     const output = runCliWithoutSession([
       "chats",
       "files",
-      "example-audio-speak-friendly-welcome-message",
+      "example-community-garden-volunteer-chime",
       "--json",
     ]);
     const parsed = JSON.parse(output) as {
@@ -5051,17 +5146,17 @@ describe("unauthenticated example chats", () => {
 
     assert.equal(parsed.source, "example");
     assert.equal(parsed.count, 1);
-    assert.equal(parsed.files?.[0]?.title, "audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.title, "community-garden-volunteer-chime.mp3");
     assert.equal(parsed.files?.[0]?.type, "audio");
-    assert.equal(parsed.files?.[0]?.url, "/store-examples/audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.url, "/store-examples/community-garden-volunteer-chime.mp3");
     assert.match(parsed.files?.[0]?.metadata ?? "", /Audio/);
   });
 
   it("lists code files for public example chats without a session", () => {
-    const output = runCliWithoutSession(["chats", "files", "example-python-squares-code-run", "--json"]);
+    const output = runCliWithoutSession(["chats", "files", "example-screenshot-to-html-pricing", "--json"]);
     const parsed = JSON.parse(output) as { files?: Array<{ title?: string; type?: string; node_type?: string }> };
 
-    assert.ok(parsed.files?.some((file) => file.title === "square_parity.py" && file.type === "code"));
+    assert.ok(parsed.files?.some((file) => file.title === "index.html" && file.type === "code"));
     assert.ok(parsed.files?.every((file) => file.node_type));
   });
 

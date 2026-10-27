@@ -1,0 +1,236 @@
+{
+  "task": "TASK-7993",
+  "session": "d1c4",
+  "workspace": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4",
+  "state": "SOURCE HOLD; no source edits or rebuilds during this handoff",
+  "createdUtc": "2026-10-22T21:01:13.287813+00:00",
+  "capability": "session.project-items.v1",
+  "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+  "actualAdapters": {
+    "rust": 11,
+    "npm": 11,
+    "python": 11
+  },
+  "ownedSources": {
+    "packages/openmates-session-bindings/src/session.rs": {
+      "sha256": "f24c165efff014ad19aca68d7f9e2552e6ca70e0abe279f5770494a6a523bb6f",
+      "bytes": 20875,
+      "mtimeUtc": "2026-10-22T20:53:18.794033+00:00"
+    },
+    "packages/openmates-session-bindings/src/session_work.rs": {
+      "sha256": "748023879c64c94f63872b34c94209b685f10bdecac22313d6053fbbafd750d5",
+      "bytes": 18838,
+      "mtimeUtc": "2026-10-22T20:52:29.848853+00:00"
+    },
+    "packages/openmates-session-bindings/src/node.rs": {
+      "sha256": "f63fe3f2826b435780425e995a3801fcaa44570cfc45125af5260c9a85a1f6e7",
+      "bytes": 13271,
+      "mtimeUtc": "2026-10-22T20:51:17.877589+00:00"
+    },
+    "packages/openmates-session-bindings/src/python.rs": {
+      "sha256": "4539d6632384a585c20b24c9eaa79ee0e751fe91e93f0b29143479bb5adf08e6",
+      "bytes": 19264,
+      "mtimeUtc": "2026-10-22T20:51:17.884589+00:00"
+    },
+    "packages/openmates-session-bindings/examples/session-project-items-conformance.rs": {
+      "sha256": "b44bf166bf6d165e2540e6c8f96d44ba27dca78a26672a53932d817c73c92c02",
+      "bytes": 14173,
+      "mtimeUtc": "2026-10-22T20:57:58.210063+00:00"
+    },
+    "frontend/packages/openmates-cli/src/sdkSession.ts": {
+      "sha256": "b478e48b397a483517a378d3e5c62339ad5017cb164d9a711eb5838e7b1cc40a",
+      "bytes": 26700,
+      "mtimeUtc": "2026-10-22T20:57:56.206055+00:00"
+    },
+    "frontend/packages/openmates-cli/src/index.ts": {
+      "sha256": "48dc6ede0fa279fbe65dba64751a3cd10b6466852ac6026d9ab75706330fd3ad",
+      "bytes": 4638,
+      "mtimeUtc": "2026-10-22T20:57:58.209063+00:00"
+    },
+    "frontend/packages/openmates-cli/tests/sdk-session.test.ts": {
+      "sha256": "d63c56504b4fb91e5fb6120e549c3e72129707ba8a12e37046fa653e0d28bd8c",
+      "bytes": 4393,
+      "mtimeUtc": "2026-10-22T20:52:29.819853+00:00"
+    },
+    "packages/openmates-python/openmates/session_client.py": {
+      "sha256": "513f338b76979a49727f6637eb14cc3794ad541e7ccc8f157c0f63d036cfb2e6",
+      "bytes": 25345,
+      "mtimeUtc": "2026-10-22T20:51:17.910589+00:00"
+    },
+    "packages/openmates-python/openmates/__init__.py": {
+      "sha256": "d6de31ac2d4aacb32c1ed4bc7d685d41e0818e92de72c8b2ec0b0b30376cba06",
+      "bytes": 1435,
+      "mtimeUtc": "2026-10-22T20:57:56.207055+00:00"
+    },
+    "packages/openmates-python/tests/test_session_client.py": {
+      "sha256": "4d76756da0e722bf251f69b4ea04195d2a8db6732d6cca1cdf676779ab8fade9",
+      "bytes": 5293,
+      "mtimeUtc": "2026-10-22T20:58:13.471119+00:00"
+    },
+    "tests/sdk-conformance/fixtures/session-project-items.json": {
+      "sha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+      "bytes": 13161,
+      "mtimeUtc": "2026-10-22T20:50:04.545321+00:00"
+    },
+    "tests/sdk-conformance/session_project_items_server.py": {
+      "sha256": "212fd1e07b55f05d2b7427ae363259320fa46a14d06604e8bf693ea79663f725",
+      "bytes": 8357,
+      "mtimeUtc": "2026-10-22T20:54:24.587275+00:00"
+    },
+    "tests/sdk-conformance/runners/session-project-items.mjs": {
+      "sha256": "a4d4cfd17c864cfe01e28f168c0190d708e639825c14a84acb16290dae19b7d7",
+      "bytes": 6359,
+      "mtimeUtc": "2026-10-22T20:54:24.587275+00:00"
+    },
+    "tests/sdk-conformance/runners/session-project-items.py": {
+      "sha256": "62dff164d492c0f3bcf129dc092ee96c789b480805ed3fa403a8599731496930",
+      "bytes": 7218,
+      "mtimeUtc": "2026-10-22T20:55:14.800460+00:00"
+    }
+  },
+  "ownedSourceAggregateSha256": "7c3d2776cc3dc151284ed94054fabc3ac1d132183031e73fbf7477a6648bb287",
+  "locks": {
+    "packages/openmates-rust/Cargo.lock": {
+      "sha256": "e26ae445ac93963d8699bcdc0959379a8984509894e0e71f2e5521dac088ae7a",
+      "bytes": 54635,
+      "mtimeUtc": "2026-10-21T11:21:56.100076+00:00",
+      "expectedSha256": "e26ae445ac93963d8699bcdc0959379a8984509894e0e71f2e5521dac088ae7a",
+      "unchanged": true
+    },
+    "packages/openmates-session-bindings/Cargo.lock": {
+      "sha256": "245767f2925fea629bd5b32071ffd5c254fd011152b1430a901e4fd0b9e69666",
+      "bytes": 59745,
+      "mtimeUtc": "2026-10-21T12:15:22.617136+00:00",
+      "expectedSha256": "245767f2925fea629bd5b32071ffd5c254fd011152b1430a901e4fd0b9e69666",
+      "unchanged": true
+    },
+    "frontend/packages/openmates-tui-native/Cargo.lock": {
+      "sha256": "3bee3aec123f896940160d14db8be6c98464032d04880072cbe0f582766a7aad",
+      "bytes": 105015,
+      "mtimeUtc": "2026-10-21T12:47:21.403748+00:00",
+      "expectedSha256": "3bee3aec123f896940160d14db8be6c98464032d04880072cbe0f582766a7aad",
+      "unchanged": true
+    }
+  },
+  "artifacts": {
+    "frontend/packages/openmates-cli/native/linux-arm64.node": {
+      "sha256": "04e27863da6d38a9e8be1bd99d930783cb6a59f4c22a8aaadc29c03e4833ee75",
+      "bytes": 39272576,
+      "mtimeUtc": "2026-10-22T20:55:24.055494+00:00"
+    },
+    "packages/openmates-python/openmates/_native.abi3.so": {
+      "sha256": "1e9e6f35b86a62d8586d6a445f268a7ed2f5957199b6ef0d14f4b0bb752a7f61",
+      "bytes": 45214064,
+      "mtimeUtc": "2026-10-22T20:56:36.505761+00:00"
+    }
+  },
+  "logs": {
+    "/tmp/d1c4-project-items-binding-tests.log": {
+      "sha256": "0bedbc318468d7720d3b6afcce5e9bd96af75c750bf54afd043edad3090ad67d",
+      "bytes": 116,
+      "mtimeUtc": "2026-10-22T20:58:35.098199+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-binding-clippy.log": {
+      "sha256": "cc41c23fa6bb67537828b742ad252b5b7657b8b259d5d9aa426d00028e30d15b",
+      "bytes": 217,
+      "mtimeUtc": "2026-10-22T20:58:14.157121+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-napi-build.log": {
+      "sha256": "be55e2f5ee5c02ea3dfaef340e545a378df27fedb122fcb41583cf11cc0132ec",
+      "bytes": 1310,
+      "mtimeUtc": "2026-10-22T20:55:24.081494+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-pyo3-build.log": {
+      "sha256": "8e3fd488356dc66b8121c2b371961cb2bf5f94b303b3ed75712e51d07e2a2639",
+      "bytes": 4108,
+      "mtimeUtc": "2026-10-22T20:56:38.128767+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-npm-host.log": {
+      "sha256": "327bd2e839427b35b9dfe7d97424db1d3d7958673ad7745c7b2f8ccadb44d45b",
+      "bytes": 1519,
+      "mtimeUtc": "2026-10-22T20:58:30.132180+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-python-host.log": {
+      "sha256": "2207aede3effc76057a2a3e57150b95838d002e9383df950aadd0fec45f590e8",
+      "bytes": 98,
+      "mtimeUtc": "2026-10-22T20:58:30.745183+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-npm-sdk-build.log": {
+      "sha256": "fc95f85d2f71b9fdb497bdff6e45f356ec8fcc372ae683a62cdb69a5c0b88195",
+      "bytes": 489,
+      "mtimeUtc": "2026-10-22T20:58:42.776227+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-rust.log": {
+      "sha256": "a796abf5ee469ee82ad64b094f37fd1fc462dfbf851212a2d0c8713a5bb5c76a",
+      "bytes": 840,
+      "mtimeUtc": "2026-10-22T20:58:42.871228+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-npm.log": {
+      "sha256": "5aad3b4b18dff38235491c912d369b35106a58a766bd06e17e3b2d51cc2f227d",
+      "bytes": 839,
+      "mtimeUtc": "2026-10-22T20:55:45.885574+00:00",
+      "result": "passed"
+    },
+    "/tmp/d1c4-project-items-python.log": {
+      "sha256": "04bb005525c95f65a3c47252cf6c612ce27e821be8dc17d5e64091c49e3dca73",
+      "bytes": 894,
+      "mtimeUtc": "2026-10-22T20:56:59.977848+00:00",
+      "result": "passed"
+    }
+  },
+  "sdkDependencyFence": {
+    "reference": "/tmp/d1c4-project-items-sdk-final-inputs.json",
+    "referenceSha256": "a1471dbd3fe170ff2f91582a135cadbdd829255c2724272fde78f2850a0ff2a8",
+    "currentFiles": 96,
+    "mismatches": []
+  },
+  "buildEnvironment": {
+    "target": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/packages/openmates-session-bindings/target",
+    "toolchainBin": "/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0 for test/clippy only",
+    "CARGO_NET_OFFLINE": "true for NAPI/maturin; explicit --offline for direct Cargo",
+    "platform": "linux-aarch64",
+    "pythonVenv": "/tmp/rust-tui-sdk-python-venv"
+  },
+  "commands": {
+    "napi": {
+      "cwd": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4",
+      "command": "PATH=/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin:$PATH CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_NET_OFFLINE=true python3 scripts/build_sdk_native.py --language npm --debug > /tmp/d1c4-project-items-napi-build.log 2>&1",
+      "targetSelection": "CARGO_TARGET_DIR unset; script defaults to packages/openmates-session-bindings/target; Cargo --locked from script"
+    },
+    "pyo3": {
+      "cwd": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/packages/openmates-python",
+      "command": "PATH=/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin:$PATH VIRTUAL_ENV=/tmp/rust-tui-sdk-python-venv CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_NET_OFFLINE=true CARGO_TARGET_DIR=/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/packages/openmates-session-bindings/target /tmp/rust-tui-sdk-python-venv/bin/maturin develop --offline --locked > /tmp/d1c4-project-items-pyo3-build.log 2>&1",
+      "note": "Use explicit cd to cwd before command; shell workdir hook otherwise resets to task root. Editable local install, no persistent wheel/sdist publication artifact claim."
+    },
+    "bindingFocused": "PATH=/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin:$PATH CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --offline --locked --manifest-path packages/openmates-session-bindings/Cargo.toml --lib session::work::tests --quiet",
+    "bindingClippy": "PATH=/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin:$PATH CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo clippy --offline --locked --manifest-path packages/openmates-session-bindings/Cargo.toml --all-targets --features napi-bindings,python-bindings -- -D warnings",
+    "rustAdapter": "PATH=/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin:$PATH CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 OPENMATES_SDK_CONFORMANCE_PYTHON=/tmp/rust-tui-sdk-python-venv/bin/python cargo run --offline --locked --manifest-path packages/openmates-session-bindings/Cargo.toml --example session-project-items-conformance --quiet -- --fixture tests/sdk-conformance/fixtures/session-project-items.json --capability session.project-items.v1",
+    "npmAdapter": "OPENMATES_SDK_CONFORMANCE_PYTHON=/tmp/rust-tui-sdk-python-venv/bin/python node tests/sdk-conformance/runners/session-project-items.mjs --fixture tests/sdk-conformance/fixtures/session-project-items.json --capability session.project-items.v1",
+    "pythonAdapter": "/tmp/rust-tui-sdk-python-venv/bin/python tests/sdk-conformance/runners/session-project-items.py --fixture tests/sdk-conformance/fixtures/session-project-items.json --capability session.project-items.v1",
+    "npmHost": "node --loader ./frontend/packages/openmates-cli/tests/loader.mjs --test frontend/packages/openmates-cli/tests/sdk-session.test.ts",
+    "pythonHost": "/tmp/rust-tui-sdk-python-venv/bin/python -m pytest -q packages/openmates-python/tests/test_session_client.py",
+    "npmSdkDeclarations": {
+      "cwd": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-cli",
+      "command": "npm run build:sdk"
+    }
+  },
+  "sourceTimeline": {
+    "nativeProductionUnchangedBetweenFreshBuildsAndFinalChecks": true,
+    "evidence": "No native production edits after session.rs cfg-only alias correction at20:53:18UTC. session_work.rs/node.rs/python.rs also predate both fresh builds. Current SDK dependency files exactly match parent pre-build final-inputs fence. Both artifacts were built before final strict Clippy/focused checks, and neither was replaced by those checks.",
+    "afterNativeBuildEdits": "Only named npm input type+type annotation and npm/Python root reexports, Python host import assertion, and Rust test-only example logging map_err\u2192inspect_err. These do not change native production library source. Fresh npm JS+DTS build and host tests cover final facades; Rust actual adapter rerun covers final test-only example.",
+    "limitation": "Native production per-file hashes were computed for this handoff; an independent before/after binding-source hash receipt was not captured at each build boundary. Continuity rests on recorded edit history, mtimes, held SDK input fence, and successful feature-enabled compilation rather than retroactively invented pre-build hashes."
+  },
+  "reuse": "Root may reuse exact NAPI/PyO3 artifact identities above for36-adapter gate; no rebuild required. No SDK/app Cargo targets used by this slice; compact binding target only.",
+  "remainingLimits": "Synthetic shared peer only; real nonempty Project links/Team-member backend behavior, full operation modes, other platforms and advanced admitted-write cancellation remain unverified. Broad Project parity stays partial."
+}

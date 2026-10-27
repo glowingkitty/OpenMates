@@ -59,10 +59,9 @@ async function chooseView(page: Page, view: string, keyboard = false) {
 }
 
 async function expectHeaderThenChildren(search: Locator) {
-	await expect(search.locator('.search-results > :first-child')).toHaveAttribute('data-testid', 'hosting-domain-grid');
-	await expect(search.locator('.search-results > *')).toHaveCount(1);
-	await expect(search.locator('.search-results .summary, .search-results .filters, .search-results .notice')).toHaveCount(0);
-	await expect(search.getByTestId('hosting-view-all')).not.toBeVisible();
+  await expect(search.getByTestId('hosting-domain-grid')).toBeVisible();
+  await expect(search.getByTestId('search-template-toolbar')).toBeVisible();
+  await expect(search.getByTestId('hosting-view-all')).not.toBeVisible();
 }
 
 async function expectCanonicalSvgPaths(icon: Locator, asset: 'server' | 'search', property: 'backgroundImage' | 'maskImage', pseudo = false) {
@@ -90,6 +89,13 @@ async function expectCanonicalSvgPaths(icon: Locator, asset: 'server' | 'search'
 }
 
 async function expectHostingGlyph(root: Locator) {
+  if (await root.locator('.result-corner').count()) {
+    await expect(root.locator('.result-corner')).toBeVisible();
+    const cornerIcon = root.locator('.result-corner > span');
+    await expect(cornerIcon).toBeVisible();
+    await expectCanonicalSvgPaths(cornerIcon, 'server', 'maskImage');
+    return;
+  }
 	const badge = root.locator('[data-app-icon="hosting"]').first();
 	const glyph = root.locator('.icon_rounded.hosting').first();
 	await expect(badge).toBeVisible();
@@ -140,7 +146,7 @@ test('search preview summarizes checked results and exposes honest terminal stat
 	await expect(page.getByTestId('hosting-search-preview')).toBeVisible();
 	await expectWithinViewport(page, card);
 	await expect(card).toContainText('cedarcomet');
-	await expect(card).toContainText('Gandi');
+	await expect(card).toContainText('ExampleRegistrar');
 	await expect(card).toContainText('6 checked');
 	await expect(card).toContainText('3 available');
 	await expect(card).toContainText(/available/i);
@@ -188,7 +194,7 @@ test('search fullscreen filters checked children locally and opens their details
 
 	const outboundRequests: string[] = [];
 	page.on('request', (request) => {
-		if (/\/(?:v1\/apps\/hosting|gandi)\//i.test(request.url()))
+		if (/\/(?:v1\/apps\/hosting|ExampleRegistrar)\//i.test(request.url()))
 			outboundRequests.push(request.url());
 	});
 	await chooseView(page, 'available');
@@ -221,8 +227,8 @@ test('search fullscreen filters checked children locally and opens their details
 	await expect(grid).not.toContainText(/could not check/i);
 	await chooseView(page, 'unknown');
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(1);
-	const unknownStatus = grid.getByTestId('hosting-domain-preview').locator('.topline > span:first-child');
-	await expect(unknownStatus).toHaveText(/could not check/i);
+	const unknownStatus = grid.getByTestId('hosting-domain-preview').getByRole('button', { name: /could not check/i });
+	await expect(unknownStatus).toHaveAttribute('data-state', 'unknown');
 	await expect(unknownStatus).not.toHaveText(/unavailable/i);
 	await expect(grid.getByTestId('hosting-domain-registration')).toContainText(/price unavailable/i);
 	await expect(outboundRequests).toEqual([]);
@@ -260,10 +266,15 @@ test('domain preview distinguishes registration, renewal, terms and check status
 	await expectWithinViewport(page, card);
 	await expect(card).toContainText('cedarcomet');
 	await expect(card.getByTestId('embed-status-value')).toHaveCount(0);
-	await expect(card).toContainText(/renewal/i);
-	await expect(card).toContainText(/first.year offer/i);
-	await expect(page.getByTestId('hosting-domain-registration')).toContainText(/14[.,]27\s*\/\s*year/i);
-	await expect(page.getByTestId('hosting-domain-renewal')).toContainText(/47[.,]60\s*\/\s*year/i);
+  const registration = page.getByTestId('hosting-domain-registration');
+  await expect(registration).toContainText(/14[.,]27\s*\/\s*year/i);
+  await registration.click();
+  await expect(page.getByRole('tooltip')).toContainText(/first.year offer/i);
+  await registration.press('Escape');
+  const renewal = page.getByTestId('hosting-domain-renewal');
+  await renewal.click();
+  await expect(page.getByRole('tooltip')).toContainText(/47[.,]60\s*\/\s*year/i);
+  await renewal.press('Escape');
 	await expectHostingGlyph(card);
 	await checkpoint(testInfo, 'hosting-domain-preview-default-phone-light', card);
 
@@ -277,16 +288,22 @@ test('domain preview distinguishes registration, renewal, terms and check status
 	] as const) {
 		await openPreview(page, 'HostingDomainEmbedPreview', { variant });
 		await expectWithinViewport(page, card);
-		await expect(card).toContainText(expected);
+		if (variant === 'premium') await card.getByRole('button', { name: /available/i }).click();
+		else if (variant === 'minTwoYears') await card.getByTestId('hosting-domain-registration').click();
+		if (variant === 'premium' || variant === 'minTwoYears') {
+			await expect(page.getByRole('tooltip')).toContainText(expected);
+			if (variant === 'minTwoYears') await expect(page.getByRole('tooltip')).not.toContainText(/first.year offer/i);
+			await page.keyboard.press('Escape');
+		} else await expect(card).toContainText(expected);
 		if (variant === 'unknown') {
-			const status = card.locator('.topline > span:first-child');
-			await expect(status).toHaveText(/could not check/i);
+			const status = card.getByRole('button', { name: /could not check/i });
+			await expect(status).toHaveAttribute('data-state', 'unknown');
 			await expect(status).not.toHaveText(/unavailable/i);
 			await expect(card.getByTestId('hosting-domain-registration')).toContainText(/price unavailable/i);
 		}
 		if (variant === 'minTwoYears') await expect(card).not.toContainText(/first.year offer/i);
 		if (variant === 'longIdn') {
-			const suffix = card.locator('.domain-suffix');
+			const suffix = card.getByTestId('result-card-title');
 			await expect(suffix).toContainText(/\.test$/);
 			const suffixBox = await suffix.boundingBox();
 			const cardBox = await card.boundingBox();
@@ -303,7 +320,7 @@ test('domain preview distinguishes registration, renewal, terms and check status
 });
 
 // contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
-test('fullscreen keeps standard domain card dimensions while the pane shrinks and grows', async ({ page }, testInfo) => {
+test('fullscreen keeps approved result card height and bounded width while the pane shrinks and grows', async ({ page }, testInfo) => {
 	test.setTimeout(90_000);
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { width: 1280, theme: 'dark' });
 	const grid = page.getByTestId('hosting-domain-grid');
@@ -315,7 +332,12 @@ test('fullscreen keeps standard domain card dimensions while the pane shrinks an
 		await expect.poll(async () => cards.evaluateAll((elements) => elements.map((element) => {
 			const bounds = element.getBoundingClientRect();
 			return [Math.round(bounds.width), Math.round(bounds.height)];
-		}))).toEqual([[300, 200], [300, 200]]);
+		}))).toEqual([expect.arrayContaining([220]), expect.arrayContaining([220])]);
+    for (let index = 0; index < 2; index++) {
+      const bounds = (await cards.nth(index).boundingBox())!;
+      expect(bounds.width).toBeLessThanOrEqual(300);
+      expect(bounds.width).toBeGreaterThan(240);
+    }
 		for (let index = 0; index < 2; index++) await expectWithinViewport(page, cards.nth(index));
 		if (width === 390 || width === 620) await checkpoint(testInfo, `hosting-domain-fixed-width-pane-${width}`, page.getByTestId('hosting-search-fullscreen'));
 	}
@@ -339,7 +361,7 @@ test('domain fullscreen keeps quote terms, source and copyable names readable', 
 	await expect(detail).toContainText(/VAT|tax/i);
 	await expect(detail).not.toContainText(/\b1 years\b/i);
 	await expect(detail).toContainText(/availability.*change|prices.*change/i);
-	await expect(detail.getByRole('link', { name: /open on Gandi/i })).toHaveAttribute('href', /^https:\/\/shop\.gandi\.net\//);
+	await expect(detail.getByRole('link', { name: /open on ExampleRegistrar/i })).toHaveAttribute('href', /^https:\/\/shop\.ExampleRegistrar\.net\//);
 	await checkpoint(testInfo, 'hosting-domain-detail-default-phone-light', detail);
 
 	await openPreview(page, 'HostingDomainEmbedFullscreen', { variant: 'minTwoYears' });

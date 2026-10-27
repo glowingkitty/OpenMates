@@ -1,0 +1,4128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "fence": "openmates_embeds",
+  "limits": {
+    "source_bytes": 262144,
+    "item_bytes": 49152,
+    "items": 50,
+    "sources": 20,
+    "images": 20,
+    "depth": 16
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "embed_ref": {
+          "$ref": "#/$defs/embed_reference"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "required": [
+            "embed_ref"
+          ]
+        }
+      ]
+    },
+    "image": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "public-https-url"
+            },
+            "embed_ref": {
+              "$ref": "#/$defs/embed_reference"
+            },
+            "caption": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "attribution": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            }
+          },
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "url"
+              ]
+            },
+            {
+              "required": [
+                "embed_ref"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "coordinates": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "lat",
+            "lon"
+          ]
+        },
+        {
+          "required": [
+            "lat",
+            "lng"
+          ]
+        },
+        {
+          "required": [
+            "latitude",
+            "longitude"
+          ]
+        }
+      ]
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "venue": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "country": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "online": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "city": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "country": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "address": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20,
+              "pattern": "\\S"
+            },
+            "iata": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 10,
+              "pattern": "\\S"
+            },
+            "station_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "iana-timezone"
+            },
+            "coordinates": {
+              "$ref": "#/$defs/coordinates"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "money": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "base_rent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "warm_rent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "utilities": {
+          "type": "number",
+          "minimum": 0
+        },
+        "heating": {
+          "type": "number",
+          "minimum": 0
+        },
+        "deposit": {
+          "type": "number",
+          "minimum": 0
+        },
+        "period": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rate": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "lowest": {
+              "type": "number",
+              "minimum": 0
+            },
+            "extracted_lowest": {
+              "type": "number",
+              "minimum": 0
+            },
+            "before_taxes_fees": {
+              "type": "number",
+              "minimum": 0
+            },
+            "extracted_before_taxes_fees": {
+              "type": "number",
+              "minimum": 0
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8,
+              "pattern": "\\S"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "leg": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "destination": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "departure": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "arrival": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "departure_timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "arrival_timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            }
+          ]
+        },
+        "transport_method": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "mode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "carrier": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000,
+                  "pattern": "\\S"
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 20,
+                  "pattern": "\\S"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "flight_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "line": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "booking_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "geometry": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/point"
+              },
+              "maxItems": 1000,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "coordinates"
+          ]
+        },
+        "route_precision": {
+          "enum": [
+            "source",
+            "schematic"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "organizer": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "public-http-url"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "date_start": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "date_end": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "venue": {
+          "$ref": "#/$defs/venue"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/venue"
+            }
+          ]
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "online_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "organizer": {
+          "$ref": "#/$defs/organizer"
+        },
+        "fee": {
+          "$ref": "#/$defs/money"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "event_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 30
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S"
+          },
+          "maxItems": 20
+        },
+        "speakers": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "bio": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000,
+                    "pattern": "\\S"
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S",
+                    "format": "public-http-url"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxItems": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "listing": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "price_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "base_rent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "warm_rent": {
+          "type": "number",
+          "minimum": 0
+        },
+        "utilities": {
+          "type": "number",
+          "minimum": 0
+        },
+        "heating": {
+          "type": "number",
+          "minimum": 0
+        },
+        "deposit": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rent_components": {
+          "$ref": "#/$defs/money"
+        },
+        "size_sqm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rooms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bedrooms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bathrooms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "country": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "location_precision": {
+          "enum": [
+            "exact",
+            "approximate",
+            "area",
+            "city",
+            "unknown"
+          ]
+        },
+        "location_approximate": {
+          "type": "boolean"
+        },
+        "location_exact_address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "location_area": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000,
+                  "pattern": "\\S"
+                },
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lon": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "radius_m": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "bounds": {
+                  "type": "object",
+                  "properties": {
+                    "north": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "south": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "east": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    },
+                    "west": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "north",
+                    "south",
+                    "east",
+                    "west"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/image"
+          },
+          "maxItems": 20
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "available_from": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "property_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "furnished": {
+          "type": "boolean"
+        },
+        "floor": {
+          "type": "integer",
+          "minimum": -20,
+          "maximum": 500
+        },
+        "year_built": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        }
+      },
+      "additionalProperties": false
+    },
+    "appointment": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "doctor_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "practice_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "clinician_or_practice": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "speciality": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "service": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "visit_motive": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "slot_datetime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "offset-datetime"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "insurance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "maxItems": 30
+            }
+          ]
+        },
+        "telehealth": {
+          "type": "boolean"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "provider_platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "gps_coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "booking_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "practice_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "availability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "offset-datetime"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "required": [
+            "doctor_name"
+          ]
+        },
+        {
+          "required": [
+            "practice_name"
+          ]
+        },
+        {
+          "required": [
+            "clinician_or_practice"
+          ]
+        }
+      ]
+    },
+    "connection": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "destination": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "departure": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "arrival": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "departure_timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "arrival_timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            }
+          ]
+        },
+        "transport_method": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "trip_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "fare_basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "legs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/leg"
+          },
+          "maxItems": 50
+        },
+        "carriers": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "pattern": "\\S"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxItems": 30
+        },
+        "booking_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "realtime": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "delay_minutes": {
+              "type": "number",
+              "minimum": -1440,
+              "maximum": 1440
+            },
+            "observed_at": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "offset-datetime"
+            },
+            "source_url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "public-http-url"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "observed_at"
+          ]
+        },
+        "geometry": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/point"
+              },
+              "maxItems": 1000,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "coordinates"
+          ]
+        },
+        "route_precision": {
+          "enum": [
+            "source",
+            "schematic"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "destination"
+      ]
+    },
+    "stay": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "thumbnail": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/image"
+          },
+          "maxItems": 20
+        },
+        "hotel_class": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "overall_rating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "reviews": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "rate_per_night": {
+          "$ref": "#/$defs/rate"
+        },
+        "total_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "check_in": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "check_out": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "gps_coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "link": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "booking_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "property_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "place": {
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "formatted_address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "place_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "rating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "user_rating_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "website": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "opening_hours": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "maxItems": 30
+            }
+          ]
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "fitness_location": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "venue_address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "disciplines": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "detail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "rating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
+    },
+    "fitness_class": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "time_range": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "iana-timezone"
+        },
+        "venue_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "venue_address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "venue_lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "venue_lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "class_image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "detail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "spots_left": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "discipline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "instructor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "duration_minutes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "product": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "brand": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/image"
+          },
+          "maxItems": 20
+        },
+        "price_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "price_amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "currency_symbol": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "pattern": "\\S"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "base_price": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "grammage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "rating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "reviews": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "specifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value"
+            ]
+          },
+          "maxItems": 100
+        },
+        "availability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "job": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "published_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "salary": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "$ref": "#/$defs/money"
+            }
+          ]
+        },
+        "remote": {
+          "type": "boolean"
+        },
+        "work_arrangement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "employment_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "seniority": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "benefits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "application_deadline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        }
+      },
+      "additionalProperties": false
+    },
+    "recipe_ingredient": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "amount": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000,
+                  "pattern": "\\S"
+                }
+              ]
+            },
+            "unit": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "\\S"
+            },
+            "notes": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        }
+      ]
+    },
+    "recipe": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "total_time_minutes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "prep_time_minutes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cook_time_minutes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "difficulty": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "dietary_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 50
+        },
+        "servings": {
+          "type": "number",
+          "minimum": 0.01
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recipe_ingredient"
+          },
+          "maxItems": 200
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "step": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20000,
+                        "pattern": "\\S"
+                      },
+                      "duration_minutes": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "text"
+                    ]
+                  }
+                ]
+              },
+              "maxItems": 200
+            }
+          ]
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "cuisine": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "nutrition": {
+          "type": "object",
+          "properties": {
+            "calories": {
+              "type": "number",
+              "minimum": 0
+            },
+            "protein_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "carbohydrates_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fat_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fiber_g": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "repo": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "full_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "owner_login": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "owner_avatar_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "primary_language": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "license_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "license_spdx_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "stars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "forks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updated_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "homepage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        }
+      },
+      "additionalProperties": false
+    },
+    "website": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "snippet": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "favicon": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "publication_date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "published_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "component": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "part_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "base_part_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "topology": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "regulator_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "bom_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bom_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "efficiency_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "footprint_mm2": {
+          "type": "number",
+          "minimum": 0
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "datasheet_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "input_voltage_min": {
+          "type": "number",
+          "minimum": -10000
+        },
+        "input_voltage_max": {
+          "type": "number",
+          "minimum": -10000
+        },
+        "output_voltage": {
+          "type": "number",
+          "minimum": -10000
+        },
+        "output_current": {
+          "type": "number",
+          "minimum": 0
+        },
+        "specifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value"
+            ]
+          },
+          "maxItems": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "financial": {
+      "type": "object",
+      "properties": {
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "ticker": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "fiscal_year": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "fiscal_quarter": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "period_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "revenue": {
+          "type": "number"
+        },
+        "net_income": {
+          "type": "number"
+        },
+        "filed": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "form": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "operating_income": {
+          "type": "number"
+        },
+        "gross_profit": {
+          "type": "number"
+        },
+        "assets": {
+          "type": "number"
+        },
+        "liabilities": {
+          "type": "number"
+        },
+        "cash_flow": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "weather_hour": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S",
+              "format": "offset-datetime"
+            },
+            {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+            }
+          ]
+        },
+        "temperature_c": {
+          "type": "number",
+          "minimum": -150,
+          "maximum": 100
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "precipitation": {
+          "type": "number",
+          "minimum": 0
+        },
+        "precipitation_probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "wind_speed_kmh": {
+          "type": "number",
+          "minimum": 0
+        },
+        "humidity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "time"
+      ]
+    },
+    "weather": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "location_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "temperature_min_c": {
+          "type": "number",
+          "minimum": -150,
+          "maximum": 100
+        },
+        "temperature_max_c": {
+          "type": "number",
+          "minimum": -150,
+          "maximum": 100
+        },
+        "precipitation": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "object",
+              "properties": {
+                "total_mm": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "probability_percent": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "hourly": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weather_hour"
+          },
+          "maxItems": 48
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "date"
+      ]
+    },
+    "domain_tier": {
+      "type": "object",
+      "properties": {
+        "years": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    },
+    "domain": {
+      "type": "object",
+      "properties": {
+        "domain_ascii": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "\\S"
+        },
+        "domain_unicode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "\\S"
+        },
+        "availability": {
+          "enum": [
+            "available",
+            "unavailable",
+            "registered",
+            "unknown",
+            "premium",
+            "reserved"
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "provider_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "checked_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "offset-datetime"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "pattern": "\\S"
+        },
+        "registration_tiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_tier"
+          },
+          "maxItems": 100
+        },
+        "renewal_tiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_tier"
+          },
+          "maxItems": 100
+        },
+        "restrictions": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "maxItems": 100
+            }
+          ]
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "domain_ascii"
+      ]
+    },
+    "social": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "page": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "author_display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "author_avatar_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "media_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "thumbnail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "published_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "likes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "likes_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comments": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comments_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shares": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shares_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "views": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "views_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reposts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reposts_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "engagement": {
+          "type": "object",
+          "properties": {
+            "likes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "comments": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "shares": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "views": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reposts": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "icon": {
+      "type": "object",
+      "properties": {
+        "icon_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$"
+        },
+        "prefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "collection_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "license_title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "license_spdx": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "svg_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "icon_id"
+          ]
+        },
+        {
+          "required": [
+            "prefix",
+            "name"
+          ]
+        },
+        {
+          "required": [
+            "svg_path"
+          ]
+        }
+      ]
+    },
+    "image_result": {
+      "type": "object",
+      "properties": {
+        "image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "public_image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "thumbnail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "public_thumbnail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "source_domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "favicon_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "embed_ref": {
+          "$ref": "#/$defs/embed_reference"
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "image_url"
+          ]
+        },
+        {
+          "required": [
+            "public_image_url"
+          ]
+        },
+        {
+          "required": [
+            "embed_ref"
+          ]
+        }
+      ]
+    },
+    "video": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "video_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "channel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "thumbnail": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "duration_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_formatted": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "published_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date-or-offset-datetime"
+        },
+        "embed_ref": {
+          "$ref": "#/$defs/embed_reference"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "required": [
+            "embed_ref"
+          ]
+        }
+      ]
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "source_page_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "creator_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "preview_image_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "thumbnail_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "files_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_free": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "embed_ref": {
+          "$ref": "#/$defs/embed_reference"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "source_page_url"
+          ]
+        },
+        {
+          "required": [
+            "embed_ref"
+          ]
+        }
+      ]
+    },
+    "embed_reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]+(?![\\s\\S])",
+      "format": "embed-reference"
+    },
+    "tv_score": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "source_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "votes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "offset-datetime"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "scale",
+        "source_url"
+      ]
+    },
+    "tv_season": {
+      "type": "object",
+      "properties": {
+        "season_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "\\S"
+        },
+        "synopsis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "first_air_date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "episode_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "poster_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "season_number"
+      ]
+    },
+    "tv_movie": {
+      "type": "object",
+      "properties": {
+        "synopsis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "genres": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S"
+          },
+          "maxItems": 50
+        },
+        "cast": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "original_language": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "content_rating": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "poster_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "score": {
+          "$ref": "#/$defs/tv_score"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "release_date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "runtime_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "directors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "country_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "maxItems": 50
+        }
+      },
+      "additionalProperties": false
+    },
+    "tv_series": {
+      "type": "object",
+      "properties": {
+        "synopsis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "genres": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S"
+          },
+          "maxItems": 50
+        },
+        "cast": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "original_language": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "content_rating": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "poster_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-https-url"
+        },
+        "score": {
+          "$ref": "#/$defs/tv_score"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "public-http-url"
+        },
+        "first_air_date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "last_air_date": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S",
+          "format": "date"
+        },
+        "start_year": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "end_year": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "series_status": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "creators": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "maxItems": 100
+        },
+        "episode_runtime_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "season_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "episode_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tv_season"
+          },
+          "maxItems": 100
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "kinds": {
+    "events.event": {
+      "schema_id": "events.event",
+      "app_id": "events",
+      "skill_id": "search",
+      "backend_type": "event",
+      "display_name": "Conference or event",
+      "details_schema": {
+        "$ref": "#/$defs/event"
+      },
+      "real_asset": false
+    },
+    "home.listing": {
+      "schema_id": "home.listing",
+      "app_id": "home",
+      "skill_id": "search",
+      "backend_type": "listing",
+      "display_name": "Home or property listing",
+      "details_schema": {
+        "$ref": "#/$defs/listing"
+      },
+      "real_asset": false
+    },
+    "health.appointment": {
+      "schema_id": "health.appointment",
+      "app_id": "health",
+      "skill_id": "search_appointments",
+      "backend_type": "appointment",
+      "display_name": "Clinician or practice appointment",
+      "details_schema": {
+        "$ref": "#/$defs/appointment"
+      },
+      "real_asset": false
+    },
+    "travel.connection": {
+      "schema_id": "travel.connection",
+      "app_id": "travel",
+      "skill_id": "search_connections",
+      "backend_type": "connection",
+      "display_name": "Travel connection and segments",
+      "details_schema": {
+        "$ref": "#/$defs/connection"
+      },
+      "real_asset": false
+    },
+    "travel.stay": {
+      "schema_id": "travel.stay",
+      "app_id": "travel",
+      "skill_id": "search_stays",
+      "backend_type": "stay",
+      "display_name": "Hotel or accommodation",
+      "details_schema": {
+        "$ref": "#/$defs/stay"
+      },
+      "real_asset": false
+    },
+    "maps.place": {
+      "schema_id": "maps.place",
+      "app_id": "maps",
+      "skill_id": "search",
+      "backend_type": "place",
+      "display_name": "Place or business",
+      "details_schema": {
+        "$ref": "#/$defs/place"
+      },
+      "real_asset": false
+    },
+    "fitness.location": {
+      "schema_id": "fitness.location",
+      "app_id": "fitness",
+      "skill_id": "search_locations",
+      "backend_type": "location",
+      "display_name": "Fitness venue",
+      "details_schema": {
+        "$ref": "#/$defs/fitness_location"
+      },
+      "real_asset": false
+    },
+    "fitness.class": {
+      "schema_id": "fitness.class",
+      "app_id": "fitness",
+      "skill_id": "search_classes",
+      "backend_type": "class",
+      "display_name": "Fitness class",
+      "details_schema": {
+        "$ref": "#/$defs/fitness_class"
+      },
+      "real_asset": false
+    },
+    "shopping.product": {
+      "schema_id": "shopping.product",
+      "app_id": "shopping",
+      "skill_id": "search_products",
+      "backend_type": "product",
+      "display_name": "Product",
+      "details_schema": {
+        "$ref": "#/$defs/product"
+      },
+      "real_asset": false
+    },
+    "jobs.job_result": {
+      "schema_id": "jobs.job_result",
+      "app_id": "jobs",
+      "skill_id": "search",
+      "backend_type": "job_result",
+      "display_name": "Job opportunity",
+      "details_schema": {
+        "$ref": "#/$defs/job"
+      },
+      "real_asset": false
+    },
+    "nutrition.recipe": {
+      "schema_id": "nutrition.recipe",
+      "app_id": "nutrition",
+      "skill_id": "search_recipes",
+      "backend_type": "recipe",
+      "display_name": "Recipe",
+      "details_schema": {
+        "$ref": "#/$defs/recipe"
+      },
+      "real_asset": false
+    },
+    "code.repo": {
+      "schema_id": "code.repo",
+      "app_id": "code",
+      "skill_id": "search_repos",
+      "backend_type": "repo",
+      "display_name": "Code repository",
+      "details_schema": {
+        "$ref": "#/$defs/repo"
+      },
+      "real_asset": false
+    },
+    "web.website": {
+      "schema_id": "web.website",
+      "app_id": "web",
+      "skill_id": "search",
+      "backend_type": "website",
+      "display_name": "Web source",
+      "details_schema": {
+        "$ref": "#/$defs/website"
+      },
+      "real_asset": false
+    },
+    "news.website": {
+      "schema_id": "news.website",
+      "app_id": "news",
+      "skill_id": "search",
+      "backend_type": "website",
+      "display_name": "News source",
+      "details_schema": {
+        "$ref": "#/$defs/website"
+      },
+      "real_asset": false
+    },
+    "electronics.component": {
+      "schema_id": "electronics.component",
+      "app_id": "electronics",
+      "skill_id": "search_components",
+      "backend_type": "component",
+      "display_name": "Electronic component",
+      "details_schema": {
+        "$ref": "#/$defs/component"
+      },
+      "real_asset": false
+    },
+    "business.company_financial_result": {
+      "schema_id": "business.company_financial_result",
+      "app_id": "business",
+      "skill_id": "company_financials",
+      "backend_type": "company_financial_result",
+      "display_name": "Company financial observation",
+      "details_schema": {
+        "$ref": "#/$defs/financial"
+      },
+      "real_asset": false
+    },
+    "weather.weather_day": {
+      "schema_id": "weather.weather_day",
+      "app_id": "weather",
+      "skill_id": "forecast",
+      "backend_type": "weather_day",
+      "display_name": "Weather day observation",
+      "details_schema": {
+        "$ref": "#/$defs/weather"
+      },
+      "real_asset": false
+    },
+    "hosting.hosting_domain": {
+      "schema_id": "hosting.hosting_domain",
+      "app_id": "hosting",
+      "skill_id": "search_domains",
+      "backend_type": "hosting_domain",
+      "display_name": "Domain availability observation",
+      "details_schema": {
+        "$ref": "#/$defs/domain"
+      },
+      "real_asset": false
+    },
+    "social_media.social_post": {
+      "schema_id": "social_media.social_post",
+      "app_id": "social_media",
+      "skill_id": "search",
+      "backend_type": "social_post",
+      "display_name": "Social post or labelled draft",
+      "details_schema": {
+        "$ref": "#/$defs/social"
+      },
+      "real_asset": false
+    },
+    "design.icon_result": {
+      "schema_id": "design.icon_result",
+      "app_id": "design",
+      "skill_id": "search_icons",
+      "backend_type": "icon_result",
+      "display_name": "Existing icon asset",
+      "details_schema": {
+        "$ref": "#/$defs/icon"
+      },
+      "real_asset": true
+    },
+    "images.image_result": {
+      "schema_id": "images.image_result",
+      "app_id": "images",
+      "skill_id": "search",
+      "backend_type": "image_result",
+      "display_name": "Existing image resource",
+      "details_schema": {
+        "$ref": "#/$defs/image_result"
+      },
+      "real_asset": true
+    },
+    "videos.video": {
+      "schema_id": "videos.video",
+      "app_id": "videos",
+      "skill_id": "search",
+      "backend_type": "video",
+      "display_name": "Existing video resource",
+      "details_schema": {
+        "$ref": "#/$defs/video"
+      },
+      "real_asset": true
+    },
+    "models3d.model_result": {
+      "schema_id": "models3d.model_result",
+      "app_id": "models3d",
+      "skill_id": "search",
+      "backend_type": "model_result",
+      "display_name": "Existing 3D model resource",
+      "details_schema": {
+        "$ref": "#/$defs/model"
+      },
+      "real_asset": true
+    },
+    "tv.movie": {
+      "schema_id": "tv.movie",
+      "app_id": "tv",
+      "skill_id": "movie",
+      "backend_type": "tv_movie",
+      "display_name": "Movie",
+      "details_schema": {
+        "$ref": "#/$defs/tv_movie"
+      },
+      "real_asset": false
+    },
+    "tv.series": {
+      "schema_id": "tv.series",
+      "app_id": "tv",
+      "skill_id": "series",
+      "backend_type": "tv_series",
+      "display_name": "TV series",
+      "details_schema": {
+        "$ref": "#/$defs/tv_series"
+      },
+      "real_asset": false
+    }
+  }
+}

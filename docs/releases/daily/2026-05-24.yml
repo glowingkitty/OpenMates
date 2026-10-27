@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -138,8 +118,6 @@ sections:
     authored_at: '2026-05-24T23:16:15+00:00'
     changed_paths:
     - frontend/packages/ui/static/icons/e2b.svg
-    - frontend/packages/ui/static/icons/flix.svg
-    - frontend/packages/ui/static/icons/jameda.svg
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -164,29 +142,16 @@ sections:
     - backend/providers/brave.yml
     - backend/providers/context7.yml
     - backend/providers/deepseek.yml
-    - backend/providers/deutsche_bahn.yml
-    - backend/providers/doctolib.yml
     - backend/providers/e2b.yml
-    - backend/providers/firecrawl.yml
-    - backend/providers/flix.yml
     - backend/providers/github.yml
     - backend/providers/google.yml
     - backend/providers/google_maps.yml
-    - backend/providers/immoscout24.yml
-    - backend/providers/jameda.yml
-    - backend/providers/kleinanzeigen.yml
-    - backend/providers/luma.yml
     - backend/providers/mastodon.yml
-    - backend/providers/meetup.yml
     - backend/providers/mistral.yml
     - backend/providers/moonshot.yml
     - backend/providers/openai.yml
     - backend/providers/protonmail.yml
     - backend/providers/recraft.yml
-    - backend/providers/reddit.yml
-    - backend/providers/resident_advisor.yml
-    - backend/providers/rewe.yml
-    - backend/providers/wg-gesucht.yml
     - backend/providers/youtube.yml
     - backend/providers/zai.yml
     - frontend/packages/ui/scripts/generate-providers-metadata.js
@@ -200,10 +165,7 @@ sections:
     - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
     - frontend/packages/ui/src/legal/buildLegalContent.ts
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - frontend/packages/ui/static/icons/deutsche_bahn.svg
     - frontend/packages/ui/static/icons/e2b.svg
-    - frontend/packages/ui/static/icons/flix.svg
-    - frontend/packages/ui/static/icons/jameda.svg
     - shared/docs/privacy_policy.yml
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -240,8 +202,6 @@ sections:
     authored_at: '2026-05-24T20:33:13+00:00'
     changed_paths:
     - backend/apps/electronics/app.yml
-    - backend/providers/texas_instruments.yml
-    - frontend/packages/ui/static/icons/texas_instruments.svg
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -329,28 +289,6 @@ sections:
     user_facing: true
     related_features: []
     feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'fix: show Texas Instruments provider logo'
-    section: bug_fixes
-    commits:
-    - a2db1b089
-    authored_at: '2026-05-24T17:13:22+00:00'
-    changed_paths:
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/electronics/app.yml
-    - backend/core/api/app/routes/apps_api.py
-    - backend/providers/texas_instruments.yml
-    - frontend/packages/ui/scripts/generate-apps-metadata.js
-    - frontend/packages/ui/static/icons/texas_instruments.svg
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
@@ -500,13 +438,6 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'fix: show Texas Instruments provider logo'
-    commits:
-    - a2db1b089
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'fix: rename video generate skill'
     commits:
     - e697766c0
@@ -575,13 +506,6 @@ marketing_candidates:
   - title: 'fix: guard app favicon links'
     commits:
     - 0e59cff94
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'fix: show Texas Instruments provider logo'
-    commits:
-    - a2db1b089
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -693,14 +617,6 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
     newsletter_ready: true
-  - title: 'fix: show Texas Instruments provider logo'
-    commits:
-    - a2db1b089
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'fix: derive mate category from topic area'
     commits:
     - fe1de461b
@@ -764,8 +680,6 @@ sources:
     in_dev: true
     changed_paths:
     - frontend/packages/ui/static/icons/e2b.svg
-    - frontend/packages/ui/static/icons/flix.svg
-    - frontend/packages/ui/static/icons/jameda.svg
     related_feature_ids: []
   - sha: c8a5da9fe60dded48f881d0838ca9b8ca789df6e
     short_sha: c8a5da9fe
@@ -783,29 +697,16 @@ sources:
     - backend/providers/brave.yml
     - backend/providers/context7.yml
     - backend/providers/deepseek.yml
-    - backend/providers/deutsche_bahn.yml
-    - backend/providers/doctolib.yml
     - backend/providers/e2b.yml
-    - backend/providers/firecrawl.yml
-    - backend/providers/flix.yml
     - backend/providers/github.yml
     - backend/providers/google.yml
     - backend/providers/google_maps.yml
-    - backend/providers/immoscout24.yml
-    - backend/providers/jameda.yml
-    - backend/providers/kleinanzeigen.yml
-    - backend/providers/luma.yml
     - backend/providers/mastodon.yml
-    - backend/providers/meetup.yml
     - backend/providers/mistral.yml
     - backend/providers/moonshot.yml
     - backend/providers/openai.yml
     - backend/providers/protonmail.yml
     - backend/providers/recraft.yml
-    - backend/providers/reddit.yml
-    - backend/providers/resident_advisor.yml
-    - backend/providers/rewe.yml
-    - backend/providers/wg-gesucht.yml
     - backend/providers/youtube.yml
     - backend/providers/zai.yml
     - frontend/packages/ui/scripts/generate-providers-metadata.js
@@ -819,10 +720,7 @@ sources:
     - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
     - frontend/packages/ui/src/legal/buildLegalContent.ts
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - frontend/packages/ui/static/icons/deutsche_bahn.svg
     - frontend/packages/ui/static/icons/e2b.svg
-    - frontend/packages/ui/static/icons/flix.svg
-    - frontend/packages/ui/static/icons/jameda.svg
     - shared/docs/privacy_policy.yml
     related_feature_ids: []
   - sha: 85cd84cf4bcad08172f299ec9bf967778b1e2c04
@@ -843,8 +741,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/electronics/app.yml
-    - backend/providers/texas_instruments.yml
-    - frontend/packages/ui/static/icons/texas_instruments.svg
     related_feature_ids: []
   - sha: cfceaa70a7c99d411859ae3f2ba2eb71c038d974
     short_sha: cfceaa70a
@@ -915,20 +811,6 @@ sources:
     - frontend/apps/web_app/src/app.html
     - frontend/apps/web_app/src/routes/+layout.svelte
     - frontend/packages/ui/src/components/MetaTags.svelte
-    related_feature_ids: []
-  - sha: a2db1b089285c400079a02c644e917cb947c1b13
-    short_sha: a2db1b089
-    authored_at: '2026-05-24T17:13:22+00:00'
-    subject: 'fix: show Texas Instruments provider logo'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/electronics/app.yml
-    - backend/core/api/app/routes/apps_api.py
-    - backend/providers/texas_instruments.yml
-    - frontend/packages/ui/scripts/generate-apps-metadata.js
-    - frontend/packages/ui/static/icons/texas_instruments.svg
     related_feature_ids: []
   - sha: fe1de461b3335b2b8f3baca1ec69a55f7777b588
     short_sha: fe1de461b

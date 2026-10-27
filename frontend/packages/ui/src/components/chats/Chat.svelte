@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isCreditRejection } from '../../utils/creditRejection';
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy, tick } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -17,7 +18,7 @@
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { piiVisibilityStore } from '../../stores/piiVisibilityStore';
   import type { DecryptedChatData } from '../../types/chat';
-  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
+  import { DEMO_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
   import { canShareChat } from '../../services/chatSharing';
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
@@ -565,8 +566,8 @@
         draftTextContent = '';
       }
       
-      // Load messages from static bundle instead of IndexedDB (searches both DEMO_CHATS and LEGAL_CHATS)
-      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+      // Load messages from static bundle instead of IndexedDB (searches bundled intro chats)
+      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
       lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
       
       // ARCHITECTURE: Demo chats use cleartext fields (category, icon)
@@ -817,9 +818,11 @@
     displayText = '';
 
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
-    // Check lastMessage for waiting_for_user status (credit rejection, etc.)
-    // The last message can be either the system rejection message or the user message (both get waiting_for_user)
-    hasWaitingForUser = lastMessage?.status === 'waiting_for_user';
+    // Only explicit credit evidence, or its exact linked user row, gets the
+    // credit label. Lifecycle notices and ordinary questions remain neutral.
+    const relatedRejections = lastMessage?.role === 'user' && lastMessage.status === 'waiting_for_user'
+      ? await chatDB.getMessagesForChat(currentChat.chat_id) : [];
+    hasWaitingForUser = isCreditRejection(lastMessage, relatedRejections);
     if (hasWaitingForUser && lastMessage) {
       // Show "Credits needed..." label with user message content as preview
       // using draft-like design in the sidebar
@@ -926,7 +929,7 @@
       
       if (eventTypesRequiringFreshData.includes(detail.type)) {
         console.debug(`[Chat] ${detail.type} event received, invalidating cache and fetching fresh data for chat:`, chat.chat_id);
-        chatMetadataCache.invalidateChat(chat.chat_id);
+        chatMetadataCache.invalidateChat(chat.chat_id, 'metadata-chat-row');
         
         // Fetch fresh chat data from database to ensure we have the latest state
         try {
@@ -1024,7 +1027,7 @@
       // encrypted_active_focus_id from IndexedDB rather than a stale cached value.
       // chatSyncService also invalidates before dispatching, but there can be a race
       // if updateDisplayInfo runs before the invalidation propagates across async boundaries.
-      chatMetadataCache.invalidateChat(chat.chat_id);
+      chatMetadataCache.invalidateChat(chat.chat_id, 'metadata-chat-row');
       // Fetch the updated chat (chatSyncService already wrote the new encrypted_active_focus_id)
       const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
       await updateDisplayInfo(freshChat ?? chat);
@@ -1402,7 +1405,7 @@
       // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       // For drafts-only chats, messages will be empty array
       const messages = isPublicChat(chat.chat_id) 
-        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
@@ -1467,7 +1470,7 @@
       // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       // For drafts-only chats, messages will be empty array
       const messages = isPublicChat(chat.chat_id)
-        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);

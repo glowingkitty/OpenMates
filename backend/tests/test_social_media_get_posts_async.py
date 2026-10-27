@@ -2,7 +2,7 @@
 #
 # Unit tests for the Social Media get-posts async dispatch path.
 # These tests keep the long-running collection flow covered without requiring
-# a live Celery worker or network access to Reddit/Bluesky.
+# a live Celery worker or network access to social platforms.
 
 import sys
 from types import ModuleType, SimpleNamespace
@@ -22,13 +22,22 @@ def get_posts_skill_class(monkeypatch):
 
     from backend.apps.social_media.skills.get_posts import GetPostsSkill
 
+    from backend.apps.social_media.skills import get_posts as get_posts_module
+
+    async def fake_dispatch(*, app_id, skill_id, arguments, celery_producer):
+        return celery_producer.send_task(
+            f"apps.{app_id}.tasks.skill_{skill_id}",
+            kwargs={"arguments": arguments}, queue=f"app_{app_id}",
+        ).id
+
+    monkeypatch.setattr(get_posts_module, "execute_skill_via_celery", fake_dispatch)
     return GetPostsSkill
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_get_posts_request_rejects_too_many_comments():
     with pytest.raises(ValidationError):
-        collection.GetPostsRequestItem(platform="reddit", page="ClaudeCode", comments_limit=6)
+        collection.GetPostsRequestItem(platform="mastodon", page="person@example.org", comments_limit=6)
 
 
 class _FakeTaskSignature:
@@ -74,7 +83,7 @@ async def test_get_posts_skill_dispatches_celery_with_placeholder_embed(get_post
     skill._current_message_id = "message-1"
 
     response = await skill.execute(
-        [{"platform": "reddit", "page": "ClaudeCode", "limit": 5}],
+        [{"platform": "mastodon", "page": "person@example.org", "limit": 5}],
         user_id="user-1",
         placeholder_embed_ids=["embed-123"],
         user_vault_key_id="vault-key-1",
@@ -91,7 +100,7 @@ async def test_get_posts_skill_dispatches_celery_with_placeholder_embed(get_post
     assert arguments["message_id"] == "message-1"
     assert arguments["user_vault_key_id"] == "vault-key-1"
     assert arguments["external_request"] is False
-    assert arguments["requests"][0]["page"] == "ClaudeCode"
+    assert arguments["requests"][0]["page"] == "person@example.org"
 
 
 @pytest.mark.asyncio
@@ -133,7 +142,7 @@ async def test_get_posts_skill_dispatches_one_task_per_placeholder_embed(get_pos
 
     response = await skill.execute(
         [
-            {"platform": "reddit", "page": "ClaudeCode", "limit": 5},
+            {"platform": "mastodon", "page": "person@example.org", "limit": 5},
             {"platform": "bluesky", "page": "openmates.bsky.social", "limit": 5},
         ],
         user_id="user-1",
@@ -144,143 +153,7 @@ async def test_get_posts_skill_dispatches_one_task_per_placeholder_embed(get_pos
     assert response.task_ids == ["task-1", "task-2"]
     assert response.embed_ids == ["embed-1", "embed-2"]
     assert [sent["kwargs"]["arguments"]["embed_id"] for sent in celery.sent] == ["embed-1", "embed-2"]
-    assert [sent["kwargs"]["arguments"]["requests"][0]["platform"] for sent in celery.sent] == ["reddit", "bluesky"]
-
-
-@pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_collect_posts_normalizes_supported_and_unsupported_platforms(monkeypatch):
-    captured = {}
-
-    async def fake_fetch_subreddit_posts_json(*args, **kwargs):
-        captured["reddit_proxy_url"] = kwargs.get("proxy_url")
-        captured["reddit_sort"] = kwargs.get("sort")
-        return SimpleNamespace(
-            platform="reddit",
-            page="ClaudeCode",
-            sort="comments",
-            posts=[],
-            request_count=2,
-            rate_limit=None,
-            rate_limited=False,
-            next_retry_after_seconds=None,
-            comments_skipped_count=0,
-            warnings=[],
-            errors=[],
-        )
-
-    async def fake_fetch_author_posts(*args, **kwargs):
-        captured["bluesky_kwargs"] = kwargs
-        return SimpleNamespace(
-            platform="bluesky",
-            page="openmates.bsky.social",
-            sort="new",
-            posts=[],
-            provider="Bluesky",
-            request_count=1,
-            warnings=[],
-            errors=[],
-        )
-
-    async def fake_fetch_account_posts(*args, **kwargs):
-        captured["mastodon_kwargs"] = kwargs
-        return SimpleNamespace(
-            platform="mastodon",
-            page="Gargron@mastodon.social",
-            sort="profile",
-            posts=[],
-            provider="Mastodon",
-            request_count=3,
-            warnings=[],
-            errors=[],
-        )
-
-    monkeypatch.setattr(collection, "fetch_subreddit_posts_json", fake_fetch_subreddit_posts_json)
-    monkeypatch.setattr(collection, "fetch_author_posts", fake_fetch_author_posts)
-    monkeypatch.setattr(collection, "fetch_account_posts", fake_fetch_account_posts)
-
-    results = await collection.collect_posts(
-        [
-            {"platform": "reddit", "page": "ClaudeCode", "sort": "comments", "time_range": "week", "limit": 5},
-            {"platform": "bluesky", "page": "openmates.bsky.social", "limit": 5},
-            {"platform": "mastodon", "page": "Gargron@mastodon.social", "limit": 5},
-            {"platform": "unknown", "page": "example"},
-        ],
-        reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
-    )
-
-    assert [item.platform for item in results] == ["reddit", "bluesky", "mastodon", "unknown"]
-    assert results[0].provider == "Reddit"
-    assert results[0].request_count == 2
-    assert captured["reddit_proxy_url"] == "http://user-rotate:pass@p.webshare.io:80/"
-    assert captured["reddit_sort"] == collection.RedditListingSort.COMMENTS
-    assert results[1].provider == "Bluesky"
-    assert captured["bluesky_kwargs"]["include_comments"] is True
-    assert results[2].provider == "Mastodon"
-    assert captured["mastodon_kwargs"]["include_comments"] is True
-    assert results[3].errors == ["Unsupported social platform: unknown"]
-
-
-@pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_collect_posts_rejects_reddit_without_webshare_proxy(monkeypatch):
-    async def unexpected_fetch_subreddit_posts_json(*args, **kwargs):
-        raise AssertionError("Reddit must not be fetched without Webshare proxy")
-
-    monkeypatch.setattr(collection, "fetch_subreddit_posts_json", unexpected_fetch_subreddit_posts_json)
-
-    results = await collection.collect_posts([{"platform": "reddit", "page": "ClaudeCode", "limit": 5}])
-
-    assert results[0].posts == []
-    assert results[0].provider == "Reddit"
-    assert results[0].errors == [collection.REDDIT_PROXY_REQUIRED_WARNING]
-
-
-@pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_collect_posts_falls_back_to_rss_when_json_fails(monkeypatch):
-    async def fake_fetch_subreddit_posts_json(*args, **kwargs):
-        return SimpleNamespace(
-            platform="reddit",
-            page="ClaudeCode",
-            sort="new",
-            posts=[],
-            request_count=1,
-            rate_limit=None,
-            rate_limited=False,
-            next_retry_after_seconds=None,
-            comments_skipped_count=0,
-            warnings=[],
-            errors=["json failed"],
-        )
-
-    async def fake_fetch_subreddit_posts(*args, **kwargs):
-        return SimpleNamespace(
-            platform="reddit",
-            page="ClaudeCode",
-            sort="new",
-            posts=[],
-            request_count=1,
-            rate_limit=None,
-            rate_limited=False,
-            next_retry_after_seconds=None,
-            comments_skipped_count=0,
-            warnings=[],
-            errors=[],
-        )
-
-    monkeypatch.setattr(collection, "fetch_subreddit_posts_json", fake_fetch_subreddit_posts_json)
-    monkeypatch.setattr(collection, "fetch_subreddit_posts", fake_fetch_subreddit_posts)
-
-    results = await collection.collect_posts(
-        [{"platform": "reddit", "page": "ClaudeCode", "limit": 5}],
-        reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
-    )
-
-    assert results[0].provider == "Reddit"
-    assert "Reddit temporarily used a fallback source." in results[0].warnings
-    assert "json failed" in results[0].warnings
-    assert results[0].errors == []
+    assert [sent["kwargs"]["arguments"]["requests"][0]["platform"] for sent in celery.sent] == ["mastodon", "bluesky"]
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity

@@ -21,6 +21,33 @@ from backend.tests.test_recent_work_summary_cache import runtime_app
 from backend.tests.test_project_authoring_response_availability import _publish_project_authoring_availability
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chats.context.memory-only-summary
+@pytest.mark.asyncio
+@pytest.mark.parametrize("private_fields", [{}, {"custom_rule_documents": [{"content": "private retry sentinel"}]}])
+async def test_exact_queued_retry_has_identical_sealed_payload_and_changed_context_does_not(monkeypatch, private_fields):
+    app, _tasks, _owned, _encryption = runtime_app(monkeypatch)
+    handoffs = TransientContextHandoffStore()
+    monkeypatch.setattr(recent_work_internal, "transient_context_handoff_store", handoffs)
+    app.state.cache_service.get = AsyncMock(return_value="turn")
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    payload = {"user_id": "owner", "chat_id": "current", "message_id": "turn", **private_fields}
+    try:
+        first = await seal_private_context_payload(payload, request_id="turn", client=ipc, ensure_turn_binding=True)
+        retry = await seal_private_context_payload(dict(payload), request_id="turn", client=ipc, ensure_turn_binding=True)
+        assert first == retry
+        assert not any(key in first for key in private_fields)
+        assert "private retry sentinel" not in str(first)
+        assert await ipc.open_context(owner_id="owner", chat_id="current", turn_id="turn",
+                                      request_id="turn", reference=first["agentic_context_ref"]) == private_fields
+        changed = await seal_private_context_payload({**payload, "custom_rule_documents": [
+            {"content": "changed private retry sentinel"},
+        ]}, request_id="turn", client=ipc, ensure_turn_binding=True)
+        assert changed["agentic_context_ref"] != first["agentic_context_ref"]
+    finally:
+        handoffs.revoke(owner_id="owner")
+
+
 @pytest.mark.asyncio
 async def test_two_queued_turns_use_validated_latest_source_without_changing_response_identity(monkeypatch):
     app, _tasks, _owned, _encryption = runtime_app(monkeypatch)

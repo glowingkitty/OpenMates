@@ -1,3 +1,5 @@
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.workflow-run.chat-target, notifications.workflow-run.run-target
 // Web sources: services/teamService.ts, stores/teamContextStore.ts
 // Specification: specifications/features/teams/specification.yml
 // Assertions: teams.context.full-switch-local, teams.membership.role-gated
@@ -298,6 +300,8 @@ final class TeamWorkspaceContext: ObservableObject {
     @Published private(set) var usingCachedRoster = false
     // Empty cached/missing membership is not an authoritative empty account.
     @Published private(set) var hasAuthoritativeRoster = false
+    // A reset is initially Personal, but cached/live roster restoration may still select Team.
+    @Published private(set) var hasRestoredInitialSelection = false
 
     private let service: any TeamWorkspaceServing
     private let environment: TeamWorkspaceEnvironment
@@ -325,6 +329,11 @@ final class TeamWorkspaceContext: ObservableObject {
     }
 
     var loadedAccountID: String? { accountID }
+
+    func isInitialSelectionReady(accountID: String) -> Bool {
+        self.accountID == accountID && hasRestoredInitialSelection &&
+            scope == environment.scopeGeneration() && server == environment.serverProfile()
+    }
 
     var showsTeamCreation: Bool {
         hasAuthoritativeRoster && teams.isEmpty && error == nil &&
@@ -355,18 +364,24 @@ final class TeamWorkspaceContext: ObservableObject {
         context.reset(accountID: account)
         context.isHomeRosterUIFixture = true
         context.hasAuthoritativeRoster = variant != "unknown" && variant != "loading"
-        if variant == "joined" || variant == "offline" {
-            context.teams = [("synthetic-home-one", "xHain"), ("synthetic-home-two", "OpenMates")].map { id, name in
+        if ["joined", "offline", "single", "personal", "loadingJoined", "many"].contains(variant) {
+            var roster = [("synthetic-home-one", "xHain"), ("synthetic-home-two", "OpenMates")]
+            if variant == "single" { roster = [("synthetic-home-one", "SocialHub")] }
+            if variant == "many" {
+                roster += (3...7).map { ("synthetic-home-\($0)", "Team \($0)") }
+            }
+            context.teams = roster.map { id, name in
                 TeamWorkspaceTeam(id: id, name: name, description: "", role: .member, status: "active",
                     profileImageMetadata: .generated, zeroBalance: 0, createdAt: 0, updatedAt: 0,
                     key: SymmetricKey(data: Data(repeating: 7, count: 32)))
             }
-            context.selectedTeam = context.teams.first
-            context.teamID = context.teams.first?.id
+            let active = ["joined", "offline", "many"].contains(variant)
+            context.selectedTeam = active ? context.teams.first : nil
+            context.teamID = context.selectedTeam?.id
             context.usingCachedRoster = variant == "offline"
         }
         // loading is unknown membership; refreshing is known-empty membership.
-        context.isLoading = variant == "loading" || variant == "refreshing"
+        context.isLoading = ["loading", "refreshing", "loadingJoined"].contains(variant)
         retainedHomeRosterUIFixture = context
         return context
     }
@@ -432,6 +447,7 @@ final class TeamWorkspaceContext: ObservableObject {
         error = nil
         usingCachedRoster = false
         hasAuthoritativeRoster = false
+        hasRestoredInitialSelection = false
         self.accountID = accountID
         server = nextServer
         scope = nextScope
@@ -511,7 +527,10 @@ final class TeamWorkspaceContext: ObservableObject {
             guard await isCurrent(operation, fence: fence) else { return }
             self.error = error as? TeamWorkspaceError ?? .invalidResponse
         }
-        if await isCurrent(operation, fence: fence) { setRosterLoading(false) }
+        if await isCurrent(operation, fence: fence) {
+            hasRestoredInitialSelection = true
+            setRosterLoading(false)
+        }
     }
 
     func revokeCachedTeam(_ id: String, fence: TeamWorkspaceFence) async {
@@ -534,14 +553,26 @@ final class TeamWorkspaceContext: ObservableObject {
         // Callers must independently recheck their own operation after this await.
     }
 
-    func selectTeam(_ id: String?) async {
+    func selectTeam(_ id: String?, isCurrent: @MainActor () -> Bool = { true }) async {
+        guard isCurrent() else { return }
+        #if DEBUG
+        if isHomeRosterUIFixture {
+            guard !isLoading else { return }
+            if let id {
+                guard let team = teams.first(where: { $0.id == id && $0.canRead }) else { return }
+                setContext(team)
+            } else { setContext(nil) }
+            return
+        }
+        #endif
         selectionGeneration = UUID()
         let operation = selectionGeneration
         // Cancelling an in-flight detail operation also clears its loading state.
         setSelectionLoading(false)
         guard let accountID, let server else { return }
         let fence = TeamWorkspaceFence(accountID: accountID, environment: environment)
-        guard fence.server == server, await isCurrent(operation, fence: fence, selection: true) else { return }
+        guard fence.server == server, await self.isCurrent(operation, fence: fence, selection: true),
+              isCurrent() else { return }
         error = nil
         guard let id else { setContext(nil); return }
         guard let listedTeam = teams.first(where: { $0.id == id && $0.canRead }) else {
@@ -557,7 +588,7 @@ final class TeamWorkspaceContext: ObservableObject {
         setSelectionLoading(true)
         do {
             let team = try await service.getTeam(id, fence: fence)
-            guard await isCurrent(operation, fence: fence, selection: true) else { return }
+            guard await self.isCurrent(operation, fence: fence, selection: true) else { return }
             guard team.canRead else {
                 await revokeCachedTeam(id, fence: fence)
                 // revokeCachedTeam already invalidated this selection before purge.
@@ -569,7 +600,7 @@ final class TeamWorkspaceContext: ObservableObject {
             }
             setContext(team)
         } catch {
-            guard await isCurrent(operation, fence: fence, selection: true) else { return }
+            guard await self.isCurrent(operation, fence: fence, selection: true) else { return }
             if case APIError.httpError(let status, _) = error, [401, 403, 404].contains(status) {
                 await revokeCachedTeam(id, fence: fence)
                 return
@@ -580,6 +611,6 @@ final class TeamWorkspaceContext: ObservableObject {
             }
             self.error = error as? TeamWorkspaceError ?? .invalidResponse
         }
-        if await isCurrent(operation, fence: fence, selection: true) { setSelectionLoading(false) }
+        if await self.isCurrent(operation, fence: fence, selection: true) { setSelectionLoading(false) }
     }
 }

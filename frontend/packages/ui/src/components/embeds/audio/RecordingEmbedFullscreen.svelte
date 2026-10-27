@@ -26,6 +26,7 @@
 -->
 
 <script lang="ts">
+  import { audioTranscriptionResultContent } from './audioTranscriptionResult';
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import Toggle from '../../Toggle.svelte';
@@ -102,7 +103,7 @@
   // Extract fields from data.decodedContent
   // -------------------------------------------------------------------------
 
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(audioTranscriptionResultContent(data.decodedContent));
   let transcriptProp = $derived(typeof dc.transcript === 'string' ? dc.transcript : undefined);
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);

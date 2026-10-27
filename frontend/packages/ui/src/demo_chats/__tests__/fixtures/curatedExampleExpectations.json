@@ -1,8 +1,6 @@
 {
   "landingFeatureIds": [
-    "example-ai-workshops-meetups-berlin",
-    "example-plumber-message-email-phone",
-    "example-library-book-return-workflow"
+    "example-gigantic-airplanes"
   ],
   "retiredExamples": [
     {
@@ -228,64 +226,357 @@
     {
       "chatId": "example-voice-note-transcription-action",
       "slug": "voice-note-transcription-action-item"
+    },
+    {
+      "chatId": "example-audio-transcribe-voice-note",
+      "slug": "audio-transcribe-voice-note"
+    },
+    {
+      "chatId": "example-rostock-heavy-rain-radar",
+      "slug": "rostock-heavy-rain-radar"
+    },
+    {
+      "chatId": "example-audio-speak-openmates-welcome-message",
+      "slug": "audio-speak-openmates-welcome-message"
+    },
+    {
+      "chatId": "example-image-vectorize-openmates-header",
+      "slug": "image-vectorize-openmates-header"
+    },
+    {
+      "chatId": "example-family-stays-kyoto",
+      "slug": "family-stays-kyoto"
+    },
+    {
+      "chatId": "example-pdf-view-page-layout",
+      "slug": "pdf-view-page-layout"
+    },
+    {
+      "chatId": "example-lh400-flight-status-check",
+      "slug": "lh400-flight-status-check"
+    },
+    {
+      "chatId": "example-python-squares-code-run",
+      "slug": "python-squares-code-run"
+    },
+    {
+      "chatId": "example-product-teaser-remotion-video",
+      "slug": "product-teaser-remotion-video"
+    },
+    {
+      "chatId": "example-nonprofit-event-planning-use",
+      "slug": "nonprofit-event-planning-use-case"
+    },
+    {
+      "chatId": "example-library-book-return-workflow",
+      "slug": "library-book-return-workflow"
+    },
+    {
+      "chatId": "example-fediverse-activitypub-social-search",
+      "slug": "fediverse-activitypub-social-search"
+    },
+    {
+      "chatId": "example-reference-image-3d-model",
+      "slug": "reference-image-3d-model"
+    },
+    {
+      "chatId": "example-example-chat-task-planning",
+      "slug": "example-chat-task-planning-checklist"
+    },
+    {
+      "chatId": "example-sqlite-strict-tables-summary",
+      "slug": "sqlite-strict-tables-summary"
+    },
+    {
+      "chatId": "example-framework-store-reputation-check",
+      "slug": "framework-store-reputation-check"
+    },
+    {
+      "chatId": "example-upcoming-reminders-list",
+      "slug": "upcoming-reminders-list"
+    },
+    {
+      "chatId": "example-habit-tracker-onboarding-draft",
+      "slug": "habit-tracker-onboarding-draft"
+    },
+    {
+      "chatId": "example-cancel-test-reminder",
+      "slug": "cancel-test-reminder"
+    },
+    {
+      "chatId": "example-plumber-message-email-phone",
+      "slug": "plumber-message-email-phone-privacy"
+    },
+    {
+      "chatId": "example-us-egg-prices-deep",
+      "slug": "us-egg-prices-deep-research"
+    },
+    {
+      "chatId": "example-ai-workshops-meetups-berlin",
+      "slug": "ai-workshops-meetups-berlin"
+    },
+    {
+      "chatId": "example-ted-talk-transcript-summary",
+      "slug": "ted-talk-transcript-summary"
+    },
+    {
+      "chatId": "example-buck-converters-24v-5v",
+      "slug": "buck-converters-24v-5v"
+    },
+    {
+      "chatId": "example-air-fryers-retail-germany",
+      "slug": "air-fryers-retail-germany"
+    },
+    {
+      "chatId": "example-furnished-apartments-berlin",
+      "slug": "furnished-apartments-berlin"
+    },
+    {
+      "chatId": "example-printable-benchy-phone-stand",
+      "slug": "printable-benchy-phone-stand-models"
+    },
+    {
+      "chatId": "example-deutschlandticket-train-fare-breakdown",
+      "slug": "deutschlandticket-train-fare-breakdown"
+    },
+    {
+      "chatId": "example-social-app-name-domain",
+      "slug": "social-app-name-domain-search"
+    },
+    {
+      "chatId": "example-beginner-yoga-classes-berlin",
+      "slug": "beginner-yoga-classes-berlin"
+    },
+    {
+      "chatId": "example-berlin-english-speaking-gp",
+      "slug": "berlin-english-speaking-gp-appointments"
+    },
+    {
+      "chatId": "example-find-brand-name-and",
+      "slug": "find-brand-name-and-domain"
+    },
+    {
+      "chatId": "example-jobs-in-germany",
+      "slug": "jobs-in-germany"
     }
   ],
-  "capabilityKeys": [
-    "audio.generate",
-    "audio.speak",
-    "audio.transcribe",
-    "books.book_discussion",
-    "business.company_financials",
-    "business.find_brand_name",
-    "business.search_trademarks",
-    "code.get_docs",
-    "code.image_to_html",
-    "code.run",
-    "code.search_repos",
-    "design.search_icons",
-    "electronics.search_components",
-    "events.search",
-    "finance.check_accounts",
-    "fitness.search_classes",
-    "health.search_appointments",
-    "home.search",
-    "hosting.search_domains",
-    "images.generate",
-    "images.generate_draft",
-    "images.search",
-    "images.vectorize",
-    "jobs.career_insights",
-    "jobs.search",
-    "mail.search",
-    "maps.search",
-    "math.calculate",
-    "models3d.generate",
-    "models3d.search",
-    "music.generate",
-    "news.search",
-    "nutrition.search_recipes",
-    "openmates.share-usecase",
-    "pdf.read",
-    "pdf.view",
-    "politics.prepare_discussion",
-    "reminder.cancel-reminder",
-    "reminder.list-reminders",
-    "reminder.set-reminder",
-    "social_media.get-posts",
-    "social_media.search",
-    "tasks.create",
-    "travel.get_flight",
-    "travel.search_connections",
-    "travel.search_stays",
-    "videos.create",
-    "videos.get_transcript",
-    "videos.search",
-    "weather.forecast",
-    "weather.rain_radar",
-    "web.check_reputation",
-    "web.read",
-    "web.research",
-    "web.search",
-    "workflows.create-or-modify"
+  "qualityRetiredExamples": [
+    {
+      "chatId": "example-audio-transcribe-voice-note",
+      "slug": "audio-transcribe-voice-note"
+    },
+    {
+      "chatId": "example-rostock-heavy-rain-radar",
+      "slug": "rostock-heavy-rain-radar"
+    },
+    {
+      "chatId": "example-audio-speak-openmates-welcome-message",
+      "slug": "audio-speak-openmates-welcome-message"
+    },
+    {
+      "chatId": "example-image-vectorize-openmates-header",
+      "slug": "image-vectorize-openmates-header"
+    },
+    {
+      "chatId": "example-family-stays-kyoto",
+      "slug": "family-stays-kyoto"
+    },
+    {
+      "chatId": "example-pdf-view-page-layout",
+      "slug": "pdf-view-page-layout"
+    },
+    {
+      "chatId": "example-lh400-flight-status-check",
+      "slug": "lh400-flight-status-check"
+    },
+    {
+      "chatId": "example-python-squares-code-run",
+      "slug": "python-squares-code-run"
+    },
+    {
+      "chatId": "example-product-teaser-remotion-video",
+      "slug": "product-teaser-remotion-video"
+    },
+    {
+      "chatId": "example-nonprofit-event-planning-use",
+      "slug": "nonprofit-event-planning-use-case"
+    },
+    {
+      "chatId": "example-library-book-return-workflow",
+      "slug": "library-book-return-workflow"
+    },
+    {
+      "chatId": "example-fediverse-activitypub-social-search",
+      "slug": "fediverse-activitypub-social-search"
+    },
+    {
+      "chatId": "example-reference-image-3d-model",
+      "slug": "reference-image-3d-model"
+    },
+    {
+      "chatId": "example-example-chat-task-planning",
+      "slug": "example-chat-task-planning-checklist"
+    },
+    {
+      "chatId": "example-sqlite-strict-tables-summary",
+      "slug": "sqlite-strict-tables-summary"
+    },
+    {
+      "chatId": "example-framework-store-reputation-check",
+      "slug": "framework-store-reputation-check"
+    },
+    {
+      "chatId": "example-upcoming-reminders-list",
+      "slug": "upcoming-reminders-list"
+    },
+    {
+      "chatId": "example-habit-tracker-onboarding-draft",
+      "slug": "habit-tracker-onboarding-draft"
+    },
+    {
+      "chatId": "example-cancel-test-reminder",
+      "slug": "cancel-test-reminder"
+    },
+    {
+      "chatId": "example-plumber-message-email-phone",
+      "slug": "plumber-message-email-phone-privacy"
+    },
+    {
+      "chatId": "example-us-egg-prices-deep",
+      "slug": "us-egg-prices-deep-research"
+    }
+  ],
+  "landingDefaults": [
+    {
+      "appId": "code",
+      "chatId": "example-habit-garden-web-application"
+    },
+    {
+      "appId": "social_media",
+      "chatId": "example-mastodon-public-post-themes"
+    },
+    {
+      "appId": "mail",
+      "chatId": "example-private-plumber-email"
+    },
+    {
+      "appId": "web",
+      "chatId": "example-gigantic-airplanes"
+    },
+    {
+      "appId": "weather",
+      "chatId": "example-berlin-weather-bike-commute"
+    },
+    {
+      "appId": "nutrition",
+      "chatId": "example-vegetarian-recipes-from-fridge"
+    },
+    {
+      "appId": "news",
+      "chatId": "example-right-to-repair-laws"
+    },
+    {
+      "appId": "docs",
+      "chatId": "example-community-garden-volunteer-onboarding"
+    },
+    {
+      "appId": "mindmaps",
+      "chatId": "example-community-garden-planning-mindmap"
+    },
+    {
+      "appId": "math",
+      "chatId": "example-damped-sine-decay-plot"
+    },
+    {
+      "appId": "images",
+      "chatId": "example-community-garden-sunflower-illustration"
+    },
+    {
+      "appId": "audio",
+      "chatId": "example-community-garden-volunteer-chime"
+    },
+    {
+      "appId": "books",
+      "chatId": "example-books-after-left-hand"
+    },
+    {
+      "appId": "business",
+      "chatId": "example-vital-farms-sec-financials"
+    },
+    {
+      "appId": "design",
+      "chatId": "example-dashboard-sidebar-svg-icons"
+    },
+    {
+      "appId": "music",
+      "chatId": "example-community-garden-welcome-melody"
+    },
+    {
+      "appId": "politics",
+      "chatId": "example-housing-policy-dinner-discussion"
+    },
+    {
+      "appId": "pdf",
+      "chatId": "example-community-garden-budget-review"
+    },
+    {
+      "appId": "diagrams",
+      "chatId": "example-online-shop-checkout-flow"
+    }
+  ],
+  "qualityRetiredChildIds": [
+    "example-us-egg-prices-deep-sub-chat-1",
+    "example-us-egg-prices-deep-sub-chat-2",
+    "example-us-egg-prices-deep-sub-chat-3"
+  ],
+  "unsupportedProviderExamples": [
+    {
+      "chatId": "example-ai-workshops-meetups-berlin",
+      "slug": "ai-workshops-meetups-berlin"
+    },
+    {
+      "chatId": "example-ted-talk-transcript-summary",
+      "slug": "ted-talk-transcript-summary"
+    },
+    {
+      "chatId": "example-buck-converters-24v-5v",
+      "slug": "buck-converters-24v-5v"
+    },
+    {
+      "chatId": "example-air-fryers-retail-germany",
+      "slug": "air-fryers-retail-germany"
+    },
+    {
+      "chatId": "example-furnished-apartments-berlin",
+      "slug": "furnished-apartments-berlin"
+    },
+    {
+      "chatId": "example-printable-benchy-phone-stand",
+      "slug": "printable-benchy-phone-stand-models"
+    },
+    {
+      "chatId": "example-deutschlandticket-train-fare-breakdown",
+      "slug": "deutschlandticket-train-fare-breakdown"
+    },
+    {
+      "chatId": "example-social-app-name-domain",
+      "slug": "social-app-name-domain-search"
+    },
+    {
+      "chatId": "example-beginner-yoga-classes-berlin",
+      "slug": "beginner-yoga-classes-berlin"
+    },
+    {
+      "chatId": "example-berlin-english-speaking-gp",
+      "slug": "berlin-english-speaking-gp-appointments"
+    },
+    {
+      "chatId": "example-find-brand-name-and",
+      "slug": "find-brand-name-and-domain"
+    },
+    {
+      "chatId": "example-jobs-in-germany",
+      "slug": "jobs-in-germany"
+    }
   ]
 }

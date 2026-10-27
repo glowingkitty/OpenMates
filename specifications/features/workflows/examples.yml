@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@11
+specification: feature.workflows@12
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -247,20 +247,20 @@ authoring_compact_plan:
 - id: authoring-plan-weather-notification
   given: Alice asks to make a daily rain alert from Weather and a chat message.
   when: OpenMates plans the request.
-  then: Jev selects the registered Weather forecast skill and supported control choices, either directly or by selecting the Weather app first and then its skill. Gemini receives that scoped context and proposes a compact draft with a title, schedule, Weather inputs, rain condition and notification text, without inventing a new Weather skill or per-skill recipe.
+  then: Jev selects the registered Weather forecast skill and supported control choices, either directly or by selecting the Weather app first and then its skill. Mercury 3 INSTANT receives that scoped context and proposes a compact draft with a title, schedule, Weather inputs, rain condition and notification text, without inventing a new Weather skill or per-skill recipe.
 - id: authoring-plan-supported-edit
   given: Bob has an existing apartment Workflow and asks to change its search city; a separate request just says "Make it better."
   when: OpenMates plans the edit.
-  then: The clear edit identifies the existing Workflow and supported Home search input while preserving its other steps and metadata. Jev routes the confusing second request to clarification chat before Gemini starts generating; a later model error in a clear request does not trigger clarification.
+  then: The clear edit identifies the existing Workflow and supported Home search input while preserving its other steps and metadata. Jev routes the confusing second request to clarification chat before Mercury starts generating; a later model error in a clear request does not trigger clarification.
 authoring_provisional_validation:
 - id: authoring-stream-complete-step
-  given: Alice asks for a Weather rain alert and watches the draft appear.
-  when: Gemini completes a Weather node before the Check and message are ready, and Alice then selects Stop.
-  then: The backend validates Weather's inputs and graph placement before showing it. Stop saves that valid prefix disabled with no automatic execution; Alice can continue editing it manually. Manual run availability still follows normal graph readiness.
+  given: Alice asks for a rain alert, and a validated Weather node is already visible.
+  when: Mercury INSTANT becomes unavailable after that node; Gemini 3.8 Flash LOW resumes, proposes an invalid message, and gets one Gemini LOW repair as the request's third actual author call.
+  then: The Weather node appears once and keeps its accepted content. No unavailable Mercury call is retried; observed work for each actual model is billed once, with missing usage left unknown. No fourth author call occurs. If Alice selects Stop during any attempt, the valid prefix is saved disabled with a visible partial-result notice and no recovery or automatic execution; she can edit it manually, and manual run still requires a ready graph.
 - id: authoring-invalid-node-retry-and-save-prefix
-  given: A validated Weather node is already visible, and Gemini next proposes a message with a reference to a future node.
-  when: The backend rejects that message, asks Gemini once to correct it, and the corrected node still has an invalid reference.
-  then: The invalid message is never shown as accepted. Generation stops, the valid Weather prefix is saved disabled with no automatic execution, and Alice sees the concrete error with options to request a specific update or edit the draft herself; no clarification chat opens.
+  given: Bob's draft already contains an accepted schedule and Weather node; Mercury INSTANT then proposes a message that references a future node.
+  when: Validation rejects that message, Mercury LOW's first repair is also invalid, and Gemini 3.8 Flash LOW makes the second repair as the third and final author call.
+  then: Only a valid corrected message can appear as accepted, without duplicating or replacing the accepted prefix. If it still fails, or Bob's accepted schedule wrongly includes a withdrawn Monday reminder that cannot safely be replaced, the draft remains disabled and visibly partial with the concrete problem and manual-edit guidance; no fourth call or clarification chat opens. If Mercury LOW instead becomes unavailable, Gemini is still the third and final call. Mercury calls cannot wait past five seconds for credentials or first useful output, five seconds without progress, or fifteen seconds total; a user Stop never advances to another model.
 authoring_atomic_update:
 - id: authoring-single-create-disabled-edit-retained
   given: Alice asks for a new rain alert and an edit to her enabled apartment Workflow.

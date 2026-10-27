@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -299,6 +300,39 @@ class _FakeAudioTask:
         return None
 
 
+@pytest.fixture
+def registered_output_guard(monkeypatch):
+    """Billing unit tests isolate the separately tested output ownership guard."""
+    module = ModuleType("backend.core.api.app.services.embed_service")
+    module.EmbedService = SimpleNamespace(assert_registered_output_can_generate=AsyncMock())
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+
+
+# contract-test: supporting surface=rest_api assertions=audio-generate.billing.success-only,billing.credits.idempotent-charge
+@pytest.mark.asyncio
+async def test_audio_generate_bills_duplicate_client_ids_as_distinct_batch_children(monkeypatch, registered_output_guard):
+    from backend.apps.audio.tasks import generate_task as module
+
+    provider = SimpleNamespace(generate_sound_effect=AsyncMock(return_value=SimpleNamespace(
+        audio_bytes=b"sound", mime_type="audio/mpeg", model="eleven_text_to_sound_v2", duration_seconds=1.0,
+    )))
+    monkeypatch.setattr(module, "ElevenLabsClient", lambda **kwargs: provider)
+    monkeypatch.setattr(module, "ensure_audio_credit_headroom", AsyncMock())
+    monkeypatch.setattr(module, "store_generated_audio_asset", AsyncMock(side_effect=lambda *args, **kwargs: {"status": "finished"}))
+    charge = AsyncMock()
+    monkeypatch.setattr(module, "charge_audio_generation_credits", charge)
+    monkeypatch.setattr(module, "dispatch_async_skill_continuation", AsyncMock())
+    for index in (0, 1, 0):
+        result = await module._async_generate_audio(_FakeAudioTask(), "audio", "generate", {
+            "user_id": "user-audio-test", "request_id": "same-client-id",
+            "embed_id": f"sound-{index}", "prompt": "a gentle chime",
+            "media_batch": True, "media_child_index": index,
+        })
+        assert result["status"] == "finished"
+    assert [call.kwargs["request_id"] for call in charge.await_args_list] == ["child:0", "child:1", "child:0"]
+    assert all(call.kwargs["task_id"] == "task-audio-1" for call in charge.await_args_list)
+
+
 # contract-test: direct surface=rest_api assertions=audio-generate.execution.async-generated-assets,audio-generate.output.binary-excluded-from-inference,audio-generate.billing.success-only
 @pytest.mark.asyncio
 async def test_audio_generate_dispatches_async_without_inline_audio(monkeypatch):
@@ -438,7 +472,8 @@ async def test_audio_speak_rejects_before_provider_and_billing(monkeypatch):
 
 # contract-test: direct surface=rest_api assertions=audio-speak.safety.semantic-safeguard-required,audio-speak.output.playable-audio,audio-speak.billing.success-only
 @pytest.mark.asyncio
-async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypatch):
+@pytest.mark.parametrize("child_index", [None, 0, 1])
+async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypatch, child_index, registered_output_guard):
     import backend.apps.audio.tasks.speak_task as speak_task_module
     import backend.apps.audio.skills.speak_skill as speak_skill_module
     from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
@@ -476,6 +511,7 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
 
     async def fake_charge_audio_generation_credits(**kwargs):
         calls.append(("charge", kwargs["credits"], kwargs["model_ref"]))
+        assert kwargs["request_id"] == (1 if child_index is None else f"child:{child_index}")
 
     async def fake_ensure_audio_credit_headroom(**kwargs):
         calls.append(("preflight", kwargs["estimated_credits"]))
@@ -498,6 +534,7 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
         {
             "request_id": 1,
             "embed_id": "embed-speak-success",
+            **({"media_batch": True, "media_child_index": child_index} if child_index is not None else {}),
             "user_id": "user-audio-test",
             "text": text,
             "text_preview": text.strip()[:80],

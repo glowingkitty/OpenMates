@@ -30,10 +30,15 @@ import {
   autoStartVisibleOwnerApplicationPreviewForEmbed,
   buildApplicationPreviewSharedContext,
   startApplicationPreview,
+  clearApplicationPreviewSessions,
+  getCachedApplicationPreviewSession,
+  handleApplicationPreviewStatusUpdate,
+  subscribeApplicationPreviewSession,
 } from "../applicationPreviewService";
 
 describe("buildApplicationPreviewSharedContext", () => {
   beforeEach(() => {
+    clearApplicationPreviewSessions();
     embedResolverMocks.decodeToonContent.mockReset();
     embedResolverMocks.extractEmbedReferences.mockReset();
     embedResolverMocks.resolveEmbed.mockReset();
@@ -92,6 +97,7 @@ describe("buildApplicationPreviewSharedContext", () => {
 
 describe("autoStartCreatedApplicationPreview", () => {
   beforeEach(() => {
+    clearApplicationPreviewSessions();
     embedResolverMocks.decodeToonContent.mockReset();
     embedResolverMocks.extractEmbedReferences.mockReset();
     embedResolverMocks.resolveEmbed.mockReset();
@@ -220,4 +226,70 @@ describe("autoStartCreatedApplicationPreview", () => {
       }),
     );
   });
+});
+
+
+describe("preview readiness and start concurrency", () => {
+  beforeEach(() => clearApplicationPreviewSessions());
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,code-run.execution.stream-status-visible
+  it("shares an in-flight paid start and notifies fullscreen opened before its POST response", async () => {
+    let finish!: (value: unknown) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(resolve => { finish = resolve; })));
+    const observed = vi.fn();
+    const unsubscribe = subscribeApplicationPreviewSession("race-chat", "race-app", observed);
+    const first = startApplicationPreview("race-chat", "race-app", { autoStarted: true });
+    const second = startApplicationPreview("race-chat", "race-app");
+    expect(second).toBe(first);
+    handleApplicationPreviewStatusUpdate({ chat_id: "race-chat", application_embed_id: "race-app",
+      session_id: "race-session", status: "running", updated_at: 20 });
+    finish({ ok: true, json: async () => ({ session_id: "race-session", preview_url: "https://preview.test/t/token",
+      status: "queued", credits_per_minute: 1 }) });
+    await first;
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(observed).toHaveBeenCalledWith(expect.objectContaining({ status: "running", auto_started: true }));
+    expect(getCachedApplicationPreviewSession("race-chat", "race-app")?.status).toBe("running");
+    unsubscribe();
+    observed.mockClear();
+    handleApplicationPreviewStatusUpdate({ chat_id: "race-chat", application_embed_id: "race-app",
+      session_id: "race-session", status: "stopped", updated_at: 30 });
+    expect(observed).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.execution.stream-status-visible
+  it("ignores stale, mismatched and cross-session readiness without resurrecting a stopped session", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ session_id: "owned-session",
+      preview_url: "https://preview.test", status: "starting", credits_per_minute: 1 }) })));
+    await startApplicationPreview("owned-chat", "owned-app");
+    const update = { chat_id: "owned-chat", application_embed_id: "owned-app", session_id: "owned-session", status: "running", updated_at: 20 };
+    handleApplicationPreviewStatusUpdate(update);
+    for (const patch of [{ updated_at: 10, status: "starting" }, { session_id: "other-session", status: "failed" },
+      { chat_id: "other-chat", status: "failed" }, { application_embed_id: "other-app", status: "failed" }]) {
+      handleApplicationPreviewStatusUpdate({ ...update, ...patch });
+    }
+    expect(getCachedApplicationPreviewSession("owned-chat", "owned-app")?.status).toBe("running");
+    handleApplicationPreviewStatusUpdate({ ...update, status: "stopped", updated_at: 30 });
+    handleApplicationPreviewStatusUpdate({ ...update, updated_at: 40 });
+    expect(getCachedApplicationPreviewSession("owned-chat", "owned-app")?.status).toBe("stopped");
+    clearApplicationPreviewSessions();
+    handleApplicationPreviewStatusUpdate(update);
+    expect(getCachedApplicationPreviewSession("owned-chat", "owned-app")).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.billing.rate-limits
+  it("does not retry a paid auto-start after its account session is cleared", async () => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ embed_id: "logout-app", content: "application-toon" });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ type: "application" });
+    let finish!: (value: unknown) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(resolve => { finish = resolve; })));
+    const result = autoStartApplicationPreviewForEmbed("logout-chat", "logout-message", "logout-app");
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+    clearApplicationPreviewSessions();
+    finish({ ok: true, json: async () => ({ session_id: "old-session", preview_url: "https://preview.test",
+      status: "queued", credits_per_minute: 1 }) });
+    await expect(result).resolves.toBeUndefined();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(getCachedApplicationPreviewSession("logout-chat", "logout-app")).toBeUndefined();
+  });
+
 });

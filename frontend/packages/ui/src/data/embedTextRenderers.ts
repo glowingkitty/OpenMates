@@ -50,12 +50,14 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 // ── Per-domain renderer imports ──────────────────────────────────────────
 
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
+import { renderBrowse } from '../components/embeds/web/browseEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
 import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch, renderNotebook } from '../components/embeds/code/codeEmbedText';
 import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideoCreate, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
 import { renderEventsSearch, renderEvent } from '../components/embeds/events/eventsEmbedText';
+import { renderCalendarEvent } from '../components/embeds/calendar/calendarEventEmbedText';
 import { renderFitnessResult, renderFitnessSearch } from '../components/embeds/fitness/fitnessEmbedText';
 import { renderMailSearch, renderEmail } from '../components/embeds/mail/mailEmbedText';
 import { renderHealthSearch, renderAppointment } from '../components/embeds/health/healthEmbedText';
@@ -108,7 +110,7 @@ function renderGenericAppSkill(content: Record<string, unknown>): string {
 
 function renderModel3DSearch(content: Record<string, unknown>): string {
 	const query = str(content.query) ?? '3D model search';
-	const provider = str(content.provider) ?? 'Printables';
+	const provider = str(content.provider) ?? '';
 	const count = resolveResultCount(content);
 	const lines = [`**3D Models | Search**`, `query: ${query}`, `provider: ${provider}`];
 	if (count !== null) lines.push(`results: ${count}`);
@@ -201,6 +203,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:projects:search': renderProjectReferences,
 	'app:projects:read': renderProjectReferences,
 	'app:web:read': renderWebRead,
+	'app:web:browse': renderBrowse,
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,
 	'app:jobs:search': renderJobsSearch,
@@ -296,6 +299,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'recording': renderRecording,
 	'mail-email': renderEmail,
 		'math-plot': renderMathPlot,
+		'calendar-event': renderCalendarEvent,
+		'calendar_event': renderCalendarEvent,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
 		'diagrams-html': renderDiagramText,

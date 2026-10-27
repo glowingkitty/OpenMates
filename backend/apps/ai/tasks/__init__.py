@@ -11,7 +11,6 @@
 from .ask_skill_task import process_ai_skill_ask_task
 from .focus_mode_auto_confirm_task import focus_mode_auto_confirm_task
 from .runtime_health_probe_task import runtime_health_chat_plumbing_probe, runtime_health_worker_probe
-from .voice_call_task import voice_call_request
 
 # If you add more skill-specific task files (e.g., another_skill_task.py),
 # import and re-export their task functions here as well:
@@ -22,7 +21,6 @@ __all__ = [
     "focus_mode_auto_confirm_task",
     "runtime_health_worker_probe",
     "runtime_health_chat_plumbing_probe",
-    "voice_call_request",
 ]
 
 # Note: Celery's task auto-discovery typically relies on finding @app.task decorators.

@@ -29,15 +29,61 @@ from typing import Dict, Any, List, Optional
 logger = logging.getLogger(__name__)
 
 # Default timeout for skill execution (in seconds)
-# Reduced from 30s to 20s to fail faster and allow retry with different proxy IP
+# Other skills select a bounded envelope below when their work needs more time.
 DEFAULT_SKILL_TIMEOUT = 20.0
+
+
+def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
+    """Select the assistant's default envelope without overriding explicit timeouts.
+
+    Shopping comparison has a 25-second optional-work ceiling across discovery
+    and ranking. Leave five seconds for normalization and result delivery. Each
+    request in a bulk call shares this selection. Fitness class searches need
+    sixty seconds for bounded date discovery and venue enrichment; other skills
+    keep their default.
+    Callers passing an explicit timeout to the executor retain that exact value.
+    """
+    # Public page reads include robots checks, bounded source retrieval and the
+    # inherited output-safety scan before delivery of complete extracted text.
+    if (app_id, skill_id) == ("web", "read"):
+        return 75.0
+    if (app_id, skill_id) == ("web", "browse"):
+        from backend.shared.python_schemas.web_browse import BrowseRequest
+        # Main processing attaches private dispatch context before selecting the
+        # timeout. Validate the public request without treating that context as
+        # model-supplied Browse parameters; unknown public fields still fail.
+        request_arguments = {
+            key: value for key, value in arguments.items() if not key.startswith("_")
+        }
+        return float(BrowseRequest.model_validate(request_arguments).timeout_seconds + 120)
+    # Public class search spans up to fourteen dates plus venue enrichment.
+    if (app_id, skill_id) == ("fitness", "search_classes"):
+        return 60.0
+    # Housing combines bounded provider details, visual evidence and optional
+    # location enrichment. The ordinary 20s envelope can cancel valid results.
+    if (app_id, skill_id) == ("home", "search"):
+        return 75.0
+    if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
+        return DEFAULT_SKILL_TIMEOUT
+    requests = arguments.get("requests", [arguments])
+    if not isinstance(requests, list):
+        return DEFAULT_SKILL_TIMEOUT
+    for request in requests:
+        if not isinstance(request, dict):
+            continue
+        criteria, references = request.get("relevance_criteria"), request.get("reference_images")
+        if ((isinstance(criteria, str) and criteria.strip())
+                or (isinstance(references, list) and any(isinstance(value, str) and value.strip() for value in references))):
+            return 30.0
+    return DEFAULT_SKILL_TIMEOUT
+
 
 # Default number of retry attempts for skill execution
 # 1 retry = 2 total attempts (initial + 1 retry)
 DEFAULT_SKILL_MAX_RETRIES = 1
 
 # Delay between retry attempts (in seconds)
-# Short delay to allow proxy rotation but not delay user too much
+# Bound the delay between retryable execution failures.
 RETRY_DELAY_SECONDS = 1.0
 
 # Redis key prefix for cancelled skill tasks
@@ -86,6 +132,7 @@ __all__ = [
     "SkillCancelledException",
     # Timeout and retry configuration
     "DEFAULT_SKILL_TIMEOUT",
+    "get_skill_timeout",
     "DEFAULT_SKILL_MAX_RETRIES"
 ]
 
@@ -220,7 +267,7 @@ async def execute_skill(
     in-process call so a runaway skill cannot block the worker indefinitely.
 
     Retries still help because most "skill failure" cases are external (the
-    skill itself opens HTTP/SSL connections to YouTube, REWE, etc.). On retry,
+    skill itself opens HTTP/SSL connections to supported upstream APIs). On retry,
     those external services may route through a different proxy IP.
 
     Args:
@@ -292,7 +339,9 @@ async def execute_skill(
     logger.debug(f"Executing skill '{app_id}.{skill_id}' in-process with arguments: {list(arguments.keys())}")
 
     last_exception: Optional[Exception] = None
-    total_attempts = max_retries + 1
+    # The public decision quote includes exactly one attempt per provider.
+    # Jev already owns its bounded outage fallback; never retry the whole skill.
+    total_attempts = 1 if (app_id, skill_id) in {("ai", "decide"), ("web", "browse")} else max_retries + 1
     successful_result: Any = None
     skill_succeeded = False
 

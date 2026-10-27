@@ -141,12 +141,12 @@
 .message-field {
   width: 100%;
   min-height: 100px;
-  background-color: var(--color-grey-blue);
-  border-radius: 24px;
+  background-color: var(--composer-background, var(--color-grey-blue));
+  border-radius: var(--composer-radius, 24px);
   padding: 0 0 60px 0;
   box-sizing: border-box;
   position: relative;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--composer-shadow, 0 4px 12px rgba(0, 0, 0, 0.08));
   transition:
     padding 0.3s ease-in-out,
     max-height 0.3s ease-in-out,
@@ -166,32 +166,8 @@
 
 /* Focus reveals a multiline canvas without replacing the mounted editor. */
 .message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
-  min-height: 180px;
+  min-height: var(--composer-focused-height, 180px);
 }
-
-.minimized-send-button {
-  position: absolute;
-  z-index: 12;
-  right: var(--spacing-6);
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  color: var(--color-font-button);
-  background: var(--color-button-primary);
-  cursor: pointer;
-}
-
-.minimized-send-button svg { width: 20px; height: 20px; }
-.minimized-send-button:hover { background: var(--color-button-primary-hover); }
-.minimized-send-button:active { background: var(--color-button-primary-pressed); }
-.minimized-send-button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   .message-field, .scrollable-content { transition: none; }
@@ -204,7 +180,7 @@
 
 /* Compact mode when action buttons are hidden */
 .message-field.compact {
-  min-height: 60px;
+  min-height: var(--composer-compact-height, 60px);
   padding: 0 0 10px 0;
 }
 
@@ -307,9 +283,28 @@
   padding: 0;
 }
 
+/* Empty capture and correction retain the inactive composer height. */
 .message-field.recording-active {
-  min-height: 220px;
+  min-height: 0;
   padding: 0;
+  overflow: hidden;
+  transition: none;
+}
+
+/* Existing draft content remains readable above the recording controls. */
+.message-field.recording-active.recording-with-draft {
+  min-height: var(--composer-focused-height, 180px);
+  padding-bottom: var(--recording-controls-height);
+}
+
+.message-field.recording-active .action-buttons-fade-wrapper {
+  display: none;
+}
+
+.recording-controls-overlay {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--recording-controls-height);
 }
 
 /* When a focus pill is visible, add top padding so the pill partially overlaps the field top.

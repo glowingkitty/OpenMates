@@ -21,6 +21,7 @@
 
   let {
     surface,
+    presentation = 'workspace',
     value = $bindable(''),
     focusActive = $bindable(false),
     placeholder,
@@ -38,8 +39,10 @@
     recording = false,
     onAudioRecorded,
     onRecordingClose,
+    recordingSendAction,
   }: {
     surface: WorkspaceSurface;
+    presentation?: 'workspace' | 'embed';
     value?: string;
     focusActive?: boolean;
     placeholder: string;
@@ -57,13 +60,14 @@
     recording?: boolean;
     onAudioRecorded?: (event: CustomEvent<RecordedAudio>) => void | Promise<void>;
     onRecordingClose?: () => void;
+    recordingSendAction?: { onRequest: () => void };
   } = $props();
 
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
   let focused = $derived(focusActive);
   let expanded = $state(false);
   const hasText = $derived(value.trim().length > 0);
-  const collapsible = $derived(surface === 'workflows' || surface === 'tasks');
+  const collapsible = $derived(surface === 'workflows' || surface === 'tasks' || presentation === 'embed');
   const collapsed = $derived(collapsible && !focused && !recording);
   // The visible preview never replaces the bound draft or its line breaks.
   const firstLine = $derived(value.split(/\r?\n/)[0] + (/[\r\n]/.test(value) ? '…' : ''));
@@ -153,6 +157,8 @@
 <div class="workspace-prompt-shell" class:focused={collapsible && focused}>
 <form
   class="workspace-prompt-composer"
+  class:canonical-composer={presentation === 'embed'}
+  class:embed-presentation={presentation === 'embed'}
   class:focused
   class:has-text={hasText}
   class:hasFileImport={!!fileImport}
@@ -162,6 +168,12 @@
   class:expanded
   data-testid={testId}
   data-surface={surface}
+  onpointerdown={(event) => {
+    if (presentation === 'embed' && event.target instanceof Element && !event.target.closest('button, textarea, input')) {
+      event.preventDefault();
+      textareaElement?.focus();
+    }
+  }}
   onfocusin={handleFocusIn}
   onfocusout={handleFocusOut}
   onsubmit={(event) => {
@@ -169,7 +181,7 @@
     void submitComposer();
   }}
 >
-  {#if fileImport}
+  {#if fileImport && !(presentation === 'embed' && collapsed)}
     <button
       class="workspace-prompt-file"
       type="button"
@@ -234,6 +246,8 @@
     ></button>
   {#if recording}
     <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
+      allowSend={!!recordingSendAction}
+      on:sendrequested={() => recordingSendAction?.onRequest()}
       correctionContext={surface === 'workflows' ? 'workflow' : undefined}
       on:audiorecorded={(event) => void onAudioRecorded?.(event)}
       on:close={() => onRecordingClose?.()}
@@ -250,6 +264,7 @@
 </div>
 
 <style>
+  @import '../enter_message/composerPresentation.css';
   .workspace-prompt-shell {
     width: min(629px, 100%);
     margin: 0 auto;
@@ -479,7 +494,7 @@
     left: 22px;
     width: 24px;
     height: 24px;
-    background: color-mix(in srgb, var(--color-font-primary) 72%, transparent);
+    background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
     transform: translateY(-50%);
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -617,4 +632,26 @@
       font-size: var(--font-size-small);
     }
   }
+  .workspace-prompt-composer.embed-presentation {
+    min-height: var(--composer-compact-height);
+    border-radius: var(--composer-radius);
+    background: var(--composer-background);
+    box-shadow: var(--composer-shadow);
+    cursor: text;
+  }
+  .workspace-prompt-composer.embed-presentation.focused:not(.recording) {
+    min-height: var(--composer-focused-height);
+  }
+  .embed-presentation textarea,
+  .embed-presentation .workspace-prompt-preview {
+    font-size: var(--composer-font-size);
+    line-height: var(--composer-line-height);
+  }
+  .workspace-prompt-composer.embed-presentation.collapsible textarea {
+    max-height: calc(4 * 1.6em);
+  }
+  .workspace-prompt-composer.embed-presentation.expanded textarea {
+    max-height: min(40dvh, 20rem);
+  }
+  .embed-presentation.recording { min-height: 220px; }
 </style>

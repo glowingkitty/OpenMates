@@ -206,45 +206,16 @@ def test_empty_refresh_cannot_replace_cache_or_provider_ranking(tmp_path, monkey
     assert stored[leaderboard_tasks.LEADERBOARD_CACHE_KEY] == VALID_DATA
 
 
-def test_queued_refreshes_share_one_provider_slot(monkeypatch, leaderboard_tasks):
-    owners = {}
-    provider_calls = []
+def test_queued_refreshes_are_unavailable_without_provider_or_cache_mutation(monkeypatch, leaderboard_tasks):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Retired collection tasks must not initialize cache or call providers")
 
-    class FakeClient:
-        async def set(self, key, value, *, ex, nx):
-            assert ex == leaderboard_tasks.LEADERBOARD_REFRESH_COOLDOWN
-            assert nx is True
-            if key in owners:
-                return False
-            owners[key] = value
-            return True
-
-        async def get(self, key):
-            return owners.get(key)
-
-    class FakeCacheService:
-        @property
-        async def client(self):
-            return FakeClient()
-
-        async def close(self):
-            pass
-
-    async def aggregate(_category):
-        provider_calls.append(1)
-        return VALID_DATA
-
-    async def update_cache(_data):
-        return True
-
-    monkeypatch.setattr(leaderboard_tasks, "CacheService", FakeCacheService)
-    monkeypatch.setattr(leaderboard_tasks, "_aggregate_leaderboard_async", aggregate)
-    monkeypatch.setattr(leaderboard_tasks, "_update_cache_async", update_cache)
-
+    monkeypatch.setattr(leaderboard_tasks, "CacheService", forbidden)
+    monkeypatch.setattr(leaderboard_tasks, "_aggregate_leaderboard_async", forbidden)
+    monkeypatch.setattr(leaderboard_tasks, "_update_cache_async", forbidden)
     results = [leaderboard_tasks.update_leaderboard_daily.run() for _ in range(12)]
-    assert results[0]["success"] is True
-    assert all(result.get("skipped") for result in results[1:])
-    assert len(provider_calls) == 1
+    assert all(result["success"] is False and result["skipped"] is True for result in results)
+    assert all(result["error"] == "No supported leaderboard data source is configured." for result in results)
 
 
 def test_failed_refresh_owner_can_retry_but_backlog_cannot(monkeypatch, leaderboard_tasks):
@@ -284,6 +255,8 @@ def test_failed_scrape_keeps_real_model_selection_available(tmp_path, monkeypatc
 
     backend_dir = Path(__file__).resolve().parents[1]
     original = yaml.safe_load((backend_dir / "data/models_leaderboard.yml").read_text())
+    # Preserve the old ranking data as evidence; Auto must still use the
+    # current configured model rather than resurrecting the older entry.
     assert original["rankings"][0]["model_id"] == "gemini-3.7-flash"
     output_file = tmp_path / "models_leaderboard.yml"
     output_file.write_text(yaml.safe_dump(original))
@@ -323,9 +296,9 @@ def test_failed_scrape_keeps_real_model_selection_available(tmp_path, monkeypatc
     selection = selector.select_models(
         task_area="general",
         complexity="complex",
-        available_model_ids=["gemini-3.7-flash", "google/gemini-3.7-flash"],
+        available_model_ids=["gemini-3.8-flash", "google/gemini-3.8-flash"],
     )
 
     assert yaml.safe_load(output_file.read_text()) == original
     assert json.loads(cache[leaderboard_tasks.LEADERBOARD_CACHE_KEY]) == original
-    assert selection.primary_model_id == "google/gemini-3.7-flash"
+    assert selection.primary_model_id == "google/gemini-3.8-flash"

@@ -1,0 +1,41 @@
+{
+  "exit_code": 0,
+  "stopped": null,
+  "seconds": 0.40863409638404846,
+  "peak_rss_bytes": 64684032,
+  "cpus": [
+    10,
+    11
+  ],
+  "threads": 2,
+  "runtime": "2.3.1",
+  "command": [
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/licensed-shape-probe-794fc07f8e465bb3",
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.3.1/native",
+    "/tmp/openmates-redact-rust-678f/model",
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.3.1/input-must-never-be-read.bin",
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.3.1/allocation-result.json",
+    "1"
+  ],
+  "model_files": [
+    {
+      "file": "redact.tflite",
+      "sha256": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27",
+      "bytes": 24529472
+    },
+    {
+      "file": "redact_tokenizer.bin",
+      "sha256": "81bc354dc99285e05b8f70edca9df3afbd83dfa4b0cea18d0448ab17ce58aae2",
+      "bytes": 391416
+    },
+    {
+      "file": "labels.json",
+      "sha256": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a",
+      "bytes": 3842
+    }
+  ],
+  "preparation_sha256": "97b818583ea7d93be335cd759aa46499e1f261924df6ad62ccc56a1c6ba53c43",
+  "result_sha256": "7a218f15e0179077f4c0722548c063dd908c0e25b851be3e5c30ad8d45417709",
+  "native_stderr_sha256": "1231845ec371d160c63f1d775dcd5bb8519a84d604a43a030a97ee84776724cd",
+  "inference_executed": false
+}

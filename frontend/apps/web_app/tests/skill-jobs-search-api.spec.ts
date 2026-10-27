@@ -30,6 +30,11 @@ type Job = {
 	salary_currency: string | null;
 	salary_period: string | null;
 	provider: string;
+	sector?: string | null;
+	role?: string | null;
+	seniority?: string | null;
+	organization_type?: string | null;
+	detail_status?: string | null;
 };
 
 function dataOf(payload: any): any {
@@ -71,32 +76,6 @@ function assertSwedishGroup(payload: any): Job[] {
 	return group.results;
 }
 
-
-function assertGermanGroup(payload: any, id: string, query: string, provider: string, sourceUrl: RegExp): void {
-	const data = dataOf(payload);
-	expect(data.success).toBe(true);
-	expect(data.app_id).toBe('jobs');
-	expect(data.skill_id).toBe('search');
-	expect(data.results).toHaveLength(1);
-	const group = data.results[0];
-	expect(group.id).toBe(id);
-	expect(group.query).toBe(query);
-	expect(group.country).toBe('DE');
-	expect(group.providers).toEqual([provider]);
-	expect(group.error).toBeFalsy();
-	expect(group.results.length, `${provider} must return real current DE listings`).toBeGreaterThan(0);
-	expect(group.results.length).toBeLessThanOrEqual(2);
-	expect(group.result_count).toBe(group.results.length);
-	for (const job of group.results as Job[]) {
-		expect(job.id.startsWith(`${provider}:`)).toBe(true);
-		expect(job.provider).toBe(provider);
-		expect(job.country).toBe('DE');
-		expect(job.title).toEqual(expect.any(String));
-		expect(job.title.length).toBeGreaterThan(0);
-		expect(job.url).toMatch(sourceUrl);
-		if (job.apply_url != null) expect(job.apply_url).toMatch(/^https:\/\//);
-	}
-}
 
 function childProcess(command: string, args: string[], env: Record<string, string>, label: string, parseJson = true): any {
 	const result = spawnSync(command, args, {
@@ -168,27 +147,23 @@ test.describe('Jobs search programmatic contract', () => {
 	});
 
 	// contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
-	test('public catalog registers Jobs search and its five providers', async ({ request }: { request: any }) => {
+	test('public catalog registers only the permitted Swedish jobs provider', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBe(true);
 		const app = (await response.json()).apps?.jobs;
 		expect(app).toBeTruthy();
 		const skill = (app.skills || []).find((item: any) => item.id === 'search');
 		expect(skill).toBeTruthy();
-		expect(skill.providers).toEqual(expect.arrayContaining([
-			expect.objectContaining({ name: 'Bundesagentur für Arbeit', no_api_key: true }),
-			expect.objectContaining({ name: 'Arbeitnow', no_api_key: true }),
+		expect(skill.providers).toEqual([
 			expect.objectContaining({ name: 'JobTech', no_api_key: true }),
-			expect.objectContaining({ name: '80,000 Hours', no_api_key: true }),
-			expect.objectContaining({ name: 'Hard Problems', no_api_key: true })
-		]));
+		]);
 	});
 
 	// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 	test('REST returns real Swedish listings and preserves partial batch errors', async ({ request }: { request: any }) => {
 		test.skip(!key, 'Disposable fixture API key required');
 		const batch = { countries: ['SE'], requests: [SEARCH.requests[0],
-			{ id: 'unsupported', query: 'developer', country: 'SE', provider: 'Arbeitnow', limit: 1 }] };
+			{ id: 'unsupported', query: 'developer', country: 'DE', provider: 'JobTech', limit: 1 }] };
 		const response = await authenticatedRestPost(request, apiUrl, key!, batch);
 		expect(response.ok(), `REST status ${response.status()}`).toBe(true);
 		const data = dataOf(await response.json());
@@ -197,7 +172,7 @@ test.describe('Jobs search programmatic contract', () => {
 		expect(data.results).toHaveLength(2);
 		assertSwedishGroup({ ...data, results: [data.results[0]], result_count: data.results[0].result_count });
 		expect(data.results[1].id).toBe('unsupported');
-		expect(data.results[1].error).toMatch(/arbeitnow does not cover selected countries SE/i);
+		expect(data.results[1].error).toMatch(/does not cover selected countries DE/i);
 		expect(data.results[1].results).toEqual([]);
 	});
 
@@ -208,7 +183,7 @@ test.describe('Jobs search programmatic contract', () => {
 			{ requests: [] },
 			{ countries: [], requests: [{ query: 'developer' }] },
 			{ countries: ['FR'], requests: [{ query: 'developer' }] },
-			{ countries: ['DE'], requests: [{ query: 'engineer', providers: ['JobTech', 'Arbeitnow'] }] },
+			{ countries: ['DE'], requests: [{ query: 'engineer', providers: ['JobTech', 'ExampleJobsD'] }] },
 			{ requests: [{ id: 'bad-provider', query: 'developer', country: 'SE', provider: 'Unknown Board' }] }
 		]) {
 			const response = await authenticatedRestPost(request, apiUrl, key!, invalid);
@@ -222,79 +197,20 @@ test.describe('Jobs search programmatic contract', () => {
 		}
 	});
 
-	// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
-	test('REST routes a selected Germany and Sweden country set to exactly their providers', async ({ request }: { request: any }) => {
-		test.skip(!key, 'Disposable fixture API key required');
-		const response = await authenticatedRestPost(request, apiUrl, key!, {
-			countries: ['DE', 'SE'], requests: [{ id: 'eu', query: 'engineer', limit: 5 }]
-		});
-		expect(response.ok()).toBe(true);
-		const data = dataOf(await response.json());
-		expect(data.success).toBe(true);
-		expect(data.results).toHaveLength(1);
-		const group = data.results[0];
-		expect(group.countries).toEqual(['DE', 'SE']);
-		expect(group.country).toBeNull();
-		expect([...group.providers].sort()).toEqual(['arbeitnow', 'arbeitsagentur', 'eighty_thousand_hours', 'hard_problems', 'jobtech']);
-		expect(group.result_count).toBeGreaterThan(0);
-		for (const job of group.results) {
-			expect(['DE', 'SE']).toContain(job.country);
-			if (job.provider === 'jobtech') expect(job.country).toBe('SE');
-			if (['arbeitnow', 'arbeitsagentur'].includes(job.provider)) expect(job.country).toBe('DE');
-		}
-	});
-
-	// contract-test: direct surface=rest_api assertions=app-skills.surface.semantic-parity
-	test('REST returns current Bundesagentur listings through the Jobs skill', async ({ request }: { request: any }) => {
-		test.skip(!key, 'Disposable fixture API key required');
-		const query = 'Entwickler';
-		const response = await authenticatedRestPost(request, apiUrl, key!,
-			{ requests: [{ id: 'ba', query, country: 'DE', provider: 'Arbeitsagentur', limit: 2 }] });
-		expect(response.ok(), `BA REST status ${response.status()}`).toBe(true);
-		assertGermanGroup(await response.json(), 'ba', query, 'arbeitsagentur',
-			/^https:\/\/www\.arbeitsagentur\.de\/jobsuche\/jobdetail\//);
-	});
-
-	// contract-test: direct surface=rest_api assertions=app-skills.surface.semantic-parity
-	test('REST returns current Arbeitnow listings through the Jobs skill', async ({ request }: { request: any }) => {
-		test.skip(!key, 'Disposable fixture API key required');
-		const query = 'engineer';
-		const response = await authenticatedRestPost(request, apiUrl, key!,
-			{ requests: [{ id: 'arbeitnow', query, country: 'DE', provider: 'Arbeitnow', limit: 2 }] });
-		expect(response.ok(), `Arbeitnow REST status ${response.status()}`).toBe(true);
-		assertGermanGroup(await response.json(), 'arbeitnow', query, 'arbeitnow',
-			/^https:\/\/www\.arbeitnow\.com\/view\//);
-	});
-
-	for (const source of [
-		{ provider: '80,000 Hours', id: 'eighty_thousand_hours', query: 'research', sourceUrl: /^https:\/\// },
-		{ provider: 'Hard Problems', id: 'hard_problems', query: 'design', sourceUrl: /^https:\/\/www\.hardproblems\.com\/jobs\/role\// }
-	]) {
-		// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
-		test(`REST returns country-verified meaningful jobs from ${source.provider}`, async ({ request }: { request: any }) => {
-			test.skip(!key, 'Disposable fixture API key required');
-			const response = await authenticatedRestPost(request, apiUrl, key!, {
-				countries: ['DE'], requests: [{ id: source.id, query: source.query, provider: source.provider, limit: 2 }]
-			});
-			expect(response.ok(), `${source.provider} REST status ${response.status()}`).toBe(true);
-			const data = dataOf(await response.json());
-			expect(data.success).toBe(true);
-			const group = data.results[0];
-			expect(group.countries).toEqual(['DE']);
-			expect(group.providers).toEqual([source.id]);
-			expect(group.result_count).toBeGreaterThan(0);
-			expect(group.result_count).toBeLessThanOrEqual(2);
-			for (const job of group.results) {
-				expect(job.provider).toBe(source.id);
-				expect(job.country).toBe('DE');
-				expect(job.title).toEqual(expect.any(String));
-				expect(job.url).toMatch(source.sourceUrl);
-				if (job.apply_url) expect(job.apply_url).toMatch(/^https:\/\//);
-				expect(job.salary_min).toBeNull();
-				expect(job.salary_max).toBeNull();
-			}
-		});
-	}
+  // contract-test: supporting surface=rest_api assertions=app-skills.providers.unavailable-no-network
+  test('Germany and mixed-country searches return an explicit capability gap', async ({ request }: { request: any }) => {
+    test.skip(!key, 'Disposable fixture API key required');
+    for (const countries of [['DE'], ['DE', 'SE']]) {
+      const response = await authenticatedRestPost(request, apiUrl, key!, {
+        countries, requests: [{ query: 'engineer', limit: 2 }],
+      });
+      expect(response.ok()).toBe(true);
+      const data = dataOf(await response.json());
+      expect(data.success).toBe(false);
+      expect(data.results[0].results).toEqual([]);
+      expect(data.results[0].error).toMatch(/covers DE/i);
+    }
+  });
 
 	// contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity
 	test('CLI returns grouped Swedish listings with a real terminal recording', async ({ request }: { request: any }, testInfo: any) => {

@@ -11,7 +11,7 @@ recipe_cache:
 
     provider:
       type: string
-      note: "Recipe source provider (e.g. 'rewe'). Allows future multi-provider support."
+      note: "Recipe source provider (e.g. 'recipe_catalog'). Allows future multi-provider support."
 
     title:
       type: string

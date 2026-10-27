@@ -66,6 +66,24 @@ async function saveCurrentFullscreenEmbed(
   if (options.expectReminder) {
     const reminderResponse = await reminderResponsePromise;
     if (reminderResponse) {
+      // Supporting notifications.reminder-email.identifiable-default and durable-limited-context:
+      // verify the client snapshots a bounded preview rather than the source embed.
+      const request = reminderResponse.request().postDataJSON();
+      expect(request.notification_context).toMatchObject({ version: 1, app_id: request.target_embed_app_id });
+      expect(request.notification_context.title).toBeTruthy();
+      expect(Array.from(request.notification_context.title).length).toBeLessThanOrEqual(200);
+      expect(request.notification_context).not.toHaveProperty('content');
+      expect(request.notification_context).not.toHaveProperty('messages');
+      const { image_base64: thumbnail, ...metadata } = request.notification_context;
+      expect(new TextEncoder().encode(JSON.stringify(metadata)).length).toBeLessThanOrEqual(8192);
+      if (thumbnail) {
+        expect(thumbnail.length).toBeLessThanOrEqual(160 * 1024);
+        expect(thumbnail).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+      }
+      if (request.notification_context.description) {
+        expect(Array.from(request.notification_context.description).length).toBeLessThanOrEqual(2000);
+        expect(request.notification_context.description).not.toMatch(/<[^>]+>/);
+      }
       expect(reminderResponse.ok()).toBe(true);
       const reminderBody = await reminderResponse.json();
       const reminderData = reminderBody.data || reminderBody;
@@ -122,7 +140,7 @@ async function verifySavedMemoryEntry(
   const embedPreview = settingsMenu.getByTestId('memory-embed-preview').first();
   const hasEmbedPreview = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
   if (hasEmbedPreview) {
-    await expect(embedPreview.getByTestId('saved-embed-badge').first()).toBeVisible({ timeout: 5000 });
+    await expect(embedPreview.locator('[data-testid="result-preview-saved-marker"], [data-testid="result-preview-forget"]').first()).toBeVisible({ timeout: 5000 });
     await embedPreview.click();
     await expect(page.getByTestId('embed-fullscreen-overlay')).toBeVisible({ timeout: 10000 });
   }

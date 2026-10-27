@@ -9,10 +9,10 @@ range:
   to_ref: origin/main
   assume_released: false
 summary:
-  total_commits: 31
+  total_commits: 29
   section_counts:
     features: 6
-    bug_fixes: 19
+    bug_fixes: 17
     improvements: 0
     docs: 0
     tests: 6
@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -334,24 +314,6 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is reachable from main
-  - title: 'fix: add Stoffe provider appstore logo'
-    section: bug_fixes
-    commits:
-    - fbad428fb
-    authored_at: '2026-05-25T20:38:31+00:00'
-    changed_paths:
-    - backend/providers/stoffe.yml
-    - frontend/packages/ui/static/icons/amazon.svg
-    - frontend/packages/ui/static/icons/stoffe.svg
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is reachable from main
   - title: 'fix: keep server compression out of chat history'
     section: bug_fixes
     commits:
@@ -534,41 +496,6 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is reachable from main
-  - title: 'fix: show multiple rewe recipe examples'
-    section: bug_fixes
-    commits:
-    - 103767acc
-    authored_at: '2026-05-25T10:10:24+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.examples.ts
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'fix: use real rewe recipe examples'
-    section: bug_fixes
-    commits:
-    - 69d3f9a13
-    authored_at: '2026-05-25T09:57:40+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.examples.ts
-    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
   - title: 'fix: repair nutrition recipe embeds'
     section: bug_fixes
     commits:
@@ -576,7 +503,6 @@ sections:
     authored_at: '2026-05-25T09:23:22+00:00'
     changed_paths:
     - backend/apps/nutrition/app.yml
-    - backend/apps/nutrition/providers/rewe_recipe_provider.py
     - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
     - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.svelte
@@ -863,20 +789,6 @@ marketing_candidates:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'fix: show multiple rewe recipe examples'
-    commits:
-    - 103767acc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'fix: use real rewe recipe examples'
-    commits:
-    - 69d3f9a13
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'fix: repair nutrition recipe embeds'
     commits:
     - 99528aa75
@@ -1014,22 +926,6 @@ marketing_candidates:
   - title: 'fix: preserve skill search metadata in embeds'
     commits:
     - ff5b5b318
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'fix: show multiple rewe recipe examples'
-    commits:
-    - 103767acc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'fix: use real rewe recipe examples'
-    commits:
-    - 69d3f9a13
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1173,17 +1069,6 @@ sources:
     changed_paths:
     - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
     - frontend/packages/ui/src/services/debugUtils.ts
-    related_feature_ids: []
-  - sha: fbad428fb11463bece8437a53b7466b84ffa0a10
-    short_sha: fbad428fb
-    authored_at: '2026-05-25T20:38:31+00:00'
-    subject: 'fix: add Stoffe provider appstore logo'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/providers/stoffe.yml
-    - frontend/packages/ui/static/icons/amazon.svg
-    - frontend/packages/ui/static/icons/stoffe.svg
     related_feature_ids: []
   - sha: b716bdad50b9f9bc3102693086c3e28076eb9e6a
     short_sha: b716bdad5
@@ -1401,7 +1286,6 @@ sources:
   - sha: 103767acce170791a63af12e8128576ea7b14983
     short_sha: 103767acc
     authored_at: '2026-05-25T10:10:24+00:00'
-    subject: 'fix: show multiple rewe recipe examples'
     in_main: true
     in_dev: true
     changed_paths:
@@ -1410,7 +1294,6 @@ sources:
   - sha: 69d3f9a13c5d216646cbc9294a4ad18bd9fa4d69
     short_sha: 69d3f9a13
     authored_at: '2026-05-25T09:57:40+00:00'
-    subject: 'fix: use real rewe recipe examples'
     in_main: true
     in_dev: true
     changed_paths:
@@ -1425,7 +1308,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/nutrition/app.yml
-    - backend/apps/nutrition/providers/rewe_recipe_provider.py
     - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
     - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.svelte
@@ -1516,11 +1398,6 @@ llm_summary:
     evidence:
       commits:
       - 65b64c377
-    release_status: released_main
-  - text: Added the Stoffe provider logo for the app store interface.
-    evidence:
-      commits:
-      - fbad428fb
     release_status: released_main
   unreleased_progress:
   - text: A new example chat for building maintenance was added to the internal demo store.

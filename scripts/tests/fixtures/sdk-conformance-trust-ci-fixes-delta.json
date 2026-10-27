@@ -1,0 +1,109 @@
+{
+  "afterSha256": "d8129346c685952291275170971f0d0b600f0a4dbf3e2aa4b31a7ffb77e4a03f",
+  "applicationReceipts": {
+    "/tmp/d1c4-first-page-portable-input-fix-20261026.json": "42c2825b93b993ef2078696303eda285443f390d76e94b44c54ec52db378c905",
+    "/tmp/d1c4-sdk-unit-fixture-application-20261026.json": "c86bf6871b6e5a0bf5bf1c1ba684a252b9259ce75a2051ab651b2f81b238a354",
+    "/tmp/d1c4-worker-compile-input-fix-20261026.json": "857978f604f5a59282ff0d34aaeec967772d7ec9877fe51f1a1055970eb98781"
+  },
+  "beforeSha256": "c8ace11852cb5e0ebd1c93ab059e7c041c6b8930232042129fd9eaab1ce03f41",
+  "counts": {
+    "contracts": 86,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 323
+  },
+  "fixture": "packages/openmates-rust/tests/fixtures/message-id-compatibility.json",
+  "fixtureSha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+  "nativeExecutions": 0,
+  "oldGapsSha256": "1092028b466f71ed26e183688684f4cd6c63ef7c6c6b1d811ae1da5e150e7802",
+  "oldPlansSha256": "87eaab316b78a628b6bcd9c125a7147d604adb9819db0c1ad3f59586e17a4cbe",
+  "pinDeltas": {
+    "contracts": {
+      "packages/openmates-browser-bindings/tests/fixtures/message-id-compatibility.json": {
+        "after": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+        "before": null
+      }
+    },
+    "programs": {
+      "packages/openmates-browser-bindings/src/browser.rs": {
+        "after": "4336d0ff808629a006e04ee20fe63c7aabbc9e9b67ff2580685cd150ed08ace4",
+        "before": "593219c110bf5d5fd88524b25af3be98f8673fb224efa1fb5f946710a3156f28"
+      },
+      "packages/openmates-browser-bindings/src/browser_crypto_tests.rs": {
+        "after": "634fd463c5978ee081900d27cb08eb5d8a36c2a8eee280113affd6f65e29c2ac",
+        "before": "630e2b34f1e81a8736de2ceb81f987d5ef9fa3148edea8c2674c246fccf158ed"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor_tests.rs": {
+        "after": "c261ea285e95478f82d9e5d65bed45f5e9ab638af40677636c78a617d3e3fa63",
+        "before": "0956a6a8fdef63e00d9717e9850021f9664c2d7d075c1c394f1fcebb0d0b021b"
+      },
+      "packages/openmates-rust/src/client/browser_local_read_glue_tests.rs": {
+        "after": "4d697a86aec67441befe1f12d1f8ba1c943ba105a6926620e552a0ab0b627a8d",
+        "before": "7b5f368ab9b30414e66b78c50b67798a89f8a6900c66ff4e8832a4e0a2f99f86"
+      },
+      "packages/openmates-rust/src/client/browser_ordinary_retention_tests.rs": {
+        "after": "3fff33b22dddc0a672967e2e190e3d6710f9def6c536717bfc510fb113f2c147",
+        "before": "f6ee139e0bcf3156e21ba0c21ce9fa4bb0fd2107baebc96caaf1a9f82710409e"
+      },
+      "packages/openmates-rust/src/client/browser_saved_json_tests.rs": {
+        "after": "1703903726539c5b37688bd716dc1ab8be3c370fdd9b835b4f5ae5261f8c34d5",
+        "before": "f34657eb8862e0e601ec232568a1ff2c34d8d3da66c65cb907e02b4887a327cc"
+      },
+      "packages/openmates-rust/src/client/chat_first_page_tests.rs": {
+        "after": "7d4f517ad24236096f168db68a35859c8d718f2985cb02519bc51a30b0725d47",
+        "before": "cb799598d60f74b8c72bbb7fe331e5aee4726bdf21768afff0a490ee1bf72b29"
+      }
+    }
+  },
+  "private": true,
+  "releaseEligible": false,
+  "schemaVersion": 1,
+  "scope": "Exactly parent-reviewed8 test-only compile/input/context/DTO/strict-budget fixes; no production guard/runtime/API/SDK17/Notifications; all required runtime proofs remain unrun",
+  "sourceClosure": [
+    {
+      "afterSha256": "7d4f517ad24236096f168db68a35859c8d718f2985cb02519bc51a30b0725d47",
+      "all_cli_sdk_src_includes_literal_and_crate_local": true,
+      "beforeSha256": "cb799598d60f74b8c72bbb7fe331e5aee4726bdf21768afff0a490ee1bf72b29",
+      "change": "Equivalent crate-local literal path, same existing packaged fixture bytes; package policy unchanged",
+      "compileAcceptance": false,
+      "fixtureSha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+      "path": "packages/openmates-rust/src/client/chat_first_page_tests.rs"
+    },
+    {
+      "afterSha256": "4336d0ff808629a006e04ee20fe63c7aabbc9e9b67ff2580685cd150ed08ace4",
+      "beforeSha256": "593219c110bf5d5fd88524b25af3be98f8673fb224efa1fb5f946710a3156f28",
+      "path": "packages/openmates-browser-bindings/src/browser.rs"
+    },
+    {
+      "afterSha256": "634fd463c5978ee081900d27cb08eb5d8a36c2a8eee280113affd6f65e29c2ac",
+      "beforeSha256": "630e2b34f1e81a8736de2ceb81f987d5ef9fa3148edea8c2674c246fccf158ed",
+      "path": "packages/openmates-browser-bindings/src/browser_crypto_tests.rs"
+    },
+    {
+      "afterSha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+      "beforeSha256": null,
+      "path": "packages/openmates-browser-bindings/tests/fixtures/message-id-compatibility.json"
+    },
+    {
+      "afterSha256": "c261ea285e95478f82d9e5d65bed45f5e9ab638af40677636c78a617d3e3fa63",
+      "beforeSha256": "0956a6a8fdef63e00d9717e9850021f9664c2d7d075c1c394f1fcebb0d0b021b",
+      "path": "packages/openmates-rust/src/client/browser_local_cursor_tests.rs"
+    },
+    {
+      "afterSha256": "4d697a86aec67441befe1f12d1f8ba1c943ba105a6926620e552a0ab0b627a8d",
+      "beforeSha256": "7b5f368ab9b30414e66b78c50b67798a89f8a6900c66ff4e8832a4e0a2f99f86",
+      "path": "packages/openmates-rust/src/client/browser_local_read_glue_tests.rs"
+    },
+    {
+      "afterSha256": "3fff33b22dddc0a672967e2e190e3d6710f9def6c536717bfc510fb113f2c147",
+      "beforeSha256": "f6ee139e0bcf3156e21ba0c21ce9fa4bb0fd2107baebc96caaf1a9f82710409e",
+      "path": "packages/openmates-rust/src/client/browser_ordinary_retention_tests.rs"
+    },
+    {
+      "afterSha256": "1703903726539c5b37688bd716dc1ab8be3c370fdd9b835b4f5ae5261f8c34d5",
+      "beforeSha256": "f34657eb8862e0e601ec232568a1ff2c34d8d3da66c65cb907e02b4887a327cc",
+      "path": "packages/openmates-rust/src/client/browser_saved_json_tests.rs"
+    }
+  ],
+  "sourceGateRuns": 0
+}

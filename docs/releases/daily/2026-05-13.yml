@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -128,8 +108,6 @@ sections:
     - backend/apps/travel/app.yml
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/apps/travel/skills/search_connections.py
     - backend/tests/test_travel_search_connections.py
     release_status: released_main
@@ -806,8 +784,6 @@ sources:
     - backend/apps/travel/app.yml
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/apps/travel/skills/search_connections.py
     - backend/tests/test_travel_search_connections.py
     related_feature_ids: []

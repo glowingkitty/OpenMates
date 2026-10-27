@@ -4,7 +4,7 @@
 # These entries are intentionally deterministic and cheap: no LLM calls, no API
 # calls, and no user content is inspected. The daily generator shuffles them into
 # each user's ordered inspiration list after personalized video/wiki items are
-# prepared. Edit this file to change feature copy or settings destinations.
+# prepared. Copy lives in shared i18n YAML; settings destinations live here.
 
 import os
 import time
@@ -17,6 +17,8 @@ from backend.apps.ai.daily_inspiration.schemas import (
     DailyInspirationDirectVideo,
     DailyInspirationFeature,
 )
+
+from backend.apps.ai.daily_inspiration.static_localization import localized_static_copy
 
 
 PRODUCT_VIDEO_BASE_URL_ENV = "OPENMATES_PRODUCT_VIDEOS_BASE_URL"
@@ -54,20 +56,14 @@ FEATURE_TIPS = [
     {
         "feature_id": "export-data",
         "icon": "download",
-        "title": "Export your OpenMates data",
-        "description": "Back up chats, settings, memories, and more whenever you need them.",
         "settings_path": "account/export",
-        "phrase": "Keep your own backup. Export your OpenMates data whenever you need it.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
     {
         "feature_id": "custom-pii-detection",
         "icon": "shield-check",
-        "title": "Custom PII detection",
-        "description": "Teach OpenMates which personal details should be hidden before model calls.",
         "settings_path": "privacy/hide-personal-data",
-        "phrase": "Want stronger privacy controls? Add personal details that OpenMates should hide.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "custom-pii-detection.mp4",
@@ -75,10 +71,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "events-search",
         "icon": "calendar-search",
-        "title": "Find events",
-        "description": "Search Meetup, Luma, Eventbrite, Resident Advisor, and more.",
         "settings_path": "apps/events/skill/search",
-        "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "events-search.mp4",
@@ -86,10 +79,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "web-video-skills",
         "icon": "search",
-        "title": "Trusted source quotes",
-        "description": "Ask mates to inspect sources and quote the exact lines that support an answer.",
         "settings_path": "apps/all/skills",
-        "phrase": "Need an answer you can verify? Ask OpenMates to quote the supporting source.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "web-video-skills.mp4",
@@ -97,10 +87,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "image-detection",
         "icon": "image",
-        "title": "AI image detection",
-        "description": "Upload an image and see AI-generation signals directly in the chat.",
         "settings_path": "apps/all/skills",
-        "phrase": "Wondering if an image was AI-generated? Upload it and inspect the signals.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "image-detection.mp4",
@@ -108,44 +95,45 @@ FEATURE_TIPS = [
     {
         "feature_id": "focus-modes",
         "icon": "target",
-        "title": "Focus modes",
-        "description": "Temporarily guide a chat toward a specific goal for more useful answers.",
         "settings_path": "apps/all/focus_modes",
-        "phrase": "Need a more focused answer? Give your mate a specific job.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
     {
         "feature_id": "memories",
         "icon": "heart",
-        "title": "Memories",
-        "description": "Save preferences and memories so mates can help without repeated context.",
         "settings_path": "settings_memories",
-        "phrase": "Repeating yourself gets old. Save context your mates should remember.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
     {
         "feature_id": "incognito-mode",
         "icon": "mask",
-        "title": "Incognito chats",
-        "description": "Start temporary chats when you do not want them saved to history.",
         "settings_path": "incognito/info",
-        "phrase": "Need a temporary conversation? Keep it out of your saved chat history.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
     {
         "feature_id": "privacy-dashboard",
         "icon": "lock",
-        "title": "Privacy controls",
-        "description": "Tune personal-data hiding, connected accounts, and automatic deletion in one place.",
         "settings_path": "privacy",
-        "phrase": "Review what OpenMates protects before you urgently need the controls.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
 ]
+
+
+FEATURE_COPY_KEYS = {
+    "export-data": "export",
+    "custom-pii-detection": "pii",
+    "events-search": "events",
+    "web-video-skills": "quotes",
+    "image-detection": "image_detection",
+    "focus-modes": "focus",
+    "memories": "memories",
+    "incognito-mode": "incognito",
+    "privacy-dashboard": "privacy",
+}
 
 
 def _build_direct_video(tip: dict) -> DailyInspirationDirectVideo | None:
@@ -181,6 +169,7 @@ def build_feature_inspirations(
     count: int = 4,
     *,
     include_authenticated_only: bool = True,
+    language: str = "en",
 ) -> List[DailyInspiration]:
     """Return up to ``count`` static feature inspiration objects."""
     now_ts = int(time.time())
@@ -192,6 +181,8 @@ def build_feature_inspirations(
         and (include_authenticated_only or not tip.get("requires_authentication", True))
     ]
     for tip in linked_tips[:max(0, count)]:
+        content_language, copy = localized_static_copy(FEATURE_COPY_KEYS[tip["feature_id"]], language)
+        tip = {**tip, **copy}
         feature = DailyInspirationFeature(
             feature_id=tip["feature_id"],
             icon=tip["icon"],
@@ -203,9 +194,10 @@ def build_feature_inspirations(
         inspirations.append(
             DailyInspiration(
                 inspiration_id=str(uuid.uuid4()),
+                language=content_language,
                 phrase=tip["phrase"],
                 title=tip["title"],
-                assistant_response=tip["description"],
+                assistant_response=tip["assistant_response"],
                 category=tip["category"],
                 content_type="feature",
                 feature=feature,

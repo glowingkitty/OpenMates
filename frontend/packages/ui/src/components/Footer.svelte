@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes, getWebsiteUrl } from '../config/links';
+    import { externalLinks, routes, getWebsiteUrl, getPublicLegalUrl } from '../config/links';
     import { isPageVisible } from '../config/pages';
     import { text } from '@repo/ui';
     import { locale } from 'svelte-i18n';
@@ -65,9 +65,9 @@
             title_key: "footer.sections.legal",
             title: "Legal",
             links: [
-                { href: externalLinks.legal.imprint, text: "Imprint", translation_key: "footer.sections.imprint", external: false },
-                { href: externalLinks.legal.privacyPolicy, text: "Privacy", translation_key: "footer.sections.privacy", external: false },
-                { href: externalLinks.legal.terms, text: "Terms and conditions", translation_key: "footer.sections.terms_and_conditions", external: false }
+                { href: getPublicLegalUrl(externalLinks.legal.imprint), text: "Imprint", translation_key: "footer.sections.imprint", external: true },
+                { href: getPublicLegalUrl(externalLinks.legal.privacyPolicy), text: "Privacy", translation_key: "footer.sections.privacy", external: true },
+                { href: getPublicLegalUrl(externalLinks.legal.terms), text: "Terms and conditions", translation_key: "footer.sections.terms_and_conditions", external: true }
             ]
         },
         {
@@ -194,7 +194,7 @@
                     </a>
                 </div>
                 <div class="tagline mobile-order-1">
-                    {@html $text('footer.tagline')}
+                    {$text('footer.tagline')}
                 </div>
                 <div class="logo invisible mobile-order-3"></div>
             </div>
@@ -204,7 +204,7 @@
         <div class="footer-nav">
             {#each processedFooterSections as section}
                 <div class="footer-section">
-                    <h3>{@html $text(section.title_key)}</h3>
+                    <h3>{$text(section.title_key)}</h3>
                     <ul>
                         {#each section.links as link}
                             <li>
@@ -225,7 +225,7 @@
 
         <!-- Social Media Icons Section (split into two groups) -->
         <div class="social-media-section">
-            <h3 class="social-title">{@html $text('footer.sections.for_everyone')}</h3>
+            <h3 class="social-title">{$text('footer.sections.for_everyone')}</h3>
             <div class="social-icons">
                 <a href={externalLinks.instagram} target="_blank" rel="me" aria-label="Instagram">
                     <div class="social-icon icon_instagram"></div>
@@ -233,8 +233,8 @@
                 <a href={externalLinks.discord} target="_blank" rel="me" aria-label="Discord">
                     <div class="social-icon icon_discord"></div>
                 </a>
-                <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
-                    <div class="social-icon icon_meetup"></div>
+                <a href={externalLinks.meetup} target="_blank" rel="me noopener noreferrer" aria-label={$text('settings.meetup')}>
+                    <div class="social-icon icon_events"></div>
                 </a>
                 <a href={externalLinks.bluesky} target="_blank" rel="me" aria-label="Bluesky">
                     <div class="social-icon icon_bluesky"></div>
@@ -247,7 +247,7 @@
                 </a>
             </div>
 
-            <h3 class="social-title developers">{@html $text('footer.sections.for_developers')}</h3>
+            <h3 class="social-title developers">{$text('footer.sections.for_developers')}</h3>
             <div class="social-icons">
                 <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
                     <div class="social-icon icon_github"></div>
@@ -272,7 +272,7 @@
 
         <!-- Made in EU Section -->
         <div class="footer-bottom">
-            <p>{@html $text('footer.made_in_eu')}</p>
+            <p>{$text('footer.made_in_eu')}</p>
             <div class="flag icon_eu"></div>
         </div>
     </div>
@@ -536,8 +536,10 @@
         background-image: url('@openmates/ui/static/icons/pixelfed.svg');
     }
     
-    .social-icon.icon_meetup {
-        background-image: url('@openmates/ui/static/icons/meetup.svg');
+
+
+    .social-icon.icon_events {
+        background-image: url('@openmates/ui/static/icons/event.svg');
     }
 
     .social-icon.icon_element {

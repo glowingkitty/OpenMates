@@ -213,7 +213,7 @@ export function registerCliProjectFileExecutor(options: {
               return (await pending).payload as Record<string, unknown>;
             },
           }, currentJob, mutation);
-          if (typeof result.embed_id === 'string' && typeof result.revision === 'number') {
+          if (mutation && typeof result.embed_id === "string" && typeof result.revision === "number") {
             await options.onHostedVersionCommitted?.({ embed_id: result.embed_id, revision: result.revision });
           }
           return result;

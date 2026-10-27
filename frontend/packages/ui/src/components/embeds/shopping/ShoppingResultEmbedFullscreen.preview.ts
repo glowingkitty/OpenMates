@@ -10,22 +10,28 @@
 const defaultProps = {
   product: {
     embed_id: "preview-shopping-result-fs-1",
-    product_id: "rewe-12345",
+    product_id: "ExampleGrocer-12345",
     title: "Bio Vollmilch-Joghurt Naturell",
     brand: "Weihenstephan",
     price_cents: 139,
     price_eur: "1,39 €",
     was_price_cents: 179,
     grammage: "500g (0,28 €/100g)",
-    purchase_url: "https://shop.rewe.de/p/weihenstephan-bio-joghurt/12345",
-    image_url: null,
+    purchase_url: "https://example.com/fixture",
+    image_url: '/store-examples/generate-1.webp',
+    image_urls: [
+      '/store-examples/generate-1.webp',
+      '/store-examples/events-1.webp',
+      '/store-examples/generate-draft-1.webp',
+      '/store-examples/events-1.webp',
+    ],
     category_path: "Molkereiprodukte > Joghurt",
     rating: 4.6,
     reviews: 832,
     prime: false,
     delivery: ["Lieferung heute"],
     bought_last_month: "500+ mal im letzten Monat gekauft",
-    provider: "REWE",
+    provider: "ExampleGrocer",
     attributes: {
       is_organic: true,
       is_vegetarian: true,
@@ -38,9 +44,20 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
-  amazon: {
+  zero: { product: { ...defaultProps.product, price_cents: 0, price_eur: null, was_price_cents: null, stock: 0, rating: 0, reviews: 0, is_salable: false } },
+  primaryOnly: { product: { ...defaultProps.product, image_urls: undefined } },
+  missingImages: { product: { ...defaultProps.product, image_url: null, image_urls: [] } },
+  toonGallery: {
+    product: undefined,
+    data: { decodedContent: {
+      ...defaultProps.product,
+      image_url: 'https://shopping.example/product-front.jpg',
+      image_urls: 'https://shopping.example/product-front.jpg | https://shopping.example/product-back.jpg|https://shopping.example/product-detail.jpg|https://shopping.example/product-back.jpg||',
+    } },
+  },
+  ExampleRetail: {
     product: {
-      embed_id: "preview-shopping-result-fs-amazon",
+      embed_id: "preview-shopping-result-fs-ExampleRetail",
       asin: "B0CH7DL6JW",
       title: "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
       brand: "Sony",
@@ -48,14 +65,14 @@ export const variants = {
       price_amount: 279,
       old_price_amount: 329,
       currency_symbol: "€",
-      purchase_url: "https://www.amazon.de/dp/B0CH7DL6JW",
+      purchase_url: "https://example.com/dp/B0CH7DL6JW",
       image_url: null,
       rating: 4.7,
       reviews: 3842,
       prime: true,
       delivery: ["KOSTENLOSE Lieferung bis morgen"],
       bought_last_month: "2K+ bought in past month",
-      provider: "Amazon",
+      provider: "ExampleRetail",
       country: "DE",
       attributes: { is_new: true },
     },
@@ -65,9 +82,9 @@ export const variants = {
     onNavigatePrevious: () => {},
     onNavigateNext: () => {},
   },
-  stoffe: {
+  ExampleFabric: {
     product: {
-      embed_id: "preview-shopping-result-fs-stoffe",
+      embed_id: "preview-shopping-result-fs-ExampleFabric",
       product_id: "68087512",
       variation_id: "112466",
       title: "Baumwoll-Musselin - Double Gauze Bestickt Zitronen Weiß",
@@ -81,9 +98,9 @@ export const variants = {
       availability: "Sofort versandfertig, Lieferzeit 2-4 Werktage",
       is_salable: true,
       color_child_item_ids: ["68087513", "68087514"],
-      purchase_url: "https://www.stoffe.de/zitronen-musselin/a-68087512/",
+      purchase_url: "https://example.com/fixture",
       image_url: null,
-      provider: "Stoffe.de",
+      provider: "ExampleFabric",
       attributes: {
         Material: "Baumwolle",
         "Baumwolle %": "100",
@@ -104,9 +121,9 @@ export const variants = {
       embed_id: "preview-shopping-result-fs-no-price",
       title: "Produkt ohne Preisangabe",
       brand: "Unknown Brand",
-      purchase_url: "https://shop.rewe.de/",
+      purchase_url: "https://example.com/fixture",
       image_url: null,
-      provider: "REWE",
+      provider: "ExampleGrocer",
     },
     onClose: () => {},
   },

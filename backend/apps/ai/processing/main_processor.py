@@ -29,9 +29,8 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import (
-    IMAGE_CHAT_SAFE_MODEL_ID,
-    IMAGE_CHAT_SAFE_MODEL_NAME,
-    PreprocessingResult,
+    PreprocessingResult, _history_has_loaded_image_blocks,
+    _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
@@ -39,14 +38,24 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
+    reuse_completed_search_requests, search_request_key,
 )
-from backend.apps.ai.processing.model_routing import LOW_TIER, normalize_request_tier
+from backend.apps.ai.processing.model_routing import (
+    LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, mercury_reasoning_budget,
+    automatic_attempt_thinking_level, automatic_model_allowed_servers,
+    automatic_profile_thinking_level, history_requires_non_text,
+    normalize_request_tier,
+)
 from backend.apps.ai.utils.instruction_loader import (
     REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
 )
-from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.utils.authored_result_instructions import build_authored_result_instructions
+from backend.apps.ai.utils.mate_utils import MateConfig, select_mate_system_prompt
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
-from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata
+from backend.apps.ai.utils.app_skill_result_groups import (
+    is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata,
+    shopping_result_parent_metadata, shopping_result_payload,
+)
 from backend.apps.ai.utils.answer_recovery import (
     ANSWER_RECOVERY_INSTRUCTION,
     AnswerRecoveryState,
@@ -93,6 +102,7 @@ from backend.apps.ai.processing.chat_direction import (
 from backend.apps.ai.processing.chat_direction_review import review_chat_direction as _review_chat_direction
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
+    collect_results_view_sources,
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
@@ -212,7 +222,7 @@ from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
     generate_skill_task_id,
-    DEFAULT_SKILL_TIMEOUT
+    get_skill_timeout
 )
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 # Import billing utilities
@@ -1092,6 +1102,16 @@ Acknowledge their choice, explain if it's correct/incorrect, or use their submit
 - When a choice option or swipe card is about a code/document/sheet/image/content embed, include its embed_id in that option/card's embed_ids. Do not rely on standalone embeds above the question as the only visual reference.
 """
 
+COMPOSER_FOLLOWUP_OUTPUT_REMINDER = (
+    "Final output requirement: after every completed answer, append exactly one useful next message "
+    "in the user's voice, at most 400 characters, in the final metadata block below. "
+    "Put the markers on their own lines, outside quotes and code fences, with no prose after the closing marker. "
+    "Keep the answer self-contained; do not substitute a visible follow-up offer for this metadata. "
+    "Omit only for an explicit user decline, safety, or no useful grounded continuation; never add generic filler. "
+    "A tool-call-only iteration needs no block. Replace the placeholder with the useful next message:\n"
+    "<<suggested_followup_message>>\nThe user's possible next message\n<</suggested_followup_message>>"
+)
+
 FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "The user has turned off follow-up suggestions. Answer the request directly and avoid ending "
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
@@ -1231,6 +1251,7 @@ _PARALLEL_SAFE_EXCLUDED_APP_IDS = frozenset({
 })
 _ParallelResult = TypeVar("_ParallelResult")
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
+    ("web", "browse"),
     ("social_media", "search"),
     ("social_media", "get-posts"),
 }
@@ -1247,7 +1268,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("videos", "create"),
     ("videos", "generate"),
 }
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
 
 
 def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
@@ -1521,6 +1542,8 @@ def _build_async_skill_pending_tool_result(
         result["embed_id"] = async_result.get("embed_id")
     if async_result.get("task_id"):
         result["task_id"] = async_result.get("task_id")
+    if app_id == 'web' and skill_id == 'browse':
+        result['session_id'] = async_result.get('session_id')
     if async_task_ids:
         result["task_ids"] = async_task_ids
     return result
@@ -1991,7 +2014,7 @@ def _validate_skill_provider(
 
     If the provider is not in the skill's providers list (or is None/empty), returns
     the first valid provider from the skill definition. This prevents LLM hallucination
-    (e.g. returning 'Brave Search' for the events skill that only supports 'Meetup').
+    (e.g. returning a search provider for a skill with only schedule providers).
 
     Args:
         provider:                 Provider string from LLM output or metadata (may be wrong)
@@ -2233,6 +2256,11 @@ async def _resolve_skill_billing_config(
         logger.warning("%s Skill '%s' not found in app '%s'; billing is unavailable", log_prefix, skill_id, app_id)
         return None, None
 
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import decision_configuration
+        _, pricing = decision_configuration()
+        return skill_def, pricing
+
     if skill_def.pricing:
         return skill_def, skill_def.pricing.model_dump(exclude_none=True)
 
@@ -2282,8 +2310,16 @@ def _get_variable_preflight_reserved_credits(
     skill_id: str,
     parsed_args: Dict[str, Any],
 ) -> Optional[List[int]]:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        validated = DecideRequest.model_validate(parsed_args)
+        return [decision_quote(has_assets=bool(validated.assets))]
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.apps.web.skills.read_skill import ReadRequest
+        validated = ReadRequest.model_validate(parsed_args)
+        return [20] * len(validated.requests)
     requests = parsed_args.get("requests")
     items = requests if isinstance(requests, list) else [parsed_args]
     if app_id == "audio" and skill_id == "generate":
@@ -2429,7 +2465,17 @@ async def _settle_anonymous_skill_quote(
     discovered_apps_metadata: Dict[str, AppYAML],
     reserved_operation_ids: list[str],
     log_prefix: str,
+    failure: Optional[Exception] = None,
 ) -> int:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecisionExecutionError, decision_quote
+        credits = failure.incurred_credits if isinstance(failure, DecisionExecutionError) else decision_quote(has_assets=bool(parsed_args.get("assets")))
+        for operation_id in reserved_operation_ids:
+            if credits > 0:
+                await _finalize_anonymous_charge(charge_id=operation_id, actual_credits=credits)
+            else:
+                await _release_anonymous_operation(operation_id=operation_id, reason="decision_not_dispatched")
+        return credits
     skill_definition, pricing_config = await _resolve_skill_billing_config(
         app_id=app_id,
         skill_id=skill_id,
@@ -2447,20 +2493,26 @@ async def _settle_anonymous_skill_quote(
     return sum(quotes)
 
 
-def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
-    """Admit cache customer pricing only for ordinary standalone chats."""
+def _customer_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Verified host tariffs apply equally to parent, child and grandchild AI."""
     preferences = getattr(request_data, "user_preferences", None) or {}
     return not (
         getattr(request_data, "is_anonymous", False)
         or getattr(request_data, "is_external", False)
-        or getattr(request_data, "is_sub_chat", False)
+        or preferences.get("workflow_ai") is True
+        or preferences.get("workflow_budget") is not None
+        or preferences.get("workflow_credit_allowance") is not None
+    )
+
+
+def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Native transcript replay/summary pricing retain their standalone rollout."""
+    return _customer_cache_pricing_scope(request_data) and not (
+        getattr(request_data, "is_sub_chat", False)
         or getattr(request_data, "is_sub_chat_continuation", False)
         or getattr(request_data, "parent_id", None)
         or getattr(request_data, "orchestration_id", None)
         or (getattr(request_data, "sub_chat_depth", 0) or 0) > 0
-        or preferences.get("workflow_ai") is True
-        or preferences.get("workflow_budget") is not None
-        or preferences.get("workflow_credit_allowance") is not None
     )
 
 
@@ -2606,12 +2658,13 @@ def _quote_ai_iteration_credits(
 
 
 def _mistral_prompt_cache_key(request_data: AskSkillRequest) -> Optional[str]:
-    """Bind Mistral's opaque key to one authorized user/team/chat scope."""
+    """Opaque owner/team/root key; descendants share the same provider affinity."""
     if not INTERNAL_API_SHARED_TOKEN or not request_data.chat_id:
         return None
     scope = json.dumps(
         [getattr(request_data, "user_id_hash", "") or "",
-         getattr(request_data, "team_id", None), request_data.chat_id],
+         getattr(request_data, "team_id", None),
+         getattr(request_data, "root_chat_id", None) or request_data.chat_id],
         separators=(",", ":"), ensure_ascii=False,
     )
     return hmac.new(
@@ -2701,7 +2754,7 @@ async def _fit_anonymous_output_token_limit(
         available_credits=available,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
@@ -2757,7 +2810,7 @@ async def _reserve_authenticated_ai_turn(
             inference_host=inference_host,
             tariff_snapshot=tariff_snapshot,
             region=region,
-            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+            customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
         )
         cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
         try:
@@ -2786,7 +2839,7 @@ async def _reserve_authenticated_ai_turn(
                 inference_host=inference_host,
                 tariff_snapshot=tariff_snapshot,
                 region=region,
-                customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
             )
             if affordable is None or affordable >= fitted_limit:
                 raise AuthenticatedReservationLimitError("Insufficient credits for inference input") from error
@@ -2864,7 +2917,7 @@ def _fit_workflow_output_token_limit(
         requested_output_token_limit=requested_output_token_limit,
         available_credits=allowance, input_envelope_tokens=512,
         credit_rounding_headroom=1,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise RuntimeError("Workflow Ask AI input exceeds its credit allowance")
@@ -2910,7 +2963,7 @@ async def _fit_orchestrated_output_token_limit(
         tools=tools,
         requested_output_token_limit=requested_output_token_limit,
         available_credits=available_credits,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted_limit is None:
         raise SubChatOrchestrationProtocolError(409, "orchestration_credit_limit_exceeded")
@@ -3023,7 +3076,7 @@ async def _fit_personal_chat_output_token_limit(
             inference_host=inference_host,
             tariff_snapshot=tariff_snapshot,
             region=region,
-            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+            customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
         )
     except Exception as exc:
         raise AuthenticatedReservationError("Personal inference quote is unavailable") from exc
@@ -3057,7 +3110,7 @@ async def _reserve_ai_iteration(
         output_token_limit=output_token_limit,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM if is_anonymous else 0,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if quote <= 0:
         return None
@@ -3179,6 +3232,19 @@ def _get_result_declared_charge_items(
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
 
+    if (app_id, skill_id) == ("web", "read"):
+        return [
+            (index, 20, group)
+            for index, group in enumerate(results[:5])
+            if isinstance(group, dict) and not group.get("error")
+            and isinstance(group.get("usage"), dict)
+            and group["usage"].get("credits_charged") == 20
+            and isinstance(group.get("results"), list)
+            and any(isinstance(page, dict) and not page.get("error")
+                    and isinstance(page.get("markdown"), str) and page["markdown"].strip()
+                    for page in group["results"])
+        ]
+
     charge_items: List[Tuple[int, int, Dict[str, Any]]] = []
     found_result_declared_billing = False
     for result_index, result in enumerate(results):
@@ -3207,6 +3273,11 @@ def _get_result_declared_usage_details(
 ) -> Dict[str, Any]:
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return {}
+
+    if (app_id, skill_id) == ("web", "read"):
+        return {"web_read_credits_charged": 20} if _get_result_declared_charge_items(
+            app_id, skill_id, [result]
+        ) else {}
 
     details: Dict[str, Any] = {}
     if app_id == "audio":
@@ -3262,7 +3333,11 @@ async def _charge_skill_credits(
             provider attribution before results are flattened for model inference.
     """
     charged_operation_ids: set[str] = set()
-    anonymous_settlement_failed = False
+    # A failed bounded decision may already have reached the provider. Keep its
+    # admitted hold until expiry unless authoritative usage settles it below.
+    anonymous_settlement_failed = bool(
+        getattr(request_data, "is_anonymous", False) and (app_id, skill_id) == ("ai", "decide")
+    )
     try:
         skill_def, pricing_config = await _resolve_skill_billing_config(
             app_id=app_id,
@@ -3286,9 +3361,10 @@ async def _charge_skill_credits(
         # Note: the REST API flow (apps_api.py) already handles this via
         # is_skill_execution_successful() — this mirrors that logic for the
         # AI chat flow.
+        failure_candidates = grouped_results or provider_result_data or results
         if all(
-            isinstance(r, dict) and r.get("status") in ("error", "cancelled")
-            for r in results
+            isinstance(r, dict) and (r.get("error") or r.get("status") in ("error", "cancelled"))
+            for r in failure_candidates
         ):
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' failed — all {len(results)} result(s) have error/cancelled status, skipping billing.")
             return
@@ -3325,6 +3401,7 @@ async def _charge_skill_credits(
                 1 for group in grouped_results
                 if isinstance(group, dict)
                 and not group.get("error")  # No error field
+                and group.get("status") not in ("error", "cancelled")
                 and group.get("results")    # Has non-empty results
             )
             units_processed = successful_requests
@@ -3350,7 +3427,16 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no successful requests, skipping billing entirely.")
             return
         
-        result_declared_charge_items = _get_result_declared_charge_items(app_id, skill_id, results)
+        if (app_id, skill_id) == ("ai", "decide"):
+            from backend.shared.python_utils.ai_decide import decision_result_credits
+            decision_result = provider_result_data if provider_result_data is not None else (results[0] if len(results) == 1 else None)
+            decision_credits = decision_result_credits(decision_result, has_assets=bool(parsed_args.get("assets")))
+            result_declared_charge_items = [(0, decision_credits, {})]
+        else:
+            result_declared_charge_items = _get_result_declared_charge_items(
+                app_id, skill_id,
+                (grouped_results or []) if (app_id, skill_id) == ("web", "read") else results,
+            )
         if result_declared_charge_items is not None:
             if not result_declared_charge_items:
                 logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no result-declared successful charges, skipping billing.")
@@ -3510,6 +3596,9 @@ async def _charge_skill_credits(
                 logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {charge_position + 1}/{charge_count}).")
                 response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
                 response.raise_for_status()
+                if (app_id, skill_id) == ("web", "read"):
+                    from backend.core.api.app.services.creators.paid_web_read_income import record_paid_web_read_income
+                    await record_paid_web_read_income(result_item, response.json())
                 charged_operation_ids.add(operation_id)
                 logger.debug(f"{log_prefix} Charged request {charge_position + 1}/{charge_count} for '{app_id}.{skill_id}': {response.json()}")
             
@@ -4105,8 +4194,8 @@ async def handle_main_processing(
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
             # Continue without app settings/memories - don't fail the entire request
 
-    # Validate and apply final model guard before prompt construction so the
-    # creator/model instruction and actual inference model cannot diverge.
+    # Require a valid preprocessor selection before prompt construction so the
+    # creator/model instruction and actual inference model use the same choice.
     if not preprocessing_results.selected_main_llm_model_id:
         error_msg = (
             f"{log_prefix} Cannot proceed with main processing: selected_main_llm_model_id is None. "
@@ -4115,21 +4204,6 @@ async def handle_main_processing(
         )
         logger.error(error_msg)
         raise ValueError(error_msg)
-
-    if (
-        preprocessing_results.relevant_app_skills
-        and "images-view" in preprocessing_results.relevant_app_skills
-        and preprocessing_results.selected_main_llm_model_id.startswith("google/")
-    ):
-        logger.warning(
-            f"{log_prefix} IMAGE_MODEL_GUARD: Final safety reroute from "
-            f"'{preprocessing_results.selected_main_llm_model_id}' to '{IMAGE_CHAT_SAFE_MODEL_ID}' "
-            f"because images-view is preselected."
-        )
-        preprocessing_results.selected_main_llm_model_id = IMAGE_CHAT_SAFE_MODEL_ID
-        preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
-        preprocessing_results.selected_main_llm_thinking_level = None
-        preprocessing_results.selected_secondary_model_id = None
 
     wikipedia_reference_context = ""
     wikipedia_references = getattr(user_overrides, "wikipedia_references", None) or []
@@ -4220,6 +4294,12 @@ async def handle_main_processing(
         date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
         clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
     prompt_parts.append(clock_instruction)
+    if getattr(request_data, "voice_mode", False):
+        from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
+
+        heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
+        if heard_context:
+            prompt_parts.append(heard_context)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -4236,10 +4316,11 @@ async def handle_main_processing(
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
     if selected_mate_config:
-        if learning_mode_active:
-            prompt_parts.append(selected_mate_config.learning_mode_system_prompt)
-        else:
-            prompt_parts.append(selected_mate_config.default_system_prompt)
+        prompt_parts.append(select_mate_system_prompt(
+            selected_mate_config,
+            voice_mode=bool(getattr(request_data, "voice_mode", False)),
+            learning_mode=learning_mode_active,
+        ))
         # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
     # This informs the user who created the assistant and which model (name and id) powers the response.
@@ -4294,6 +4375,18 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
     
+    # Tools are disabled during answer recovery. Keep conversational capability
+    # guidance, but exclude instructions that require dispatching a skill.
+    dispatch_template = base_instructions.get("base_tool_dispatch_instruction", "")
+    if dispatch_template:
+        dispatch_instruction = dispatch_template.replace(
+            "{AVAILABLE_APPS}",
+            ", ".join(sorted(discovered_apps_metadata)) if discovered_apps_metadata else "none (no apps available)",
+        )
+        prompt_parts.append(dispatch_instruction)
+        optional_fact_app_guidance_parts.append(dispatch_instruction)
+        research_only_prompt_parts.add(dispatch_instruction)
+
     wikipedia_language = normalize_wikipedia_language((request_data.user_preferences or {}).get("language"))
     prompt_parts.append(
         f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
@@ -4353,6 +4446,7 @@ async def handle_main_processing(
             log_prefix,
             sorted(task_app_skill_mentions),
         )
+    baseline_skills = set()
     if user_requested_skills_only and preselected_skills:
         logger.info(
             f"{log_prefix} [USER_SKILLS] User explicitly requested skill(s); not merging always_include_skills. "
@@ -4361,21 +4455,20 @@ async def handle_main_processing(
     elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
-        # An app chosen by stage one may keep its configured helper skills.
-        # Uploaded images still need their viewer even when no app was chosen.
-        scoped_always_include = {
+        # Baseline capabilities do not depend on the preprocessor's app shortlist.
+        # Image inspection still requires semantic selection or the image-question
+        # fallback; it is never enabled by the always-include policy.
+        baseline_skills = {
             skill for skill in always_include_skills
-            if selected_app_ids is None
-            or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
-            or (skill == "images-view" and getattr(request_data, "has_image_upload_embed", False))
+            if skill != "images-view"
         }
-        skills_to_add = scoped_always_include - preselected_skills
+        skills_to_add = baseline_skills - preselected_skills
         if skills_to_add:
             logger.info(
                 f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
-                "These helper skills belong to apps selected for this turn."
+                "These capabilities are available independently of app preselection."
             )
-        preselected_skills = preselected_skills | scoped_always_include
+        preselected_skills = preselected_skills | baseline_skills
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
     # Active naming research needs all three finalist checks offered together.
@@ -4669,6 +4762,11 @@ async def handle_main_processing(
                 normalized_previews.add(PREVIEW_TO_EMBED_TYPE[p])
 
         workflow_presentation_only = (request_data.user_preferences or {}).get("workflow_ai") is True
+        authored_result_guidance = build_authored_result_instructions(
+            relevant_previews, discovered_apps_metadata, presentation_only=workflow_presentation_only,
+        )
+        if authored_result_guidance:
+            prompt_parts.append(authored_result_guidance)
         workflow_known_sources = {
             source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
             if isinstance(source, str) and "-" in source
@@ -4707,9 +4805,14 @@ async def handle_main_processing(
                         continue
                     # Embed-type match — skip skill preselection, fall through to category check
                 else:
-                    # Stage one chose the apps whose ordinary instructions can
-                    # enter this turn. An empty skill set no longer means all apps.
-                    if selected_app_ids is not None and app_id not in selected_app_ids:
+                    # Baseline tools need their app guidance even if stage one
+                    # omitted their app. Other apps retain shortlist gating.
+                    app_has_baseline_skill = any(
+                        f"{app_id}-{skill.id}" in baseline_skills
+                        for skill in app_metadata.skills or []
+                    ) and app_has_preselected_skill
+                    if (selected_app_ids is not None and app_id not in selected_app_ids
+                            and not app_has_baseline_skill):
                         continue
                     if (app_metadata.skills and not app_has_preselected_skill
                             and (selected_app_ids is not None or preselected_skills)):
@@ -4720,10 +4823,14 @@ async def handle_main_processing(
                     # Only include if conversation category matches
                     if conversation_category and conversation_category in instruction_def.categories:
                         prompt_parts.append(instruction_def.instruction)
+                        if getattr(instruction_def, "tool_phase_only", False):
+                            research_only_prompt_parts.add(instruction_def.instruction)
                         app_instructions_added.append(f"{app_id} (category: {conversation_category})")
                     # Skip if categories specified but don't match
                 else:
                     prompt_parts.append(instruction_def.instruction)
+                    if getattr(instruction_def, "tool_phase_only", False):
+                        research_only_prompt_parts.add(instruction_def.instruction)
                     app_instructions_added.append(app_id)
 
             # Track skipped apps (only if ALL instructions were gated out)
@@ -4740,16 +4847,25 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
     
-    # === IMAGE CONTENT SAFETY INSTRUCTION ===
-    # Conditionally inject prompt-injection defence for image uploads.
-    # Only included when the images-view skill is preselected by the preprocessor,
-    # so conversations without images pay zero extra tokens for this instruction.
-    if preselected_skills and "images-view" in preselected_skills:
-        image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
-        if image_safety_instruction:
-            prompt_parts.append(image_safety_instruction)
-            logger.info(f"{log_prefix} [IMAGE_SAFETY] Injected image content safety instruction (images-view is preselected)")
-    
+    # Reference handoff does not load pixels into the answer model. Skills
+    # resolve the original refs through their authorized server-side context.
+    image_consumers = _image_reference_consumer_skills(preselected_skills, discovered_apps_metadata)
+    if image_consumers and _request_has_image_upload_embed(request_data):
+        handoff = base_instructions.get("base_image_reference_handoff_instruction", "")
+        if handoff:
+            prompt_parts.append(handoff)
+            research_only_prompt_parts.add(handoff)
+
+    # Inspection selection or already loaded pixels need image-content safety;
+    # a historical attachment/ref-only handoff does not imply visual inspection.
+    image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
+    if image_safety_instruction and (
+        (preselected_skills and "images-view" in preselected_skills)
+        or _history_has_loaded_image_blocks(request_data.message_history)
+    ):
+        prompt_parts.append(image_safety_instruction)
+        logger.info("%s [IMAGE_SAFETY] Injected safety for image inspection", log_prefix)
+
     # === TOOL-CALLING THINKING DISCIPLINE ===
     # Prevents reasoning models (e.g., Gemini Flash) from hallucinating about tool
     # output in their thinking phase before the tool returns. Only injected when
@@ -4759,6 +4875,7 @@ async def handle_main_processing(
         if thinking_discipline:
             prompt_parts.append(thinking_discipline)
             tool_only_prompt_parts.append(("any_tool", thinking_discipline))
+            research_only_prompt_parts.add(thinking_discipline)
             logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
     
     # Add generic proactive skill usage instruction (only when apps are available)
@@ -5090,6 +5207,15 @@ async def handle_main_processing(
             "If the user asks for image, audio, music, video, or other file generation, "
             "or an account-connected action, explain that creating an account is required."
         )
+    # Apply delivery after domain, focus and rich-output instructions. Keep the
+    # exact same canonical ethics/privacy and tool/model policies in every mode.
+    from backend.apps.ai.assistant_speech.voice_context import build_voice_main_instruction
+
+    voice_main_instruction = build_voice_main_instruction(
+        base_instructions, voice_mode=bool(getattr(request_data, "voice_mode", False)),
+    )
+    if voice_main_instruction:
+        prompt_parts.append(voice_main_instruction)
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts
@@ -5429,7 +5555,7 @@ async def handle_main_processing(
     if not request_data.is_incognito and should_expose_subchat_tool(
         enable_subchats=enable_subchats_results,
         chat_depth=chat_depth,
-        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
         active_focus_id=request_data.active_focus_id,
     ):
         available_tools_for_llm.append(start_sub_chats_tool)
@@ -5438,7 +5564,7 @@ async def handle_main_processing(
     force_deep_research_delegation = should_force_deep_research_delegation(
         active_focus_id=request_data.active_focus_id,
         chat_depth=chat_depth,
-        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
     )
     if enable_subchats_results and force_deep_research_delegation:
         available_tools_for_llm = gate_tools_for_deep_research(
@@ -5566,9 +5692,9 @@ async def handle_main_processing(
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
-    # Strict allow-list: the main LLM may ONLY call tools that the preprocessor
-    # explicitly forwarded into available_tools_for_llm (including rule-based
-    # auto-adds like images-view on upload and always_include_skills). Any
+    # Strict allow-list: the main LLM may ONLY call tools generated into
+    # available_tools_for_llm (including preprocessor selections, rule-based
+    # image-question fallback and always_include_skills). Any
     # other tool name is a hallucination (e.g. invented "mail|get_apps_settings")
     # and must be rejected before it reaches skill execution. See OPE-399.
     #
@@ -6140,6 +6266,7 @@ async def handle_main_processing(
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
+    continue_published_answer = False
     published_answer_text: List[str] = []
     omitted_news_search_requests = 0
     
@@ -6215,6 +6342,12 @@ async def handle_main_processing(
                 latest_user=request_data.current_user_content, candidates=candidate_tools,
                 secrets_manager=secrets_manager)
             if selected is not None:
+                # Retain only baseline tools that survived this request's app,
+                # Mate, anonymous-user and first-step policy gates.
+                selected_names = {t.get("function", {}).get("name") for t in selected}
+                selected = selected + [t for t in available_tools_for_llm
+                    if t.get("function", {}).get("name") in baseline_skills
+                    and t.get("function", {}).get("name") not in selected_names]
                 # Preserve internal lifecycle/task/context tools installed by this
                 # request. Refresh the generated app skills and existing workflow tools.
                 generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
@@ -6273,7 +6406,7 @@ async def handle_main_processing(
     last_context_identity = None
     pending_direction = None
     applied_context_revision = 0
-    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.13"
+    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.14"
     review_model = ((skill_config_dict or {}).get("default_llms") or {}).get("preprocessing_model")
 
     async def refresh_agentic_context(*, initial=False):
@@ -6481,7 +6614,7 @@ async def handle_main_processing(
         await refresh_agentic_context()
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
-        iteration_system_prompt = answer_recovery_system_prompt if answer_recovery.active else full_system_prompt
+        iteration_system_prompt = answer_recovery_system_prompt if force_no_tools else full_system_prompt
         if budget_warning_injected:
             if follow_up_suggestions_enabled:
                 budget_guidance = (
@@ -6503,8 +6636,11 @@ async def handle_main_processing(
             iteration_system_prompt += budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
-        if answer_recovery.active:
+        if force_no_tools:
             iteration_system_prompt += "\n\n" + ANSWER_RECOVERY_INSTRUCTION
+
+        if continue_published_answer:
+            iteration_system_prompt += "\n\nContinue only after the already-published answer. Do not repeat it. Add only missing information, or a brief closing sentence if the answer is already complete."
 
         if omitted_news_search_requests:
             iteration_system_prompt += (
@@ -6527,6 +6663,11 @@ async def handle_main_processing(
             iteration_system_prompt = iteration_system_prompt + image_embed_instruction
             logger.info(f"{log_prefix} [IMAGE_SEARCH] Injected embed preview instruction into system prompt")
 
+        # Include the output contract in every history/output budget and
+        # reservation, then keep it last if direction correction adds context.
+        if composer_suggestion_enabled:
+            iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
+
         # === MODEL FALLBACK RETRY LOGIC ===
         # Try models in sequence until one succeeds or all fail
         # This handles transient API errors, rate limits, and model availability issues
@@ -6539,6 +6680,32 @@ async def handle_main_processing(
         while current_model_index < len(models_to_try):
             try:
                 current_model_id = models_to_try[current_model_index]
+                automatic_attempt_level = automatic_attempt_thinking_level(
+                    getattr(preprocessing_results, "complexity", "medium"), current_model_id,
+                    getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                    or (automatic_profile_thinking_level(
+                        getattr(preprocessing_results, "complexity", "medium"), current_model_id,
+                    ) if current_model_index > 0 else None),
+                )
+                permitted_automatic_servers = None
+                if automatic_attempt_level or current_model_id == MERCURY_MODEL:
+                    permitted_automatic_servers = automatic_model_allowed_servers(
+                        current_model_id, request_data.user_preferences,
+                        config_manager.get_provider_config(current_model_id.split("/", 1)[0]),
+                    )
+                    incompatible_mercury = current_model_id == MERCURY_MODEL and history_requires_non_text(current_message_history)
+                    if not permitted_automatic_servers or incompatible_mercury:
+                        # Later tool images and changed restrictions cannot admit
+                        # a forbidden fallback or strip visual evidence.
+                        fallback_servers = automatic_model_allowed_servers(
+                            LOW_FALLBACK_MODEL, request_data.user_preferences,
+                            config_manager.get_provider_config("google"),
+                        )
+                        if (automatic_attempt_level and current_model_id == MERCURY_MODEL and fallback_servers
+                                and LOW_FALLBACK_MODEL not in models_to_try):
+                            models_to_try.append(LOW_FALLBACK_MODEL)
+                        current_model_index += 1
+                        continue
                 model_fallback_attempts += 1
                 # Tool results and prompt additions grow between iterations, and a
                 # fallback model can have a different context window. Re-fit before
@@ -6549,7 +6716,7 @@ async def handle_main_processing(
                     system_prompt=iteration_system_prompt,
                     tools=iteration_tools,
                 )
-                if answer_recovery.active:
+                if answer_recovery.active or continue_published_answer:
                     # Normalize tool results through the existing content-safety
                     # and ignore-fields path before converting them to evidence.
                     current_message_history = build_answer_recovery_history(
@@ -6563,11 +6730,26 @@ async def handle_main_processing(
                         current_message_history,
                         max_tokens=current_history_budget,
                     )
+                # Recovery can restore media from the pre-truncation evidence
+                # snapshot. Check that final payload before reservation/dispatch.
+                if (current_model_id == MERCURY_MODEL
+                        and history_requires_non_text(current_message_history)):
+                    current_model_index += 1
+                    continue
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
                     bool(getattr(request_data, "is_anonymous", False)),
                 )
+                requested_reasoning_level = getattr(preprocessing_results, "requested_reasoning_level", None)
+                mercury_deadline = None
+                if current_model_id == MERCURY_MODEL:
+                    mercury_deadline, mercury_token_cap = mercury_reasoning_budget(requested_reasoning_level)
+                    current_output_token_limit = min(
+                        current_output_token_limit, mercury_token_cap,
+                    ) if current_output_token_limit is not None else min(
+                        _personal_chat_output_token_limit(current_model_id), mercury_token_cap,
+                    )
                 current_output_token_limit = await _fit_orchestrated_output_token_limit(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
@@ -6631,7 +6813,11 @@ async def handle_main_processing(
                         section = "\n\n--- Internal direction instruction ---\n" + instruction
                         full_system_prompt += section
                         answer_recovery_system_prompt += section
-                        iteration_system_prompt += section
+                        iteration_system_prompt = iteration_system_prompt.removesuffix(
+                            "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
+                        ) + section
+                        if composer_suggestion_enabled:
+                            iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
                     event = await chat_direction_correction_coordinator.review_and_deliver(
                         context=context, assessment=assessment,
                         review=lambda c, a: _review_chat_direction(c, a, task_id=task_id,
@@ -6660,6 +6846,13 @@ async def handle_main_processing(
                     if receipt:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, receipt)}
+                # Keep the output contract last, including after dynamic context,
+                # direction correction and answer-only recovery instructions.
+                if (
+                    composer_suggestion_enabled
+                    and not iteration_system_prompt.endswith(COMPOSER_FOLLOWUP_OUTPUT_REMINDER)
+                ):
+                    iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
                 native_prepared_context = None
                 reservation_system_prompt = iteration_system_prompt
                 reservation_history = current_message_history
@@ -6839,35 +7032,47 @@ async def handle_main_processing(
                     admit_actual_provider = None
                 if iteration == 0 and model_fallback_attempts == 1:
                     mark_project_reference_setup("provider_dispatch")
-                llm_stream = call_main_llm_stream(
-                    task_id=task_id,
-                    system_prompt=iteration_system_prompt,
-                    message_history=current_message_history,
-                    model_id=current_model_id,  # Use current_model_id from fallback list
-                    temperature=preprocessing_results.llm_response_temp,
-                    thinking_level=(
-                        getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
-                        if current_model_id == preprocessing_results.selected_main_llm_model_id
-                        else None
-                    ),
-                    secrets_manager=secrets_manager,
-                    tools=iteration_tools,
-                    tool_choice=current_tool_choice,
+                from backend.apps.ai.testing.voice_pipeline_fixture import main_stream as voice_fixture_stream
+                llm_stream = voice_fixture_stream(
+                    request_data, message_history=current_message_history,
+                    tools=iteration_tools, model_id=current_model_id,
                     max_tokens=current_output_token_limit,
-                    # A failed post-tool or forced answer may have already
-                    # published text. Let the outer loop rebuild clean evidence
-                    # and continue that prefix instead of appending an error.
-                    recoverable_attempt=(
-                        answer_recovery.active or force_no_tools or tool_inference_iterations > 0
-                    ),
-                    stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
-                    cacheable_system_prefix=cacheable_system_prefix or None,
-                    prompt_cache_key=_mistral_prompt_cache_key(request_data),
                     pre_dispatch_admission=admit_actual_provider,
-                    customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
-                    native_cache_context=native_prepared_context,
-                    failed_servers_in_turn=failed_servers_in_turn,
                 )
+                if llm_stream is None:
+                    llm_stream = call_main_llm_stream(
+                        task_id=task_id,
+                        system_prompt=iteration_system_prompt,
+                        message_history=current_message_history,
+                        model_id=current_model_id,  # Use current_model_id from fallback list
+                        temperature=preprocessing_results.llm_response_temp,
+                        thinking_level=(
+                            automatic_attempt_level or (
+                                getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                                if current_model_id == preprocessing_results.selected_main_llm_model_id else None
+                            )
+                        ),
+                        requested_reasoning_level=requested_reasoning_level,
+                        allowed_server_ids=permitted_automatic_servers,
+                        first_substantive_timeout_seconds=mercury_deadline,
+                        secrets_manager=secrets_manager,
+                        tools=iteration_tools,
+                        tool_choice=current_tool_choice,
+                        max_tokens=current_output_token_limit,
+                        # A failed post-tool or forced answer may have already
+                        # published text. Let the outer loop rebuild clean evidence
+                        # and continue that prefix instead of appending an error.
+                        recoverable_attempt=(
+                            answer_recovery.active or force_no_tools or tool_inference_iterations > 0
+                        ),
+                        stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
+                        cacheable_system_prefix=cacheable_system_prefix or None,
+                        prompt_cache_key=_mistral_prompt_cache_key(request_data),
+                        pre_dispatch_admission=admit_actual_provider,
+                        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
+                        native_cache_context=native_prepared_context,
+                        failed_servers_in_turn=failed_servers_in_turn,
+                    )
                 # Stream created successfully - break out of retry loop
                 break
 
@@ -6954,6 +7159,7 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+        search_request_reuse: Dict[str, tuple[dict, list[dict]]] = {}
         focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
@@ -7221,6 +7427,12 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+
+                    if app_id in {"web", "events"} and skill_id == "search":
+                        parsed_args, reused = reuse_completed_search_requests(app_id, parsed_args, completed_skill_calls)
+                        search_request_reuse[tool_call_id] = (parsed_args, reused)
+                        if reused and not parsed_args["requests"]:
+                            continue  # No new card, budget use, reservation or provider request.
 
                     if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
                         parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
@@ -7778,11 +7990,12 @@ async def handle_main_processing(
         if protocol_guard.detected:
             logger.warning(
                 "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; "
-                "native_calls=%s safe_text_chars=%s recovery_attempts=%s",
+                "native_calls=%s safe_text_chars=%s recovery_attempts=%s classification=%s",
                 log_prefix,
                 len(tool_calls_for_this_turn),
                 len(final_buffered_text_for_turn),
                 answer_recovery.attempts,
+                protocol_guard.diagnostics,
             )
             if not tool_calls_for_this_turn:
                 # Disabling tools alone retains the prompt that elicited the
@@ -7939,6 +8152,13 @@ async def handle_main_processing(
                 [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],
             ):
                 yield phase_state_marker()
+            if composer_suggestion_enabled:
+                logger.info(
+                    "%s Composer metadata outcome=%s close_style=%s",
+                    log_prefix,
+                    suggested_followup_stream.outcome.value,
+                    suggested_followup_stream.close_style.value,
+                )
             if composer_suggestion_enabled and suggested_followup_stream.suggestion:
                 yield {
                     "__suggested_followup_message__": True,
@@ -8161,6 +8381,7 @@ async def handle_main_processing(
                 if (
                     (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
                     or is_legacy_task_runtime_tool_name(parallel_tool_name)
+                    or bool(search_request_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
                     or parallel_call_hash in completed_skill_calls
                     or parallel_call_hash in parallel_hashes
                 ):
@@ -8288,7 +8509,7 @@ async def handle_main_processing(
                                 app_id=candidate["app_id"],
                                 skill_id=candidate["skill_id"],
                                 arguments=candidate["arguments"],
-                                timeout=DEFAULT_SKILL_TIMEOUT,
+                                timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
                                 chat_id=request_data.chat_id,
                                 message_id=request_data.message_id,
                                 user_id=request_data.user_id,
@@ -8485,6 +8706,17 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                if tool_call_id in search_request_reuse:
+                    parsed_args, reused = search_request_reuse[tool_call_id]
+                    if reused and not parsed_args["requests"]:
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                            "content": json.dumps({"status": "already_completed",
+                                "previous_embed_ids": [item["embed_id"] for item in reused if item.get("embed_id")],
+                                "message": "Use the existing search evidence. Do not repeat the search or any already-published answer."}),
+                        })
+                        logger.info("%s [SEARCH_REUSE] Reused %s completed requests; provider dispatch skipped", log_prefix, len(reused))
+                        continue
 
                 if is_legacy_task_runtime_tool_name(tool_name):
                     if task_tool_context is None:
@@ -9792,7 +10024,7 @@ async def handle_main_processing(
                                 log_prefix=log_prefix,
                             )
 
-                    # Execute skill with retry logic (20s timeout, 1 retry by default)
+                    # Execute with a bounded skill-specific timeout and one retry by default.
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
                     try:
@@ -9809,7 +10041,7 @@ async def handle_main_processing(
                                     app_id=app_id,
                                     skill_id=skill_id,
                                     arguments=skill_arguments,
-                                    timeout=90.0 if natural_workflow_authoring else DEFAULT_SKILL_TIMEOUT,
+                                    timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
@@ -9867,6 +10099,14 @@ async def handle_main_processing(
                             "embed_id": embed_id_for_dedup,
                             "skill_task_id": skill_task_id,
                         }
+                        if app_id in {"web", "events"} and skill_id == "search":
+                            placeholders = placeholder_embed_data.get("placeholders", []) if placeholder_embed_data else []
+                            for index, request in enumerate(skill_arguments.get("requests", [])):
+                                key = search_request_key(app_id, skill_arguments, request)
+                                if key is not None:
+                                    completed_skill_calls[key] = {
+                                        "embed_id": placeholders[index].get("embed_id") if index < len(placeholders) else embed_id_for_dedup,
+                                    }
                         logger.info(
                             f"{log_prefix} [DEDUP] Recorded successful '{app_id}.{skill_id}' call "
                             f"(hash={call_hash[:8]}..., embed_id={embed_id_for_dedup})"
@@ -9933,7 +10173,11 @@ async def handle_main_processing(
                     # 3. Continue processing - don't crash the entire AI response
                     # This allows the LLM to interpret results from successful skills
                     # and provide a meaningful response even when some skills fail.
-                    error_message = str(skill_error)
+                    error_message = str(skill_error).strip() or (
+                        "The skill request timed out. Please try again."
+                        if isinstance(skill_error, (TimeoutError, asyncio.TimeoutError))
+                        else "Skill execution failed. Please try again."
+                    )
                     if getattr(request_data, "is_anonymous", False) and provider_dispatch_attempted:
                         try:
                             await _settle_anonymous_skill_quote(
@@ -9943,6 +10187,7 @@ async def handle_main_processing(
                                 discovered_apps_metadata=discovered_apps_metadata,
                                 reserved_operation_ids=reserved_skill_operation_ids,
                                 log_prefix=log_prefix,
+                                failure=skill_error,
                             )
                         finally:
                             reserved_skill_operation_ids = []
@@ -9961,35 +10206,9 @@ async def handle_main_processing(
                         "skill_id": skill_id
                     }]
                     
-                    # Update embed status to "error" so frontend shows failure state
-                    if cache_service and placeholder_embed_data:
-                        try:
-                            embed_id = placeholder_embed_data.get("embed_id")
-                            if embed_id:
-                                # Use embed_service to properly update the embed status
-                                from backend.core.api.app.services.embed_service import EmbedService
-                                embed_service = EmbedService(
-                                    cache_service=cache_service,
-                                    directus_service=directus_service,
-                                    encryption_service=encryption_service
-                                )
-                                await embed_service.update_embed_status_to_error(
-                                    embed_id=embed_id,
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    error_message=error_message,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix
-                                )
-                                logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
-                                failed_embed_ids.add(embed_id)
-                        except Exception as status_error:
-                            logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
+                    # Finalize all placeholders in the common terminal path below.
+                    # Falling through to ordinary success finalization would create
+                    # result children from this error dict and overwrite the failure.
 
                 # =====================================================================
                 # ASYNC SKILL DETECTION
@@ -10165,6 +10384,7 @@ async def handle_main_processing(
                             "status": "processing",
                             "embed_id": async_result.get("embed_id"),
                             "task_id": async_result.get("task_id"),
+                            **({"session_id": async_result.get("session_id"), "run_id": async_result.get("run_id"), "task": parsed_args.get("task", "")} if (app_id, skill_id) == ("web", "browse") else {}),
                             "prompt": parsed_args.get("requests", [{}])[0].get("prompt", "") if isinstance(parsed_args, dict) else "",
                             "model": parsed_args.get("requests", [{}])[0].get("model", "") if isinstance(parsed_args, dict) else "",
                         }
@@ -10215,6 +10435,9 @@ async def handle_main_processing(
                     # preview_data["results_toon"] is set later when is_multimodal_result is False;
                     # for multimodal results we skip both TOON encoding blocks below.
                     tool_result_content_str = results[0]
+                    if image_safety_instruction and image_safety_instruction not in full_system_prompt:
+                        full_system_prompt += "\n\n" + image_safety_instruction
+                        answer_recovery_system_prompt += "\n\n" + image_safety_instruction
                     logger.info(
                         f"{log_prefix} Detected multimodal content block result from '{tool_name}' "
                         f"({len(results[0])} blocks). Bypassing TOON encoding — passing raw list to LLM."
@@ -10234,7 +10457,7 @@ async def handle_main_processing(
                     # Check if response_results_array contains the grouped structure (each item has "id" and "results")
                     if (isinstance(response_results_array, list) and 
                         len(response_results_array) > 0 and 
-                        all(isinstance(r, dict) and "id" in r and "results" in r for r in response_results_array)):
+                        all(isinstance(r, dict) and "id" in r and ("results" in r or r.get("error") or r.get("status") == "error") for r in response_results_array)):
                         # This is the grouped structure: [{"id": 1, "results": [...]}, {"id": 2, "results": [...]}, ...]
                         grouped_results = response_results_array
                         logger.debug(f"{log_prefix} Detected grouped results structure with {len(grouped_results)} request groups")
@@ -10249,7 +10472,7 @@ async def handle_main_processing(
                         response_results = response.get("results")
                         if isinstance(response_results, list):
                             # Check if response_results is grouped structure or flat list
-                            if response_results and isinstance(response_results[0], dict) and "id" in response_results[0] and "results" in response_results[0]:
+                            if response_results and all(isinstance(group, dict) and "id" in group and ("results" in group or group.get("error") or group.get("status") == "error") for group in response_results):
                                 # Grouped structure: extract results from each group
                                 for group in response_results:
                                     group_results = group.get("results", [])
@@ -10260,6 +10483,31 @@ async def handle_main_processing(
                                 flattened_results.extend(response_results)
                     results = flattened_results  # Use flattened for LLM inference
                 
+                # An error payload is terminal output, never a successful result
+                # child. Preserve successful zero-hit wrappers and partial groups.
+                single_execution_error = None
+                if grouped_results and len(grouped_results) == 1:
+                    group = grouped_results[0]
+                    if group.get("status") == "error" or is_request_group_failure(app_id, skill_id, group):
+                        single_execution_error = str(group.get("error") or "Request failed. Please try again.")
+                elif not grouped_results and provider_result_data and all(
+                    isinstance(result, dict) and (result.get("error") or result.get("status") == "error")
+                    for result in provider_result_data
+                ):
+                    single_execution_error = str(provider_result_data[0].get("error") or "Skill execution failed. Please try again.")
+                terminal_skill_error = single_execution_error or (
+                    "Skill requests failed. Please try again."
+                    if grouped_results and all(
+                        group.get("status") == "error" or is_request_group_failure(app_id, skill_id, group)
+                        for group in grouped_results
+                    ) else None
+                )
+
+                shopping_visual_metadata = (
+                    shopping_result_parent_metadata(grouped_results)
+                    if (app_id, skill_id) == ("shopping", "search_products") else {}
+                )
+
                 # Extract ignore_fields_for_inference from skill results (if present)
                 # This is a skill-defined list of fields to exclude from LLM inference
                 # Skills can define this in their response to control what gets sent to LLM
@@ -10350,7 +10598,12 @@ async def handle_main_processing(
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
                         json_lines = json_before.split('\n')
-                        if len(results) == 1:
+                        if shopping_visual_metadata:
+                            results_toon = encode(shopping_result_payload(
+                                [_flatten_for_toon_tabular(item) for item in results],
+                                _flatten_for_toon_tabular(shopping_visual_metadata),
+                            ))
+                        elif len(results) == 1:
                             # Single result - flatten and encode as TOON
                             # Note: Single result encoded directly (not wrapped in dict) for efficiency
                             flattened_result = _flatten_for_toon_tabular(results[0])
@@ -10372,10 +10625,7 @@ async def handle_main_processing(
                     except Exception as e:
                         # Fallback to JSON if TOON encoding fails (should rarely happen)
                         logger.warning(f"{log_prefix} TOON encoding failed for preview_data, falling back to JSON: {e}")
-                        if len(results) == 1:
-                            preview_data["results_toon"] = json.dumps(results[0])
-                        else:
-                            preview_data["results_toon"] = json.dumps({"results": results, "count": len(results)})
+                        preview_data["results_toon"] = json.dumps(shopping_result_payload(results, shopping_visual_metadata))
                 
                 # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
                 # CRITICAL: Slugs are generated HERE (once) so that:
@@ -10480,6 +10730,9 @@ async def handle_main_processing(
                             **{key: value for key, value in preview_data.items() if key != "results_toon"},
                             **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
                         }
+                        parent_content["embed_ref"] = _AnonymousEmbedSvc._generate_direct_embed_ref(
+                            f"{app_id}-{skill_id}", parent_embed_id,
+                        )
                         parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
                             app_id,
                             skill_id,
@@ -10487,6 +10740,7 @@ async def handle_main_processing(
                         )
                         anonymous_embed_payloads.append({
                             "embed_id": parent_embed_id,
+                            "embed_ref": parent_content["embed_ref"],
                             "type": "app_skill_use",
                             "content": encode(_flatten_for_toon_tabular(parent_content)),
                             "status": "finished",
@@ -10592,7 +10846,7 @@ async def handle_main_processing(
                             else None
                         )
 
-                        if len(filtered_results_with_refs) == 1:
+                        if len(filtered_results_with_refs) == 1 and not shopping_visual_metadata:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
                             flattened_result = _flatten_for_toon_tabular(filtered_results_with_refs[0])
                             if _sq_hint:
@@ -10606,6 +10860,8 @@ async def handle_main_processing(
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in filtered_results_with_refs]
                             toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(filtered_results_with_refs)}
+                            if shopping_visual_metadata:
+                                toon_wrapper.update(_flatten_for_toon_tabular(shopping_visual_metadata))
                             if _sq_hint:
                                 toon_wrapper["source_quote_hint"] = _sq_hint
                             toon_wrapper["embed_ref_hint"] = _ref_hint
@@ -10623,10 +10879,7 @@ async def handle_main_processing(
                     except Exception as e:
                         # Fallback to JSON if TOON encoding fails — still use filtered results
                         logger.warning(f"{log_prefix} TOON encoding failed for skill '{tool_name}', falling back to JSON: {e}")
-                        if len(filtered_results_with_refs) == 1:
-                            tool_result_content_str = json.dumps(filtered_results_with_refs[0])
-                        else:
-                            tool_result_content_str = json.dumps({"results": filtered_results_with_refs, "count": len(filtered_results_with_refs)})
+                        tool_result_content_str = json.dumps(shopping_result_payload(filtered_results_with_refs, shopping_visual_metadata))
                 
                 # Async skills retain their authenticated Celery billing path. Anonymous
                 # requests settle the conservative quote when provider work is dispatched.
@@ -10675,7 +10928,7 @@ async def handle_main_processing(
                         is_multiple_requests = (
                             grouped_results is not None and 
                             len(grouped_results) > 1 and
-                            all(isinstance(r, dict) and "id" in r and "results" in r for r in grouped_results)
+                            all(isinstance(r, dict) and "id" in r for r in grouped_results)
                         )
                         
                         if is_multiple_requests:
@@ -10787,6 +11040,10 @@ async def handle_main_processing(
                                     request_metadata_with_provider.update(maps_result_parent_metadata(grouped_result))
                                 if app_id == "jobs" and skill_id == "search":
                                     request_metadata_with_provider.update(jobs_result_parent_metadata(grouped_result))
+                                if app_id == "shopping" and skill_id == "search_products":
+                                    for server_key in ("visual_evaluations", "request_errors", "failure_notice"):
+                                        request_metadata_with_provider.pop(server_key, None)
+                                    request_metadata_with_provider.update(shopping_result_parent_metadata([grouped_result]))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -10833,7 +11090,7 @@ async def handle_main_processing(
                                 # embed_service.update_embed_with_results(results=[]) — that
                                 # function already handles the empty case via
                                 # _finalize_embed_no_results() (status="finished", no error).
-                                request_is_real_failure = is_request_group_failure(app_id, skill_id, grouped_result)
+                                request_is_real_failure = grouped_result.get("status") == "error" or is_request_group_failure(app_id, skill_id, grouped_result)
 
                                 if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
@@ -10890,6 +11147,8 @@ async def handle_main_processing(
                                                     f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id_log}"
                                                 )
                                                 failed_embed_ids.add(placeholder_embed_id)
+                                        except RequiredRecoveryOutputError:
+                                            raise
                                         except Exception as error_update_error:
                                             logger.warning(
                                                 f"{log_prefix} Failed to update placeholder to error status: "
@@ -10917,6 +11176,8 @@ async def handle_main_processing(
                                         
                                         if error_embed_data:
                                             error_embed_id = error_embed_data.get("embed_id")
+                                            if error_embed_data.get("embed_reference"):
+                                                yield f"```json\n{error_embed_data['embed_reference']}\n```\n\n"
                                             updated_error_embed = await embed_service.update_embed_status_to_error(
                                                 embed_id=error_embed_id,
                                                 app_id=app_id,
@@ -11053,13 +11314,55 @@ async def handle_main_processing(
                                                  f"{'<redacted>' if redact_group_ids else embed_data.get('request_id')}")
                         else:
                             # Single request: Update the existing placeholder embed
+                            single_shopping_errors = (
+                                shopping_visual_metadata.get("request_errors", [])
+                                if app_id == "shopping" and skill_id == "search_products"
+                                and grouped_results and len(grouped_results) == 1 else []
+                            )
                             single_hosting_group = (
                                 grouped_results[0]
                                 if app_id == "hosting" and skill_id == "search_domains"
                                 and grouped_results and len(grouped_results) == 1
                                 else None
                             )
-                            if placeholder_embed_data:
+                            if single_execution_error or single_shopping_errors:
+                                failure_message = (
+                                    single_shopping_errors[0]["message"] if single_shopping_errors
+                                    else single_execution_error
+                                )
+                                failed_placeholders = (
+                                    placeholder_embed_data.get("placeholders", [])
+                                    if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple")
+                                    else [placeholder_embed_data] if placeholder_embed_data else []
+                                )
+                                if not failed_placeholders:
+                                    created_placeholder = await embed_service.create_processing_embed_placeholder(
+                                        app_id=app_id, skill_id=skill_id,
+                                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                        metadata=preview_data, log_prefix=log_prefix,
+                                    )
+                                    if created_placeholder:
+                                        failed_placeholders = [created_placeholder]
+                                        if created_placeholder.get("embed_reference"):
+                                            yield f"```json\n{created_placeholder['embed_reference']}\n```\n\n"
+                                for failed_placeholder in failed_placeholders:
+                                    failed_embed_id = failed_placeholder.get("embed_id")
+                                    if failed_embed_id:
+                                        updated_error = await embed_service.update_embed_status_to_error(
+                                            embed_id=failed_embed_id,
+                                            app_id=app_id, skill_id=skill_id,
+                                            error_message=failure_message,
+                                            chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                            log_prefix=log_prefix,
+                                        )
+                                        failed_embed_ids.add(failed_embed_id)
+                                        if updated_error:
+                                            updated_embed_data_list.append(updated_error)
+                            elif placeholder_embed_data:
                                 # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
                                 # because is_multiple_requests was False (e.g., skill returned non-grouped results)
                                 # In this case, we need to update each placeholder with the same results
@@ -11092,6 +11395,7 @@ async def handle_main_processing(
                                             log_prefix=log_prefix,
                                         )
                                         placeholder_metadata.update(final_preview_metadata)
+                                        placeholder_metadata.update(shopping_visual_metadata)
                                         
                                         # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
@@ -11160,6 +11464,10 @@ async def handle_main_processing(
                                         log_prefix=log_prefix,
                                     )
                                     single_request_metadata.update(final_preview_metadata)
+                                    if app_id == "shopping" and skill_id == "search_products":
+                                        for server_key in ("visual_evaluations", "request_errors", "failure_notice"):
+                                            single_request_metadata.pop(server_key, None)
+                                    single_request_metadata.update(shopping_visual_metadata)
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:
@@ -11225,7 +11533,10 @@ async def handle_main_processing(
                                     user_vault_key_id=user_vault_key_id,
                                     task_id=task_id,
                                     log_prefix=log_prefix,
-                                    request_metadata=(parsed_args.get("requests", [{}])[0] if isinstance(parsed_args, dict) and isinstance(parsed_args.get("requests"), list) and parsed_args["requests"] and isinstance(parsed_args["requests"][0], dict) else None) if single_hosting_group else None,
+                                    request_metadata=(
+                                        {**(parsed_args.get("requests", [{}])[0] if isinstance(parsed_args, dict) and isinstance(parsed_args.get("requests"), list) and parsed_args["requests"] and isinstance(parsed_args["requests"][0], dict) else {}), **shopping_visual_metadata}
+                                        if single_hosting_group or shopping_visual_metadata else None
+                                    ),
                                     learning_mode_context=getattr(request_data, "learning_mode", None),
                                     hosting_group=single_hosting_group,
                                 )
@@ -11237,6 +11548,8 @@ async def handle_main_processing(
                                     if embed_reference:
                                         embed_code_block = f"```json\n{embed_reference}\n```\n\n"
                                         yield embed_code_block
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception as e:
                         logger.error(f"{log_prefix} Error creating/updating embeds for '{tool_name}': {e}", exc_info=True)
                         # Continue without embed update - don't fail the entire skill execution
@@ -11322,7 +11635,8 @@ async def handle_main_processing(
                         request_data=request_data,
                         app_id=app_id,
                         skill_id=skill_id,
-                        status="finished",
+                        status="error" if terminal_skill_error else "finished",
+                        error=terminal_skill_error,
                         preview_data=preview_data if preview_data else None
                     )
 
@@ -11363,7 +11677,7 @@ async def handle_main_processing(
                                     "message_id": request_data.message_id,
                                     "user_id_uuid": request_data.user_id,
                                     "user_id_hash": request_data.user_id_hash,
-                                    "status": "finished",
+                                    "status": embed_data.get("status", "finished"),
                                     "child_embed_ids": embed_data.get("child_embed_ids", [])
                                 }
 
@@ -11424,6 +11738,23 @@ async def handle_main_processing(
                     "embed_ids": [embed["embed_id"] for embed in anonymous_embed_payloads] if anonymous_embed_payloads else (embed_ids if len(embed_ids) > 1 else None),  # All embed IDs (for multiple requests)
                     "anonymous_embeds": anonymous_embed_payloads or None,
                 }
+                source_embeds = updated_embed_data_list or [
+                    {**embed, "child_embed_ids": embed.get("embed_ids")}
+                    for embed in anonymous_embed_payloads if embed.get("type") == "app_skill_use"
+                ]
+                results_view_sources = collect_results_view_sources(
+                    source_embeds, app_id=app_id, skill_id=skill_id,
+                )
+                if results_view_sources:
+                    # Use the same registered parent refs in model input and
+                    # finalization authority; never synthesize a second alias.
+                    tool_call_info["source_ref_bindings"] = results_view_sources
+                    source_metadata = (
+                        {"source_ref": next(iter(results_view_sources))}
+                        if len(results_view_sources) == 1
+                        else {"source_refs": list(results_view_sources)}
+                    )
+                    tool_result_content_str = encode(source_metadata) + "\n" + tool_result_content_str
                 tool_calls_info.append(tool_call_info)
                 logger.debug(
                     f"{log_prefix} Tracked tool call info for '{tool_name}': "
@@ -11480,22 +11811,29 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        error_eid = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message="Invalid JSON in function arguments",
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid:
-                            failed_embed_ids.add(error_eid)
+                        for error_placeholder in error_placeholders:
+                            error_eid = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message="Invalid JSON in function arguments",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid:
+                                failed_embed_ids.add(error_eid)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -11554,22 +11892,29 @@ async def handle_main_processing(
                         except ValueError:
                             app_id = "unknown"
                             skill_id = "unknown"
-                        error_eid2 = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid2,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message="Invalid tool name format",
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid2:
-                            failed_embed_ids.add(error_eid2)
+                        for error_placeholder in error_placeholders:
+                            error_eid2 = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid2,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message="Invalid tool name format",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid2:
+                                failed_embed_ids.add(error_eid2)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -11631,22 +11976,29 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        error_eid3 = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid3,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message=str(e),
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid3:
-                            failed_embed_ids.add(error_eid3)
+                        for error_placeholder in error_placeholders:
+                            error_eid3 = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid3,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message=str(e).strip() or "Skill execution failed. Please try again.",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid3:
+                                failed_embed_ids.add(error_eid3)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -11687,6 +12039,13 @@ async def handle_main_processing(
                     }
                 })
 
+            reused = search_request_reuse.get(tool_call_id, ({}, []))[1]
+            if reused:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "reused_search_requests": len(reused),
+                    "previous_embed_ids": [item["embed_id"] for item in reused if item.get("embed_id")],
+                    "instruction": "The other requested searches already completed; use their earlier evidence.",
+                })
             tool_response_message = {
                 "tool_call_id": tool_call_id,
                 "role": "tool",
@@ -11695,6 +12054,15 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if tool_calls_for_this_turn and all(
+            call.tool_call_id in search_request_reuse
+            and search_request_reuse[call.tool_call_id][1]
+            and not search_request_reuse[call.tool_call_id][0]["requests"]
+            for call in tool_calls_for_this_turn
+        ):
+            force_no_tools = True
+            continue_published_answer = bool(published_answer_text)
 
         if async_batch_jobs:
             checkpoint = {
@@ -11855,7 +12223,7 @@ async def handle_main_processing(
     if failed_embed_ids:
         yield {"__failed_embed_ids__": failed_embed_ids}
         logger.info(
-            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for content cleanup: "
+            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for terminal status tracking: "
             f"{failed_embed_ids}"
         )
 

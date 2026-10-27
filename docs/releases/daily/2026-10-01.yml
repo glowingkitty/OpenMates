@@ -5,13 +5,12 @@ generated_at: '2026-10-05T00:47:25+00:00'
 range:
   since: '2026-10-01T00:00:00+00:00'
   until: '2026-10-02T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 55
+  total_commits: 54
   section_counts:
-    features: 4
+    features: 3
     bug_fixes: 38
     improvements: 0
     docs: 4
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -175,14 +151,11 @@ sections:
     - backend/core/api/app/services/workflow_capability_registry.py
     - backend/core/api/app/services/workflow_models.py
     - backend/core/api/app/services/workflow_result_selection.py
-    - backend/shared/providers/gandi/client.py
-    - backend/tests/test_gandi_provider.py
     - backend/tests/test_hosting_embed_graph.py
     - backend/tests/test_workflow_app_skill_adapter.py
     - backend/tests/test_workflow_app_ui_metadata.py
     - backend/tests/test_workflow_capability_metadata.py
     - backend/tests/test_workflow_yaml_typed_readiness.py
-    - docs/apis/gandi.md
     - docs/plans/hosting-search-domains/design.md
     - docs/plans/hosting-search-domains/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
@@ -231,29 +204,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -262,91 +228,6 @@ sections:
     - 'matches feature availability gates: app:ai, app:hosting, embed:hosting:search_domains, platform:workflows'
     - commit is reachable from main
     - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
-  - title: 'feat: add Gandi domain search to Hosting APIs'
-    section: features
-    commits:
-    - 76b0f34b3
-    authored_at: '2026-10-01T13:48:02+00:00'
-    changed_paths:
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/hosting/__init__.py
-    - backend/apps/hosting/app.yml
-    - backend/apps/hosting/skills/__init__.py
-    - backend/apps/hosting/skills/search_domains.py
-    - backend/providers/gandi.yml
-    - backend/shared/providers/gandi/__init__.py
-    - backend/shared/providers/gandi/client.py
-    - backend/shared/providers/gandi/models.py
-    - backend/shared/python_utils/app_skill_output_safety.py
-    - backend/shared/python_utils/search_relevance.py
-    - backend/tests/test_gandi_provider.py
-    - backend/tests/test_hosting_search_domains.py
-    - docs/apis/gandi.md
-    - docs/plans/hosting-search-domains/design.md
-    - docs/plans/hosting-search-domains/evidence/gandi-search-probe-2026-10-01.json
-    - docs/plans/hosting-search-domains/plan.yml
-    - frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts
-    - frontend/packages/openmates-cli/src/generated/appSkills.ts
-    - frontend/packages/ui/src/config/links.ts
-    - frontend/packages/ui/src/i18n/sources/app_skills/hosting.yml
-    - frontend/packages/ui/src/i18n/sources/apps.yml
-    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
-    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
-    - frontend/packages/ui/src/legal/buildLegalContent.ts
-    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - packages/openmates-python/openmates/generated/app_skills.py
-    - scripts/api_tests/test_gandi_search_probe.py
-    - scripts/api_tests/test_hosting_requirements.py
-    - scripts/api_tests/test_hosting_social_chat.py
-    - scripts/audit_skill_embed_registry.py
-    - scripts/ci_coverage_manifest.json
-    - shared/docs/privacy_policy.yml
-    - specifications/architecture/app-skill-execution/examples.yml
-    - specifications/architecture/app-skill-execution/specification.yml
-    - specifications/features/app-skills/hosting-search-domains/examples.yml
-    - specifications/features/app-skills/hosting-search-domains/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/coverage.yml
-    - specifications/generated/registry.yml
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    feature_metadata_changed: true
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai, app:hosting, embed:hosting:search_domains, skill:hosting:search_domains'
-    - commit is reachable from main
   - title: 'feat: add Apps workspace and direct skill forms'
     section: features
     commits:
@@ -484,133 +365,108 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     feature_metadata_changed: true
@@ -672,28 +528,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:read
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:web:read
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: false
@@ -796,8 +646,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -896,8 +744,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -981,14 +827,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -1093,15 +936,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1229,8 +1068,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1299,7 +1136,6 @@ sections:
     changed_paths:
     - backend/apps/hosting/app.yml
     - backend/tests/test_provider_tool_schema.py
-    - docs/apis/gandi.md
     - docs/plans/hosting-search-domains/design.md
     - docs/plans/hosting-search-domains/plan.yml
     - frontend/packages/openmates-cli/src/client.ts
@@ -1318,8 +1154,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1398,15 +1232,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1442,7 +1272,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1488,8 +1317,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1519,8 +1346,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1742,36 +1567,28 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1818,8 +1635,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1876,15 +1691,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1917,8 +1728,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2022,8 +1831,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2072,28 +1879,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     feature_metadata_changed: true
@@ -2110,14 +1911,12 @@ sections:
     authored_at: '2026-10-01T00:35:39+00:00'
     changed_paths:
     - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/amazon_provider.py
     - backend/core/api/app/services/directus/usage.py
     - backend/core/api/app/services/workflow_authoring_billing.py
     - backend/core/api/app/services/workflow_authoring_preselection.py
     - backend/core/api/app/services/workflow_input_service.py
     - backend/core/api/app/services/workflow_registry_planner.py
     - backend/providers/typesafe.yml
-    - backend/tests/test_shopping_amazon_provider.py
     - backend/tests/test_workflow_authoring_billing.py
     - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
     - frontend/packages/openmates-cli/src/cli.ts
@@ -2132,15 +1931,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -2377,8 +2172,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2435,29 +2228,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: guard unsafe workflow skills and validate output contracts'
     commits:
@@ -2470,8 +2256,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: accept Hosting tools in Google and decode saved CLI results'
     commits:
@@ -2484,43 +2268,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-  - title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - title: 'fix: unify workflow messages and expandable workspace composers'
     commits:
@@ -2533,8 +2280,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: acknowledge normalized storage writes and stabilize provider probes'
     commits:
@@ -2547,15 +2292,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
   - title: 'feat: add Apps workspace and direct skill forms'
     commits:
@@ -2568,133 +2309,108 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - title: 'fix: workflow voice authoring and selected-workflow clarification'
@@ -2708,28 +2424,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - title: 'fix: meter AI workflow authoring and preserve euro price limits'
@@ -2743,15 +2453,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 marketing_candidates:
   newsletter:
@@ -2787,8 +2493,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: stabilize archive tasks and production host updates'
     commits:
@@ -2822,14 +2526,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'fix: restore image-mode monitoring and background worker coverage'
@@ -2885,43 +2586,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-  - title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - title: 'fix: keep Safari tint strip clear of header tabs'
     commits:
@@ -2941,15 +2605,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
   - title: 'fix: repair development health checks and recurring worker errors'
     commits:
@@ -2999,29 +2659,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore Apps layout, login return and credentialed skill requests'
@@ -3051,8 +2704,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: stabilize archive tasks and production host updates'
@@ -3074,8 +2725,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: preserve production rankings and safe scoped updates'
@@ -3105,14 +2754,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: true
@@ -3143,15 +2789,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: Restore draft-only sync across clients'
@@ -3181,8 +2823,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: repair Apps workspace layout and navigation'
@@ -3212,8 +2852,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     newsletter_ready: true
   - title: 'fix(apple): recover sessions and correct chat and embed regressions'
@@ -3227,15 +2865,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: persist task drags and split details beside Tasks workspace'
@@ -3250,7 +2884,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore workflow test embeds and sidebar parity'
@@ -3264,46 +2897,8 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
-  - title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    newsletter_ready: true
   - title: 'fix: keep Safari tint strip clear of header tabs'
     commits:
     - f9df5ad10
@@ -3323,36 +2918,28 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: unify workflow messages and expandable workspace composers'
@@ -3366,8 +2953,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: acknowledge normalized storage writes and stabilize provider probes'
@@ -3381,15 +2966,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
     newsletter_ready: true
   - title: 'fix: repair workflow generation per node and treat Jev hints as advisory'
@@ -3403,8 +2984,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: repair development health checks and recurring worker errors'
@@ -3434,8 +3013,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add Apps workspace and direct skill forms'
@@ -3449,133 +3026,108 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     newsletter_ready: false
@@ -3590,28 +3142,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     newsletter_ready: false
@@ -3626,28 +3172,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:read
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:web:read
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -3662,15 +3202,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: isolate CLI publish test sessions'
@@ -3723,14 +3259,11 @@ sources:
     - backend/core/api/app/services/workflow_capability_registry.py
     - backend/core/api/app/services/workflow_models.py
     - backend/core/api/app/services/workflow_result_selection.py
-    - backend/shared/providers/gandi/client.py
-    - backend/tests/test_gandi_provider.py
     - backend/tests/test_hosting_embed_graph.py
     - backend/tests/test_workflow_app_skill_adapter.py
     - backend/tests/test_workflow_app_ui_metadata.py
     - backend/tests/test_workflow_capability_metadata.py
     - backend/tests/test_workflow_yaml_typed_readiness.py
-    - docs/apis/gandi.md
     - docs/plans/hosting-search-domains/design.md
     - docs/plans/hosting-search-domains/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
@@ -4224,7 +3757,6 @@ sources:
     changed_paths:
     - backend/apps/hosting/app.yml
     - backend/tests/test_provider_tool_schema.py
-    - docs/apis/gandi.md
     - docs/plans/hosting-search-domains/design.md
     - docs/plans/hosting-search-domains/plan.yml
     - frontend/packages/openmates-cli/src/client.ts
@@ -4356,7 +3888,6 @@ sources:
   - sha: 76b0f34b3565f910b25ee247250e3e37867315f4
     short_sha: 76b0f34b3
     authored_at: '2026-10-01T13:48:02+00:00'
-    subject: 'feat: add Gandi domain search to Hosting APIs'
     in_main: true
     in_dev: true
     changed_paths:
@@ -4365,17 +3896,10 @@ sources:
     - backend/apps/hosting/app.yml
     - backend/apps/hosting/skills/__init__.py
     - backend/apps/hosting/skills/search_domains.py
-    - backend/providers/gandi.yml
-    - backend/shared/providers/gandi/__init__.py
-    - backend/shared/providers/gandi/client.py
-    - backend/shared/providers/gandi/models.py
     - backend/shared/python_utils/app_skill_output_safety.py
     - backend/shared/python_utils/search_relevance.py
-    - backend/tests/test_gandi_provider.py
     - backend/tests/test_hosting_search_domains.py
-    - docs/apis/gandi.md
     - docs/plans/hosting-search-domains/design.md
-    - docs/plans/hosting-search-domains/evidence/gandi-search-probe-2026-10-01.json
     - docs/plans/hosting-search-domains/plan.yml
     - frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts
     - frontend/packages/openmates-cli/src/generated/appSkills.ts
@@ -4387,7 +3911,6 @@ sources:
     - frontend/packages/ui/src/legal/buildLegalContent.ts
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
     - packages/openmates-python/openmates/generated/app_skills.py
-    - scripts/api_tests/test_gandi_search_probe.py
     - scripts/api_tests/test_hosting_requirements.py
     - scripts/api_tests/test_hosting_social_chat.py
     - scripts/audit_skill_embed_registry.py
@@ -5082,14 +4605,12 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/amazon_provider.py
     - backend/core/api/app/services/directus/usage.py
     - backend/core/api/app/services/workflow_authoring_billing.py
     - backend/core/api/app/services/workflow_authoring_preselection.py
     - backend/core/api/app/services/workflow_input_service.py
     - backend/core/api/app/services/workflow_registry_planner.py
     - backend/providers/typesafe.yml
-    - backend/tests/test_shopping_amazon_provider.py
     - backend/tests/test_workflow_authoring_billing.py
     - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
     - frontend/packages/openmates-cli/src/cli.ts
@@ -5120,13 +4641,8 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates expanded its Hosting capabilities with Gandi domain search integration and addressed several critical
-    UI and synchronization bugs. Significant progress was made on the Workflows and native Apple platforms, though these remain
-    in an unreleased state. Maintenance work focused on dependency security and production resilience for storage and CLI
-    deployments.
   released_changes:
-  - text: Added Gandi domain search to Hosting APIs, allowing users to check domain availability.
-    evidence:
+  - evidence:
       commits:
       - 76b0f34b3
     release_status: released_main
@@ -5231,8 +4747,7 @@ llm_summary:
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: OpenMates now supports domain name searching via Gandi integration in the Hosting app.
-      evidence:
+    - evidence:
         commits:
         - 76b0f34b3
       reason: Introduces a concrete new capability for the released Hosting app.
@@ -5268,11 +4783,8 @@ llm_summary:
         commits:
         - 61bde4b89
       reason: The Tasks app is currently disabled.
-    rationale: The newsletter focuses on the new Gandi domain search capability and critical fixes for speech and security,
-      while excluding features tied to disabled platforms like Workflows, Tasks, and native Apple apps.
   social_video_recommendations:
-  - idea: Demonstrate finding a new project domain using the Gandi search skill.
-    priority: high
+  - priority: high
     reason: Concrete new utility that is easy to visualize in a short clip.
     evidence:
       commits:

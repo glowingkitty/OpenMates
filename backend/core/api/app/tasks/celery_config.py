@@ -190,13 +190,14 @@ async def get_worker_cache_service() -> _CacheService:
 # Define task groups, their modules, and associated queues in one place.
 # This simplifies adding new task types.
 TASK_CONFIG = [
+    {'name': 'email', 'module': 'backend.core.api.app.tasks.apps_workspace_recommendations_tasks'},
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks'},
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
-    {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'app_code',    'module': 'backend.apps.web.tasks'},  # Browse shares the existing E2B execution worker
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.email_delivery_feedback_tasks'},
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
@@ -216,6 +217,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_storage_billing_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.web_browse_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
@@ -1189,6 +1191,7 @@ def init_worker_process(*args, **kwargs):
 # So we need both pattern-based routing and explicit task name routing
 # IMPORTANT: Explicit routing must come FIRST to take precedence over pattern-based routing
 task_routes = {
+    "apps_workspace.*": {"queue": "email"},
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
@@ -1362,6 +1365,10 @@ _EXPLICIT_TASK_ROUTES = {
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
 
+      "apps_workspace.refresh_daily": "email",
+      "apps_workspace.refresh_public": "email",
+      "apps_workspace.cleanup_expired": "email",
+
       # Workflow tasks
       "workflows.run": "workflow",
       "workflows.run_scheduled_trigger": "workflow",
@@ -1470,6 +1477,16 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'refill-blank-browser-pool': {
+        'task': 'web.browse.refill',
+        'schedule': timedelta(seconds=15),
+        'options': {'queue': 'app_code', 'expires': 25},
+    },
+    'sweep-idle-browser-sessions': {
+        'task': 'web.browse.sweep',
+        'schedule': timedelta(minutes=1),
+        'options': {'queue': 'persistence', 'expires': 50},
+    },
     'sweep-assistant-speech-billing': {
         'task': 'apps.audio.tasks.assistant_speech_billing_sweep',
         'schedule': timedelta(minutes=10),
@@ -1538,12 +1555,6 @@ app.conf.beat_schedule = {
         'task': 'server_stats.flush_to_directus',
         'schedule': timedelta(seconds=600),  # Every 10 minutes
         'options': {'queue': 'server_stats'},  # Route to server_stats queue
-    },
-    'update-leaderboard-daily': {
-        'task': 'leaderboard.update_daily',
-        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM UTC
-        'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
-        # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
     # Daily test run — replaced by a system crontab entry (see crontab -l).
     # The crontab runs scripts/run-tests-daily.sh directly on the host at 03:00 UTC,
@@ -1641,6 +1652,21 @@ app.conf.beat_schedule = {
     },
     # Temporary workflows are retained for seven days after chat creation unless
     # the user keeps them as reusable workflows.
+    'refresh-private-apps-recommendations': {
+        'task': 'apps_workspace.refresh_daily',
+        'schedule': timedelta(seconds=3600),
+        'options': {'queue': 'email', 'expires': 3500},
+    },
+    'refresh-public-apps-recommendations': {
+        'task': 'apps_workspace.refresh_public',
+        'schedule': timedelta(seconds=3600),
+        'options': {'queue': 'email', 'expires': 3500},
+    },
+    'cleanup-apps-recommendations': {
+        'task': 'apps_workspace.cleanup_expired',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'email', 'expires': 55},
+    },
     'cleanup-expired-temporary-workflows': {
         'task': 'workflows.cleanup_expired_temporary',
         'schedule': timedelta(seconds=3600),  # Every hour

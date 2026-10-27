@@ -10,6 +10,11 @@ You are a code reviewer for the OpenMates project. Review the given code changes
 
 ## Review Checklist
 
+For CLI/SDK changes, apply `.claude/rules/cli-sdk.md`: native-only CLI/TUI runtime,
+headless explicit-credential Rust client, direct library-only npm/Python interfaces,
+three-SDK capability conformance and publication gates, preserved command/platform
+contracts, and joint acceptance before legacy CLI/TUI deletion.
+
 ### Security (OWASP Top 10)
 - [ ] No command injection (subprocess calls with user input)
 - [ ] No XSS (unescaped user content in templates)

@@ -15,7 +15,7 @@ const defaultProps = {
   price_eur: "1,39 €",
   was_price_cents: 179,
   grammage: "500g (0,28 €/100g)",
-  image_url: null,
+  image_url: "/store-examples/generate-1.webp",
   attributes: { is_organic: true, is_vegetarian: true },
   rating: 4.6,
   reviews: 832,
@@ -28,8 +28,12 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
-  amazon: {
-    id: "preview-shopping-result-amazon",
+  assistant: { ...defaultProps, resultContext: 'chat' as const },
+  noImage: { ...defaultProps, image_url: null },
+  zero: { ...defaultProps, price_cents: 0, price_eur: null, was_price_cents: null, stock: 0, rating: 0, reviews: 0 },
+  longTitle: { ...defaultProps, title: 'A deliberately long product name with the complete brand, variation, colour, size, material and packaging description retained for accessibility' },
+  ExampleRetail: {
+    id: "preview-shopping-result-ExampleRetail",
     title: "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
     brand: "Sony",
     price: "€279.00",
@@ -45,8 +49,8 @@ export const variants = {
     isMobile: false,
     onFullscreen: () => {},
   },
-  stoffe: {
-    id: "preview-shopping-result-stoffe",
+  ExampleFabric: {
+    id: "preview-shopping-result-ExampleFabric",
     title: "Baumwoll-Musselin - Double Gauze Bestickt Zitronen Weiß",
     brand: "Snaply",
     price: "15,19 €",

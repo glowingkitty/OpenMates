@@ -1,7 +1,7 @@
 /**
  * App-store examples for the electronics/search_components skill.
  *
- * Uses real TI WEBENCH provider results captured from live skill runs. The
+ * Uses real ExampleComponents provider results captured from live skill runs. The
  * parent search embeds keep nested `results` arrays so the preview and
  * fullscreen exercise the same legacy-result path as normal skill output.
  */
@@ -20,14 +20,14 @@ const examples: ElectronicsSearchStoreExample[] = [
     "id": "store-example-electronics-search-components-1",
     "query": "12V to 5V buck converter",
     "query_translation_key": "settings.app_store_examples.electronics.search_components.1",
-    "provider": "TI WEBENCH",
+    "provider": "ExampleComponents",
     "status": "finished",
     "results": [{
       "id": 1,
       "results": [
         {
           "type": "power_converter",
-          "provider": "TI WEBENCH",
+          "provider": "ExampleComponents",
           "part_number": "TPS563209DDCR",
           "base_part_number": "TPS563209",
           "title": "TPS563209DDCR Buck",
@@ -55,7 +55,7 @@ const examples: ElectronicsSearchStoreExample[] = [
         },
         {
           "type": "power_converter",
-          "provider": "TI WEBENCH",
+          "provider": "ExampleComponents",
           "part_number": "TPS563200DDCR",
           "base_part_number": "TPS563200",
           "title": "TPS563200DDCR Buck",
@@ -83,7 +83,7 @@ const examples: ElectronicsSearchStoreExample[] = [
         },
         {
           "type": "power_converter",
-          "provider": "TI WEBENCH",
+          "provider": "ExampleComponents",
           "part_number": "TPS562242DRLR",
           "base_part_number": "TPS562242",
           "title": "TPS562242DRLR Buck",
@@ -116,14 +116,14 @@ const examples: ElectronicsSearchStoreExample[] = [
     "id": "store-example-electronics-search-components-2",
     "query": "24V to 3.3V regulator module",
     "query_translation_key": "settings.app_store_examples.electronics.search_components.2",
-    "provider": "TI WEBENCH",
+    "provider": "ExampleComponents",
     "status": "finished",
     "results": [{
       "id": 1,
       "results": [
         {
           "type": "power_converter",
-          "provider": "TI WEBENCH",
+          "provider": "ExampleComponents",
           "part_number": "LMZM23601V3SILR",
           "base_part_number": "LMZM23601V3",
           "title": "LMZM23601V3SILR Buck",
@@ -151,7 +151,7 @@ const examples: ElectronicsSearchStoreExample[] = [
         },
         {
           "type": "power_converter",
-          "provider": "TI WEBENCH",
+          "provider": "ExampleComponents",
           "part_number": "LMR36015BRNXR",
           "base_part_number": "LMR36015B",
           "title": "LMR36015BRNXR Buck",

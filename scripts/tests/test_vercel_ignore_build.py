@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Regression tests for Vercel ignored-build dependency preflight."""
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -27,7 +29,7 @@ def test_dependabot_npm_branch_with_node22_requirement_is_ignored_on_node20():
     guard = load_vercel_ignore_module()
 
     lockfile_text = """
-  '@vscode/test-electron@3.0.0':
+  'test-runner@3.0.0':
     resolution: {integrity: sha512-example}
     engines: {node: '>=22'}
 """
@@ -46,7 +48,7 @@ def test_same_dependabot_update_continues_after_vercel_node_upgrade():
     guard = load_vercel_ignore_module()
 
     lockfile_text = """
-  '@vscode/test-electron@3.0.0':
+  'test-runner@3.0.0':
     engines: {node: '>=22'}
 """
 
@@ -64,7 +66,7 @@ def test_dev_branch_is_never_ignored_by_dependency_engine_guard():
     guard = load_vercel_ignore_module()
 
     lockfile_text = """
-  '@vscode/test-electron@3.0.0':
+  'test-runner@3.0.0':
     engines: {node: '>=22'}
 """
 

@@ -154,6 +154,20 @@ class OpenMatesApiError(RuntimeError):
         self.data = data
 
 
+class OpenMatesSignupRequiredError(OpenMatesApiError):
+    """The account-free allowance is unavailable; signup is required."""
+
+    signup_required = True
+
+    def __init__(self, status_code: int, data: Any):
+        super().__init__(status_code, data)
+        detail = data.get("detail", data) if isinstance(data, dict) else {}
+        detail = detail if isinstance(detail, dict) else {"code": detail}
+        self.reason = detail.get("reason") or detail.get("code") or "signup_required"
+        self.code = detail.get("code") or self.reason
+        self.args = ("Your free OpenMates allowance has been used or is unavailable. Create an account at https://openmates.org to continue.",)
+
+
 class OpenMatesUnavailableError(RuntimeError):
     """Typed exclusion for sensitive API-key management through SDK bearers."""
 
@@ -222,6 +236,20 @@ def _safe_response_json(response: requests.Response) -> Any:
         return {}
 
 
+class OpenMatesAnonymous:
+    """Inspect the shared free allowance without an account or API key."""
+
+    def __init__(self, client: Any):
+        self._client = client
+
+    def status(self) -> dict[str, Any]:
+        response = requests.get(
+            f"{self._client._api_url}/v1/anonymous/free-usage/status",
+            headers=self._client._anonymous_headers(), timeout=DEFAULT_TIMEOUT_SECONDS,
+        )
+        return self._client._parse_anonymous_response(response)
+
+
 class _PlanRevisionsFacade:
     def __init__(self, plans: Any):
         self._plans = plans
@@ -268,10 +296,18 @@ class _PlanApprovalFacade:
 class OpenMates:
     """Lazy API-key SDK client."""
 
-    def __init__(self, api_key: str | None = None, api_url: str = DEFAULT_API_URL, *, device_id: str | None = None, device_id_path: str | os.PathLike[str] | None = None):
-        self._api_key = api_key or os.getenv("OPENMATES_API_KEY")
+    def __init__(self, api_key: str | None = None, api_url: str = DEFAULT_API_URL, *, device_id: str | None = None, device_id_path: str | os.PathLike[str] | None = None, anonymous: bool = False, anonymous_id: str | None = None):
+        if anonymous and api_key:
+            raise OpenMatesConfigError("anonymous=True cannot be combined with an explicit API key")
+        if anonymous_id is not None and (not isinstance(anonymous_id, str) or not 1 <= len(anonymous_id) <= 128):
+            raise OpenMatesConfigError("anonymous_id must contain between 1 and 128 characters")
+        self._api_key = None if anonymous else api_key or os.getenv("OPENMATES_API_KEY")
         self._api_url = api_url.rstrip("/")
         self._device_id = device_id or _load_or_create_device_id(device_id_path)
+        self._anonymous_id = anonymous_id if anonymous_id is not None else self._device_id
+        if not isinstance(self._anonymous_id, str) or not 1 <= len(self._anonymous_id) <= 128:
+            raise OpenMatesConfigError("anonymous_id must contain between 1 and 128 characters")
+        self.anonymous = OpenMatesAnonymous(self)
         self._master_key: bytes | None = None
         self._sdk_session: dict[str, Any] | None = None
         self.apps = GeneratedAppSkills(self._run_app_skill)
@@ -311,6 +347,13 @@ class OpenMates:
         *,
         prompt_injection_protection: bool | None = None,
     ) -> dict[str, Any]:
+        if not self._api_key:
+            if app_id == "ai" and skill_id == "ask":
+                raise OpenMatesConfigError("Anonymous AI requests use chats.send(message, history=...) instead of apps.ai.ask")
+            return self._post_anonymous(
+                f"/v1/anonymous/apps/{_quote(app_id)}/skills/{_quote(skill_id)}",
+                _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
+            )
         response = self._post(
             f"/v1/apps/{app_id}/skills/{skill_id}",
             _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
@@ -349,6 +392,31 @@ class OpenMates:
         extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         return self._request("POST", path, payload, timeout=timeout, extra_headers=extra_headers)
+
+    def _anonymous_headers(self) -> dict[str, str]:
+        return {**self._public_headers(), "Content-Type": "application/json",
+                "X-OpenMates-Anonymous-ID": self._anonymous_id}
+
+    def _post_anonymous(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        response = requests.post(
+            f"{self._api_url}{path}", json=payload,
+            headers=self._anonymous_headers(), timeout=DEFAULT_TIMEOUT_SECONDS,
+        )
+        return self._parse_anonymous_response(response)
+
+    def _parse_anonymous_response(self, response: Any) -> dict[str, Any]:
+        data = _safe_response_json(response)
+        if response.status_code >= 400:
+            detail = data.get("detail", data) if isinstance(data, dict) else {}
+            detail = detail if isinstance(detail, dict) else {"code": detail}
+            reasons = (detail.get("reason"), detail.get("code"))
+            if response.status_code in {403, 429} and (
+                detail.get("signup_required") is True
+                or any(reason in ("signup_required", "budget_exhausted", "per_identity_exhausted", "inactive") for reason in reasons)
+            ):
+                raise OpenMatesSignupRequiredError(response.status_code, data)
+            raise OpenMatesApiError(response.status_code, data)
+        return data
 
     def _patch(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", path, payload)
@@ -3261,6 +3329,43 @@ class OpenMatesChats:
         recovery_timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
     ) -> ChatResponse:
         normalized_history = _normalize_history(history)
+        if not self._client._api_key:
+            private_options = {
+                "save_to_account": save_to_account if save_to_account is not False else None,
+                "focus_mode": focus_mode, "memory_ids": memory_ids, "model": model,
+                "chat_id": chat_id, "slug": slug, "title": title, "goal": goal,
+                "goal_title": goal_title, "project_ids": project_ids, "team_id": team_id,
+                "sender_name": sender_name, "team_member_mentions": team_member_mentions,
+                "connected_account_directory": connected_account_directory,
+                "connected_account_token_ref_inputs": connected_account_token_ref_inputs,
+            }
+            unsupported = [key for key, value in private_options.items() if value is not None]
+            if unsupported:
+                raise OpenMatesConfigError("Anonymous chats do not support account or model options: " + ", ".join(unsupported))
+            if not isinstance(message, str) or not 1 <= len(message) <= 20_000:
+                raise OpenMatesConfigError("Anonymous messages must contain between 1 and 20000 characters")
+            if history is not None and not (isinstance(history, list) or (isinstance(history, dict) and isinstance(history.get("messages"), list))):
+                raise OpenMatesConfigError("Anonymous history must be a message list or an object with messages")
+            raw_history = history.get("messages") if isinstance(history, dict) else history or []
+            if any(not isinstance(item, dict) for item in raw_history):
+                raise OpenMatesConfigError("Anonymous history requires message objects")
+            if len(normalized_history) > 50:
+                raise OpenMatesConfigError("Anonymous history supports at most 50 messages")
+            anonymous_history = []
+            for item in normalized_history:
+                role, content = item.get("role"), item.get("content")
+                if role not in ("user", "assistant") or not isinstance(content, str) or len(content) > 20_000:
+                    raise OpenMatesConfigError("Anonymous history requires user/assistant roles and text content up to 20000 characters")
+                created_at = item.get("created_at", item.get("createdAt", 0))
+                if not isinstance(created_at, int) or isinstance(created_at, bool):
+                    raise OpenMatesConfigError("Anonymous history created_at must be an integer")
+                anonymous_history.append({"role": role, "content": content, "created_at": created_at})
+            data = self._client._post_anonymous("/v1/anonymous/chat/stream", {
+                "anonymous_id": self._client._anonymous_id,
+                "client_chat_id": str(uuid.uuid4()), "client_message_id": str(uuid.uuid4()),
+                "plaintext_message": message, "message_history": anonymous_history,
+            })
+            return ChatResponse(content=data.get("assistant"), raw=data)
         final_message = _rewrite_remember_message_references(message, normalized_history) if _has_remember_message_reference(message) else message
         normalized_goal = _normalize_optional_goal(goal)
         if normalized_goal and save_to_account is False:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundedView, formatTierMoney, headlineTier, isFirstYearOffer, normalRegistration, quote } from '../hostingDomainData';
+import { boundedView, formatTierMoney, headlineTier, isFirstYearOffer, normalRegistration, quote, normalizeDomain, safeProviderUrl } from '../hostingDomainData';
 import { checkedChildren, domainFixtures } from '../hostingPreviewFixtures';
 
 describe('Hosting checked-domain presentation', () => {
@@ -33,4 +33,14 @@ describe('Hosting checked-domain presentation', () => {
     expect(normalRegistration({ ...excluding, normal_price_before_taxes: 15 })).toBe(15);
     expect(formatTierMoney(domainFixtures.minTwoYears.registration_tiers[0], 'EUR', 'year')).toContain('/ year');
   });
+  // contract-test: supporting surface=gui.web assertions=hosting-domains.results.partial-and-safe,app-skills.history.renderable
+  it('keeps stored attribution and accepts only HTTPS source links without embedded credentials', () => {
+    expect(normalizeDomain('saved-domain', { provider_name: 'Example Registrar', domain_ascii: 'example.com' }).provider).toBe('Example Registrar');
+    expect(normalizeDomain('saved-domain', { domain_ascii: 'example.com' }).provider).toBe('');
+    expect(safeProviderUrl('https://example.com/domain')).toBe('https://example.com/domain');
+    for (const value of ['http://example.com/domain', 'javascript:alert(1)', 'https://user:secret@example.com/domain']) {
+      expect(safeProviderUrl(value)).toBeNull();
+    }
+  });
+
 });

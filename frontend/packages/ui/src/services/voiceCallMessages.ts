@@ -15,6 +15,7 @@ import { initialChatHistoryGate } from "./initialChatHistoryGate";
 import { matesMetadata } from "../data/matesMetadata";
 import { userDB } from "./userDB";
 import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
+import { getPendingChatDeletionsSet } from "./pendingChatDeletions";
 
 export interface CallTranscriptUpdate {
   callId: string;
@@ -76,7 +77,8 @@ async function emitStoredMessage(messageId: string): Promise<void> {
 }
 
 function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirmed" | "system_message_confirmed",
-                      matches: (payload: Record<string, unknown>) => boolean): {
+                      matches: (payload: Record<string, unknown>) => boolean,
+                      bootstrap = false): {
   promise: Promise<Record<string, unknown>>; cancel: () => void;
 } {
   let cancel = () => {};
@@ -87,6 +89,7 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
       clearTimeout(timer);
       webSocketService.off(type, onSuccess);
       webSocketService.off("call_message_rejected", onReject);
+      if (bootstrap) webSocketService.off("error", onReject);
       unsubscribeStatus();
     };
     const onSuccess = (payload: Record<string, unknown>) => {
@@ -95,7 +98,7 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
       resolve(payload);
     };
     const onReject = (payload: Record<string, unknown>) => {
-      if (type !== "call_message_confirmed" || !matches(payload)) return;
+      if ((!bootstrap && type !== "call_message_confirmed") || !matches(payload)) return;
       cleanup();
       const error = new Error(`Call message storage rejected: ${String(payload.code ?? "unknown")}`) as Error & { code?: string };
       error.code = typeof payload.code === "string" ? payload.code : undefined;
@@ -108,7 +111,8 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
     cancel = cleanup;
     webSocketService.on(type, onSuccess);
     if (type === "call_message_confirmed") webSocketService.on("call_message_rejected", onReject);
-    if (type === "call_message_confirmed") {
+    if (bootstrap) webSocketService.on("error", onReject);
+    if (type === "call_message_confirmed" || bootstrap) {
       unsubscribeStatus = websocketStatus.subscribe(({ status }) => {
         if (status === "connected") wasConnected = true;
         else if (wasConnected) {
@@ -125,46 +129,86 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
   return { promise, cancel };
 }
 
-/** Create and durably store the empty encrypted personal chat before call admission. */
-export async function prepareVoiceCallChat(existingChatId?: string): Promise<{ chatId: string } & VoiceCallContext> {
+/** Atomically create or confirm the same encrypted personal chat before admission. */
+export async function prepareVoiceCallChat(existingChatId?: string, transportOnly = false): Promise<{ chatId: string; cleanupAttemptId?: string } & VoiceCallContext> {
+  const identity = getWorkspaceCacheIdentity();
+  const epoch = getWorkspaceCacheEpoch();
+  const assertCurrent = () => {
+    if (!identity || identity !== getWorkspaceCacheIdentity() || epoch !== getWorkspaceCacheEpoch()) {
+      throw new Error("Voice call account changed during preparation");
+    }
+  };
+  assertCurrent();
+  const expectedConnection = webSocketService.getConnectionForSend();
+  if (!expectedConnection) throw new Error("Voice call bootstrap requires a connected authenticated socket");
+  const profile = await userDB.getUserProfile();
+  assertCurrent();
+  if (!profile?.user_id) throw new Error("Sign in to start a voice call");
+  const cleanupAttemptId = existingChatId ? undefined : crypto.randomUUID();
+  let verifiedCleanupAttemptId: string | undefined;
+  let chatId: string;
+  let chatKey: Uint8Array;
+  let encryptedChatKey: string | null | undefined;
+  let createdAt: number;
   if (existingChatId) {
     const chat = await chatDB.getChat(existingChatId);
-    if (!chat || chat.team_id || chat.chat_visibility === "direct") throw new Error("Voice calls need a personal chat");
-    const key = await chatKeyManager.getKey(existingChatId);
-    if (!key || !await ensureChatKeySafeForWrite(existingChatId, key, "voice call")) {
-      throw new Error("Chat key unavailable for voice call");
-    }
-    return { chatId: existingChatId, ...await loadCallContext(existingChatId) };
+    if (!chat || chat.team_id || chat.chat_visibility === "direct" || chat.is_incognito || chat.is_anonymous
+      || (chat.user_id && chat.user_id !== profile.user_id)) throw new Error("Voice calls need an owned personal chat");
+    chatId = existingChatId;
+    const key = await chatKeyManager.getKey(chatId);
+    if (!key) throw new Error("Chat key unavailable for voice call");
+    chatKey = key;
+    // Use the persisted wrapper verbatim. Rewrapping the same raw key produces
+    // different ciphertext and cannot prove an existing server key matches.
+    encryptedChatKey = chat.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    createdAt = chat.created_at;
+  } else {
+    chatId = crypto.randomUUID();
+    createdAt = seconds();
+    const shell: Chat = {
+      chat_id: chatId, user_id: profile.user_id, team_id: null, encrypted_title: null,
+      messages_v: 0, title_v: 0, metadata_v: 0, draft_v: 0,
+      created_at: createdAt, updated_at: createdAt, last_edited_overall_timestamp: createdAt,
+      unread_count: 0,
+    };
+    await chatDB.addChat(shell);
+    assertCurrent();
+    const created = await chatKeyManager.createAndPersistKeyLocked(chatId);
+    chatKey = created.chatKey;
+    encryptedChatKey = created.encryptedChatKey;
   }
-
-  const chatId = crypto.randomUUID();
-  const now = seconds();
-  const profile = await userDB.getUserProfile();
-  if (!profile?.user_id) throw new Error("Sign in to start a voice call");
-  const shell: Chat = {
-    chat_id: chatId, user_id: profile.user_id, team_id: null, encrypted_title: null,
-    messages_v: 0, title_v: 0, metadata_v: 0, draft_v: 0,
-    created_at: now, updated_at: now, last_edited_overall_timestamp: now,
-    unread_count: 0,
-  };
-  await chatDB.addChat(shell);
-  const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chatId);
+  assertCurrent();
+  if (typeof encryptedChatKey !== "string" || !encryptedChatKey.trim()
+    || !Number.isSafeInteger(createdAt) || createdAt <= 0) throw new Error("Chat bootstrap context unavailable");
   if (!await ensureChatKeySafeForWrite(chatId, chatKey, "voice call")) {
-    throw new Error("New chat key unavailable for voice call");
+    throw new Error("Chat key unavailable for voice call");
   }
-  const stored = awaitReceipt("encrypted_metadata_stored", (event) => event.chat_id === chatId);
+  const assertChatCurrent = async () => {
+    assertCurrent();
+    const latest = await chatDB.getChat(chatId);
+    const wrapper = latest?.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    assertCurrent();
+    if (!latest || latest.team_id || latest.chat_visibility === "direct" || latest.is_incognito || latest.is_anonymous
+      || (latest.user_id && latest.user_id !== profile.user_id) || wrapper !== encryptedChatKey
+      || getPendingChatDeletionsSet().has(chatId)) throw new Error("Voice call chat changed during preparation");
+  };
+  await assertChatCurrent();
+  const stored = awaitReceipt("encrypted_metadata_stored", (event) => event.chat_id === chatId && event.voice_call_bootstrap === true, true);
   try {
-    await webSocketService.sendMessage("encrypted_chat_metadata", {
-      chat_id: chatId, encrypted_chat_key: encryptedChatKey, created_at: now,
-      versions: { messages_v: 0, title_v: 0, metadata_v: 0, last_edited_overall_timestamp: now },
-    });
-    await stored.promise;
+    await webSocketService.sendMessage("voice_call_chat_prepare", {
+      chat_id: chatId, encrypted_chat_key: encryptedChatKey, created_at: createdAt, voice_call_bootstrap: true,
+      ...(cleanupAttemptId ? { cleanup_attempt_id: cleanupAttemptId } : {}),
+    }, { expectedConnection });
+    const receipt = await stored.promise;
+    if (cleanupAttemptId && receipt.cleanup_attempt_id === cleanupAttemptId) verifiedCleanupAttemptId = cleanupAttemptId;
+    await assertChatCurrent();
   } catch (error) {
     stored.cancel();
     throw error;
   }
-  await emitChatUpdate(chatId);
-  return { chatId, ...await loadCallContext(chatId, false) };
+  if (!existingChatId) await emitChatUpdate(chatId);
+  assertCurrent();
+  return { chatId, ...(verifiedCleanupAttemptId ? { cleanupAttemptId: verifiedCleanupAttemptId } : {}), ...(transportOnly ? { history: [] } : await loadCallContext(chatId, Boolean(existingChatId))) };
 }
 
 export async function loadCallContext(chatId: string, canonical = true): Promise<VoiceCallContext> {
@@ -299,7 +343,8 @@ export async function loadCallContext(chatId: string, canonical = true): Promise
 }
 
 async function putEncryptedMessage(message: Message, revision: number, callId?: string,
-                                   final = false, lifecycle = false): Promise<string> {
+                                   final = false, lifecycle = false, writeGuard?: () => void): Promise<string> {
+  writeGuard?.();
   const identity = getWorkspaceCacheIdentity();
   const key = await chatKeyManager.getKey(message.chat_id);
   if (!key || !await ensureChatKeySafeForWrite(message.chat_id, key, "voice transcript")) {
@@ -313,12 +358,14 @@ async function putEncryptedMessage(message: Message, revision: number, callId?: 
     encrypted_sender_name: encrypted.encrypted_sender_name,
   };
   if (lifecycle && (!identity || identity !== getWorkspaceCacheIdentity())) throw new Error("Call event account changed");
+  writeGuard?.();
   const transaction = await chatDB.getTransaction("messages", "readwrite");
   await new Promise<void>((resolve, reject) => {
     const store = transaction.objectStore("messages");
     const request = store.get(message.message_id);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
+      try { writeGuard?.(); } catch (error) { transaction.abort(); reject(error); return; }
       const previous = request.result as CallRow | undefined;
       if (previous && (previous.chat_id !== message.chat_id || previous.role !== message.role)) {
         transaction.abort();
@@ -465,7 +512,8 @@ async function confirmedCallMessageProof(event: CallTranscriptUpdate,
 }
 
 /** Upsert cumulative provisional text; only complete or interrupted text reaches storage. */
-async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMessagePersistenceProof | undefined> {
+async function applyCallTranscript(event: CallTranscriptUpdate, writeGuard?: () => void): Promise<CallMessagePersistenceProof | undefined> {
+    writeGuard?.();
     const existing = await chatDB.getMessage(event.messageId);
     if (existing && (existing.chat_id !== event.chatId || existing.role !== event.role ||
         (existing as CallRow).call_persistence_v1?.call_id &&
@@ -473,15 +521,13 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
       throw new Error("Call message identity conflict");
     }
     const references = new Map<string, VoiceArtifactReference>();
-    if (event.role === "assistant") {
-      for (const reference of [...callArtifactReferencesInText(existing?.content ?? ""), ...(event.embedReferences ?? [])]) {
-        const canonical = parseVoiceArtifactReference(reference);
-        if (canonical) references.set(canonical.embed_id, canonical);
-      }
+    for (const reference of [...callArtifactReferencesInText(existing?.content ?? ""), ...(event.embedReferences ?? [])]) {
+      const canonical = parseVoiceArtifactReference(reference);
+      if (canonical) references.set(canonical.embed_id, canonical);
     }
-    const legacyIds = event.role === "assistant" ? [...(existing?.content ?? "").matchAll(/\[embed:([A-Za-z0-9_-]{1,240})\]/g)].map((match) => match[1]) : [];
-    const refs = event.role === "assistant" ? [...new Set([...(event.embedRefs ?? []), ...references.keys(), ...legacyIds])]
-      .filter((id) => /^[A-Za-z0-9_-]{1,240}$/.test(id)) : [];
+    const legacyIds = [...(existing?.content ?? "").matchAll(/\[embed:([A-Za-z0-9_-]{1,240})\]/g)].map((match) => match[1]);
+    const refs = [...new Set([...(event.embedRefs ?? []), ...references.keys(), ...legacyIds])]
+      .filter((id) => /^[A-Za-z0-9_-]{1,240}$/.test(id));
     for (const id of refs) if (!references.has(id)) {
       const reference = await loadVoiceArtifactReference(id);
       if (reference) references.set(id, reference);
@@ -519,7 +565,7 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
       status: event.final ? "sending" : "streaming",
       ...(event.role === "assistant" && event.userMessageId ? { user_message_id: event.userMessageId } : {}),
     };
-    const ciphertext = await putEncryptedMessage(message, revision, event.callId, event.final);
+    const ciphertext = await putEncryptedMessage(message, revision, event.callId, event.final, false, writeGuard);
     if (!event.final) return;
     await drainCallOutbox(event.messageId);
     return { revision, ciphertext };
@@ -536,6 +582,15 @@ export function upsertCallArtifact(event: Pick<CallTranscriptUpdate,
     const existing = await chatDB.getMessage(event.messageId);
     return applyCallTranscript({ ...event, role: "assistant", text: existing?.content ?? "",
       final: true, userMessageId: existing?.user_message_id ?? event.userMessageId });
+  });
+}
+
+/** Save source snapshots on their issued user turn, including artifact-only turns. */
+export function upsertCallUserArtifact(event: Pick<CallTranscriptUpdate,
+  "callId" | "chatId" | "messageId" | "createdAt" | "embedReferences">, writeGuard?: () => void): Promise<CallMessagePersistenceProof | undefined> {
+  return serializeMessage(event.messageId, async () => {
+    const existing = await chatDB.getMessage(event.messageId);
+    return applyCallTranscript({ ...event, role: "user", text: existing?.content ?? "", final: true }, writeGuard);
   });
 }
 
@@ -645,7 +700,7 @@ async function sendCallLifecycleCiphertext(row: CallRow): Promise<void> {
   try {
     await webSocketService.sendMessage("chat_system_message_added", { chat_id: row.chat_id,
       message: { message_id: row.message_id, role: "system", encrypted_content: row.encrypted_content,
-        created_at: row.created_at } });
+        status: "synced", created_at: row.created_at } });
     await receipt.promise;
     if (identity !== getWorkspaceCacheIdentity()) throw new Error("Call event account changed");
     await chatDB.updateMessageStatus(row.message_id, "synced");

@@ -35,4 +35,12 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
+Builds use a stable version for SvelteKit's HTML and client bootstrap: an explicit
+`OPENMATES_BUILD_VERSION`, the Vercel commit SHA, the Vercel deployment URL, or the
+checkout's Git commit. Source archives outside Vercel must set
+`OPENMATES_BUILD_VERSION` once for the whole build. A per-worker timestamp breaks
+startup and must never be used as a version fallback.
+
+Run the focused regression with `node --test scripts/build-version.test.mjs`.
+
 > To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.

@@ -30,6 +30,10 @@ export function sanitizeVersionDiagnostics(value) {
   if (Number.isSafeInteger(value.expected_revision) && value.expected_revision >= 1 && value.expected_revision <= 1000000) {
     result.expected_revision = value.expected_revision;
   }
+  if (Number.isSafeInteger(value.actual_revision) && value.actual_revision >= 0 && value.actual_revision <= 1000000) {
+    result.actual_revision = value.actual_revision;
+  }
+  if (typeof value.embed_matches === 'boolean') result.embed_matches = value.embed_matches;
   return result;
 }
 
@@ -127,7 +131,10 @@ export async function writeVersion({ client, chatId, project, content }) {
   const { embed_id: embedId, revision } = committed[0];
   if (!embedId || !Number.isInteger(revision) || revision !== project.revision + 1 ||
       (project.embedId && embedId !== project.embedId)) {
-    throw stageFailure('version_callback_count', new Error('Project version identity/revision mismatch'));
+    const failure = stageFailure('version_callback_count', new Error('Project version identity/revision mismatch'));
+    failure.capacityDiagnostics = sanitizeVersionDiagnostics({ expected_revision: project.revision + 1,
+      actual_revision: revision, embed_matches: !project.embedId || embedId === project.embedId });
+    throw failure;
   }
   let fetched;
   try {

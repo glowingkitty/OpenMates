@@ -34,16 +34,22 @@
 -->
 
 <script lang="ts">
+  import EmbedPreviewCorner from '@repo/public-site/components/results/EmbedPreviewCorner.svelte';
+  import { text } from '../../i18n/translations';
+  import { resolveIconName } from '../../utils/iconNameResolver';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
-  import Icon from '../Icon.svelte';
+  import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
+  import SavedEmbedPreviewAction from './SavedEmbedPreviewAction.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getStandalonePreviewPresentation, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryReference } from '../../services/savedEmbedMemoryService';
   
   /**
    * Props interface for unified embed preview
@@ -51,8 +57,15 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    inputEmbedIds?: string[];
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
+    /** Details already provide their own result identity/layout. Shared result chrome is automatic. */
+    resultPreview?: boolean;
+    /** Selectable specialized preview with explicit tools, retaining its existing layout. */
+    previewTools?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
+    resultPrimaryAction?: import('svelte').Snippet;
     /** Draft content can be read locally but has no server record to recover yet. */
     localOnly?: boolean;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient color */
@@ -75,6 +88,10 @@
     onFullscreen: () => void;
     /** Click handler for stop button */
     onStop?: () => void;
+    /** Processing details may contain independently enabled actions such as Watch browser. */
+    hasProcessingActions?: boolean;
+    /** Paid executions can require server acknowledgement before displaying cancellation. */
+    optimisticStop?: boolean;
     /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
     details?: import('svelte').Snippet<[{ isMobile: boolean; isLarge?: boolean }]>;
     /** Whether to show status line in basic infos bar (default: true) */
@@ -89,12 +106,6 @@
     showSkillIcon?: boolean;
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
-    /**
-     * Override the fixed card height (px value, e.g. 350).
-     * Used for portrait/vertical images so the full image height is visible
-     * instead of being cropped. Only affects the desktop layout.
-     */
-    customHeight?: number;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
@@ -105,7 +116,12 @@
   
   let {
     id,
+    inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
+    resultPreview = false,
+    previewTools = false,
+    resultContext = 'auto',
+    resultPrimaryAction,
     localOnly = false,
     appId,
     skillId,
@@ -117,6 +133,8 @@
     isMobile = false,
     onFullscreen,
     onStop,
+    hasProcessingActions = false,
+    optimisticStop = true,
     details,
     showStatus = true,
     faviconUrl,
@@ -124,7 +142,6 @@
     customStatusText,
     showSkillIcon,
     hasFullWidthImage = false,
-    customHeight,
     onEmbedDataUpdated,
     titleIcon,
     actionButton
@@ -136,6 +153,8 @@
   // override exists, render directly from the prop so finished preview fixtures
   // are clickable on the first paint.
   let localStatus = $state<EmbedStatus | null>(null);
+  let storedInputEmbedIds = $state<string[]>([]);
+  let inputEmbedIds = $derived(inputEmbedIdsProp ?? storedInputEmbedIds);
 
   // Track whether the store has resolved a definitive status for this embed.
   // Once the store says "finished", the $effect must NOT revert to statusProp
@@ -145,6 +164,10 @@
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus ?? statusProp ?? 'processing');
   let isInteractive = $derived(status === 'finished' || status === 'error');
+  // aria-disabled on a container also disables its nested source-image buttons.
+  // While the skill runs, expose a group of input actions instead of a disabled
+  // outer button; fullscreen activation remains gated by isInteractive/status.
+  let hasProcessingInputActions = $derived(!isInteractive && (inputEmbedIds.length > 0 || (status === 'processing' && hasProcessingActions)));
 
   let isDirectContentEmbed = $derived.by(() => (
     appId === skillId
@@ -155,16 +178,12 @@
   ));
 
   let shouldShowSkillIcon = $derived(showSkillIcon ?? !isDirectContentEmbed);
+  const previewPresentation = getContext<EmbedPreviewPresentationContext | undefined>(EMBED_PREVIEW_PRESENTATION_CONTEXT);
+  let usesResultShell = $derived(resultPreview || (previewPresentation === undefined
+    ? getStandalonePreviewPresentation(appId, skillId)
+    : typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
 
-  let isSavedEmbed = $derived.by(() => {
-    if (presentationOnly) return false;
-    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
-      for (const entries of Object.values(appGroups)) {
-        if (entries.some((entry) => entry.item_value?.embed_id === id)) return true;
-      }
-    }
-    return false;
-  });
+  let savedEmbedMemory = $derived(findSavedEmbedMemoryReference($appSettingsMemoriesStore, id));
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
   // request_embed to the server. Redis pub/sub is fire-and-forget — if the
@@ -204,11 +223,10 @@
       }
     }
     
-    // CRITICAL: Do NOT refetch for error/cancelled embeds.
-    // Error embeds are never persisted to IndexedDB, so refetchFromStore() would
-    // call resolveEmbed() which would find nothing and re-request from server,
-    // creating an infinite loop. The status update above is sufficient for the UI.
-    if (newStatus === 'error' || newStatus === 'cancelled') {
+    // Cancelled placeholders are cleanup-only. Failed executions now persist,
+    // so refetch them to settle child details as well as the card status.
+    // The resolver retains suppression for actual fetch/decryption failures.
+    if (newStatus === 'cancelled') {
       return;
     }
     
@@ -270,14 +288,23 @@
         if (storeResolved && embedData.status === 'processing') {
           return;
         }
-        if (onEmbedDataUpdated && embedData.content && typeof embedData.content === 'string') {
+        if (embedData.content && typeof embedData.content === 'string') {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
-            onEmbedDataUpdated({
-              status: typeof embedData.status === 'string' ? embedData.status : status,
-              decodedContent
-            });
+            storedInputEmbedIds = Array.isArray(decodedContent.input_embed_ids)
+              ? decodedContent.input_embed_ids.filter((id): id is string => typeof id === 'string') : [];
+            // Recovery can retain stale outer status metadata. The decrypted
+            // execution's terminal status is authoritative for both this card
+            // and its child details, including failed zero-child executions.
+            const contentStatus = decodedContent.status;
+            const resolvedStatus = contentStatus === 'finished' || contentStatus === 'error' || contentStatus === 'cancelled'
+              ? contentStatus : typeof embedData.status === 'string' ? embedData.status : status;
+            if (resolvedStatus === 'finished' || resolvedStatus === 'error' || resolvedStatus === 'cancelled') {
+              localStatus = resolvedStatus;
+              storeResolved = true;
+            }
+            onEmbedDataUpdated?.({ status: resolvedStatus, decodedContent });
           }
         } else if (onEmbedDataUpdated && embedData.status === 'finished' && !embedData.content) {
           // TOON plaintext content missing for a finished embed — request from server.
@@ -318,6 +345,11 @@
     // Subscribe to embedUpdated events from chatSyncService
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
     chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
+
+    // An initial resolver miss (including a pending chat key) returns null.
+    // Keep the existing bounded content retries armed until a consumer receives
+    // decoded content, even when no finished row was readable on the first read.
+    needsContentRecovery = !!onEmbedDataUpdated;
 
     // Do an initial fetch to ensure we have the latest data
     // (in case the embed was updated between render and mount)
@@ -457,6 +489,12 @@
   // and dev showcase (.large-container in the dev preview page) wrappers —
   // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
+  const isResultGrid = $derived(resultContext === 'results' || !!previewElement?.closest('[data-embed-result-context="results"]'));
+  const isAssistantResult = $derived(usesResultShell && !isResultGrid && (resultContext === 'chat' ||
+    (resultContext === 'auto' && !!previewElement?.closest('[data-embed-result-context="chat"], .read-only-message, .embed-preview-large-container, .large-container'))));
+  let isChatResult = $derived(usesResultShell && !isResultGrid && (previewTools || isAssistantResult));
+  // Document/page and sheet surfaces retain their specialized spacing and fades.
+  const isPlainTextResult = $derived(usesResultShell && !resultPreview && !['docs', 'pdf', 'sheets'].includes(appId));
   $effect(() => {
     if (previewElement) {
       isLargeContext = !!(
@@ -470,7 +508,7 @@
   let TILT_PERSPECTIVE = $derived(isLargeContext ? TILT_PERSPECTIVE_LARGE : TILT_PERSPECTIVE_STANDARD);
   let TILT_SCALE = $derived(isLargeContext ? TILT_SCALE_LARGE : TILT_SCALE_STANDARD);
   let isScrollTilting = $derived(
-    status === 'finished' &&
+    status === 'finished' && !isChatResult &&
     !isHovering &&
     isTouchTiltEnabled &&
     Math.abs(scrollTiltY) > 0.01
@@ -483,7 +521,7 @@
    */
   let tiltTransform = $derived.by(() => {
     // Only apply tilt to finished embeds
-    if (status !== 'finished') {
+    if (status !== 'finished' || isChatResult) {
       return '';
     }
 
@@ -505,7 +543,7 @@
   let scrollTiltAnimationFrame: number | null = null;
 
   function updateScrollTiltFromViewport() {
-    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished') {
+    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished' || isChatResult) {
       scrollTiltY = 0;
       return;
     }
@@ -570,7 +608,7 @@
     };
 
     const handleViewportChange = () => {
-      if (!isTouchTiltEnabled || status !== 'finished') {
+      if (!isTouchTiltEnabled || status !== 'finished' || isChatResult) {
         return;
       }
       scheduleScrollTiltUpdate();
@@ -608,7 +646,7 @@
    * Handle mouse enter - start tracking for tilt effect
    */
   function handleMouseEnter(e: MouseEvent) {
-    if (status !== 'finished') return;
+    if (status !== 'finished' || isChatResult) return;
     isHovering = true;
     updateMousePosition(e);
   }
@@ -755,6 +793,7 @@
   // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
   // BUT: Don't stop context menu events - let them bubble up for proper context menu handling
   function handleClick(e: MouseEvent) {
+    if (isChatResult) { e.stopPropagation(); return; }
     // If this was triggered right after a context menu opened, skip this click
     // The context menu flag auto-resets after 300ms, so this only blocks the
     // immediate click that might fire alongside the right-click
@@ -840,6 +879,8 @@
   
   // Handle keyboard navigation
   function handleKeydown(e: KeyboardEvent) {
+    // Nested action buttons own their native Enter/Space activation.
+    if (e.target !== e.currentTarget) return;
     if ((e.key === 'Enter' || e.key === ' ') && status === 'finished') {
       e.preventDefault();
       // Create a synthetic mouse event for handleClick
@@ -871,22 +912,44 @@
     // so the embed will remain visually cancelled but won't actually be. This is
     // acceptable: the user wanted to stop, and the worst case is a stale UI state
     // that would resolve on next reload. No silent data loss occurs.
-    if (status === 'processing') {
+    if (optimisticStop && status === 'processing') {
       localStatus = 'cancelled';
     }
   }
 </script>
 
+{#snippet previewToolbar(inFlow: boolean)}
+  <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
+        {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
+        <SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} />
+        <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
+      </div>
+{/snippet}
+{#snippet specializedHeaderActions()}
+  <div class="specialized-header-actions">
+    {#if actionButton}{@render actionButton()}{/if}
+    {#if isChatResult && isInteractive}{@render previewToolbar(true)}{/if}
+  </div>
+{/snippet}
+
+<!-- The dynamic group role has tabindex -1; only interactive button cards receive 0. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
+  class:result-preview={usesResultShell}
+  class:intrinsic-preview={isAssistantResult && !resultPreview}
+  class:plain-content-preview={isPlainTextResult}
+  class:chat-result={isChatResult}
+  class:saved-grid-result={!isChatResult && !!savedEmbedMemory}
+  class:tools-preview={previewTools}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
-  class:clickable={isInteractive}
-  class:hovering={isHovering && status === 'finished'}
+  class:clickable={isInteractive && !isChatResult}
+  class:hovering={isHovering && status === 'finished' && !isChatResult}
   class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
   data-embed-id={presentationOnly ? undefined : id}
@@ -895,30 +958,45 @@
   data-status={status}
   data-embed-status={status}
   style={[
-    tiltTransform ? `transform: ${tiltTransform};` : '',
-    (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
+    tiltTransform ? `transform: ${tiltTransform};` : ''
   ].filter(Boolean).join(' ')}
-  role="button"
-  aria-disabled={!isInteractive}
-  tabindex={isInteractive ? 0 : -1}
+  role={hasProcessingInputActions || isChatResult ? "group" : "button"}
+  aria-disabled={hasProcessingInputActions ? undefined : !isInteractive}
+  tabindex={isInteractive && !isChatResult ? 0 : -1}
   onclick={handleClick}
-  onkeydown={handleKeydown}
+  onkeydown={(event) => { if (!isChatResult) handleKeydown(event); }}
   onpointerdown={handlePointerDown}
   onmousedown={handleMouseDown}
   onmouseenter={handleMouseEnter}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   oncontextmenu={handleContextMenu}
-  ontouchstart={handleTouchStart}
+  ontouchstart={(event) => { if (!isChatResult) handleTouchStart(event); }}
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
-  {#if isSavedEmbed}
-    <div class="saved-embed-badge" title="Saved to memories" aria-label="Saved to memories" data-testid="saved-embed-badge">
-      <Icon name="notes" size="16px" />
-    </div>
-  {/if}
-  {#if useMobileLayout}
+  {#if !isChatResult && savedEmbedMemory}<SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} decorative />{/if}
+  {#if resultPreview && isChatResult}{@render previewToolbar(false)}{/if}
+  {#if usesResultShell}
+    <EmbedPreviewCorner background={`var(--color-app-${appId}, var(--color-primary))`} iconUrl={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`} />
+
+    {#if resultPreview}
+      <div class="result-preview-content">{#if details}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}</div>
+    {:else}
+      <div class="content-result-layout">
+        <BasicInfosBar {appId} {skillId} {skillIconName} {appIconName} {status} {skillName} {taskId}
+          isMobile={useMobileLayout} presentation="content" onStop={handleStop} {showStatus}
+          {faviconUrl} {faviconIsCircular} {customStatusText} {titleIcon} actionButton={specializedHeaderActions} />
+        <div class="details-section" class:full-width-image={hasFullWidthImage}>
+          {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
+          {#if details}
+            {#if inputEmbedIds.length}<div class="input-skill-content">{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}</div>
+            {:else}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}
+          {:else}<div class="missing-details-fallback"><span class="fallback-text">{skillName || appId}</span></div>{/if}
+        </div>
+      </div>
+    {/if}
+  {:else if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
       <!-- Basic infos bar stays above skill details in every status. -->
@@ -940,10 +1018,14 @@
         {titleIcon}
         {actionButton}
       />
+      {#if previewTools && isInteractive}{@render previewToolbar(true)}{/if}
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
+        {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
         {#if details}
-          {@render details({ isMobile: true, isLarge: false })}
+          {#if inputEmbedIds.length}
+            <div class="input-skill-content">{@render details({ isMobile: true, isLarge: false })}</div>
+          {:else}{@render details({ isMobile: true, isLarge: false })}{/if}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -972,12 +1054,15 @@
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
-        {actionButton}
+        actionButton={previewTools ? specializedHeaderActions : actionButton}
       />
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section" class:full-width-image={hasFullWidthImage}>
+        {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
         {#if details}
-          {@render details({ isMobile: false, isLarge: isLargeContext })}
+          {#if inputEmbedIds.length}
+            <div class="input-skill-content">{@render details({ isMobile: false, isLarge: isLargeContext })}</div>
+          {:else}{@render details({ isMobile: false, isLarge: isLargeContext })}{/if}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -1024,36 +1109,20 @@
     will-change: transform;
   }
 
-  .saved-embed-badge {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    z-index: 3;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 999px;
-    color: white;
-    background: linear-gradient(135deg, #7c3aed, #2563eb);
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.28);
-    pointer-events: none;
-  }
-  
   /* Prevent image drag/callouts */
   .unified-embed-preview :global(img) {
     -webkit-user-drag: none;
   }
   
   /* Clickable embeds act like a single button: children shouldn't capture pointer events. */
-  .unified-embed-preview.clickable .desktop-layout,
-  .unified-embed-preview.clickable .mobile-layout {
+  .unified-embed-preview.clickable:not(.tools-preview) .desktop-layout,
+  .unified-embed-preview.clickable:not(.tools-preview) .mobile-layout {
     pointer-events: none;
   }
   
   /* Desktop layout: 300x200px */
   .unified-embed-preview.desktop {
+    --preview-max-height: 200px;
     width: 300px;
     min-width: 300px;
     max-width: 300px;
@@ -1064,6 +1133,7 @@
   
   /* Mobile layout: 150x290px */
   .unified-embed-preview.mobile {
+    --preview-max-height: 290px;
     width: 150px;
     min-width: 150px;
     max-width: 150px;
@@ -1088,7 +1158,7 @@
   }
   
   /* CSS fallback hover for non-JS scenarios (shouldn't normally apply) */
-  .unified-embed-preview.finished:hover:not(.hovering) {
+  .unified-embed-preview.finished.clickable:hover:not(.hovering) {
     transform: scale(0.98);
     /* Match the hovering shadow for consistency */
     box-shadow: 
@@ -1102,7 +1172,7 @@
   }
   
   /* Active/pressed state */
-  .unified-embed-preview.finished:active {
+  .unified-embed-preview.finished.clickable:active {
     transform: scale(0.96) !important;
     transition: transform 0.05s ease-out;
   }
@@ -1159,6 +1229,8 @@
   }
   
   .mobile-layout .details-section {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -1168,6 +1240,8 @@
      Fallback for Missing Details Snippet
      =========================================== */
   
+  .input-skill-content { flex: 1; min-height: 0; overflow: hidden; width: 100%; }
+
   .missing-details-fallback {
     display: flex;
     align-items: center;
@@ -1200,7 +1274,10 @@
      =========================================== */
 
   @container embed-preview (min-width: 401px) {
-    .unified-embed-preview.desktop {
+    /* Exclude executions without increasing specificity above the intrinsic
+       assistant-result and shared clipping rules below. */
+    .unified-embed-preview.desktop:where(.result-preview) {
+      --preview-max-height: 400px;
       width: 100% !important;
       min-width: unset !important;
       max-width: unset !important;
@@ -1211,12 +1288,12 @@
       overflow: visible !important;
     }
 
-    .desktop-layout {
+    .result-preview .desktop-layout {
       overflow: visible !important;
     }
 
     /* BasicInfosBar stays at ~300px width, centered at the top of the card. */
-    .desktop-layout :global(.basic-infos-bar.desktop) {
+    .result-preview .desktop-layout :global(.basic-infos-bar.desktop) {
       width: 300px;
       max-width: 300px;
       min-width: unset;
@@ -1234,7 +1311,7 @@
        pages the appId may not resolve, so the fallback path renders directly
        and still needs correct expanded styling. */
 
-    .desktop-layout :global(.website-description) {
+    .result-preview .desktop-layout :global(.website-description) {
       max-width: 30% !important;
       width: 30% !important;
       flex: 0 1 30% !important;
@@ -1245,12 +1322,12 @@
       margin-left: 20px !important;
     }
 
-    .desktop-layout :global(.website-content-row) {
+    .result-preview .desktop-layout :global(.website-content-row) {
       align-items: stretch;
       height: 100%;
     }
 
-    .desktop-layout :global(.website-preview-image:not(.full-width)) {
+    .result-preview .desktop-layout :global(.website-preview-image:not(.full-width)) {
       flex: 1 1 0 !important;
       min-width: 0 !important;
       height: 100% !important;
@@ -1260,7 +1337,7 @@
       border-radius: 0 0 30px 0 !important;
     }
 
-    .desktop-layout :global(.website-preview-image:not(.full-width) img) {
+    .result-preview .desktop-layout :global(.website-preview-image:not(.full-width) img) {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -1268,4 +1345,31 @@
       display: block;
     }
   }
+  /* Result content inherits the same dimensions and 30px radius as every preview. */
+  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; padding: 0; background: var(--color-grey-0); overflow: hidden !important; margin-top: 0; }
+  .unified-embed-preview.chat-result, .chat-result :global(*) { user-select: text; -webkit-user-select: text; }
+  .result-preview-content { width: 100%; height: 100%; min-width: 0; }
+  .content-result-layout { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+  .content-result-layout .details-section { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+  /* Plain content uses its natural body height up to the shared size cap.
+     Execution cards and media/result-card layouts retain their fixed surface. */
+  .unified-embed-preview.intrinsic-preview { height: auto !important; min-height: 0 !important; max-height: var(--preview-max-height) !important; }
+  .intrinsic-preview .content-result-layout { height: auto; max-height: var(--preview-max-height); }
+  .intrinsic-preview .details-section { flex: 0 1 auto; }
+  .plain-content-preview .details-section { position: relative; box-sizing: border-box; padding: 0 20px 20px; }
+  .plain-content-preview .details-section::after { content: ''; position: absolute; z-index: 1; pointer-events: none; inset: auto 0 0; height: 24px; background: linear-gradient(transparent, var(--color-grey-0)); }
+  @container result-card (min-width: 401px) { .plain-content-preview .details-section::after { display: none; } }
+  .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
+  .result-tools.flow-tools { position: static; flex-shrink: 0; }
+  .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; }
+  .saved-grid-result :global(.result-identity-header) { padding-inline-end: 34px; }
+  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-primary-start); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; scale: 1; transition: scale 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+  .result-tools :global(.saved-memory-action) { background: var(--color-app-health-start); color: var(--color-font-button); }
+  @media (hover: hover) { .result-tools :global(button:hover), .result-tools :global(a:hover) { scale: 1.02; } }
+  .result-tools :global(button:active), .result-tools :global(a:active) { scale: 0.98; }
+  .result-tools :global(button:focus-visible), .result-tools :global(a:focus-visible) { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+  .result-tools :global(.clickable-icon) { width: 22px; height: 22px; background: currentColor; }
+  .result-tools :global(svg) { stroke: currentColor; }
+  .unified-embed-preview.chat-result { cursor: default; }
+
 </style>

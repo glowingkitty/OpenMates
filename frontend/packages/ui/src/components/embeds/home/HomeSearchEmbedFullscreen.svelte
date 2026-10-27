@@ -15,12 +15,20 @@
 -->
 
 <script lang="ts">
+  import { homeListingContent, homeNumber, homeImages, homeMatchesFilters, homeApproximate, homeObject } from './homeListingData';
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HomeListingEmbedPreview from './HomeListingEmbedPreview.svelte';
   import HomeListingEmbedFullscreen from './HomeListingEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { getLucideIcon } from '../../../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { extractSearchResultsFromContent } from '../embedPreviewHydration';
+
+  const PriceFilterIcon = getLucideIcon('banknote');
+  const RoomFilterIcon = getLucideIcon('bed-double');
+  const AreaFilterIcon = getLucideIcon('ruler');
+  const TypeFilterIcon = getLucideIcon('layers');
+
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -34,7 +42,7 @@
    * Home listing result interface (transformed from child embeds).
    * Contains all fields needed for both preview cards and fullscreen view.
    */
-  interface HomeListingResult {
+  interface HomeListingResult extends Record<string, unknown> {
     embed_id: string;
     title?: string;
     price_label?: string;
@@ -82,6 +90,19 @@
     onShowChat,
   }: Props = $props();
 
+  let maxPrice = $state<number | undefined>();
+  let priceBasis = $state<'advertised' | 'warm' | 'cold'>('advertised');
+  let minRooms = $state<number | undefined>();
+  let minSize = $state<number | undefined>();
+  let requiredAmenity = $state('');
+  const amenityOptions = ['balcony', 'terrace', 'garden', 'elevator', 'furnished', 'parking', 'pets_allowed'];
+  function matchesHomeFilters(result: HomeListingResult): boolean {
+    return homeMatchesFilters(result, { maxPrice, priceBasis, minRooms, minSize, requiredAmenity });
+  }
+  function resetHomeFilters() {
+    maxPrice = undefined; priceBasis = 'advertised'; minRooms = undefined; minSize = undefined; requiredAmenity = '';
+  }
+
   // Extract fields from data prop
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
@@ -94,8 +115,16 @@
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state('');
+  let localWarnings = $state<string[]>([]);
+  function warningMessages(value: unknown): string[] {
+    if (typeof value === 'string') {
+      try { return warningMessages(JSON.parse(value)); } catch { return value.trim() ? [value.trim()] : []; }
+    }
+    return Array.isArray(value) ? value.flatMap(item => typeof item === 'string' && item.trim() ? [item.trim()] : []) : [];
+  }
 
   $effect(() => {
+    localWarnings = warningMessages(data.decodedContent?.warnings);
     localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
     localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Multi';
     localProviders = Array.isArray(data.decodedContent?.providers) ? data.decodedContent.providers as string[] : [];
@@ -130,22 +159,16 @@
     embedId: string,
     content: Record<string, unknown>
   ): HomeListingResult {
+    content = homeListingContent(content);
     return {
+      ...content,
       embed_id: embedId,
-      title: content.title as string | undefined,
-      price_label: content.price_label as string | undefined,
-      size_sqm: typeof content.size_sqm === 'number' ? content.size_sqm : undefined,
-      rooms: typeof content.rooms === 'number' ? content.rooms : undefined,
-      address: content.address as string | undefined,
-      image_url: content.image_url as string | undefined,
-      url: content.url as string | undefined,
-      provider: content.provider as string | undefined,
-      listing_type: content.listing_type as string | undefined,
-      available_from: content.available_from as string | undefined,
-      deposit: typeof content.deposit === 'number' ? content.deposit : undefined,
-      furnished: typeof content.furnished === 'boolean' ? content.furnished : undefined,
-      latitude: typeof content.latitude === 'number' ? content.latitude : undefined,
-      longitude: typeof content.longitude === 'number' ? content.longitude : undefined
+      image_url: homeImages(content.image_urls, content.image_url)[0],
+      size_sqm: homeNumber(content.size_sqm),
+      rooms: homeNumber(content.rooms),
+      latitude: homeNumber(content.latitude),
+      longitude: homeNumber(content.longitude)
+
     };
   }
 
@@ -153,23 +176,7 @@
    * Transform legacy results for backwards compatibility.
    */
   function transformLegacyResults(results: unknown[]): HomeListingResult[] {
-    return (results as Array<Record<string, unknown>>).map((r, i) => ({
-      embed_id: `legacy-${i}`,
-      title: r.title as string | undefined,
-      price_label: r.price_label as string | undefined,
-      size_sqm: typeof r.size_sqm === 'number' ? r.size_sqm : undefined,
-      rooms: typeof r.rooms === 'number' ? r.rooms : undefined,
-      address: r.address as string | undefined,
-      image_url: r.image_url as string | undefined,
-      url: r.url as string | undefined,
-      provider: r.provider as string | undefined,
-      listing_type: r.listing_type as string | undefined,
-      available_from: r.available_from as string | undefined,
-      deposit: typeof r.deposit === 'number' ? r.deposit : undefined,
-      furnished: typeof r.furnished === 'boolean' ? r.furnished : undefined,
-      latitude: typeof r.latitude === 'number' ? r.latitude : undefined,
-      longitude: typeof r.longitude === 'number' ? r.longitude : undefined
-    }));
+    return (results as Array<Record<string, unknown>>).map((result, index) => transformToHomeResult(`legacy-${index}`, result));
   }
 
   /**
@@ -189,10 +196,40 @@
     if (Array.isArray(c.providers)) localProviders = c.providers as string[];
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
     if (typeof c.error === 'string') localErrorMessage = c.error;
+    if ('warnings' in c) localWarnings = warningMessages(c.warnings);
   }
 </script>
 
+{#snippet homeFilterNotices()}
+  {#if localWarnings.length}
+    <div class="home-search-notices" role="status" aria-live="polite" data-testid="home-search-warnings">
+      {#each localWarnings as warning}<p>{warning}</p>{/each}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet homeFilterControls()}
+  <div class="home-filters" data-testid="home-filters">
+    <div class="home-filter-fields">
+      <label><span class="filter-section-title"><PriceFilterIcon size={23} />{$text('home_listing.max_price')}</span><input type="number" min="0" step="any" bind:value={maxPrice} data-testid="home-filter-max-price" /></label>
+      <label><span class="filter-section-title"><TypeFilterIcon size={23} />{$text('home_listing.price_type')}</span><select bind:value={priceBasis} data-testid="home-filter-price-basis">
+        <option value="advertised">{$text('home_listing.advertised_price')}</option>
+        <option value="warm">{$text('home_listing.warm_rent_eur')}</option>
+        <option value="cold">{$text('home_listing.cold_rent_eur')}</option>
+      </select></label>
+      <label><span class="filter-section-title"><RoomFilterIcon size={23} />{$text('home_listing.min_rooms')}</span><input type="number" min="0" step="0.5" bind:value={minRooms} data-testid="home-filter-min-rooms" /></label>
+      <label><span class="filter-section-title"><AreaFilterIcon size={23} />{$text('home_listing.min_size')}</span><input type="number" min="0" step="any" bind:value={minSize} data-testid="home-filter-min-size" /></label>
+      <label><span class="filter-section-title"><TypeFilterIcon size={23} />{$text('home_listing.required_amenity')}</span><select bind:value={requiredAmenity} data-testid="home-filter-amenity">
+        <option value="">{$text('home_listing.any_amenity')}</option>
+        {#each amenityOptions as amenity}<option value={amenity}>{$text(`home_listing.${amenity}`)}</option>{/each}
+      </select></label>
+    </div>
+    <p>{$text('home_listing.filter_unknown_warning')}</p>
+  </div>
+{/snippet}
+
 <SearchResultsTemplate
+  filters={{ controls: homeFilterControls, notices: homeFilterNotices, reset: resetHomeFilters, matches: matchesHomeFilters }}
   appId="home"
   skillId="search"
   embedHeaderTitle={query}
@@ -225,10 +262,17 @@
       size_sqm={result.size_sqm}
       rooms={result.rooms}
       address={result.address}
+      city={typeof result.city === "string" ? result.city : undefined}
+      location_exact_address={homeObject(result.location).exact_address === true}
       image_url={result.image_url}
       provider={result.provider}
       listing_type={result.listing_type}
       available_from={result.available_from}
+      location_precision={result.location_precision as string | undefined}
+      location_approximate={homeApproximate(result)}
+      lat={homeNumber(result.latitude ?? result.lat)}
+      lon={homeNumber(result.longitude ?? result.lon)}
+      location_area={result.location_area ?? homeObject(result.location).area}
       {onSelect}
     />
   {/snippet}
@@ -247,6 +291,17 @@
 </SearchResultsTemplate>
 
 <style>
+  .home-search-notices { display: grid; gap: var(--spacing-3); padding: var(--spacing-4); margin-bottom: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-4); background: var(--color-grey-10); color: var(--color-font-primary); }
+  .home-search-notices p { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+  /* Same stacked sections, icon headings and type hierarchy as the map/calendar filter panel. */
+  .home-filters { min-width: 0; color: var(--color-font-primary); }
+  .home-filter-fields { display: flex; flex-direction: column; gap: 25px; }
+  .home-filters label { display: flex; flex-direction: column; flex-shrink: 0; gap: 12px; min-width: 0; }
+  .filter-section-title { display: flex; align-items: center; gap: 20px; border-bottom: 3px solid var(--color-primary-start); padding: 0 8px 7px; color: var(--color-font-primary); font-size: var(--font-size-p); font-weight: 650; }
+  .filter-section-title :global(svg) { color: var(--color-primary-start); flex-shrink: 0; }
+  .home-filters input, .home-filters select { box-sizing: border-box; width: 100%; min-width: 0; max-width: none; min-height: 42px; margin: 0; padding: var(--spacing-3) var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-3); background: var(--color-grey-0); color: var(--color-font-primary); box-shadow: none; font: inherit; font-size: var(--font-size-small); font-weight: 550; }
+  .home-filters input:focus-visible, .home-filters select:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
+  .home-filters p { margin: 20px 0 0; font-size: var(--font-size-small); line-height: 1.5; color: var(--color-font-tertiary); }
   :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="home"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/home.svg');
     mask-image: url('@openmates/ui/static/icons/home.svg');

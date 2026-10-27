@@ -1,3 +1,11 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.chat.transcripts, video-call.audio.complete-turn-admission
+// Specification: specifications/features/chat-queued-followups/specification.yml
+// Assertions: chat-queued-followups.admission.synced, chat-queued-followups.editing.stable-revision, chat-queued-followups.editing.cancel, chat-queued-followups.steering.safe-boundary, chat-queued-followups.access.scoped
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.landing-complete, billing.access.authenticated-first-party
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.guest.compact-workspace
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.message.confirmed-haptic
 // Chat view model — manages messages, streaming, and embeds for a single chat.
@@ -48,10 +56,24 @@ struct ChatStreamingLifecycleState: Equatable {
     var preprocessingStep: String?
     var selectedMateCategory: String?
     var selectedMateName: String?
+    var selectedModelName: String?
+    var selectedProviderName: String?
+    var selectedServerRegion: String?
     var thinkingContent = ""
     var isThinkingStreaming = false
     var queuedMessageText: String?
     var errorMessage: String?
+    private(set) var awaitsAsyncSkillContinuation = false
+    private var retiredTaskIDs = Set<String>()
+    private var rejectedMessageIDs = Set<String>()
+
+    var transientResponse: ChatTransientAssistantResponse? {
+        guard isActive, let chatId, let id = messageId ?? taskId,
+              let category = selectedMateCategory, !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return ChatTransientAssistantResponse(id: id, chatId: chatId, userMessageId: userMessageId,
+            mateCategory: category, mateName: selectedMateName,
+            modelName: selectedModelName, providerName: selectedProviderName, serverRegion: selectedServerRegion)
+    }
     private var lastSequenceByMessageId: [String: Int] = [:]
     private var completedMessageIds = Set<String>()
 
@@ -76,7 +98,12 @@ struct ChatStreamingLifecycleState: Equatable {
     mutating func apply(_ event: StreamingClient.StreamEvent) -> Bool {
         switch event {
         case .taskInitiated(let chatId, let taskId, let userMessageId):
+            guard !taskId.isEmpty, !retiredTaskIDs.contains(taskId) else { return false }
+            if self.taskId == taskId { return false }
+            var retired = retiredTaskIDs
+            if let previous = self.taskId { retired.insert(previous) }
             reset()
+            retiredTaskIDs = retired
             self.chatId = chatId
             self.taskId = taskId
             self.userMessageId = userMessageId.isEmpty ? nil : userMessageId
@@ -84,25 +111,37 @@ struct ChatStreamingLifecycleState: Equatable {
             errorMessage = nil
 
         case .preprocessingStep(let chatId, let step, let data):
-            self.chatId = chatId
+            guard accepts(chatId: chatId), isActive else { return false }
             preprocessingStep = step
             if step == "mate_selected" {
                 selectedMateCategory = data?["mate_category"] as? String
                 selectedMateName = data?["mate_name"] as? String
             }
-            phase = .processing
+            if step == "model_selected" {
+                selectedModelName = data?["model_name"] as? String
+                selectedProviderName = data?["provider_name"] as? String
+                selectedServerRegion = data?["server_region"] as? String
+            }
+            if phase == .sending || phase == .processing { phase = .processing }
 
         case .typingStarted(let chatId, let messageId, let metadata):
+            guard accepts(chatId: chatId), !completedMessageIds.contains(messageId),
+                  phase != .completed, phase != .error,
+                  metadata?.userMessageId == nil || userMessageId == nil || metadata?.userMessageId == userMessageId else { return false }
             self.chatId = chatId
             self.messageId = messageId
-            selectedMateCategory = metadata?.category
-            selectedMateName = nil
+            if let category = metadata?.category, !category.isEmpty { selectedMateCategory = category; selectedMateName = nil }
+            selectedModelName = metadata?.modelName ?? selectedModelName
+            selectedProviderName = metadata?.providerName ?? selectedProviderName
+            selectedServerRegion = metadata?.serverRegion ?? selectedServerRegion
             if let userMessageId = metadata?.userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }
             phase = .typing
 
         case .thinkingChunk(let chatId, let messageId, let content):
+            guard accepts(chatId: chatId), phase != .completed, phase != .error,
+                  !completedMessageIds.contains(messageId) else { return false }
             self.chatId = chatId
             if self.messageId != messageId {
                 thinkingContent = ""
@@ -113,6 +152,8 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .thinking
 
         case .thinkingComplete(let chatId, let messageId):
+            guard accepts(chatId: chatId), phase != .completed, phase != .error,
+                  self.messageId == nil || self.messageId == messageId else { return false }
             self.chatId = chatId
             self.messageId = messageId
             isThinkingStreaming = false
@@ -120,8 +161,10 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .typing
             }
 
-        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, let category, _, _):
-            guard !completedMessageIds.contains(messageId) else { return false }
+        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, let category, let modelName, _):
+            guard accepts(chatId: chatId), !completedMessageIds.contains(messageId), !rejectedMessageIDs.contains(messageId),
+                  userMessageId == nil || self.userMessageId == nil || userMessageId == self.userMessageId,
+                  phase != .completed, phase != .error else { return false }
             if !isFinal {
                 if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
                     return false
@@ -131,16 +174,29 @@ struct ChatStreamingLifecycleState: Equatable {
             self.chatId = chatId
             self.messageId = messageId
             if let category { selectedMateCategory = category }
+            if let modelName { selectedModelName = modelName }
             if let userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }
-            phase = isFinal ? .completed : .streaming
+            phase = isFinal && !awaitsAsyncSkillContinuation ? .completed : .streaming
             if isFinal {
                 completedMessageIds.insert(messageId)
                 isThinkingStreaming = false
             }
 
+        case .messageFinality(let chatId, let messageId, let taskId, let continuesTurn):
+            if let taskId, let currentTask = self.taskId, currentTask != taskId {
+                rejectedMessageIDs.insert(messageId)
+                return false
+            }
+            guard accepts(chatId: chatId), phase != .completed, phase != .error,
+                  self.messageId == nil || self.messageId == messageId else { return false }
+            self.chatId = chatId
+            if continuesTurn && phase == .idle { phase = .streaming }
+            awaitsAsyncSkillContinuation = continuesTurn
+
         case .messageReady(let chatId, let messageId):
+            guard accepts(chatId: chatId), !awaitsAsyncSkillContinuation else { return false }
             guard let activeMessageId = self.messageId ?? taskId, messageId == activeMessageId else {
                 return false
             }
@@ -152,6 +208,7 @@ struct ChatStreamingLifecycleState: Equatable {
             queuedMessageText = nil
 
         case .typingEnded(let chatId, let messageId):
+            guard accepts(chatId: chatId), !awaitsAsyncSkillContinuation else { return false }
             self.chatId = chatId
             if phase == .streaming, messageId == nil {
                 return false
@@ -175,7 +232,9 @@ struct ChatStreamingLifecycleState: Equatable {
             }
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
-            self.userMessageId = userMessageId ?? self.userMessageId
+            // The notice names the queued follower, not the active source turn.
+            // Its identity must not replace the current response authority.
+            if self.userMessageId == nil { self.userMessageId = userMessageId }
             queuedMessageText = message
             phase = .queued
 
@@ -190,13 +249,8 @@ struct ChatStreamingLifecycleState: Equatable {
             queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _, _, _):
-            if let activeTaskId = self.taskId, taskId != activeTaskId {
-                return false
-            }
-            self.chatId = chatId
-            self.taskId = taskId
-            phase = .completed
-            queuedMessageText = nil
+            // Optional metadata is not an answer terminal receipt.
+            guard accepts(chatId: chatId), self.taskId == taskId else { return false }
 
         case .error(let message):
             phase = .error
@@ -207,6 +261,8 @@ struct ChatStreamingLifecycleState: Equatable {
         return true
     }
 
+    private func accepts(chatId: String) -> Bool { self.chatId == nil || self.chatId == chatId }
+
     mutating func reset() {
         self = ChatStreamingLifecycleState()
     }
@@ -215,7 +271,7 @@ struct ChatStreamingLifecycleState: Equatable {
         // Before the first typing frame, the server task ID is the only known
         // assistant identity (the web completed-message handler uses the same
         // equality). Once typing identifies a message, it takes precedence.
-        guard (messageId ?? taskId) == authoritativeMessageId else { return false }
+        guard !awaitsAsyncSkillContinuation, (messageId ?? taskId) == authoritativeMessageId else { return false }
         messageId = authoritativeMessageId
         completedMessageIds.insert(authoritativeMessageId)
         phase = .completed
@@ -250,7 +306,7 @@ enum ChatStreamingSyncCompletionPolicy {
 
     static func matchingMessage(in messages: [Message], lifecycle: ChatStreamingLifecycleState,
                                 chatID: String, pendingMessageIDs: Set<String>) -> Message? {
-        guard lifecycle.chatId == chatID, lifecycle.isActive,
+        guard lifecycle.chatId == chatID, lifecycle.isActive, !lifecycle.awaitsAsyncSkillContinuation,
               let activeID = lifecycle.messageId ?? lifecycle.taskId else { return nil }
         return messages.first { message in
             message.chatId == chatID
@@ -613,6 +669,55 @@ final class ChatViewModel: ObservableObject {
     @Published var streamingContent = ""
     @Published var streamingMessageId: String?
     @Published private(set) var streamingLifecycle = ChatStreamingLifecycleState()
+    var transientAssistantResponse: ChatTransientAssistantResponse? {
+        guard let response = streamingLifecycle.transientResponse,
+              chat?.id == response.chatId,
+              !allMessages.contains(where: { $0.id == response.id && ($0.role == .assistant || $0.role == .system) }) else { return nil }
+        return response
+    }
+    func responseActive(for messageID: String) -> Bool {
+        streamingLifecycle.isActive && streamingLifecycle.chatId == chat?.id
+            && (streamingLifecycle.messageId ?? streamingLifecycle.taskId) == messageID
+    }
+    private var memoryAssociations: ChatMemoryAssociations {
+        let pending = streamingLifecycle.transientResponse
+        if let cache = cachedMemoryAssociations, cache.revision == memoryAssociationRevision,
+           cache.pending == pending, cache.users == userMessageIdByAssistantMessageId { return cache.result }
+        let result = ChatMemoryAssociations.resolve(allMessages, pending: pending, userMessageIDs: userMessageIdByAssistantMessageId)
+        cachedMemoryAssociations = (memoryAssociationRevision, pending, userMessageIdByAssistantMessageId, result)
+        return result
+    }
+    func subChatProgress(for messageID: String) -> SubChatProgress? {
+        guard let progress = subChatProgress, progress.chatId == chat?.id,
+              let wireMessageID = progress.messageId, !wireMessageID.isEmpty,
+              let taskID = progress.taskId, !taskID.isEmpty,
+              allMessages.contains(where: { $0.id == messageID && $0.role == .assistant }),
+              wireMessageID == messageID || wireMessageID == taskID else { return nil }
+        // The source producer uses its task as the message alias. The activity
+        // projection must still join the explicit marker task/parent/children;
+        // this broad transport seam alone never changes any batch status.
+        return progress
+    }
+    func loadedMemories(for messageID: String) -> [ChatAppliedMemory] { memoryAssociations.byAssistantID[messageID] ?? [] }
+    var attachedMemoryReceiptIDs: Set<String> { memoryAssociations.attachedReceiptIDs }
+
+    @Published private(set) var queuedFollowups: [String: ChatQueuedFollowupState] = [:]
+    @Published private(set) var queuedEditSession: ChatQueuedEditSession?
+    @Published private(set) var updatingQueuedMessageIDs = Set<String>()
+    @Published private(set) var queuedFollowupError: String?
+    private var queuedTerminalMessageIDs = Set<String>()
+    private var pendingQueuedEvents: [String: [String: Any]] = [:]
+    private var queuedEventOperations: [String: UUID] = [:]
+    private var queuedHistoryFlights: [String: UUID] = [:]
+    private var retainedQueuedRequests: [String: (request: ChatQueuedRevisionRequest, input: String)] = [:]
+    private var queuedOwnerScope: UUID?
+    private var queuedOwnerChatID: String?
+    private var queuedOwnerTeamEpoch: UInt64?
+    private var queuedSnapshotLast: (scope: ChatPreparationScope, chatID: String, date: Date)?
+    private var queuedSnapshotFlight: UUID?
+    private var queuedUpdateOperations: [String: UUID] = [:]
+    private var completedQueuedEdit: (session: ChatQueuedEditSession, submitted: ComposerDocumentV1, revision: Int)?
+
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
     @Published private(set) var openingMetrics = ChatOpeningMetrics()
@@ -638,7 +743,9 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Loaded history: a full local snapshot or the bounded remote pages visited.
-    private var allMessages: [Message] = []
+    private var allMessages: [Message] = [] { didSet { memoryAssociationRevision &+= 1; hydrateQueuedFollowupsFromHistory() } }
+    private var memoryAssociationRevision: UInt64 = 0
+    private var cachedMemoryAssociations: (revision: UInt64, pending: ChatTransientAssistantResponse?, users: [String: String], result: ChatMemoryAssociations)?
     /// The scope that supplied saved rows is also the completion authority.
     /// Buffered events must not borrow old history after a session/owner switch.
     private var rawHistoryReadFence: RemoteReadFence?
@@ -768,6 +875,7 @@ final class ChatViewModel: ObservableObject {
                 // An offline-opened reference must retry when its content
                 // transport returns, even when its placeholder ID was loaded.
                 await self?.retryVisibleEmbedHydration()
+                await self?.refreshQueuedFollowups()
             }
         }
         if subChatKeyObserver == nil {
@@ -788,6 +896,7 @@ final class ChatViewModel: ObservableObject {
 
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
+        completedSubChatIDs.removeAll()
         let generation = loadGeneration
         remoteHistory = nil
         failedRemoteWindowRequest = nil
@@ -1133,6 +1242,7 @@ final class ChatViewModel: ObservableObject {
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
         subscribeToChatLifecycle(chatId: loadedChat.id)
+        for fields in Array(pendingQueuedEvents.values) { await applyQueuedFollowupEvent(type: "queued_message_updated", fields: fields) }
         isLoading = false
         NativeSyncPerfLog.info(
             "phase=loadSyncedChatFirstPaint chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -1140,6 +1250,7 @@ final class ChatViewModel: ObservableObject {
         openingMetrics.firstUsefulRenderMs = NativeSyncPerfLog.ms(since: start)
         #if DEBUG
         seedComposerProcessingFixtureIfNeeded()
+        seedQueuedFollowupFixtureIfNeeded()
         #endif
         scheduleEmbedHydration(
             syncedEmbeds: hydrationEmbeds,
@@ -1775,6 +1886,41 @@ final class ChatViewModel: ObservableObject {
     private var didSeedComposerProcessingFixture = false
     @Published private(set) var composerProcessingRecoveryReceipt = "ready"
 
+    @Published private(set) var queuedFollowupFixtureMutations = 0
+    @Published private(set) var queuedFollowupFixtureOutcome = "ready"
+    private var didSeedQueuedFollowupFixture = false
+    var isQueuedFollowupFixture: Bool {
+        chat?.id == "dev-chat-opening-large" && ProcessInfo.processInfo.arguments.contains("--dev-preview")
+            && ProcessInfo.processInfo.arguments.contains("--ui-test-queued-followups")
+    }
+    var queuedFollowupFixtureReceipt: String {
+        let state = queuedFollowups["synthetic-queued-followup"]
+        return "mutations=\(queuedFollowupFixtureMutations);revision=\(state?.revision ?? 0);mode=\(state?.mode.rawValue ?? "none");rows=\(allMessages.filter { $0.id == "synthetic-queued-followup" }.count)"
+    }
+    private func seedQueuedFollowupFixtureIfNeeded() {
+        guard isQueuedFollowupFixture, !didSeedQueuedFollowupFixture else { return }
+        didSeedQueuedFollowupFixture = true
+        appendOrReplaceTransientMessage(Message(id: "synthetic-queued-followup", chatId: "dev-chat-opening-large", role: .user,
+            content: "Synthetic queued follow-up", encryptedContent: nil, createdAt: ChatSendPipeline.isoString(from: Date()),
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil, queueRevision: 1, queueMode: "follow_up",
+            queueDispatchStatus: "queued", queueDispatchMode: "follow_up", deliveryStatus: "queued"))
+    }
+    private func reviseQueuedFollowupFixture(messageID: String, content: String?, mode: ChatQueuedRevisionRequest.Mode,
+                                             expected: ChatQueuedFollowupState?) -> Bool? {
+        guard isQueuedFollowupFixture, messageID == "synthetic-queued-followup" else { return nil }
+        guard let expected, queuedFollowups[messageID] == expected,
+              let row = allMessages.first(where: { $0.id == messageID }) else { return false }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-queued-conflict") {
+            queuedFollowupFixtureOutcome = "conflict"; queuedFollowupError = AppStrings.queuedFollowupConflict; return false
+        }
+        let accepted = ChatQueuedFollowupState(chatID: expected.chatID, messageID: expected.messageID,
+            revision: expected.revision + 1, mode: mode, phase: .queued)
+        queuedFollowups[messageID] = accepted
+        appendOrReplaceTransientMessage(row.replacingQueuedContent(content, ciphertext: nil, mappings: nil, encryptedMappings: nil, queue: accepted))
+        queuedFollowupFixtureMutations += 1; queuedFollowupFixtureOutcome = "accepted"
+        return true
+    }
+
     private func seedComposerProcessingFixtureIfNeeded() {
         guard !didSeedComposerProcessingFixture, chat?.id == "dev-chat-opening-large",
               ProcessInfo.processInfo.arguments.contains("--dev-preview"),
@@ -1802,6 +1948,7 @@ final class ChatViewModel: ObservableObject {
         isLoading = false
         refreshWindowBoundaries(); historyWindowRevision += 1
         seedComposerProcessingFixtureIfNeeded()
+        seedQueuedFollowupFixtureIfNeeded()
     }
 
     /// Drives the production sync and buffered-replay reducers with disposable
@@ -1987,6 +2134,304 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Send message
 
+    private func adoptQueuedScope() {
+        let current = accountScopeGeneration()
+        let teamEpoch = TeamWorkspaceContext.shared.snapshot.epoch
+        guard queuedOwnerScope != current || queuedOwnerChatID != chat?.id || queuedOwnerTeamEpoch != teamEpoch else { return }
+        queuedOwnerScope = current; queuedOwnerChatID = chat?.id; queuedOwnerTeamEpoch = teamEpoch
+        queuedSnapshotLast = nil; queuedSnapshotFlight = nil
+        queuedFollowups.removeAll(); queuedTerminalMessageIDs.removeAll(); completedSubChatIDs.removeAll()
+        pendingQueuedEvents.removeAll(); queuedEventOperations.removeAll(); queuedHistoryFlights.removeAll(); retainedQueuedRequests.removeAll(); queuedEditSession = nil; completedQueuedEdit = nil
+        updatingQueuedMessageIDs.removeAll(); queuedUpdateOperations.removeAll(); queuedFollowupError = nil
+    }
+    private func hydrateQueuedFollowupsFromHistory() {
+        adoptQueuedScope()
+        for message in allMessages {
+            if message.queueDispatchStatus == "processing" || message.queueDispatchStatus == "paused" {
+                queuedTerminalMessageIDs.insert(message.id); queuedFollowups.removeValue(forKey: message.id)
+            } else if !queuedTerminalMessageIDs.contains(message.id), pendingQueuedEvents[message.id] == nil,
+                      let state = ChatQueuedFollowupState.from(message),
+                      (queuedFollowups[message.id]?.revision ?? 0) <= state.revision {
+                queuedFollowups[message.id] = state
+            }
+        }
+    }
+    func refreshQueuedFollowups(force: Bool = false) async {
+        adoptQueuedScope()
+        guard let socket = wsManager, socket.isConnected, let chatID = chat?.id,
+              !IncognitoChatSession.isIncognitoChatId(chatID), chat?.teamId == TeamWorkspaceContext.shared.snapshot.teamID else { return }
+        let scope = NativePersonalPrivacyRuntime.scope(socket: socket)
+        guard queuedSnapshotFlight == nil else { return }
+        if !force, let last = queuedSnapshotLast, last.scope == scope, last.chatID == chatID,
+           Date().timeIntervalSince(last.date) < 5 { return }
+        let flight = UUID(); queuedSnapshotFlight = flight; queuedSnapshotLast = (scope, chatID, Date())
+        defer { if queuedSnapshotFlight == flight { queuedSnapshotFlight = nil } }
+        do {
+            var payload: [String: Any] = ["chat_id": chatID]
+            if let teamID = scope.teamID { payload["team_id"] = teamID }
+            let result = try await socket.sendAndWait(WSOutboundMessage(type: "get_queued_messages", payload: payload),
+                responseType: "queued_messages_snapshot", timeout: .seconds(10), matching: { $0["chat_id"] as? String == chatID })
+            try NativePersonalPrivacyRuntime.require(scope, socket: socket)
+            guard chat?.id == chatID else { return }
+            await applyQueuedFollowupEvent(type: "queued_messages_snapshot", fields: result.fields)
+        } catch { /* Keep existing queue evidence; missing Redis is never handoff proof. */ }
+    }
+    func applyQueuedFollowupEvent(type: String, fields: [String: Any]) async {
+        adoptQueuedScope()
+        guard let chatID = fields["chat_id"] as? String, chat?.id == chatID,
+              chat?.teamId == TeamWorkspaceContext.shared.snapshot.teamID else { return }
+        if type == "queued_messages_snapshot" {
+            guard fields["uncertain"] as? Bool != true else {
+                await reconcileQueuedHistory(chatID: chatID, messageID: nil, minimumRevision: nil); return
+            }
+            guard let rows = fields["messages"] as? [[String: Any]], rows.count <= 100 else { return }
+            for var row in rows { row["chat_id"] = chatID; await applyQueuedFollowupEvent(type: "queued_message_updated", fields: row) }
+            return
+        }
+        if ["queued_message_started", "queued_message_steered", "queued_handoff_paused"].contains(type) {
+            let ids = fields["message_ids"] as? [String] ?? [(fields["message_id"] ?? fields["user_message_id"]) as? String].compactMap { $0 }
+            for id in ids {
+                queuedTerminalMessageIDs.insert(id); queuedFollowups.removeValue(forKey: id); pendingQueuedEvents.removeValue(forKey: id); queuedEventOperations.removeValue(forKey: id)
+                if let row = allMessages.first(where: { $0.id == id && $0.role == .user && $0.chatId == chatID }) {
+                    appendOrReplaceLocalMessage(row.afterQueuedDispatch(type == "queued_handoff_paused" ? .paused : .processing))
+                }
+            }
+            return
+        }
+        guard let state = ChatQueuedFollowupState.parse(fields), !queuedTerminalMessageIDs.contains(state.messageID) else { return }
+        guard (pendingQueuedEvents[state.messageID]?["queue_revision"] as? Int ?? 0) <= state.revision else { return }
+        let incomingCiphertext = fields["encrypted_content"] as? String
+        let incomingEncryptedMappings = fields["encrypted_pii_mappings"] as? String
+        let hasCiphertext = incomingCiphertext != nil
+        if let current = queuedFollowups[state.messageID], !current.mayAccept(state, hasCiphertext: hasCiphertext) {
+            if state.revision > current.revision, !hasCiphertext {
+                pendingQueuedEvents[state.messageID] = fields; queuedFollowups.removeValue(forKey: state.messageID)
+                await reconcileQueuedHistory(chatID: chatID, messageID: state.messageID, minimumRevision: state.revision)
+            }
+            return
+        }
+        if let row = allMessages.first(where: { $0.id == state.messageID }),
+           (row.queueRevision ?? 0) > state.revision || (row.queueRevision == state.revision
+            && hasCiphertext && (row.encryptedContent != incomingCiphertext || row.encryptedPIIMappings != incomingEncryptedMappings)) { return }
+        guard let row = allMessages.first(where: { $0.id == state.messageID && $0.chatId == chatID && $0.role == .user }),
+              state.acceptsProtectedRow(row, incomingCiphertext: incomingCiphertext, incomingEncryptedMappings: incomingEncryptedMappings) else {
+            if pendingQueuedEvents.count >= 100 { pendingQueuedEvents.removeValue(forKey: pendingQueuedEvents.keys.sorted().first ?? "") }
+            pendingQueuedEvents[state.messageID] = fields; queuedFollowups.removeValue(forKey: state.messageID)
+            await reconcileQueuedHistory(chatID: chatID, messageID: state.messageID, minimumRevision: state.revision)
+            return
+        }
+        let eventToken = UUID(); queuedEventOperations[state.messageID] = eventToken
+        pendingQueuedEvents[state.messageID] = fields
+        queuedFollowups.removeValue(forKey: state.messageID)
+        defer { if queuedEventOperations[state.messageID] == eventToken { queuedEventOperations.removeValue(forKey: state.messageID) } }
+        let scope = accountScopeGeneration(), team = TeamWorkspaceContext.shared.snapshot
+        let server = ServerProfile.current(), keyGeneration = ChatKeyManager.shared.cacheGeneration
+        let socketGeneration = wsManager?.transportGeneration, deletion = offlineStore.chatDeletionVersion(chatID)
+        let ciphertext = fields["encrypted_content"] as? String
+        var content: String?, mappings: [PIIMapping]?
+        do {
+            if let ciphertext {
+                guard let key = ChatKeyManager.shared.key(for: chatID) else { return }
+                content = try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key)
+                if let encrypted = fields["encrypted_pii_mappings"] as? String {
+                    let text = try await CryptoManager.shared.decryptContent(base64String: encrypted, key: key)
+                    guard let data = text.data(using: .utf8) else { return }; mappings = try JSONDecoder().decode([PIIMapping].self, from: data)
+                } else { mappings = [] }
+            }
+            guard scope == accountScopeGeneration(), TeamWorkspaceContext.shared.isCurrent(team), chat?.id == chatID,
+                  ServerProfile.current() == server, keyGeneration == ChatKeyManager.shared.cacheGeneration,
+                  wsManager?.transportGeneration == socketGeneration, offlineStore.chatDeletionVersion(chatID) == deletion,
+                  queuedEventOperations[state.messageID] == eventToken,
+                  !queuedTerminalMessageIDs.contains(state.messageID) else { return }
+            let encryptedMappings = hasCiphertext ? fields["encrypted_pii_mappings"] as? String : row.encryptedPIIMappings
+            queuedFollowups[state.messageID] = state
+            appendOrReplaceLocalMessage(row.replacingQueuedContent(content, ciphertext: ciphertext, mappings: mappings,
+                encryptedMappings: encryptedMappings, queue: state))
+            if let version = fields["messages_v"] as? Int { chatStore?.advanceMessagesVersion(chatId: chatID, to: version) }
+            pendingQueuedEvents.removeValue(forKey: state.messageID)
+        } catch {
+            if scope == accountScopeGeneration(), chat?.id == chatID, queuedEventOperations[state.messageID] == eventToken {
+                queuedFollowupError = AppStrings.queuedFollowupUnavailable
+            }
+        }
+    }
+    /// Content-free queue snapshots cannot relabel an older ciphertext as a
+    /// newer revision. Fetch the exact protected history row without navigating
+    /// the viewport or replacing unrelated foreground rows.
+    private func reconcileQueuedHistory(chatID: String, messageID: String?, minimumRevision: Int?) async {
+        guard let socket = wsManager, chat?.id == chatID else { return }
+        let scope = NativePersonalPrivacyRuntime.scope(socket: socket)
+        let flight = messageID ?? "latest"
+        guard queuedHistoryFlights[flight] == nil else { return }
+        let token = UUID(); queuedHistoryFlights[flight] = token
+        defer { if queuedHistoryFlights[flight] == token { queuedHistoryFlights.removeValue(forKey: flight) } }
+        var query = ChatMessageWindowQuery(limit: messageID == nil ? 50 : 20, respectCompressionBoundary: false)
+        if let messageID { query.direction = .around; query.anchorMessageId = messageID }
+        do {
+            let page = try await fetchRemoteWindow(chatId: chatID, teamId: scope.teamID, query: query,
+                generation: loadGeneration, fallbackMissingAnchor: false)
+            try NativePersonalPrivacyRuntime.require(scope, socket: socket)
+            guard chat?.id == chatID else { return }
+            for row in page.decryptedProjection {
+                guard row.role == .user, row.chatId == chatID, row.encryptedContent != nil,
+                      messageID == nil || row.id == messageID,
+                      minimumRevision.map({ (row.queueRevision ?? 0) >= $0 }) ?? true,
+                      (allMessages.first(where: { $0.id == row.id })?.queueRevision ?? 0) <= (row.queueRevision ?? 0),
+                      (queuedFollowups[row.id]?.revision ?? 0) <= (row.queueRevision ?? 0),
+                      (pendingQueuedEvents[row.id]?["queue_revision"] as? Int ?? 0) <= (row.queueRevision ?? 0) else { continue }
+                if row.queueDispatchStatus == "processing" || row.queueDispatchStatus == "paused" {
+                    queuedTerminalMessageIDs.insert(row.id); queuedFollowups.removeValue(forKey: row.id)
+                } else {
+                    guard !queuedTerminalMessageIDs.contains(row.id), let state = ChatQueuedFollowupState.from(row) else { continue }
+                    queuedFollowups[row.id] = state
+                }
+                pendingQueuedEvents.removeValue(forKey: row.id)
+                appendOrReplaceLocalMessage(row)
+            }
+            if let version = page.messagesV { chatStore?.advanceMessagesVersion(chatId: chatID, to: version) }
+        } catch { if NativePersonalPrivacyRuntime.scope(socket: socket) == scope { queuedFollowupError = AppStrings.queuedFollowupUnavailable } }
+    }
+    func beginQueuedEdit(messageID: String, previousDraft: ComposerDocumentV1, revision: Int) -> String? {
+        adoptQueuedScope()
+        guard queuedEditSession == nil, let state = queuedFollowups[messageID], state.editable,
+              state.chatID == chat?.id, let row = allMessages.first(where: { $0.id == messageID && $0.role == .user }), let content = row.content else { return nil }
+        let visible = PIIDetector.restorePII(in: content, mappings: row.piiMappings ?? [])
+        queuedEditSession = ChatQueuedEditSession(state: state, scope: accountScopeGeneration(),
+            teamEpoch: TeamWorkspaceContext.shared.snapshot.epoch,
+            originalContent: (try? ComposerMarkdownAdapter.serialize(ComposerMarkdownAdapter.parse(visible))) ?? visible, previousDraft: previousDraft,
+            ownedDraft: previousDraft, ownedRevision: revision)
+        queuedFollowupError = nil
+        return visible
+    }
+    func updateQueuedEditPreviousDraft(_ document: ComposerDocumentV1, messageID: String) {
+        guard var session = queuedEditSession, session.state.messageID == messageID,
+              session.scope == accountScopeGeneration(), session.state.chatID == chat?.id,
+              session.teamEpoch == TeamWorkspaceContext.shared.snapshot.epoch else { return }
+        session.previousDraft = document; queuedEditSession = session
+    }
+    func failQueuedEditEntry() { queuedFollowupError = AppStrings.queuedFollowupUnavailable }
+    func ownQueuedEditDraft(_ document: ComposerDocumentV1, revision: Int) {
+        guard var session = queuedEditSession else { return }; session.ownedDraft = document; session.ownedRevision = revision; queuedEditSession = session
+    }
+    func cancelQueuedEdit(current: ComposerDocumentV1, revision: Int) -> ComposerDocumentV1 {
+        guard let session = queuedEditSession else { return current }
+        queuedEditSession = nil; queuedFollowupError = nil
+        guard session.scope == accountScopeGeneration(), session.state.chatID == chat?.id,
+              session.teamEpoch == TeamWorkspaceContext.shared.snapshot.epoch else { return current }
+        return session.draftOnCancel(current: current, revision: revision)
+    }
+    func takeCompletedQueuedEditDraft(current: ComposerDocumentV1, revision: Int) -> ComposerDocumentV1? {
+        guard let completed = completedQueuedEdit else { return nil }; completedQueuedEdit = nil
+        guard completed.session.scope == accountScopeGeneration(), completed.session.state.chatID == chat?.id,
+              completed.submitted == current, completed.revision == revision else { return nil }
+        return completed.session.previousDraft
+    }
+    func submitQueuedEdit(_ content: String, sourceContent: String, document: ComposerDocumentV1, revision: Int,
+                          piiMappings: [PIIMapping], excludedOriginals: Set<String>, composerEmbeds: [ComposerPendingEmbed] = []) async -> Bool {
+        guard let session = queuedEditSession else { return false }
+        // The revision wire updates content and protected history atomically;
+        // it has no attachment upload transaction. Existing references remain
+        // intact. Keep new attachments in the draft instead of dropping bytes.
+        guard composerEmbeds.allSatisfy({ ChatSendPipeline.containsEmbedReference($0.id, in: session.originalContent) }) else {
+            queuedFollowupError = AppStrings.queuedFollowupUnavailable; return false
+        }
+        let unchanged = session.isUnchanged(sourceContent)
+        if !unchanged {
+            guard await reviseQueuedFollowup(messageID: session.state.messageID, content: content, mappings: piiMappings,
+                excludedOriginals: excludedOriginals, mode: session.state.mode, expected: session.state) else { return false }
+        }
+        guard queuedEditSession?.state == session.state, session.scope == accountScopeGeneration(),
+              session.state.chatID == chat?.id, session.teamEpoch == TeamWorkspaceContext.shared.snapshot.epoch else { return false }
+        queuedEditSession = nil
+        completedQueuedEdit = (session, document, revision)
+        return true
+    }
+    func steerQueuedFollowup(messageID: String) async -> Bool {
+        await reviseQueuedFollowup(messageID: messageID, content: nil, mappings: [], excludedOriginals: [], mode: .steer,
+            expected: queuedFollowups[messageID])
+    }
+    private func reviseQueuedFollowup(messageID: String, content: String?, mappings: [PIIMapping], excludedOriginals: Set<String>,
+                                      mode: ChatQueuedRevisionRequest.Mode, expected: ChatQueuedFollowupState?) async -> Bool {
+        #if DEBUG
+        if let result = reviseQueuedFollowupFixture(messageID: messageID, content: content, mode: mode, expected: expected) { return result }
+        #endif
+        guard let expected, expected.editable, queuedFollowups[messageID] == expected,
+              let socket = wsManager, let currentChat = chat, currentChat.id == expected.chatID,
+              updatingQueuedMessageIDs.insert(messageID).inserted else { return false }
+        let operationID = UUID()
+        queuedUpdateOperations[messageID] = operationID
+        defer {
+            if queuedUpdateOperations[messageID] == operationID {
+                queuedUpdateOperations.removeValue(forKey: messageID); updatingQueuedMessageIDs.remove(messageID)
+            }
+        }
+        let scope = NativePersonalPrivacyRuntime.scope(socket: socket), deletion = offlineStore.chatDeletionVersion(currentChat.id)
+        let admissionLease: ChatSavedSendAdmissionGate.Lease
+        do { admissionLease = try await ChatSavedSendAdmissionGate.shared.acquire(.init(scope: scope, chatID: currentChat.id)) }
+        catch { return false }
+        defer { admissionLease.release() }
+        var privacyRequestID: String?
+        let input = (content ?? "") + "\u{0}" + mode.rawValue + "\u{0}" + String(expected.revision)
+        func validate() throws {
+            try NativePersonalPrivacyRuntime.require(scope, socket: socket)
+            if let privacyRequestID { try NativePersonalPrivacyRuntime.shared.requireReceiptCurrent(turnID: privacyRequestID, socket: socket) }
+            guard chat?.id == currentChat.id, currentChat.teamId == scope.teamID,
+                  queuedFollowups[messageID] == expected, !queuedTerminalMessageIDs.contains(messageID),
+                  offlineStore.chatDeletionVersion(currentChat.id) == deletion else { throw ChatQueuedRevisionError.invalidReceipt }
+        }
+        do {
+            try validate()
+            let request: ChatQueuedRevisionRequest
+            if let retained = retainedQueuedRequests[messageID] {
+                guard retained.input == input else { throw ChatQueuedRevisionError.invalidReceipt }; request = retained.request
+            } else {
+                request = try await sendPipeline.prepareQueuedRevision(state: expected, chat: currentChat, content: content,
+                    piiMappings: mappings, excludedOriginals: excludedOriginals, mode: mode,
+                    existingMessages: allMessages, socket: socket, validate: validate)
+                try validate(); retainedQueuedRequests[messageID] = (request, input)
+            }
+            guard let original = allMessages.first(where: { $0.id == messageID }) else { throw ChatQueuedRevisionError.invalidReceipt }
+            try await NativePersonalPrivacyRuntime.shared.verifyQueuedRevision(request, fallbackContent: original.content ?? "",
+                mappings: original.piiMappings ?? [], socket: socket)
+            privacyRequestID = request.clientRequestID
+            try validate()
+            let validateReceiptAuthority: @MainActor () throws -> Void = {
+                try NativePersonalPrivacyRuntime.require(scope, socket: socket)
+                guard self.chat?.id == currentChat.id, self.offlineStore.chatDeletionVersion(currentChat.id) == deletion else {
+                    throw ChatQueuedRevisionError.invalidReceipt
+                }
+            }
+            let response = try await socket.reviseQueuedMessageWithReceipt(request, validateAuthority: validate, afterReceipt: validateReceiptAuthority)
+            try validateReceiptAuthority()
+            await applyQueuedFollowupEvent(type: "queued_message_updated", fields: response.fields)
+            retainedQueuedRequests.removeValue(forKey: messageID); queuedFollowupError = nil
+            return true
+        } catch let error as ChatQueuedRevisionError {
+            guard NativePersonalPrivacyRuntime.scope(socket: socket) == scope, chat?.id == currentChat.id else { return false }
+            if case .rejected(let reason, _, _) = error {
+                retainedQueuedRequests.removeValue(forKey: messageID)
+                queuedFollowupError = ["conflict", "not_queued", "inactive"].contains(reason) ? AppStrings.queuedFollowupConflict : AppStrings.queuedFollowupUnavailable
+                await refreshQueuedFollowups(force: true)
+            } else { queuedFollowupError = AppStrings.queuedFollowupConflict }
+            return false
+        } catch {
+            if NativePersonalPrivacyRuntime.scope(socket: socket) == scope, chat?.id == currentChat.id { queuedFollowupError = AppStrings.queuedFollowupUnavailable }
+            return false
+        }
+    }
+
+    /// Focus never carries text or starts inference. Existing keys are loaded,
+    /// then a scoped encrypted snapshot is compiled locally for optional reuse.
+    func prepareComposerFocus() async {
+        guard let socket = wsManager, socket.isConnected, let selected = chat,
+              !IncognitoChatSession.isIncognitoChatId(selected.id) else { return }
+        let scope = NativePersonalPrivacyRuntime.scope(socket: socket)
+        await ensureChatKey(for: selected)
+        guard chat?.id == selected.id, wsManager === socket,
+              NativePersonalPrivacyRuntime.scope(socket: socket) == scope else { return }
+        await NativePersonalPrivacyRuntime.shared.warm(socket: socket)
+    }
+
     @discardableResult
     func sendMessage(
         _ content: String,
@@ -1999,6 +2444,7 @@ final class ChatViewModel: ObservableObject {
         editingMessageID: String? = nil
     ) async -> Bool {
         guard let currentChat = chat else { return false }
+        guard queuedEditSession == nil else { queuedFollowupError = AppStrings.queuedFollowupUnavailable; return false }
         #if DEBUG
         let fixtureArgs = ProcessInfo.processInfo.arguments
         if currentChat.id == "dev-chat-opening-large", fixtureArgs.contains("--ui-test-composer-send") {
@@ -2119,8 +2565,10 @@ final class ChatViewModel: ObservableObject {
             streamingContent = ""
             return true
         } catch {
-            if editingMessageID != nil && (chat?.id != currentChat.id || OfflineStore.shared.scopeGeneration != editingScope) { return false }
-            self.error = error.localizedDescription
+            guard chat?.id == currentChat.id, OfflineStore.shared.scopeGeneration == editingScope else { return false }
+            if let privacy = error as? NativePersonalPrivacyError {
+                self.error = privacy == .policyNotPersisted ? AppStrings.privacySaveError : AppStrings.genericProcessingError
+            } else { self.error = error.localizedDescription }
             isStreaming = false
             return false
         }
@@ -2386,8 +2834,16 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    func sendTimingBinding(for message: Message) -> NativeChatSendTimingBinding {
+        .init(chatID: message.chatId,
+            userMessageID: message.userMessageId ?? userMessageIdByAssistantMessageId[message.id],
+            responseID: message.id, category: message.category ?? message.appId ?? assistantCategoryByMessageId[message.id])
+    }
+
     func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
+        let receivedAt = NativeSyncPerfLog.now()
         guard streamingLifecycle.apply(event) else { return }
+        NativeChatSendTiming.shared.acceptedMate(lifecycle: streamingLifecycle, receivedAt: receivedAt)
         // Buffered preprocessing/typing may arrive after foreground history has
         // already materialized the final encrypted row. Reconcile before replay
         // can replace that row with a partial plaintext assistant.
@@ -2452,9 +2908,9 @@ final class ChatViewModel: ObservableObject {
                     current: followUpSuggestions,
                     incoming: extractFollowUpSuggestions(from: allMessages)
                 )
-                isStreaming = false
+                isStreaming = streamingLifecycle.isActive
                 streamingContent = ""
-                streamingMessageId = nil
+                if !streamingLifecycle.isActive { streamingMessageId = nil }
                 assistantMessageCreatedAtById.removeValue(forKey: messageId)
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
@@ -2494,6 +2950,9 @@ final class ChatViewModel: ObservableObject {
                 isStreaming = true
             }
 
+        case .messageFinality:
+            break
+
         case .thinkingChunk(let chatId, let messageId, _):
             streamingMessageId = messageId
             isStreaming = true
@@ -2531,9 +2990,8 @@ final class ChatViewModel: ObservableObject {
             streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
-        case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle, let sourceTitleVersion, let sourceMetadataVersion):
+        case .postProcessingCompleted(let chatId, let sourceTaskID, let followUps, let newSuggestions, let summary, let tags, let updatedTitle, let sourceTitleVersion, let sourceMetadataVersion):
             guard chat?.id == chatId else { return }
-            isStreaming = false
             followUpSuggestions = ChatFollowUpSuggestionPolicy.acceptCompletedResponse(followUps)
             Task { @MainActor in
                 await sendPipeline.sendPostProcessingMetadata(
@@ -2545,6 +3003,9 @@ final class ChatViewModel: ObservableObject {
                     updatedTitle: updatedTitle,
                     sourceTitleVersion: sourceTitleVersion,
                     sourceMetadataVersion: sourceMetadataVersion,
+                    isCurrentSource: { [weak self] in
+                        self?.chat?.id == chatId && self?.streamingLifecycle.taskId == sourceTaskID
+                    },
                     wsManager: wsManager,
                     chatStore: chatStore
                 )
@@ -2552,9 +3013,8 @@ final class ChatViewModel: ObservableObject {
                     self.chat = acceptedChat
                 }
             }
-            streamingContent = ""
-            streamingMessageId = nil
-            streamingLifecycle.queuedMessageText = nil
+            // Header metadata may arrive after terminal or while a response is
+            // active. Its delivery cannot change answer presentation authority.
 
         case .error(let msg):
             error = msg
@@ -2756,6 +3216,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func subscribeToChatLifecycle(chatId: String) {
+        Task { @MainActor [weak self] in await self?.refreshQueuedFollowups() }
         subChatProgress = nil
         subChatApprovalRequest = nil
         if let observer = chatLifecycleObserver {
@@ -2782,6 +3243,11 @@ final class ChatViewModel: ObservableObject {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
             switch type {
+            case "message_queued", "queued_message_status", "queued_message_updated", "queued_message_started", "queued_message_steered",
+                 "queued_message_steer_deferred", "queued_handoff_paused", "queued_messages_snapshot":
+                guard let object = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let payload = (object["payload"] ?? object["data"]) as? [String: Any] else { return }
+                await applyQueuedFollowupEvent(type: type, fields: payload)
             case "message_deleted":
                 let envelope = try decoder.decode(LifecycleEnvelope<ChatWindowMessageDeletion>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data, payload.chatId == activeChatId else { return }
@@ -3967,6 +4433,8 @@ struct AudioRecordingWaveform: Codable, Equatable, Sendable {
     }
 }
 
+enum AudioRecordingTranscriptionDisposition: Equatable, Sendable { case transcribed, disabled }
+
 struct AudioRecordingRealtimeResult: Equatable, Sendable {
     let title: String?
     let transcript: String
@@ -3975,9 +4443,27 @@ struct AudioRecordingRealtimeResult: Equatable, Sendable {
     let useCorrected: Bool
     let model: String
     let correctionModel: String?
+    let disposition: AudioRecordingTranscriptionDisposition
+
+    init(title: String?, transcript: String, transcriptOriginal: String, transcriptCorrected: String?,
+         useCorrected: Bool, model: String, correctionModel: String?,
+         disposition: AudioRecordingTranscriptionDisposition = .transcribed) {
+        self.title = title; self.transcript = transcript; self.transcriptOriginal = transcriptOriginal
+        self.transcriptCorrected = transcriptCorrected; self.useCorrected = useCorrected
+        self.model = model; self.correctionModel = correctionModel; self.disposition = disposition
+    }
+
+    static var transcriptionDisabled: Self {
+        .init(title: nil, transcript: "", transcriptOriginal: "", transcriptCorrected: nil,
+              useCorrected: false, model: "", correctionModel: nil, disposition: .disabled)
+    }
 
     var transcriptionMetadata: TranscriptionMetadata {
-        TranscriptionMetadata(
+        if disposition == .disabled {
+            return TranscriptionMetadata(transcript: nil, model: nil,
+                transcriptionSource: "disabled", transcriptionStatus: "disabled")
+        }
+        return TranscriptionMetadata(
             title: title,
             transcript: transcript,
             transcriptOriginal: transcriptOriginal,
@@ -4021,11 +4507,15 @@ enum AudioRecordingUploadPipeline {
             let realtimeResult = await realtimeTask.value
             guard !Task.isCancelled else { return nil }
             if let realtimeResult {
-                transcription = realtimeResult.transcriptionMetadata.withLocalRoute(localTranscription ? "complete" : nil).withWaveform(waveform)
+                let metadata = realtimeResult.transcriptionMetadata
+                transcription = (realtimeResult.disposition == .disabled ? metadata
+                    : metadata.withLocalRoute(localTranscription ? "complete" : nil)).withWaveform(waveform)
             } else if localTranscription {
                 // Preserve encrypted playback across devices, while forbidding
                 // inference fallback for a recording captured on the local route.
-                transcription = TranscriptionMetadata(transcript: nil, model: "whisper-large-v3-local",
+                // Failure does not establish which model produced a transcript.
+                // In particular, a selected Whistle failure must not claim Whisper.
+                transcription = TranscriptionMetadata(transcript: nil, model: nil,
                     waveform: waveform, transcriptionSource: "local", transcriptionStatus: "failed")
             } else {
                 // A failed or stalled transcription must not strand an already
@@ -4716,13 +5206,10 @@ enum PublicChatContent {
         let embedRecords: [String: EmbedRecord]
     }
 
-    private static let publicChatIDs: Set<String> = [
+    private static let publicChatIDs: Set<String> = Set([
         "announcements-introducing-openmates-v09",
         "legal-privacy", "legal-terms", "legal-imprint",
-        "example-gigantic-airplanes", "example-artemis-ii-mission",
-        "example-beautiful-single-page-html", "example-eu-chat-control-law",
-        "example-flights-berlin-bangkok", "example-creativity-drawing-meetups-berlin"
-    ]
+    ]).union(BundledPublicExampleCatalog.allowedIDs)
     private static var cache = LocalizedPublicChatCache<PublicChat>()
 
     static func isPublicChat(_ id: String) -> Bool { publicChatIDs.contains(id) }
@@ -4777,102 +5264,31 @@ enum PublicChatContent {
     }
 
     private static func exampleChat(for id: String, createdAt: String) -> PublicChat? {
-        let specs: [String: (title: String, appId: String, messages: [MessageSpec], followUps: ClosedRange<Int>)] = [
-            "example-gigantic-airplanes": (
-                AppStrings.exampleGiganticAirplanesTitle,
-                "general_knowledge",
-                [
-                    .user("example-gigantic-airplanes-user-1", "example_chats.gigantic_airplanes.user_message_1"),
-                    .assistant("example-gigantic-airplanes-assistant-1", "example_chats.gigantic_airplanes.assistant_message_1"),
-                    .user("example-gigantic-airplanes-user-2", "example_chats.gigantic_airplanes.user_message_2"),
-                    .assistant("example-gigantic-airplanes-assistant-2", "example_chats.gigantic_airplanes.assistant_message_2")
-                ],
-                1...6
-            ),
-            "example-artemis-ii-mission": (
-                AppStrings.exampleArtemisMissionTitle,
-                "science",
-                [
-                    .user("example-artemis-ii-mission-user-1", "example_chats.artemis_ii_mission.user_message_1"),
-                    .assistant("example-artemis-ii-mission-assistant-2", "example_chats.artemis_ii_mission.assistant_message_2")
-                ],
-                1...4
-            ),
-            "example-beautiful-single-page-html": (
-                AppStrings.exampleBeautifulHtmlTitle,
-                "software_development",
-                [
-                    .user("example-beautiful-single-page-html-user-1", "example_chats.beautiful_single_page_html.user_message_1"),
-                    .assistant("example-beautiful-single-page-html-assistant-2", "example_chats.beautiful_single_page_html.assistant_message_2")
-                ],
-                1...6
-            ),
-            "example-eu-chat-control-law": (
-                AppStrings.exampleEuChatControlTitle,
-                "legal_law",
-                [
-                    .user("example-eu-chat-control-law-user-1", "example_chats.eu_chat_control_law.user_message_1"),
-                    .assistant("example-eu-chat-control-law-assistant-1", "example_chats.eu_chat_control_law.assistant_message_1")
-                ],
-                1...6
-            ),
-            "example-flights-berlin-bangkok": (
-                AppStrings.exampleFlightsBerlinBangkokTitle,
-                "general_knowledge",
-                [
-                    .user("example-flights-berlin-bangkok-user-1", "example_chats.flights_berlin_bangkok.user_message_1"),
-                    .assistant("example-flights-berlin-bangkok-assistant-1", "example_chats.flights_berlin_bangkok.assistant_message_1")
-                ],
-                1...6
-            ),
-            "example-creativity-drawing-meetups-berlin": (
-                AppStrings.exampleCreativityDrawingTitle,
-                "general_knowledge",
-                [
-                    .user("example-creativity-drawing-meetups-berlin-user-1", "example_chats.creativity_drawing_meetups_berlin.user_message_1"),
-                    .assistant("example-creativity-drawing-meetups-berlin-assistant-1", "example_chats.creativity_drawing_meetups_berlin.assistant_message_1")
-                ],
-                1...6
-            )
-        ]
+        let specs = BundledPublicExampleCatalog.examples
 
         guard let spec = specs[id] else { return nil }
         let messages = spec.messages.map { messageSpec in
             // Bind public speech to the bundled source UUID through its exact
             // untranslated content key and role, preserving existing native IDs.
             PublicAssistantSpeechManifest.registerMessage(chatID: id, nativeID: messageSpec.id,
-                contentKey: messageSpec.key, role: messageSpec.role.rawValue)
+                contentKey: messageSpec.key, role: messageSpec.role)
             return message(
                 id: messageSpec.id,
                 chatId: id,
-                role: messageSpec.role,
+                role: MessageRole(rawValue: messageSpec.role) ?? .assistant,
                 content: text(messageSpec.key),
                 createdAt: createdAt,
-                appId: messageSpec.role == .assistant ? spec.appId : nil
+                appId: messageSpec.role == "assistant" ? spec.appId : nil
             )
         }
         return publicChat(
             id: id,
-            title: spec.title,
+            title: text(spec.titleKey),
             appId: spec.appId,
             createdAt: createdAt,
             messages: messages,
             followUpKeys: spec.followUps.map { "example_chats.\(exampleKey(for: id)).follow_up_\($0)" }
         )
-    }
-
-    private struct MessageSpec {
-        let id: String
-        let role: MessageRole
-        let key: String
-
-        static func user(_ id: String, _ key: String) -> MessageSpec {
-            MessageSpec(id: id, role: .user, key: key)
-        }
-
-        static func assistant(_ id: String, _ key: String) -> MessageSpec {
-            MessageSpec(id: id, role: .assistant, key: key)
-        }
     }
 
     private static func publicChat(
@@ -5058,317 +5474,14 @@ enum PublicChatContent {
     }
 
     private static func extractEmbeds(from content: String, fallbackAppId: String?) -> (content: String, refs: [EmbedRef], records: [EmbedRecord]) {
-        var cleaned = content
-        var records: [EmbedRecord] = []
-        var refsById: [String: (location: Int, ref: EmbedRef)] = [:]
-
-        func recordRef(_ ref: EmbedRef, location: Int) {
-            guard refsById[ref.id] == nil else { return }
-            refsById[ref.id] = (location, ref)
-        }
-
-        let jsonPattern = #"```(json_embed|json)\s*([\s\S]*?)\s*```"#
-        for match in regexMatches(jsonPattern, in: content).reversed() {
-            guard let fenceRange = Range(match.range(at: 1), in: content),
-                  let jsonRange = Range(match.range(at: 2), in: content),
-                  let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
-
-            let fence = String(content[fenceRange])
-            let json = String(content[jsonRange])
-            guard let data = json.data(using: .utf8),
-                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let type = object["type"] as? String else { continue }
-
-            let record: EmbedRecord
-            if fence == "json_embed", type == "website", let url = object["url"] as? String {
-                record = embedRecord(
-                    id: stableEmbedId(prefix: "web", value: url),
-                    type: "web-website",
-                    appId: "web",
-                    skillId: nil,
-                    data: object,
-                    parentEmbedId: object["parent_embed_id"] as? String,
-                    embedIds: nil
-                )
-            } else if type == "app_skill_use", let embedId = object["embed_id"] as? String {
-                let appId = object["app_id"] as? String ?? fallbackAppId ?? "web"
-                let skillId = object["skill_id"] as? String ?? "search"
-                let embedType = "app:\(appId):\(skillId)"
-                record = embedRecord(
-                    id: embedId,
-                    type: embedType,
-                    appId: appId,
-                    skillId: skillId,
-                    data: object,
-                    parentEmbedId: object["parent_embed_id"] as? String,
-                    embedIds: embedIds(from: object["embed_ids"] ?? object["child_embed_ids"])
-                )
-            } else if type == "code", let embedId = object["embed_id"] as? String {
-                record = embedRecord(
-                    id: embedId,
-                    type: "code-code",
-                    appId: "code",
-                    skillId: nil,
-                    data: object,
-                    parentEmbedId: object["parent_embed_id"] as? String,
-                    embedIds: nil
-                )
-            } else if type == "sheet", let embedId = object["embed_id"] as? String {
-                record = embedRecord(
-                    id: embedId,
-                    type: "sheets-sheet",
-                    appId: "sheets",
-                    skillId: object["skill_id"] as? String ?? "sheet",
-                    data: object,
-                    parentEmbedId: object["parent_embed_id"] as? String,
-                    embedIds: nil
-                )
-            } else if let embedId = object["embed_id"] as? String {
-                record = embedRecord(
-                    id: embedId,
-                    type: normalizedEmbedType(from: type, appId: object["app_id"] as? String ?? fallbackAppId, skillId: object["skill_id"] as? String),
-                    appId: object["app_id"] as? String ?? fallbackAppId,
-                    skillId: object["skill_id"] as? String,
-                    data: object,
-                    parentEmbedId: object["parent_embed_id"] as? String,
-                    embedIds: embedIds(from: object["embed_ids"] ?? object["child_embed_ids"])
-                )
-            } else {
-                continue
-            }
-
-            records.insert(record, at: 0)
-            recordRef(embedRef(for: record), location: match.range.location)
-            cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
-        }
-
-        let markdownEmbedPattern = #"\[!\]\(embed:([^)]+)\)"#
-        for match in regexMatches(markdownEmbedPattern, in: cleaned).reversed() {
-            guard let refRange = Range(match.range(at: 1), in: cleaned),
-                  let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
-
-            let ref = String(cleaned[refRange])
-            recordRef(EmbedRef(id: ref, type: "web-website", status: "finished", data: nil), location: match.range.location)
-            cleaned.replaceSubrange(fullRange, with: "\n[[embedref:\(ref)]]\n")
-        }
-
-        let inlineEmbedPattern = #"\[\[embed(?:ref)?:([^\]]+)\]\]"#
-        for match in regexMatches(inlineEmbedPattern, in: cleaned).reversed() {
-            guard let idRange = Range(match.range(at: 1), in: cleaned) else { continue }
-            recordRef(EmbedRef(id: String(cleaned[idRange]), type: "web-website", status: "finished", data: nil), location: match.range.location)
-        }
-
-        let orderedRefs = refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
-        return (sanitize(cleaned), orderedRefs, records)
+        let parsed = BundledPublicExampleCatalog.extractEmbeds(from: content, fallbackAppId: fallbackAppId)
+        return (parsed.content, parsed.refs.map { EmbedRef(id: $0.id, type: $0.type, status: $0.status, data: $0.data) }, parsed.records)
     }
-
+    private static func demoEmbedRecords(for chatId: String) -> [String: EmbedRecord] {
+        BundledPublicExampleCatalog.demoEmbedRecords(for: chatId)
+    }
     private static func embedRef(for record: EmbedRecord) -> EmbedRef {
         EmbedRef(id: record.id, type: record.type, status: record.status.rawValue, data: nil)
-    }
-
-    private static func embedRecord(
-        id: String,
-        type: String,
-        appId: String?,
-        skillId: String?,
-        data: [String: Any],
-        parentEmbedId: String?,
-        embedIds: String?
-    ) -> EmbedRecord {
-        EmbedRecord(
-            id: id,
-            type: type,
-            status: .finished,
-            data: .raw(data.mapValues { AnyCodable($0) }),
-            parentEmbedId: parentEmbedId,
-            appId: appId,
-            skillId: skillId,
-            embedIds: embedIds,
-            createdAt: "2026-04-20T12:00:00Z"
-        )
-    }
-
-    private static func demoEmbedRecords(for chatId: String) -> [String: EmbedRecord] {
-        guard let fileName = demoEmbedFileName(for: chatId),
-              let sourceURL = demoEmbedURL(fileName: fileName),
-              let source = try? String(contentsOf: sourceURL, encoding: .utf8) else {
-            return [:]
-        }
-
-        var records: [String: EmbedRecord] = [:]
-        let objectPattern = #"\{\s*embed_id:\s*"([^"]+)"([\s\S]*?)\n\s*\},"#
-        for match in regexMatches(objectPattern, in: source) {
-            guard let idRange = Range(match.range(at: 1), in: source),
-                  let blockRange = Range(match.range(at: 2), in: source) else { continue }
-
-            let embedId = String(source[idRange])
-            let block = String(source[blockRange])
-            guard let rawType = firstRegexCapture(#"type:\s*"([^"]+)""#, in: block),
-                  let rawContent = firstRegexCapture(#"content:\s*`([\s\S]*?)`"#, in: block) else { continue }
-            let content = unescapedDemoEmbedContent(rawContent)
-            var data = parseToonObject(content)
-            data["embed_id"] = embedId
-            data["type"] = data["type"] ?? rawType
-
-            let parentEmbedId = firstRegexCapture(#"parent_embed_id:\s*"([^"]+)""#, in: block)
-            let embedIds = firstRegexCapture(#"embed_ids:\s*\[([^\]]*)\]"#, in: block)
-                .map(parseEmbedIdArray)
-                ?? firstRegexCapture(#"embed_ids:\s*"([^"]*)""#, in: block)
-                ?? data["embed_ids"] as? String
-            let appId = data["app_id"] as? String
-            let skillId = data["skill_id"] as? String
-            let normalizedType = normalizedEmbedType(from: rawType, appId: appId, skillId: skillId)
-
-            let record = embedRecord(
-                id: embedId,
-                type: normalizedType,
-                appId: appId ?? EmbedType(rawValue: normalizedType)?.appId,
-                skillId: skillId,
-                data: data,
-                parentEmbedId: parentEmbedId,
-                embedIds: embedIds
-            )
-            records[embedId] = record
-            if let embedRef = data["embed_ref"] as? String, !embedRef.isEmpty {
-                records[embedRef] = record
-            }
-        }
-        return records
-    }
-
-    private static func unescapedDemoEmbedContent(_ content: String) -> String {
-        content
-            .replacingOccurrences(of: #"\n"#, with: "\n")
-            .replacingOccurrences(of: #"\""#, with: "\"")
-            .replacingOccurrences(of: #"\u20ac"#, with: "€")
-    }
-
-    private static func firstRegexCapture(_ pattern: String, in text: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-              let range = Range(match.range(at: 1), in: text) else {
-            return nil
-        }
-        return String(text[range])
-    }
-
-    private static func parseEmbedIdArray(_ value: String) -> String {
-        value
-            .split(separator: ",")
-            .map {
-                $0.trimmingCharacters(in: CharacterSet(charactersIn: " \n\t\""))
-            }
-            .filter { !$0.isEmpty }
-            .joined(separator: "|")
-    }
-
-    private static func demoEmbedFileName(for chatId: String) -> String? {
-        switch chatId {
-        case "example-gigantic-airplanes": return "gigantic-airplanes.ts"
-        case "example-artemis-ii-mission": return "artemis-ii-mission.ts"
-        case "example-beautiful-single-page-html": return "beautiful-single-page-html.ts"
-        case "example-eu-chat-control-law": return "eu-chat-control-law-criticisms.ts"
-        case "example-flights-berlin-bangkok": return "flights-berlin-to-bangkok.ts"
-        case "example-creativity-drawing-meetups-berlin": return "creativity-drawing-meetups-berlin.ts"
-        default: return nil
-        }
-    }
-
-    private static func demoEmbedURL(fileName: String) -> URL? {
-        let resourceName = (fileName as NSString).deletingPathExtension
-        let resourceExtension = (fileName as NSString).pathExtension
-        let bundleCandidates = [
-            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension, subdirectory: "example_chats"),
-            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension, subdirectory: "demo_chats/example_chats"),
-            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension),
-            Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "example_chats"),
-            Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "demo_chats/example_chats"),
-            Bundle.main.url(forResource: fileName, withExtension: nil)
-        ]
-        if let bundled = bundleCandidates.compactMap({ $0 }).first {
-            return bundled
-        }
-
-        let sourceFile = URL(fileURLWithPath: #filePath)
-        let repoRoot = sourceFile
-            .deletingLastPathComponent() // ViewModels/
-            .deletingLastPathComponent() // Chat/
-            .deletingLastPathComponent() // Features/
-            .deletingLastPathComponent() // Sources/
-            .deletingLastPathComponent() // OpenMates/
-            .deletingLastPathComponent() // apple/
-        return repoRoot.appendingPathComponent("frontend/packages/ui/src/demo_chats/data/example_chats/\(fileName)")
-    }
-
-    private static func parseToonObject(_ content: String) -> [String: Any] {
-        var result: [String: Any] = [:]
-        for line in content.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let separator = trimmed.firstIndex(of: ":") else { continue }
-            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
-            var value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
-                value.removeFirst()
-                value.removeLast()
-            }
-            value = value
-                .replacingOccurrences(of: #"\""#, with: #"""#)
-                .replacingOccurrences(of: #"\\n"#, with: "\n")
-            if !key.isEmpty {
-                result[key] = value
-            }
-        }
-        return result
-    }
-
-    private static func embedIds(from value: Any?) -> String? {
-        if let ids = value as? [String] {
-            return ids.joined(separator: "|")
-        }
-        if let ids = value as? [Any] {
-            let strings = ids.compactMap { $0 as? String }
-            return strings.isEmpty ? nil : strings.joined(separator: "|")
-        }
-        return value as? String
-    }
-
-    private static func normalizedEmbedType(from type: String, appId: String?, skillId: String?) -> String {
-        if type == "code" {
-            return "code-code"
-        }
-        if type == "website" || type == "web_result" || type == "search_result" {
-            return "web-website"
-        }
-        if type == "image_result" {
-            return "images-image-result"
-        }
-        if type == "connection" {
-            return "travel-connection"
-        }
-        if type == "event_result" || type == "event" {
-            return "events-event"
-        }
-        if type == "video_result" {
-            return "videos-video"
-        }
-        if let appId, let skillId, type == "app_skill_use" {
-            return "app:\(appId):\(skillId)"
-        }
-        return type
-    }
-
-    private static func stableEmbedId(prefix: String, value: String) -> String {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in value.utf8 {
-            hash ^= UInt64(byte)
-            hash &*= 1_099_511_628_211
-        }
-        return "\(prefix)-\(String(hash, radix: 16))"
-    }
-
-    private static func regexMatches(_ pattern: String, in text: String) -> [NSTextCheckingResult] {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        return regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
     }
 
     private static func demoFollowUpKeys(_ key: String) -> [String] {
@@ -5376,15 +5489,7 @@ enum PublicChatContent {
     }
 
     private static func exampleKey(for id: String) -> String {
-        switch id {
-        case "example-gigantic-airplanes": return "gigantic_airplanes"
-        case "example-artemis-ii-mission": return "artemis_ii_mission"
-        case "example-beautiful-single-page-html": return "beautiful_single_page_html"
-        case "example-eu-chat-control-law": return "eu_chat_control_law"
-        case "example-flights-berlin-bangkok": return "flights_berlin_bangkok"
-        case "example-creativity-drawing-meetups-berlin": return "creativity_drawing_meetups_berlin"
-        default: return id
-        }
+        BundledPublicExampleCatalog.examples[id]?.key ?? id
     }
 
     private static func legalPrivacyContent() -> String {
@@ -5400,7 +5505,6 @@ enum PublicChatContent {
             section("legal.privacy.stripe.heading", "legal.privacy.stripe.description"),
             section("legal.privacy.brave.heading", "legal.privacy.brave.description"),
             section("legal.privacy.google.heading", "legal.privacy.google.description"),
-            section("legal.privacy.firecrawl.heading", "legal.privacy.firecrawl.description")
         ].joined(separator: "\n\n")
     }
 
@@ -5436,43 +5540,7 @@ enum PublicChatContent {
     }
 
     private static func sanitize(_ content: String) -> String {
-        let placeholders = [
-            "[[example_chats_group]]",
-            "[[dev_example_chats_group]]",
-            "[[app_store_group]]",
-            "[[dev_app_store_group]]",
-            "[[skills_group]]",
-            "[[dev_skills_group]]",
-            "[[focus_modes_group]]",
-            "[[dev_focus_modes_group]]",
-            "[[settings_memories_group]]",
-            "[[dev_settings_memories_group]]",
-            "[[ai_models_group]]"
-        ]
-        var cleaned = content
-        let embedPlaceholderPattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#
-        let embedPlaceholderMatches = regexMatches(embedPlaceholderPattern, in: cleaned)
-            .compactMap { match -> String? in
-                guard let range = Range(match.range(at: 0), in: cleaned) else { return nil }
-                return String(cleaned[range])
-            }
-        for (index, placeholder) in embedPlaceholderMatches.enumerated() {
-            cleaned = cleaned.replacingOccurrences(of: placeholder, with: "__OM_EMBED_PLACEHOLDER_\(index)__")
-        }
-        for (index, placeholder) in placeholders.enumerated() {
-            cleaned = cleaned.replacingOccurrences(of: placeholder, with: "__OM_DEMO_PLACEHOLDER_\(index)__")
-        }
-        cleaned = cleaned
-            .replacingOccurrences(of: #"\[\[[^\]]+\]\]"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\n\n\n", with: "\n\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        for (index, placeholder) in placeholders.enumerated() {
-            cleaned = cleaned.replacingOccurrences(of: "__OM_DEMO_PLACEHOLDER_\(index)__", with: placeholder)
-        }
-        for (index, placeholder) in embedPlaceholderMatches.enumerated() {
-            cleaned = cleaned.replacingOccurrences(of: "__OM_EMBED_PLACEHOLDER_\(index)__", with: placeholder)
-        }
-        return cleaned
+        BundledPublicExampleCatalog.sanitize(content)
     }
 }
 
@@ -5910,9 +5978,21 @@ final class ChatSendPipeline {
         excludedPIIOriginals: Set<String> = [],
         excludedPIIPlaceholders: Set<String> = []
     ) -> (content: String, piiMappings: [PIIMapping]) {
+        contentAndMappingsForSend(content: content, knownMappings: knownPIIMappings(in: existingMessages),
+            piiMappings: piiMappings, excludedPIIOriginals: excludedPIIOriginals,
+            excludedPIIPlaceholders: excludedPIIPlaceholders)
+    }
+
+    func contentAndMappingsForSend(
+        content: String,
+        knownMappings: [PIIMapping],
+        piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = []
+    ) -> (content: String, piiMappings: [PIIMapping]) {
         let rewrite = PIIDetector.rewriteKnownPIIPlaceholders(
             in: content,
-            mappings: knownPIIMappings(in: existingMessages),
+            mappings: knownMappings,
             excludedOriginals: excludedPIIOriginals,
             excludedPlaceholders: excludedPIIPlaceholders
         )
@@ -5922,12 +6002,21 @@ final class ChatSendPipeline {
         )
     }
 
-    private func knownPIIMappings(in messages: [Message]) -> [PIIMapping] {
+    func knownPIIMappings(in messages: [Message]) -> [PIIMapping] {
         PIIDetector.mergePIIMappings(
             messages
                 .filter { $0.role == .user }
                 .flatMap { $0.piiMappings ?? [] }
         )
+    }
+
+    func historicalPIIMappingSnapshot(in messages: [Message], excludingDigestMessageID: String?)
+        -> (preparation: [PIIMapping], digest: [PIIMapping]) {
+        let mappings = knownPIIMappings(in: messages)
+        guard let excludingDigestMessageID, messages.contains(where: { $0.id == excludingDigestMessageID }) else {
+            return (mappings, mappings)
+        }
+        return (mappings, knownPIIMappings(in: messages.filter { $0.id != excludingDigestMessageID }))
     }
 
     private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
@@ -5995,15 +6084,30 @@ final class ChatSendPipeline {
         createdAtOverride: String? = nil,
         beforePreparedSend: (() async throws -> Void)? = nil,
         validateRemoteSend: (() throws -> Void)? = nil,
+        voiceCallTurn: NativeVoiceCallTurn? = nil,
         messageId requestedMessageId: String? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        let messageId = requestedMessageId ?? "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        guard preparingMessageIDs.insert(messageId).inserted else { throw ChatSendError.retryUnavailable }
+        NativeChatSendTiming.shared.bind(chatID: chat.id, messageID: messageId)
+        var preparationTransferred = false
+        defer { if !preparationTransferred { preparingMessageIDs.remove(messageId) } }
         // Pin speech/account context before encryption and preference awaits.
         let accountScope = OfflineStore.shared.scopeGeneration
         let server = ServerProfile.current()
         let team = TeamWorkspaceContext.shared.snapshot
         let keyGeneration = ChatKeyManager.shared.cacheGeneration
         let deletionVersion = OfflineStore.shared.chatDeletionVersion(chat.id)
+        let admissionScope = NativePersonalPrivacyRuntime.scope(socket: wsManager)
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "admissionWaitBegin")
+        let admissionLease = try await ChatSavedSendAdmissionGate.shared.acquire(.init(scope: admissionScope, chatID: chat.id))
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "admissionWaitEnd")
+        var admissionLeaseTransferred = false
+        defer { if !admissionLeaseTransferred { admissionLease.release() } }
+        // Prior admissions and queued revisions publish their authoritative
+        // messages_v before releasing this lease. Keep the caller's other fields.
+        let chat = chatStore?.chat(for: chat.id)?.messagesV.map { chat.withMessagesVersion($0) } ?? chat
         preparedTurns = preparedTurns.filter {
             let fence = $0.value.bundle.fence
             return fence.accountScope == accountScope && fence.server == server.apiBaseURL.absoluteString
@@ -6024,11 +6128,9 @@ final class ChatSendPipeline {
         let now = Date()
         let createdAt = createdAtOverride ?? Self.isoString(from: now)
         let createdAtUnix = createdAtOverride.map(Self.unixSeconds) ?? Int(now.timeIntervalSince1970)
-        let messageId = requestedMessageId ?? "\(chat.id.suffix(10))-\(UUID().uuidString)"
-        guard preparingMessageIDs.insert(messageId).inserted else { throw ChatSendError.retryUnavailable }
-        defer { preparingMessageIDs.remove(messageId) }
         // Nil content alone is never evidence of an already stored attachment.
         _ = try Self.requiredEncryptedBundles(composerEmbeds, referenceScope: .current)
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "keysBegin")
         guard let accountID = await AuthManager.currentUserId(),
               let masterKey = try await crypto.loadMasterKey(for: accountID) else { throw ChatSendError.missingMasterKey }
         try validateSendContext()
@@ -6039,11 +6141,19 @@ final class ChatSendPipeline {
             teamID: team.teamID, teamEpoch: team.epoch, keyGeneration: keyGeneration,
             deletionVersion: deletionVersion,
             chatKeyDigest: keyMaterial.key.withUnsafeBytes { SHA256.hash(data: Data($0)).map { String(format: "%02x", $0) }.joined() })
+        // Both preparation passes use the same immutable history snapshot. Only a
+        // retry/edit whose requested ID already exists needs a filtered digest.
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "keysEnd")
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "piiHistoryBegin")
+        let mappingSnapshot = historicalPIIMappingSnapshot(in: existingMessages,
+            excludingDigestMessageID: requestedMessageId)
+        let historicalMappings = mappingSnapshot.preparation
         let inputDigest = try Self.sendInputDigest(content: content, composerEmbeds: composerEmbeds,
             piiMappings: piiMappings, excludedPIIOriginals: excludedPIIOriginals,
             excludedPIIPlaceholders: excludedPIIPlaceholders, broadcastToSiblings: broadcastToSiblings,
             createdAtOverride: createdAtOverride, isEdit: beforePreparedSend != nil,
-            knownMappings: knownPIIMappings(in: existingMessages.filter { $0.id != messageId }))
+            knownMappings: mappingSnapshot.digest)
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "piiHistoryEnd")
         if requestedMessageId != nil,
            let retained = try preparedTurns[messageId]?.bundle ?? retainedSendStore.load(
             accountID: accountID, server: server.apiBaseURL.absoluteString,
@@ -6082,6 +6192,11 @@ final class ChatSendPipeline {
             if preparedTurns[messageId]?.bundle.turnID == retained.turnID { preparedTurns.removeValue(forKey: messageId) }
             return SendResult(chat: currentChat, message: original)
         }
+        let turnId = UUID().uuidString.lowercased()
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "privacyBegin")
+        let privacyReceipt = try await NativePersonalPrivacyRuntime.shared.fresh(turnID: turnId, socket: wsManager)
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "privacyEnd")
+        try validateSendContext()
         // The immutable retained replay above intentionally bypasses this probe:
         // readiness changes must never replace an interrupted turn's original bundle.
         let referenceScope = ComposerEmbedReferenceScope(accountScope: accountScope,
@@ -6096,8 +6211,14 @@ final class ChatSendPipeline {
             content,
             composerEmbeds: composerEmbeds
         )
+        let initialSendPreparation = contentAndMappingsForSend(content: contentWithEmbedReferences,
+            knownMappings: historicalMappings, piiMappings: piiMappings, excludedPIIOriginals: excludedPIIOriginals,
+            excludedPIIPlaceholders: excludedPIIPlaceholders)
+        let checkedPrivacy = try NativePersonalPrivacyRuntime.shared.filter(initialSendPreparation.content,
+            receipt: privacyReceipt, socket: wsManager, existingMappings: initialSendPreparation.piiMappings,
+            excludedOriginals: excludedPIIOriginals)
         let urlPreparation = try await URLMessageEmbedPreparation.prepare(
-            text: contentWithEmbedReferences,
+            text: checkedPrivacy.content,
             credits: URLMessageEmbedPreparation.cachedCredits(accountID: await AuthManager.currentUserId()),
             validate: validateSendContext
         )
@@ -6105,13 +6226,14 @@ final class ChatSendPipeline {
         try validateSendContext()
         let sendPreparation = contentAndMappingsForSend(
             content: urlPreparation.content,
-            existingMessages: existingMessages,
-            piiMappings: piiMappings,
+            knownMappings: historicalMappings,
+            piiMappings: checkedPrivacy.mappings,
             excludedPIIOriginals: excludedPIIOriginals,
             excludedPIIPlaceholders: excludedPIIPlaceholders
         )
         let contentForSend = sendPreparation.content
         let mappingsForSend = sendPreparation.piiMappings
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "encryptionBegin")
         let encryptedContent = try await crypto.encryptContent(contentForSend, key: keyMaterial.key)
         let encryptedPIIMappings = try await encryptPIIMappings(mappingsForSend, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
@@ -6120,6 +6242,7 @@ final class ChatSendPipeline {
             messageId: messageId,
             chatKey: keyMaterial.key
         )
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "encryptionEnd")
         let nextMessagesV = max(chat.messagesV ?? existingMessages.count, existingMessages.count) + 1
         let updatedChat = copyChat(
             chat,
@@ -6145,11 +6268,13 @@ final class ChatSendPipeline {
             encryptedPIIMappings: encryptedPIIMappings
         )
 
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "historyBegin")
         let history = existingMessages.isEmpty ? [] : try await savedChatHistoryPayload(
             existingMessages.filter { $0.id != message.id } + [message],
             chatId: chat.id, key: keyMaterial.key
         )
 
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "historyEnd")
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
@@ -6164,7 +6289,10 @@ final class ChatSendPipeline {
             messagePayload["current_chat_title"] = updatedChat.title
         }
 
-        messagePayload.merge(try await AssistantSpeechAppRuntime.shared.prepareSend(chat: chat, userMessageID: messageId, socket: wsManager, expectedScope: speechScope), uniquingKeysWith: { _, new in new })
+        messagePayload.merge(try await AssistantSpeechAppRuntime.shared.prepareSend(chat: chat,
+            userMessageID: messageId, socket: wsManager, expectedScope: speechScope,
+            voiceCallTurn: voiceCallTurn), uniquingKeysWith: { _, new in new })
+        if let voiceCallTurn { messagePayload.merge(voiceCallTurn.messageFields, uniquingKeysWith: { _, new in new }) }
 
         var outboundPayload: [String: Any] = [
             "chat_id": chat.id,
@@ -6172,6 +6300,7 @@ final class ChatSendPipeline {
             "encrypted_chat_key": keyMaterial.encryptedChatKey
         ]
         if !history.isEmpty { outboundPayload["message_history"] = history }
+        if !privacyReceipt.privacy.metadataKeys.isEmpty { outboundPayload["app_settings_memories_metadata"] = privacyReceipt.privacy.metadataKeys }
         outboundPayload.merge(
             chatContextPayloadFields(
                 for: chat,
@@ -6208,9 +6337,11 @@ final class ChatSendPipeline {
             }
         }
         // Optional owned reference material is transient and never restores Project consent.
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "projectBegin")
         if let context = try? await NativeProjectAuthoringClient.shared.requestContext(chatID: chat.id, text: contentForSend) {
             outboundPayload.merge(context, uniquingKeysWith: { _, new in new })
         }
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "projectEnd")
         let sendableEmbeds = preparedEmbeds.compactMap(\.serverPayload)
         if !sendableEmbeds.isEmpty {
             outboundPayload["embeds"] = sendableEmbeds
@@ -6222,7 +6353,6 @@ final class ChatSendPipeline {
             outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
         }
 
-        let turnId = UUID().uuidString.lowercased()
         let recoveryKeyPair = try await crypto.deriveRecoveryKeyPair(
             chatKey: keyMaterial.key,
             chatId: chat.id,
@@ -6278,9 +6408,11 @@ final class ChatSendPipeline {
             preflight: preflightPayload, outbound: outboundPayload, chatTeamID: chat.teamId)
         // Retention must succeed before callbacks, destructive edit preparation,
         // optimistic insertion, or transport. Never truncate oversized payloads.
+        NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "retentionBegin")
         try await ChatPreparedSendRetentionStage.retainThenCommit(retain: {
             try self.retainedSendStore.save(retainedBundle, masterKey: masterKey)
         }, commit: {
+            NativeChatSendTiming.shared.mark(chatID: chat.id, messageID: messageId, phase: "retentionEnd")
             try validateSendContext()
             try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
             try await beforePreparedSend?()
@@ -6315,7 +6447,9 @@ final class ChatSendPipeline {
             try retainedSendStore.remove(retainedBundle, masterKey: masterKey)
             if preparedTurns[messageId]?.bundle.turnID == turnId { preparedTurns.removeValue(forKey: messageId) }
         } else {
+            admissionLeaseTransferred = true; preparationTransferred = true
             Task { @MainActor in
+                defer { admissionLease.release(); self.preparingMessageIDs.remove(messageId) }
                 do {
                     try await self.sendRemoteUserMessage(
                         chatId: chat.id,
@@ -6457,7 +6591,7 @@ final class ChatSendPipeline {
         return "[File]"
     }
 
-    private static func containsEmbedReference(_ embedId: String, in content: String) -> Bool {
+    static func containsEmbedReference(_ embedId: String, in content: String) -> Bool {
         if content.contains("embed:\(embedId)") { return true }
         let escapedID = NSRegularExpression.escapedPattern(for: embedId)
         let pattern = #"\"embed_id\"\s*:\s*\""# + escapedID + #"\""#
@@ -6634,16 +6768,38 @@ final class ChatSendPipeline {
                     turnID: processingMessageID, scope: processingScope)
             }
         }
-        try validateRemoteSend?()
+        var admissionPayload = preflightPayload
+        if let socket = transport as? WebSocketManager {
+            admissionPayload = try await NativePersonalPrivacyRuntime.shared.attach(to: preflightPayload,
+                outbound: outboundPayload, turnID: turnId, socket: socket)
+        }
+        let validateAdmission: @MainActor () throws -> Void = {
+            try validateRemoteSend?()
+            if let socket = transport as? WebSocketManager {
+                try NativePersonalPrivacyRuntime.shared.requireReceiptCurrent(turnID: turnId, socket: socket)
+            }
+        }
+        try validateAdmission()
+        let markerOwnerID = await AuthManager.currentUserId()
+        try validateAdmission()
+        let markerFence = markerOwnerID.map { UserTasksAccountFence(accountID: $0) }
+        let markerMessage = outboundPayload["message"] as? [String: Any]
+        if let markerFence, let chatID = processingChatID, let messageID = processingMessageID,
+           markerMessage?["role"] as? String == MessageRole.user.rawValue {
+            try await BillingUsageDraftAudioRegistry.shared.registerOrdinarySend(
+                chatID: chatID, messageID: messageID, role: .user, fence: markerFence)
+            try validateAdmission()
+        }
+        if let processingChatID { NativeChatSendTiming.shared.mark(chatID: processingChatID, messageID: processingMessageID, phase: "preflightBegin") }
         let acknowledgement = (try await transport.sendAndWait(
-            WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
-            responseType: "chat_turn_preflight_ack"
-        ) {
-                $0["turn_id"] as? String == turnId
-        }).fields
+            WSOutboundMessage(type: "chat_turn_preflight", payload: admissionPayload),
+            responseType: "chat_turn_preflight_ack", timeout: .seconds(20),
+            matching: { $0["turn_id"] as? String == turnId }, beforeSend: validateAdmission
+        )).fields
+        if let processingChatID { NativeChatSendTiming.shared.mark(chatID: processingChatID, messageID: processingMessageID, phase: "preflightEnd") }
         // Account/socket ownership may change while waiting for preflight. Do not
         // send this turn's plaintext history through a replacement session.
-        try validateRemoteSend?()
+        try validateAdmission()
         guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
               let state = acknowledgement["state"] as? String else {
             throw ChatSendError.webSocketUnavailable
@@ -6661,6 +6817,12 @@ final class ChatSendPipeline {
         // handling; the server cannot safely enqueue that same failed turn again.
         // See backend/core/directus/extensions/chat-recovery-transaction/src/operations.js.
         if waitForInferenceReceipt {
+            if let markerFence, let chatID = processingChatID, let messageID = processingMessageID,
+               markerMessage?["role"] as? String == MessageRole.user.rawValue {
+                try await BillingUsageDraftAudioRegistry.shared.acceptPersistedOrdinaryTurn(
+                    chatID: chatID, messageID: messageID, state: state, fence: markerFence)
+                try validateRemoteSend?()
+            }
             switch state {
             case "ENQUEUED", "RUNNING":
                 processingStarted()
@@ -6693,6 +6855,10 @@ final class ChatSendPipeline {
                 expectedVersion: version, committedVersion: version)
         }
         processingStarted()
+        let validateCommit: @MainActor () throws -> Void = {
+            try validateAdmission()
+            if let processingChatID { NativeChatSendTiming.shared.mark(chatID: processingChatID, messageID: processingMessageID, phase: "commitWrite") }
+        }
         do {
             if waitForInferenceReceipt {
                 guard let chatId = outboundPayload["chat_id"] as? String, !chatId.isEmpty,
@@ -6703,7 +6869,7 @@ final class ChatSendPipeline {
                 // Socket-write completion only means bytes left this client. Keep a
                 // background reply pending until AI admission is acknowledged. Register
                 // the waiter before sending so a fast server cannot outrun it.
-                let receipt = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
+                let receipt = try await transport.sendAndWait(commit, responseType: "ai_task_initiated", timeout: .seconds(20), matching: { fields in
                     if fields["code"] as? String != nil {
                         return fields["turn_id"] as? String == turnId ||
                             (fields["chat_id"] as? String == chatId &&
@@ -6712,13 +6878,14 @@ final class ChatSendPipeline {
                     return fields["chat_id"] as? String == chatId &&
                         fields["user_message_id"] as? String == messageId &&
                         ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
-                }
-                try validateRemoteSend?()
+                }, beforeSend: validateCommit)
+                try validateAdmission()
                 if let hapticGate, let hapticScope {
                     hapticGate.consume(type: "ai_task_initiated", fields: receipt.fields, scope: hapticScope)
                 }
             } else {
-                try await transport.send(commit)
+                if let socket = transport as? WebSocketManager { try await socket.send(commit, beforeSend: validateCommit) }
+                else { try validateCommit(); try await transport.send(commit) }
             }
         } catch {
             if let hapticGate, let hapticScope, let processingMessageID {
@@ -7074,6 +7241,32 @@ final class ChatSendPipeline {
         return displayContent ?? ""
     }
 
+    func prepareQueuedRevision(state: ChatQueuedFollowupState, chat: Chat, content: String?, piiMappings: [PIIMapping],
+                               excludedOriginals: Set<String>, mode: ChatQueuedRevisionRequest.Mode,
+                               existingMessages: [Message], socket: WebSocketManager,
+                               validate: @escaping @MainActor () throws -> Void) async throws -> ChatQueuedRevisionRequest {
+        try validate()
+        let requestID = UUID().uuidString
+        let receipt = try await NativePersonalPrivacyRuntime.shared.freshForQueuedRevision(requestID: requestID, socket: socket)
+        try validate()
+        guard let content else {
+            return try ChatQueuedRevisionRequest(chatID: chat.id, messageID: state.messageID, expectedRevision: state.revision,
+                clientRequestID: requestID, mode: mode, teamID: chat.teamId)
+        }
+        guard let key = ChatKeyManager.shared.key(for: chat.id) else { throw ChatSendError.chatKeyMismatch }
+        let initial = contentAndMappingsForSend(content: content, existingMessages: existingMessages,
+            piiMappings: piiMappings, excludedPIIOriginals: excludedOriginals)
+        let filtered = try NativePersonalPrivacyRuntime.shared.filter(initial.content, receipt: receipt,
+            socket: socket, existingMappings: initial.piiMappings, excludedOriginals: excludedOriginals)
+        let ciphertext = try await crypto.encryptContent(filtered.content, key: key)
+        let mappingCiphertext = try await encryptPIIMappings(filtered.mappings, key: key)
+        try validate()
+        try NativePersonalPrivacyRuntime.shared.requireReceiptCurrent(turnID: requestID, socket: socket)
+        return try ChatQueuedRevisionRequest(chatID: chat.id, messageID: state.messageID, expectedRevision: state.revision,
+            clientRequestID: requestID, mode: mode, teamID: chat.teamId, content: filtered.content,
+            encryptedContent: ciphertext, encryptedPIIMappings: mappingCiphertext)
+    }
+
     func sendPostProcessingMetadata(
         chatId: String,
         followUpSuggestions: [String],
@@ -7083,11 +7276,24 @@ final class ChatSendPipeline {
         updatedTitle: String?,
         sourceTitleVersion: Int? = nil,
         sourceMetadataVersion: Int? = nil,
+        isCurrentSource: @escaping () -> Bool = { true },
         wsManager: WebSocketManager?,
         chatStore: ChatStore?
     ) async {
-        guard let wsManager, let chat = chatStore?.chat(for: chatId) else { return }
+        guard let wsManager, let chat = chatStore?.chat(for: chatId), isCurrentSource() else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        let keyGeneration = ChatKeyManager.shared.cacheGeneration
+        let team = TeamWorkspaceContext.shared.snapshot
+        let server = ServerProfile.current()
+        let transport = wsManager.transportGeneration
+        func requireCurrent() throws {
+            guard isCurrentSource(), OfflineStore.shared.scopeGeneration == scope,
+                  ChatKeyManager.shared.cacheGeneration == keyGeneration,
+                  TeamWorkspaceContext.shared.isCurrent(team), ServerProfile.current() == server,
+                  wsManager.transportGeneration == transport else { throw ChatSendError.webSocketUnavailable }
+        }
         do {
+            try requireCurrent()
             let keyMaterial = try await ensureChatKey(chatId: chatId, encryptedChatKey: chat.encryptedChatKey)
             var payload: [String: Any] = [
                 "chat_id": chatId,
@@ -7138,10 +7344,13 @@ final class ChatSendPipeline {
             }
             let acknowledgement = try await wsManager.sendAndWait(
                 WSOutboundMessage(type: "update_post_processing_metadata", payload: payload),
-                responseType: "post_processing_metadata_stored"
-            ) { fields in
-                fields["chat_id"] as? String == chatId
-            }
+                responseType: "post_processing_metadata_stored", timeout: .seconds(20),
+                matching: { fields in fields["chat_id"] as? String == chatId },
+                beforeSend: { try requireCurrent() }
+            )
+            try requireCurrent()
+            guard let currentChat = chatStore?.chat(for: chatId),
+                  currentChat.titleV == chat.titleV, currentChat.metadataV == chat.metadataV else { return }
             let acceptedVersions = acknowledgement.fields["versions"] as? [String: Any]
             let acceptedTitleVersion = acceptedVersions?["title_v"] as? Int
             let acceptedMetadataVersion = acceptedVersions?["metadata_v"] as? Int
@@ -7151,7 +7360,7 @@ final class ChatSendPipeline {
                 && acceptedTitleVersion == proposedTitleVersion
             let acceptedGeneratedSummary = encryptedSummary != nil && acceptedExpectedMutation
             chatStore?.upsertChat(copyChat(
-                chat,
+                currentChat,
                 title: acceptedGeneratedTitle ? updatedTitle : chat.title,
                 updatedAt: Self.isoString(from: Date()),
                 chatSummary: acceptedGeneratedSummary ? chatSummary : chat.chatSummary,
@@ -7164,7 +7373,7 @@ final class ChatSendPipeline {
                 metadataV: acceptedMetadataVersion ?? chat.metadataV
             ))
         } catch {
-            print("[ChatSendPipeline] Failed to send post-processing metadata: \(error)")
+            NativeSyncPerfLog.info("optional_chat_metadata_delivery_unavailable")
         }
     }
 
@@ -7508,6 +7717,7 @@ struct SubChatProgress: Decodable, Equatable, Sendable {
     let total: Int?
     let completed: Int?
     let activeSubChatId: String?
+    var messageId: String? = nil
 }
 
 struct SpawnSubChatsPayload: Decodable, Equatable, Sendable {

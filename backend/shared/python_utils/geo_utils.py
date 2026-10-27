@@ -2,7 +2,7 @@
 #
 # Shared geographic utilities: city coordinate lookup and address geocoding.
 #
-# Used by event providers (Meetup, Luma) to attach lat/lon to venue data so
+# Used by event results to attach lat/lon to venue data so
 # the frontend can render an interactive map in EventEmbedFullscreen.
 #
 # Geocoding strategy (precision-first when address available):

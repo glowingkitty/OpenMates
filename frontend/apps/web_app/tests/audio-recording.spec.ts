@@ -621,7 +621,7 @@ test('active recording shows live rolling waveform and releases analyser resourc
 // Test 5: Corrected speech enters the existing draft as editable text
 // ─────────────────────────────────────────────────────────────────────────────
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
-test('finished recording inserts corrected text at the original caret without audio storage', async ({ page }) => {
+test('Mercury corrected recording inserts editable text at the original caret without audio storage', async ({ page }) => {
 	test.setTimeout(120000);
 	let audioUploadRequests = 0;
 	let batchTranscriptionRequests = 0;
@@ -634,8 +634,9 @@ test('finished recording inserts corrected text at the original caret without au
 		socket.send(JSON.stringify({ type: 'session.ready' }));
 		socket.onMessage((payload: string) => {
 			if (JSON.parse(payload).type !== 'input_audio.end') return;
-			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'review', model: 'test-realtime' }));
-			socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review', correction_model: 'test-correction' }));
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'um review please', model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.started', model: 'mercury-3' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review', correction_model: 'mercury-3' }));
 		});
 	});
 	await setupAndFocusMessageField(page);
@@ -656,6 +657,125 @@ test('finished recording inserts corrected text at the original caret without au
 	await expect(editor).toBeFocused();
 	await page.keyboard.type('!');
 	await expect(editor).toHaveText('Please review! now');
+	expect(audioUploadRequests).toBe(0);
+	expect(batchTranscriptionRequests).toBe(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('long streamed recording preserves beginning middle and end in the editable draft', async ({ page }) => {
+	test.setTimeout(120000);
+	const sections = [
+		'Um first reserve the library and keep the opening budget below five hundred euros. ',
+		...Array.from({ length: 12 }, (_, index) =>
+			`For workshop ${index + 1}, invite the team and prepare the agenda, printed notes, and travel arrangements. `),
+		'Uh finally send the room confirmation to Marta before Thursday.'
+	];
+	const transcript = sections.join('');
+	const correctedTranscript = transcript.replace('Um first', 'First').replace('Uh finally', 'Finally');
+	let correctedBeforeStop = false;
+	let streamed = false;
+	let endedRecordings = 0;
+	let audioUploadRequests = 0;
+	page.on('request', (request) => {
+		if (request.method() === 'POST' && request.url().includes('/v1/upload/file')) audioUploadRequests++;
+	});
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload) => {
+			const type = JSON.parse(String(payload)).type;
+			if (type === 'input_audio.append' && !streamed) {
+				streamed = true;
+				for (const [index, text] of sections.entries()) {
+					socket.send(JSON.stringify({ type: 'transcription.text.delta', text }));
+					if (index === 8) {
+						socket.send(JSON.stringify({ type: 'correction.progress', processed_chars: sections.slice(0, 8).join('').length }));
+						correctedBeforeStop = endedRecordings === 0;
+					}
+				}
+			}
+			if (type !== 'input_audio.end') return;
+			endedRecordings++;
+			// The API must finalize the complete stream, including earlier windows.
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript, model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript: correctedTranscript }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	await enableAudioDiagnosticMarker(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Existing notes. ');
+	await editor.press('End');
+	const userMessages = await page.getByTestId('user-message-content').count();
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true);
+	await expect(editor).toHaveText(`Existing notes. ${correctedTranscript}`);
+	await expect(editor).toBeFocused();
+	await page.keyboard.type(' Reviewed.');
+	await expect(editor).toHaveText(`Existing notes. ${correctedTranscript} Reviewed.`);
+	await expect(page.getByTestId('user-message-content')).toHaveCount(userMessages);
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+	expect(streamed).toBe(true);
+	expect(correctedBeforeStop).toBe(true);
+	expect(endedRecordings).toBe(1);
+	expect(audioUploadRequests).toBe(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('pending Mercury correction falls back to Gemini 3.8 Flash and inserts one editable result at the original caret', async ({ page }) => {
+	test.setTimeout(120000);
+	let audioUploadRequests = 0;
+	let batchTranscriptionRequests = 0;
+	let realtimeSessions = 0;
+	let endedRecordings = 0;
+	let releaseFallback: (() => void) | null = null;
+	page.on('request', (request: any) => {
+		if (request.method() !== 'POST') return;
+		if (request.url().includes('/v1/upload/file')) audioUploadRequests++;
+		if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptionRequests++;
+	});
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		realtimeSessions++;
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			endedRecordings++;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'um review please', model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.started', model: 'mercury-3' }));
+			// The existing realtime session reports the actual fallback model on completion.
+			releaseFallback = () => socket.send(JSON.stringify({
+				type: 'correction.done', transcript: 'review', correction_model: 'gemini-3.8-flash'
+			}));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (await sidebar.isVisible()) {
+		await sidebar.getByRole('button', { name: 'Close', exact: true }).click();
+	}
+	await expect(sidebar).not.toBeVisible();
+	await enableAudioDiagnosticMarker(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Please  now');
+	await editor.press('Home');
+	for (let index = 0; index < 7; index++) await editor.press('ArrowRight');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true, false);
+	await expect.poll(() => releaseFallback !== null).toBe(true);
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible();
+	await expect(overlay.getByTestId('recording-processing-text')).toBeVisible();
+	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
+	await expect(editor).toHaveText('Please  now');
+	(releaseFallback as (() => void) | null)?.();
+	await expect(overlay).not.toBeVisible();
+	await expect(editor).toHaveText('Please review now');
+	await expect(editor).toBeFocused();
+	await page.keyboard.type('!');
+	await expect(editor).toHaveText('Please review! now');
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+	const sendButton = page.getByTestId('composer-send-button').filter({ visible: true });
+	await expect(sendButton).toHaveCount(1);
+	await expect(sendButton).toBeEnabled();
+	expect(realtimeSessions).toBe(1);
+	expect(endedRecordings).toBe(1);
 	expect(audioUploadRequests).toBe(0);
 	expect(batchTranscriptionRequests).toBe(0);
 });

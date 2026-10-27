@@ -1,0 +1,65 @@
+schema_version: 2
+profile: concise
+id: vite8-bun-build
+title: Upgrade Vite and measure a reliable Bun build configuration
+status: verified
+goal: >-
+  test if you can run bun without the issue we had on the first attempt and if
+  so, if it results indeed in much faster build - and also lets switch to vite 8
+  (unless there are fundamental issues in our web app that would made this a bad
+  idea or require an important architecture decision from me).
+scope:
+  - Upgrade the shared pnpm workspace Vite pin and its Svelte plugins coherently.
+  - Preserve product behavior, Node 24 deployment compatibility, and the existing application architecture.
+  - Test Bun with explicit JavaScriptCore memory heuristics inside a task-owned resource-limited scope.
+  - Compare successful Node and Bun builds of the same final source and dependency graph.
+acceptance_criteria:
+  - The web app and coupled standalone website build successfully with supported Vite 8 and Svelte plugin versions.
+  - Production asset loading, public routes, and guest navigation introduce no new persistent failures relative to the original Vite 7 baseline in isolated GitHub CI.
+  - Report complete build times, memory peaks, successful audits, runtime settings, and any remaining Bun limitation.
+  - Deploy the verified Vite upgrade to dev through the session helper.
+verification:
+  - Local production builds and a bounded repeated runtime comparison with the same total memory and CPU limits.
+  - Existing isolated browser specs for public routes and unauthenticated application navigation.
+  - The session helper's scoped lint and deployment checks.
+decisions:
+  - The user authorized implementation and scoped dev deployment; no further approval ceremony is required.
+  - Node remains the build runtime unless Bun completes reliably and provides a material measured improvement.
+  - Stop for user input only if implementation requires a material architecture or product decision.
+evidence:
+  baseline: test-results/bun-build-benchmark/report.md
+  research: test-results/bun-build-benchmark/research/
+  paired_results: test-results/bun-build-benchmark/vite8-final/results.json
+  summary: test-results/bun-build-benchmark/vite8-summary.json
+  report: test-results/bun-build-benchmark/vite8-report.txt
+  default_bun_results: test-results/bun-build-benchmark/vite8-bun-default/results.json
+  ci_source: bc633b0a64a625441eae75ba5f1998a22af6f358
+measurements:
+  versions: {node: 24.20.0, bun: 1.4.4, pnpm: 10.23.0, vite: 8.3.4, svelte_plugin: 7.3.1}
+  successful_trials_per_runtime: 3
+  node_vite7_prior_median_seconds: 293.169
+  node_vite8_median_seconds: 145.457
+  bun_vite8_tuned_median_seconds: 137.592
+  bun_vite8_default_single_seconds: 132.403
+  bun_reduction_percent: 5.407
+  total_memory_limit_gib: 10
+  cpu_quota: 4
+  bun_heap_heuristic_bytes: 4294967296
+  interpretation:
+    - Keep Node 24 as the default; the additional Bun speedup is modest.
+    - The Vite 8 upgrade roughly halves the observed local build time.
+    - The Vite 7 baseline was uncapped; the matched Vite 8 runtime comparison uses the same CPU and total memory limits.
+    - Build generators embed timestamps in documentation; byte-identical output is not claimed.
+verification_results:
+  local_production_builds: Seven successful web app builds and one successful standalone website build.
+  focused_unit_test: Svelte syntax highlighting module registration passed.
+  scoped_lint: Passed.
+  navigation:
+    vite8_request: 35d079f5b4fd4e67dc543bdfd3fede96380b63c78164c03d12c6438ae084b645
+    vite7_baseline_request: 5a83ebe5ff2d13d3e26c49e06f1c40fb32be4795068288bccc61eace6226d661
+    result: Both versions pass two cases and fail the same demo-chat selection and editor-focus assertions.
+  website:
+    vite8_request: 2a755a1fa6cef4a4edff438e5778ae9a5dfb5ac4f346d271e916d2c8fcc44b50
+    vite7_baseline_request: a17216d348dcb9d741e25eb7c7f11eae4bab83263b3c45c660534c77f4f8cd04
+    result: Both versions pass fourteen cases including retries and fail the privacy-document request with HTTP 500.
+  known_failures: Existing product failures are documented; no assertions were weakened and no unrelated repair was included.

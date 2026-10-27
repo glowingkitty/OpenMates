@@ -9,7 +9,7 @@ const defaultProps = {
   id: 'preview-nutrition-recipe-1',
   title: 'Spaghetti Aglio e Olio',
   description: 'Klassisches italienisches Knoblauch-Pasta-Gericht mit Olivenöl und Chili',
-  image_url: null,
+  image_url: '/store-examples/generate-1.webp',
   total_time_minutes: 25,
   difficulty: 'einfach',
   rating: 4.7,
@@ -24,6 +24,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  assistant: { ...defaultProps, resultContext: 'chat' as const },
+  noImage: { ...defaultProps, image_url: null },
+  zero: { ...defaultProps, total_time_minutes: 0, servings: 0, rating: 0, rating_count: 0 },
+  longTitle: { ...defaultProps, title: 'Slow cooked chickpeas and garden spinach with aromatic herbs, roasted seasonal vegetables and fresh lemon dressing' },
   /** Recipe with many tags */
   multiTag: {
     ...defaultProps,

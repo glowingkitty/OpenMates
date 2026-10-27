@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chats
-version: 6
+version: 7
 status: draft
 title: Chats
 summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
@@ -489,12 +489,6 @@ applies_to:
         required: true
       apple:
         required: true
-    exceptions:
-    - id: web-response-redesign-first
-      implementation: apple
-      reason: The user requested the chronological response redesign, preview header placement and opacity animations for the web app.
-      equivalent_outcome: Native clients preserve canonical encrypted content and existing readable skill results;
-        chronological grouping, preview geometry and new opacity animations are deferred.
 examples:
   file: examples.yml
   required_groups:

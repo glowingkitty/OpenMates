@@ -54,7 +54,7 @@
 
   let status = $derived((data.embedData?.status ?? data.decodedContent?.status ?? 'finished') as 'processing' | 'finished' | 'error' | 'cancelled');
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : $text('app_skills.models3d.search'));
-  let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Printables');
+  let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '');
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);

@@ -1,0 +1,108 @@
+schema_version: 1
+specification: feature.assistant-authored-result-embeds@1
+
+creation:
+  - id: conference-without-events-provider
+    given: Alice asks for a conference's details, and ordinary permitted web research finds its official announcement; the events discovery skill does not support that conference.
+    when: The assistant answers with the sourced information.
+    then: An event preview opens the rich event details without calling or impersonating the unsupported discovery skill.
+  - id: recipe-draft-without-discovery
+    given: Alice asks the assistant to invent a recipe using the ingredients she has, without searching for a published recipe.
+    when: The assistant prepares the recipe as a rich card.
+    then: Its clearly labelled draft opens the existing recipe details with the ingredients and steps, without inventing a discovery provider.
+
+eligibility:
+  - id: broader-result-kinds-in-first-release
+    given: Alice supplies a product brochure, job advert, stay itinerary, repository URL, and a dated weather report, and asks to organize them into cards.
+    when: The assistant creates a mixed group in the first release.
+    then: All five use their existing typed rich previews and details; the weather retains its report date rather than claiming to be a fresh forecast. The same registered creation mechanism covers every listed informational result kind.
+  - id: real-assets-and-operation-boundary
+    given: Alice supplies a usable video link and text claiming that an image was generated and a workflow ran, but no generated image or workflow execution exists.
+    when: The assistant creates useful cards from the supplied material.
+    then: The real video can have a resource card, but no generated-image success, upload ownership, or authoritative workflow-success card is manufactured.
+
+provenance:
+  - id: supplied-and-researched-listings
+    given: Alice uploads two property brochures; one gives monthly rent in euros, while the other omits both price and currency.
+    when: The assistant creates listing cards from the brochures.
+    then: Both cards retain accessible brochure sources; the second has an unknown price and currency, with no invented website or provider badge.
+  - id: explicit-draft-and-unconfirmed-conference
+    given: Alice explicitly requests a fictional conference proposal, while Bob asks about a real conference whose next dates have not been announced.
+    when: Their assistants create useful answers.
+    then: Alice's proposed event is visibly labelled as a draft in preview and details; Bob's answer leaves the next dates unconfirmed rather than copying the prior year's dates.
+
+content:
+  - id: rich-event-and-home-details
+    given: An event announcement supplies a cover URL, title, date range, timezone, venue, organizer, description, and admission price; a property brochure supplies three photos, rent components, rooms, and floor area.
+    when: The assistant creates the event and listing cards.
+    then: Each preview opens the appropriate rich details, retains the supplied fields and image order, and does not require facts absent from its source.
+  - id: health-and-connection-with-partial-facts
+    given: A clinic document names a practice and service but no slot; a rail itinerary lists two stations and offset-qualified segment times but no fare.
+    when: The assistant creates health and travel cards.
+    then: The clinic has no invented slot or insurance coverage; the journey preserves the supplied times without inventing a fare, currency, or seat availability. An impossible supplied timestamp produces a readable validation error.
+
+media:
+  - id: public-cover-and-uploaded-gallery
+    given: An event has a supported public cover URL, and Alice's listing brochure contains image embeds she can access.
+    when: The cards load their images.
+    then: They use the existing permitted media paths and retain supplied attribution; a failed cover leaves the event title and details usable.
+  - id: reject-private-or-foreign-image
+    given: A proposed card includes a loopback image URL or an image embed belonging to another user.
+    when: The image is resolved.
+    then: The resource is not fetched or disclosed, and the card shows an image fallback without exposing private diagnostics.
+
+lifecycle:
+  - id: reload-a-streamed-group
+    given: The assistant streams two listing cards between introductory and concluding text.
+    when: Generation completes and Alice reloads or opens the chat on another authorized client.
+    then: Both cards keep their identities, source details, group order, and authored position through encrypted persistence and synchronization.
+  - id: interrupted-or-invalid-item
+    given: An event's structured content is incomplete when Alice cancels, or its supplied date fails validation.
+    when: The response settles.
+    then: It does not become a finished actionable event, offer calendar export, or show raw JSON as the completed answer.
+
+groups:
+  - id: new-and-existing-items-in-one-answer
+    given: Alice asks to compare a researched event, an uploaded apartment listing, and a travel card already present in the chat.
+    when: The assistant authors the new items and groups all three in the same answer.
+    then: The group keeps the requested order and opens each member's own details using resolved identities, without invented server references or a fake search-result parent.
+  - id: one-invalid-group-member
+    given: A batch contains two valid cards and one malformed item or duplicate local label.
+    when: The batch is validated.
+    then: The invalid item or label is reported clearly; valid independent cards remain usable in order, without being attached to the wrong group member. Oversized batches receive a clear limit outcome.
+
+maps:
+  - id: event-and-approximate-home
+    given: An event has sourced venue coordinates, a listing has a district centre and radius, and a telehealth appointment has no physical location.
+    when: Alice asks to show the group on a map.
+    then: Selecting the event opens its card, the listing remains an approximate area, and the telehealth item stays in the list without an invented pin or background geocoding request.
+  - id: connection-with-endpoints-only
+    given: A connection includes sourced origin and destination coordinates but no route geometry.
+    when: Its group is shown on a map.
+    then: The endpoints can be shown, but any connector is clearly schematic and does not claim a verified rail alignment, street route, or actual flight track.
+
+actions:
+  - id: published-slot-is-not-a-booking
+    given: A permitted clinic source published a slot yesterday, and Alice also supplies a proposed travel connection with a quoted fare.
+    when: The assistant makes appointment and travel cards.
+    then: The cards retain their source context and observation age without claiming the slot is still available, seats are bookable, or either item has been booked.
+  - id: explicit-calendar-export
+    given: An event card has an announced all-day date range and an organizer link.
+    when: Alice opens it and chooses the existing local calendar-export action.
+    then: Only the intended event is exported with correct all-day dates; opening or creating the card alone never writes to a connected calendar or sends an RSVP.
+
+surfaces:
+  - id: same-record-across-clients
+    given: An assistant-authored event and listing group is available through the API, native Rust CLI, supported SDKs, and web chat.
+    when: The same response is consumed and the web cards are opened on phone and laptop in light and dark themes.
+    then: Each surface preserves the same identities, fields, sources, missing facts, and validation; the web uses the rich registered previews and details, and deferred Apple support is reported honestly.
+
+demonstrations:
+  - id: landing-after-working-event-flow
+    given: Real assistant event creation and opening have passed their required checks.
+    when: The landing event animation is restored.
+    then: It shows the request, acknowledgement, event preview, pointer click, and supported details without claiming a provider search or booking that did not occur.
+  - id: real-fosdem-example-before-publication
+    given: A real automatically routed OpenMates chat researches the edition announced on FOSDEM's official site and creates a sourced event card.
+    when: The chat is proposed as a public example.
+    then: Its preview and fullscreen are verified and the public transcript is admitted and sanitized before publication; the fixed example names the researched edition rather than perpetually calling it upcoming.

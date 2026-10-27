@@ -4,18 +4,19 @@
 	import PublicSiteHeader from '@repo/public-site/components/landing/PublicSiteHeader.svelte';
 	import type { NewsroomAction } from '@repo/public-site/components/newsroom/types';
 	import type { PublicPublicationPageData } from '@repo/public-site/publications/types';
+	import { negotiateLanguage, saveBrowserPreference } from '@repo/public-site/languagePreference';
 
 	interface Props {
-		data: PublicPublicationPageData & { appBaseUrl: string };
+		data: PublicPublicationPageData & { appBaseUrl: string; languageMode: 'manual' | 'account' | 'auto' };
 	}
 
 	let { data }: Props = $props();
 	const websiteBaseUrl = $derived(new URL(data.canonicalUrl).origin);
 
 	function selectLanguage(code: string): void {
-		if (code === data.locale) return;
-		try { localStorage.setItem('preferredLanguage', code); } catch { /* Storage can be disabled. */ }
-		window.location.href = data.alternateUrl;
+		const language = code === 'auto' ? negotiateLanguage(navigator.languages, ['en', 'de']) : code;
+		saveBrowserPreference(code === 'auto' ? { mode: 'auto' } : { mode: 'manual', language });
+		window.location.href = language === data.locale ? data.canonicalUrl : data.alternateUrl;
 	}
 
 	function openLink(href: string) {
@@ -45,11 +46,10 @@
 			return;
 		}
 		if (action.type === 'subscribe-news') {
-			try { localStorage.setItem('preferredLanguage', data.locale); } catch { /* Storage can be disabled. */ }
-			window.location.href = '/#newsletter';
+			window.location.href = `/?lang=${data.locale}#newsletter`;
 			return;
 		}
-		window.location.href = '/';
+		window.location.href = `/?lang=${data.locale}`;
 	}
 </script>
 
@@ -84,6 +84,7 @@
 		appBaseUrl={data.appBaseUrl}
 		{websiteBaseUrl}
 		language={data.locale}
+		languageMode={data.languageMode}
 		availableLanguages={['en', 'de']}
     publication={data.view === 'blog' || data.view === 'blog-post' ? 'blog' : 'news'}
 		onLanguageChange={selectLanguage}

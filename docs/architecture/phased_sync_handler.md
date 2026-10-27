@@ -52,7 +52,7 @@ The backend startup sync handler assembles encrypted chat metadata and bounded r
 `handle_phased_sync_request(..., phase="all")` must not run Phase 3 background message/embed sync. Web startup is limited to:
 
 - Phase 1a shell metadata, suggestions, inspirations, and sub-chat preview metadata.
-- Phase 1b full content for at most 10 recent parent chats.
+- Phase 1b full content for at most 20 recent parent chats.
 - Phase 2 metadata-only sync for the recent 100-chat window.
 - App settings/memories sync.
 
@@ -68,7 +68,7 @@ Phase 1a may include direct child sub-chat metadata for preview cards, but the l
 
 ## Phase 1b Contract
 
-Phase 1b sends full content only for the 10 most recent parent chats. Parent chats are rows where `is_sub_chat` is false and `parent_id` is empty.
+Phase 1b sends full content only for the 20 most recent parent chats. Parent chats are rows where `is_sub_chat` is false and `parent_id` is empty.
 
 Phase 1b must not fetch or send sub-chat messages, sub-chat embeds, sub-chat embed keys, or sub-chat Code Run outputs. Sub-chat content loads through `request_chat_content_batch` when the sub-chat is opened.
 
@@ -82,7 +82,7 @@ If the user has more than 100 chats, the frontend triggers `sync_metadata_chats`
 
 `sync_api.py` owns optional native/desktop offline content hydration for parent chats after the startup window.
 
-- Cursor `10` is the first eligible item; offsets `0...9` belong to Phase 1b startup full-content sync.
+- Cursor `20` is the first eligible item; offsets `0...19` belong to Phase 1b startup full-content sync.
 - Each chunk is capped to 5 parent chats and returns `next_cursor` for resumability.
 - The route returns encrypted messages, referenced embeds, embed keys, Code Run output sidecars, compression checkpoints, and per-chat version data.
 - It must skip rows with `is_sub_chat=true` or a non-empty `parent_id`; sub-chat content remains on-demand through `request_chat_content_batch`.

@@ -624,7 +624,7 @@ sections:
     rationale:
     - classified as bug fixes from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: refine landing intro and Luma CTA'
+  - title: 'fix: refine landing intro and event registration CTA'
     section: bug_fixes
     commits:
     - 0d0a6b5fe
@@ -919,7 +919,7 @@ sections:
     rationale:
     - classified as documentation from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'docs: record landing Luma CTA evidence'
+  - title: 'docs: record landing event registration CTA evidence'
     section: docs
     commits:
     - c771c9ab6
@@ -1620,14 +1620,14 @@ unreleased_progress:
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'docs: record landing Luma CTA evidence'
+  - title: 'docs: record landing event registration CTA evidence'
     commits:
     - c771c9ab6
     section: docs
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'fix: refine landing intro and Luma CTA'
+  - title: 'fix: refine landing intro and event registration CTA'
     commits:
     - 0d0a6b5fe
     section: bug_fixes
@@ -2091,7 +2091,7 @@ marketing_candidates:
     communication_status: dev_only
     related_features: []
     newsletter_ready: false
-  - title: 'fix: refine landing intro and Luma CTA'
+  - title: 'fix: refine landing intro and event registration CTA'
     commits:
     - 0d0a6b5fe
     section: bug_fixes
@@ -2526,7 +2526,7 @@ sources:
   - sha: c771c9ab6893c7dd2bb04268cd346ad8eda5dbcf
     short_sha: c771c9ab6
     authored_at: '2026-07-23T12:11:09+00:00'
-    subject: 'docs: record landing Luma CTA evidence'
+    subject: 'docs: record landing event registration CTA evidence'
     in_main: false
     in_dev: true
     changed_paths:
@@ -2535,7 +2535,7 @@ sources:
   - sha: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
     short_sha: 0d0a6b5fe
     authored_at: '2026-07-23T12:02:07+00:00'
-    subject: 'fix: refine landing intro and Luma CTA'
+    subject: 'fix: refine landing intro and event registration CTA'
     in_main: false
     in_dev: true
     changed_paths:

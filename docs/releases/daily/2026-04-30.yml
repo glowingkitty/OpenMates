@@ -485,23 +485,6 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is reachable from main
-  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    section: bug_fixes
-    commits:
-    - 2fcd00e8e
-    authored_at: '2026-04-30T21:02:41+00:00'
-    changed_paths:
-    - backend/apps/travel/providers/serpapi_provider.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
   - title: 'fix: recover TOON content after relogin for finished embeds'
     section: bug_fixes
     commits:
@@ -1086,13 +1069,6 @@ marketing_candidates:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    commits:
-    - 2fcd00e8e
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'fix: recover TOON content after relogin for finished embeds'
     commits:
     - 421592b1c
@@ -1355,14 +1331,6 @@ marketing_candidates:
   - title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
     commits:
     - e4e738a95
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    commits:
-    - 2fcd00e8e
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1731,11 +1699,8 @@ sources:
   - sha: 2fcd00e8e47b5b62cbf87ceb0c8c914a1d300bab
     short_sha: 2fcd00e8e
     authored_at: '2026-04-30T21:02:41+00:00'
-    subject: 'fix: clamp past outbound_date in SerpAPI booking lookup'
     in_main: true
     in_dev: true
-    changed_paths:
-    - backend/apps/travel/providers/serpapi_provider.py
     related_feature_ids: []
   - sha: 421592b1c8bfe6932a30ef81c714a68472116ca5
     short_sha: 421592b1c
@@ -2205,7 +2170,6 @@ llm_summary:
       - 0c843a73d
       - 32df7f3fd
     release_status: released_main
-  - text: The travel connection now correctly clamps past outbound dates when performing booking lookups via SerpAPI.
     evidence:
       commits:
       - 2fcd00e8e

@@ -19,6 +19,8 @@ export {
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { createChatModelPreferences } from "./chatModelPreferences.js";
+export { buildCalendarEventFile } from "../../ui/src/utils/calendarDownload.js";
+export type { CalendarEvent, CalendarEventDocument } from "../../ui/src/utils/calendarEvent.js";
 export type {
   ChatModelCatalog, ChatModelCatalogEntry, ChatModelPreferenceState, ChatModelPreferences,
   ChatModelSelection, ChatModelValidation,
@@ -37,7 +39,7 @@ export {
 } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
-export { OpenMates, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError } from "./sdk.js";
+export { OpenMates, OpenMatesSignupRequiredError, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export {
   buildCreatePlanCriterionInput,
@@ -123,6 +125,7 @@ export type {
   IdeaBucketSettings,
   IdeaBucketSettingsInput,
   OpenMatesOptions,
+  AnonymousUsageStatus,
   TaskListFilters,
   PlanPlainCreateOptions,
   PlanPlainUpdateOptions,

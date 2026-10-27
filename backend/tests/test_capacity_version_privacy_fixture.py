@@ -99,8 +99,11 @@ def test_redacted_create_fixture_restores_exact_independent_ledger_content() -> 
         "[async_tool_result]: Automatic tool-completion event, not a new request. "
         "Completed tool result (TOON):\n" + json.dumps(completed)
     )}
-    assert _fixture([{"role": "user", "content": prepared["text"]}, event],
-                    ("project_create_file",))["response"]["type"] == "stream"
+    completed = _fixture([{"role": "user", "content": prepared["text"]}, event],
+                         ("project_create_file",))["response"]
+    assert completed["type"] == "mixed_stream"
+    assert completed["chunks"][0]["value"].startswith("Synthetic storage response ")
+    assert completed["chunks"][-1]["class"] == "GoogleUsageMetadata"
 
 
 # contract-test: supporting surface=cli assertions=storage.validation.synthetic-capacity
@@ -145,7 +148,10 @@ def test_redacted_update_uses_authoritative_project_read_base() -> None:
         "[async_tool_result]: Automatic tool-completion event, not a new request. "
         "Completed tool result (TOON):\n" + json.dumps(completed_write)
     )})
-    assert _fixture(messages, names)["response"]["type"] == "stream"
+    completed = _fixture(messages, names)["response"]
+    assert completed["type"] == "mixed_stream"
+    assert completed["chunks"][0]["value"].startswith("Synthetic storage response ")
+    assert completed["chunks"][-1]["class"] == "GoogleUsageMetadata"
 
 
 # contract-test: supporting surface=cli assertions=storage.validation.synthetic-capacity

@@ -19,6 +19,9 @@ instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
+    authoring:
+      kind: news.website
+      schema_id: news.website
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use

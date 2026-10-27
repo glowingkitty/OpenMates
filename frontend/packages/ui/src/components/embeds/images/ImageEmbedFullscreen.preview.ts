@@ -10,6 +10,7 @@
 /** Default props — shows fullscreen structure without image (no S3 data in dev preview) */
 const defaultProps = {
   filename: "golden-gate-sunset.jpg",
+  src: "/images/examples/group1.jpg",
   fileSize: 2411520,
   fileType: "image/jpeg",
   isAuthenticated: true,

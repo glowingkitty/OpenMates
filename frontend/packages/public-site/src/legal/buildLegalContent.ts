@@ -199,6 +199,8 @@ export function buildPrivacyPolicyContent(
     cerebras: "legal.privacy.providers.ai_models.cerebras.heading",
     openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
     typesafe: "legal.privacy.providers.ai_models.typesafe.heading",
+    inception: "legal.privacy.providers.ai_models.inception.heading",
+    baseten: "legal.privacy.providers.ai_models.baseten.heading",
     fal: "legal.privacy.providers.image_generation.fal.heading",
     recraft: "legal.privacy.providers.image_generation.recraft.heading",
     hi3d: "legal.privacy.providers.model_generation.hi3d.heading",
@@ -284,6 +286,14 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.ai_models.openai_v2", privacyPolicyLinks.openai);
   renderProvider("legal.privacy.providers.ai_models.openrouter", privacyPolicyLinks.openrouter);
   renderProvider("legal.privacy.providers.ai_models.typesafe", privacyPolicyLinks.typesafe);
+  lines.push(
+    t("legal.privacy.providers.ai_models.typesafe.data_handling")
+      .replace("{data_processing_url}", privacyPolicyLinks.typesafeDataProcessing)
+      .replace("{legal_url}", privacyPolicyLinks.typesafeLegal),
+  );
+  lines.push("");
+  renderProvider("legal.privacy.providers.ai_models.inception", privacyPolicyLinks.inception);
+  renderProvider("legal.privacy.providers.ai_models.baseten", privacyPolicyLinks.baseten);
   renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
   renderProvider("legal.privacy.providers.ai_models.google_gemini_v2", privacyPolicyLinks.googleGemini);
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);
@@ -315,7 +325,6 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(t("legal.privacy.providers.model_generation_v2.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.model_generation_v2.printables", privacyPolicyLinks.printables);
   renderProvider("legal.privacy.providers.model_generation.hi3d", privacyPolicyLinks.hi3d);
 
   // Group F — Music generation
@@ -340,64 +349,38 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.web_and_search.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.web_and_search.brave", privacyPolicyLinks.brave);
-  renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
   renderProvider("legal.privacy.providers.web_and_search.iconify", privacyPolicyLinks.iconify);
-  renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
-  lines.push(t("legal.privacy.providers.web_and_search.webshare.domain_fallback"));
   lines.push("");
-  renderProvider("legal.privacy.providers.web_and_search.gandi", privacyPolicyLinks.gandi);
   renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
   renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.wikimedia", privacyPolicyLinks.wikimedia);
   renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
-  renderProvider("legal.privacy.providers.web_and_search.google_lens", privacyPolicyLinks.googleLens);
+  renderProvider("legal.privacy.providers.web_and_search.media_ccc", privacyPolicyLinks.mediaCCC);
 
   // Group F — Travel
   lines.push(`### ${t("legal.privacy.providers.travel.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.travel.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.travel.serpapi_v2", privacyPolicyLinks.serpapi);
   renderProvider("legal.privacy.providers.travel.flightradar24", privacyPolicyLinks.flightradar24);
-  renderProvider("legal.privacy.providers.travel.deutsche_bahn", privacyPolicyLinks.deutscheBahn);
-  renderProvider("legal.privacy.providers.travel.flix", privacyPolicyLinks.flix);
-  renderProvider("legal.privacy.providers.travel.transitous", privacyPolicyLinks.transitous);
 
   // Group G — Events
   lines.push(`### ${t("legal.privacy.providers.events.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.events.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.events.meetup", privacyPolicyLinks.meetup);
-  renderProvider("legal.privacy.providers.events.luma", privacyPolicyLinks.luma);
-  renderProvider("legal.privacy.providers.events.resident_advisor", privacyPolicyLinks.residentAdvisor);
-  renderProvider("legal.privacy.providers.events.eventbrite", privacyPolicyLinks.eventbrite);
-  renderProvider("legal.privacy.providers.events.siegessaeule", privacyPolicyLinks.siegessaeule);
-  renderProvider("legal.privacy.providers.events.berlin_philharmonic", privacyPolicyLinks.berlinPhilharmonic);
 
   // Group H — Health
-  lines.push(`### ${t("legal.privacy.providers.health.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.health.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.health.doctolib", privacyPolicyLinks.doctolib);
-  renderProvider("legal.privacy.providers.health.jameda", privacyPolicyLinks.jameda);
 
   // Group I2 — Fitness
-  lines.push(`### ${t("legal.privacy.providers.fitness.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.fitness.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.fitness.urban_sports_club", privacyPolicyLinks.urbanSportsClub);
 
   // Group I — Shopping
-  lines.push(`### ${t("legal.privacy.providers.shopping.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.shopping.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.shopping.rewe", privacyPolicyLinks.rewe);
-  renderProvider("legal.privacy.providers.shopping.amazon", privacyPolicyLinks.amazon);
-  renderProvider("legal.privacy.providers.shopping.stoffe", privacyPolicyLinks.stoffe);
 
   // Group J2 — Connected services
   lines.push(`### ${t("legal.privacy.providers.connected_services.heading")}`);
@@ -412,7 +395,6 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.business_data.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.business_data.sec_edgar", privacyPolicyLinks.secEdgar);
-  renderProvider("legal.privacy.providers.business_data.uspto", privacyPolicyLinks.uspto);
 
   // Group J4 — Weather
   lines.push(`### ${t("legal.privacy.providers.weather.heading")}`);
@@ -430,11 +412,8 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.nutrition.edamam", privacyPolicyLinks.edamam);
 
   // Group L — Electronics
-  lines.push(`### ${t("legal.privacy.providers.electronics.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.electronics.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
 
   // Group M — Mail. Proton Mail Bridge is rendered through the Proton provider
   // entry because the CLI connector keeps Bridge credentials local.
@@ -445,22 +424,15 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.mail.protonmail", privacyPolicyLinks.protonmail);
 
   // Group N — Home and housing
-  lines.push(`### ${t("legal.privacy.providers.home.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.home.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.home.immoscout24", privacyPolicyLinks.immoscout24);
-  renderProvider("legal.privacy.providers.home.kleinanzeigen", privacyPolicyLinks.kleinanzeigen);
-  renderProvider("legal.privacy.providers.home.wg_gesucht", privacyPolicyLinks.wgGesucht);
 
   // Group N2 — Jobs
   lines.push(`### ${t("legal.privacy.providers.jobs.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.jobs.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.jobs.arbeitsagentur", privacyPolicyLinks.arbeitsagentur);
   renderProvider("legal.privacy.providers.jobs.jobtech", privacyPolicyLinks.jobtech);
-  renderProvider("legal.privacy.providers.jobs.arbeitnow", privacyPolicyLinks.arbeitnow);
 
   // Group O — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
@@ -476,7 +448,6 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(t("legal.privacy.providers.social_media.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.social_media.reddit", privacyPolicyLinks.reddit);
   renderProvider("legal.privacy.providers.social_media.bluesky", privacyPolicyLinks.bluesky);
   renderProvider("legal.privacy.providers.social_media.mastodon", privacyPolicyLinks.mastodon);
 

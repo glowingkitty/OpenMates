@@ -4,6 +4,19 @@ import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "../exampleChatData";
 import { getAllExampleChats, getAllExampleChatData, getRecentExampleChats, getFeaturedExampleChats, getExampleChat, getExampleChatBySlug, getExampleChatsForSkill, getExampleChatsForFocusMode, getExampleChatsForContentEmbed, getExampleChatsForSettingsMemory, getExampleChatMessages, getExampleChatEmbed, getExampleChatEmbedPiiMappings, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from "../exampleChatStore";
 import { clearEmbedError, markEmbedAsError, resolveEmbed } from "../../services/embedResolver";
 
+vi.mock('../exampleChatData', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../exampleChatData')>();
+  const fixture = {
+    chat_id: 'demo-registration-parent', slug: 'demo-registration-parent', title: 'Local registration fixture', summary: 'Local fixture', icon: 'search', category: 'research', follow_up_suggestions: [],
+    messages: [{ id: 'fixture-parent-message', role: 'user', content: 'Test local registration.', created_at: 1 }, { id: 'fixture-parent-answer', role: 'assistant', content: 'Local parent answer.\n\n```json\n{"type":"sub_chat_batch","sub_chat_ids":["demo-registration-child"]}\n```', created_at: 2 }],
+    embeds: [{ embed_id: 'fixture-parent-embed', type: 'web-website', content: 'type: website\nurl: https://example.com', parent_embed_id: null, embed_ids: null }],
+    sub_chats: [{ chat_id: 'demo-registration-child', parent_id: 'demo-registration-parent', is_sub_chat: true, title: 'Local child', summary: 'Child isolation fixture', icon: 'search', category: 'research', follow_up_suggestions: [],
+      messages: [{ id: 'fixture-child-message', role: 'assistant', content: 'Local child answer.', created_at: 1 }], embeds: [] }],
+    metadata: { featured: false, order: 0 },
+  };
+  return { ...actual, INTERNAL_EXAMPLE_CHATS: [...actual.INTERNAL_EXAMPLE_CHATS, fixture] };
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("example embed registration", () => {
@@ -36,7 +49,7 @@ describe("example embed registration", () => {
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   it("resolves refs only within the opened example group without writing the private index", () => {
-    const selected = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS].find((chat) => chat.chat_id === "example-us-egg-prices-deep")!;
+    const selected = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS].find((chat) => chat.chat_id === "demo-registration-parent")!;
     const other = ALL_EXAMPLE_CHATS.find((chat) => chat.chat_id === "example-community-garden-sunflower-illustration")!;
     const selectedEmbeds = [...selected.embeds, ...(selected.sub_chats ?? []).flatMap((subChat) => subChat.embeds)]
       .filter((embed) => embed.content && embed.embed_id);

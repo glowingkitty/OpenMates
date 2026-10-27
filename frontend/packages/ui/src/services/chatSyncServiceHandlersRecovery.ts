@@ -12,10 +12,15 @@ import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   openRecoveryOutputEnvelope,
+  openChatMetadataRecoveryEnvelope,
   type RecoveryOutputKind,
   type ChatCompletionRecoveryEnvelope,
 } from "../utils/chatCompletionRecovery";
 import { chatDB } from "./db";
+import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { chatMetadataCache } from "./chatMetadataCache";
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
 import { chatKeyManager, computeKeyFingerprint } from "./encryption/ChatKeyManager";
@@ -36,7 +41,7 @@ import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedD
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
-import { clearRecoveryFinalTimestamps, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
+import { clearRecoveryFinalTimestamps, recoveryFinalTimestamp, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { clearPersonalChatTurnBarriers, completePersonalChatTurn, failMatchingPersonalChatTurn } from "./personalChatTurnBarrier";
 import {
   hasAcknowledgedRecoveredEmbed, markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite,
@@ -54,7 +59,23 @@ const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
+const recoveryJobSettlements = new Map<string, Promise<boolean>>();
+const metadataJobsInProgress = new Set<string>();
+const metadataChatQueues = new Map<string, Promise<void>>();
+let metadataRecoveryObserved = false;
 const recoveryOutputsInProgress = new Set<string>();
+// Discovery pages can be queued before a durable ACK and consumed afterward.
+// Keep recent, session-scoped identities so an older page cannot re-read an ACKed row.
+const acknowledgedRecoveryOutputs = new Map<string, AvailableRecoveryOutput>();
+const MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS = 4096;
+function rememberAcknowledgedRecoveryOutput(output: AvailableRecoveryOutput, generation: number): void {
+  if (generation !== recoveryLifecycleGeneration) return;
+  acknowledgedRecoveryOutputs.delete(output.record_id);
+  acknowledgedRecoveryOutputs.set(output.record_id, output);
+  if (acknowledgedRecoveryOutputs.size > MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS) {
+    acknowledgedRecoveryOutputs.delete(acknowledgedRecoveryOutputs.keys().next().value!);
+  }
+}
 
 function buildRecoveryMessagePreview(content: string): string {
   const plainText = content
@@ -164,6 +185,7 @@ let recoveryServiceInstance: ChatSynchronizationService | null = null;
 let recoveryLifecycleTeardown: (() => void) | null = null;
 const pendingForegroundWaiters = new Set<{ resolve: () => void; reject: (error: Error) => void }>();
 const pendingRecoveryRequests = new Set<(error: unknown) => void>();
+const pendingReplyDiscoveries = new Set<(error: unknown) => void>();
 
 function waitForForegroundDiscovery(): Promise<void> {
   if (canRunRecovery()) return Promise.resolve();
@@ -195,10 +217,16 @@ export function resetRecoveryLifecycleImpl(): void {
   foregroundDiscoveryOutputs.clear();
   const ended = new RecoverySessionEndedError("Recovery session ended.");
   for (const cancel of [...pendingRecoveryRequests]) cancel(ended);
+  for (const cancel of [...pendingReplyDiscoveries]) cancel(ended);
   for (const waiter of pendingForegroundWaiters) waiter.reject(ended);
   pendingForegroundWaiters.clear();
   recoveryJobsInProgress.clear();
+  recoveryJobSettlements.clear();
+  metadataJobsInProgress.clear();
+  metadataChatQueues.clear();
+  metadataRecoveryObserved = false;
   recoveryOutputsInProgress.clear();
+  acknowledgedRecoveryOutputs.clear();
   recoveryOutputPageQueue = Promise.resolve();
 }
 
@@ -280,6 +308,8 @@ export function prepareRecoveryLifecycleImpl(serviceInstance: ChatSynchronizatio
       if (generation !== recoveryLifecycleGeneration || !serviceInstance || !canRunRecovery()) return;
       void handleRecoveryJobsAvailableImpl(serviceInstance, { jobs });
       void handleRecoveryOutputsAvailableImpl(serviceInstance, { outputs });
+      // Metadata jobs remain durable while backgrounded; rediscover their current state.
+      if (metadataRecoveryObserved) void webSocketService.sendMessage("metadata_jobs_request", {}).catch(() => {});
     }, 0);
   };
   webSocketService.on("native_client_lifecycle_ack", handleForegroundAck);
@@ -307,6 +337,123 @@ interface AvailableRecoveryJob {
   turn_id: string;
   assistant_message_id: string;
   chat_key_version: number;
+  created_at?: number;
+}
+
+type ReplyDiscovery = { jobs: AvailableRecoveryJob[]; pending: AvailableRecoveryJob[] };
+let sendRecoveryDiscovery: { connection: object; promise: Promise<ReplyDiscovery> } | null = null;
+
+/** The discovery fence follows every completion-job page on this socket. It
+ * does not imply that the local encrypted persistence handlers have finished. */
+function discoverRepliesForSend(): Promise<ReplyDiscovery> {
+  const connection = webSocketService.getConnectionForSend();
+  if (!connection || !recoveryPageIsVisible()) return Promise.reject(new Error('Reply recovery requires a connected foreground chat.'));
+  if (sendRecoveryDiscovery?.connection === connection) return sendRecoveryDiscovery.promise;
+  const requestId = crypto.randomUUID();
+  const promise = new Promise<ReplyDiscovery>((resolve, reject) => {
+    const jobs = new Map<string, AvailableRecoveryJob>(), pending = new Map<string, AvailableRecoveryJob>();
+    let acknowledged = false;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      webSocketService.removeEventListener('message', received);
+      webSocketService.removeEventListener('close', closed);
+      pendingReplyDiscoveries.delete(cancel);
+    };
+    const cancel = (error: unknown) => { cleanup(); reject(error); };
+    const closed = () => cancel(new RecoverySessionEndedError('Reply recovery connection ended.'));
+    const ack = (raw: unknown) => {
+      if ((raw as { is_foreground?: boolean })?.is_foreground === true) acknowledged = true;
+    };
+    const page = (raw: unknown) => {
+      const value = raw as { request_id?: string; jobs?: AvailableRecoveryJob[]; pending_jobs?: AvailableRecoveryJob[] };
+      if (value.request_id !== requestId) return;
+      for (const job of value.jobs ?? []) { jobs.set(job.job_id, job); pending.set(job.job_id, job); }
+      for (const job of value.pending_jobs ?? []) pending.set(job.job_id, job);
+    };
+    const complete = (raw: unknown) => {
+      if ((raw as { request_id?: string })?.request_id !== requestId) return;
+      if (!acknowledged) return;
+      if (webSocketService.getConnectionForSend() !== connection || (raw as { status?: string })?.status !== 'completed') {
+        cancel(new Error('Completed reply discovery did not finish.'));
+        return;
+      }
+      cleanup(); resolve({ jobs: [...jobs.values()], pending: [...pending.values()] });
+    };
+    const received = (event: Event) => {
+      const frame = (event as CustomEvent<{ type?: string; payload?: unknown }>).detail;
+      if (frame?.type === 'native_client_lifecycle_ack') ack(frame.payload);
+      else if (frame?.type === 'recovery_jobs_available') page(frame.payload);
+      else if (frame?.type === 'recovery_outputs_discovery_complete') complete(frame.payload);
+    };
+    const timeout = setTimeout(() => cancel(new Error('Completed reply discovery timed out.')), CHAT_RECOVERY_EVENT_TIMEOUT_MS);
+    pendingReplyDiscoveries.add(cancel);
+    // Raw frame events are synchronous and precede typed async handlers. A job
+    // handler waiting for initial sync must not let its completion fence pass it.
+    webSocketService.addEventListener('message', received);
+    webSocketService.addEventListener('close', closed);
+    try { webSocketService.requestForegroundRecoveryDiscovery(requestId); } catch (error) { cancel(error); }
+  });
+  const request = { connection, promise };
+  sendRecoveryDiscovery = request;
+  const release = () => { if (sendRecoveryDiscovery === request) sendRecoveryDiscovery = null; };
+  void promise.then(release, release);
+  return promise;
+}
+
+/** Reload discards in-memory predecessor turns. Restore already completed
+ * replies before taking a new history snapshot; active inference has no job. */
+export async function recoverCompletedRepliesBeforeSend(
+  service: ChatSynchronizationService, chatId: string,
+): Promise<number | null> {
+  prepareRecoveryLifecycleImpl(service);
+  const generation = recoveryLifecycleGeneration, connection = webSocketService.getConnectionForSend();
+  const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
+  const observed = new Map<string, AvailableRecoveryJob>();
+  do {
+    assertRecoverySession(generation);
+    if (connection !== webSocketService.getConnectionForSend()) throw new RecoverySessionEndedError('Reply recovery connection changed.');
+    const discovery = await discoverRepliesForSend();
+    const pending = discovery.pending.filter(job => job.chat_id === chatId);
+    for (const job of pending) observed.set(job.job_id, job);
+    const available = discovery.jobs.filter(job => job.chat_id === chatId);
+    await handleRecoveryJobsAvailableImpl(service, { jobs: available });
+    assertRecoverySession(generation);
+    for (const job of available) {
+      let recovered = await recoveryJobSettlements.get(job.job_id);
+      if (!recovered && deferredRecoveryJobs.has(job.job_id) && canRunRecovery()) {
+        // The fresh discovery fence canceled an older background claim. Its
+        // settled failure is not the outcome of this newly authorized attempt.
+        deferredRecoveryJobs.delete(job.job_id);
+        await handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+        recovered = await recoveryJobSettlements.get(job.job_id);
+      }
+      if (recovered !== true) throw new Error('The previous encrypted reply could not be recovered.');
+    }
+    // A live lease on another connection must settle or expire before this send.
+    if (pending.some(job => !available.some(value => value.job_id === job.job_id))) {
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+      continue;
+    }
+    if (observed.size === 0) return null;
+    await service.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+    for (const job of observed.values()) {
+      let row = await chatDB.getMessage(job.assistant_message_id);
+      const hydrationDeadline = Math.min(deadline, Date.now() + 5_000);
+      while ((!row || row.chat_id !== chatId || row.role !== 'assistant') && Date.now() < hydrationDeadline) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        assertRecoverySession(generation);
+        if (connection !== webSocketService.getConnectionForSend()) throw new RecoverySessionEndedError('Reply recovery connection changed.');
+        row = await chatDB.getMessage(job.assistant_message_id);
+      }
+      if (!row || row.chat_id !== chatId || row.role !== 'assistant') throw new Error('The previous encrypted reply has not hydrated.');
+    }
+    const chat = await chatDB.getChat(chatId);
+    const canonical = chat ? await refreshRecoveryChatVersion(chat) : null;
+    assertRecoverySession(generation);
+    if (!canonical) throw new Error('The recovered reply has no canonical chat version.');
+    return canonical.messages_v;
+  } while (Date.now() < deadline);
+  throw new Error('The previous encrypted reply is still being recovered.');
 }
 
 interface AvailableRecoveryOutput {
@@ -383,42 +530,6 @@ export async function sendEmbedStoreWithReceipt(
   }
 }
 
-async function sendEmbedKeysWithReceipt(
-  keys: Array<Record<string, unknown>>, recoveryRecordId: string,
-): Promise<void> {
-  const requestId = crypto.randomUUID();
-  let stop = () => {};
-  const confirmation = new Promise<void>((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      stop();
-      reject(new RecoveryCanonicalTransientError("Canonical embed key confirmation timed out."));
-    }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
-    const onConfirmed = (raw: unknown) => {
-      const event = raw as Record<string, unknown>;
-      if (event.request_id !== requestId) return;
-      stop();
-      if (event.failed_count !== 0 || event.created_count !== keys.length
-        || event.requested_count !== keys.length) {
-        reject(new Error("Canonical embed key storage was incomplete."));
-      } else resolve();
-    };
-    stop = () => {
-      window.clearTimeout(timer);
-      webSocketService.off("store_embed_keys_confirmed", onConfirmed);
-    };
-    webSocketService.on("store_embed_keys_confirmed", onConfirmed);
-  });
-  try {
-    await webSocketService.sendMessage("store_embed_keys", {
-      keys, request_id: requestId, recovery_record_id: recoveryRecordId,
-    });
-    await confirmation;
-  } catch (error) {
-    stop();
-    throw error;
-  }
-}
-
 async function verifyExactCanonicalEmbedWrappers(
   output: Pick<AvailableRecoveryOutput, "target_chat_id">, keySubject: string,
   embedKey: Uint8Array, chatKey: Uint8Array,
@@ -429,19 +540,61 @@ async function verifyExactCanonicalEmbedWrappers(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}${query}`,
   ), { credentials: "include" });
   if (!response.ok) throw canonicalReadError("Canonical embed wrapper read failed", response.status);
-  const page = await response.json() as { embed_keys?: Array<Record<string, unknown>> };
+  const page = await response.json() as {
+    embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+    embed_keys_has_more_after?: boolean; embed_keys_end_cursor?: string;
+    oversized_embed_key_id?: string | null;
+  };
   const hashedSubject = await computeSHA256(keySubject);
   const hashedChat = await computeSHA256(output.target_chat_id);
-  const wrappers = (page.embed_keys ?? []).filter((row) => row.hashed_embed_id === hashedSubject
-    && (row.key_type === "master" || row.key_type === "chat"));
-  if (wrappers.length !== 2
-    || wrappers.filter((row) => row.key_type === "master" && row.hashed_chat_id == null).length !== 1
-    || wrappers.filter((row) => row.key_type === "chat" && row.hashed_chat_id === hashedChat).length !== 1) {
+  const ownerHash = page.embed?.hashed_user_id;
+  if (page.embed?.embed_id !== keySubject || typeof ownerHash !== "string"
+    || !Array.isArray(page.embed_keys) || page.oversized_embed_key_id) {
+    throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+  }
+  const wrappers = [...page.embed_keys];
+  let more = page.embed_keys_has_more_after === true;
+  let cursor = page.embed_keys_end_cursor;
+  const cursors = new Set<string>();
+  let pages = 1;
+  // Historical duplicates remain durable. Exhaust the scoped key window before
+  // proving equivalence; never silently validate only its first page.
+  while (more) {
+    if (!cursor || cursors.has(cursor) || ++pages > 8 || wrappers.length >= 128) {
+      throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+    }
+    cursors.add(cursor);
+    const params = new URLSearchParams({ embed_ids: keySubject, after_key_id: cursor });
+    if (chat?.team_id) params.set("team_id", chat.team_id);
+    const continuation = await storageArchiveFetch(getApiEndpoint(
+      `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/keys/window?${params}`,
+    ), { credentials: "include" });
+    if (!continuation.ok) throw canonicalReadError("Canonical embed wrapper read failed", continuation.status);
+    const next = await continuation.json() as {
+      embed_keys?: Array<Record<string, unknown>>; has_more_after?: boolean;
+      end_cursor?: string; oversized_key_id?: string | null;
+    };
+    if (!Array.isArray(next.embed_keys) || !next.embed_keys.length || next.oversized_key_id) {
+      throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+    }
+    wrappers.push(...next.embed_keys);
+    more = next.has_more_after === true;
+    cursor = next.end_cursor;
+  }
+  if (wrappers.length > 128
+    || !wrappers.some((row) => row.key_type === "chat" && row.hashed_chat_id === hashedChat)
+    || (!chat?.team_id && !wrappers.some((row) => row.key_type === "master" && row.hashed_chat_id == null))) {
     throw new Error("Canonical recovery embed wrappers were not exact.");
   }
   for (const wrapper of wrappers) {
-    if (typeof wrapper.encrypted_embed_key !== "string") {
-      throw new Error("Canonical recovery embed wrapper ciphertext was missing.");
+    if (wrapper.hashed_embed_id !== hashedSubject || wrapper.hashed_user_id !== ownerHash
+      || !["master", "chat"].includes(String(wrapper.key_type))
+      || (wrapper.key_type === "master" ? chat?.team_id || wrapper.hashed_chat_id != null
+        : wrapper.hashed_chat_id !== hashedChat)
+      || ["hashed_project_id", "hashed_plan_id", "hashed_team_id", "team_key_epoch"]
+        .some((field) => wrapper[field] != null)
+      || typeof wrapper.encrypted_embed_key !== "string" || !wrapper.encrypted_embed_key) {
+      throw new Error("Canonical recovery embed wrapper scope was invalid.");
     }
     const unwrapped = wrapper.key_type === "master"
       ? await unwrapEmbedKeyWithMasterKey(wrapper.encrypted_embed_key, keySubject)
@@ -460,6 +613,7 @@ async function readRecoveredCanonicalEmbed(
   output: Pick<AvailableRecoveryOutput, "target_chat_id" | "subject_id" | "output_version">,
   expectedContent: string, expectedType: string,
   expectedMessageId: string, embedKey: Uint8Array,
+  onPriorHead?: (encryptedType: string) => void,
 ): Promise<RecoveredEmbedReceipt | null> {
   const chat = await chatDB.getChat(output.target_chat_id);
   const query = chat?.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
@@ -509,7 +663,14 @@ async function readRecoveredCanonicalEmbed(
       ])), source: "version_row", embed,
     };
   }
-  if (version < output.output_version || typeof embed.encrypted_content !== "string") return null;
+  if (version < output.output_version) {
+    // The authenticated old head has the same decrypted type and embed key.
+    // Reuse its ciphertext so an advancing revision does not recipher type
+    // metadata or invalidate the old version's key lineage.
+    onPriorHead?.(embed.encrypted_type);
+    return null;
+  }
+  if (typeof embed.encrypted_content !== "string") return null;
   const plaintext = await decryptWithEmbedKey(embed.encrypted_content, embedKey);
   if (plaintext !== expectedContent) throw new Error("Canonical embed content differs from sealed recovery output.");
   return { digest: await computeSHA256(embed.encrypted_content), source: "head", embed };
@@ -606,6 +767,15 @@ async function persistRecoveredEmbed(
     if (content.version_number !== output.output_version) throw new Error("Recovered diff version mismatch.");
     const expectedSnapshot = typeof content.snapshot === "string" ? content.snapshot : null;
     const expectedPatch = typeof content.patch === "string" ? content.patch : null;
+    const { getEmbedDiffs } = await import("./embedDiffStore");
+    const local = (await getEmbedDiffs(embedId))
+      .find((row) => row.version_number === output.output_version);
+    if (local && ((local.encrypted_snapshot
+      ? await decryptWithEmbedKey(local.encrypted_snapshot, embedKey) : null) !== expectedSnapshot
+      || (local.encrypted_patch
+        ? await decryptWithEmbedKey(local.encrypted_patch, embedKey) : null) !== expectedPatch)) {
+      throw new Error("Local streamed history differs from sealed recovery output.");
+    }
     const existingDigest = await readRecoveredCanonicalDiff(output, expectedSnapshot, expectedPatch, embedKey);
     if (existingDigest) return { digest: existingDigest, source: "version_row" };
     const snapshot = expectedSnapshot ? await encryptWithEmbedKey(expectedSnapshot, embedKey) : null;
@@ -636,12 +806,24 @@ async function persistRecoveredEmbed(
   const targetChat = await chatDB.getChat(output.target_chat_id);
   if (!targetChat) throw new Error("Recovered embed target chat was unavailable.");
   const catalog = await catalogContextFromSealedEmbed(content.content, content.app_id, content.skill_id);
+  let priorEncryptedType: string | null = null;
   const existingDigest = await readRecoveredCanonicalEmbed(
     output, content.content, content.type, content.message_id, embedKey,
+    (ciphertext) => { priorEncryptedType = ciphertext; },
   );
+  if (existingDigest) {
+    // A readable canonical head is already durable. Prove every wrapper opens
+    // to its expected key, including historical duplicates, without reciphering
+    // or rewriting any existing encrypted record.
+    await verifyExactCanonicalEmbedWrappers(output, parentEmbedId || embedId, embedKey, chatKey);
+    return existingDigest;
+  }
   const encryptedContent = existingDigest ? null : await encryptWithEmbedKey(content.content, embedKey);
-  const encryptedType = await encryptWithEmbedKey(content.type, embedKey);
+  const encryptedType = priorEncryptedType ?? await encryptWithEmbedKey(content.type, embedKey);
   if ((!encryptedContent && !existingDigest) || !encryptedType) throw new Error("Recovered embed encryption failed.");
+  if (priorEncryptedType) {
+    await verifyExactCanonicalEmbedWrappers(output, parentEmbedId || embedId, embedKey, chatKey);
+  }
   const encryptedPreview = typeof content.text_preview === "string"
     ? await encryptWithEmbedKey(content.text_preview, embedKey) : undefined;
   const storePayload: StoreEmbedPayload & {
@@ -653,6 +835,8 @@ async function persistRecoveredEmbed(
     encrypted_text_preview: encryptedPreview || undefined,
     status: "finished", hashed_chat_id: await computeSHA256(output.target_chat_id),
     hashed_message_id: await computeSHA256(content.message_id), hashed_user_id: ownerHash,
+    ...(typeof content.task_id === "string" && content.task_id
+      ? { hashed_task_id: await computeSHA256(content.task_id) } : {}),
     version_number: output.output_version,
     parent_embed_id: parentEmbedId || undefined,
     embed_ids: Array.isArray(content.embed_ids) ? content.embed_ids as string[] : undefined,
@@ -660,22 +844,23 @@ async function persistRecoveredEmbed(
     created_at: typeof content.createdAt === "number" ? content.createdAt : Math.floor(Date.now() / 1000),
     updated_at: typeof content.updatedAt === "number" ? content.updatedAt : Math.floor(Date.now() / 1000),
   };
-  const writeReceipt = !existingDigest
-    ? await sendEmbedStoreWithReceipt("store_embed", "store_embed_confirmed",
-      storePayload as unknown as Record<string, unknown>, embedId, undefined, output.record_id)
-    : null;
-  if (!parentEmbedId) {
+  const atomicPayload = storePayload as unknown as Record<string, unknown>;
+  if (!parentEmbedId && !priorEncryptedType) {
+    if (output.output_version !== 1) throw new Error("Initial recovery embed version was invalid.");
     const wrappedMaster = await wrapEmbedKeyWithMasterKey(embedKey);
     const wrappedChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
     if (!wrappedMaster || !wrappedChat) throw new Error("Recovered embed key wrapping failed.");
     const hashedEmbedId = await computeSHA256(embedId);
-    await sendEmbedKeysWithReceipt([
+    atomicPayload.recovery_key_wrappers = [
       { hashed_embed_id: hashedEmbedId, key_type: "master", hashed_chat_id: null,
         encrypted_embed_key: wrappedMaster, hashed_user_id: ownerHash, created_at: Math.floor(Date.now() / 1000) },
       { hashed_embed_id: hashedEmbedId, key_type: "chat", hashed_chat_id: await computeSHA256(output.target_chat_id),
         encrypted_embed_key: wrappedChat, hashed_user_id: ownerHash, created_at: Math.floor(Date.now() / 1000) },
-    ], output.record_id);
+    ];
+    atomicPayload.recovery_message_id = content.message_id;
   }
+  const writeReceipt = await sendEmbedStoreWithReceipt("store_embed", "store_embed_confirmed",
+    atomicPayload, embedId, undefined, output.record_id);
   const savedDigest = await readRecoveredCanonicalEmbed(
     output, content.content, content.type, content.message_id, embedKey,
   );
@@ -708,7 +893,7 @@ async function waitForInitialSync(serviceInstance: ChatSynchronizationService): 
   }
 }
 
-async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<RecoveryPrerequisites | null> {
+async function waitForRecoveryPrerequisites(job: Pick<AvailableRecoveryJob, "chat_id">): Promise<RecoveryPrerequisites | null> {
   const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const chat = await chatDB.getChat(job.chat_id);
@@ -976,6 +1161,7 @@ export async function handleRecoveryJobsAvailableImpl(
   payload: { jobs?: AvailableRecoveryJob[] },
 ): Promise<void> {
   prepareRecoveryLifecycleImpl(serviceInstance);
+  if (!payload.jobs?.length) return;
   const generation = recoveryLifecycleGeneration;
   if (!canRunRecovery()) {
     for (const job of payload.jobs ?? []) if (job.job_id) {
@@ -987,8 +1173,12 @@ export async function handleRecoveryJobsAvailableImpl(
   await waitForInitialSync(serviceInstance);
   if (generation !== recoveryLifecycleGeneration) return;
   await Promise.allSettled((payload.jobs ?? []).map(async (job) => {
-    if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) return;
+    if (!job.job_id) return;
+    if (recoveryJobsInProgress.has(job.job_id)) return recoveryJobSettlements.get(job.job_id);
     recoveryJobsInProgress.add(job.job_id);
+    let settled!: (success: boolean) => void;
+    recoveryJobSettlements.set(job.job_id, new Promise(resolve => { settled = resolve; }));
+    let success = false;
     try {
       assertRecoverySession(generation);
       // A local synced/delivered row can still be browser-only if the user logs out
@@ -1037,6 +1227,7 @@ export async function handleRecoveryJobsAvailableImpl(
           await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
           completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
           if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
+          success = true;
         } else {
           failMatchingPersonalChatTurn(job.chat_id, job.turn_id, new Error('Terminal reply has not hydrated locally.'));
         }
@@ -1104,9 +1295,14 @@ export async function handleRecoveryJobsAvailableImpl(
         ? existingAssistantMessage.user_message_id
         : undefined;
       const now = Math.floor(Date.now() / 1000);
-      // The authenticated final stream marker shares the AI-cache timestamp.
-      // A takeover device that missed it still completes recovery with a cold cache boundary.
-      const assistantCreatedAt = await waitForRecoveryFinalTimestamp(
+      // Keep a previously rendered timestamp or the matched final marker. A
+      // cold client uses the durable job creation time, never its takeover time.
+      const discoveredCreatedAt = Number.isSafeInteger(job.created_at) && job.created_at! > 0 ? job.created_at : undefined;
+      const existingCreatedAt = existingAssistantMessage?.role === 'assistant' && existingAssistantMessage.chat_id === job.chat_id
+        && Number.isSafeInteger(existingAssistantMessage.created_at) && existingAssistantMessage.created_at > 0
+        ? existingAssistantMessage.created_at : undefined;
+      const assistantCreatedAt = existingCreatedAt ?? recoveryFinalTimestamp(job.chat_id, job.assistant_message_id, job.job_id, job.turn_id)
+        ?? discoveredCreatedAt ?? await waitForRecoveryFinalTimestamp(
         job.chat_id, job.assistant_message_id, job.job_id, job.turn_id,
       ) ?? now;
       assertRecoverySession(generation);
@@ -1148,16 +1344,36 @@ export async function handleRecoveryJobsAvailableImpl(
         },
       );
 
+      // A local optimistic counter and a concurrent system append can each race
+      // this completion. Retry only the version CAS, retaining its sealed lease
+      // and ciphertext, under this browser session/socket/foreground authority.
+      const recoveryConnection = webSocketService.getConnectionForSend();
+      const originalChat = { ...chat };
+      let persistBaseChat = originalChat;
       let persistedResult: Record<string, unknown>;
-      let persistBaseChat = chat;
-      try {
-        persistedResult = await persistRecoveredMessage(chat.messages_v);
-      } catch (error) {
-        if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict") throw error;
-        const refreshedChat = await refreshRecoveryChatVersion(chat);
-        if (!refreshedChat) throw error;
-        persistBaseChat = refreshedChat;
-        persistedResult = await persistRecoveredMessage(refreshedChat.messages_v);
+      const assertPersistenceAuthority = () => {
+        assertRecoverySession(generation);
+        if (webSocketService.getConnectionForSend() !== recoveryConnection) {
+          throw new RecoverySessionEndedError("Recovery connection changed.");
+        }
+        if (!canRunRecovery()) throw new RecoveryForegroundDeferredError("Recovery paused until foreground discovery.");
+      };
+      for (let attempt = 0; ; attempt += 1) {
+        assertPersistenceAuthority();
+        try {
+          persistedResult = await persistRecoveredMessage(persistBaseChat.messages_v);
+          assertPersistenceAuthority();
+          break;
+        } catch (error) {
+          assertPersistenceAuthority();
+          if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict" || attempt >= 3) throw error;
+          const refreshedChat = await refreshRecoveryChatVersion(persistBaseChat);
+          assertPersistenceAuthority();
+          if (!refreshedChat || refreshedChat.chat_id !== originalChat.chat_id ||
+              !Number.isSafeInteger(refreshedChat.messages_v) || refreshedChat.messages_v < 0) throw error;
+          // Only the authoritative counter may replace captured owner/scope.
+          persistBaseChat = { ...originalChat, messages_v: refreshedChat.messages_v };
+        }
       }
       if (
         persistedResult.state !== "TERMINAL" ||
@@ -1222,6 +1438,7 @@ export async function handleRecoveryJobsAvailableImpl(
           },
         }),
       );
+      success = true;
     } catch (error) {
       if (error instanceof RecoverySessionEndedError) return;
       if (error instanceof RecoveryForegroundDeferredError) {
@@ -1238,7 +1455,12 @@ export async function handleRecoveryJobsAvailableImpl(
       console.error(`[ChatSyncService:Recovery] Failed recovery job ${job.job_id}:`, error);
       failMatchingPersonalChatTurn(job.chat_id, job.turn_id, error);
     } finally {
+      settled(success);
       recoveryJobsInProgress.delete(job.job_id);
+      if (recoveryJobSettlements.size > 256) {
+        const oldest = [...recoveryJobSettlements.keys()].find(id => !recoveryJobsInProgress.has(id));
+        if (oldest) recoveryJobSettlements.delete(oldest);
+      }
     }
   }));
 }
@@ -1286,6 +1508,8 @@ async function processRecoveryOutputsAvailable(
     || a.output_version - b.output_version)) {
     await (async () => {
     if (!output.record_id || recoveryOutputsInProgress.has(output.record_id)) return;
+    const acknowledgedOutput = acknowledgedRecoveryOutputs.get(output.record_id);
+    if (acknowledgedOutput && sameRecoveryOutput(acknowledgedOutput, output)) return;
     recoveryOutputsInProgress.add(output.record_id);
     let canonicalRetryContext: { ownerId: string; keyFingerprint: string } | null = null;
     try {
@@ -1366,6 +1590,15 @@ async function processRecoveryOutputsAvailable(
           markAcknowledgedRecoveredEmbed(lease, output.target_chat_id, output.output_version);
         });
         assertRecoverySession(generation);
+        if (output.output_kind === "embed" && output.output_version > 1) {
+          // The typed ACK has released the per-embed lease. A streamed next revision
+          // operation queued behind the old head can now verify and adopt
+          // this canonical version without sending a competing ciphertext.
+          void import("./embedSenders").then(({ flushPendingEmbedOperations }) =>
+            flushPendingEmbedOperations()).catch((error) => {
+              console.error("[ChatSyncService:Recovery] Queued embed reconciliation failed:", error);
+            });
+        }
         if (output.output_kind === "embed" && rememberRecentCanonicalIdentity(
           acknowledgedCanonicalParents, parentIdentity(output, output.subject_id),
           (identity) => [...pendingCanonicalRetries.values()].some((retry) =>
@@ -1378,11 +1611,13 @@ async function processRecoveryOutputsAvailable(
           detail: { embed_id: output.subject_id, chat_id: output.target_chat_id,
             status: "finished", version_number: output.output_version, isProcessing: false },
         }));
+        rememberAcknowledgedRecoveryOutput(output, generation);
         return;
       }
       if (output.output_kind === "checkpoint") {
         if (typeof content.summary_content !== "string") throw new Error("Recovery checkpoint summary was invalid.");
         await storeRecoveredCheckpoint(output, content, await encryptWithChatKey(content.summary_content, rootKey));
+        rememberAcknowledgedRecoveryOutput(output, generation);
         return;
       }
       if (output.output_kind === "summary") {
@@ -1423,6 +1658,7 @@ async function processRecoveryOutputsAvailable(
           persistedSummary = await persistSummary(refreshed.metadata_v as number);
         }
         if (persistedSummary.state !== "ACKNOWLEDGED") throw new Error("Recovery summary was not acknowledged.");
+        rememberAcknowledgedRecoveryOutput(output, generation);
         if (persistedSummary.superseded === true) return;
         const latestChildChat = await chatDB.getChat(output.target_chat_id) || childChat;
         if (Math.max(latestChildChat.metadata_v || 0, latestChildChat.title_v || 0)
@@ -1505,6 +1741,7 @@ async function processRecoveryOutputsAvailable(
       serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
         detail: { chat_id: output.target_chat_id, newMessage: aiMessage, type: "recovery_output_persisted", messagesUpdated: true },
       }));
+      rememberAcknowledgedRecoveryOutput(output, generation);
     } catch (error) {
       if (error instanceof RecoverySessionEndedError) return;
       if (error instanceof RecoveryForegroundDeferredError) {
@@ -1533,4 +1770,126 @@ async function processRecoveryOutputsAvailable(
     }
     })();
   }
+}
+
+
+interface AvailableMetadataJob {
+  job_id: string;
+  chat_id: string;
+  task_id: string;
+  stage: "initial" | "postprocessing";
+  chat_key_version: number;
+}
+
+const METADATA_ENCRYPTED_FIELDS = {
+  title: "encrypted_title", summary: "encrypted_chat_summary",
+  category: "encrypted_category", icon: "encrypted_icon",
+} as const;
+
+/** Only server-accepted ciphertext becomes a generated navigation update. */
+export async function handleMetadataJobsAvailableImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { jobs?: AvailableMetadataJob[] },
+): Promise<void> {
+  metadataRecoveryObserved = true;
+  prepareRecoveryLifecycleImpl(serviceInstance);
+  const generation = recoveryLifecycleGeneration;
+  const workspace = getWorkspaceCacheIdentity();
+  const epoch = getWorkspaceCacheEpoch();
+  const current = () => generation === recoveryLifecycleGeneration
+    && workspace === getWorkspaceCacheIdentity() && epoch === getWorkspaceCacheEpoch();
+  // Durable jobs are rediscovered on reconnect and after foreground discovery.
+  if (!canRunRecovery() || !Array.isArray(payload.jobs)) return;
+  await waitForInitialSync(serviceInstance);
+  if (!current()) return;
+  await Promise.allSettled(payload.jobs.slice(0, 100).map(async job => {
+    if (!job || typeof job.job_id !== "string" || typeof job.chat_id !== "string"
+      || typeof job.task_id !== "string" || !["initial", "postprocessing"].includes(job.stage)
+      || !Number.isSafeInteger(job.chat_key_version) || job.chat_key_version < 1
+      || metadataJobsInProgress.has(job.job_id)) return;
+    metadataJobsInProgress.add(job.job_id);
+    // Capture the local CAS baseline only after earlier metadata receipts for
+    // this chat have been applied, including work from another discovery page.
+    const previous = metadataChatQueues.get(job.chat_id) ?? Promise.resolve();
+    const queued = previous.catch(() => {}).then(async () => {
+      try {
+        if (!current()) return;
+        await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+        if (!current()) return;
+        const prerequisites = await waitForRecoveryPrerequisites(job);
+        if (!current() || !prerequisites) return;
+        const { chat, chatKey } = prerequisites;
+        if (chat.team_id || !chat.encrypted_chat_key) return;
+        const profile = await userDB.getUserProfile();
+        if (!current() || profile?.user_id !== chat.user_id) return;
+        const fingerprint = computeKeyFingerprint(chatKey);
+        const keyIsCurrent = async () => {
+          const [latest, key] = await Promise.all([chatDB.getChat(job.chat_id), chatKeyManager.getKey(job.chat_id)]);
+          return current() && latest?.user_id === chat.user_id && !latest?.team_id
+            && latest?.encrypted_chat_key === chat.encrypted_chat_key
+            && !!key && computeKeyFingerprint(key) === fingerprint;
+        };
+        if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "metadata recovery", { reportFailure: false }))
+          || !(await keyIsCurrent())) return;
+        const claim = await requestRecoveryEvent("metadata_job_claimed", "metadata_job_claim", job.job_id,
+          { protocol_version: 1, job_id: job.job_id });
+        const matches = (value: Record<string, unknown>) => value.job_id === job.job_id
+          && value.chat_id === job.chat_id && value.task_id === job.task_id
+          && value.stage === job.stage && value.chat_key_version === job.chat_key_version;
+        if (!current() || !matches(claim)) return;
+        if (claim.state !== "AVAILABLE") {
+          if (claim.state === "TERMINAL") await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+          return;
+        }
+        if (typeof claim.sealed_payload !== "string" || !Array.isArray(claim.encrypted_fields)) return;
+        const keypair = await deriveChatCompletionRecoveryKeypair(encodeRecoveryChatKey(chatKey), job.chat_id, job.chat_key_version);
+        const metadata = await openChatMetadataRecoveryEnvelope(JSON.parse(claim.sealed_payload), {
+          recoveryPrivateKey: keypair.privateKey, ownerId: chat.user_id, chatId: job.chat_id,
+          taskId: job.task_id, jobId: job.job_id, stage: job.stage, keyVersion: job.chat_key_version,
+        });
+        const fields = Object.entries(metadata).map(([field, value]) =>
+          [METADATA_ENCRYPTED_FIELDS[field as keyof typeof METADATA_ENCRYPTED_FIELDS], value] as const);
+        if (claim.encrypted_fields.length !== fields.length
+          || fields.some(([field]) => !(claim.encrypted_fields as unknown[]).includes(field))) return;
+        const encrypted = Object.fromEntries(await Promise.all(fields.map(async ([field, value]) => {
+          const ciphertext = await encryptWithChatKey(value, chatKey);
+          if (!ciphertext) throw new Error("Metadata encryption failed");
+          return [field, ciphertext];
+        })));
+        if (!(await keyIsCurrent())) return;
+        const receipt = await requestRecoveryEvent("metadata_job_persisted", "metadata_job_persist", job.job_id, {
+          protocol_version: 1, job_id: job.job_id, chat_key_version: job.chat_key_version,
+          wrapped_chat_key: chat.encrypted_chat_key, encrypted_metadata: encrypted,
+        });
+        if (!matches(receipt) || !(await keyIsCurrent()) || receipt.state !== "TERMINAL") return;
+        const accepted = receipt.encrypted_metadata;
+        const versions = receipt.versions as Record<string, unknown> | undefined;
+        if (!accepted || typeof accepted !== "object" || Array.isArray(accepted)
+          || !versions || !Number.isSafeInteger(versions.metadata_v) || Number(versions.metadata_v) < 0
+          || !Number.isSafeInteger(versions.title_v) || Number(versions.title_v) < 0
+          || Object.entries(accepted).some(([field, value]) =>
+            !Object.values(METADATA_ENCRYPTED_FIELDS).includes(field as typeof METADATA_ENCRYPTED_FIELDS.title)
+            || typeof value !== "string" || !value)) return;
+        const saved = await persistGeneratedChatMetadata(chatDB, chat, {
+          ...accepted, metadata_v: Number(versions.metadata_v), title_v: Number(versions.title_v),
+        }, current);
+        if (!saved || !current()) return;
+        chatMetadataCache.invalidateChat(job.chat_id);
+        serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
+          detail: { chat_id: job.chat_id, type: "post_processing_metadata", chat: saved },
+        }));
+      } catch {
+        // Optional navigation metadata remains recoverable; paid reply delivery proceeds.
+        console.warn("[ChatSyncService:Recovery] Metadata job remains pending.");
+      } finally {
+        if (generation === recoveryLifecycleGeneration) metadataJobsInProgress.delete(job.job_id);
+      }
+    });
+    metadataChatQueues.set(job.chat_id, queued);
+    try {
+      await queued;
+    } finally {
+      if (metadataChatQueues.get(job.chat_id) === queued) metadataChatQueues.delete(job.chat_id);
+    }
+  }));
 }

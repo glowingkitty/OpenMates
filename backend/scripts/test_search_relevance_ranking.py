@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import argparse
-from datetime import datetime, timedelta, timezone
 import importlib
 import json
 import logging
@@ -30,53 +29,14 @@ JEV_INPUT_PRICE_PER_MILLION_USD = 0.042
 
 
 def _event_request() -> dict[str, Any]:
-    start = datetime.now(timezone.utc)
-    end = start + timedelta(days=42)
     return {
         "id": "events",
-        "query": "AI",
-        "location": "Berlin",
-        "provider": "luma",
-        "start_date": start.isoformat(),
-        "end_date": end.isoformat(),
-        "event_type": "PHYSICAL",
+        "query": "security",
+        "provider": "pretalx",
+        "conference": "38c3",
+        "past_events": True,
         "count": FINAL_COUNT,
-        "relevance_criteria": (
-            "AI community events where a software founder could meet potential users, "
-            "show a new AI product, and build a relationship for a future talk"
-        ),
-    }
-
-
-def _stay_request() -> dict[str, Any]:
-    check_in = (datetime.now(timezone.utc) + timedelta(days=35)).date()
-    check_out = check_in + timedelta(days=3)
-    return {
-        "id": "travel-stays",
-        "query": "Berlin hotels",
-        "check_in_date": check_in.isoformat(),
-        "check_out_date": check_out.isoformat(),
-        "adults": 1,
-        "max_results": FINAL_COUNT,
-        "relevance_criteria": (
-            "A work-friendly stay with explicit Wi-Fi and workspace or desk evidence, "
-            "prioritizing concrete property details over rating popularity"
-        ),
-    }
-
-
-def _fitness_class_request() -> dict[str, Any]:
-    start = (datetime.now(timezone.utc) + timedelta(days=1)).date()
-    return {
-        "id": "fitness-classes",
-        "query": "yoga",
-        "city": "Berlin",
-        "start_date": start.isoformat(),
-        "days": 7,
-        "limit": FINAL_COUNT,
-        "relevance_criteria": (
-            "Evening on-site yoga classes with explicit remaining spots and a central Berlin venue"
-        ),
+        "relevance_criteria": "Conference talks with explicit technical security research and implementation details.",
     }
 
 
@@ -117,22 +77,6 @@ CASES: tuple[dict[str, Any], ...] = (
         "request_factory": _event_request,
     },
     {
-        "app": "home",
-        "skill": "search",
-        "module": "backend.apps.home.skills.search_skill",
-        "request": {
-            "id": "home",
-            "query": "Berlin",
-            "listing_type": "rent",
-            "property_type": "apartment",
-            "max_results": FINAL_COUNT,
-            "relevance_criteria": (
-                "Apartments whose listing explicitly mentions a balcony or terrace and gives "
-                "concrete evidence of a quiet setting; treat missing facts as unknown"
-            ),
-        },
-    },
-    {
         "app": "maps",
         "skill": "search",
         "module": "backend.apps.maps.skills.search_skill",
@@ -147,29 +91,6 @@ CASES: tuple[dict[str, Any], ...] = (
                 "opening-hour, or work-friendly evidence and treating missing facts as unknown"
             ),
         },
-    },
-    {
-        "app": "shopping",
-        "skill": "search_products",
-        "module": "backend.apps.shopping.skills.search_products",
-        "request": {
-            "id": "shopping",
-            "query": "wireless travel mouse",
-            "provider": "Amazon",
-            "category": "electronics",
-            "country": "DE",
-            "max_results": FINAL_COUNT,
-            "relevance_criteria": (
-                "A compact travel mouse with explicit quiet-click, long battery-life, and "
-                "multi-device support, prioritizing feature fit over popularity"
-            ),
-        },
-    },
-    {
-        "app": "travel",
-        "skill": "search_stays",
-        "module": "backend.apps.travel.skills.search_stays",
-        "request_factory": _stay_request,
     },
     {
         "app": "videos",
@@ -200,45 +121,6 @@ CASES: tuple[dict[str, Any], ...] = (
                 "maintenance health, documentation quality, or API compatibility"
             ),
         },
-    },
-    {
-        "app": "models3d",
-        "skill": "search",
-        "module": "backend.apps.models3d.skills.search_skill",
-        "request": {
-            "id": "models3d",
-            "query": "adjustable laptop stand",
-            "providers": ["Printables"],
-            "count": FINAL_COUNT,
-            "sort": "best_match",
-            "relevance_criteria": (
-                "An adjustable laptop stand with explicit functional or file-format evidence, "
-                "a stated license, and no purchase price; do not infer geometry quality, "
-                "printability, or printer compatibility"
-            ),
-        },
-    },
-    {
-        "app": "fitness-locations",
-        "registry_app": "fitness",
-        "skill": "search_locations",
-        "module": "backend.apps.fitness.skills.search_locations",
-        "request": {
-            "id": "fitness-locations",
-            "query": "yoga",
-            "city": "Berlin",
-            "limit": FINAL_COUNT,
-            "relevance_criteria": (
-                "A venue with explicit yoga variety and a central Berlin address; do not infer class level"
-            ),
-        },
-    },
-    {
-        "app": "fitness-classes",
-        "registry_app": "fitness",
-        "skill": "search_classes",
-        "module": "backend.apps.fitness.skills.search_classes",
-        "request_factory": _fitness_class_request,
     },
 )
 

@@ -82,6 +82,7 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover - exercised by li
 ProviderStart = Callable[..., ApplicationPreviewRuntime | Awaitable[ApplicationPreviewRuntime]]
 ProviderStop = Callable[..., bool | Awaitable[bool]]
 ThumbnailStore = Callable[..., dict[str, Any] | Awaitable[dict[str, Any] | None] | None]
+DeadlineScheduler = Callable[[str, str], None]
 
 
 async def run_application_preview_session(
@@ -92,9 +93,11 @@ async def run_application_preview_session(
     provider_start: ProviderStart | None = None,
     provider_stop: ProviderStop | None = None,
     thumbnail_store: ThumbnailStore | None = None,
+    deadline_scheduler: DeadlineScheduler | None = None,
     now: float | None = None,
 ) -> None:
     started_at = now if now is not None else time.time()
+    runtime: ApplicationPreviewRuntime | None = None
     await _patch_session(
         cache_service,
         session_id,
@@ -153,14 +156,26 @@ async def run_application_preview_session(
             },
         )
         if now is None:
-            await _stop_unopened_auto_started_session_after_deadline(
+            await _schedule_unopened_preview_deadline(
                 cache_service=cache_service,
                 session_id=session_id,
                 sandbox_id=runtime.sandbox_id,
-                api_key=str(payload.get("api_key") or ""),
+                schedule=deadline_scheduler or _dispatch_unopened_preview_deadline,
+            )
+            await _guard_unopened_preview_deadline(
+                cache_service=cache_service, session_id=session_id,
+                sandbox_id=runtime.sandbox_id, api_key=str(payload.get("api_key") or ""),
                 provider_stop=provider_stop,
             )
     except Exception as exc:
+        if runtime is not None:
+            # A failed thumbnail store or deadline dispatch must not leave a
+            # running sandbox behind after reporting the session as failed.
+            await stop_application_preview_sandbox(
+                cache_service=cache_service, session_id=session_id,
+                sandbox_id=runtime.sandbox_id, api_key=str(payload.get("api_key") or ""),
+                provider_stop=provider_stop, now=now,
+            )
         safe_error = redact_execution_output(str(exc))
         logger.error("Application preview session %s failed: %s", session_id, safe_error, exc_info=True)
         await _patch_session(
@@ -295,6 +310,50 @@ async def _patch_session(cache_service: Any, session_id: str, patch: dict[str, A
     if events:
         data.setdefault("events", []).extend(events)
     await client.set(application_preview_session_key(session_id), json.dumps(data), ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS)
+    # Persist before notifying the authenticated owner. Never publish source,
+    # upstream hosts, tokens, errors, screenshot keys, or billing material.
+    owner_hash = data.get("viewer_user_id_hash")
+    owner_id = data.get("viewer_user_id")
+    chat_id = (data.get("usage_context") or {}).get("chat_id")
+    if "status" in patch and owner_hash and owner_id and chat_id:
+        try:
+            await cache_service.publish_event(
+                f"user_updates::{owner_hash}",
+                {
+                    "event_for_client": "application_preview_status",
+                    "user_id_uuid": owner_id,
+                    "payload": {
+                        "chat_id": chat_id,
+                        "application_embed_id": data.get("application_embed_id"),
+                        "session_id": session_id,
+                        "status": data["status"],
+                        "updated_at": data.get("updated_at", time.time()),
+                    },
+                },
+            )
+        except Exception:
+            # Polling is the recovery path; notification failure must not stop
+            # or rebill a healthy preview.
+            logger.warning("Application preview status notification failed for %s", session_id, exc_info=True)
+
+
+
+def _dispatch_unopened_preview_deadline(session_id: str, sandbox_id: str) -> None:
+    if app is None:
+        raise RuntimeError("Application preview cleanup scheduler is unavailable")
+    # No credentials or source are retained in the delayed broker message.
+    app.send_task("code.expire_unopened_application_preview", args=[session_id, sandbox_id],
+                  queue="app_code", countdown=APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS)
+
+
+async def _schedule_unopened_preview_deadline(
+    *, cache_service: Any, session_id: str, sandbox_id: str, schedule: DeadlineScheduler,
+) -> None:
+    client = await cache_service.client
+    raw = await client.get(application_preview_session_key(session_id))
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
+    if data.get("auto_started") is True and data.get("auto_opened_at") is None and data.get("sandbox_id") == sandbox_id:
+        schedule(session_id, sandbox_id)
 
 
 async def _stop_unopened_auto_started_session_after_deadline(
@@ -311,15 +370,13 @@ async def _stop_unopened_auto_started_session_after_deadline(
         return
 
     data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    if data.get("auto_started") is not True:
+    # Re-check ownership and opening state when either deadline path executes.
+    # A replaced runtime or an opened preview must survive an old timer.
+    if data.get("sandbox_id") != sandbox_id:
+        # Reclaim only the superseded VM; never mutate or bill the replacement
+        # session. Ignoring the timer entirely would retain the old user's code.
+        await _stop_runtime(provider_stop, sandbox_id=sandbox_id, api_key=api_key)
         return
-
-    await asyncio.sleep(APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS)
-    raw = await client.get(application_preview_session_key(session_id))
-    if not raw:
-        return
-
-    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
     if data.get("auto_started") is not True or data.get("auto_opened_at") is not None:
         return
     if data.get("status") not in {"queued", "starting", "running"}:
@@ -344,6 +401,34 @@ async def _stop_unopened_auto_started_session_after_deadline(
         api_key=api_key,
         provider_stop=provider_stop,
         now=stopped_at,
+    )
+
+
+async def _guard_unopened_preview_deadline(
+    *, cache_service: Any, session_id: str, sandbox_id: str, api_key: str,
+    provider_stop: ProviderStop | None,
+) -> None:
+    """Release opened previews promptly; preserve the unopened deadline locally.
+
+    The delayed task is a recovery backstop. Relying only on its queue could
+    extend billed time and source retention behind long code executions.
+    """
+    deadline = time.monotonic() + APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS
+    client = await cache_service.client
+    while time.monotonic() < deadline:
+        raw = await client.get(application_preview_session_key(session_id))
+        data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
+        if data.get("sandbox_id") != sandbox_id:
+            if data:
+                await _stop_runtime(provider_stop, sandbox_id=sandbox_id, api_key=api_key)
+            return
+        if (data.get("auto_started") is not True or data.get("auto_opened_at") is not None
+                or data.get("status") not in {"queued", "starting", "running"}):
+            return
+        await asyncio.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+    await _stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache_service, session_id=session_id, sandbox_id=sandbox_id,
+        api_key=api_key, provider_stop=provider_stop,
     )
 
 
@@ -684,7 +769,7 @@ def _run_application_preview_session_sync(session_id: str, payload: dict[str, An
         loop.close()
 
 
-def _stop_application_preview_sandbox_sync(session_id: str, sandbox_id: str) -> None:
+def _stop_application_preview_sandbox_sync(session_id: str, sandbox_id: str, *, only_if_unopened: bool = False) -> None:
     if get_worker_cache_service is None or SecretsManager is None or get_e2b_api_key_async is None:
         raise RuntimeError("Application preview worker dependencies are not available")
 
@@ -695,11 +780,14 @@ def _stop_application_preview_sandbox_sync(session_id: str, sandbox_id: str) -> 
         cache_service = loop.run_until_complete(get_worker_cache_service())
         loop.run_until_complete(secrets_manager.initialize())
         api_key = loop.run_until_complete(get_e2b_api_key_async(secrets_manager))
-        loop.run_until_complete(stop_application_preview_sandbox(
+        stop = _stop_unopened_auto_started_session_after_deadline if only_if_unopened else stop_application_preview_sandbox
+        options = {"provider_stop": None} if only_if_unopened else {}
+        loop.run_until_complete(stop(
             cache_service=cache_service,
             session_id=session_id,
             sandbox_id=sandbox_id,
             api_key=api_key,
+            **options,
         ))
     finally:
         loop.run_until_complete(secrets_manager.aclose())
@@ -715,3 +803,8 @@ if app is not None:  # pragma: no cover - registration path runs in worker image
     @app.task(name="code.stop_application_preview", queue="app_code")
     def stop_application_preview_task(session_id: str, sandbox_id: str) -> None:
         _stop_application_preview_sandbox_sync(session_id, sandbox_id)
+
+
+    @app.task(name="code.expire_unopened_application_preview", queue="app_code")
+    def expire_unopened_application_preview_task(session_id: str, sandbox_id: str) -> None:
+        _stop_application_preview_sandbox_sync(session_id, sandbox_id, only_if_unopened=True)

@@ -3,28 +3,25 @@ id: feature.app-skill.health-search-appointments
 version: 1
 status: draft
 title: Health Appointment Search — App Skill
-summary: Search supported German appointment providers while preserving the requested visit purpose, eligibility
-  constraints and actionable provider booking evidence; never substitute a treatment slot for an initial
-  consultation.
+summary: Appointment discovery is unavailable; generic saved doctor, service, slot, location and outcome history
+  remains truthful.
+
 inherits:
 - architecture.app-skill-execution@1
 - architecture.platform-parity@1
 scope:
   includes:
-  - Registered health/search_appointments skill for Doctolib Germany and Jameda Germany.
-  - Batch inputs, provider selection, visit-purpose and eligibility filters, bounded availability search,
-    grouped results, links, maps and outcome states.
-  - Observable equivalent behavior across supported programmatic and graphical clients.
+  - Explicit unavailable behavior for new appointment discovery through the shared provider boundary.
+  - Typed request/result schemas and previously saved appointment groups, provenance, maps and outcomes.
   excludes:
-  - Diagnosis, treatment recommendations, emergency triage policy and selecting a medical speciality from
-    symptoms.
-  - Agent system-prompt wording, prompting tactics, tool-selection instructions and focus-mode behavior;
-    coordinator owns that separate question.
+  - Diagnosis, treatment recommendations, emergency triage policy and selecting a medical speciality from symptoms.
+  - Agent system-prompt wording, prompting tactics, tool-selection instructions and focus-mode behavior; coordinator
+    owns that separate question.
   - Appointment booking/cancellation, health memories, medical report generation and medication lookup.
   - Jev relevance ranking, a relevance_criteria input, and preference-based reordering of appointment candidates.
-  - New providers, endpoints or supported procedures; changes to authentication, credits, rate limits
-    and encryption.
+  - New providers, endpoints or supported procedures; changes to authentication, credits, rate limits and encryption.
   - Pixel-level layouts and the internal implementation of generic embed serialization.
+
 models:
   HealthSearchRequest:
     requests:
@@ -44,12 +41,9 @@ models:
       type: string
       required: true
     provider_platform:
-      type: enum
-      values:
-      - both
-      - doctolib_de
-      - jameda
-      default: both
+      type: string
+      nullable: true
+      constraints: {live_sources_unavailable: true}
     visit_motive_category:
       type: enum
       nullable: true
@@ -164,131 +158,44 @@ models:
 assertions:
 - id: health-search-appointments.input.validated
   type: behavior
-  must: 'Validate each request against the published schema before provider work: a nonempty request batch,
-    nonempty speciality and city, supported provider/category/insurance values, days_ahead of 1, 3 or
-    7, a boolean telehealth flag and a positive bounded max_doctors. Preserve batch request identities
-    and per-request results/errors; an invalid item must not be silently assigned invented search criteria.'
+  must: Retain typed batch, speciality, city, visit-purpose, eligibility, date and limit request fields. Current
+    appointment invocations return explicit unavailable errors before provider work and do not imply that live eligibility
+    or availability was checked.
   depends_on:
-  - models
-  - examples.input_validation
-- id: health-search-appointments.providers.requested
-  type: invariant
-  must: 'Honor provider_platform: doctolib_de queries only Doctolib Germany, jameda only Jameda Germany,
-    and both queries both supported providers. Do not silently substitute an unrequested provider. Attribute
-    every result to its actual provider; describe bounded search coverage without claiming all appointments
-    in Germany were checked.'
-  depends_on:
-  - models
-  - examples.provider_selection
-- id: health-search-appointments.purpose.initial-consultation
-  type: behavior
-  must: An initial-consultation request must return only service types supported by the provider as consultations
-    or initial examinations, not a treatment, follow-up or unrelated screening substituted because it
-    is earlier. A speciality-only structured search without an explicit procedure or visit category uses
-    general-consultation eligibility. If no such services match, return no matching appointments instead
-    of broadening to unrelated services. This defines observable search behavior, not how agent prompts
-    express or extract the request.
-  depends_on:
-  - models
-  - examples.initial_consultation
-- id: health-search-appointments.purpose.explicit
-  type: behavior
-  must: Preserve explicitly requested supported visit categories (general, checkup, vaccination, followup)
-    and supported procedures expressed through speciality. Match the actual provider service rather than
-    the doctor title alone. Do not replace an explicit procedure with the default consultation, treat
-    a negated category mention as a match, or treat a consultation about an unrelated procedure as a general
-    examination.
-  depends_on:
-  - models
-  - examples.explicit_purpose
-- id: health-search-appointments.eligibility.location-speciality
-  type: invariant
-  must: Normalize supported city and speciality aliases without changing the requested place or doctor
-    type. Reject known city or speciality mismatches before returning availability; missing provider detail
-    cannot be invented. A matching speciality alone does not establish that the offered service fits the
-    visit purpose.
-  depends_on:
-  - models
-  - examples.location_speciality
-- id: health-search-appointments.eligibility.insurance-patients
-  type: invariant
-  must: Respect service-specific insurance and patient eligibility. When public insurance is requested,
-    reject explicitly private-only, self-pay or additional-fee services rather than presenting them as
-    covered. Preserve unknown coverage as unknown and require provider confirmation without inferring
-    coverage from a doctor name. For an initial/new-patient consultation, reject services explicitly limited
-    to existing patients; an explicit follow-up may retain them.
-  depends_on:
-  - models
-  - examples.insurance_patients
-- id: health-search-appointments.eligibility.modality-language
-  type: invariant
-  must: Honor requested telehealth-only and language filters using provider evidence. A provider that
-    cannot establish a requested constraint must not contribute unverified matches; expose that provider
-    limitation or unsupported-filter outcome. Do not convert unknown language or consultation modality
-    into a positive match. With no such filter, retain missing metadata as unknown rather than inventing
-    it.
-  depends_on:
-  - models
-  - examples.modality_language
-- id: health-search-appointments.availability.window-order
-  type: invariant
-  must: Constrain provider retrieval and returned slots to the requested look-ahead window, defaulting
-    to seven days. Compare offset-aware timestamps as actual instants, omit past slots and retain provider
-    local-time information. Only eligible services participate in earliest-availability comparisons; an
-    earlier incompatible treatment cannot displace a consultation. The bounded search must not claim the
-    globally earliest appointment. This skill does not accept relevance_criteria or use Jev to reorder
-    appointments; eligibility and existing earliest-first ordering remain authoritative.
-  depends_on:
-  - models
+  - examples.boundary_and_history
 - id: health-search-appointments.results.grouping
   type: invariant
-  must: Preserve the service, doctor, location and source provider when grouping alternate slots. Do not
-    merge different treatments, doctors or provider booking identities into one appointment. Keep earliest-first
-    ordering within the existing bounded insurance groups and label coverage distinctions; presenting
-    groups must not imply that the first displayed group is an exhaustive global earliest ranking.
+  must: Saved appointment groups preserve the recorded doctor, service, location, provider and alternate slots.
+    Distinct treatments, doctors or booking identities never merge during history rendering.
   depends_on:
-  - models
-  - examples.result_grouping
+  - examples.boundary_and_history
 - id: health-search-appointments.results.booking-provenance
   type: invariant
-  must: Keep availability, service name, material restrictions and booking links tied to the same provider
-    service and practice. Results and their presentation cannot relabel a treatment as an initial examination,
-    manufacture coverage or booking confirmation, or imply that observed availability is guaranteed. Distinguish
-    a direct slot booking link from a practice availability page; preserve the correct provider destination
-    and do not route result links to app settings.
+  must: Saved service names, restrictions, availability observations and booking links remain tied to their original
+    service and practice. History never manufactures booking confirmation or presents recorded availability as current
+    or guaranteed.
   depends_on:
-  - models
-  - examples.booking_provenance
+  - examples.boundary_and_history
 - id: health-search-appointments.results.maps-enrichment
   type: invariant
-  must: When reliable result coordinates exist, map pins and detail views identify the same doctor/practice
-    location as the appointment. Missing coordinates produce a usable details view without an invented
-    pin. Optional photos, ratings, contact data and map enrichment retain source attribution and cannot
-    change the booked service, visit purpose or provider link; enrichment failure must not hide otherwise
-    usable appointment details.
+  must: Saved appointment coordinates identify the same doctor or practice as their card. Missing coordinates preserve
+    a usable detail card and explicit unmapped state without a new source lookup.
   depends_on:
-  - models
-  - examples.maps_enrichment
+  - examples.boundary_and_history
 - id: health-search-appointments.outcomes.explicit
   type: failure
-  must: Distinguish invalid input, unsupported filters, successful search with no available slots, exclusion
-    of incompatible candidates, and provider failure. If one selected provider fails while another returns
-    eligible results, retain usable results and disclose partial coverage; do not claim the failed provider
-    completed successfully. Keep failures safe and visible under the inherited execution contract, without
-    raw errors, fabricated appointments or silent relaxation of criteria.
+  must: New appointment requests report unavailable, distinctly from successful searches with no slots. Saved invalid,
+    unsupported, empty, partial and failed outcomes retain their recorded distinctions without renewed provider
+    execution.
   depends_on:
-  - models
-  - examples.explicit_outcomes
+  - examples.boundary_and_history
 - id: health-search-appointments.surface-parity
   type: parity
-  must: REST API, CLI, npm/pip SDKs and web/Apple GUI preserve the same request constraints, eligible
-    services, provider provenance, time and insurance semantics, booking targets, and empty/partial/error
-    outcomes. Visual layout may differ; supported clients must not silently weaken a skill guarantee.
-    Existing execution authentication, credits, budgets, output safety and encryption boundaries are inherited,
-    not redefined by this skill.
+  must: REST, CLI, npm/pip SDKs and web/Apple preserve explicit unavailable errors for current appointment searches
+    and generic saved doctor, service, slot, insurance, provenance, map and outcome fields.
   depends_on:
-  - models
-  - examples.surface_parity
+  - examples.boundary_and_history
+
 applies_to:
   rest_api:
     required: true
@@ -314,16 +221,9 @@ applies_to:
 examples:
   file: examples.yml
   required_groups:
-  - input_validation
-  - provider_selection
-  - initial_consultation
-  - explicit_purpose
-  - location_speciality
-  - insurance_patients
-  - modality_language
-  - window_order
-  - result_grouping
-  - booking_provenance
-  - maps_enrichment
-  - explicit_outcomes
-  - surface_parity
+  - boundary_and_history
+
+approval_source:
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

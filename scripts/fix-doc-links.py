@@ -76,7 +76,6 @@ PATH_MAPPING = {
     "docs/analytics.md": "docs/architecture/infrastructure/analytics.md",
     "docs/media-generation.md": "docs/architecture/integrations/media-generation.md",
     # docs/apis/ -> architecture/integrations/
-    "docs/apis/luma.md": "docs/architecture/integrations/luma.md",
     # docs/apps/ -> split between architecture/apps/ and user-guide/apps/
     "docs/apps/function-calling.md": "docs/architecture/apps/function-calling.md",
     "docs/apps/focus-modes-implementation.md": "docs/architecture/apps/focus-modes-implementation.md",

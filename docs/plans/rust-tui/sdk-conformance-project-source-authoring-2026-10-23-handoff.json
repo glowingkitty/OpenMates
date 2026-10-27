@@ -1,0 +1,103 @@
+{
+  "status": "passed_for_recorded_source",
+  "report": "docs/plans/rust-tui/sdk-conformance-project-source-authoring-2026-10-23.json",
+  "provenance": "docs/plans/rust-tui/sdk-conformance-project-source-authoring-2026-10-23-inputs.json",
+  "reportSha256": "8ecc950ca0c45adc8366b1f92f331332f325641bd4551cfd3eacbde1d21f8438",
+  "provenanceSha256": "dfe349d76f4893ad5bd6d05ecf7fea03cbcd751a07e61daae107c77aa0626795",
+  "sourceAggregateSha256": "2b0a18bd4fd9c93fa28f716f5a29de651dd25b069801fc6dcc6892e3070600bc",
+  "adapters": 48,
+  "vectorResults": 567,
+  "sourceAuthoringVectorsPerLanguage": 25,
+  "sourceAuthoringNestedSubcasesPerLanguage": 60,
+  "watchVectorsPerLanguage": 25,
+  "correctedWorkVectorsPerLanguage": 10,
+  "sourceFixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
+  "workFixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
+  "openSdkGaps": 147,
+  "releaseEligible": false,
+  "minimumAvailableGiB": 34.45725631713867,
+  "sourceAndNativeArtifactsUnchanged": true,
+  "threeLocksUnchanged": true,
+  "nativeBuild": {
+    "inputs": 218,
+    "manifestSha256": "7096c4e9f0ad8d10a7e78442773826fb951168ad5532375aab337538400883bb",
+    "artifacts": {
+      "npm": {
+        "sha256": "8704aade3dcdc161fc1f2ed6ba14d3f77b68796015656c6d7516d001e3920f1d",
+        "bytes": 44856280
+      },
+      "python": {
+        "sha256": "de8c4131326f570ffc3dd0a9480e4818c47f488323a5fff7235c84535975b5b9",
+        "bytes": 51549096
+      }
+    }
+  },
+  "postBuildNoncompiledCorrections": {
+    "count": 7,
+    "files": {
+      "packages/openmates-session-bindings/examples/session-work-conformance.rs": {
+        "before": "a1a744c4c912f6dcd886e45b5959c9758fca25382bace002288915f7a736ac39",
+        "after": "ffcd73a953eda99f726a7ba5865f077ab7d192161d0df92f4cc69b03716efbb5"
+      },
+      "tests/sdk-conformance/runners/session-work.mjs": {
+        "before": "97d6f30af6e179391a1a2a5b012a2d809dd345d35e851fa87e5d313ba50e8f10",
+        "after": "d1af5986b5e302f4ce128c75190dc528668932b38c59de0b85801b024747937a"
+      },
+      "tests/sdk-conformance/runners/session-work.py": {
+        "before": "efb4617aeb54d20edff612e5a05f42c55f9da03957abeb193fd082f67059f775",
+        "after": "12461705dda97c93e2045441cf0a9df437fc7a57a1969a486275765cb40dadaf"
+      },
+      "tests/sdk-conformance/fixtures/session-work.json": {
+        "before": "665a49e7c14b7a3b4bb732032802d2a390acc71acb27895a7618f92511b50201",
+        "after": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421"
+      },
+      "packages/openmates-python/openmates/project_sources.py": {
+        "before": "f07c04d5e6939bc566ecd97d4fadafadad096a3b93aa3331cfba9004565f3802",
+        "after": "182ff5a76f80615eec9f71ed50cd8f5d46af8e6c631d1e9ea989fd2dde22ddb2"
+      },
+      "packages/openmates-python/openmates/sdk.py": {
+        "before": "5791eee0ea51c864bbcd40e25d2842cb3af08d7b73a7397a9c2029f58bbd9780",
+        "after": "8da6b984431c1a78efb114cd65b65d1c73181ad400116d2c4b92573aac9da46b"
+      },
+      "scripts/check_sdk_conformance.py": {
+        "before": "3bcb581c54b1330a765d4acabb2a42ef01c7e41fdd99ddbc71114ca7d327741c",
+        "after": "ecc39b529bd15ab2fa9b8a4b366dc3907a92a427d08c27293b8d6c59ffb30c3d"
+      }
+    },
+    "qualification": "Exactly3 work conformance runners/shared fixture enforce typed cancellation with HTTP credential settlement;2 Python typing modules preserve intended optional fields on Python>=3.10; gate enforces shared error oracle. No Rust library/FFI compiler or lock changes. All other211 fresh inputs and actual native artifacts remain identical; source and error behavior are exercised through actual libraries."
+  },
+  "additionalChecks": {
+    "rustSourceOperations": {
+      "focusedTests": 28,
+      "newTests": 13,
+      "strictAllTargetClippy": "passed"
+    },
+    "bindingLifecycle": {
+      "testFunctions": 8,
+      "namespaceLifecycleCases": 16,
+      "namespaces": 4,
+      "lifecycleActions": 4,
+      "sourceRacesAlsoExercised": true,
+      "boundedAdmission": 32,
+      "strictClippyAndBothFeatures": "passed"
+    },
+    "pythonTyping": {
+      "pureAndTypeTests": 6,
+      "sourceAdapterVectors": 25,
+      "minimumPython310WorkflowCheckAdded": true,
+      "localActualPython310InterpreterAvailable": false
+    },
+    "nativeApplication": {
+      "allTargetTests": 405,
+      "productCasesIgnoredLocally": 4,
+      "focusedAskTests": 51,
+      "strictAllTargetClippy": "passed",
+      "qualification": "Native all-target run uses held source with supplemental prior compiler-checkpoint comparison; driver did not independently snapshot all native files at command start. Not product E2E."
+    }
+  },
+  "scopeLimits": [
+    "Source-authoring facet remains partial; full source hosting/filesystem/approved commands/Codex and platform/backend acceptance are open.",
+    "No registry publication, native global replacement, npm CLI source retirement or web/backend migration acceptance.",
+    "Latest native product CI fails Node-runtime permission admission before measurements; reviewed trusted-producer deployment is being corrected for its lint gate."
+  ]
+}

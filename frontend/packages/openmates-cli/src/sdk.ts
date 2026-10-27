@@ -2,7 +2,7 @@ import type { BuyerAddress } from "./billingAddress.js";
 /*
  * OpenMates npm SDK facade.
  *
- * Purpose: provide an ergonomic API-key client for Node integrations.
+ * Purpose: provide an ergonomic account or anonymous client for Node integrations.
  * Architecture: thin REST facade over public /v1 endpoints; CLI client remains separate.
  * Security: API keys are bearer credentials and are never persisted by this class.
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
@@ -219,6 +219,10 @@ function normalizeOptionalGoal(value: string | undefined): string | null {
 
 export interface OpenMatesOptions {
   apiKey?: string;
+  /** Ignore environment credentials and use only the free anonymous allowance. */
+  anonymous?: boolean;
+  /** Stable guest identity, 1–128 characters; defaults to the persisted device ID. */
+  anonymousId?: string;
   apiUrl?: string;
   deviceId?: string;
   deviceIdPath?: string;
@@ -694,6 +698,36 @@ export class OpenMatesApiError extends Error {
   }
 }
 
+export interface AnonymousUsageStatus {
+  active: boolean;
+  can_send_text: boolean;
+  reason?: string | null;
+  reset_at: string;
+  cta: string;
+  daily_remaining_percent?: number | null;
+}
+
+function anonymousErrorDetail(data: unknown): Record<string, unknown> {
+  const record = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  if (typeof record.detail === "string") return { code: record.detail, reason: record.detail };
+  return record.detail && typeof record.detail === "object" ? record.detail as Record<string, unknown> : record;
+}
+
+export class OpenMatesSignupRequiredError extends OpenMatesApiError {
+  readonly signupRequired = true;
+  readonly code?: string;
+  readonly reason?: string;
+
+  constructor(status: number, data: unknown) {
+    super(status, data);
+    this.name = "OpenMatesSignupRequiredError";
+    const detail = anonymousErrorDetail(data);
+    this.code = typeof detail.code === "string" ? detail.code : undefined;
+    this.reason = typeof detail.reason === "string" ? detail.reason : this.code;
+    this.message = "The free allowance has been used or is unavailable. Create an OpenMates account to continue.";
+  }
+}
+
 export class OpenMatesUnavailableError extends Error {
   readonly code = "unavailable_requires_first_party_verification";
 
@@ -705,6 +739,7 @@ export class OpenMatesUnavailableError extends Error {
 
 export class OpenMates {
   readonly apps: GeneratedAppSkills;
+  readonly anonymous: OpenMatesAnonymous;
   readonly account: OpenMatesAccount;
   readonly benchmark: OpenMatesBenchmark;
   readonly billing: OpenMatesBilling;
@@ -735,15 +770,24 @@ export class OpenMates {
   private readonly apiKey?: string;
   private readonly apiUrl: string;
   private readonly deviceId: string;
+  private readonly anonymousId: string;
   private readonly sdkName: "cli" | "npm" | "pip";
   private sdkSessionPromise?: Promise<SdkSessionResponse>;
   private masterKeyPromise?: Promise<Uint8Array>;
   private chatIdentityPromise?: Promise<DirectChatKeyPair>;
 
   constructor(options: OpenMatesOptions = {}) {
-    this.apiKey = options.apiKey ?? process.env.OPENMATES_API_KEY;
+    if (options.anonymous && options.apiKey) {
+      throw new OpenMatesConfigError("anonymous: true cannot be combined with an explicit API key");
+    }
+    this.apiKey = options.anonymous ? undefined : options.apiKey ?? process.env.OPENMATES_API_KEY;
     this.apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     this.deviceId = options.deviceId ?? loadOrCreateDeviceId(options.deviceIdPath);
+    this.anonymousId = options.anonymousId ?? this.deviceId;
+    if (typeof this.anonymousId !== "string" || this.anonymousId.length < 1 || this.anonymousId.length > 128 || /[\r\n]/.test(this.anonymousId)) {
+      throw new OpenMatesConfigError("Anonymous ID must contain 1–128 characters and no line breaks");
+    }
+    this.anonymous = new OpenMatesAnonymous(() => this.anonymousRequest<AnonymousUsageStatus>("GET", "/v1/anonymous/free-usage/status"));
     this.sdkName = options.sdkName ?? "npm";
     this.apps = new GeneratedAppSkills(this.runAppSkill.bind(this));
     this.account = new OpenMatesAccount(this);
@@ -776,6 +820,12 @@ export class OpenMates {
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
+    if (!this.apiKey) {
+      if (appId === "ai" && skillId === "ask") {
+        throw new OpenMatesConfigError("Use chats.send(message) for anonymous AI chat with automatic model routing");
+      }
+      return this.anonymousRequest<T>("POST", `/v1/anonymous/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}`, withAppSkillRunOptions(input, options));
+    }
     const response = await this.request<unknown>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
     if (appId === "code" && skillId === "run") {
       return this.resolveCodeRunSkillResponse(response) as Promise<T>;
@@ -1081,6 +1131,70 @@ export class OpenMates {
       return decryptBytesWithAesGcm(chatKeyEntry.encrypted_embed_key, chatKey);
     }
     return null;
+  }
+
+  /** Whether executable public requests use the free anonymous allowance. */
+  get isAnonymous(): boolean { return !this.apiKey; }
+
+  async sendAnonymousChat(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
+    // Only history and an explicit non-persistent preference are meaningful here.
+    for (const [key, value] of Object.entries(options)) {
+      if (value !== undefined && key !== "history" && !(key === "saveToAccount" && value === false)) {
+        throw new OpenMatesConfigError(`Anonymous chat does not support ${key}. Create an account to use account settings or model overrides.`);
+      }
+    }
+    if (!message.trim() || Array.from(message).length > 20_000) {
+      throw new OpenMatesConfigError("Anonymous chat messages must contain 1–20000 characters");
+    }
+    const rawHistory = options.history;
+    if (rawHistory !== undefined && !Array.isArray(rawHistory) && (
+      !rawHistory || typeof rawHistory !== "object" || !Array.isArray(rawHistory.messages)
+    )) {
+      throw new OpenMatesConfigError("Anonymous history must be a message array or an object containing a messages array");
+    }
+    const history = normalizeHistory(rawHistory);
+    if (history.length > 50) throw new OpenMatesConfigError("Anonymous chat history supports at most 50 messages");
+    const messageHistory = history.map((entry) => {
+      if (!entry || typeof entry !== "object" || !["user", "assistant"].includes(String(entry.role)) || typeof entry.content !== "string" || Array.from(entry.content).length > 20_000) {
+        throw new OpenMatesConfigError("Anonymous history requires user/assistant roles and content up to 20000 characters");
+      }
+      const timestamp = entry.created_at ?? entry.createdAt ?? 0;
+      if (typeof timestamp !== "number" || !Number.isSafeInteger(timestamp)) {
+        throw new OpenMatesConfigError("Anonymous history created_at must be an integer timestamp");
+      }
+      return { role: entry.role, content: entry.content, created_at: timestamp };
+    });
+    const response = await this.anonymousRequest<Record<string, unknown>>("POST", "/v1/anonymous/chat/stream", {
+      anonymous_id: this.anonymousId,
+      client_chat_id: randomUUID(),
+      client_message_id: randomUUID(),
+      plaintext_message: message,
+      message_history: messageHistory,
+    });
+    return { ...response, content: typeof response.assistant === "string" ? response.assistant : "" };
+  }
+
+  private async anonymousRequest<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+    const response = await fetch(`${this.apiUrl}${path}`, {
+      method,
+      headers: {
+        "Accept": "application/json",
+        "X-OpenMates-Anonymous-ID": this.anonymousId,
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    try {
+      return await this.parseResponse<T>(response);
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || ![403, 429, 503].includes(error.status)) throw error;
+      const detail = anonymousErrorDetail(error.data);
+      const quotaCodes = ["signup_required", "budget_exhausted", "per_identity_exhausted", "inactive", "anonymous_usage_limit", "budget_inactive", "disabled", "daily_exhausted", "weekly_exhausted", "monthly_exhausted"];
+      if (detail.signup_required === true || quotaCodes.includes(String(detail.code)) || quotaCodes.includes(String(detail.reason))) {
+        throw new OpenMatesSignupRequiredError(error.status, error.data);
+      }
+      throw error;
+    }
   }
 
   private async requestWithMethod<T>(
@@ -2255,6 +2369,7 @@ export class OpenMatesChats {
   }
 
   async send(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
+    if (this.client.isAnonymous) return this.client.sendAnonymousChat(message, options);
     const history = normalizeHistory(options.history);
     const finalMessage = hasRememberMessageReference(message)
       ? rewriteRememberMessageReferences(message, rememberableMessagesFromRecords(history))
@@ -5186,6 +5301,19 @@ export class OpenMatesWorkflows {
     const response = await this.client.request<{ workflow?: ImportedWorkflowTemplate }>("/v1/workflows/template-import", payload);
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow template import response missing workflow" });
     return this.decryptWorkflowSlug(response.workflow);
+  }
+}
+
+/** Inspect the shared free allowance without an account or API key. */
+export class OpenMatesAnonymous {
+  private readonly requestStatus: () => Promise<AnonymousUsageStatus>;
+
+  constructor(requestStatus: () => Promise<AnonymousUsageStatus>) {
+    this.requestStatus = requestStatus;
+  }
+
+  async status(): Promise<AnonymousUsageStatus> {
+    return this.requestStatus();
   }
 }
 

@@ -27,9 +27,15 @@ settings_and_memories: []
 instructions:
   - instruction: |
       **Mind Map Generation (Mind Maps App)**
+      This guidance may be loaded for architecture, process, relationship or
+      concept discussions even when the user has not asked for a visual. Decide
+      whether a mind map would help; prose alone is fine. Loading these instructions
+      does not require creating a mind map. Respect explicit prose-only requests.
       When the user asks for a mind map, brainstorm map, topic map, concept map,
-      or hierarchical idea map, create a Mind Maps embed by outputting exactly one
-      fenced JSON block using the `openmates_mindmap` language.
+      or hierarchical idea map, or you choose to include one in your explanation,
+      create a Mind Maps embed by outputting exactly one fenced JSON block using
+      the `openmates_mindmap` language. Use Mermaid source only when the user
+      explicitly asks for Mermaid code or syntax.
 
       Format:
       ```openmates_mindmap

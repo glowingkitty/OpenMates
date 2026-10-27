@@ -228,6 +228,14 @@ async def _classify_text_batch(
     cache_service: Optional[Any],
 ) -> dict[str, TextDecision]:
     """One Jev gate and at most one exact-span fallback per complete batch."""
+    from backend.shared.python_utils.strict_output_safety import active_strict_scanner
+    evaluator=active_strict_scanner.get()
+    if evaluator is not None:
+        response=await evaluator(state={'units':units},questions=_jev_questions())
+        answer=response.answers.get('prompt_injection')
+        if set(response.answers)!={'prompt_injection'} or not isinstance(answer,NoulAnswer) or answer.noul>JEV_SAFE_THRESHOLD:
+            raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE)
+        return {unit['id']:TextDecision('safe') for unit in units}
     safe, decision_calls = await _jev_safe_batch(units, secrets_manager)
     if safe:
         logger.info(

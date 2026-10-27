@@ -91,7 +91,6 @@ message_2:
 
     How does the tone fit with the rest of your app's UI palette? We can adjust the timbre (e.g., toward a softer acoustic guitar pluck, a singing bowl, or brighter glass bell) if needed.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   de: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -108,7 +107,6 @@ message_2:
 
     Wie passt der Ton zur restlichen UI-Palette deiner App? Wir können das Klangbild bei Bedarf anpassen (z. B. hin zu einem weicheren akustischen Gitarrenzupfen, einer Klangschale oder einer helleren Glasglocke).
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   zh: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -125,7 +123,6 @@ message_2:
 
     这个音调与你应用的其他 UI 色调搭配得如何？如果需要，我们可以调整音色（例如，改为更柔和的吉他拨弦、颂钵或更清脆的玻璃铃铛）。
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   es: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -142,7 +139,6 @@ message_2:
 
     ¿Cómo encaja el tono con el resto de la paleta de la interfaz de tu aplicación? Podemos ajustar el timbre (por ejemplo, hacia un rasgueo de guitarra acústica más suave, un cuenco tibetano o una campana de cristal más brillante) si es necesario.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   fr: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -159,7 +155,6 @@ message_2:
 
     Comment ce ton s'intègre-t-il au reste de la palette d'interface de ton application ? Nous pouvons ajuster le timbre (par exemple, vers un pincement de guitare acoustique plus doux, un bol chantant ou une cloche en verre plus cristalline) si nécessaire.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   pt: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -176,7 +171,6 @@ message_2:
 
     Como é que o tom se ajusta ao resto da paleta de UI da tua app? Podemos ajustar o timbre (por exemplo, para um dedilhado de violão acústico mais suave, uma tigela tibetana ou um sino de vidro mais brilhante), se necessário.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   ru: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -193,7 +187,6 @@ message_2:
 
     Как этот тон сочетается с остальной палитрой интерфейса твоего приложения? При необходимости мы можем изменить тембр (например, в сторону более мягкого перебора акустической гитары, поющей чаши или более звонкого стеклянного колокольчика).
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   ja: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -210,7 +203,6 @@ message_2:
 
     このトーンは、アプリの他のUIパレットと合っていますか？必要に応じて、音色を調整することも可能です（例：より柔らかなアコースティックギターの撥弦音、シンギングボウル、より明るいガラスベルなど）。
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   ko: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -227,7 +219,6 @@ message_2:
 
     이 톤이 앱의 나머지 UI 팔레트와 잘 어울리니? 필요하다면 음색을 조정할 수 있어 (예: 더 부드러운 어쿠스틱 기타 탄주음, 싱잉볼, 또는 더 밝은 유리종 소리 등).
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   it: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -244,7 +235,6 @@ message_2:
 
     In che modo questo tono si adatta al resto della tavolozza UI della tua app? Possiamo regolare il timbro (ad esempio, verso un tocco di chitarra acustica più morbido, una campana tibetana o una campana di vetro più brillante) se necessario.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   tr: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -261,7 +251,6 @@ message_2:
 
     Bu ton, uygulamanın geri kalan kullanıcı arayüzü paletiyle nasıl uyum sağlıyor? Gerekirse tınıyı (örneğin, daha yumuşak bir akustik gitar tınısına, bir Tibet kasesine veya daha parlak bir cam zile doğru) ayarlayabiliriz.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   vi: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -278,7 +267,6 @@ message_2:
 
     Âm sắc này có phù hợp với bảng màu giao diện còn lại của ứng dụng không? Chúng ta có thể điều chỉnh âm sắc (ví dụ: chuyển sang tiếng đàn guitar acoustic gảy mềm mại hơn, tiếng chuông xoay hoặc tiếng chuông thủy tinh trong trẻo hơn) nếu cần.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   id: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -295,7 +283,6 @@ message_2:
 
     Bagaimana kesesuaian nadanya dengan palet UI aplikasi lainnya? Kita bisa menyesuaikan timbre-nya (misalnya, ke arah petikan gitar akustik yang lebih lembut, singing bowl, atau lonceng kaca yang lebih cerah) jika diperlukan.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   pl: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -312,7 +299,6 @@ message_2:
 
     Jak ten ton pasuje do reszty palety UI Twojej aplikacji? W razie potrzeby możemy dostosować barwę (np. w stronę miększego szarpnięcia struny gitary akustycznej, misy tybetańskiej lub jaśniejszego szklanego dzwonka).
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   nl: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -329,7 +315,6 @@ message_2:
 
     Hoe past de toon bij de rest van het UI-palet van je app? We kunnen het timbre aanpassen (bijv. naar een zachtere tokkel op een akoestische gitaar, een klankschaal of een helderdere glazen bel) indien nodig.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   ar: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -346,7 +331,6 @@ message_2:
 
     كيف تتناسب النغمة مع بقية لوحة واجهة مستخدم تطبيقك؟ يمكننا ضبط جرس الصوت (على سبيل المثال، نحو عزف جيتار صوتي أرق، أو وعاء غناء، أو جرس زجاجي أكثر سطوعًا) إذا لزم الأمر.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   hi: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -363,7 +347,6 @@ message_2:
 
     यह टोन आपके ऐप के बाकी UI पैलेट के साथ कैसा लग रहा है? अगर ज़रूरत हो, तो हम इसके टिम्बर (जैसे कि सॉफ़्ट अकूस्टिक गिटार प्लक, सिंगिंग बाउल, या ब्राइट ग्लास बेल की तरफ) को एडजस्ट कर सकते हैं।
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   th: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -380,7 +363,6 @@ message_2:
 
     โทนเสียงนี้เข้ากับส่วนอื่นๆ ของ UI ในแอปของคุณอย่างไรบ้าง? เราสามารถปรับแต่งเสียง (เช่น เปลี่ยนเป็นเสียงดีดกีตาร์โปร่งที่นุ่มนวลขึ้น เสียงระฆังขัน หรือกระดิ่งแก้วที่สดใสขึ้น) ได้หากต้องการ
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   cs: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -397,7 +379,6 @@ message_2:
 
     Jak tento tón ladí se zbytkem uživatelského rozhraní tvé aplikace? V případě potřeby můžeme upravit barvu zvuku (např. směrem k jemnějšímu brnknutí na akustickou kytaru, zpívající míse nebo jasnějšímu skleněnému zvonku).
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   sv: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -414,7 +395,6 @@ message_2:
 
     Hur passar tonen med resten av din apps gränssnitt? Vi kan justera klangen (t.ex. mot ett mjukare akustiskt gitarrplock, en klangskål eller en ljusare glasklocka) om det behövs.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   he: |
     ```json
     {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
@@ -431,7 +411,6 @@ message_2:
 
     איך הטון משתלב עם שאר פלטת ה-UI של האפליקציה שלך? נוכל להתאים את גוון הצליל (למשל, לכיוון פריטת גיטרה אקוסטית רכה יותר, קערה טיבטית או פעמון זכוכית בהיר יותר) במידת הצורך.
 
-    [!](embed:generated-media-audio-fdda9f85fa01)
   verified_by_human: []
 
 follow_up_1:

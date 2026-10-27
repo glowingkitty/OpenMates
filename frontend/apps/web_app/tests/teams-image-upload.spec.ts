@@ -61,7 +61,7 @@ async function expectReadableReminder(page: Page, testInfo: TestInfo): Promise<v
   expect(reminderBox!.y + reminderBox!.height).toBeLessThanOrEqual(firstMessageBox!.y);
 }
 
-// contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.context.full-switch-local
+// contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.context.full-switch-local,message-input.actions.visibility,message-input.send.ownership
 test('keeps a pending Team image local, then shares the encrypted image with a member after reload', async (
   { page, browser }: { page: Page; browser: Browser }, testInfo: TestInfo,
 ) => {
@@ -182,6 +182,9 @@ test('keeps a pending Team image local, then shares the encrypted image with a m
     await expect.poll(() => ownerFrames.slice(ownerStart).some(frame => frame.type === 'chat_message_confirmed' && frame.payload.chat_id === chatId)).toBe(true);
     await expect(editor).toHaveText('');
     await expect(editor.getByTestId('embed-preview')).toHaveCount(0);
+    await expect(field).toHaveAttribute('data-focused', 'false');
+    await expect(field.getByTestId('action-buttons')).toHaveCount(0);
+    await expect(field).toHaveCSS('height', '48px');
     const sent = ownerFrames.slice(ownerStart).find(frame => frame.direction === 'sent' && frame.type === 'chat_message_added' && frame.payload.chat_id === chatId)!;
     expect(sent.payload.team_id).toBe(teamId);
     expect(sent.payload.team_ai_invocation).toBeUndefined();

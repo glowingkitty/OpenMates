@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// contract-test-file: infrastructure
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles
 export {};
 
 /**
  * Real image-model inference regression test.
  *
- * Uploads a repo screenshot fixture, asks for design feedback with an explicit
- * @ai-model override, then captures the actual model response. This intentionally
- * avoids TEST_MOCK markers because the production regression was provider/runtime
+ * Uploads a repo screenshot fixture and asks for design feedback through Auto
+ * or an explicit @ai-model override, then captures the actual model response.
+ * Avoids TEST_MOCK markers because the production regression was provider/runtime
  * behavior after images.view returned uploaded image bytes.
  */
 
@@ -25,6 +25,7 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	deleteActiveChat,
+	focusMessageEditor,
 	waitForChatReady,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
@@ -35,10 +36,11 @@ const IMAGE_FIXTURE = path.resolve(
 	'../../../../docs/images/architecture/messaging/messageinputfield/large_message.jpg'
 );
 
-const PROMPT = 'Evaluate the design and give recommendations for improvements.';
+// Conversational wording must retain images.view even when semantic routing misses it.
+const PROMPT = 'So tell me more about this.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
-const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-36-flash'];
+const DEFAULT_SMOKE_MODEL_LABELS = ['auto', 'gemini-38-flash'];
 const IMAGE_VIEW_TIMEOUT_MS = 180000;
 const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
 const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
@@ -48,10 +50,21 @@ type ModelCase = {
 	model: string;
 	label: string;
 	expectedGeneratedBy: RegExp;
-	expectsReroute?: boolean;
 };
 
 const MODELS: ModelCase[] = [
+	{
+		provider: 'auto',
+		model: 'auto',
+		label: 'auto',
+		expectedGeneratedBy: /Gemini 3\.8 Flash|gemini-3\.8-flash/i
+	},
+	{
+		provider: 'google',
+		model: 'gemini-3.8-flash',
+		label: 'gemini-38-flash',
+		expectedGeneratedBy: /Gemini 3\.8 Flash|gemini-3\.8-flash/i
+	},
 	{
 		provider: 'anthropic',
 		model: 'claude-haiku-5-5',
@@ -104,22 +117,19 @@ const MODELS: ModelCase[] = [
 		provider: 'google',
 		model: 'gemini-3-flash-preview',
 		label: 'gemini-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3 Flash|gemini-3-flash-preview/i
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.7-flash',
 		label: 'gemini-36-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3\.7 Flash|gemini-3\.7-flash/i
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.5-flash',
 		label: 'gemini-35-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3\.5 Flash|gemini-3\.5-flash/i
 	}
 ];
 
@@ -135,6 +145,7 @@ const activeModels = MODELS.filter((model) => selectedLabels.has(model.label));
 const activeTrials = TRIALS;
 
 function modelDirective(model: { provider: string; model: string }): string {
+	if (model.model === 'auto') return '';
 	return `@ai-model:${model.model}:${model.provider}`;
 }
 
@@ -162,15 +173,19 @@ function scoreResponse(text: string) {
 	};
 }
 
-async function attachImage(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
+async function attachImage(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	fixture?: { name: string; buffer: Buffer }
+) {
 	const fileInput = page.locator('input[type="file"][multiple]');
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
 	// Avoid reusing stale duplicate upload rows for this shared fixture hash.
 	const uniqueSuffix = `\nopenmates-e2e-${Date.now()}-${Math.random()}`;
-	const imageBuffer = Buffer.concat([fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
+	const imageBuffer = Buffer.concat([fixture?.buffer ?? fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
 	await fileInput.setInputFiles({
-		name: 'large_message_e2e.jpg',
-		mimeType: 'image/jpeg',
+		name: fixture?.name ?? 'large_message_e2e.jpg',
+		mimeType: fixture ? 'image/png' : 'image/jpeg',
 		buffer: imageBuffer
 	});
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
@@ -187,7 +202,8 @@ async function attachImage(page: any, log: (message: string, metadata?: Record<s
 	await expect(editorPreview.first()).toHaveAttribute('data-status', 'finished', { timeout: 120000 });
 	await closeEmbedFullscreenIfOpen(page, log);
 	await page.keyboard.press('Escape');
-	await editor.press('End');
+	await focusMessageEditor(editor);
+	await editor.locator('[contenteditable="true"]').press('ControlOrMeta+End');
 	log('Image upload finished and editor cursor moved after embed.');
 }
 
@@ -217,8 +233,15 @@ async function typePromptAndSendAfterAttachment(
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 10000 });
 	await page.keyboard.press('Escape');
-	await editor.press('End');
-	await page.keyboard.type(message);
+	const editable = editor.locator('[contenteditable="true"]');
+	await focusMessageEditor(editor);
+	await editable.press('ControlOrMeta+End');
+	await editable.press('ArrowRight');
+	await editable.press('Enter');
+	await page.keyboard.insertText(message);
+	await expect(editable).toContainText(message);
+	await expect(editor.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]').first())
+		.toHaveAttribute('data-status', 'finished');
 	log(`Typed message after image embed: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
@@ -243,20 +266,33 @@ async function typePromptAndSendAfterAttachment(
 			{ timeout: 60000, intervals: [1000, 2000, 5000] }
 		)
 		.toBeTruthy();
+	await expect(userMessages.last()).toContainText(message);
+	await expect(userMessages.last().locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]').first())
+		.toHaveAttribute('data-status', 'finished');
 	log('Message send accepted after attachment-preserving send.', { assistantCountBeforeSend });
 }
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
-	const imageViewEmbed = page.locator('[data-app-id="images"][data-skill-id="view"]').last();
-	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
-	log('images.view embed is visible.');
-
 	const assistantMessage = await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: DESIGN_FEEDBACK_PATTERN,
 		timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
 		logCheckpoint: log
 	});
+	// Completed activity collapses and unmounts its embeds. Expand the assistant's
+	// Images activity before requiring the specific successful view result.
+	const imageActivity = assistantMessage.getByTestId('assistant-activity-group').filter({
+		has: page.locator('[data-testid="assistant-skill-app-icon"][data-app-id="images"]')
+	}).last();
+	const activityToggle = imageActivity.getByTestId('assistant-activity-toggle');
+	await expect(activityToggle).toHaveAttribute('aria-expanded', 'false', { timeout: IMAGE_VIEW_TIMEOUT_MS });
+	await activityToggle.click();
+	await expect(activityToggle).toHaveAttribute('aria-expanded', 'true');
+	const imageViewEmbed = imageActivity.getByTestId('assistant-activity-body')
+		.locator('[data-app-id="images"][data-skill-id="view"]').last();
+	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
+	await expect(imageViewEmbed).toHaveAttribute('data-status', 'finished', { timeout: IMAGE_VIEW_TIMEOUT_MS });
+	log('Completed images.view result is visible in expanded assistant activity.');
 	const generatedBy = assistantMessage.getByTestId('generated-by');
 	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
 	const generatedByText = (await generatedBy.textContent()) || '';
@@ -268,6 +304,7 @@ test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
+		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles,app-skills.images.reference-handoff,images-view.response.post-tool-inference
 		test(`real image inference ${model.label} trial ${trial}`, async ({ page }: { page: any }, testInfo: any) => {
 			test.slow();
 			test.setTimeout(420000);
@@ -287,7 +324,8 @@ for (const model of activeModels) {
 			await waitForChatReady(page, log, 90000);
 			await attachImage(page, log);
 
-			const message = `${PROMPT} ${modelDirective(model)}`;
+			const message = `${PROMPT} ${modelDirective(model)}`.trim();
+			if (model.model === 'auto') expect(message).not.toContain('@ai-model:');
 			await closeEmbedFullscreenIfOpen(page, log);
 			await typePromptAndSendAfterAttachment(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
 			const { generatedByText, responseText } = await waitForImageViewAndResponse(page, log);
@@ -297,7 +335,6 @@ for (const model of activeModels) {
 				provider: model.provider,
 				requestedModel: model.model,
 				trial,
-				expectsReroute: Boolean(model.expectsReroute),
 				generatedByText,
 				score,
 				responseText
@@ -309,13 +346,101 @@ for (const model of activeModels) {
 			console.log(`[IMAGE_MODEL_RESPONSE] ${JSON.stringify(artifact)}`);
 
 			expect(generatedByText).toMatch(model.expectedGeneratedBy);
-			if (model.expectsReroute) {
-				expect(generatedByText).not.toMatch(/gemini|google/i);
-			}
 			expect(score.rawDumpSuspected, `response looked like a raw coordinate/label dump: ${responseText.slice(0, 500)}`).toBe(false);
 			expect(responseText).toMatch(DESIGN_FEEDBACK_PATTERN);
 
 			await deleteActiveChat(page, log, screenshot, `cleanup-${model.label}-${trial}`);
 		});
 	}
+}
+
+// Additional paid inference runs only when explicitly selected on dev.
+if (process.env.IMAGE_MODEL_AUTO_QUALITY === '1') {
+	// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles
+	test('real Auto image objective counts and text-only history', async ({
+		page
+	}: { page: any }, testInfo: any) => {
+		test.setTimeout(600000);
+		const { email, password, otpKey } = getTestAccount();
+		skipWithoutCredentials(test, email, password, otpKey);
+		const log = createSignupLogger('IMAGE_AUTO_OBJECTIVE');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'image-auto-objective' });
+		await page.goto(getE2EDebugUrl('/'));
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+		await waitForChatReady(page, log, 90000);
+		// A deterministic canvas supplies objective visual ground truth.
+		const png = await page.evaluate(() => {
+			const canvas = document.createElement('canvas');
+			canvas.width = 900;
+			canvas.height = 650;
+			const context = canvas.getContext('2d')!;
+			context.fillStyle = 'white';
+			context.fillRect(0, 0, 900, 650);
+			const circles: [number, number, string][] = [
+				[150, 170, '#d02020'],
+				[450, 170, '#174dce'],
+				[750, 170, '#d02020'],
+				[300, 460, '#174dce'],
+				[600, 460, '#218b31']
+			];
+			for (const [x, y, color] of circles) {
+				context.fillStyle = color;
+				context.beginPath();
+				context.arc(x, y, 70, 0, Math.PI * 2);
+				context.fill();
+			}
+			return canvas.toDataURL('image/png').split(',')[1];
+		});
+		await attachImage(page, log, {
+			name: 'five-colored-circles.png',
+			buffer: Buffer.from(png, 'base64')
+		});
+		const prompt =
+			'How many circles are shown, and how many are red, blue, and green? Reply only as "Total: N; red: N; blue: N; green: N".';
+		await typePromptAndSendAfterAttachment(page, prompt, log, screenshot, 'count');
+		await expect(page.locator('[data-app-id="images"][data-skill-id="view"]').last()).toBeVisible({
+			timeout: IMAGE_VIEW_TIMEOUT_MS
+		});
+		let response = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: /total/i,
+			timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+			logCheckpoint: log
+		});
+		const firstText = (await response.textContent()) || '';
+		await expect(response.getByTestId('generated-by')).toHaveText(
+			/Gemini 3\.8 Flash|gemini-3\.8-flash/i
+		);
+		expect(firstText).toMatch(/Total:\s*5;\s*red:\s*2;\s*blue:\s*2;\s*green:\s*1/i);
+		expect(scoreResponse(firstText).rawDumpSuspected).toBe(false);
+		await typePromptAndSendAfterAttachment(
+			page,
+			'From the image we just discussed, how many circles are not blue? Reply only "Not blue: N".',
+			log,
+			screenshot,
+			'history'
+		);
+		response = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: /not blue/i,
+			timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+			logCheckpoint: log
+		});
+		const historyText = (await response.textContent()) || '';
+		await expect(response.getByTestId('generated-by')).toHaveText(
+			/Gemini 3\.8 Flash|gemini-3\.8-flash/i
+		);
+		expect(historyText).toMatch(/Not blue:\s*3\b/i);
+		expect(scoreResponse(historyText).rawDumpSuspected).toBe(false);
+		await testInfo.attach('auto-image-objective-and-history.json', {
+			body: JSON.stringify(
+				{ expected: { total: 5, red: 2, blue: 2, green: 1, notBlue: 3 }, firstText, historyText },
+				null,
+				2
+			),
+			contentType: 'application/json'
+		});
+		await deleteActiveChat(page, log, screenshot, 'cleanup-auto-objective');
+	});
 }

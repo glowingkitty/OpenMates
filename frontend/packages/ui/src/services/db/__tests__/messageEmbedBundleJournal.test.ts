@@ -29,6 +29,18 @@ function makeTransactions() {
       onerror: null as (() => void) | null,
       onabort: null as (() => void) | null,
       objectStore: () => ({
+        index: () => ({
+          getAll: (range: { lower: [string, number] }) => {
+            const request = { result: [] as Record<string, unknown>[], error: null,
+              onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+            enqueue(() => {
+              request.result = [...rows.values()].filter(row => row.chat_id === range.lower[0])
+                .sort((a, b) => Number(a.created_at) - Number(b.created_at)).map(row => ({ ...row }));
+              request.onsuccess?.();
+            });
+            return request;
+          },
+        }),
         get: (id: string) => {
           const request = { result: undefined as Record<string, unknown> | undefined,
             error: null, onsuccess: null as (() => void) | null,
@@ -72,6 +84,35 @@ function message(id: string, status: Message["status"]): Message {
 }
 
 describe("pending encrypted message retry journals", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+  it("persists repeated user text under distinct IDs while keeping same-ID retries idempotent", async () => {
+    const { db, rows } = makeTransactions();
+    const originalRange = globalThis.IDBKeyRange;
+    vi.stubGlobal("IDBKeyRange", { bound: (lower: unknown[]) => ({ lower }) });
+    db.encryptMessageFields = async row => ({ ...row, content: undefined,
+      encrypted_content: `sealed:${row.content}` });
+    db.decryptMessageFields = async row => ({ ...row, encrypted_content: undefined,
+      content: row.encrypted_content?.slice("sealed:".length) });
+    try {
+      await saveMessage(db, message("original", "synced"));
+      const repeated = { ...message("repeated", "sending"), created_at: 2 };
+      await saveMessage(db, repeated);
+      expect([...rows.keys()]).toEqual(["original", "repeated"]);
+      expect(rows.get("original")?.status).toBe("synced");
+      expect(rows.get("repeated")?.status).toBe("sending");
+      await saveMessage(db, repeated);
+      await saveMessage(db, { ...repeated, status: "delivered" });
+      expect(rows.size).toBe(2);
+      expect(rows.get("repeated")?.status).toBe("delivered");
+      for (const row of rows.values()) {
+        expect(row.encrypted_content).toBe("sealed:attached code");
+        expect(row.content).toBeUndefined();
+      }
+    } finally {
+      vi.stubGlobal("IDBKeyRange", originalRange);
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
   it("preserves an unsynced call correction and ciphertext outbox through single and batch sync saves", async () => {
     const { db, rows } = makeTransactions();
@@ -91,6 +132,49 @@ describe("pending encrypted message retry journals", () => {
     await saveMessage(db, stale);
     expect(rows.get("call-correction")).toEqual(pending);
     expect(rows.get("call-correction")).not.toHaveProperty("content");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing,chats.persistence.client-encrypted
+  it.each(["single", "batch"] as const)("keeps a newer confirmed call revision when a prepared %s sync save resumes", async (mode) => {
+    const { db, rows } = makeTransactions();
+    const stale = { ...message("call-correction", "synced"), content: undefined,
+      encrypted_content: "cipher:old", queue_revision: 1 };
+    rows.set(stale.message_id, { ...stale, status: "delivered" });
+    let admitWrite!: () => void;
+    let reportPrepared!: () => void;
+    const prepared = new Promise<void>(resolve => { reportPrepared = resolve; });
+    const resumed = new Promise<void>(resolve => { admitWrite = resolve; });
+    const getTransaction = db.getTransaction;
+    db.getTransaction = async (store, access) => {
+      if (access === "readwrite") {
+        reportPrepared();
+        await resumed;
+      }
+      return getTransaction(store, access);
+    };
+    const saving = mode === "single" ? saveMessage(db, stale) : batchSaveMessages(db, [stale]);
+    await prepared;
+    // The canonical fetch commits after this snapshot's duplicate check. Its
+    // ciphertext is already acknowledged, so no pending outbox protects it.
+    const confirmed = { ...stale, encrypted_content: "cipher:corrected", queue_revision: 3 };
+    rows.set(stale.message_id, confirmed);
+    admitWrite();
+    await saving;
+    expect(rows.get(stale.message_id)).toEqual(confirmed);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,chats.persistence.client-encrypted
+  it.each([3, 4])("still accepts equal or newer confirmed revision %i through both save paths", async (revision) => {
+    for (const save of [saveMessage, (db: Parameters<typeof saveMessage>[0], row: Message) => batchSaveMessages(db, [row])]) {
+      const { db, rows } = makeTransactions();
+      const stored = { ...message("call-correction", "delivered"), content: undefined,
+        encrypted_content: "cipher:stored", queue_revision: 3 };
+      rows.set(stored.message_id, stored);
+      await save(db, { ...stored, status: "synced", queue_revision: revision,
+        encrypted_content: "cipher:canonical" });
+      expect(rows.get(stored.message_id)).toMatchObject({ queue_revision: revision,
+        encrypted_content: "cipher:canonical", status: "synced" });
+    }
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send

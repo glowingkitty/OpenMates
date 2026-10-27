@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",
@@ -27,12 +27,8 @@
       "types": "./src/demo_chats/resolveI18nServer.ts",
       "default": "./src/demo_chats/resolveI18nServer.ts"
     },
-    "./legal": {
-      "types": "./src/legal/index.ts",
-      "svelte": "./src/legal/index.ts",
-      "default": "./src/legal/index.ts"
-    },
     "./components/*": "./src/components/*",
+    "./types/embedPreviewPresentation": "./src/types/embedPreviewPresentation.ts",
     "./services/voiceCall": {
       "types": "./src/services/voiceCall.ts",
       "default": "./src/services/voiceCall.ts"
@@ -40,6 +36,10 @@
     "./services/chatNavigationReader": {
       "types": "./src/services/chatNavigationReader.ts",
       "default": "./src/services/chatNavigationReader.ts"
+    },
+    "./services/recentChatWindowCache": {
+      "types": "./src/services/recentChatWindowCache.ts",
+      "default": "./src/services/recentChatWindowCache.ts"
     },
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
@@ -72,6 +72,14 @@
     "./services/shortUrlEncryption": {
       "types": "./src/services/shortUrlEncryption.ts",
       "default": "./src/services/shortUrlEncryption.ts"
+    },
+    "./services/appsWorkspaceHandoffNavigation.svelte": {
+      "types": "./src/services/appsWorkspaceHandoffNavigation.svelte.ts",
+      "default": "./src/services/appsWorkspaceHandoffNavigation.svelte.ts"
+    },
+    "./services/appsWorkspaceChatHandoffService": {
+      "types": "./src/services/appsWorkspaceChatHandoffService.ts",
+      "default": "./src/services/appsWorkspaceChatHandoffService.ts"
     },
     "./services/workflowInputService": {
       "types": "./src/services/workflowInputService.ts",
@@ -112,6 +120,8 @@
     "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs"
   },
   "dependencies": {
+    "@desert-ant-labs/redact": "4.1.0",
+    "@litertjs/core": "2.6.0",
     "hash-wasm": "4.12.0",
     "@repo/pairing-crypto": "workspace:*",
     "@fontsource-variable/figtree": "^5.2.10",
@@ -164,20 +174,20 @@
     "ignore": "7.0.5",
     "jspdf": "4.2.1",
     "jszip": "^3.10.1",
-    "katex": "^0.17.0",
+    "katex": "^0.18.2",
     "leaflet": "^1.9.4",
     "lodash-es": "^4.18.0",
     "lowlight": "^3.3.0",
-    "markdown-it": "^14.3.1",
+    "markdown-it": "^14.3.3",
     "mermaid": "^11.16.1",
     "pica": "^9.0.1",
     "prosemirror-state": "^1.4.4",
-    "prosemirror-view": "1.41.8",
+    "prosemirror-view": "1.42.3",
     "qrcode-svg": "^1.1.0",
     "svelte-i18n": "^4.0.1",
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
-    "vite": "^7.3.6",
+    "vite": "^8.3.4",
     "yaml": "^2.9.0",
     "@repo/upload-privacy": "workspace:*",
     "@repo/public-site": "workspace:*",
@@ -186,17 +196,17 @@
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tsconfig/svelte": "^5.0.8",
     "@types/leaflet": "^1.9.21",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.5.0",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^9.35.0",
     "jsdom": "^25.0.1",
     "svelte": "^5.56.10",
     "svelte-check": "^4.6.0",
     "typescript": "^5.9.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   }
 }

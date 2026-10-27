@@ -11,6 +11,40 @@ Frontend: Svelte/TypeScript, `frontend/apps/web_app`, `frontend/packages/ui`.
 Backend: Python/FastAPI, `backend/apps`, `backend/core`, `backend/shared`.
 Read relevant source/tests, reuse utilities and keep patches focused.
 
+Provider-specific data integrations must use provider-supported documented APIs,
+explicitly licensed open-data feeds, or written authorization covering the
+intended access and downstream use. Published official API terms or a feed
+licence suffice when they permit that use; separate provider outreach is not
+required unless the terms require it or the intended use remains unclear.
+Record the permission source and respect its commercial-use, display, retention,
+attribution and rate-limit conditions. Do not substitute undocumented website or
+mobile endpoints, platform-specific scraping, access-control evasion, or an
+intermediary without the necessary source-use rights. Browser automation, low
+volume and silence in terms do not establish permission. If no permitted route
+exists, report the capability gap instead of implementing a fallback; contact
+providers only when instructed by the user. See
+`docs/contributing/guides/add-api.md`.
+
+General on-demand web reading is a separate capability: fetch public pages with
+an identified reader, honor applicable robots.txt exclusions, and stop at access
+denials, login/paywall or CAPTCHA barriers. Use no proxy, impersonation or bypass
+retry. Preserve complete extracted text in existing encrypted saved embeds and
+history. This does not authorize hidden APIs or platform-specific collection.
+Applicable rights and terms still apply; crawler access is not a content licence.
+
+Client architecture: shared Rust owns reusable headless operations, crypto, auth,
+storage policy, sync/reconnect/recovery; CLI/TUI is native Rust, web and Apple keep
+thin UI/platform adapters. Load `.claude/rules/cli-sdk.md` for client/SDK work.
+Keep direct Rust/npm/Python SDKs and executable conformance synchronized. Prove
+essential auth, encrypted chat, streaming/cancel, persistence and sync/recovery in
+the entirely Rust CLI/TUI, then begin browser/WASM integration immediately; full
+CLI/app parity remains required separately off the web critical path. Verify web
+before Apple. Offer verified Rust alongside the installed npm CLI early for daily
+testing; preserve its command, old code and existing stores/data until full parity/
+security proof and explicit agent plus user retirement acceptance. Backend Rust
+work follows completed clients and cleanup. The rule records distribution and the
+Linux/Mac acceptance requirements with the explicit Windows testing waiver.
+
 ## Workspace and deployment
 
 Read-only work needs no session. Reuse supplied workspaces/bindings, including in
@@ -18,10 +52,15 @@ children. Otherwise obtain one before editing with `python3 scripts/sessions.py
 start --mode bug --task "<outcome>"` (or feature/docs/testing). Never borrow another
 task's workspace.
 
-Resolve low disk capacity before stopping. Inspect disposable caches/build files
-and removable old worktrees; use guarded cleanup, preserve unfinished work and
-recovery evidence, respect runtime leases and capacity guards. Ask before deletion
-when its value or safety is uncertain.
+Resolve low disk capacity before stopping. Standing user approval permits deleting
+unused Docker images, unused build artifacts and disposable caches without asking
+again. It also permits managed cleanup of worktrees inactive for more than four
+days. Verify current process/container references and coordination leases first;
+preserve active work, unfinished source, pinned rollback images, existing archives
+and unique recovery/proof evidence. Use the managed worktree cleanup path and
+retain its required recovery snapshots; age alone does not make unfinished work
+disposable. Respect runtime leases and normal capacity guards. Ask only for
+material that cannot be classified safely within this standing approval.
 
 Publish with `python3 scripts/sessions.py deploy --title "type: description"
 --message "Why and verification"`; pass the supplied `--session` for administrative

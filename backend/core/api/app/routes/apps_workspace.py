@@ -131,6 +131,8 @@ class LegacyIndexBatch(BaseModel):
 
 
 def _service(request: Request) -> AppsWorkspaceResultsService:
+    if getattr(request.state, "auth_source", None) != "session":
+        raise HTTPException(403, "APPS_RESULTS_SESSION_REQUIRED")
     return AppsWorkspaceResultsService(request.app.state.directus_service)
 
 

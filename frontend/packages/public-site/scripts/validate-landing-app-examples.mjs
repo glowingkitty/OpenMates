@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
 
@@ -62,6 +62,36 @@ export function hasCapabilityEvidence(source, app, assistantMessages = []) {
   });
 }
 
+/** Check the whole public conversation, including skills beyond its landing card. */
+export function validatePublishedExampleSkills(root) {
+  const unavailable = new Set();
+  const appsRoot = resolve(root, 'backend/apps');
+  for (const app of readdirSync(appsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory())) {
+    const path = resolve(appsRoot, app.name, 'app.yml');
+    if (!existsSync(path)) continue;
+    const metadata = parse(readFileSync(path, 'utf8'));
+    for (const skill of metadata?.skills ?? []) {
+      if (skill.provider_required === true && !skill.providers?.length) unavailable.add(`${app.name}.${skill.id}`);
+    }
+  }
+  const registry = readFileSync(resolve(root, 'frontend/packages/ui/src/demo_chats/exampleChatData.ts'), 'utf8');
+  const published = registry.match(/export const ALL_EXAMPLE_CHATS[^=]*=\s*\[([\s\S]*?)\]/)?.[1];
+  if (!published) throw new Error('Public example registry is missing');
+  const names = new Set(published.match(/\b\w+\b/g));
+  for (const match of registry.matchAll(/import \{ (\w+) \} from ["']\.\/data\/example_chats\/([^"']+)["']/g)) {
+    if (!names.has(match[1])) continue;
+    const source = readFileSync(resolve(root, 'frontend/packages/ui/src/demo_chats/data/example_chats', `${match[2]}.ts`), 'utf8');
+    const normalized = source.replaceAll('\\n', '\n').replaceAll('\\"', '"').replace(/(?:["']content["']|\bcontent):\s*["'`]/g, '\n');
+    for (const record of normalized.split(/\n\s*["']?embed_id["']?\s*:/).slice(1)) {
+      const appId = record.match(/(?:^|[\n{,])\s*["']?app_id["']?\s*:\s*["']?([\w-]+)/)?.[1];
+      const skillId = record.match(/(?:^|[\n{,])\s*["']?skill_id["']?\s*:\s*["']?([\w-]+)/)?.[1];
+      if (appId && skillId && unavailable.has(`${appId}.${skillId}`)) {
+        throw new Error(`Public example ${match[2]} uses unavailable skill ${appId}.${skillId}`);
+      }
+    }
+  }
+}
+
 /** Keep metadata links tied to registered, natural-opening source chats. */
 export function validateLandingAppExamples(root, apps) {
   const examplesRoot = resolve(root, 'frontend/packages/ui/src/demo_chats/data/example_chats');
@@ -88,14 +118,17 @@ export function validateLandingAppExamples(root, apps) {
     }
     const locale = resolve(root, 'frontend/packages/ui/src/i18n/sources/example_chats', `${slug.replaceAll('-', '_')}.yml`);
     const messages = parse(readFileSync(locale, 'utf8'));
-    const assistantMessages = example.source.split(/\n\s*["']?role["']?\s*:\s*["']/).slice(1)
+    const messageRecords = example.source.split(/\n\s*["']?role["']?\s*:\s*["']/).slice(1);
+    const assistantMessages = messageRecords
       .filter((record) => /^assistant["']/.test(record))
       .map((record) => record.match(/\n\s*["']?content["']?\s*:\s*["'](example_chats\.[^."']+\.([^."']+))["']/)?.[2])
       .map((key) => key ? messages?.[key]?.en : undefined);
     if (!hasCapabilityEvidence(example.source, app, assistantMessages)) {
       throw new Error(`Landing example does not demonstrate ${app.id} ${app.capability.type}:${app.capability.id}: ${chatId}`);
     }
-    const opening = messages?.message_1?.en;
+    const firstUser = messageRecords.find((record) => /^user["']/.test(record));
+    const openingKey = firstUser?.match(/\n\s*["']?content["']?\s*:\s*["']example_chats\.[^."']+\.([^."']+)["']/)?.[1];
+    const opening = messages?.[openingKey ?? 'message_1']?.en;
     if (!hasNaturalOpening(opening)) {
       throw new Error(`Landing example must have a natural opening: ${chatId}`);
     }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1600"
+   LastUpgradeVersion = "2620"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -27,8 +27,14 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "NO"
+      shouldUseLaunchSchemeArgsEnv = "YES"
       onlyGenerateCoverageForSpecifiedTargets = "NO">
+      <TestPlans>
+         <TestPlanReference
+            default = "YES"
+            reference = "container:OpenMatesCoreUI.xctestplan">
+         </TestPlanReference>
+      </TestPlans>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
@@ -38,28 +44,10 @@
             ReferencedContainer = "container:OpenMates.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
-      <TestPlans>
-         <TestPlanReference reference="container:OpenMatesCoreUI.xctestplan" default="YES" />
-      </TestPlans>
+      <Testables>
+      </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "OPENMATES_TEST_ACCOUNT_EMAIL"
-            value = "$(OPENMATES_TEST_ACCOUNT_EMAIL)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "OPENMATES_TEST_ACCOUNT_OTP_KEY"
-            value = "$(OPENMATES_TEST_ACCOUNT_OTP_KEY)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "OPENMATES_TEST_ACCOUNT_PASSWORD"
-            value = "$(OPENMATES_TEST_ACCOUNT_PASSWORD)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

@@ -754,7 +754,7 @@ enum WorkflowStarterKind: CaseIterable {
             schedule = ["timezone": timezone, "type": "weekly", "weekdays": ["sunday"], "time": "09:00"]
             actions = [
                 Self.skill("events", app: "events", title: "Search events", input: [
-                    "requests": [["query": "AI", "providers": ["Luma", "Eventbrite"],
+                    "requests": [["query": "AI", "providers": ["GPN24"],
                                   "location": "Berlin",
                                   "start_date": ["$date": "next_week_start", "format": "datetime"],
                                   "end_date": ["$date": "next_week_end", "format": "datetime"],
@@ -771,7 +771,7 @@ enum WorkflowStarterKind: CaseIterable {
                 Self.skill("apartments", app: "home", title: "Search home", input: [
                     "requests": [["query": "Berlin", "listing_type": "rent",
                                   "property_type": "apartment", "max_price_eur": 1200,
-                                  "sort": "newest", "providers": ["Kleinanzeigen"],
+                                  "sort": "newest",
                                   "max_results": 10] as [String: Any]]
                 ]),
                 Self.node("message", type: .sendChatMessage, title: "Send new apartments", config: [

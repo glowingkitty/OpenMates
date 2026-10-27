@@ -1,58 +1,10 @@
-# backend/apps/events/providers/registry.py
-"""
-Provider registry — safety filter for event search provider selection.
-
-Validates LLM-chosen providers against region scope metadata from app.yml.
-Ensures providers that don't serve the requested region are never called,
-eliminating wasted HTTP requests and proxy latency.
-
-Scope hierarchy (from app.yml provider metadata):
-  - global: Provider serves any location (e.g. Meetup, Luma)
-  - city:   Provider serves a single city only (e.g. Siegessäule → Berlin)
-  - country: Provider serves a single country (future)
-  - continent: Provider serves a continent (future)
-
-Architecture context: docs/architecture/apps/events.md
-"""
-
+"""Validate official conference schedule source selection."""
 import logging
 from typing import Dict, List, Optional
-
 logger = logging.getLogger(__name__)
-
-# All known provider IDs — used for backward-compat validation.
-# Siegessäule is selected only by auto specialist routing or explicit request.
-# The skill's provider-work deadline protects the batch from its slow proxy path.
-_VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "eventbrite", "resident_advisor",
-    "siegessaeule", "berlin_philharmonic", "pretalx",
-})
-
-# Map display names (from app.yml "name" field) to internal provider IDs.
-# The registry originally expected an "id" field in app.yml provider metadata,
-# but app.yml only has "name". This mapping bridges the gap.
-_NAME_TO_ID: Dict[str, str] = {
-    "meetup": "meetup",
-    "luma": "luma",
-    "eventbrite": "eventbrite",
-    "resident advisor": "resident_advisor",
-    "siegessäule": "siegessaeule",
-    "siegessaeule": "siegessaeule",
-    "berlin philharmonic": "berlin_philharmonic",
-    "berliner philharmoniker": "berlin_philharmonic",
-    "berlin_philharmonic": "berlin_philharmonic",
-    "pretalx": "pretalx",
-    "conference schedule": "pretalx",
-    "conference schedules": "pretalx",
-    "gpn": "pretalx",
-    "gpn24": "pretalx",
-    "39c3": "pretalx",
-    "38c3": "pretalx",
-    "37c3": "pretalx",
-    "chaos congress": "pretalx",
-    "chaos communication congress": "pretalx",
-}
-
+_VALID_PROVIDER_IDS = frozenset({"pretalx"})
+_NAME_TO_ID = {"pretalx": "pretalx", "conference schedule": "pretalx", "conference schedules": "pretalx",
+               **{key: "pretalx" for key in ("gpn", "gpn24", "39c3", "38c3", "37c3")}}
 
 def filter_providers(
     requested_providers: Optional[List[str]],

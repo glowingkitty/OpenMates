@@ -1,5 +1,4 @@
 import type { DemoChat } from "./types";
-import { LEGAL_CHATS } from "../legal";
 import {
   getNewsletterChatById as _getNewsletterChatById,
   getAllActiveNewsletterChats as _getAllActiveNewsletterChats,
@@ -23,8 +22,6 @@ export {
 // Export translation utilities (for i18n support)
 export { translateDemoChat, translateDemoChats } from "./translateDemoChat";
 
-// Export legal chats for use in components
-export { LEGAL_CHATS, getLegalChatBySlug, getLegalChatById } from "../legal";
 
 // Export example chat store — static hardcoded example chats (replaces old communityDemoStore)
 export {
@@ -101,21 +98,20 @@ export const getDemoChatById = getIntroChatById;
 export const getFeaturedDemoChats = getFeaturedIntroChats;
 
 /**
- * Get a public chat (intro, legal, or newsletter) by ID.
- * Searches INTRO_CHATS, LEGAL_CHATS, and ALL_NEWSLETTER_CHATS.
+ * Get a public chat (intro or newsletter) by ID.
+ * Searches INTRO_CHATS and ALL_NEWSLETTER_CHATS.
  */
 export function getPublicChatById(id: string): DemoChat | undefined {
   return (
     getIntroChatById(id) ||
-    LEGAL_CHATS.find((chat) => chat.chat_id === id) ||
     _getNewsletterChatById(id)
   );
 }
 
 /**
- * Get all public chats (intro + legal + newsletter) combined
+ * Get all public chats (intro + newsletter) combined
  * Useful for loading messages from static bundle
  */
 export function getAllPublicChats(): DemoChat[] {
-  return [...INTRO_CHATS, ...LEGAL_CHATS, ..._getAllActiveNewsletterChats()];
+  return [...INTRO_CHATS, ..._getAllActiveNewsletterChats()];
 }

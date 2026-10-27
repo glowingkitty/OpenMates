@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""Bounded synthetic parallel Redact evaluation; only the Rust child infers."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+import unicodedata
+
+import redact_brotli_guard as brotli
+import redact_large_document_fixtures as documents
+import redact_rust_evaluation as rust
+from redact_linux_evaluation import ASSETS, rss_bytes, verify_asset
+
+ROOT = Path(__file__).resolve().parents[1]
+WORK = Path('/tmp/openmates-redact-parallel-678f')
+CHANGED = ['Sources/Redact/Model.swift', 'Sources/Redact/ModelLoading.swift']
+SDK_COMMIT = '86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb'
+
+
+def annotated(row):
+    """Inventory each occurrence, not only the first copy of a private value."""
+    result = dict(row)
+    if 'annotations' not in result:
+        found = set()
+        for label, value in row['expected']:
+            cursor = 0
+            while (at := row['text'].find(value, cursor)) >= 0:
+                start = rust.utf16_length(row['text'][:at])
+                found.add((label, start, start + rust.utf16_length(value)))
+                cursor = at + len(value)
+        result['annotations'] = [dict(label=label, start=start, end=end)
+                                 for label, start, end in sorted(found)]
+    return result
+
+
+def corpus(sizes=documents.SIZES):
+    rows = [dict(row, id='q:' + row['id'])
+            for row in [*rust.load_fixtures(), *rust.context_fixtures()]]
+    boundary = ROOT / 'docs/architecture/privacy/evaluations/2026-10-26-redact-rust/boundary-sweep-inputs.json'
+    rows.extend(json.loads(boundary.read_text()))
+    rows.extend(documents.generate(sizes))
+    words = ['The', 'ordinary', 'document', 'has', 'useful', 'context', 'for', 'review.']
+    rows.append({'id': 'q:stress-repetitive-27135',
+                 'text': ' '.join(words[i % len(words)] for i in range(4096)),
+                 'expected': []})
+    return [annotated(row) for row in rows]
+
+
+def verify_parallel(native, receipt_path):
+    data = json.loads(receipt_path.read_text())
+    audit = data.get('source_integrity_audit', {})
+    patch = receipt_path.parent / 'benchmark-parallel.patch'
+    expected = CHANGED
+    if data.get('parallel_fast_gaps') is True:
+        expected = [*CHANGED, 'Sources/Redact/Pipeline.swift']
+        if (audit.get('only_benchmark_parallel_fast_gaps_patch') is not True
+                or data.get('gap_predicate_proof', {}).get('passed') is not True):
+            raise ValueError('Verified exact gap-predicate proof required')
+    if (data.get('sdk_commit') != SDK_COMMIT
+            or sorted(audit.get('changed_tracked_files', [])) != expected
+            or audit.get('only_benchmark_parallel_patch') is not True
+            or rust.digest(patch) != data.get('parallel_patch_sha256')
+            or Path(data['native_path']).resolve().parent != native.resolve()):
+        raise ValueError('Pinned exclusive parallel build receipt required')
+    files = data.get('native_files', [])
+    if {item['file'] for item in files} != {'libRedactNode.so', 'libLiteRt.so'}:
+        raise ValueError('Exactly the compiled core and pinned runtime are required')
+    for item in files:
+        path = native / item['file']
+        if path.stat().st_size != item['bytes'] or rust.digest(path) != item['sha256']:
+            raise ValueError('Parallel native file integrity mismatch')
+    original = json.loads((rust.HISTORY / 'manifest.json').read_text())
+    runtime = next(item for item in files if item['file'] == 'libLiteRt.so')
+    pinned = next(item for item in original['static_host_native_files']
+                  if item['file'] == 'libLiteRt.so')
+    if runtime != pinned:
+        raise ValueError('Parallel experiment must use the original native runtime')
+    return files
+
+
+def compare(fixtures, baseline, candidate):
+    if baseline['status'] != 'complete' or candidate['status'] != 'complete':
+        raise ValueError('Complete profiles required')
+    expected = {row['id'] for row in fixtures}
+    indexed = []
+    for data in (baseline, candidate):
+        rows = {row['id']: row for row in data['cases']}
+        if len(rows) != len(data['cases']) or set(rows) != expected:
+            raise ValueError('Exact fixture result set required')
+        indexed.append(rows)
+    differences = []
+    losses = []
+    for fixture in fixtures:
+        name = fixture['id']
+        pair = [index[name] for index in indexed]
+        if any(row['characters_utf16'] != rust.utf16_length(fixture['text'])
+               or not row['stable'] for row in pair):
+            raise ValueError('Result length or stability mismatch')
+        spans = [[(s['label'], s['start'], s['end']) for s in row['spans']]
+                 for row in pair]
+        if spans[0] != spans[1]:
+            differences.append(name)
+        covered = [{p for span in row['spans'] for p in range(span['start'], span['end'])}
+                   for row in pair]
+        encoded = fixture['text'].encode('utf-16-le')
+        for i, item in enumerate(fixture['annotations']):
+            meaningful = set()
+            cursor = item['start']
+            value = encoded[item['start'] * 2:item['end'] * 2].decode('utf-16-le')
+            for char in value:
+                width = rust.utf16_length(char)
+                if unicodedata.category(char)[0] in 'LNM':
+                    meaningful.update(range(cursor, cursor + width))
+                cursor += width
+            lost = (covered[0] - covered[1]) & set(range(item['start'], item['end']))
+            if lost:
+                losses.append({'id': name, 'annotation': i, 'lost_characters': len(lost),
+                               'lost_meaningful_characters': len(lost & meaningful)})
+    return {'cases': len(fixtures), 'span_parity': not differences,
+            'span_differences': differences, 'annotated_coverage_losses': losses}
+
+
+def verify_baseline(path, provenance, optimized=False):
+    receipt = json.loads(path.with_suffix('.supervisor.json').read_text())
+    pinned = json.loads((rust.HISTORY / 'manifest.json').read_text())['static_host_native_files']
+    if (receipt.get('status') != 'complete' or receipt.get('workers') != 1
+            or receipt.get('result_sha256') != rust.digest(path)):
+        raise ValueError('Completed single-worker baseline required')
+    if optimized:
+        if (receipt.get('build_receipt_sha256') is None or receipt.get('fast_gaps') != 1
+                or any(receipt.get(key) != provenance[key]
+                       for key in ('build_receipt_sha256', 'native_files', 'fast_gaps'))):
+            raise ValueError('Explicit matching optimized sequential baseline required')
+    elif (receipt.get('build_receipt_sha256') is not None
+          or sorted(receipt.get('native_files', []), key=lambda item: item['file'])
+          != sorted(pinned, key=lambda item: item['file'])):
+        raise ValueError('Published-engine baseline required unless explicitly optimized')
+    for key in ('input_sha256', 'rust_source_sha256', 'binary_sha256',
+                'model_files', 'sdk_source_commit', 'affinity_cpus'):
+        if receipt.get(key) != provenance[key]:
+            raise ValueError('Baseline input, model or execution provenance differs')
+    return json.loads(path.read_text())
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run', action='store_true')
+    parser.add_argument('--native-directory', type=Path, required=True)
+    parser.add_argument('--parallel-build-receipt', type=Path)
+    parser.add_argument('--model-directory', type=Path, required=True)
+    parser.add_argument('--brotli-prefix', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--baseline', type=Path)
+    parser.add_argument('--optimized-baseline', action='store_true')
+    parser.add_argument('--fast-gaps', type=int, choices=[0, 1], default=0)
+    parser.add_argument('--document-kib', type=int, nargs='+', choices=[32, 128, 512], default=[32, 128])
+    parser.add_argument('--case-id', nargs='+', help='Explicit synthetic cases for bounded scaling checks')
+    parser.add_argument('--workers', type=int, choices=range(1, 9), default=1)
+    parser.add_argument('--threads', type=int, choices=range(1, 9), default=8)
+    parser.add_argument('--cores', type=int, choices=range(1, 17), default=8)
+    parser.add_argument('--subset', choices=['quality', 'large', 'all'], default='all')
+    parser.add_argument('--timeout-seconds', type=int, choices=range(60, 901), default=600)
+    parser.add_argument('--memory-budget-mib', type=int, choices=range(128, 1537), default=1536)
+    args = parser.parse_args()
+    if not args.run or args.workers * args.threads > args.cores:
+        parser.error('Explicit --run and workers*threads <= CPU budget are required')
+    if args.output.exists() or args.output.with_suffix('.supervisor.json').exists():
+        parser.error('Fresh evidence paths are required')
+    native = args.native_directory.resolve()
+    if args.parallel_build_receipt:
+        files = verify_parallel(native, args.parallel_build_receipt)
+    elif args.workers == 1:
+        files = rust.verify_native(native)
+    else:
+        parser.error('Multiple workers require a verified parallel build')
+    if args.fast_gaps and (not args.parallel_build_receipt
+                          or json.loads(args.parallel_build_receipt.read_text()).get('parallel_fast_gaps') is not True):
+        parser.error('Fast gaps require their separately verified native build')
+    if args.optimized_baseline and not args.baseline:
+        parser.error('Explicit optimized baseline path required')
+    rows = corpus(tuple(size * 1024 for size in args.document_kib))
+    if args.subset != 'all':
+        large = args.subset == 'large'
+        rows = [row for row in rows if row['id'].startswith(('q:large-', 'q:stress-')) == large]
+    if args.case_id:
+        selected = set(args.case_id)
+        if len(selected) != len(args.case_id) or not selected <= {row['id'] for row in rows}:
+            parser.error('Each selected synthetic case must exist exactly once')
+        rows = [row for row in rows if row['id'] in selected]
+    model_files = []
+    for name in ASSETS:
+        verify_asset(name, (args.model_directory / name).read_bytes())
+        path = args.model_directory / name
+        model_files.append({'file': name, 'bytes': path.stat().st_size,
+                            'sha256': rust.digest(path)})
+    env = brotli.child_environment(args.brotli_prefix, dict(os.environ))
+    for name in ('DAL_REDACT_BENCH_MAX_CHARS', 'DAL_REDACT_BENCH_CARRY'):
+        env.pop(name, None)
+    env.update({'DAL_LITERT_THREADS': str(args.threads),
+                'DAL_REDACT_BENCH_WORKERS': str(args.workers),
+                'DAL_REDACT_BENCH_FAST_GAPS': str(args.fast_gaps)})
+    probe = subprocess.run([sys.executable, str(ROOT / 'scripts/redact_brotli_guard.py'),
+                            '--probe', '--prefix', str(args.brotli_prefix), '--native-core',
+                            str(native / 'libRedactNode.so')], env=env, capture_output=True,
+                           text=True, check=True, timeout=30)
+    binary = rust.compile_binary()
+    supervisor_sha256 = rust.digest(Path(__file__))
+    WORK.mkdir(exist_ok=True)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    input_file = WORK / (args.output.stem + '.inputs.bin')
+    with input_file.open('xb') as handle:
+        handle.write(rust.encode_corpus(rows))
+    cpus = sorted(os.sched_getaffinity(0))[:args.cores]
+    if len(cpus) != args.cores:
+        parser.error('CPU budget unavailable')
+
+    def bounds():
+        os.nice(10)
+        os.sched_setaffinity(0, cpus)
+
+    start = time.monotonic()
+    child = subprocess.Popen([str(binary), str(native), str(args.model_directory.resolve()),
+                              str(input_file), str(args.output.resolve()), '1'], env=env,
+                             cwd=ROOT, preexec_fn=bounds, start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    peak = 0
+    stopped = None
+    try:
+        while child.poll() is None:
+            peak = max(peak, rss_bytes(child.pid))
+            if peak > args.memory_budget_mib * 1024**2:
+                stopped = 'rss-limit'
+            elif time.monotonic() - start > args.timeout_seconds:
+                stopped = 'wall-time-limit'
+            if stopped:
+                os.killpg(child.pid, signal.SIGKILL)
+                break
+            time.sleep(0.1)
+        code = child.wait()
+    finally:
+        if child.poll() is None:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=10)
+    receipt = {'status': 'complete' if code == 0 and not stopped else 'failed',
+               'inference_host': 'standalone Rust C ABI host; Python supervision only',
+               'exit_code': code, 'stopped_by_supervisor': stopped,
+               'wall_seconds': time.monotonic() - start, 'sampled_peak_rss_bytes': peak,
+               'memory_budget_bytes': args.memory_budget_mib * 1024**2,
+               'affinity_cpus': cpus, 'workers': args.workers, 'threads_per_worker': args.threads,
+               'fast_gaps': args.fast_gaps,
+               'baseline_mode': 'optimized-sequential' if args.optimized_baseline else 'published' if args.baseline else None,
+               'native_files': files, 'model_files': model_files, 'sdk_source_commit': SDK_COMMIT,
+               'build_receipt_sha256': rust.digest(args.parallel_build_receipt) if args.parallel_build_receipt else None,
+               'rust_source_sha256': rust.digest(ROOT / 'scripts/redact_rust_evaluation.rs'),
+               'binary_sha256': rust.digest(binary), 'supervisor_sha256': supervisor_sha256,
+               'fixture_generator_sha256': rust.digest(Path(documents.__file__)),
+               'input_sha256': rust.digest(input_file), 'input_lengths': documents.manifest(rows)['rows'],
+               'patched_decoder': json.loads(probe.stdout),
+               'timing_protocol': 'One scan per case, fresh process; no repeatability claim or repeated-call cache credit'}
+    if code == 0 and not stopped:
+        try:
+            data = json.loads(args.output.read_text())
+            if data['license_verifier_successes'] < 1 or not data['offline']['input_read_after_seal']:
+                raise ValueError('Verified ordinary licensing before offline input is required')
+            receipt['quality'] = documents.score_annotations(rows, data['cases'])
+            receipt['result_sha256'] = rust.digest(args.output)
+            if args.baseline:
+                receipt['baseline_sha256'] = rust.digest(args.baseline)
+                baseline = verify_baseline(args.baseline, receipt, args.optimized_baseline)
+                receipt['comparison'] = compare(rows, baseline, data)
+        except (ValueError, KeyError, OSError) as error:
+            receipt['status'] = 'failed'
+            receipt['validation_error'] = type(error).__name__
+    args.output.with_suffix('.supervisor.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps({key: receipt[key] for key in ('status', 'wall_seconds', 'sampled_peak_rss_bytes', 'workers', 'threads_per_worker')}), flush=True)
+    if receipt['status'] != 'complete':
+        raise SystemExit(1)
+
+
+if __name__ == '__main__':
+    main()

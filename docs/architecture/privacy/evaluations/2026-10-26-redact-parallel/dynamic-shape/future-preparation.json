@@ -1,0 +1,89 @@
+{
+  "status": "prepared-no-model-operations",
+  "original_host_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "probe_extension_sha256": "c30b038feb4fdfbe39a0012929aa4240424c94e81d6daceee78238fa70445d76",
+  "generated_source": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/licensed-shape-probe.rs",
+  "generated_source_sha256": "462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046",
+  "binary": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/licensed-shape-probe",
+  "binary_sha256": "f0d5d873a2f33f11a0a611038c60bee31e4e65d80b705cc971391648a74ba5c1",
+  "compile_command": [
+    "/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin/rustc",
+    "--edition=2021",
+    "-O",
+    "-C",
+    "debuginfo=0",
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/licensed-shape-probe.rs",
+    "-o",
+    "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/licensed-shape-probe"
+  ],
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "supervisor_sha256": "41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3",
+  "inference_executed": false,
+  "public_header_abi_check": {
+    "passed": true,
+    "command": [
+      "cc",
+      "-x",
+      "c",
+      "-fsyntax-only",
+      "-I",
+      "/tmp/openmates-redact-rust-678f/swift-experiment/source/desert-ant-core-86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Sources/CLiteRt/include",
+      "-"
+    ],
+    "source": "#include <stddef.h>\n#include \"litert/c/litert_compiled_model.h\"\n_Static_assert(sizeof(LiteRtLayout)==68, \"layout size\");\n_Static_assert(offsetof(LiteRtLayout, dimensions)==4, \"dimensions offset\");\n_Static_assert(offsetof(LiteRtLayout, strides)==36, \"strides offset\");\n_Static_assert(sizeof(LiteRtParamIndex)==sizeof(size_t), \"parameter index\");\n_Static_assert(sizeof(bool)==1, \"C bool\");\n",
+    "headers": {
+      "litert_layout.h": "c16011a88f7487fa6d3e386905317cf9491d1666d5c7a7ed33e07a9f8b4cf514",
+      "litert_compiled_model.h": "344b9a5f2fd5e4c929e0f13fb453d0aa2415059e14b273d0d954e215b1fad876",
+      "litert_common.h": "d5c4a54c62f4018ce6a536e4ff600fec931aa729824d28e58c39de30fd221856"
+    }
+  },
+  "official_documentation": "https://developers.google.com/edge/api/litert/c/classlitert/1-1-compiled-model",
+  "runtime_exports": {
+    "2.2": {
+      "native_directory": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.2/native",
+      "native_files": [
+        {
+          "file": "libRedactNode.so",
+          "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8",
+          "bytes": 75079512
+        },
+        {
+          "file": "libLiteRt.so",
+          "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c",
+          "bytes": 5831880
+        }
+      ],
+      "required": {
+        "LiteRtCompiledModelResizeInputTensorNonStrict": true,
+        "LiteRtGetCompiledModelOutputTensorLayouts": true,
+        "LiteRtGetCompiledModelInputTensorLayout": true,
+        "LiteRtGetCompiledModelInputBufferRequirements": true,
+        "LiteRtGetCompiledModelOutputBufferRequirements": true,
+        "LiteRtGetTensorBufferRequirementsBufferSize": true
+      }
+    },
+    "2.3.1": {
+      "native_directory": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.3.1/native",
+      "native_files": [
+        {
+          "file": "libRedactNode.so",
+          "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8",
+          "bytes": 75079512
+        },
+        {
+          "file": "libLiteRt.so",
+          "sha256": "f5dd262601c88f4ae5d1f8be868e1233d07a551baed3327c762ada384d83ded8",
+          "bytes": 8980040
+        }
+      ],
+      "required": {
+        "LiteRtCompiledModelResizeInputTensorNonStrict": true,
+        "LiteRtGetCompiledModelOutputTensorLayouts": true,
+        "LiteRtGetCompiledModelInputTensorLayout": true,
+        "LiteRtGetCompiledModelInputBufferRequirements": true,
+        "LiteRtGetCompiledModelOutputBufferRequirements": true,
+        "LiteRtGetTensorBufferRequirementsBufferSize": true
+      }
+    }
+  }
+}

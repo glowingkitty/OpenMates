@@ -23,8 +23,8 @@ import { cells, wrapCells, truncateCells, padCells, foreground, lineText, termin
 import type { TuiStartupScreen } from "./tuiStartup.js";
 import { centeredCarouselText, renderLineCarousel } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
-import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
-  type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
+import { homeTuiApps, renderTuiAppsHome, renderTuiAppIdentity, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsWorkflows,
+  renderTuiAppsWorkspace, renderTuiAppsSettings, renderTuiAppsResultCards, emptyTuiAppsLibrary, type TuiAppsLibrary, type TuiAppsRecommendation, type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
 import { parseMessageSegments } from "./messageSegments.js";
 import { aliasForEmbed, chatEmbedReferences, exampleEmbedMap, type TuiEmbedTarget } from './tuiEmbeds.js';
 import { renderTuiEmbedPreview } from './tuiEmbedPreviews.js';
@@ -115,6 +115,14 @@ export type TuiState = {
   appWorkflows: TuiAppsWorkflowPage;
   activeAppResult: TuiAppsSavedResult | null;
   appPreparedRun: TuiAppsPreparedRun | null;
+  appLibrary: TuiAppsLibrary;
+  appPublicRecommendations: TuiAppsRecommendation[];
+  appRecentChats: ChatListItem[];
+  appCarouselIndex: number;
+  appCarouselPositions: Record<string,number>;
+  appCarouselRow: number;
+  appRequestBusy: boolean;
+  appDailyNotice: boolean;
   workspace: TuiWorkspace;
   sidebarOpen: boolean;
   sidebarIndex: number;
@@ -220,7 +228,7 @@ export function createInitialTuiState(): TuiState {
     settings:null,settingsOwnerCurrent:null,settingsRestore:null,chrome:null,chatOrigin:null,headerActionIndex:0,
     questionEditor:null,
     textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,currentUserHash:null,activeTeamId:null,activeTeamName:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
-    apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
+    appLibrary:emptyTuiAppsLibrary(),appPublicRecommendations:[],appRecentChats:[],appCarouselIndex:0,appCarouselPositions:{},appCarouselRow:0,appRequestBusy:false,appDailyNotice:false,apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
     focus: "content", signedIn: false, privacyOffer: false, privacyInstalling: false, startup: null, form: null, paletteOpen: false,
@@ -337,7 +345,7 @@ export function renderTuiFrame(state: TuiState, width: number, height: number, o
   const teamBanner=state.signedIn&&state.activeTeamId ? [{text:teamIdentityLabel(state),color:'#5a85eb',bold:true} satisfies TuiLine] : [];
   const embedHero=state.screen==="embed"?renderEmbedHero(state,bodyWidth,height):null;
   const stickyRows=state.screen==="embed"?embedHero!.length+1:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
-    state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
+    state.screen==="app-result"?(state.appDailyNotice?6:4):state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
   let glow:{row:number;rendered:string;line:string}|undefined;
@@ -429,10 +437,10 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
     }
     case "app": {
       const app=state.activeApp;if(!app)return ["Loading app…"];
-      const header=renderTuiAppIdentity(app,width),gradient=APP_GRADIENTS[app.id]??PRIMARY_GRADIENT;
-      if(state.appTab==="embeds"||state.appTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppTabs(state.appTab,width,{pointer:true}),
-        ...state.appTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId,pointer:true}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id,pointer:true})];
-      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:app.skills[state.selectedIndex]?.id,pointer:true}),header.length,gradient);
+      if(state.appTab==="settings_memories")return renderTuiAppsSettings(state,width);
+      if(state.appTab==="embeds")return [...renderTuiAppIdentity(app,width),...renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId,pointer:true})];
+      if(state.appTab==="workflows")return [...renderTuiAppIdentity(app,width),...renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id,pointer:true})];
+      return renderTuiAppsWorkspace(state,width);
     }
     case "app-skill": {
       const skill=state.activeAppSkill;if(!skill)return ["Loading skill…"];
@@ -441,7 +449,7 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
         ...state.appSkillTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId,pointer:true}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id,pointer:true})];
       return coloredHero(renderTuiAppsSkill(skill,{width,tab:state.appSkillTab,pointer:true}),header.length,gradient);
     }
-    case "app-result": return state.activeAppResult ? renderTuiAppsResult(state.activeAppResult,width):["Loading saved result…"];
+    case "app-result": return state.activeAppResult ? renderTuiAppsResultCards(state.activeAppResult,width,state.filter,state.appDailyNotice):["Loading saved result…"];
     case "projects":
       return [...homeHeader(state,width,height),...renderProjectCarousel(filteredProjects(state.projects,state.filter),width,state.selectedIndex,state.focus==='content')];
     case "project":

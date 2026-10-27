@@ -1,0 +1,85 @@
+{
+  "status": "verified-patched-decoder-for-owned-evaluator",
+  "date": "2026-10-26",
+  "task": "TASK-906",
+  "session": "678f",
+  "vulnerability": "CVE-2026-111497",
+  "scope": "Owned Linux evaluation only; host packages, services, browser configuration and SDK telemetry unchanged",
+  "historical_benchmark": {
+    "manifest": "../manifest.json",
+    "sha256": "0089558259fdcfafed5140f2d889146ad2d934456612ea1729c5296fa58d4e7b",
+    "all_existing_result_hashes_unchanged": true,
+    "model_benchmark_repeated": false
+  },
+  "patched_brotli": {
+    "tag": "v1.1.1",
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "archive_sha256": "38f9c17ee36c2e930ce00975b50fcd246a8e5594c1bcf43cd56b14118786b82a",
+    "decoder_source_sha256": "79db5a1879540eb7c915ce948e8fb94adc1ff49be87dca01529b9283c6ba343e",
+    "runtime_version_number": 16781313,
+    "soname": "libbrotlidec.so.1",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "source_block_switch_status_propagation_verified": true
+  },
+  "host_packages_unchanged": {
+    "libbrotli1:arm64": "1.1.0-2build2",
+    "libcurl4t64:arm64": "8.5.0-2ubuntu10.16"
+  },
+  "verification": {
+    "selected_node_proof": "native-loader-preflight-final.json",
+    "selected_python_proof": "native-loader-preflight-final.supervisor.json",
+    "real_sdk_curlcompat_deepbind_path": true,
+    "decoder_version_and_function_addresses_checked": true,
+    "no_system_brotli_mapped": true,
+    "network_guard": "libseccomp TSYNC before SDK library load",
+    "curl_actions": [
+      "curl_easy_init",
+      "curl_easy_cleanup"
+    ],
+    "http_perform": false,
+    "sdk_model_or_license_created": false,
+    "model_inference_runs": 0,
+    "node_tooling_tests_passed": 9,
+    "python_tooling_tests_passed": 8,
+    "contract_metadata_checks_passed": true
+  },
+  "tooling_source_sha256": {
+    "scripts/redact_brotli_guard.py": "41e9b2839d3efa8d7c69bc7b5ea726536e2eab25732ae3bc76833ce580cd5586",
+    "scripts/redact_linux_evaluation.py": "3a7a4cb56af17c9cf6171f7aee8fe122a5b1991c9a3456c16b4141cbbab4c6b7",
+    "scripts/redact_linux_evaluation.mjs": "2c27dce86d9e5ba642774b0739fcbc35e63013fbce53293dbd7340e5b02f922f",
+    "scripts/redact_linux_evaluation_test.py": "5172eafaed52444b7fa8bd3d4374fa85c423e4f632f3230277c8f8603a88ddca",
+    "scripts/redact_linux_evaluation.test.mjs": "fc8d50e7cfd9674462a012b1a237061015657e6fa53bda46b40370b617d1c7fa"
+  },
+  "files": [
+    {
+      "file": "native-loader-preflight-final.json",
+      "sha256": "27f052eb3047500838d6beb10ffea957a3044e7e688317a85ef2cd3112a28150",
+      "bytes": 1249
+    },
+    {
+      "file": "native-loader-preflight-final.supervisor.json",
+      "sha256": "d51660bad2dd3c1273281f003168bf7e75e476258e0e7e03bcdbdc54d480aa6f",
+      "bytes": 1810
+    },
+    {
+      "file": "native-loader-preflight.json",
+      "sha256": "eb9f98586fc6850fc520fe60879507800a7f58054ea78b307b195654680f3ba0",
+      "bytes": 1249
+    },
+    {
+      "file": "native-loader-preflight.supervisor.json",
+      "sha256": "c9821c6dcc34a5af23768207f4be64f9f4db8d7cf44e99371fab3c426f612098",
+      "bytes": 1804
+    },
+    {
+      "file": "private-build.json",
+      "sha256": "b6e86181d6aef073aad9556857b6cf9e339bb526e750fd355d361f26472542f0",
+      "bytes": 3076
+    }
+  ],
+  "sources": {
+    "fixed_release": "https://github.com/google/brotli/releases/tag/v1.1.1",
+    "sdk_curl_shim": "https://github.com/Desert-Ant-Labs/desert-ant-core/blob/86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Tools/curlcompat/dal_curl_compat.c",
+    "swift_decompression": "https://github.com/swiftlang/swift-corelibs-foundation/blob/swift-6.3.3-RELEASE/Sources/FoundationNetworking/URLSession/libcurl/EasyHandle.swift#L337"
+  }
+}

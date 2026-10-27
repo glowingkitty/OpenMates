@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+  import EmbedChevron from "./EmbedChevron.svelte";
   import { resolveHeaderSwipeNavigation } from '../headerSwipeNavigation';
   import { text } from '../../i18n/translations';
   import Icon from '../Icon.svelte';
@@ -32,11 +33,14 @@
     staticPresentation?: boolean;
     /** Apps workspace uses a fuller app-store hero; embeds retain their usual size. */
     presentation?: 'embed' | 'apps';
+    /** Match the daily inspiration banner on a non-scrolling app landing page. */
+    compact?: boolean;
     eyebrow?: string;
     footer?: string;
     providers?: string[];
     /** Skill icon name (e.g. 'search', 'coding'). Uses app icon when empty. */
     skillIconName?: string;
+    decorationIconName?: string;
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
     appIconName?: string;
     /** Show the skill icon instead of the app icon. Default true. */
@@ -44,6 +48,7 @@
 
     /** Main title (bold white, centered). */
     title?: string;
+    titleTestId?: string;
     /** Subtitle (smaller, 0.85 opacity). */
     subtitle?: string;
     /** Optional source provenance shown above the subtitle with a cloud icon. */
@@ -72,13 +77,16 @@
     appId,
     staticPresentation = false,
     presentation = 'embed',
+    compact = false,
     eyebrow = '',
     footer = '',
     providers = [],
     skillIconName = '',
+    decorationIconName,
     appIconName = '',
     showSkillIcon = true,
     title = '',
+    titleTestId,
     subtitle = '',
     provenance = '',
     faviconUrl,
@@ -117,7 +125,9 @@
    * regardless of showSkillIcon (which is now only used by BasicInfosBar).
    * This prevents the full app icon (with gradient background) from appearing in the banner.
    */
-  let useDecoSkillIcon = $derived(!!skillIconName);
+  let decoIcon = $derived(decorationIconName ?? skillIconName);
+  let useDecoSkillIcon = $derived(!!decoIcon);
+  let decoIconStyle = $derived(`--embed-skill-icon-url: var(--icon-url-${normalizeIconName(resolveIconName(decoIcon))});`);
   let safeAppIconName = $derived(normalizeIconName(appIconName ? resolveIconName(appIconName) : undefined));
   // Icon expects the app-facing aliases used by AppStoreCard, rather than
   // the SVG filename, so its tile selects the matching app gradient.
@@ -137,10 +147,6 @@
   let safeFaviconUrl = $derived(
     faviconUrl ? proxyImage(faviconUrl, MAX_WIDTH_FAVICON) : undefined
   );
-
-  function hideFavicon(e: Event) {
-    handleImageError(e.target as HTMLImageElement);
-  }
 
   function normalizeIconName(value: string | undefined): string {
     const normalized = value?.trim().toLowerCase().replace(/\s+/g, '-') ?? '';
@@ -206,6 +212,7 @@
   class:static-presentation={staticPresentation}
   class:has-cta={hasCta}
   class:apps-presentation={presentation === 'apps'}
+  class:compact
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
   ontouchmove={handleHeaderTouchMove}
@@ -239,7 +246,7 @@
          app icon appearing in the banner. showSkillIcon only governs the center icon. -->
     <div class="deco-icon deco-icon-left">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
+        <div class="deco-skill-icon" data-skill-icon={decoIcon} style={decoIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
@@ -248,7 +255,7 @@
     </div>
     <div class="deco-icon deco-icon-right">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
+        <div class="deco-skill-icon" data-skill-icon={decoIcon} style={decoIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
@@ -301,7 +308,7 @@
       {/if}
 
       {#if title}
-        <div class="header-title">
+        <div class="header-title" data-testid={titleTestId}>
           {#if safeFaviconUrl}
             <img
               src={safeFaviconUrl}
@@ -309,7 +316,7 @@
               class="header-favicon"
               class:circular={faviconIsCircular}
               crossorigin="anonymous"
-              onerror={hideFavicon}
+              use:handleImageError
             />
           {/if}
           <span class="header-title-text" data-testid="embed-header-title">{title}</span>
@@ -347,7 +354,7 @@
         aria-label="Next embed"
         type="button"
       >
-        <span class="nav-chevron nav-chevron-left"></span>
+        <EmbedChevron direction="previous" />
       </button>
     {/if}
     {#if hasPreviousEmbed && onNavigatePrevious}
@@ -357,7 +364,7 @@
         aria-label="Previous embed"
         type="button"
       >
-        <span class="nav-chevron nav-chevron-right"></span>
+        <EmbedChevron direction="next" />
       </button>
     {/if}
   </div>
@@ -420,6 +427,11 @@
   .apps-presentation .apps-provider-footer { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
   .apps-presentation .apps-provider { display: inline-flex; align-items: center; gap: 5px; }
   .apps-presentation .header-cta-area { bottom: 64px; transform: none; }
+  .embed-header.apps-presentation.compact { height: clamp(120px, 24dvh, 240px); }
+  .apps-presentation.compact .header-center { padding: var(--spacing-24) var(--spacing-12) var(--spacing-8); gap: var(--spacing-2); }
+  .apps-presentation.compact .header-icon { --apps-hero-icon-size: 52px; width: 52px; height: 52px; }
+  .apps-presentation.compact .header-title-text { font-size: var(--font-size-h3); }
+  .apps-presentation.compact .header-subtitle { -webkit-line-clamp: 2; line-clamp: 2; font-size: var(--font-size-small); }
 
   /* Inner banner: carries gradient + clips decorative overflow icons.
      Fills 100% of the outer wrapper. */
@@ -602,13 +614,14 @@
      ========================================================== */
 
   .header-center {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-2);
     z-index: var(--z-index-raised-2);
     padding: var(--spacing-8) var(--spacing-12);
-    max-width: 480px;
+    max-width: min(480px, calc(100% - 88px));
     width: 100%;
     animation: fadeIn 0.35s ease-out;
   }
@@ -832,8 +845,10 @@
     min-width: unset !important;
     width: 36px !important;
     height: 36px !important;
-    border-radius: 50% !important;
-    background-color: var(--color-grey-50) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--color-font-button);
+    box-shadow: none !important;
     opacity: 0.5;
     filter: none !important;
     margin: 0 !important;
@@ -854,7 +869,7 @@
 
   .nav-arrow:hover {
     opacity: 0.85;
-    background-color: var(--color-grey-60) !important;
+    background: transparent !important;
     scale: none !important;
   }
 
@@ -862,9 +877,9 @@
      click registers even on the small 36×36 circular target. */
   .nav-arrow:active {
     opacity: 1;
-    background-color: var(--color-grey-70) !important;
+    background: transparent !important;
     transform: translateY(-50%) scale(0.9);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
     transition:
       opacity 60ms var(--easing-default),
       transform 60ms var(--easing-default),
@@ -879,26 +894,6 @@
 
   .nav-arrow-right {
     right: 8px;
-  }
-
-  /* CSS-triangle chevrons for nav arrows */
-  .nav-chevron {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border-top: 2.5px solid rgba(255, 255, 255, 0.85);
-    border-right: 2.5px solid rgba(255, 255, 255, 0.85);
-    flex-shrink: 0;
-  }
-
-  .nav-chevron-left {
-    transform: rotate(-135deg);
-    margin-left: var(--spacing-2);
-  }
-
-  .nav-chevron-right {
-    transform: rotate(45deg);
-    margin-right: var(--spacing-2);
   }
 
   /* ==========================================================
@@ -1015,6 +1010,9 @@
 
   @media (max-width: 730px) {
     .embed-header.apps-presentation { height: 290px; }
+    .embed-header.apps-presentation.compact { height: clamp(110px, 24dvh, 190px); }
+    .apps-presentation.compact .header-center { padding: var(--spacing-24) var(--spacing-12) var(--spacing-6); }
+    .apps-presentation.compact .header-icon { --apps-hero-icon-size: 38px; width: 38px; height: 38px; }
     .apps-presentation .apps-header-eyebrow { top: 20px; }
     .apps-presentation .header-center { padding: 66px 26px 42px; }
     .apps-presentation.has-cta .header-center { transform: translateY(-38px); }
@@ -1029,7 +1027,7 @@
 
     .header-center {
       padding: var(--spacing-6) var(--spacing-10);
-      max-width: 360px;
+      max-width: min(360px, calc(100% - 88px));
     }
 
     .header-icon {

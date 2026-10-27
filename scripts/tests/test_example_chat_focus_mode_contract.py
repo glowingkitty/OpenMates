@@ -18,8 +18,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_DIR = ROOT / "frontend/packages/ui/src/demo_chats/data/example_chats"
 
-FRAMEWORK_EXAMPLE = "framework-store-reputation-check.ts"
-EGG_PRICES_EXAMPLE = "us-egg-prices-deep-research.ts"
 
 
 def load_example_audit():
@@ -46,6 +44,7 @@ def focus_mode_example_files(audit) -> list[Path]:
     ]
 
 
+# contract-test: supporting surface=tooling assertions=marketing-landing.app-metadata-defaults
 def test_focus_mode_examples_have_activation_embeds() -> None:
     audit = load_example_audit()
 
@@ -60,6 +59,7 @@ def test_focus_mode_examples_have_activation_embeds() -> None:
         )
 
 
+# contract-test: supporting surface=tooling assertions=marketing-landing.example-catalog-alignment
 def test_focus_mode_example_message_embed_references_resolve() -> None:
     audit = load_example_audit()
 
@@ -84,9 +84,35 @@ def test_focus_mode_example_message_embed_references_resolve() -> None:
             )
 
 
-def test_framework_website_json_payload_has_runtime_embed() -> None:
+# contract-test: supporting surface=tooling assertions=marketing-landing.example-catalog-alignment
+def test_sub_chat_audit_requires_an_assistant_response() -> None:
     audit = load_example_audit()
-    source = example_source(FRAMEWORK_EXAMPLE)
+    complete = """sub_chats: [{ chat_id: "demo-local-child", is_sub_chat: true, messages: [
+      { role: "user", content: "Check a local fixture." },
+      { role: "assistant", content: "Local fixture checked." }
+    ], embeds: [] }]"""
+    assert audit.sub_chats_have_assistant_messages(complete)
+    incomplete = complete.replace('{ role: "assistant", content: "Local fixture checked." }', '')
+    assert not audit.sub_chats_have_assistant_messages(incomplete)
+
+
+# contract-test: supporting surface=tooling assertions=marketing-landing.example-catalog-alignment
+def test_website_json_payload_has_runtime_embed() -> None:
+    audit = load_example_audit()
+    source = r'''messages: [
+      {
+        role: "user",
+        content: "```json\n{\"type\":\"website\",\"embed_id\":\"demo-site\",\"url\":\"https://example.com\"}\n```"
+      }
+    ],
+    embeds: [
+      {
+        embed_id: "demo-site",
+        type: "web-website",
+        content: "url: https://example.com"
+      }
+    ],
+    metadata: {}'''
     payloads = []
     for message in audit.parse_messages(source):
         if message.role != "user":
@@ -97,30 +123,23 @@ def test_framework_website_json_payload_has_runtime_embed() -> None:
     website_payload = next(
         (
             payload for payload in payloads
-            if payload.get("type") == "website" and payload.get("url") == "https://frame.work"
+            if payload.get("type") == "website" and payload.get("url") == "https://example.com"
         ),
         None,
     )
-    assert website_payload is not None, "Framework example missing the visible frame.work website payload"
+    assert website_payload is not None, "Synthetic example missing the visible example.com website payload"
 
     embed_id = website_payload.get("embed_id")
-    assert isinstance(embed_id, str) and embed_id, "Framework website payload has no embed_id"
+    assert isinstance(embed_id, str) and embed_id, "Synthetic website payload has no embed_id"
 
     matching_blocks = [
         block for block in audit.iter_embed_blocks(source)
         if audit.parse_ts_string_field(block, "embed_id") == embed_id
     ]
-    assert len(matching_blocks) == 1, f"Framework website payload embed {embed_id!r} is not checked in exactly once"
+    assert len(matching_blocks) == 1, f"Synthetic website payload embed {embed_id!r} is not checked in exactly once"
 
     content = audit.parse_embed_content(matching_blocks[0])
     assert audit.parse_ts_string_field(matching_blocks[0], "type") == "web-website"
-    assert audit.toon_value(content, "url") == "https://frame.work"
+    assert audit.toon_value(content, "url") == "https://example.com"
 
 
-def test_deep_research_static_sub_chats_have_assistant_responses() -> None:
-    audit = load_example_audit()
-    source = example_source(EGG_PRICES_EXAMPLE)
-    chat_id = audit.parse_ts_string_field(source, "chat_id") or EGG_PRICES_EXAMPLE
-
-    assert "sub_chats:" in source, f"{chat_id}: missing static sub_chats"
-    assert audit.sub_chats_have_assistant_messages(source), f"{chat_id}: static sub_chats lack assistant messages"

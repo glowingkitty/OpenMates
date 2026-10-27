@@ -9,6 +9,7 @@ describe('EmbedStore.putEncrypted ref indexing', () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('defers child ref indexing until finalized parent data is readable', async () => {
     const store = new EmbedStore();
     const registerEmbedRef = vi.spyOn(store, 'registerEmbedRef');
@@ -55,6 +56,7 @@ describe('EmbedStore.getEmbedKey', () => {
     (crypto.subtle.digest as any) = vi.fn(async () => new Uint8Array([1, 2, 3, 4]).buffer);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
   it('reuses the parent embed key for child embeds', async () => {
     const store = new EmbedStore();
 
@@ -88,6 +90,7 @@ describe('EmbedStore.getEmbedKey', () => {
     expect(cryptoService.unwrapEmbedKeyWithMasterKey).toHaveBeenCalledTimes(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
   it('guards against cycles in parent_embed_id chains', async () => {
     const store = new EmbedStore();
 
@@ -109,6 +112,7 @@ describe('EmbedStore uploaded file search metadata', () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
   it('can derive a code filename from encrypted local embed content without file_path', async () => {
     const store = new EmbedStore();
     const embedKey = new Uint8Array([1, 2, 3, 4]);
@@ -138,6 +142,7 @@ describe('EmbedStore uploaded file search metadata', () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
   it('keeps decrypted filename searchable when generic metadata exists', async () => {
     const store = new EmbedStore();
     vi.spyOn(store, 'getEmbedKey').mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
@@ -164,6 +169,7 @@ describe('EmbedStore uploaded file search metadata', () => {
     expect(names).toContain('upload_to_api_video.sh');
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
   it('allows encrypted shared embed rows to be inspected for upload filenames', () => {
     const store = new EmbedStore();
     const entry: EmbedStoreEntry = {
@@ -184,6 +190,7 @@ describe('EmbedStore uploaded file search metadata', () => {
     expect(hasEvidence).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
   it('does not treat web-search documents as uploaded-file candidates', () => {
     const store = new EmbedStore();
     const entry: EmbedStoreEntry = {
@@ -210,6 +217,7 @@ describe('EmbedStore.resolveByRefDeep', () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('repairs plaintext TOON refs without logging JSON parse errors', async () => {
     const store = new EmbedStore();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -237,6 +245,7 @@ describe('EmbedStore.resolveByRefDeep', () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('falls back to broad repair when a file ref ends with a six-hex content hash', async () => {
     const store = new EmbedStore();
 
@@ -252,6 +261,7 @@ describe('EmbedStore.resolveByRefDeep', () => {
     expect(store.resolveByRef('sample-pdf-a1b2c3')).toBe('pdf-embed-id');
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('ignores non-TOON plaintext ref repair candidates without logging parse errors', async () => {
     const store = new EmbedStore();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -269,6 +279,7 @@ describe('EmbedStore.resolveByRefDeep', () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('returns memory-only embeds without logging every cache hit', async () => {
     const store = new EmbedStore();
     const consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
@@ -287,6 +298,7 @@ describe('EmbedStore.resolveByRefDeep', () => {
     expect(consoleDebug).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it('repairs video source quote refs that use a YouTube video ID', async () => {
     const store = new EmbedStore();
 
@@ -313,5 +325,22 @@ describe('EmbedStore.resolveByRefDeep', () => {
     );
     expect(store.resolveByRef('vS-gfLhxYDg')).toBe('video-embed-id');
     expect(store.resolveAppIdByRef('vS-gfLhxYDg')).toBe('videos');
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+it('returns source image canonical ciphertext and original indexes without changing them', async () => {
+  const store = new EmbedStore();
+  await store.putEncrypted('embed:reused-source-payload', {
+    embed_id: 'reused-source-payload', encrypted_type: 'canonical-image-type',
+    encrypted_content: 'canonical-ciphertext', status: 'finished',
+    hashed_chat_id: 'original-chat', hashed_message_id: 'original-user-turn', hashed_user_id: 'owner',
+    content_hash: 'exact-pixel-hash', createdAt: 1700000000000, updatedAt: 1700000001000,
+  }, 'images-image', JSON.stringify({ type: 'image', filename: 'original-source.jpg' }));
+  await expect(store.getPersistencePayload('reused-source-payload')).resolves.toMatchObject({
+    embed_id: 'reused-source-payload', encrypted_type: 'canonical-image-type',
+    encrypted_content: 'canonical-ciphertext', hashed_chat_id: 'original-chat',
+    hashed_message_id: 'original-user-turn', hashed_user_id: 'owner', content_hash: 'exact-pixel-hash',
+    created_at: 1700000000, updated_at: 1700000001,
   });
 });

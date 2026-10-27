@@ -4,7 +4,8 @@
  * Pairing authorizes the candidate CLI; its foreground command owns one socket.
  * Browser title edits must reach disk promptly, with all twelve Tasks retained.
  * The same process fixture verifies restart updates and deletion replay.
- * Unit fixtures cannot satisfy these encrypted API/WebSocket/database assertions.
+ * Disk waits exercise the real encrypted foreground Task outbox; only capacity
+ * metadata is synthetic. Unit fixtures cannot satisfy these API/WS assertions.
  */
 export {};
 const { spawn, execFileSync } = require('node:child_process');
@@ -42,7 +43,7 @@ function events(child) {
     if (previous) return Promise.resolve(previous);
     if (failure) return Promise.reject(failure);
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { pending.delete(name); reject(new Error(`Task sync fixture timed out waiting for ${name}`)); }, 120_000);
+      const timer = setTimeout(() => { pending.delete(name); reject(new Error(`Task sync fixture timed out waiting for ${name}`)); }, name === 'verified' ? 180_000 : 120_000);
       pending.set(name, { resolve: event => { clearTimeout(timer); pending.delete(name); resolve(event); }, reject: error => { clearTimeout(timer); pending.delete(name); reject(error); } });
     });
   };
@@ -50,7 +51,7 @@ function events(child) {
 
 // contract-test: direct surface=gui.web assertions=projects.remote-access.task-sync,tasks.conversation.single-owner-claim,tasks.conversation.confirmed-deletion,tasks.dependencies.ready-transition
 test('web edits reach every cached Task and disconnected updates replay', async ({ page }, testInfo) => {
-  test.setTimeout(300_000);
+  test.setTimeout(360_000);
   expect(process.env.CI).toBe('true');
   expect(process.env.PLAYWRIGHT_TEST_BASE_URL).toBe('http://localhost:5173');
   // The runner already installs browser/FFmpeg dependencies. Add the small
@@ -86,7 +87,7 @@ test('web edits reach every cached Task and disconnected updates replay', async 
     }, {timeout: 10_000}).toEqual({count: 12, title: 'Web edit reached the dev-device cache'});
     const verified = event('verified');
     child.stdin.write('verify-replay\n');
-    expect((await verified).checks).toEqual(['twelve_tasks', 'single_owner', 'dependency_todo', 'lost_ack_reconciled', 'reconnect_update', 'reconnect_deletion', 'native_chat_task_plan_unlink', 'confirmed_codex_unlink']);
+    expect((await verified).checks).toEqual(['twelve_tasks', 'single_owner', 'dependency_todo', 'lost_ack_reconciled', 'reconnect_update', 'reconnect_deletion', 'native_chat_task_plan_unlink', 'confirmed_codex_unlink', 'disk_task_wait_outbox', 'disk_task_restore_outbox', 'disk_task_human_blocker']);
     await event('finished');
     const code = await new Promise(resolve => child.exitCode !== null ? resolve(child.exitCode) : child.once('exit', resolve));
     expect(code).toBe(0);

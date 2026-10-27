@@ -10,8 +10,11 @@
 -->
 
 <script lang="ts">
+  import { setContext } from 'svelte';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT } from '../../../types/embedPreviewPresentation';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  setContext(EMBED_PREVIEW_PRESENTATION_CONTEXT, 'execution');
 
   interface Props {
     id: string;

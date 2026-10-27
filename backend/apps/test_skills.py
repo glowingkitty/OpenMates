@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: infrastructure
 """
 Test script for app skills.
 Usage: python test_skills.py <app_name> <skill_id> [json_payload]
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     else:
         # Default payloads for each skill
         if skill_id == "read":
-            payload = {"requests": [{"url": "https://docs.firecrawl.dev/api-reference/endpoint/scrape"}]}
+            payload = {"requests": [{"url": "https://example.com/article"}]}
         elif skill_id == "search":
             if app_name == "videos":
                 payload = {"requests": [{"query": "python tutorial"}]}

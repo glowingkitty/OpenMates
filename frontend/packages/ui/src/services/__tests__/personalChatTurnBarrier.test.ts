@@ -98,3 +98,18 @@ describe('legacy user message settlement', () => {
     expect(second.settled).toBe(false);
   });
 });
+
+
+// contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+it('reports ordinary sends before their journal exists, including an older turn after its newer tail fails',async()=>{
+  const barrier=await import('../personalChatTurnBarrier');
+  barrier.clearPersonalChatTurnBarriers();
+  const first=barrier.reservePersonalChatTurn('cleanup-chat','first');
+  const second=barrier.reservePersonalChatTurn('cleanup-chat','second');
+  expect(barrier.hasPendingPersonalChatTurn('cleanup-chat')).toBe(true);
+  expect(barrier.hasPendingPersonalChatTurn('other-chat')).toBe(false);
+  barrier.failPersonalChatTurn(second,new Error('not sent'));
+  expect(barrier.hasPendingPersonalChatTurn('cleanup-chat')).toBe(true);
+  barrier.failPersonalChatTurn(first,new Error('not sent'));
+  expect(barrier.hasPendingPersonalChatTurn('cleanup-chat')).toBe(false);
+});

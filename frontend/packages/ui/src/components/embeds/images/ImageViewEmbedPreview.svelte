@@ -27,6 +27,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import { text } from '@repo/ui';
   import {
     fetchAndDecryptImage,
@@ -57,7 +59,7 @@
     /** S3 base URL from original image embed */
     s3BaseUrl?: string;
     /** S3 file variants from original image embed */
-    s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
+    s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string; encryption?: string; aes_nonce?: string }>;
     /** AES-256 key (base64) from original image embed */
     aesKey?: string;
     /** AES-GCM nonce (base64) from original image embed */
@@ -131,7 +133,8 @@
   // Derived state
   let status = $derived(localStatus);
   let error = $derived(localError);
-  let previewS3Key = $derived(s3Files?.preview?.s3_key);
+  let previewFile = $derived(s3Files?.preview);
+  let previewS3Key = $derived(previewFile?.s3_key);
 
   /**
    * Card title: always "View" — the skill name, not the filename.
@@ -161,7 +164,7 @@
    * Uses the shared in-memory cache so ImageEmbedPreview cache hits are instant.
    */
   async function loadPreviewImage() {
-    if (!previewS3Key || !s3BaseUrl || !aesKey || !aesNonce) {
+    if (!previewS3Key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(previewFile, aesNonce)) {
       console.debug('[ImageViewEmbedPreview] Missing data for image load:', {
         hasPreviewKey: !!previewS3Key,
         hasS3BaseUrl: !!s3BaseUrl,
@@ -188,7 +191,7 @@
 
     try {
       console.debug('[ImageViewEmbedPreview] Loading preview image from S3:', previewS3Key);
-      await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce);
+      await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce ?? '', previewFile);
       imageUrl = getCachedImageUrl(previewS3Key)!;
       if (retainedS3Key && retainedS3Key !== previewS3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = previewS3Key;
@@ -215,9 +218,10 @@
       previewS3Key &&
       s3BaseUrl &&
       aesKey &&
-      aesNonce &&
+      hasMediaEncryptionMetadata(previewFile, aesNonce) &&
       !imageUrl &&
-      !isLoadingImage
+      !isLoadingImage &&
+      !imageError
     ) {
       loadPreviewImage();
     }
@@ -225,6 +229,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   appId="images"
   skillId="view"
@@ -239,6 +244,8 @@
   hasFullWidthImage={showFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
+    <ResultEmbedCard title={skillName} mediaOnly={showFullWidthImage} mediaFit="contain">
+      {#snippet media()}
     <div class="image-view-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
       {#if status === 'finished' && imageUrl && !imageError}
@@ -292,6 +299,8 @@
       {/if}
 
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -331,7 +340,7 @@
   .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
     transition: opacity var(--duration-fast) var(--easing-default);
   }

@@ -63,6 +63,10 @@ daily_inspiration_pool:
       type: textfield
       note: "YouTube video title"
 
+    video_description:
+      type: textfield
+      note: "Public source description retained for editorial grounding before reuse"
+
     video_thumbnail_url:
       type: textfield
       note: "URL of the video thumbnail"

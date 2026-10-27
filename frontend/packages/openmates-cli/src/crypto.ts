@@ -329,9 +329,45 @@ async function sealChatCompletionRecoveryPayloadWithInputs(
   };
 }
 
+export interface ChatMetadataRecoveryIdentity {
+  ownerId: string; chatId: string; taskId: string; jobId: string;
+  stage: "initial" | "postprocessing"; keyVersion: number;
+}
+
+/** Purpose-separated OMCM1 metadata. Completion envelopes cannot be substituted. */
+export async function openChatMetadataRecoveryEnvelope(
+  envelope: ChatCompletionRecoveryEnvelope,
+  options: ChatMetadataRecoveryIdentity & { recoveryPrivateKey: string },
+): Promise<Record<string, string>> {
+  if (options.stage !== "initial" && options.stage !== "postprocessing") throw new Error("unsupported metadata stage");
+  const aad = concatBytes(new TextEncoder().encode("OMCM1"),
+    ...[options.ownerId, options.chatId, options.taskId, options.jobId]
+      .map(value => lengthPrefix(canonicalUuid(value, "metadata_identity"))),
+    lengthPrefix(new TextEncoder().encode(options.stage)), recoveryKeyVersion(options.keyVersion));
+  const bytes = await openRecoveryEnvelopeWithAssociatedData(envelope, options.recoveryPrivateKey, aad, 64 * 1024);
+  const payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  const identity = { owner_id: options.ownerId, chat_id: options.chatId, task_id: options.taskId,
+    job_id: options.jobId, stage: options.stage, key_version: options.keyVersion };
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)
+      || Object.keys(payload).sort().join(",") !== [...Object.keys(identity), "metadata"].sort().join(",")
+      || Object.entries(identity).some(([key, value]) => payload[key] !== value)) throw new Error("metadata identity mismatch");
+  const metadata = payload.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata) || !Object.keys(metadata).length
+      || Object.entries(metadata).some(([key, value]) => !["title", "summary", "category", "icon"].includes(key)
+        || typeof value !== "string" || !value.length)) throw new Error("invalid metadata fields");
+  return metadata;
+}
+
 export async function openChatCompletionRecoveryEnvelope(
   envelope: ChatCompletionRecoveryEnvelope,
   options: ChatCompletionRecoveryIdentity & { recoveryPrivateKey: string },
+): Promise<Uint8Array> {
+  return openRecoveryEnvelopeWithAssociatedData(envelope, options.recoveryPrivateKey, recoveryAssociatedData(options), CHAT_RECOVERY_MAX_PAYLOAD_BYTES);
+}
+
+async function openRecoveryEnvelopeWithAssociatedData(
+  envelope: ChatCompletionRecoveryEnvelope, recoveryPrivateKeyEncoded: string,
+  associatedData: Uint8Array, maxPayloadBytes: number,
 ): Promise<Uint8Array> {
   if (
     !envelope
@@ -341,17 +377,16 @@ export async function openChatCompletionRecoveryEnvelope(
     throw new Error("invalid recovery envelope fields or version");
   }
   const recoveryPrivateKey = base64UrlToBytes(
-    options.recoveryPrivateKey,
+    recoveryPrivateKeyEncoded,
     "recovery_private_key",
     CHAT_RECOVERY_KEY_BYTES,
   );
   const ephemeralPublicKey = base64UrlToBytes(envelope.epk, "epk", CHAT_RECOVERY_KEY_BYTES);
   const nonce = base64UrlToBytes(envelope.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES);
   const ciphertext = base64UrlToBytes(envelope.ciphertext, "ciphertext");
-  if (ciphertext.length < 16 || ciphertext.length - 16 > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) {
+  if (ciphertext.length < 16 || ciphertext.length - 16 > maxPayloadBytes) {
     throw new Error("ciphertext payload size is invalid");
   }
-  const associatedData = recoveryAssociatedData(options);
   const sharedSecret = nacl.scalarMult(recoveryPrivateKey, ephemeralPublicKey);
   const envelopeKeyBytes = await recoveryEnvelopeKey(sharedSecret, associatedData);
   const envelopeKey = await cryptoApi.subtle.importKey(

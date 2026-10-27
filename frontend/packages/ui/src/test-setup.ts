@@ -7,6 +7,10 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
 import { vi } from "vitest";
+import { installUnitFetchGuard } from "./test-mocks/unit-fetch-guard";
+
+// Keep a rejecting transport as the original baseline even after mock cleanup.
+installUnitFetchGuard(globalThis);
 
 const VITE_FS_PREFIX = "/@fs";
 const UI_SRC_PREFIX = "/src/";
@@ -243,6 +247,7 @@ if (typeof globalThis.window === "undefined") {
 }
 
 const activeWindow = globalThis.window as MutableWindow;
+installUnitFetchGuard(activeWindow);
 
 if (typeof activeWindow.btoa !== "function") {
   defineConfigurableProperty(activeWindow, "btoa", fallbackWindow.btoa);

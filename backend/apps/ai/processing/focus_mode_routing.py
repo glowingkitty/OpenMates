@@ -101,7 +101,7 @@ def should_expose_subchat_tool(
 ) -> bool:
     return (
         enable_subchats
-        and chat_depth < 2
+        and type(chat_depth) is int and 0 <= chat_depth < 2
         and not is_sub_chat_continuation
         and not (chat_depth > 0 and active_focus_id == DEEP_RESEARCH_FOCUS_ID)
     )
@@ -111,8 +111,20 @@ def resolve_subchat_enablement(
     enable_subchats: bool,
     *,
     active_focus_id: str | None,
+    chat_depth: int = 0,
+    is_sub_chat_continuation: bool = False,
 ) -> bool:
-    return enable_subchats or should_enable_subchats_for_active_focus(active_focus_id)
+    """Offer one remaining delegation level to an admitted initial child.
+
+    A classifier cannot remove a server-authorized child's recursive capability.
+    Grandchildren, continuations and research-angle children remain terminal.
+    """
+    if (type(chat_depth) is not int or not 0 <= chat_depth < 2
+            or is_sub_chat_continuation
+            or (chat_depth > 0 and active_focus_id == DEEP_RESEARCH_FOCUS_ID)):
+        return False
+    return (enable_subchats or should_enable_subchats_for_active_focus(active_focus_id)
+            or chat_depth == 1)
 
 
 def gate_tools_for_deep_research(

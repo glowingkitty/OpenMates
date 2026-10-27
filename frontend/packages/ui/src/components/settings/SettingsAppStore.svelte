@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-    import { appSkillsStore, featureAvailabilityStore, initializeFeatureAvailability, initializeUserAvailableSkills, userAvailableSkillsStore } from '../../stores/appSkillsStore';
+    import { discoverableApps, featureAvailabilityStore, initializeFeatureAvailability, initializeUserAvailableSkills, userAvailableSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
@@ -52,7 +52,7 @@
         void userSkillsState;
         void featureAvailabilityState;
         // Get filtered apps from store (filtering happens in getState())
-        const allApps = appSkillsStore.getState().apps;
+        const allApps = $discoverableApps;
         // Exclude the AI app — its settings live under the top-level "AI" settings menu
         const { ai: _excluded, ...rest } = allApps;
         return rest;

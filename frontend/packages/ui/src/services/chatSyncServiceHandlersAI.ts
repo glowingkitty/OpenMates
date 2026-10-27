@@ -19,8 +19,9 @@ import type { EmbedType } from "../message_parsing/types";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
-import { persistComposerGhostSuggestion } from "./composerGhostSuggestion";
+import { persistComposerGhostSuggestion, persistPostProcessingComposerFallback } from "./composerGhostSuggestion";
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { persistClientEncryptedEmbedDiffRows } from "./streamedEmbedRevisionHistory";
 import { recordRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
@@ -47,7 +48,6 @@ import {
 import { completePersonalChatMessage } from "./personalChatTurnBarrier";
 import { refreshPersistedAssistantVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
-import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { getConnectedAccountMutationEpoch } from "./connectedAccountStorageService";
 
 const storageFailureImmediateRetryIds = new Set<string>();
@@ -272,7 +272,7 @@ async function storeVolatileFinalizedEmbedInMemory(
     query: embedPayload.query as string | undefined,
     provider: embedPayload.provider as string | undefined,
     results: embedPayload.results as unknown[] | undefined,
-    version_number: embedData.version_number,
+    version_number: embedData.version_number ?? 1,
     createdAt: embedData.createdAt || Date.now(),
     updatedAt: embedData.updatedAt || Date.now(),
   });
@@ -287,7 +287,7 @@ async function storeVolatileFinalizedEmbedInMemory(
         chat_id: embedData.chat_id,
         message_id: embedData.message_id,
         status: embedData.status,
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         child_embed_ids: embedData.embed_ids,
         isProcessing: false,
       },
@@ -769,8 +769,8 @@ export function handleAIMessageUpdateImpl(
 
     completeChatMetadataTurn(payload.chat_id, payload.task_id);
 
-    // The suggestion is authored in this successful turn, never as a typing-time
-    // inference. It remains separate from postprocessed request chips.
+    // Remember the successful final source even without a main suggestion, so
+    // this turn's fresh post-processing can supply an encrypted fallback.
     void persistComposerGhostSuggestion(payload, serviceInstance, (suggestion) => {
       serviceInstance.dispatchEvent(new CustomEvent("composerGhostSuggestion", {
         detail: { chat_id: payload.chat_id, ...suggestion },
@@ -2651,7 +2651,8 @@ export async function handlePostProcessingCompletedImpl(
     if (!isCurrent()) return;
     if (payload.user_message_id) {
       const messages = await chatDB.getMessagesForChat(payload.chat_id);
-      const latestUser = messages?.filter(message => message.role === 'user' && message.status !== 'failed').at(-1);
+      const userMessages = messages?.filter(message => message.role === 'user' && message.status !== 'failed');
+      const latestUser = userMessages?.[userMessages.length - 1];
       latestUserMatches = !latestUser || latestUser.message_id === payload.user_message_id;
       if (!isCurrent()) return;
     }
@@ -2660,6 +2661,13 @@ export async function handlePostProcessingCompletedImpl(
         `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
       );
       return;
+    }
+    if (ownerIsCurrent() && turnIsCurrent()) {
+      void persistPostProcessingComposerFallback(payload, serviceInstance, (suggestion) => {
+        serviceInstance.dispatchEvent(new CustomEvent("composerGhostSuggestion", {
+          detail: { chat_id: payload.chat_id, ...suggestion },
+        }));
+      }).catch((error) => console.warn("[ChatSyncService:AI] Could not save encrypted composer fallback", error));
     }
     const sourceMetadataV =
       typeof payload.source_metadata_v === "number" &&
@@ -3746,7 +3754,7 @@ export async function handleEmbedUpdateImpl(
                   updated_at: normalizeToUnixSeconds(updatedAt, nowSecs),
                 };
                 await sendStoreFunction(serviceInstance, storePayload,
-                  embedKeysForServer.length ? { keys: embedKeysForServer } : undefined);
+                  embedKeysForServer.length ? { keys: embedKeysForServer } : undefined, undefined, "stream-update");
                 console.debug(
                   `[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`,
                 );
@@ -3835,67 +3843,6 @@ export async function handleEmbedUpdateImpl(
 // Type alias for the inner embed data structure (used when WebSocket passes payload directly)
 type EmbedDataPayload = SendEmbedDataPayload["payload"];
 
-async function persistClientEncryptedEmbedDiffRows(
-  serviceInstance: ChatSynchronizationService,
-  embedData: EmbedDataPayload,
-  embedKey: Uint8Array,
-  hashedUserId: string,
-): Promise<void> {
-  const rows = embedData.version_history_rows;
-  if (!Array.isArray(rows) || rows.length === 0) return;
-
-  const { storeEmbedDiff } = await import("./embedDiffStore");
-  const sendersModule = await import("./chatSyncServiceSenders");
-  const sendStoreEmbedDiffFunction =
-    sendersModule.sendStoreEmbedDiffImpl ||
-    (
-      sendersModule as {
-        default?: {
-          sendStoreEmbedDiffImpl?: typeof sendersModule.sendStoreEmbedDiffImpl;
-        };
-      }
-    ).default?.sendStoreEmbedDiffImpl;
-
-  if (typeof sendStoreEmbedDiffFunction !== "function") {
-    throw new Error("sendStoreEmbedDiffImpl function not found");
-  }
-
-  for (const row of rows) {
-    if (!row.embed_id || typeof row.version_number !== "number") continue;
-    const encryptedSnapshot =
-      typeof row.snapshot === "string"
-        ? await encryptWithEmbedKey(row.snapshot, embedKey)
-        : undefined;
-    const encryptedPatch =
-      typeof row.patch === "string"
-        ? await encryptWithEmbedKey(row.patch, embedKey)
-        : undefined;
-    if (!encryptedSnapshot && !encryptedPatch) continue;
-
-    const createdAt = normalizeToUnixSeconds(
-      row.created_at,
-      Math.floor(Date.now() / 1000),
-    );
-    const encryptedRow = {
-      id: `${row.embed_id}_v${row.version_number}`,
-      embed_id: row.embed_id,
-      version_number: row.version_number,
-      encrypted_snapshot: encryptedSnapshot,
-      encrypted_patch: encryptedPatch,
-      created_at: createdAt,
-    };
-
-    await storeEmbedDiff(encryptedRow);
-    await sendStoreEmbedDiffFunction(serviceInstance, {
-      embed_id: row.embed_id,
-      version_number: row.version_number,
-      encrypted_snapshot: encryptedSnapshot ?? null,
-      encrypted_patch: encryptedPatch ?? null,
-      hashed_user_id: hashedUserId,
-      created_at: createdAt,
-    });
-  }
-}
 
 /**
  * Handle send_embed_data event from server
@@ -4171,10 +4118,10 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
             content: embedData.content, // Plaintext TOON for in-memory rendering
             text_preview: embedData.text_preview,
-            task_id: embedData.task_id,
             embed_ids: embedData.embed_ids,
             parent_embed_id: embedData.parent_embed_id,
             // Include all fields UI might need for rendering
@@ -4182,70 +4129,13 @@ export async function handleSendEmbedDataImpl(
           },
         }),
       );
-    } else if (
-      embedData.status === "error" ||
-      embedData.status === "cancelled"
-    ) {
-      // ============================================================
-      // ERROR/CANCELLED STATUS: Clean up only, no persistence
-      // ============================================================
-      // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
-      // The backend has already removed the processing placeholder from its cache.
-      // We just need to:
-      // 1. Mark embed as error in the embedResolver's knownErrorEmbeds set
-      //    (CRITICAL: prevents infinite loop where resolveEmbed() re-requests
-      //    error embeds from the server on every render cycle)
-      // 2. Remove the in-memory processing placeholder
-      // 3. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
-      // 4. The UI will hide the embed and show the error banner
-      console.info(
-        `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
-          `cleaning up without persisting (failed embeds are not stored)`,
-      );
-
-      // Mark as known error FIRST so resolveEmbed() won't re-request it
-      markEmbedAsError(embedData.embed_id, embedData.status);
-
-      try {
-        const { embedStore } = await import("./embedStore");
-        const embedRef = `embed:${embedData.embed_id}`;
-        // Remove the "processing" placeholder from memory cache
-        embedStore.removeFromMemoryCache(embedRef);
-        console.debug(
-          `[ChatSyncService:AI] Removed processing placeholder for ${embedData.status} embed ${embedData.embed_id} from memory cache`,
-        );
-      } catch (err) {
-        console.warn(
-          `[ChatSyncService:AI] Failed to remove ${embedData.status} embed from memory cache:`,
-          err,
-        );
-      }
-
-      // For cancelled embeds (e.g., budget-suppressed placeholders), skip the UI
-      // event entirely — the placeholder was already removed from memory cache above,
-      // so dispatching embedUpdated would only trigger a pointless re-render.
-      // For error embeds, dispatch so ActiveChat can track it in _embedErrors and
-      // show the error banner.
-      if (embedData.status === "error") {
-        serviceInstance.dispatchEvent(
-          new CustomEvent("embedUpdated", {
-            detail: {
-              embed_id: embedData.embed_id,
-              type: embedData.type,
-              chat_id: embedData.chat_id,
-              message_id: embedData.message_id,
-              status: embedData.status,
-              version_number: embedData.version_number,
-              child_embed_ids: embedData.embed_ids,
-              isProcessing: false,
-            },
-          }),
-        );
-      } else {
-        console.debug(
-          `[ChatSyncService:AI] Skipping embedUpdated dispatch for cancelled embed ${embedData.embed_id} — silently removed`,
-        );
-      }
+    } else if (embedData.status === "cancelled") {
+      // Budget-suppressed/cancelled placeholders retain their cleanup-only behavior.
+      // Execution errors use the finalized encryption/persistence path below so
+      // their failure cards remain resolvable after reload and recovery.
+      markEmbedAsError(embedData.embed_id, "cancelled");
+      const { embedStore } = await import("./embedStore");
+      embedStore.removeFromMemoryCache(`embed:${embedData.embed_id}`);
     } else {
       // ============================================================
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
@@ -4345,8 +4235,9 @@ export async function handleSendEmbedDataImpl(
               type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
-              version_number: embedData.version_number,
+              version_number: embedData.version_number ?? 1,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
             },
@@ -4435,7 +4326,7 @@ export async function handleSendEmbedDataImpl(
           hashed_message_id: hashedMessageId,
           embed_ids: embedData.embed_ids,
           parent_embed_id: embedData.parent_embed_id,
-          version_number: embedData.version_number,
+          version_number: embedData.version_number ?? 1,
           file_path: embedData.file_path,
           content_hash: embedData.content_hash,
           text_length_chars: embedData.text_length_chars,
@@ -4462,6 +4353,7 @@ export async function handleSendEmbedDataImpl(
               type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
@@ -4507,6 +4399,7 @@ export async function handleSendEmbedDataImpl(
               embed_id: embedData.embed_id,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
@@ -4782,7 +4675,8 @@ export async function handleSendEmbedDataImpl(
           serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
             detail: { embed_id: embedData.embed_id, type: embedData.type,
               chat_id: embedData.chat_id, message_id: embedData.message_id,
-              status: embedData.status, version_number: embedData.version_number,
+              task_id: embedData.task_id,
+              status: embedData.status, version_number: embedData.version_number ?? 1,
               child_embed_ids: embedData.embed_ids, isProcessing: false },
           }));
           return;
@@ -4952,7 +4846,7 @@ export async function handleSendEmbedDataImpl(
         hashed_task_id: hashedTaskId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         file_path: embedData.file_path,
         content_hash: embedData.content_hash,
         text_length_chars: embedData.text_length_chars,
@@ -5042,7 +4936,7 @@ export async function handleSendEmbedDataImpl(
         hashed_user_id: hashedUserId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         file_path: embedData.file_path,
         content_hash: embedData.content_hash,
         text_length_chars: embedData.text_length_chars,
@@ -5074,16 +4968,22 @@ export async function handleSendEmbedDataImpl(
           throw new Error("sendStoreEmbedImpl function not found");
         }
 
-        await sendStoreFunction(serviceInstance, storePayload, embedKeysPayload, canonicalLease);
-        console.info(
-          `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
+        const durableHead = await sendStoreFunction(
+          serviceInstance, storePayload, embedKeysPayload, canonicalLease, "stream-completion",
         );
+        if (durableHead) {
+          console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in Directus`);
+        } else {
+          console.debug(`[ChatSyncService:AI] Queued encrypted embed ${embedData.embed_id} for canonical recovery`);
+        }
 
         await persistClientEncryptedEmbedDiffRows(
           serviceInstance,
           embedData,
           embedKey,
           hashedUserId,
+          !isChildEmbed && Number(embedData.version_number ?? 1) > 1,
+          durableHead,
         );
 
         // Parent wrappers travel with the head in the durable sender queue.
@@ -5092,7 +4992,7 @@ export async function handleSendEmbedDataImpl(
             `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
           );
         }
-        if (!isChildEmbed && preExtractedMetadata?.app_id && preExtractedMetadata?.skill_id) {
+        if (durableHead && !isChildEmbed && preExtractedMetadata?.app_id && preExtractedMetadata?.skill_id) {
           // Also project a legacy root when it is re-synced on a device that
           // never had its local Apps catalog backfilled. The endpoint verifies
           // the persisted embed's chat and selected account before indexing.
@@ -5146,8 +5046,9 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
-            version_number: embedData.version_number,
+            version_number: embedData.version_number ?? 1,
             child_embed_ids: embedData.embed_ids,
             isProcessing: false,
           },
@@ -5187,6 +5088,7 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
             child_embed_ids: embedData.embed_ids,
             isProcessing: false,

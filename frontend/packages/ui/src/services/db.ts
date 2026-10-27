@@ -89,6 +89,10 @@ const isDateValue = (value: unknown): value is Date => value instanceof Date;
  */
 export interface PendingEmbedOperation {
   operation_id: string;
+  /** Absent on legacy rows, which are treated as pending. */
+  state?: "pending" | "conflict" | "denied";
+  failure_code?: string;
+  origin?: string;
   embed_id: string;
   store_embed_payload: StoreEmbedPayload;
   store_embed_keys_payload?: { keys: Array<Record<string, unknown>> };
@@ -2019,6 +2023,14 @@ class ChatDatabase {
     return chatCrudOps.getRawChat(this, chat_id, transaction);
   }
 
+  async saveChatDraftFields(
+    chatId: string,
+    fields: chatCrudOps.ChatDraftFields,
+    missingRow?: Chat,
+  ): Promise<Chat | null> {
+    return chatCrudOps.saveChatDraftFields(this, chatId, fields, missingRow);
+  }
+
   async upsertRawChat(
     chat: Chat,
     transaction?: IDBTransaction,
@@ -2071,6 +2083,19 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<{ deletedEmbedIds: string[] }> {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
+  }
+
+  async deleteEmptyVoiceCallChat(chatId: string, guard: chatCrudOps.EmptyCallLocalDeletionGuard): Promise<{deleted:boolean;deletedEmbedIds:string[]}> {
+    return chatCrudOps.deleteEmptyVoiceCallChat(this, chatId, guard);
+  }
+
+  async deleteDraftOnlyChat(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId);
+    if (result.deleted && result.deletedEmbedIds.length > 0) {
+      const { embedStore } = await import("./embedStore");
+      for (const embedId of result.deletedEmbedIds) embedStore.removeFromMemoryCache(`embed:${embedId}`);
+    }
+    return result;
   }
 
   async deleteChatIfNoPendingTurn(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
@@ -2494,8 +2519,9 @@ class ChatDatabase {
   async deleteOfflineChange(
     change_id: string,
     transaction?: IDBTransaction,
+    expected?: { queueOrder: number | undefined; queueToken?: string },
   ): Promise<void> {
-    return offlineOps.deleteOfflineChange(this, change_id, transaction);
+    return offlineOps.deleteOfflineChange(this, change_id, transaction, expected);
   }
 
   // ============================================================================
@@ -2860,7 +2886,7 @@ class ChatDatabase {
 
   async storeAppSettingsMemoriesEntries(
     entries: appSettingsMemoriesOps.AppSettingsMemoriesEntry[],
-  ): Promise<void> {
+  ): Promise<appSettingsMemoriesOps.AppSettingsMemoriesApplyOutcome> {
     return appSettingsMemoriesOps.storeAppSettingsMemoriesEntries(
       this,
       entries,

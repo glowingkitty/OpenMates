@@ -1,9 +1,10 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { expectFocusedChatWheelScroll } from '../helpers/chat-scroll';
 
-const first = 'example-example-chat-task-planning';
-const second = 'example-deutschlandticket-train-fare-breakdown';
+const first = 'example-gigantic-airplanes';
+const second = 'example-building-maintenance-email';
 
 for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.surface.semantic-parity
@@ -41,5 +42,8 @@ for (const width of [390, 1280]) {
     await expect(field).toHaveAttribute('data-focused', 'true');
     await page.keyboard.type('Manual entry remains available');
     await expect(editor).toContainText('Manual entry remains available');
+    await test.step('Scroll the conversation in both directions while typing stays active', async () => {
+      await expectFocusedChatWheelScroll(page);
+    });
   });
 }

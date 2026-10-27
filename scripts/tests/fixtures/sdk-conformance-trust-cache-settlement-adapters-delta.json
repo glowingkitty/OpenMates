@@ -1,0 +1,1192 @@
+{
+  "afterCounts": {
+    "contracts": 71,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 276
+  },
+  "afterSha256": "1fe90fffdff3feee2ddf60edfd129c6ed799a9e45b743f71e84bfa018e30bcff",
+  "beforeCounts": {
+    "contracts": 69,
+    "gaps": 177,
+    "plan": 87,
+    "programs": 270
+  },
+  "beforeSha256": "036118443e4ae84c808bb4d0e3163f6dfa97222c72a0b87a3c1eaf70bef48f6d",
+  "consentSourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3",
+  "fixtureWitnesses": [
+    {
+      "addedDeniedVector": {
+        "allow_private_operations": false,
+        "expected_checks": [
+          "explicit-native-session",
+          "bounded-metadata-requests",
+          "bounded-window-requests",
+          "exact-window-query"
+        ],
+        "expected_error": "forbidden",
+        "expected_message_ids": [
+          "10000000-0000-4000-8000-000000000003",
+          "10000000-0000-4000-8000-000000000004"
+        ],
+        "expected_messages": [
+          {
+            "content": "Synthetic page message 3 \u96ea",
+            "embeds": [],
+            "id": "10000000-0000-4000-8000-000000000003",
+            "role": "user",
+            "sender": "Fixture sender",
+            "thinking": "Synthetic thinking 3"
+          },
+          {
+            "content": "Synthetic page message 4 \u96ea",
+            "embeds": [],
+            "id": "10000000-0000-4000-8000-000000000004",
+            "role": "assistant",
+            "sender": "Fixture sender",
+            "thinking": "Synthetic thinking 4"
+          }
+        ],
+        "expected_metadata_requests": 1,
+        "expected_public_paging": {
+          "anchorFound": true,
+          "chat": {
+            "category": "general",
+            "id": "22222222-2222-4222-8222-222222222222",
+            "title": "Synthetic bounded chat"
+          },
+          "endCursor": {
+            "createdAt": 1700000004,
+            "messageId": "10000000-0000-4000-8000-000000000004"
+          },
+          "hasMoreAfter": false,
+          "hasMoreBefore": true,
+          "historyComplete": false,
+          "messagesVersion": 4,
+          "oversizedMessage": false,
+          "oversizedMessageCursor": null,
+          "payloadBytes": 991,
+          "piiRestoration": "page_local",
+          "serverMessageCount": 4,
+          "startCursor": {
+            "createdAt": 1700000003,
+            "messageId": "10000000-0000-4000-8000-000000000003"
+          }
+        },
+        "expected_result_flags": {
+          "historyComplete": false,
+          "piiRestoration": "page_local"
+        },
+        "expected_window_requests": 1,
+        "id": "window-private-policy-denied",
+        "mode": "private_denied",
+        "options": {
+          "direction": "latest",
+          "limit": 2,
+          "respectCompressionBoundary": true
+        }
+      },
+      "afterRawSha256": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+      "beforeRawSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+      "beforeSemanticSha256": "bdaa037d6db9cf729d3cabd51691bae157fea388f10f0cf9f7223afb0f5ac7ef",
+      "capability": "session.message-window.v1",
+      "path": "tests/sdk-conformance/fixtures/session-message-window.json",
+      "priorVectorCount": 24,
+      "priorVectorsSha256": "41d4ee6cfef16adc22d134eebba7aa949f434c731851e456550c7ad557da93b5"
+    },
+    {
+      "addedDeniedVector": {
+        "allow_private_operations": false,
+        "expected_checks": [
+          "exact-window-query",
+          "explicit-native-session",
+          "bounded-metadata-requests",
+          "bounded-window-requests"
+        ],
+        "expected_error": "forbidden",
+        "expected_exact_requests": 0,
+        "expected_messages": [
+          {
+            "content": "Hello [OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+            "embeds": [],
+            "id": "10000000-0000-4000-8000-000000000064",
+            "role": "user",
+            "sender": "",
+            "thinking": ""
+          },
+          {
+            "content": "Again [OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+            "embeds": [],
+            "id": "10000000-0000-4000-8000-000000000065",
+            "role": "user",
+            "sender": "",
+            "thinking": ""
+          }
+        ],
+        "expected_metadata_requests": 1,
+        "expected_public_paging": {
+          "anchorFound": true,
+          "chat": {
+            "category": "general",
+            "id": "22222222-2222-4222-8222-222222222222",
+            "messages": [
+              {
+                "content": "Hello [OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+                "embeds": [],
+                "id": "10000000-0000-4000-8000-000000000064",
+                "role": "user",
+                "sender": "",
+                "thinking": ""
+              },
+              {
+                "content": "Again [OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+                "embeds": [],
+                "id": "10000000-0000-4000-8000-000000000065",
+                "role": "user",
+                "sender": "",
+                "thinking": ""
+              }
+            ],
+            "title": "Synthetic bounded chat"
+          },
+          "chatMetadata": {
+            "activeFocusId": null,
+            "category": "general",
+            "chatVisibility": null,
+            "createdAt": null,
+            "followUpSuggestions": null,
+            "hasDraft": null,
+            "id": "22222222-2222-4222-8222-222222222222",
+            "isHidden": null,
+            "isSubChat": null,
+            "lastEditedAt": null,
+            "metadataUpdatedAt": null,
+            "parentId": null,
+            "participantUserHashes": null,
+            "pinned": null,
+            "slug": null,
+            "summary": null,
+            "title": "Synthetic bounded chat"
+          },
+          "contentMode": "stored",
+          "endCursor": {
+            "chatId": "22222222-2222-4222-8222-222222222222",
+            "createdAt": 1700000065,
+            "messageId": "10000000-0000-4000-8000-000000000065",
+            "scope": "<scope>"
+          },
+          "hasMoreAfter": false,
+          "hasMoreBefore": true,
+          "historyComplete": false,
+          "messageMetadata": [
+            {
+              "category": null,
+              "chatId": "22222222-2222-4222-8222-222222222222",
+              "clientMessageId": "10000000-0000-4000-8000-000000000064",
+              "createdAt": 1700000064,
+              "embedIds": null,
+              "hasThinking": null,
+              "hashedUserId": null,
+              "id": "10000000-0000-4000-8000-000000000064",
+              "keyVersion": null,
+              "modelName": null,
+              "queueDispatchMode": null,
+              "queueDispatchStatus": null,
+              "queueDispatchTaskId": null,
+              "queueMode": null,
+              "queueRevision": null,
+              "rawStatus": null,
+              "senderName": null,
+              "sourceMessageId": null,
+              "storageId": "10000000-0000-4000-8000-000000000064",
+              "thinkingSignature": null,
+              "thinkingTokenCount": null,
+              "userMessageId": null
+            },
+            {
+              "category": null,
+              "chatId": "22222222-2222-4222-8222-222222222222",
+              "clientMessageId": "10000000-0000-4000-8000-000000000065",
+              "createdAt": 1700000065,
+              "embedIds": null,
+              "hasThinking": null,
+              "hashedUserId": null,
+              "id": "10000000-0000-4000-8000-000000000065",
+              "keyVersion": null,
+              "modelName": null,
+              "queueDispatchMode": null,
+              "queueDispatchStatus": null,
+              "queueDispatchTaskId": null,
+              "queueMode": null,
+              "queueRevision": null,
+              "rawStatus": null,
+              "senderName": null,
+              "sourceMessageId": null,
+              "storageId": "10000000-0000-4000-8000-000000000065",
+              "thinkingSignature": null,
+              "thinkingTokenCount": null,
+              "userMessageId": null
+            }
+          ],
+          "messagesVersion": 65,
+          "oversizedMessage": false,
+          "oversizedMessageCursor": null,
+          "pagesRead": 1,
+          "payloadBytes": 844,
+          "piiMappingsByMessageId": {
+            "10000000-0000-4000-8000-000000000064": [
+              {
+                "original": "Synthetic Alice",
+                "placeholder": "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]"
+              }
+            ]
+          },
+          "piiRestoration": "stored",
+          "serverMessageCount": 65,
+          "startCursor": {
+            "chatId": "22222222-2222-4222-8222-222222222222",
+            "createdAt": 1700000064,
+            "messageId": "10000000-0000-4000-8000-000000000064",
+            "scope": "<scope>"
+          }
+        },
+        "expected_window_requests": 1,
+        "id": "saved-read-private-policy-denied",
+        "mode": "private_denied",
+        "options": {
+          "contentMode": "stored",
+          "limit": 2
+        },
+        "requests": [
+          {
+            "body": {
+              "chat_ids": [
+                "22222222-2222-4222-8222-222222222222"
+              ]
+            },
+            "method": "POST",
+            "path": "/v1/chats/metadata/batch",
+            "reply": {
+              "chats": [
+                {
+                  "encrypted_category": "T02HJLFl7bLNO3TJma9w8LcF8tYMLwRr6Fi+kPi2+smHrBY6EBFdNHE=",
+                  "encrypted_chat_key": "T00JE61lJK3zAQKPLRb/InSZ2UraSfLWhMwvGpRRB3uR+/mBRGPtc6crCfU+yp6lY8pf59bI7vrsYt478IEDZicz",
+                  "encrypted_title": "T02HJLFlqvIyBkYQgFmoerUB69PTKDjOv2zjcZvH7JDXmFHw6tgi/vtzMUeSXLIzUISXB/dx9fs=",
+                  "id": "22222222-2222-4222-8222-222222222222",
+                  "messages_v": 65
+                }
+              ]
+            }
+          },
+          {
+            "method": "GET",
+            "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+            "query": {
+              "direction": [
+                "latest"
+              ],
+              "limit": [
+                "2"
+              ],
+              "respect_compression_boundary": [
+                "true"
+              ]
+            },
+            "reply": {
+              "anchor_found": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "end_cursor": {
+                "created_at": 1700000065,
+                "message_id": "10000000-0000-4000-8000-000000000065"
+              },
+              "has_more_after": false,
+              "has_more_before": true,
+              "messages": [
+                {
+                  "chat_id": "22222222-2222-4222-8222-222222222222",
+                  "client_message_id": "10000000-0000-4000-8000-000000000064",
+                  "created_at": 1700000064,
+                  "encrypted_content": "T02HJLFlfXjmg6h0yZy0+a8HUXRcgDJBfDjyPgO9BGfnbKug6flDB2eLLbCVUVLWRNjJAYbE1Wmr+OUMPXbvFRLO2x5759WNQYmjbHs2rC9C",
+                  "encrypted_pii_mappings": "T02HJLFlXpqMX/fG+tyezKAh8PFupfkTgkIOZZVuyzRrYVXjxzcukyOYcWdDkpkqVeJsml+CNTnYyCC2eJuuOa8xT0hRmF6NSAUKiz2+HQ9KyKdoBoqGKq/Ix7COmNOL1KgqDuwLjcimnE1j6o+jC5V/jeDpHNPjtuIX0Ru2Sg==",
+                  "id": "10000000-0000-4000-8000-000000000064",
+                  "role": "user"
+                },
+                {
+                  "chat_id": "22222222-2222-4222-8222-222222222222",
+                  "client_message_id": "10000000-0000-4000-8000-000000000065",
+                  "created_at": 1700000065,
+                  "encrypted_content": "T02HJLFld+Ft3YQlj0nOMkhCQbkbCgi22lkqupnplgUYxQAZRTJgc2+EUkcW1eeUaEqYkzUSnUCVGGs2we2g0UkqRLBohMeBs26URHCLbxkL",
+                  "id": "10000000-0000-4000-8000-000000000065",
+                  "role": "user"
+                }
+              ],
+              "messages_v": 65,
+              "oversized_message": false,
+              "oversized_message_cursor": null,
+              "payload_bytes": 844,
+              "server_message_count": 65,
+              "start_cursor": {
+                "created_at": 1700000064,
+                "message_id": "10000000-0000-4000-8000-000000000064"
+              }
+            }
+          }
+        ]
+      },
+      "afterRawSha256": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+      "beforeRawSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
+      "beforeSemanticSha256": "e5a237f0a32dc67ebdb1c7bf07c4ca2bbe8369b2b61db27077988660ec45ec3b",
+      "capability": "session.saved-chat-read.v1",
+      "path": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+      "priorVectorCount": 54,
+      "priorVectorsSha256": "e27c46a8b1b3d101be97a256560112a920439bd204a1a80a1350000966942654"
+    }
+  ],
+  "gapsUnchanged": true,
+  "metadataUnchanged": true,
+  "nativeExecutions": 0,
+  "oldPlansSha256": "ae4edb73a756e0a9b00ba27151a854cfd39f816cfc9b54a1b9c712ffe24ca028",
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "6e86f44395330e07a8d8e59812d631979f52479c724413b704388e55907d36a9",
+        "before": "e0901e5900e72946da6beb61c1c0baaeff13ffb14f2a2af904a772ff48416097"
+      },
+      "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json": {
+        "after": "5c6edb387a94ffca1d04d0a806a4d9e9d3ab5ffc706483a509899a828919b227",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/session-message-window.json": {
+        "after": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+        "before": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556"
+      },
+      "tests/sdk-conformance/fixtures/session-saved-chat-read.json": {
+        "after": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+        "before": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5"
+      },
+      "tests/sdk-conformance/schemas/session-cache-preferred-settlement.schema.json": {
+        "after": "305026eefa397d800abba141b6827cecb3d249e3fb486e63bfa00c551557719e",
+        "before": null
+      }
+    },
+    "programs": {
+      "packages/openmates-session-bindings/examples/session-cache-preferred-settlement-conformance.rs": {
+        "after": "eebb0c7417bae0f5ed923bf1ad5f00fc8e948fcda4d7e813952e337e8c6fca90",
+        "before": null
+      },
+      "packages/openmates-session-bindings/examples/session-message-window-conformance.rs": {
+        "after": "d4cea094ba89752b2dc214727bd4702b546959eac55d19c9eede14ab1c84cf05",
+        "before": "1441657064259e5379b2fcd105c8639bf45d30050c5b9ea9819b3e2a46b36565"
+      },
+      "packages/openmates-session-bindings/examples/session-saved-chat-read-conformance.rs": {
+        "after": "6375b6028e6a460e8f984e6fe7465736c80daf6178f6e176046a955123e2cf57",
+        "before": "d6110b850a3401a8d41c2bbc9124d9287138f6619c3f98264caac99cbec0504e"
+      },
+      "scripts/check_sdk_conformance.py": {
+        "after": "36b8c274b6ddd8a04dc3a78c887c65b74186c4d1f4221311baf73c8fcdbcca9b",
+        "before": "522282f549986e1094b11e11d3b2c881865340aec591d95cd2145e312c1229cc"
+      },
+      "tests/sdk-conformance/cache_settlement_peer.py": {
+        "after": "74260073aa550f1066d994940b998f46175fd9d817ec75d1ad3b11c6a41eed11",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-cache-preferred-settlement.mjs": {
+        "after": "28e865fe5e475da87860ff3322ad9283f490d9d940c5b3a91694c487573823c4",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-cache-preferred-settlement.py": {
+        "after": "b6c33c40d42fa7d48ebf5bb2ef05e341a68330ba4be479f8712ed761344b8df5",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-message-window.mjs": {
+        "after": "d028c32640b857c6278e148e6d14c0522441abb0155764df071626b389202eab",
+        "before": "2a99e1ea39b36322a6115019b9f1b2855c9ae5526edbc546d8a5a32aa69eacd5"
+      },
+      "tests/sdk-conformance/runners/session-message-window.py": {
+        "after": "06234e7df3c7ca11b697eb2c30caf8bdd90771d78e12a5503dbeca293b760cd0",
+        "before": "1b387bbdfb931b1f8d0e2cd0bdb0696ffcf98d69812d67131748fae90bd95dcc"
+      },
+      "tests/sdk-conformance/runners/session-saved-chat-read.mjs": {
+        "after": "bb1ebabf54c8e800538bc8bbf629998a9924a7570adb07805adfded47c1b9c00",
+        "before": "571805c32dda7c66dc69bfcfc8e60b3f49c711ffc00376ae5acb2761ed4698ac"
+      },
+      "tests/sdk-conformance/runners/session-saved-chat-read.py": {
+        "after": "58a9361378ed2630801db1db8e32b37f74ba4919432ad14f491b14d8a0b93544",
+        "before": "79ec226802967d808b4f790e7877dc5bca4001cca0a302e9ba0fdec4f7a110a4"
+      },
+      "tests/sdk-conformance/test_cache_settlement_contract.py": {
+        "after": "a5006f1bc985ce0bd27fbfb69bb861a6035b73d571e477cf5af37fedf77f7ede",
+        "before": null
+      },
+      "tests/sdk-conformance/test_message_window_peer.py": {
+        "after": "f01d53a3828e9fc4d9ae31c455212d6f853aaa666b6d9c71c61d832fda8aa0ad",
+        "before": "c11c9ee5aa494a16aea16be5e2104e66df91696bc79518aad0bf06efe48a3568"
+      },
+      "tests/sdk-conformance/test_saved_read_private_policy.py": {
+        "after": "5b20018a362052caf5a1469afe9b84c9e74fb07e1fc2f435982df4f691d6cafe",
+        "before": null
+      }
+    }
+  },
+  "planAdded": [
+    {
+      "capability": "session.cache-preferred-settlement.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json",
+      "fixtureSha256": "5c6edb387a94ffca1d04d0a806a4d9e9d3ab5ffc706483a509899a828919b227",
+      "language": "rust",
+      "vectors": [
+        "discarded-stage",
+        "explicit-consent",
+        "monitor-exact-ack",
+        "selected-denied",
+        "selected-exact-ack",
+        "selected-wrong-hash",
+        "selected-wrong-revision",
+        "stale-a-active-b"
+      ]
+    },
+    {
+      "capability": "session.cache-preferred-settlement.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json",
+      "fixtureSha256": "5c6edb387a94ffca1d04d0a806a4d9e9d3ab5ffc706483a509899a828919b227",
+      "language": "npm",
+      "vectors": [
+        "discarded-stage",
+        "explicit-consent",
+        "monitor-exact-ack",
+        "selected-denied",
+        "selected-exact-ack",
+        "selected-wrong-hash",
+        "selected-wrong-revision",
+        "stale-a-active-b"
+      ]
+    },
+    {
+      "capability": "session.cache-preferred-settlement.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json",
+      "fixtureSha256": "5c6edb387a94ffca1d04d0a806a4d9e9d3ab5ffc706483a509899a828919b227",
+      "language": "python",
+      "vectors": [
+        "discarded-stage",
+        "explicit-consent",
+        "monitor-exact-ack",
+        "selected-denied",
+        "selected-exact-ack",
+        "selected-wrong-hash",
+        "selected-wrong-revision",
+        "stale-a-active-b"
+      ]
+    }
+  ],
+  "planChanged": [
+    {
+      "after": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+        "language": "rust",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-private-policy-denied",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "before": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+        "language": "rust",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "index": 72
+    },
+    {
+      "after": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+        "language": "npm",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-private-policy-denied",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "before": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+        "language": "npm",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "index": 73
+    },
+    {
+      "after": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+        "language": "python",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-private-policy-denied",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "before": {
+        "capability": "session.message-window.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+        "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+        "language": "python",
+        "vectors": [
+          "window-after",
+          "window-around",
+          "window-around-alias",
+          "window-around-false-nonempty",
+          "window-around-missing",
+          "window-around-oversized",
+          "window-around-wrong-anchor",
+          "window-around-wrong-oversized-anchor",
+          "window-bad-input-cursor",
+          "window-bad-response-cursor",
+          "window-before",
+          "window-cancel",
+          "window-forbidden-context",
+          "window-latest",
+          "window-noauth",
+          "window-over-bytes",
+          "window-over-rows",
+          "window-page-local-maps",
+          "window-page-local-unknown",
+          "window-partial-cache",
+          "window-tamper",
+          "window-wrong-chat",
+          "window-wrong-key",
+          "window-wrong-scope"
+        ]
+      },
+      "index": 74
+    },
+    {
+      "after": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+        "language": "rust",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "saved-read-private-policy-denied",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "before": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
+        "language": "rust",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "index": 75
+    },
+    {
+      "after": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+        "language": "npm",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "saved-read-private-policy-denied",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "before": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
+        "language": "npm",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "index": 76
+    },
+    {
+      "after": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+        "language": "python",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "saved-read-private-policy-denied",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "before": {
+        "capability": "session.saved-chat-read.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+        "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
+        "language": "python",
+        "vectors": [
+          "after-live-cursor-two-pages",
+          "around-missing-target-stays-empty",
+          "around-one-page-authoritative-target",
+          "around-oversized-no-implicit-exact",
+          "bad-mode",
+          "before-live-cursor",
+          "bounded-30-keeps-full-65-cache",
+          "browser-one-page-underfilled-budget",
+          "cancel-before-publication",
+          "compression-boundary-change-before-publish",
+          "compression-disabled",
+          "compression-terminal-short",
+          "default-30-from-65",
+          "exact-cancel-before-publish",
+          "exact-foreign-chat-cursor",
+          "exact-over-two-mib",
+          "exact-owner-denial-before-publish",
+          "exact-returned-id-mismatch",
+          "exact-returned-timestamp-mismatch",
+          "exact-stale-live-scope",
+          "explicit-30-from-65",
+          "first-100-terminates-at-65",
+          "fractional",
+          "invalid-header-timestamp-no-clock",
+          "invalid-page-byte-claim",
+          "invalid-response-cursor",
+          "malformed-encrypted-model",
+          "malformed-thinking-flag",
+          "metadata-version-change-before-publish",
+          "missing-created-at",
+          "mixed-window-selectors",
+          "negative-queue-revision",
+          "over-100",
+          "over-page-budget",
+          "oversized-explicit-exact",
+          "owner-loss-before-publish",
+          "page-local-restores-from-older-loaded-page",
+          "page_local-assistant-map-preserved-unused",
+          "page_local-known-pii",
+          "page_local-unknown-pii",
+          "projected-header-exact-limit",
+          "projected-header-one-over-limit",
+          "rich-authoritative-metadata",
+          "stored-assistant-map-preserved-unused",
+          "stored-empty-mapping-field-preserves-presence",
+          "stored-known-pii",
+          "stored-unknown-pii",
+          "string-created-at-no-clock",
+          "unknown-field",
+          "unsafe-created-at-no-rounding",
+          "unsafe-queue-revision",
+          "zero",
+          "zero-created-at-preserved",
+          "zero-page-budget"
+        ]
+      },
+      "index": 77
+    }
+  ],
+  "private": true,
+  "registrationScope": "Root source CLEAR: exact cache conformance V3 nine-path proposal and private-read explicit-consent ten-path proposal. Required conformance scheduling does not claim passed execution or implementation.",
+  "releaseEligible": false,
+  "reviewedSourceClosure": [
+    {
+      "bucket": "contracts",
+      "path": "config/sdk-capabilities.json",
+      "sha256": "6e86f44395330e07a8d8e59812d631979f52479c724413b704388e55907d36a9",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/examples/session-cache-preferred-settlement-conformance.rs",
+      "sha256": "eebb0c7417bae0f5ed923bf1ad5f00fc8e948fcda4d7e813952e337e8c6fca90",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "scripts/check_sdk_conformance.py",
+      "sha256": "36b8c274b6ddd8a04dc3a78c887c65b74186c4d1f4221311baf73c8fcdbcca9b",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/cache_settlement_peer.py",
+      "sha256": "74260073aa550f1066d994940b998f46175fd9d817ec75d1ad3b11c6a41eed11",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json",
+      "sha256": "5c6edb387a94ffca1d04d0a806a4d9e9d3ab5ffc706483a509899a828919b227",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-cache-preferred-settlement.mjs",
+      "sha256": "28e865fe5e475da87860ff3322ad9283f490d9d940c5b3a91694c487573823c4",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-cache-preferred-settlement.py",
+      "sha256": "b6c33c40d42fa7d48ebf5bb2ef05e341a68330ba4be479f8712ed761344b8df5",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/schemas/session-cache-preferred-settlement.schema.json",
+      "sha256": "305026eefa397d800abba141b6827cecb3d249e3fb486e63bfa00c551557719e",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/test_cache_settlement_contract.py",
+      "sha256": "a5006f1bc985ce0bd27fbfb69bb861a6035b73d571e477cf5af37fedf77f7ede",
+      "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/examples/session-message-window-conformance.rs",
+      "sha256": "d4cea094ba89752b2dc214727bd4702b546959eac55d19c9eede14ab1c84cf05",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/examples/session-saved-chat-read-conformance.rs",
+      "sha256": "6375b6028e6a460e8f984e6fe7465736c80daf6178f6e176046a955123e2cf57",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/fixtures/session-message-window.json",
+      "sha256": "949f5770729563c4da69fa04c4737fd05ebc8775b89c91d2310333506421d593",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+      "sha256": "bc97dd750c9250e9b3eb88ab12e30f2a67c5197851564dff929bdb8e961b0473",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-message-window.mjs",
+      "sha256": "d028c32640b857c6278e148e6d14c0522441abb0155764df071626b389202eab",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-message-window.py",
+      "sha256": "06234e7df3c7ca11b697eb2c30caf8bdd90771d78e12a5503dbeca293b760cd0",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-saved-chat-read.mjs",
+      "sha256": "bb1ebabf54c8e800538bc8bbf629998a9924a7570adb07805adfded47c1b9c00",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/runners/session-saved-chat-read.py",
+      "sha256": "58a9361378ed2630801db1db8e32b37f74ba4919432ad14f491b14d8a0b93544",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/test_message_window_peer.py",
+      "sha256": "f01d53a3828e9fc4d9ae31c455212d6f853aaa666b6d9c71c61d832fda8aa0ad",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/test_saved_read_private_policy.py",
+      "sha256": "5b20018a362052caf5a1469afe9b84c9e74fb07e1fc2f435982df4f691d6cafe",
+      "sourceProposalSha256": "407f0eaee5ed2c6f3e56d9c7f89b9c41a42d506aa09e28f8fa7997bcd1432eb3"
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceProposalSha256": "1e8cf77964ac97b42a869e29edbbc478999ceb8fb4e694fb7da3cd63f6c1cee2"
+}

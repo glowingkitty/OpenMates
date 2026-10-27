@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
+  import { normalizeEventResult, type EventResult } from './eventResult';
   import EventEmbedPreview from './EventEmbedPreview.svelte';
   import EventEmbedFullscreen from './EventEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -33,72 +34,9 @@
   /** Map backend provider slugs to human-readable display names. */
   function getProviderLabel(slug: string): string {
     switch (slug?.toLowerCase()) {
-      case 'meetup':              return 'Meetup';
-      case 'luma':                return 'Luma';
-      case 'eventbrite':          return 'Eventbrite';
       case 'google_events':       return 'Google';
-      case 'resident_advisor':    return 'Resident Advisor';
-      case 'siegessaeule':        return 'Siegessäule';
-      case 'classictic':          return 'Classictic';
-      case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':           return 'Bachtrack';
       default:                    return slug || '';
     }
-  }
-
-  interface EventResult {
-    embed_id: string;
-    id?: string;
-    provider?: string;
-    title?: string;
-    description?: string;
-    url?: string;
-    date_start?: string;
-    date_end?: string;
-    timezone?: string;
-    event_type?: string;
-    venue?: {
-      name?: string;
-      address?: string;
-      city?: string;
-      state?: string;
-      country?: string;
-      lat?: number;
-      lon?: number;
-    };
-    organizer?: {
-      id?: string;
-      name?: string;
-      slug?: string;
-    };
-    rsvp_count?: number;
-    is_paid?: boolean;
-    fee?: {
-      amount?: number;
-      currency?: string;
-    };
-    image_url?: string | null;
-    cover_url?: string | null;
-  }
-
-  /** Legacy result shape from .preview.ts files (no embed_id yet) */
-  interface LegacyEventResult {
-    id?: string;
-    provider?: string;
-    title?: string;
-    description?: string;
-    url?: string;
-    date_start?: string;
-    date_end?: string;
-    timezone?: string;
-    event_type?: string;
-    venue?: EventResult['venue'];
-    organizer?: EventResult['organizer'];
-    rsvp_count?: number;
-    is_paid?: boolean;
-    fee?: EventResult['fee'];
-    image_url?: string | null;
-    cover_url?: string | null;
   }
 
   interface Props {
@@ -205,92 +143,10 @@
    * Assigns a synthetic embed_id so the results grid works correctly.
    */
   function transformLegacyResults(results: unknown[]): EventResult[] {
-    return (results as LegacyEventResult[]).map((r, i) => ({
-      embed_id: `legacy-event-${i}`,
-      id:          r.id,
-      provider:    r.provider,
-      title:       r.title,
-      description: r.description,
-      url:         r.url,
-      date_start:  r.date_start,
-      date_end:    r.date_end,
-      timezone:    r.timezone,
-      event_type:  r.event_type,
-      venue:       r.venue,
-      organizer:   r.organizer,
-      rsvp_count:  r.rsvp_count,
-      is_paid:     r.is_paid,
-      fee:         r.fee,
-      image_url:   r.image_url,
-      cover_url:   r.cover_url,
-    }));
+    return (results as Record<string, unknown>[]).map((result, index) => normalizeEventResult(result, `legacy-event-${index}`));
   }
 
-  /**
-   * Transform raw embed content to EventResult format.
-   * Handles both native nested objects and TOON-flattened keys.
-   */
-  function transformToEventResult(childEmbedId: string, content: Record<string, unknown>): EventResult {
-    let venue: EventResult['venue'] | undefined;
-    if (content.venue && typeof content.venue === 'object') {
-      const v = content.venue as Record<string, unknown>;
-      venue = {
-        name:    v.name    as string | undefined,
-        address: v.address as string | undefined,
-        city:    v.city    as string | undefined,
-        state:   v.state   as string | undefined,
-        country: v.country as string | undefined,
-        lat:     v.lat     as number | undefined,
-        lon:     v.lon     as number | undefined,
-      };
-    } else if (content.venue_city || content.venue_country) {
-      venue = {
-        name:    content.venue_name    as string | undefined,
-        address: content.venue_address as string | undefined,
-        city:    content.venue_city    as string | undefined,
-        state:   content.venue_state   as string | undefined,
-        country: content.venue_country as string | undefined,
-        lat:     content.venue_lat     as number | undefined,
-        lon:     content.venue_lon     as number | undefined,
-      };
-    }
-
-    let fee: EventResult['fee'] | undefined;
-    if (content.fee && typeof content.fee === 'object') {
-      const f = content.fee as Record<string, unknown>;
-      fee = { amount: f.amount as number | undefined, currency: f.currency as string | undefined };
-    } else if (content.fee_amount != null) {
-      fee = { amount: content.fee_amount as number | undefined, currency: content.fee_currency as string | undefined };
-    }
-
-    let organizer: EventResult['organizer'] | undefined;
-    if (content.organizer && typeof content.organizer === 'object') {
-      const o = content.organizer as Record<string, unknown>;
-      organizer = { id: o.id as string | undefined, name: o.name as string | undefined, slug: o.slug as string | undefined };
-    } else if (content.organizer_name) {
-      organizer = { id: content.organizer_id as string | undefined, name: content.organizer_name as string | undefined, slug: content.organizer_slug as string | undefined };
-    }
-
-    return {
-      embed_id:    childEmbedId,
-      id:          content.id          as string | undefined,
-      provider:    content.provider    as string | undefined,
-      title:       content.title       as string | undefined,
-      description: content.description as string | undefined,
-      url:         content.url         as string | undefined,
-      date_start:  content.date_start  as string | undefined,
-      date_end:    content.date_end    as string | undefined,
-      timezone:    content.timezone    as string | undefined,
-      event_type:  content.event_type  as string | undefined,
-      venue,
-      organizer,
-      rsvp_count:  content.rsvp_count  as number | undefined,
-      is_paid:     content.is_paid     as boolean | undefined,
-      fee,
-      image_url:   content.image_url   as string | null | undefined,
-      cover_url:   content.cover_url   as string | null | undefined,
-    };
-  }
+  const transformToEventResult = (childEmbedId: string, content: Record<string, unknown>) => normalizeEventResult(content, childEmbedId);
 
   /**
    * Handle embed data updates during streaming.

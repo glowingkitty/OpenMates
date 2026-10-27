@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 import json
 import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -161,6 +162,9 @@ async def test_anonymous_postprocessor_skips_provider_when_quote_denied(monkeypa
 
 @pytest.fixture(autouse=True)
 def use_in_process_anonymous_meter(monkeypatch: pytest.MonkeyPatch) -> None:
+    # These direct-function tests exercise the local-ID and shared ledger
+    # limits themselves, independently of SlowAPI's process-wide HTTP counter.
+    monkeypatch.setattr(anonymous_routes.limiter, "enabled", False, raising=False)
     monkeypatch.setattr(
         anonymous_routes,
         "_anonymous_usage_service",
@@ -254,14 +258,19 @@ def test_anonymous_chat_offers_inline_search_but_no_file_or_system_tools() -> No
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content,apps.anonymous.cli-equivalent-gate
-async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("first_id", [None, "guest-1"])
+@pytest.mark.parametrize("identity_cap,expected_reason", [(100, "budget_exhausted"), (10, "per_identity_exhausted")])
+async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(
+    monkeypatch: pytest.MonkeyPatch, first_id: str | None, identity_cap: int, expected_reason: str,
+) -> None:
     from backend.shared.python_utils import app_skill_output_safety
 
     directus = FakeDirectus()
+    cache = FakeCache()
     service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
     await service.save_budget(
-        enabled=True, monthly_budget_credits=100, daily_hard_cap_percent=10,
-        weekly_cap_percent=50, per_identity_daily_cap_credits=100,
+        enabled=True, monthly_budget_credits=100 if identity_cap == 100 else 1000, daily_hard_cap_percent=10,
+        weekly_cap_percent=50, per_identity_daily_cap_credits=identity_cap,
         admin_user_id="admin-1",
     )
     skill = SimpleNamespace(
@@ -292,16 +301,20 @@ async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monke
     monkeypatch.setattr(app_skill_output_safety, "sanitize_app_skill_output", lambda result, _context: asyncio.sleep(0, result=result))
     request = Request({
         "type": "http", "method": "POST", "path": "/v1/anonymous/apps/web/skills/search",
-        "headers": [(b"host", b"api.dev.openmates.org"), (b"x-openmates-anonymous-id", b"guest-1")],
+        "headers": [(b"host", b"api.dev.openmates.org")] + ([(b"x-openmates-anonymous-id", first_id.encode())] if first_id else []),
         "client": ("198.51.100.7", 443),
         "app": SimpleNamespace(state=SimpleNamespace(secrets_manager=None)),
     })
     body = {"requests": [{"query": "test query"}]}
-    before = await anonymous_routes.anonymous_app_skill_availability(request, "web", "search", body, directus, FakeCache())
+    before = await anonymous_routes.anonymous_app_skill_availability(request, "web", "search", body, directus, cache)
     assert before.allowed is True
     assert not dispatched
     assert (await service.get_budget_status()).daily_used_credits == 0
-    first = await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
+    # Status polling shares this IP, but must leave execution admissions intact.
+    for _ in range(25):
+        status = await anonymous_routes.get_anonymous_free_usage_status(request, None, directus, cache)
+        assert status.active is True
+    first = await anonymous_app_skill(request, "web", "search", body, directus, cache)
     assert first["credits_charged"] == 6
     assert len(dispatched) == 1
     assert dispatched[0] == body
@@ -309,16 +322,19 @@ async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monke
     assert {collection for collection, _ in directus.created_payloads} <= {
         "anonymous_free_usage_budget", "anonymous_free_usage_identity_daily", "anonymous_free_usage_reservations",
     }
-    after = await anonymous_routes.anonymous_app_skill_availability(request, "web", "search", body, directus, FakeCache())
-    assert after.allowed is False
-    assert after.reason in {"budget_exhausted", "per_identity_exhausted"}
+    for next_id in (None, "rotated-guest"):
+        rotated = Request({**request.scope, "headers": [(b"host", b"api.dev.openmates.org")] +
+                           ([(b"x-openmates-anonymous-id", next_id.encode())] if next_id else [])})
+        after = await anonymous_routes.anonymous_app_skill_availability(rotated, "web", "search", body, directus, cache)
+        assert after.allowed is False
+        assert after.reason == expected_reason
+        with pytest.raises(HTTPException) as exc_info:
+            await anonymous_app_skill(rotated, "web", "search", body, directus, cache)
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.detail["code"] == expected_reason
+        assert exc_info.value.detail["signup_required"] is True
     assert len(dispatched) == 1
     assert (await service.get_budget_status()).daily_used_credits == 6
-    with pytest.raises(HTTPException) as exc_info:
-        await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
-    assert exc_info.value.status_code == 429
-    assert exc_info.value.detail["code"] == "budget_exhausted"
-    assert len(dispatched) == 1
 
 
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
@@ -697,7 +713,7 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     body = "".join([chunk.decode() if isinstance(chunk, bytes) else str(chunk) async for chunk in response.body_iterator])
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final = next(event for event in events if event.get("is_final_chunk"))
-    expected = "Create an account to keep using OpenMates."
+    expected = anonymous_routes.ANONYMOUS_USAGE_LIMIT_MESSAGE
     retained = snapshots.get(snapshot_kind, "").replace(STANDARDIZED_USER_ERROR_MESSAGE, "").rstrip()
     if retained:
         expected = f"{retained}\n\n{expected}"
@@ -706,6 +722,7 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     if snapshot_kind.endswith("disclaimer"):
         assert disclaimer in final["full_content_so_far"]
     assert final["rejection_reason"] == "anonymous_usage_limit"
+    assert final["signup_required"] is True
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
 
@@ -841,7 +858,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
     expected_content = (
-        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\nCreate an account to keep using OpenMates."
+        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\n{anonymous_routes.ANONYMOUS_USAGE_LIMIT_MESSAGE}"
         if failure_reason else snapshots[-1]
     )
     assert final_chunk["full_content_so_far"] == expected_content
@@ -1138,7 +1155,7 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
-async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_anonymous_sse_admits_before_opening_response(monkeypatch: pytest.MonkeyPatch) -> None:
     reserve_started = asyncio.Event()
     release_reservation = asyncio.Event()
 
@@ -1188,7 +1205,11 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
         plaintext_message="Reply after delayed reservation",
     )
 
-    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
+    response_task = asyncio.create_task(anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache()))
+    await asyncio.wait_for(reserve_started.wait(), timeout=0.5)
+    assert response_task.done() is False
+    release_reservation.set()
+    response = await asyncio.wait_for(response_task, timeout=0.5)
     iterator = response.body_iterator
     first = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
     second = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
@@ -1198,19 +1219,14 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
     assert typing_event["type"] == "ai_typing_started"
     assert typing_event["title"] == "Reply after delayed reservation"
 
-    third_chunk_task = asyncio.create_task(iterator.__anext__())
-    await asyncio.wait_for(reserve_started.wait(), timeout=0.5)
-    await asyncio.sleep(0)
-    assert third_chunk_task.done() is False
-
-    release_reservation.set()
-    third = await asyncio.wait_for(third_chunk_task, timeout=0.5)
+    third = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
     assert json.loads(str(third).removeprefix("data: "))["type"] == "ai_message_chunk"
 
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
-async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("caller_id", [None, "anon-1"])
+async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch: pytest.MonkeyPatch, caller_id: str | None) -> None:
     directus = FakeDirectus()
     service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
     await service.save_budget(
@@ -1251,7 +1267,7 @@ async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch
         }
     )
     payload = AnonymousChatStreamRequest(
-        anonymous_id="anon-1",
+        anonymous_id=caller_id,
         client_chat_id="chat-1",
         client_message_id="message-1",
         plaintext_message="Reply with exactly: anonymous json ok",
@@ -1323,3 +1339,113 @@ async def test_anonymous_json_does_not_double_finalize_worker_usage(
     assert response.assistant == "anonymous json ok"
     assert response.creditsCharged == 5
     assert "Anonymous free usage reservation finalization failed" not in caplog.text
+
+
+@pytest.mark.parametrize("peer", ["8.8.8.8", None, "invalid"])
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_untrusted_peers_cannot_select_forwarded_ip(peer: str | None) -> None:
+    request = Request({"type": "http", "headers": [(b"x-real-ip", b"1.1.1.1"),
+                       (b"x-forwarded-for", b"9.9.9.9")], "client": (peer, 123) if peer else None})
+    assert anonymous_routes._anonymous_client_ip(request) == (peer if peer == "8.8.8.8" else "unknown")
+
+
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_chat_caller_identity_is_optional() -> None:
+    payload = AnonymousChatStreamRequest(client_chat_id="chat", client_message_id="message", plaintext_message="Hello")
+    assert payload.anonymous_id is None
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_headerless_meter_failure_is_distinct_from_signup(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fail_meter(self: AnonymousFreeUsageService, **kwargs: Any) -> Any:
+        raise RuntimeError("meter unavailable")
+
+    monkeypatch.setattr(AnonymousFreeUsageService, "open_request", fail_meter)
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    request = Request({"type": "http", "method": "POST", "path": "/v1/anonymous/chat/stream",
+                       "headers": [], "client": ("8.8.8.8", 123)})
+    payload = AnonymousChatStreamRequest(client_chat_id="chat", client_message_id="message", plaintext_message="Hello")
+    with pytest.raises(HTTPException) as exc_info:
+        await anonymous_chat_stream(request, payload, FakeDirectus(), FakeCache())
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail["code"] == "anonymous_meter_unavailable"
+    assert "signup_required" not in exc_info.value.detail
+
+
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_proxy_uses_managed_forwarding_header_not_caller_real_ip() -> None:
+    request = Request({"type": "http", "headers": [(b"x-real-ip", b"1.1.1.1"),
+                       (b"x-forwarded-for", b"8.8.8.8")], "client": ("127.0.0.1", 123)})
+    assert anonymous_routes._anonymous_client_ip(request) == "8.8.8.8"
+    no_forwarding = Request({**request.scope, "headers": [(b"x-real-ip", b"1.1.1.1")]})
+    assert anonymous_routes._anonymous_client_ip(no_forwarding) == "127.0.0.1"
+
+
+@pytest.mark.parametrize("forwarded", ["", "not-an-ip", "8.8.8.8, 9.9.9.9", "8.8.8.8,", "{remote}"])
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_malformed_or_chained_forwarding_uses_stable_peer(forwarded: str) -> None:
+    request = Request({"type": "http", "headers": [(b"x-real-ip", b"1.1.1.1"),
+                       (b"x-forwarded-for", forwarded.encode())], "client": ("::1", 123)})
+    assert anonymous_routes._anonymous_client_ip(request) == "::1"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_ip_status_and_execution_rate_buckets_are_independent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.shared.python_utils import app_skill_output_safety
+
+    cache = FakeCache()
+    directus = FakeDirectus()
+    service = AnonymousFreeUsageService(
+        directus_service=directus, cache_service=cache, hmac_secret="rate-test-secret",
+        now_provider=lambda: datetime(2026, 10, 19, tzinfo=timezone.utc),
+    )
+    await service.save_budget(enabled=True, monthly_budget_credits=1000, daily_hard_cap_percent=100,
+                              weekly_cap_percent=100, per_identity_daily_cap_credits=400, admin_user_id="admin")
+    monkeypatch.setattr(anonymous_routes, "_anonymous_usage_service", lambda *_args: service)
+    monkeypatch.setattr(anonymous_routes, "_require_official_cloud", lambda _request: None)
+    skill = SimpleNamespace(
+        id="search", internal=False, anonymous_access="inline", api_config=None,
+        pricing=SimpleNamespace(model_dump=lambda **_kwargs: {"per_unit": {"credits": 1}}),
+        providers=[], full_model_reference=None,
+        model_dump=lambda: {"id": "search", "anonymous_access": "inline", "internal": False},
+    )
+    dispatched: list[dict] = []
+
+    async def dispatch(_app: str, _skill: str, body: dict) -> dict:
+        dispatched.append(body)
+        return {"success": True, "data": {"results": [{"title": "Example"}]}}
+
+    fake_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_registry_module.get_global_registry = lambda: SimpleNamespace(
+        get_metadata=lambda _app: SimpleNamespace(skills=[skill]),
+        is_skill_available=lambda *_args: True, dispatch_skill=dispatch,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_registry_module)
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_app_skill_output", lambda result, _context: asyncio.sleep(0, result=result))
+    body = {"requests": [{"query": "test query"}]}
+
+    def request(caller_id: str | None = None) -> Request:
+        return Request({"type": "http", "method": "POST", "path": "/v1/anonymous/apps/web/skills/search",
+                        "headers": [(b"x-openmates-anonymous-id", caller_id.encode())] if caller_id else [],
+                        "client": ("8.8.8.8", 443), "app": SimpleNamespace(state=SimpleNamespace(secrets_manager=None))})
+
+    # Polling over twenty times leaves all execution admissions available.
+    for _ in range(25):
+        assert (await anonymous_routes.get_anonymous_free_usage_status(request(), None, directus, cache)).active
+    for index in range(20):
+        result = await anonymous_app_skill(request(f"rotated-{index}" if index % 2 else None), "web", "search", body, directus, cache)
+        assert result["credits_charged"] == 1
+    with pytest.raises(HTTPException) as execution_error:
+        await anonymous_app_skill(request("another-guest"), "web", "search", body, directus, cache)
+    assert execution_error.value.status_code == 429
+    assert execution_error.value.detail["code"] == "rate_limited"
+    assert len(dispatched) == 20
+    # Availability and GET status share the sixty-check allowance independently.
+    for _ in range(35):
+        assert (await anonymous_routes.anonymous_app_skill_availability(request(), "web", "search", body, directus, cache)).allowed
+    with pytest.raises(HTTPException) as status_error:
+        await anonymous_routes.get_anonymous_free_usage_status(request(), None, directus, cache)
+    assert status_error.value.status_code == 429
+    assert status_error.value.detail["code"] == "rate_limited"

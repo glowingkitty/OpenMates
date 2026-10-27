@@ -141,12 +141,20 @@ Require all of these before updating the backend:
 - `Publish Self-Host Images` for the merge SHA is completed with conclusion `success`.
 - The intended frontend deployment for `open-mates-webapp` has `status Ready`, or the release is backend-only. A production alias is not a prerequisite for the backend update.
 - The deployment metadata matches the merge SHA when available.
-- For new frontend dependencies, the previous compatible frontend remains on `https://openmates.org` until the backend/setup and affected flow checks above pass.
+- For new frontend dependencies, the previous compatible frontend remains on `https://app.openmates.org` until the backend/setup and affected flow checks above pass.
 
-After those checks pass, promote the reviewed frontend using the configured
-Vercel workflow and require `target production`, `status Ready`, alias
-`https://openmates.org`, and matching release metadata. Repeat the affected flow
-on the alias before declaring the release usable. Backend-first compatibility
+Every production web app release, including a frontend-only hotfix, must keep
+automatic production domain assignment disabled and use the browser gate in
+[production-webapp-gate.md](../../../docs/contributing/guides/production-webapp-gate.md).
+Build with production settings and `--skip-domain`. After compatibility checks,
+run `python3 scripts/promote_production_webapp.py --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
+The helper checks the exact candidate and the live `https://app.openmates.org`
+in fresh laptop/phone browsers, requires rendered and interactive login controls,
+and fails on console errors or unhandled exceptions. Failed candidate checks
+block promotion; failed live checks restore the previous alias. Retain and
+review its receipt, screenshots and recordings. Vercel Ready or HTTP 200 alone
+cannot complete the release. Repeat the affected flow on the alias as well.
+Backend-first compatibility
 must include support for the frontend still serving during the update; a
 breaking contract needs an explicitly coordinated release plan.
 

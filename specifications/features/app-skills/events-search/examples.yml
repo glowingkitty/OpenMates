@@ -1,132 +1,63 @@
 schema_version: 1
 specification: feature.app-skill.events-search@1
-
-requests:
-  - id: city-search
-    input: {requests: [{id: berlin, query: technology, location: Berlin, event_type: PHYSICAL, count: 10}]}
-    expect: {accepted: true, group_ids: [berlin]}
-  - id: mixed-validity-batch
-    input: {requests: [{id: valid, query: AI, location: Berlin}, malformed]}
-    expect: {valid_group_preserved: true, malformed_item_error_visible: true}
-  - id: online-without-location
-    given: Alice asks for online Rust workshops and supplies a date range but no city.
-    when: The events search validates and routes the request.
-    then: The request is accepted without invented coordinates, location-scoped providers are skipped, and location-free providers may return online events within the requested dates.
-    assertion_ids: [events-search.request.validated]
-
-provider_routing:
-  - id: explicit-eventbrite
-    given: Alice explicitly asks to search Eventbrite for technology events in Berlin.
-    when: The request is routed with Eventbrite selected.
-    then: Only Eventbrite is queried, semantic provider routing is not invoked, and a provider failure does not silently broaden the search to auto mode.
-    assertion_ids: [events-search.providers.explicit]
-  - id: unknown-provider
-    input: {provider: Unknown, requests: [{query: technology, location: Berlin}]}
-    expect_error: {visible: true, auto_fallback: false}
-  - id: queried-without-hits
-    input: {providers: [Meetup, Luma], requests: [{query: uncommon topic, location: Berlin}]}
-    expect: {providers_include: [meetup, luma]}
-  - id: deterministic-and-ambiguous-auto-routing
-    given: Alice submits two auto searches without naming platforms, one for AI meetups in Berlin and one for an underground dance gathering whose specialist relevance is unclear.
-    when: Both requests pass deterministic provider eligibility and topic checks.
-    then: The AI request uses general event sources without unrelated specialists, while the ambiguous request may use one bounded semantic decision that scores only eligible specialist sources and cannot add a provider outside the request's region or capabilities.
-    assertion_ids: [events-search.providers.auto-relevance]
-  - id: auto-routing-decision-unavailable
-    given: An auto search has eligible general event sources but the optional semantic provider decision times out or returns malformed output.
-    when: Provider routing falls back.
-    then: The deterministic general search continues successfully, no raw decision diagnostics are exposed, and explicit-provider behavior remains unchanged.
-    assertion_ids: [events-search.providers.auto-relevance]
-
-results:
-  - id: booking-url-fallback
-    provider_event: {title: Event, url: null, booking_url: https://example.com/book, provider: meetup, date_start: "2026-08-25T19:00:00+02:00"}
-    expect: {url: https://example.com/book, retained: true, external_text_scanned: true}
-  - id: unusable-event
-    provider_event: {title: Event, url: null, booking_url: null, provider: meetup, date_start: "2026-08-25T19:00:00+02:00"}
-    expect: {retained: false}
-
-relevance_ranking:
-  - id: ordinary-chat-promotion-goal
-    given: Alice says, "Show me AI events in Berlin in the coming weeks where I can promote my AI software."
-    when: The assistant prepares the events search request.
-    then: It preserves Berlin, the future date window, and physical-event constraints as structured fields and supplies concise relevance criteria about AI-community fit, networking, product feedback, and plausible organizer engagement.
-    assertion_ids: [events-search.relevance.activation]
-  - id: plain-event-search
-    given: Alice asks, "Show me AI events in Berlin next week."
-    when: The assistant prepares the events search request.
-    then: It may omit relevance criteria and does not invent promotion, speaking, price, accessibility, or networking goals.
-    assertion_ids: [events-search.relevance.activation]
-  - id: forty-candidate-default-count
-    input: {requests: [{query: AI, location: Berlin, count: 10, relevance_criteria: Events suitable for meeting AI software builders and organizers}]}
-    given: Applicable providers return at least forty valid events including cross-provider duplicates.
-    then: Hard filters and deduplication run before one Jev decision ranks no more than forty candidates and returns no more than ten events.
-    expect: {hard_filters_applied_first: true, duplicates_removed_before_ranking: true, maximum_candidates_ranked: 40, maximum_results_returned: 10, jev_calls: 1}
-    assertion_ids: [events-search.relevance.bounded-candidates]
-  - id: larger-explicit-count
-    input: {requests: [{query: AI, location: Berlin, count: 50, relevance_criteria: Events suitable for meeting AI software builders}]}
-    given: Applicable providers support at least fifty valid unique events.
-    then: The candidate target and maximum final result count expand to the explicitly requested fifty.
-    expect: {candidate_target: 50, maximum_results_returned: 50}
-    assertion_ids: [events-search.relevance.bounded-candidates]
-  - id: hard-filter-cannot-be-reintroduced
-    given: An otherwise promising event is outside the requested date window and another candidate does not state whether organizers accept talks.
-    when: Candidates are filtered and ranked.
-    then: The out-of-window event remains excluded regardless of score and the missing organizer fact is treated as unknown rather than favorable.
-    assertion_ids: [events-search.relevance.evidence-ranking]
-  - id: title-keywords-are-insufficient
-    given: A robotics search finds a hands-on robotics workshop, a broader embodied-AI engineering meetup, and unrelated AI-consciousness film, generic business-AI, and health-tech events.
-    when: Jev scores the candidates against the robotics topic and engineering audience goal.
-    then: The robotics workshop ranks first, the defensibly related embodied-AI meetup may remain, unrelated events are omitted, and the response returns fewer than the requested count instead of padding the list.
-    assertion_ids: [events-search.relevance.evidence-ranking]
-  - id: omitted-criteria-preserves-existing-order
-    given: An otherwise valid events request omits relevance criteria.
-    when: Providers return events.
-    then: No Jev ranking call occurs and existing event ordering is preserved.
-    assertion_ids: [events-search.relevance.safe-fallback]
-  - id: ranking-failure-preserves-search
-    given: Event providers return valid candidates but Jev times out or returns incomplete scores.
-    when: The result group is finalized.
-    then: The successful search is preserved in existing event order, remains bounded by count, and exposes no raw Jev diagnostics.
-    assertion_ids: [events-search.relevance.safe-fallback]
-
-enrichment:
-  - id: finalists-enriched-after-selection
-    given: Several providers return lightweight candidates for an auto search whose requested result count is ten.
-    when: Structured filters, deduplication, and any requested relevance ranking select the candidates that may enter the response.
-    then: Full event details and missing venue coordinates are fetched only for those selected candidates, while returned events preserve the same actionable result fields and enriched text remains safety-scanned.
-    assertion_ids: [events-search.enrichment.deferred]
-  - id: enrichment-failure-preserves-actionable-event
-    given: A selected event already has a title, source URL, provider, and start time but its optional detail page or venue geocoder is unavailable.
-    when: Final enrichment is attempted.
-    then: The actionable event remains in the bounded response with its available fields instead of being discarded or delaying independent provider results.
-    assertion_ids: [events-search.enrichment.deferred]
-
-conferences:
-  - id: conference-only
-    input: {provider: GPN24, requests: [{conference: GPN24}]}
-    expect: {accepted: true, past_events: false}
-  - id: conference-topic
-    input: {provider: GPN24, requests: [{conference: GPN24, query: AI}]}
-    expect: {topic_filter_preserved: AI}
-
-performance:
-  - id: warmed-direct-cli
-    command: openmates apps events search --input <JSON> --json
-    environment: controlled_dev
-    expect: {typical_max_seconds: 5, hard_deadline_seconds: 10, output_safety: enabled}
-  - id: stalled-provider-preserves-partial-results
-    given: Several selected providers return valid events while one provider stalls beyond its internal deadline.
-    when: The auto search reaches its provider-work deadline.
-    then: Completed provider results are returned with a safe warning, pending provider work is stopped, and the successful batch is not repeated in full.
-    assertion_ids: [events-search.performance.bounded]
-
-surface_parity:
-  - id: two-date-ranges
-    given: The same two grouped date-range searches are submitted through direct CLI and assistant surfaces.
-    input:
-      requests:
-        - {id: first, query: tech, location: Berlin, start_date: "2026-06-20T00:00:00+02:00", end_date: "2026-06-21T23:59:59+02:00"}
-        - {id: second, query: tech, location: Berlin, start_date: "2026-06-27T00:00:00+02:00", end_date: "2026-06-28T23:59:59+02:00"}
-    expect: {groups: 2, date_ranges_preserved: true, web_grouped_map_resolves: true}
-    then: Both surfaces preserve the same request grouping, date ranges, optional relevance field, final-count behavior, and structured event result schema.
-    assertion_ids: [events-search.surface-parity]
+boundary_and_history:
+- id: events-search-request-validated
+  given: Alice requests a known conference schedule and separately a general event near her city.
+  when: The batch is validated and routed.
+  then: The known schedule can run while general discovery returns unavailable without a provider fallback.
+  assertion_ids:
+  - events-search.request.validated
+- id: events-search-providers-explicit
+  given: Alice explicitly selects an unavailable event provider.
+  when: Events search processes that request.
+  then: It returns an error without invoking another source or pretending that zero events matched.
+  assertion_ids:
+  - events-search.providers.explicit
+- id: events-search-results-actionable
+  given: A conference schedule contains one valid session and one entry without an actionable URL.
+  when: The sessions are normalized.
+  then: The valid session remains and the invalid entry is omitted without fabricating a link.
+  assertion_ids:
+  - events-search.results.actionable
+- id: events-search-relevance-activation
+  given: Alice asks for sessions on a topic without any ranking goal.
+  when: The supported conference is searched.
+  then: The request preserves schedule ordering and makes no relevance-ranking decision.
+  assertion_ids:
+  - events-search.relevance.activation
+- id: events-search-relevance-bounded-candidates
+  given: A supported conference offers fewer sessions than the requested result count.
+  when: The bounded candidates are filtered and ranked.
+  then: The result stays smaller rather than adding unrelated events or fetching another platform.
+  assertion_ids:
+  - events-search.relevance.bounded-candidates
+- id: events-search-relevance-evidence-ranking
+  given: A robotics goal yields a hands-on robotics session and an unrelated general talk.
+  when: The supported conference candidates are ranked.
+  then: The relevant session can remain while unrelated material is omitted without invented format evidence.
+  assertion_ids:
+  - events-search.relevance.evidence-ranking
+- id: events-search-relevance-safe-fallback
+  given: A valid schedule is available but its ranking decision times out.
+  when: The request finalizes.
+  then: The supported sessions remain in deterministic order with no raw model error.
+  assertion_ids:
+  - events-search.relevance.safe-fallback
+- id: events-search-conference-supported
+  given: Alice selects a supported Congress schedule and leaves topic blank.
+  when: The schedule is searched with past_events omitted.
+  then: Current or future sessions can return in the requested group and past sessions remain excluded.
+  assertion_ids:
+  - events-search.conference.supported
+- id: events-search-output-sanitized
+  given: A conference description contains an instruction to disclose private chat data.
+  when: The result is prepared for display and the assistant.
+  then: The external text cannot authorize an action and required safety processing remains active.
+  assertion_ids:
+  - events-search.output.sanitized
+- id: events-search-surface-parity
+  given: Alice requests the same supported schedule through REST and CLI and opens its saved cards on web.
+  when: The request succeeds using the conference source.
+  then: The filters, result groups and source evidence agree while unrelated general discovery remains unavailable.
+  assertion_ids:
+  - events-search.surface-parity

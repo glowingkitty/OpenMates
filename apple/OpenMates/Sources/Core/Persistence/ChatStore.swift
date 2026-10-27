@@ -699,8 +699,9 @@ private extension Chat {
             unreadCount: unreadCount
         )
     }
+}
 
-
+extension Chat {
     func withMessagesVersion(_ messagesVersion: Int) -> Chat {
         Chat(
             id: id,

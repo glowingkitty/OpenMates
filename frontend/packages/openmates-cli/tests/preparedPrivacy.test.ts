@@ -10,7 +10,7 @@ const memories = [{ id: 'private-value', app_id: 'privacy', item_type: 'personal
   { id: 'categories', app_id: 'privacy', item_type: 'pii_detection_settings', data: { categories: { email_addresses: false } } }] as DecryptedMemoryEntry[];
 
 // contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy
- test('prepared privacy retains compiled real entries with sliding expiry and exact scope/preferences binding', () => {
+test('prepared privacy retains compiled real entries with sliding expiry and exact scope/preferences binding', () => {
   let now = 1;
   const cache = new PreparedPrivacyCache(() => now);
   cache.set('account-api-session-device-team-key', 'prefs-a', 'generation-a', memories);
@@ -32,7 +32,7 @@ const memories = [{ id: 'private-value', app_id: 'privacy', item_type: 'personal
  });
 
 // contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy
- test('compiled personal values preserve configured detector policy and reversible encrypted mapping input', async () => {
+test('compiled personal values preserve configured detector policy and reversible encrypted mapping input', async () => {
   const compiled = compileCliPrivacy(memories);
   const prepared = await prepareCliMessagePrivacy('Harriet Finch lives at 14 Sample Road; contact public@example.org', memories, [], { kind: 'message' }, undefined, compiled);
   assert.equal(prepared.message.includes('Harriet Finch'), false);

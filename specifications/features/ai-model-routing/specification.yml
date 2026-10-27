@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 6
+version: 9
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -11,12 +11,14 @@ summary: >
 
 scope:
   includes:
+    - Independent preprocessing reasoning recommendations resolved through verified model and hosting-server controls.
+    - Current, affordable automatic recovery and a consistent answer-only retry after suppressed model-generated tool protocol.
     - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
     - Four-level request classification (low, medium, high, max), preserving the existing Simple, Complex, and Most demanding user preference buckets.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
     - Unauthenticated read-only discovery of available model metadata through the public model catalog.
-    - Provider-specific user-facing model variants such as Gemini 3.7 Flash and Gemini 3.7 Flash (High).
+    - Provider-specific user-facing model variants and their supported reasoning profiles.
     - Per-user, per-chat exact-model selection, encrypted persistence, cross-device convergence, and restore on chat load.
     - Composer Auto/model selection, exact-model and alias mention synchronization, and unavailable-model recovery.
     - Consolidated composer attachment menu and responsive model-selector presentation shown by the approved redesign.
@@ -72,10 +74,17 @@ models:
       type: provider_specific_defaults
       required: true
       constraints:
-        low: {model: google/gemini-3.8-flash, thinking_level: LOW}
+        low: {model: inception/mercury-3, reasoning_effort: medium, fallback_model: google/gemini-3.8-flash, fallback_thinking_level: LOW}
         medium: {model: google/gemini-3.8-flash, thinking_level: MEDIUM}
         high: {model: google/gemini-3.8-flash, thinking_level: HIGH}
         max: {model: google/gemini-4-argon, thinking_level: HIGH}
+
+  ReasoningRecommendation:
+    requested_level:
+      type: enum
+      values: [LOW, MEDIUM, HIGH, EXTRA_HIGH]
+      required: false
+      constraints: {independent_of_complexity: true, not_model_selection_provenance: true, missing_or_invalid_preserves_defaults: true}
 
   ModelCatalogEntry:
     identity:
@@ -94,7 +103,7 @@ models:
     provider_reasoning:
       type: provider_specific_configuration
       required: false
-      constraints: {not_exposed_as_generic_user_control: true, supported_values_only: true}
+      constraints: {not_exposed_as_generic_user_control: true, supported_values_only: true, verified_per_model_and_server: true, fixed_variants_preserved: true}
     availability:
       type: route_health
       required: true
@@ -257,7 +266,7 @@ assertions:
     depends_on: [models.RequestTier, examples.early_resolution]
   - id: ai-model-routing.tiers.conservative-three-way
     type: behavior
-    must: Automatic model routing classifies each request as low, medium, high, or max. Low covers ordinary Q&A, retrieval and straightforward transformations; medium covers bounded multi-step reasoning and synthesis; high covers intricate debugging, proofs and sustained reasoning across interacting constraints. Max requires sustained multi-stage reasoning plus an exceptional complexity or correctness factor; prompt length, stated importance, tool use, attachments or dissatisfaction alone never qualify. Uncertainty between high and max resolves to high, and malformed classification resolves to medium.
+    must: Automatic model routing classifies each request as low, medium, high, or max using the reasoning the main assistant must perform. Low covers ordinary Q&A, retrieval, straightforward transformations and known-query reference-image searches whose comparison is delegated to an app skill; medium covers bounded multi-step reasoning and synthesis; high covers intricate debugging, proofs and sustained reasoning across interacting constraints. Delegated candidate counts, reference-image counts and tool-internal evaluation alone do not raise the assistant tier. Max requires sustained multi-stage reasoning plus an exceptional complexity or correctness factor; prompt length, stated importance, tool use, attachments or dissatisfaction alone never qualify. Uncertainty between high and max resolves to high, and malformed classification resolves to medium. Existing exact-model and saved-tier preferences and automatic thinking profiles retain precedence.
     depends_on: [models.RequestTier, examples.tier_classification]
   - id: ai-model-routing.preferences.exclusive-tier-defaults
     type: invariant
@@ -273,8 +282,16 @@ assertions:
     depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
-    must: Automatic defaults use Gemini 3.8 Flash with Google LOW, MEDIUM and HIGH thinking for low, medium and high requests respectively, and Gemini 4 Argon with HIGH thinking for max. These levels remain provider-specific configuration; exact chat selections and saved preference-bucket choices take precedence without receiving an automatic thinking override.
+    must: Automatic low-complexity text requests use direct Inception Mercury 3 with MEDIUM reasoning by default, with Gemini 3.8 Flash LOW recovery for unavailable or ineligible Mercury when no separate reasoning recommendation is present. Mercury main-answer LOW, MEDIUM and HIGH attempts respectively have first-substantive-output deadlines of 5, 15 and 60 seconds and combined reasoning-plus-answer caps of 8192, 16384 and 32768 tokens, reduced by any smaller existing credit or output limit before reservation. Usage or reasoning metadata alone does not satisfy that deadline. Published answer content is never silently replayed from another model. Unsupported modalities use an eligible Gemini route. Medium and high remain Gemini 3.8 Flash MEDIUM and HIGH; max remains Gemini 4 Argon HIGH. Exact chat selections, saved preference-bucket choices and model/provider restrictions retain precedence; reasoning settings remain provider-specific.
     depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.default_profiles]
+  - id: ai-model-routing.recovery.affordable-current-models
+    type: failure
+    must: Automatic recovery preserves the configured tier default, then uses only eligible current Gemini 3.8 Flash and inexpensive Mercury 3 routes in that order, omitting duplicate models and honoring disabled models, providers, servers and actual input capabilities. Rankings cannot add older Gemini 3.7 or premium paid models to this chain. Mercury recovery defaults to MEDIUM reasoning, carries the separate preprocessing recommendation when present, and never drops images or documents to admit a text-only model. After model-generated tool protocol is suppressed, one clean answer-only retry first retains the current model, disables native tools, removes tool-dispatch and tool-selection instructions, preserves safety, verified evidence and published text, and only then uses the next eligible configured model. Recovery remains bounded and exhaustion reports failure without an unapproved model or duplicated published text. Explicit model and preference-bucket choices retain precedence.
+    depends_on: [examples.answer_recovery]
+  - id: ai-model-routing.reasoning.preprocessor-recommendation
+    type: behavior
+    must: Jev may recommend LOW, MEDIUM, HIGH or EXTRA_HIGH reasoning independently of request complexity in its existing preprocessing pass. LOW is reserved for trivial work, MEDIUM is the normal recommendation, and HIGH or EXTRA_HIGH is selective. A missing or malformed recommendation does not invalidate otherwise valid routing or trigger a separate generative pass. The recommendation survives continuation and answer recovery, is resolved separately for each actual model and hosting server using verified supported controls, and unsupported levels clamp to the declared maximum. Undeclared controls and fixed-effort model variants preserve native defaults. Assigning effort never changes model selection precedence, automatic-route eligibility or provider restrictions.
+    depends_on: [models.ReasoningRecommendation, models.ModelCatalogEntry.provider_reasoning, examples.reasoning_recommendation]
   - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
     type: privacy
     must: An exact composer model choice or Auto is stored per authenticated user and chat, is client-side encrypted before durable sync, converges across that user's devices, is restored before the composer presents its selection, and never changes another chat participant's selection.
@@ -285,8 +302,8 @@ assertions:
     depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
   - id: ai-model-routing.preprocessing.missing-output-recovery
     type: failure
-    must: When a preprocessing provider reports success but returns no required tool call, ordinary retry-enabled preprocessing treats the result as a provider-output failure and tries the next configured preprocessing provider within the existing total deadline; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
-    depends_on: [examples.preprocessing_recovery]
+    must: Jev remains the primary preprocessing decision model. When its decision path is unavailable, generative recovery tries direct Mercury 3 low and then Gemini 3.5 Flash-Lite within the existing bounded deadline. When a generative provider reports success without the required tool output, ordinary retry-enabled preprocessing tries the next configured provider; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
+    depends_on: [examples.preprocessing_recovery_policy]
   - id: ai-model-routing.composer.mention-to-exact-selection
     type: behavior
     must: Selecting or typing an exact model, @best, or @fast resolves to one concrete routable model before send, updates and visibly identifies the chat-scoped selector, removes the redundant model mention from editable message text, and persists the exact model rather than a symbolic alias.
@@ -336,4 +353,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]

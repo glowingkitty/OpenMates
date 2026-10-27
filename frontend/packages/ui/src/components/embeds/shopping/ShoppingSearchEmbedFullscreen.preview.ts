@@ -7,46 +7,47 @@
 
 const sampleResults = [
   {
-    product_id: "rewe-12345",
+    product_id: "ExampleGrocer-12345",
     title: "Bio Vollmilch-Joghurt Naturell",
     brand: "Weihenstephan",
     price_cents: 139,
     price_eur: "1,39 €",
     grammage: "500g (0,28 €/100g)",
-    purchase_url: "https://shop.rewe.de/p/weihenstephan-bio-joghurt/12345",
-    image_url: null,
+    purchase_url: "https://example.com/fixture",
+    image_url: '/store-examples/generate-1.webp',
+    image_urls: '/store-examples/generate-1.webp|/store-examples/events-1.webp|/store-examples/generate-draft-1.webp',
     attributes: { is_organic: true },
   },
   {
-    product_id: "rewe-12346",
+    product_id: "ExampleGrocer-12346",
     title: "Demeter Bio-Joghurt mild",
     brand: "Andechser Natur",
     price_cents: 249,
     price_eur: "2,49 €",
     grammage: "500g (0,50 €/100g)",
-    purchase_url: "https://shop.rewe.de/p/andechser-demeter-joghurt/12346",
+    purchase_url: "https://example.com/fixture",
     image_url: null,
     attributes: { is_organic: true, is_vegetarian: true },
   },
   {
-    product_id: "rewe-12347",
+    product_id: "ExampleGrocer-12347",
     title: "Griechischer Joghurt 10% Fett",
-    brand: "REWE Bio",
+    brand: "ExampleGrocer Bio",
     price_cents: 189,
     price_eur: "1,89 €",
     grammage: "400g (0,47 €/100g)",
-    purchase_url: "https://shop.rewe.de/p/rewe-bio-griechischer-joghurt/12347",
+    purchase_url: "https://example.com/fixture",
     image_url: null,
     attributes: { is_organic: true, is_vegetarian: true },
   },
   {
-    product_id: "rewe-12348",
+    product_id: "ExampleGrocer-12348",
     title: "Skyr Natur 0,2% Fett",
-    brand: "REWE Beste Wahl",
+    brand: "ExampleGrocer Beste Wahl",
     price_cents: 99,
     price_eur: "0,99 €",
     grammage: "450g (0,22 €/100g)",
-    purchase_url: "https://shop.rewe.de/p/rewe-skyr-natur/12348",
+    purchase_url: "https://example.com/fixture",
     image_url: null,
     attributes: { is_vegetarian: true },
   },
@@ -54,10 +55,7 @@ const sampleResults = [
 
 /** Default props — shows a finished shopping search fullscreen with results */
 const defaultProps = {
-  query: "bio joghurt",
-  provider: "REWE",
-  status: "finished" as const,
-  results: sampleResults,
+  data: { decodedContent: { query: "bio joghurt", provider: "ExampleGrocer", status: "finished", results: sampleResults } },
   onClose: () => {},
 };
 
@@ -67,24 +65,18 @@ export default defaultProps;
 export const variants = {
   /** Processing state — searching */
   processing: {
-    query: "wireless headphones",
-    provider: "Amazon",
-    status: "processing" as const,
-    results: [],
+    data: { decodedContent: { query: "wireless headphones", provider: "ExampleRetail", status: "processing", results: [] } },
   },
 
   /** Error state */
   error: {
-    query: "bio joghurt",
-    provider: "REWE",
-    status: "error" as const,
-    results: [],
+    data: { decodedContent: { query: "bio joghurt", provider: "ExampleGrocer", status: "error", results: [] } },
   },
 
-  /** Amazon results */
-  amazon: {
-    query: "noise cancelling headphones",
-    provider: "Amazon",
+  /** ExampleRetail results */
+  ExampleRetail: {
+    data: { decodedContent: { query: "noise cancelling headphones",
+    provider: "ExampleRetail",
     status: "finished" as const,
     results: [
       {
@@ -98,7 +90,7 @@ export const variants = {
         reviews: 3842,
         prime: true,
         image_url: null,
-        purchase_url: "https://www.amazon.de/dp/B0CH7DL6JW",
+        purchase_url: "https://example.com/dp/B0CH7DL6JW",
       },
       {
         asin: "B09JQS53RZ",
@@ -111,7 +103,7 @@ export const variants = {
         reviews: 2156,
         prime: true,
         image_url: null,
-        purchase_url: "https://www.amazon.de/dp/B09JQS53RZ",
+        purchase_url: "https://example.com/dp/B09JQS53RZ",
       },
       {
         asin: "B09JQS53RX",
@@ -124,9 +116,9 @@ export const variants = {
         reviews: 1204,
         prime: false,
         image_url: null,
-        purchase_url: "https://www.amazon.de/dp/B09JQS53RX",
+        purchase_url: "https://example.com/dp/B09JQS53RX",
       },
-    ],
+    ] } },
   },
 
   /** Mobile view */

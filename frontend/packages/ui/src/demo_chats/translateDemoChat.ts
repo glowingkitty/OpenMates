@@ -1,14 +1,6 @@
 import type { DemoChat } from './types';
 import { get } from 'svelte/store';
-import { locale } from 'svelte-i18n';
 import { text } from '../i18n/translations';
-import { 
-	buildPrivacyPolicyContent, 
-	buildTermsOfUseContent, 
-	buildImprintContent,
-	type LegalContentOptions
-} from '../legal/buildLegalContent';
-
 /**
  * Type for translation function
  */
@@ -39,48 +31,6 @@ function normalizeVersionAnnouncementTitle(chatId: string, title: string): strin
 export function translateDemoChat(demoChat: DemoChat): DemoChat {
 	// Use our text store which auto-appends ".text" for the { text: value } JSON wrapper
 	const t = get(text) as TranslationFunction;
-	const currentLocale = get(locale) || 'en';
-	
-	// Legal chats (chat_id starts with 'legal-') build content from translation keys
-	if (demoChat.chat_id.startsWith('legal-')) {
-		let builtContent = '';
-		
-		// Build options for legal content - includes lastUpdated date from metadata
-		// and current locale for date formatting
-		const options: LegalContentOptions = {
-			lastUpdated: demoChat.metadata.lastUpdated || '2026-01-28T00:00:00Z',
-			locale: currentLocale
-		};
-		
-		// Build content based on chat type
-		if (demoChat.chat_id === 'legal-privacy') {
-			builtContent = buildPrivacyPolicyContent(t, options);
-		} else if (demoChat.chat_id === 'legal-terms') {
-			builtContent = buildTermsOfUseContent(t, options);
-		} else if (demoChat.chat_id === 'legal-imprint') {
-			builtContent = buildImprintContent(t);
-		} else {
-			// Fallback: use first message content as-is (shouldn't happen)
-			builtContent = demoChat.messages[0]?.content || '';
-		}
-		
-		return {
-			...demoChat,
-			// Legal chats use translation keys for title/description
-			title: t(demoChat.title),
-			description: t(demoChat.description),
-			// Build content from translation keys
-			messages: [{
-				...demoChat.messages[0],
-				content: builtContent
-			}],
-			// Translate follow-up suggestions if they exist
-			follow_up_suggestions: demoChat.follow_up_suggestions?.map(suggestion => 
-				suggestion.startsWith('legal.') ? t(suggestion) : suggestion
-			)
-		};
-	}
-	
 	// Demo chats use translation keys - translate them
 	const translatedTitle = t(demoChat.title);
 	return {

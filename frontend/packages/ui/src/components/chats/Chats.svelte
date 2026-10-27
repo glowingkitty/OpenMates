@@ -32,7 +32,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getAllExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getAllExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -531,17 +531,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return uniqueChatsById([...allChats, ...allExampleChats]);
 	}
 
-	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
-	// 
-	// ARCHITECTURE:
-	// - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different)
-	// - Example chats: Static hardcoded example chats from exampleChatStore
-	// - Legal chats: Legal documents (privacy, terms, imprint) - only for non-self-hosted
-	//
-	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
-	// For self-hosted instances, legal chats are excluded because operators should provide their own legal docs
-	// Translates demo chats to the user's locale before converting to Chat format
-	// Legal chats skip translation (they use plain text)
+	// Public chat sections contain introductions, examples and tips.
 	let visiblePublicChats = $derived((() => {
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
@@ -612,26 +602,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				return chat;
 			});
 
-		// 4. Legal chats (ONLY for non-self-hosted instances)
-		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
-		// - No imprint: only required for commercial/public-facing websites
-		// - No privacy policy: GDPR "household exemption" applies to personal/private use
-		// - No terms of service: no third-party service relationship exists
-		let legalChats: ChatType[] = [];
-		if (!$isSelfHosted) {
-			// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
-			// Legal chats skip translation (they use plain text, not translation keys)
-			legalChats = LEGAL_CHATS
-				.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
-				.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
-				.map(legal => {
-					const chat = convertDemoChatToChat(legal);
-					chat.group_key = 'legal';
-					return chat;
-				});
-		}
-		
-		return [...introChats, ...exampleChats, ...tipsAndTricksChats, ...legalChats];
+
+		return [...introChats, ...exampleChats, ...tipsAndTricksChats];
 	})());
 
 	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
@@ -643,7 +615,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// ARCHITECTURE:
 	// - Intro chats: Static, bundled with app, stored in INTRO_CHATS array (in-memory)
 	// - Example chats: Static hardcoded example chats from exampleChatStore
-	// - Legal chats: Static, bundled with app, stored in LEGAL_CHATS array (in-memory)
 	// - Real chats: User's actual chats, stored in IndexedDB
 	// - Shared chats: Chats shared with user, stored in IndexedDB (temporary for viewing)
 	// - Incognito chats: Ephemeral chats, stored in sessionStorage
@@ -901,7 +872,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'tips_and_tricks'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -924,7 +895,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
 	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
-	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'tips_and_tricks'];
 
 	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
@@ -1132,7 +1103,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			detail.type === 'post_processing_metadata' ||
 			detail.messagesUpdated === true;
 		if (shouldInvalidateMetadata) {
-			chatMetadataCache.invalidateChat(detail.chat_id);
+			chatMetadataCache.invalidateChat(detail.chat_id, 'metadata-chat-updated');
 		}
 		
 		// Invalidate last message cache if a new message was added
@@ -1713,7 +1684,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// The last message cache may contain stale status (e.g., 'processing' instead of 'synced')
 		// which causes isWaitingForTitle to remain true and show "Sending..." incorrectly
 		if (customEvent.detail?.chat_id) {
-			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
+			chatMetadataCache.invalidateChat(customEvent.detail.chat_id, 'metadata-local-list');
 			chatListCache.invalidateLastMessage(customEvent.detail.chat_id);
 		}
 		
@@ -2129,9 +2100,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
 					// (async race). Writing the old chat ID back here would trigger hashchange →
 					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
-					if (activeChatStore.get() !== null) {
+					const activeChatId = activeChatStore.get();
+					// This event mirrors an already committed selection. Rewriting
+					// the same chat would erase its pending embed/message deep link.
+					if (activeChatId !== null && activeChatId !== newChatId) {
 						activeChatStore.setActiveChat(newChatId);
-					} else {
+					} else if (activeChatId === null) {
 						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
 					}
 				}
@@ -3590,8 +3564,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
             // Find the chat in visiblePublicChats
             const chat = visiblePublicChats.find(c => c.chat_id === chatId);
             if (chat) {
-                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and exampleChatStore
-                const messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
+                // getDemoMessages checks INTRO_CHATS, and exampleChatStore
+                const messages = getDemoMessages(chatId, INTRO_CHATS);
                 return { chat, messages };
             }
             return { chat: null, messages: [] };
@@ -4623,7 +4597,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 
 				<!-- 7. Static chat groups that appear after Events and News -->
-				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
+				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'tips_and_tricks'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 					{#if groupKey === 'examples' && showMoreExampleChatsVisible}
 						<div class="load-more-container">

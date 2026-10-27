@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-queued-followups/specification.yml
+// Assertions: chat-queued-followups.admission.synced, chat-queued-followups.editing.stable-revision
 // Chat and message data models matching the backend schemas.
 // Used for chat list, message display, and streaming AI responses.
 // E2EE fields (encrypted_*) are decrypted client-side using per-chat keys.
@@ -8,6 +10,7 @@
 // Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
 
 import Foundation
+import CoreFoundation
 import OSLog
 
 // Shared immutable-format timestamp codec. Sorting hundreds of chat rows can
@@ -444,6 +447,12 @@ struct Message: Identifiable, Decodable, Sendable {
     /// Database identity is an alias; the client message ID is canonical across
     /// optimistic sends, cache hydration and Directus snapshots.
     let serverMessageId: String?
+    let userMessageId: String?
+    let queueRevision: Int?
+    let queueMode: String?
+    let queueDispatchStatus: String?
+    let queueDispatchMode: String?
+    let deliveryStatus: String?
     let chatId: String
     let role: MessageRole
     var content: String? {         // Decrypted content (set client-side after decryption)
@@ -526,10 +535,16 @@ struct Message: Identifiable, Decodable, Sendable {
         encryptedThinkingSignature: String? = nil,
         thinkingTokenCount: Int? = nil,
         renderDocument: ChatHistoryRenderDocument? = nil,
-        serverMessageId: String? = nil
+        serverMessageId: String? = nil,
+        userMessageId: String? = nil,
+        queueRevision: Int? = nil, queueMode: String? = nil, queueDispatchStatus: String? = nil,
+        queueDispatchMode: String? = nil, deliveryStatus: String? = nil
     ) {
         self.id = id
         self.serverMessageId = serverMessageId == id ? nil : serverMessageId
+        self.userMessageId = userMessageId
+        self.queueRevision = queueRevision; self.queueMode = queueMode; self.queueDispatchStatus = queueDispatchStatus
+        self.queueDispatchMode = queueDispatchMode; self.deliveryStatus = deliveryStatus
         self.chatId = chatId
         self.role = role
         self.content = content
@@ -567,6 +582,17 @@ struct Message: Identifiable, Decodable, Sendable {
             ?? container.decode(String.self, forKey: .id)
         let suppliedAlias = try container.decodeIfPresent(String.self, forKey: .serverMessageId)
         serverMessageId = suppliedAlias ?? (databaseId != id ? databaseId : nil)
+        userMessageId = try container.decodeIfPresent(String.self, forKey: .userMessageId)
+            ?? container.decodeIfPresent(String.self, forKey: .userMessageIdSnake)
+        queueRevision = try container.decodeIfPresent(Int.self, forKey: .queueRevision)
+            ?? container.decodeIfPresent(Int.self, forKey: .queueRevisionSnake)
+        queueMode = try container.decodeIfPresent(String.self, forKey: .queueMode)
+            ?? container.decodeIfPresent(String.self, forKey: .queueModeSnake)
+        queueDispatchStatus = try container.decodeIfPresent(String.self, forKey: .queueDispatchStatus)
+            ?? container.decodeIfPresent(String.self, forKey: .queueDispatchStatusSnake)
+        queueDispatchMode = try container.decodeIfPresent(String.self, forKey: .queueDispatchMode)
+            ?? container.decodeIfPresent(String.self, forKey: .queueDispatchModeSnake)
+        deliveryStatus = try container.decodeIfPresent(String.self, forKey: .deliveryStatus)
         chatId = try container.decodeIfPresent(String.self, forKey: .chatId)
             ?? container.decode(String.self, forKey: .chatIdSnake)
         role = try container.decode(MessageRole.self, forKey: .role)
@@ -620,6 +646,17 @@ struct Message: Identifiable, Decodable, Sendable {
         case clientMessageId
         case clientMessageIdSnake = "client_message_id"
         case serverMessageId
+        case userMessageId
+        case userMessageIdSnake = "user_message_id"
+        case queueRevision
+        case queueRevisionSnake = "queue_revision"
+        case queueMode
+        case queueModeSnake = "queue_mode"
+        case queueDispatchStatus
+        case queueDispatchStatusSnake = "queue_dispatch_status"
+        case queueDispatchMode
+        case queueDispatchModeSnake = "queue_dispatch_mode"
+        case deliveryStatus = "status"
         case chatId
         case chatIdSnake = "chat_id"
         case role
@@ -719,4 +756,219 @@ struct StreamChunk: Decodable {
     let content: String?
     let messageId: String?
     let done: Bool?
+}
+
+/// Applied context receipts are display provenance, never access grants.
+/// Source: frontend/packages/ui/src/utils/{loadedMemoryReceipt,associateLoadedMemories}.ts
+struct ChatAppliedMemory: Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let source: String
+    let appId: String?
+    let projectId: String?
+    let revision: String
+    let body: String
+}
+
+struct ChatLoadedMemoryReceipt: Equatable, Sendable {
+    let setKey: String
+    let userMessageId: String?
+    let assistantMessageId: String?
+    let memories: [ChatAppliedMemory]
+
+    static func parse(_ content: String?) -> Self? {
+        guard let content, content.utf8.count <= 160_000,
+              let bytes = content.data(using: .utf8),
+              let event = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+              event["type"] as? String == "memories_loaded",
+              let setKey = event["set_key"] as? String, digest(setKey),
+              let rows = event["memories"] as? [[String: Any]], (1...24).contains(rows.count),
+              let count = event["count"] as? NSNumber, CFGetTypeID(count) != CFBooleanGetTypeID(),
+              count.doubleValue == Double(rows.count) else { return nil }
+        func optionalIdentity(_ key: String) -> Bool {
+            guard let value = event[key] else { return true }
+            guard let value = value as? String else { return false }
+            return value.range(of: "^[A-Za-z0-9][A-Za-z0-9_:-]{0,239}$", options: .regularExpression) != nil
+        }
+        guard optionalIdentity("user_message_id"), optionalIdentity("assistant_message_id") else { return nil }
+        var ids = Set<String>(), total = 0, memories: [ChatAppliedMemory] = []
+        for row in rows {
+            guard let id = text(row["id"], max: 240), ids.insert(id).inserted,
+                  let title = text(row["title"], max: 180), let body = text(row["body"], max: 20_000),
+                  let revision = row["revision"] as? String, digest(revision),
+                  let source = row["source"] as? String else { return nil }
+            let app = row["app_id"] as? String, project = row["project_id"] as? String
+            if source == "app" {
+                guard let app = text(app, max: 64), app.range(of: "^[a-z][a-z0-9_]*$", options: .regularExpression) != nil,
+                      id.hasPrefix("app:\(app):"), row["project_id"] == nil || row["project_id"] is NSNull else { return nil }
+            } else if source == "project" {
+                guard text(project, max: 240) != nil, row["app_id"] == nil || row["app_id"] is NSNull else { return nil }
+            } else { return nil }
+            total += (body as NSString).length
+            guard total <= 32_000 else { return nil }
+            memories.append(ChatAppliedMemory(id: id, title: title, source: source, appId: app,
+                projectId: project, revision: revision, body: body))
+        }
+        return Self(setKey: setKey, userMessageId: event["user_message_id"] as? String,
+            assistantMessageId: event["assistant_message_id"] as? String, memories: memories)
+    }
+    private static func text(_ value: Any?, max: Int) -> String? {
+        guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              (string as NSString).length <= max else { return nil }
+        return string
+    }
+    private static func digest(_ string: String) -> Bool {
+        string.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil
+    }
+}
+
+struct ChatMemoryAssociations {
+    var byAssistantID: [String: [ChatAppliedMemory]] = [:]
+    var attachedReceiptIDs: Set<String> = []
+
+    /// Resolve across the loaded ordered history before transcript windowing.
+    /// An explicit identity never falls back to a nearby response on mismatch.
+    static func resolve(_ messages: [Message], pending: ChatTransientAssistantResponse?,
+                        userMessageIDs: [String: String] = [:]) -> Self {
+        var result = Self()
+        let assistants = messages.filter { $0.role == .assistant }
+        for (index, row) in messages.enumerated() where row.role == .system {
+            guard let receipt = ChatLoadedMemoryReceipt.parse(row.content) else { continue }
+            func userID(_ candidate: Message) -> String? { candidate.userMessageId ?? userMessageIDs[candidate.id] }
+            func matches(_ candidate: Message) -> Bool {
+                candidate.chatId == row.chatId && (receipt.userMessageId == nil || userID(candidate) == nil || receipt.userMessageId == userID(candidate))
+            }
+            let candidate: Message?
+            if let assistantID = receipt.assistantMessageId {
+                candidate = assistants.first { $0.id == assistantID && matches($0) }
+            } else if let user = receipt.userMessageId {
+                let found = assistants.filter { userID($0) == user && $0.chatId == row.chatId }
+                candidate = found.count == 1 ? found[0] : nil
+            } else {
+                var first = index, last = index + 1
+                while first > 0 && messages[first - 1].role != .user { first -= 1 }
+                guard first > 0 || messages.first?.role == .user else { continue }
+                while last < messages.count && messages[last].role != .user { last += 1 }
+                let found = messages[first..<last].filter { $0.role == .assistant && matches($0) }
+                candidate = found.count == 1 ? found[0] : nil
+            }
+            let pendingMatches = pending.map { pending in
+                pending.chatId == row.chatId && candidate == nil
+                    && (receipt.userMessageId == nil || receipt.userMessageId == pending.userMessageId)
+                    && (receipt.assistantMessageId == pending.id || (receipt.assistantMessageId == nil && receipt.userMessageId != nil && receipt.userMessageId == pending.userMessageId))
+            } ?? false
+            guard let target = candidate?.id ?? (pendingMatches ? pending?.id : nil) else { continue }
+            result.attachedReceiptIDs.insert(row.id)
+            var current = result.byAssistantID[target] ?? []
+            for memory in receipt.memories where !current.contains(where: { $0.id == memory.id && $0.revision == memory.revision }) { current.append(memory) }
+            result.byAssistantID[target] = current
+        }
+        return result
+    }
+}
+
+/// Matches web chatSyncServiceHandlersAI.ts final-chunk classification exactly.
+enum ChatStreamFinalityPolicy {
+    static func continuesTurn(_ fields: [String: Any]) -> Bool {
+        fields["awaiting_async_skill_continuation"] as? Bool == true
+            && fields["interrupted_by_revocation"] as? Bool != true
+            && fields["interrupted_by_soft_limit"] as? Bool != true
+            && (fields["rejection_reason"] as? String)?.isEmpty != false
+    }
+}
+
+/// RAM-only preparation identity. A cache match is never send authorization.
+struct ChatPreparationScope: Equatable, Sendable {
+    let account: UUID
+    let server: String
+    let keyGeneration: UUID
+    let teamID: String?
+    let teamEpoch: UInt64
+    let socketGeneration: Int
+}
+
+struct ChatPreparedPrivacyGeneration: Equatable, Sendable {
+    let scope: ChatPreparationScope
+    let generation: String
+    let mutationRevision: UInt64
+    private(set) var touchedAt: Date
+
+    /// The caller supplies the fresh server generation on every Send. A focus
+    /// warm-up, clock match, or local revision alone cannot authorize reuse.
+    mutating func validateReuse(scope: ChatPreparationScope, freshGeneration: String?,
+                                mutationRevision: UInt64, now: Date) -> Bool {
+        guard self.scope == scope, freshGeneration == generation, !generation.isEmpty,
+              self.mutationRevision == mutationRevision,
+              now >= touchedAt, now.timeIntervalSince(touchedAt) < 7_200 else { return false }
+        touchedAt = now
+        return true
+    }
+}
+
+enum ChatQueuedRevisionError: Error, Equatable {
+    case invalidRequest
+    case rejected(reason: String, currentRevision: Int?, retryable: Bool)
+    case invalidReceipt
+}
+
+/// Immutable transport package for the existing revision API. Plaintext is only
+/// the privacy-filtered inference value paired with its encrypted durable body.
+struct ChatQueuedRevisionRequest: Sendable {
+    let chatID: String
+    let messageID: String
+    let expectedRevision: Int
+    let clientRequestID: String
+    private let bytes: Data
+    enum Mode: String, Sendable { case followUp = "follow_up", steer }
+
+    init(chatID: String, messageID: String, expectedRevision: Int, clientRequestID: String = UUID().uuidString,
+         mode: Mode, teamID: String?, content: String? = nil, encryptedContent: String? = nil,
+         encryptedPIIMappings: String? = nil) throws {
+        guard !chatID.isEmpty, (1...255).contains(messageID.count), expectedRevision >= 1,
+              expectedRevision < Int.max, (1...128).contains(clientRequestID.count) else { throw ChatQueuedRevisionError.invalidRequest }
+        var fields: [String: Any] = ["chat_id": chatID, "message_id": messageID,
+            "expected_revision": expectedRevision, "client_request_id": clientRequestID, "queue_mode": mode.rawValue]
+        if let teamID { fields["team_id"] = teamID }
+        if let content {
+            guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  content.utf8.count <= 2 * 1024 * 1024, let encryptedContent, !encryptedContent.isEmpty else { throw ChatQueuedRevisionError.invalidRequest }
+            fields["content"] = content; fields["encrypted_content"] = encryptedContent
+            fields["encrypted_pii_mappings"] = encryptedPIIMappings.map { $0 as Any } ?? NSNull()
+        } else if encryptedContent != nil || encryptedPIIMappings != nil { throw ChatQueuedRevisionError.invalidRequest }
+        self.chatID = chatID; self.messageID = messageID; self.expectedRevision = expectedRevision; self.clientRequestID = clientRequestID
+        bytes = try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys])
+    }
+    func payload() throws -> [String: Any] {
+        guard let fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw ChatQueuedRevisionError.invalidRequest }
+        return fields
+    }
+    func validateReceipt(_ fields: [String: Any], type: String) throws -> Int {
+        guard fields["chat_id"] as? String == chatID, fields["message_id"] as? String == messageID,
+              fields["client_request_id"] as? String == clientRequestID else { throw ChatQueuedRevisionError.invalidReceipt }
+        if type == "queued_message_revision_rejected" {
+            guard let reason = fields["reason_code"] as? String, !reason.isEmpty else { throw ChatQueuedRevisionError.invalidReceipt }
+            throw ChatQueuedRevisionError.rejected(reason: reason, currentRevision: fields["current_revision"] as? Int,
+                retryable: fields["retryable"] as? Bool == true)
+        }
+        guard type == "queued_message_updated", let revision = fields["queue_revision"] as? Int,
+              revision == expectedRevision + 1,
+              fields["queue_mode"] as? String == (try payload())["queue_mode"] as? String else { throw ChatQueuedRevisionError.invalidReceipt }
+        if let content = (try payload())["encrypted_content"] as? String {
+            guard fields["encrypted_content"] as? String == content else { throw ChatQueuedRevisionError.invalidReceipt }
+            let expectedMappings = (try payload())["encrypted_pii_mappings"]
+            guard NSDictionary(dictionary: ["value": fields["encrypted_pii_mappings"] ?? NSNull()]).isEqual(to: ["value": expectedMappings ?? NSNull()]) else { throw ChatQueuedRevisionError.invalidReceipt }
+        }
+        return revision
+    }
+}
+
+struct ChatTransientAssistantResponse: Identifiable, Equatable, Sendable {
+    let id: String
+    let chatId: String
+    let userMessageId: String?
+    let mateCategory: String
+    let mateName: String?
+    var modelName: String? = nil
+    var providerName: String? = nil
+    var serverRegion: String? = nil
 }

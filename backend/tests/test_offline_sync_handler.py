@@ -45,8 +45,8 @@ class _Manager:
     async def send_personal_message(self, message, user_id, device_fingerprint_hash):
         self.sent.append(message)
 
-    async def broadcast_to_user(self, message=None, user_id=None, exclude_device_hash=None, message_content=None):
-        self.broadcasts.append(message if message is not None else message_content)
+    async def broadcast_to_user(self, message: dict, user_id: str, exclude_device_hash: str = None):
+        self.broadcasts.append(message)
 
 
 class _WebSocket:
@@ -64,17 +64,21 @@ class _LocalDraftChat:
 
 # contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
-async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_chat() -> None:
+@pytest.mark.parametrize("edit_count", [1, 3])
+async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_chat(edit_count: int) -> None:
     manager = _Manager()
     cache_calls = []
+    draft_version = 0
 
     class Cache:
         async def get_chat_versions(self, user_id, chat_id):
             return None
 
         async def increment_user_draft_version(self, user_id, chat_id):
+            nonlocal draft_version
             cache_calls.append(("increment", user_id, chat_id))
-            return 1
+            draft_version += 1
+            return draft_version
 
         async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, *, encrypted_draft_preview):
             cache_calls.append(("update", user_id, chat_id, encrypted_md, draft_v, encrypted_draft_preview))
@@ -95,14 +99,14 @@ async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_c
         encryption_service=None,
         user_id="user-1",
         device_fingerprint_hash="device-1",
-        payload={"changes": [{
+        payload={"batch_id": "offline-batch-1", "changes": [{
             "chat_id": "22222222-2222-4222-8222-222222222222",
             "type": "draft",
-            "value": "cipher-md",
-            "encrypted_draft_preview": "cipher-preview",
-            "version_before_edit": 0,
-            "change_id": "change-1",
-        }]},
+            "value": "cipher-md" if index == 0 else f"cipher-md-{index + 1}",
+            "encrypted_draft_preview": "cipher-preview" if index == 0 else f"cipher-preview-{index + 1}",
+            "version_before_edit": index,
+            "change_id": f"change-{index + 1}",
+        } for index in range(edit_count)]},
     )
 
     assert cache_calls[0] == ("increment", "user-1", "22222222-2222-4222-8222-222222222222")
@@ -121,9 +125,21 @@ async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_c
         "encrypted_draft_preview": "cipher-preview",
     }
     assert manager.broadcasts[0]["versions"] == {"draft_v": 1}
+    assert len(manager.broadcasts) == edit_count
+    assert manager.broadcasts[-1]["versions"] == {"draft_v": edit_count}
+    assert manager.broadcasts[-1]["data"]["encrypted_draft_md"] == (
+        "cipher-md" if edit_count == 1 else f"cipher-md-{edit_count}"
+    )
+    assert manager.broadcasts[-1]["data"]["encrypted_draft_preview"] == (
+        "cipher-preview" if edit_count == 1 else f"cipher-preview-{edit_count}"
+    )
     assert manager.sent[-1] == {
         "type": "offline_sync_complete",
-        "payload": {"processed": 1, "conflicts": 0, "errors": 0},
+        "payload": {
+            "processed": edit_count, "conflicts": 0, "errors": 0,
+            "batch_id": "offline-batch-1",
+            "successful_change_ids": [f"change-{index + 1}" for index in range(edit_count)],
+        },
     }
 
 

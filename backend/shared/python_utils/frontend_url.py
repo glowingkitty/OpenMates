@@ -36,3 +36,21 @@ def get_frontend_base_url() -> str:
                 return url.rstrip("/")
 
     return _DEFAULT_FRONTEND_URL
+
+
+def get_api_base_url() -> str:
+    """Resolve the first-party API origin for recipient-held email image URLs."""
+    from urllib.parse import urlsplit
+
+    explicit = os.getenv("API_URL", "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    frontend = urlsplit(get_frontend_base_url())
+    host = frontend.hostname or "openmates.org"
+    if host.startswith("app."):
+        host = "api." + host[4:]
+    elif host not in {"localhost", "127.0.0.1"}:
+        host = "api." + host
+    elif frontend.port:
+        return f"{frontend.scheme}://{host}:8000"
+    return f"{frontend.scheme}://{host}"

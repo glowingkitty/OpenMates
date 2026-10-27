@@ -4,7 +4,7 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, waitForChatReady, deleteActiveChat } = require('./helpers/chat-test-helpers');
 
 const PROTOCOL_PREFIX = 'Verified prefix: The available conversation is enough.';
 const PROTOCOL_CONTINUATION = 'The safe continuation is complete.';
@@ -57,8 +57,8 @@ test('signed capacity replay completes a real encrypted chat turn', async ({ pag
 	await deleteActiveChat(page, log, screenshot, 'storage-capacity');
 });
 
-// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
-test('fabricated tool protocol recovers from clean answer context as one persisted turn', async ({ page }: { page: any }) => {
+// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,ai-model-routing.recovery.affordable-current-models
+test('fabricated tool protocol recovers without skill-dispatch instructions as one persisted turn', async ({ page }: { page: any }) => {
 	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
 	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
 	test.setTimeout(180_000);
@@ -69,6 +69,8 @@ test('fabricated tool protocol recovers from clean answer context as one persist
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
 	const previousCount = await page.getByTestId('message-assistant').count();
+	// The signed provider fixture keeps rejecting recovery while skill-dispatch
+	// guidance remains in the real answer-only system prompt.
 	await sendMessage(page,
 		'Summarize only the available conversation. STORAGE_CAPACITY_SCENARIO:recovery_protocol <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 		log, screenshot, 'storage-protocol-recovery');
@@ -77,6 +79,7 @@ test('fabricated tool protocol recovers from clean answer context as one persist
 	await expect(messages).toHaveCount(previousCount + 1, { timeout: 90_000 });
 	const answer = messages.nth(previousCount);
 	await expect(answer).toContainText(PROTOCOL_CONTINUATION, { timeout: 90_000 });
+	await expect(answer.getByTestId('generated-by')).toContainText('Gemini 3.8 Flash');
 	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
 	await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 	await expect(messages).toHaveCount(previousCount + 1);
@@ -89,9 +92,118 @@ test('fabricated tool protocol recovers from clean answer context as one persist
 		await expect(message.locator('[data-testid="embed-preview"][data-skill-id]')).toHaveCount(0);
 	};
 	await assertSafeAnswer(answer);
-	await page.reload({ waitUntil: 'networkidle' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
 	await expect(messages).toHaveCount(previousCount + 1, { timeout: 90_000 });
 	await expect(messages.nth(previousCount)).toContainText(PROTOCOL_CONTINUATION, { timeout: 90_000 });
 	await assertSafeAnswer(messages.nth(previousCount));
 	await deleteActiveChat(page, log, screenshot, 'storage-protocol-recovery');
+});
+
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+test('equivalent event search reuses its card and continues one persisted answer', async ({ page }: { page: any }) => {
+	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
+	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
+	test.setTimeout(180_000);
+	const log = createSignupLogger('event-search-member-reuse');
+	const screenshot = createStepScreenshotter(log);
+	await installE2EServerContentOverrideGate(page, 'event-search-member-reuse');
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await sendMessage(page,
+		'Find the synthetic conference events. STORAGE_CAPACITY_SCENARIO:event_search_reuse <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+		log, screenshot, 'event-search-member-reuse');
+	const answer = await waitForAssistantMessage(page, { contains: 'Event reuse closing sentence.' });
+	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+	await expect(page.getByTestId('stop-processing-button')).toBeHidden();
+	const verifyAnswer = async () => {
+		const current = page.getByTestId('message-assistant');
+		await expect(current).toHaveCount(1);
+		const text = await current.innerText();
+		for (const marker of ['Event reuse introduction.', 'Event reuse final answer.', 'Event reuse closing sentence.']) {
+			expect(text.split(marker).length - 1).toBe(1);
+		}
+		expect(text).not.toContain('Duplicate event synthesis should never appear.');
+		expect(text).not.toMatch(TERMINAL_ERROR);
+		for (const toggle of await current.getByTestId('assistant-activity-toggle').all()) {
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+		}
+		const cards = current.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		await expect(cards).toHaveCount(1);
+		await expect(cards).toHaveAttribute('data-status', 'finished');
+		await expect(current.getByTestId('embed-error-banner')).toHaveCount(0);
+	};
+	await verifyAnswer();
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
+	await expect(page.getByTestId('message-assistant')).toContainText('Event reuse closing sentence.');
+	await verifyAnswer();
+	await deleteActiveChat(page, log, screenshot, 'event-search-member-reuse');
+});
+
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence,issue-reporting.logs.authenticated-capture
+test('reuses a completed search member and captures every report text segment', async ({ page }: { page: any }) => {
+	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
+	test.setTimeout(180_000);
+	const log = createSignupLogger('search-member-reuse');
+	const screenshot = createStepScreenshotter(log);
+	await installE2EServerContentOverrideGate(page, 'search-member-reuse');
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await sendMessage(page,
+		'Compare the synthetic options. STORAGE_CAPACITY_SCENARIO:search_reuse <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+		log, screenshot, 'search-member-reuse');
+	const answer = await waitForAssistantMessage(page, { contains: 'Search reuse closing sentence.' });
+	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+	await expect(page.getByTestId('stop-processing-button')).toBeHidden();
+	const verifyAnswer = async () => {
+		const current = page.getByTestId('message-assistant').filter({ hasText: 'Search reuse closing sentence.' });
+		const text = await current.innerText();
+		expect(text.split('Search reuse final answer.').length - 1).toBe(1);
+		expect(text).not.toContain('Duplicate synthesis should never appear.');
+		expect(text).not.toMatch(TERMINAL_ERROR);
+		for (const toggle of await current.getByTestId('assistant-activity-toggle').all()) {
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+		}
+		await expect(current.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')).toHaveCount(3);
+		await expect(current.getByTestId('embed-error-banner')).toHaveCount(0);
+		return current;
+	};
+	await verifyAnswer();
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
+	await expect(page.getByTestId('message-assistant').filter({ hasText: 'Search reuse closing sentence.' })).toBeVisible();
+	const persisted = await verifyAnswer();
+	await expect(persisted.locator('.read-only-message .ProseMirror')).not.toHaveCount(1);
+
+	const payloads: Array<Record<string, unknown>> = [];
+	await page.route('**/v1/settings/issues', async (route: any) => {
+		if (route.request().method() !== 'POST') return route.continue();
+		payloads.push(route.request().postDataJSON());
+		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+			success: true, issue_id: '00000000-0000-4000-8000-000000000001', short_issue_id: 'ABCDE', screenshot_uploaded: false,
+		}) });
+	});
+	await page.locator('#settings-menu-toggle').click();
+	await page.locator('[data-testid="settings-menu"].visible').getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i }).first().click();
+	await expect(page.getByTestId('report-issue-form')).toBeVisible();
+	await expect(page.locator('#share-chat-toggle')).toBeChecked();
+	await page.getByTestId('report-issue-title').fill('Synthetic segmented message capture');
+	await page.getByTestId('report-issue-submit').click();
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 30_000 });
+	expect(payloads).toHaveLength(1);
+	const captured = String(payloads[0].last_messages_html);
+	for (const marker of ['Search reuse introduction.', 'Search reuse final answer.', 'Search reuse closing sentence.']) {
+		expect(captured.split(marker).length - 1).toBe(1);
+	}
+	expect(captured.indexOf('Search reuse introduction.')).toBeLessThan(captured.indexOf('Search reuse final answer.'));
+	expect(captured.indexOf('Search reuse final answer.')).toBeLessThan(captured.indexOf('Search reuse closing sentence.'));
+	await page.getByTestId('report-issue-submit-another').click();
+	await page.locator('label[for="share-chat-toggle"]').click();
+	await page.getByTestId('report-issue-title').fill('Synthetic capture opt out');
+	await page.getByTestId('report-issue-submit').click();
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible();
+	expect(payloads).toHaveLength(2);
+	expect(payloads[1].last_messages_html).toBeNull();
+	expect(payloads[1].chat_or_embed_url).toBeNull();
 });

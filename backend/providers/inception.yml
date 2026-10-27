@@ -1,0 +1,94 @@
+# Official API/pricing verified 2026-10-20: https://docs.inceptionlabs.ai/
+# Launch supplier offer verified 2026-10-20; no advertised expiry.
+# Customer credits pass through the half-price launch promotion.
+provider_id: inception
+name: Inception
+description: "Inception diffusion language models"
+logo_svg: "logos/inception.svg"
+privacy_policy: "https://www.inceptionlabs.ai/docs/privacy-policy"
+optional_keys:
+  - env_key: SECRET__INCEPTION_LABS__API_KEY
+    vault_path: kv/data/providers/inception_labs
+    vault_key: api_key
+    description: Inception API key
+models:
+  - id: mercury-3
+    name: Mercury 3
+    description: "Text-only diffusion language model with reasoning and tool use."
+    for_app_skill: ai.ask
+    country_origin: US
+    release_date: "2026-10-19"
+    capability_level: medium
+    allow_auto_select: true
+    reasoning: true
+    input_types: [text]
+    output_types: [text]
+    default_server: inception
+    servers:
+      - id: inception
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          source_url: https://docs.inceptionlabs.ai/capabilities/reasoning-efforts
+        name: Inception
+        model_id: mercury-3
+        region: US
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 1650
+        cache_read:
+          per_credit_unit: 16500
+        output:
+          per_credit_unit: 475
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [inception]
+      source_url: https://docs.inceptionlabs.ai/resources/faq
+      reviewed_on: "2026-10-20"
+      status: verified_for_activation
+      expires_on: "2026-11-20" # Evidence review deadline; not a supplier cache expiry.
+    costs:
+      input_per_million_token:
+        price: 0.20
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 0.70
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.02
+        currency: USD
+    temporary_prices:
+      - id: mercury-3-launch-2026
+        effective_from: "2026-10-19"
+        reviewed_on: "2026-10-20"
+        source_url: https://www.inceptionlabs.ai/blog/introducing-mercury-3
+        eligible_hosts: [inception]
+        processing_tier: standard
+        pricing:
+          tokens:
+            input:
+              per_credit_unit: 3300
+            cache_read:
+              per_credit_unit: 33000
+            output:
+              per_credit_unit: 950
+        costs:
+          input_per_million_token:
+            price: 0.10
+            currency: USD
+            max_context: 1000000
+          output_per_million_token:
+            price: 0.35
+            currency: USD
+            max_context: 1000000
+          cached_input_per_million_token:
+            price: 0.01
+            currency: USD
+    features:
+      max_output_tokens: 131072
+      tool_use: true
+      streaming: true

@@ -7,6 +7,22 @@
 
 set -uo pipefail
 
+# After cutover every scheduled/manual cleanup joins the elected host owner.
+DISK_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" configured-check --repository "$DISK_REPO_ROOT"; then
+    DISK_CONFIGURATION_STATUS=0
+else
+    DISK_CONFIGURATION_STATUS=$?
+fi
+if [ "$DISK_CONFIGURATION_STATUS" -eq 0 ]; then
+    if ! python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" owner-check; then
+        exec python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" maintenance --repository "$DISK_REPO_ROOT" --kind docker
+    fi
+elif [ "$DISK_CONFIGURATION_STATUS" -ne 3 ]; then
+    echo "Disk coordinator state is uncertain; refusing independent cleanup." >&2
+    exit 1
+fi
+
 LOCK_FILE="${OPENMATES_DOCKER_CLEANUP_LOCK:-/tmp/openmates-docker-cleanup.lock}"
 DOCKER_TIMEOUT_SECONDS="${OPENMATES_DOCKER_CLEANUP_TIMEOUT_SECONDS:-300}"
 BUILD_CACHE_KEEP="${OPENMATES_DOCKER_BUILD_CACHE_KEEP:-8GB}"
@@ -56,9 +72,9 @@ else
     run_docker "Capping unused BuildKit cache at ${BUILD_CACHE_KEEP}:" builder prune -a -f --keep-storage "$BUILD_CACHE_KEEP" || true
 fi
 
-# image prune -a removes only images unused by every container. A minimum age
-# avoids racing a just-finished build. No container or volume prune is allowed.
-run_docker "Pruning unused images older than ${IMAGE_AGE_FILTER#until=}:" image prune -a -f --filter "$IMAGE_AGE_FILTER" || true
+# Unused tags may pin rollback images. Retain every tagged image and only prune
+# aged dangling images; Docker also protects container-referenced images.
+run_docker "Pruning dangling images older than ${IMAGE_AGE_FILTER#until=}:" image prune -f --filter "$IMAGE_AGE_FILTER" || true
 
 DISK_USE_AFTER=$(df -P / | awk 'NR == 2 {gsub(/%/, "", $5); print $5}')
 DISK_FREE_AFTER=$(df -hP / | awk 'NR == 2 {print $4}')

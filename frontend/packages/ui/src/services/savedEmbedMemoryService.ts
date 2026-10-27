@@ -14,6 +14,7 @@ import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
 import { userProfile } from '../stores/userProfile';
 import { authStore } from '../stores/authStore';
 import { activeTeamId } from '../stores/teamStore';
+import { buildReminderNotificationContext, captureReminderThumbnail, type ReminderNotificationContext } from '../utils/reminderNotificationContext';
 
 export type SavedEmbedKind =
   | 'event'
@@ -37,7 +38,14 @@ export interface SavedEmbedConfig {
   itemValue: Record<string, unknown>;
   reminderDateTime?: string | null;
   reminderPromptTitle?: string;
+  notificationContext?: ReminderNotificationContext;
+  sourceChatId?: string;
+  notificationThumbnailUrl?: string;
 }
+
+/** Existing saved-entry identity; forgetting needs no scheduling or save policy. */
+export type SavedEmbedMemoryReference = Pick<SavedEmbedConfig,
+  'appId' | 'itemType' | 'itemKey' | 'title' | 'itemValue'> & { entryId?: string };
 
 interface BuildSavedEmbedConfigOptions {
   appId: string | null;
@@ -117,12 +125,6 @@ function parseEventVenue(content: Record<string, unknown>): string {
 
 function getEventProviderLabel(provider: string | undefined): string {
   switch (provider?.toLowerCase()) {
-    case 'meetup': return 'Meetup';
-    case 'luma': return 'Luma';
-    case 'eventbrite': return 'Eventbrite';
-    case 'classictic': return 'Classictic';
-    case 'berlin_philharmonic': return 'Berlin Philharmonic';
-    case 'bachtrack': return 'Bachtrack';
     default: return provider || '';
   }
 }
@@ -134,6 +136,17 @@ export function buildSavedEmbedConfigFromDecodedContent({
   decodedContent,
 }: BuildSavedEmbedConfigOptions): SavedEmbedConfig | null {
   if (!embedId) return null;
+  // Keep email metadata separate from the encrypted saved-memory schema.
+  const contextKind = appId === 'events' ? 'event' : appId === 'health' ? 'appointment'
+    : appId === 'home' ? 'home_listing' : skillId === 'connection' ? 'travel_connection' : 'travel_stay';
+  const notificationFields = { ...decodedContent };
+  if (appId === 'events') notificationFields.location = parseEventVenue(decodedContent)
+    || (decodedContent.event_type === 'ONLINE' ? 'Online event' : '');
+  const emailMetadata = (title: string) => ({
+    notificationContext: buildReminderNotificationContext(contextKind, title, notificationFields, appId || undefined),
+    sourceChatId: asString(decodedContent.chat_id),
+    notificationThumbnailUrl: asString(decodedContent.image_url) || asString(decodedContent.cover_url) || asString(decodedContent.thumbnail_url),
+  });
 
   if (appId === 'events' && skillId === 'event') {
     const title = asString(decodedContent.title) || 'Event';
@@ -141,6 +154,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const eventType = asString(decodedContent.event_type);
     const venueAddress = parseEventVenue(decodedContent);
     return {
+      ...emailMetadata(title),
       kind: 'event',
       appId: 'events',
       itemType: 'saved_events',
@@ -172,6 +186,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
       asString(decodedContent.listing_type),
     ].filter(Boolean).join(' | ');
     return {
+      ...emailMetadata(title),
       kind: 'home_listing',
       appId: 'home',
       itemType: 'saved_listings',
@@ -201,6 +216,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const nearbyPlaces = Array.isArray(decodedContent.nearby_places) ? decodedContent.nearby_places : [];
     const amenities = Array.isArray(decodedContent.amenities) ? decodedContent.amenities : [];
     return {
+      ...emailMetadata(title),
       kind: 'travel_stay',
       appId: 'travel',
       itemType: 'saved_stays',
@@ -231,6 +247,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const lastLeg = legs.length > 0 ? legs[legs.length - 1] : {};
     const bookingUrl = asString(decodedContent.booking_url) || '';
     return {
+      ...emailMetadata(title),
       kind: 'travel_connection',
       appId: 'travel',
       itemType: 'saved_connections',
@@ -258,6 +275,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const title = asString(decodedContent.name) || asString(decodedContent.speciality) || 'Appointment';
     const bookingUrl = asString(decodedContent.booking_url) || asString(decodedContent.practice_url) || '';
     return {
+      ...emailMetadata(title),
       kind: 'health_appointment',
       appId: 'health',
       itemType: 'appointments',
@@ -315,28 +333,81 @@ function getTriggerDateTimes(dateTime: string | null | undefined, kind: SavedEmb
     .map((trigger) => trigger.toISOString());
 }
 
-export function getSavedEmbedId(config: SavedEmbedConfig): string {
+export function getSavedEmbedId(config: Pick<SavedEmbedConfig, 'itemValue'>): string {
   const embedId = config.itemValue.embed_id;
   return typeof embedId === 'string' ? embedId : '';
 }
 
 export function findSavedEmbedMemoryEntry(
   state: AppSettingsMemoriesStateLike,
-  config: SavedEmbedConfig,
+  config: SavedEmbedMemoryReference,
 ): SavedMemoryEntry | undefined {
   const appGroups = state.entriesByApp.get(config.appId);
   const entries = appGroups?.[config.itemType] || [];
   const embedId = getSavedEmbedId(config);
 
-  return entries.find((entry) => {
-    if (entry.item_key === config.itemKey) return true;
-    const entryEmbedId = entry.item_value?.embed_id;
-    return !!embedId && typeof entryEmbedId === 'string' && entryEmbedId === embedId;
-  });
+  if (config.entryId) {
+    return entries.find(entry => entry.id === config.entryId
+      && (!embedId || entry.item_value?.embed_id === embedId));
+  }
+  // Item keys are not unique: a known embed must never fall back to another
+  // result with the same URL/title key. Key-only lookup is for legacy callers
+  // that have no embed identity at all.
+  if (embedId) return entries.find(entry => entry.item_value?.embed_id === embedId);
+  return entries.find(entry => entry.item_key === config.itemKey);
+}
+
+/** Resolve the real saved entry by embed identity, independent of preview type. */
+export function findSavedEmbedMemoryReference(
+  state: AppSettingsMemoriesStateLike,
+  embedId: string,
+): SavedEmbedMemoryReference | undefined {
+  if (!embedId) return undefined;
+  for (const [appId, groups] of state.entriesByApp) {
+    for (const [itemType, entries] of Object.entries(groups)) {
+      const entry = entries.find(item => item.item_value?.embed_id === embedId);
+      if (!entry) continue;
+      return {
+        appId, itemType, itemKey: entry.item_key, itemValue: entry.item_value, entryId: entry.id,
+        title: asString(entry.item_value.title) || asString(entry.item_value.name) || 'Saved item',
+      };
+    }
+  }
+  return undefined;
 }
 
 export function isEmbedMemorySaved(config: SavedEmbedConfig): boolean {
   return !!findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
+}
+
+async function enrichReminderContext(config: SavedEmbedConfig): Promise<SavedEmbedConfig> {
+  if (config.notificationContext) {
+    const image = await captureReminderThumbnail(config.notificationThumbnailUrl);
+    return { ...config, notificationContext: { ...config.notificationContext, ...(image ? { image_base64: image } : {}) } };
+  }
+  try {
+    // Fullscreen save configs predate email previews. Resolve their decrypted source
+    // once, without copying the source embed or using the currently active chat.
+    const [{ embedStore }, { decodeToonContent }] = await Promise.all([import('./embedStore'), import('./embedResolver')]);
+    const stored = await embedStore.get(`embed:${getSavedEmbedId(config)}`);
+    const embed = stored && typeof stored === 'object' ? stored : null;
+    const decoded = typeof embed?.content === 'string' ? await decodeToonContent(embed.content) : embed?.content;
+    if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+      const fields = decoded as Record<string, unknown>;
+      const location = config.kind === 'event' ? parseEventVenue(fields) : undefined;
+      const image = await captureReminderThumbnail(fields.image_url || fields.cover_url || fields.thumbnail_url);
+      return { ...config,
+        sourceChatId: asString(embed?.chat_id) || asString(fields.chat_id),
+        notificationContext: { ...buildReminderNotificationContext(config.kind, config.title,
+          { ...config.itemValue, ...fields, ...(location ? { location } : {}) }, config.appId),
+          ...(image ? { image_base64: image } : {}),
+        },
+      };
+    }
+  } catch {
+    // A saved item can still schedule when its local source is no longer available.
+  }
+  return { ...config, notificationContext: buildReminderNotificationContext(config.kind, config.title, config.itemValue, config.appId) };
 }
 
 async function scheduleReminder(config: SavedEmbedConfig, prompt: string, triggerDatetime: string): Promise<void> {
@@ -358,6 +429,8 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
       target_embed_id: embedId,
       target_embed_app_id: config.appId,
       target_embed_title: config.title,
+      notification_context: config.notificationContext,
+      ...(config.sourceChatId ? { chat_id: config.sourceChatId } : {}),
       response_type: 'simple',
     }),
   });
@@ -376,6 +449,7 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
 async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<number> {
   if (!getSavedEmbedId(config)) return 0;
 
+  config = await enrichReminderContext(config);
   const triggerDateTimes = getTriggerDateTimes(config.reminderDateTime, config.kind);
   const reminderTitle = config.reminderPromptTitle || config.title;
   let scheduledCount = 0;
@@ -397,7 +471,7 @@ async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<numbe
   return scheduledCount;
 }
 
-export async function forgetEmbedMemory(config: SavedEmbedConfig): Promise<void> {
+export async function forgetEmbedMemory(config: SavedEmbedMemoryReference): Promise<void> {
   const entry = findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
   if (!entry) return;
 

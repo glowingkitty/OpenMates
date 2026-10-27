@@ -49,33 +49,33 @@ search_products.description:
 
 search_products.how_to_use.1:
   context: Example instruction for shopping search products skill - organic milk
-  en: "**Find** organic whole milk at REWE"
-  de: Bio-Vollmilch bei REWE finden
-  zh: 在REWE查找有机全脂牛奶
-  es: Buscar leche entera ecológica en REWE
-  fr: Trouver du lait entier bio chez REWE
-  pt: Encontrar leite integral orgânico na REWE
-  ru: Найти органическое цельное молоко в REWE
-  ja: REWEでオーガニック全脂牛乳を検索
-  ko: REWE에서 유기농 전유 찾기
-  it: Trova latte intero biologico da REWE
-  tr: REWE'de organik tam yağlı süt bul
-  vi: Tìm sữa nguyên kem hữu cơ tại REWE
-  id: Temukan susu full cream organik di REWE
-  pl: Znajdź ekologiczne pełne mleko w REWE
-  nl: Biologische volle melk vinden bij REWE
-  ar: ابحث عن الحليب كامل الدسم العضوي في REWE
-  hi: REWE पर ऑर्गेनिक पूरा दूध खोजें
-  th: ค้นหานมสดออร์แกนิกที่ REWE
-  cs: Najděte bio plnotučné mléko v REWE
-  sv: Hitta ekologisk helmjölk på REWE
-  he: "**מצא** חלב אורגני מלא ב-REWE"
+  en: "**Find** organic whole milk at ExampleGrocer"
+  de: Bio-Vollmilch bei ExampleGrocer finden
+  zh: 在ExampleGrocer查找有机全脂牛奶
+  es: Buscar leche entera ecológica en ExampleGrocer
+  fr: Trouver du lait entier bio chez ExampleGrocer
+  pt: Encontrar leite integral orgânico na ExampleGrocer
+  ru: Найти органическое цельное молоко в ExampleGrocer
+  ja: ExampleGrocerでオーガニック全脂牛乳を検索
+  ko: ExampleGrocer에서 유기농 전유 찾기
+  it: Trova latte intero biologico da ExampleGrocer
+  tr: ExampleGrocer'de organik tam yağlı süt bul
+  vi: Tìm sữa nguyên kem hữu cơ tại ExampleGrocer
+  id: Temukan susu full cream organik di ExampleGrocer
+  pl: Znajdź ekologiczne pełne mleko w ExampleGrocer
+  nl: Biologische volle melk vinden bij ExampleGrocer
+  ar: ابحث عن الحليب كامل الدسم العضوي في ExampleGrocer
+  hi: ExampleGrocer पर ऑर्गेनिक पूरा दूध खोजें
+  th: ค้นหานมสดออร์แกนิกที่ ExampleGrocer
+  cs: Najděte bio plnotučné mléko v ExampleGrocer
+  sv: Hitta ekologisk helmjölk på ExampleGrocer
+  he: "**מצא** חלב אורגני מלא ב-ExampleGrocer"
   verified_by_human: [en, de]
 
 search_products.how_to_use.2:
   context: Example instruction for shopping search products skill - pasta comparison
-  en: "**Compare prices** for spaghetti on REWE and Amazon"
-  de: Spaghetti-Preise bei REWE und Amazon vergleichen
+  en: "**Compare prices** for spaghetti on ExampleGrocer and Amazon"
+  de: Spaghetti-Preise bei ExampleGrocer und Amazon vergleichen
   zh: 比较不同超市的意大利面价格
   es: Comparar precios de espaguetis en diferentes supermercados
   fr: Comparer les prix des spaghettis dans différents supermarchés
@@ -99,25 +99,25 @@ search_products.how_to_use.2:
 
 search_products.how_to_use.3:
   context: Example instruction for shopping search products skill - vegan products
-  en: What **vegan cheese** options are available at REWE?
-  de: Welche veganen Käse-Alternativen gibt es bei REWE?
-  zh: REWE有哪些纯素奶酪选择？
-  es: ¿Qué opciones de queso vegano hay en REWE?
-  fr: Quelles options de fromage vegan sont disponibles chez REWE ?
-  pt: Quais opções de queijo vegano estão disponíveis na REWE?
-  ru: Какие веганские сырные альтернативы есть в REWE?
-  ja: REWEではどんなビーガンチーズが手に入りますか？
-  ko: REWE에서 이용 가능한 비건 치즈 옵션은?
-  it: Quali opzioni di formaggio vegano sono disponibili da REWE?
-  tr: REWE'de hangi vegan peynir seçenekleri mevcut?
-  vi: Tùy chọn phô mai thuần chay nào có sẵn tại REWE?
-  id: Pilihan keju vegan apa yang tersedia di REWE?
-  pl: Jakie opcje wegańskiego sera są dostępne w REWE?
-  nl: Welke veganistische kaasopties zijn beschikbaar bij REWE?
-  ar: ما هي خيارات الجبن النباتي المتاحة في REWE؟
-  hi: REWE पर कौन से वीगन चीज़ विकल्प उपलब्ध हैं?
-  th: มีตัวเลือกชีสวีแกนอะไรบ้างที่ REWE?
-  cs: Jaké veganské sýrové alternativy jsou dostupné v REWE?
-  sv: Vilka veganska ostalternativ finns på REWE?
-  he: "אילו אפשרויות ל**גבינה טבעונית** קיימות ב-REWE?"
+  en: What **vegan cheese** options are available at ExampleGrocer?
+  de: Welche veganen Käse-Alternativen gibt es bei ExampleGrocer?
+  zh: ExampleGrocer有哪些纯素奶酪选择？
+  es: ¿Qué opciones de queso vegano hay en ExampleGrocer?
+  fr: Quelles options de fromage vegan sont disponibles chez ExampleGrocer ?
+  pt: Quais opções de queijo vegano estão disponíveis na ExampleGrocer?
+  ru: Какие веганские сырные альтернативы есть в ExampleGrocer?
+  ja: ExampleGrocerではどんなビーガンチーズが手に入りますか？
+  ko: ExampleGrocer에서 이용 가능한 비건 치즈 옵션은?
+  it: Quali opzioni di formaggio vegano sono disponibili da ExampleGrocer?
+  tr: ExampleGrocer'de hangi vegan peynir seçenekleri mevcut?
+  vi: Tùy chọn phô mai thuần chay nào có sẵn tại ExampleGrocer?
+  id: Pilihan keju vegan apa yang tersedia di ExampleGrocer?
+  pl: Jakie opcje wegańskiego sera są dostępne w ExampleGrocer?
+  nl: Welke veganistische kaasopties zijn beschikbaar bij ExampleGrocer?
+  ar: ما هي خيارات الجبن النباتي المتاحة في ExampleGrocer؟
+  hi: ExampleGrocer पर कौन से वीगन चीज़ विकल्प उपलब्ध हैं?
+  th: มีตัวเลือกชีสวีแกนอะไรบ้างที่ ExampleGrocer?
+  cs: Jaké veganské sýrové alternativy jsou dostupné v ExampleGrocer?
+  sv: Vilka veganska ostalternativ finns på ExampleGrocer?
+  he: "אילו אפשרויות ל**גבינה טבעונית** קיימות ב-ExampleGrocer?"
   verified_by_human: [en, de]

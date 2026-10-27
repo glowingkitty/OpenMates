@@ -175,58 +175,13 @@ def build_external_id_index(models: Dict[str, Dict]) -> Dict[str, Dict[str, str]
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def fetch_lmarena_data(category: str = "text") -> Dict[str, Any]:
-    """
-    Fetch LMArena rankings using the existing fetch script.
-
-    Args:
-        category: LMArena category (text, coding, math, etc.)
-
-    Returns:
-        Dict with rankings data
-    """
-    # Import the fetch function from the existing script
-    try:
-        from backend.scripts.fetch_lmarena_rankings import fetch_lmarena_rankings
-    except ImportError:
-        script_logger.error("Could not import fetch_lmarena_rankings")
-        return {"rankings": [], "validation": {"valid": False}}
-
-    script_logger.info(f"Fetching LMArena rankings (category: {category})...")
-
-    try:
-        data = await fetch_lmarena_rankings(category=category, limit=100)
-        script_logger.info(f"LMArena returned {len(data.get('rankings', []))} models")
-        return data
-    except Exception as e:
-        script_logger.error(f"Failed to fetch LMArena data: {e}")
-        return {"rankings": [], "validation": {"valid": False, "warnings": [str(e)]}}
+    """Report unavailable leaderboard collection without outbound work."""
+    raise RuntimeError("No supported leaderboard data source is configured.")
 
 
 async def fetch_openrouter_data(category: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Fetch OpenRouter rankings using the existing fetch script.
-
-    Args:
-        category: Optional category (programming, etc.)
-
-    Returns:
-        Dict with rankings data
-    """
-    try:
-        from backend.scripts.fetch_openrouter_rankings import fetch_rankings
-    except ImportError:
-        script_logger.error("Could not import fetch_openrouter_rankings")
-        return {"leaderboard": [], "validation": {"valid": False}}
-
-    script_logger.info("Fetching OpenRouter rankings...")
-
-    try:
-        data = await fetch_rankings(basic_mode=False, category=category)
-        script_logger.info(f"OpenRouter returned {len(data.get('leaderboard', []))} models")
-        return data
-    except Exception as e:
-        script_logger.error(f"Failed to fetch OpenRouter data: {e}")
-        return {"leaderboard": [], "validation": {"valid": False, "warnings": [str(e)]}}
+    """Report unavailable leaderboard collection without outbound work."""
+    raise RuntimeError("No supported leaderboard data source is configured.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

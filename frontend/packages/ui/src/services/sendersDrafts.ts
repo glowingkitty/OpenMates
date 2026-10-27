@@ -126,6 +126,7 @@ async function queueInterruptedDraftUpdate(
 	serviceInstance: ChatSynchronizationService,
 	chat_id: string,
 	draft_content: string | null,
+	draft_preview: string | null | undefined,
 	expectedDraftVersion: number,
 	teamId: string | null,
 	error: unknown
@@ -139,6 +140,7 @@ async function queueInterruptedDraftUpdate(
 		...(teamId ? { team_id: teamId } : {}),
 		type: "draft",
 		value: draft_content,
+		encrypted_draft_preview: draft_preview,
 		version_before_edit: Math.max(0, expectedDraftVersion - 1)
 	};
 	const queueService = serviceInstance as DraftOfflineQueueService;
@@ -237,6 +239,7 @@ export async function sendUpdateDraftImpl(
 				serviceInstance,
 				chat_id,
 				draft_content,
+				draft_preview,
 				expectedDraftVersion,
 				context.teamId,
 				error
@@ -372,7 +375,6 @@ async function sendDeleteDraftUnlocked(
 	contextIdentity?: { turnId: string; messageId: string },
 	onDeferredIntent?: (id: string) => void,
 ): Promise<(() => Promise<void>) | undefined> {
-	let offlineQueueFailed = false;
 	let deferredIntentId: string | undefined;
 	let intentCommitted = false;
 	let localClearCompleted = false;
@@ -401,7 +403,6 @@ async function sendDeleteDraftUnlocked(
 				onDeferredIntent?.(deferredIntentId);
 			} catch (error) {
 				releaseDeferredDraftDelete(deferredIntentId);
-				offlineQueueFailed = true;
 				throw error;
 			}
 		}
@@ -414,13 +415,8 @@ async function sendDeleteDraftUnlocked(
 				version_before_edit: versionBeforeEdit
 			};
 			const queueMethod = (serviceInstance as DraftOfflineQueueService).queueOfflineChange;
-			try {
-				if (queueMethod) await queueMethod.call(serviceInstance, offlineChange);
-				else await chatDB.addOfflineChange({ ...offlineChange, change_id: crypto.randomUUID() });
-			} catch (error) {
-				offlineQueueFailed = true;
-				throw error;
-			}
+			if (queueMethod) await queueMethod.call(serviceInstance, offlineChange);
+			else await chatDB.addOfflineChange({ ...offlineChange, change_id: crypto.randomUUID() });
 		}
 		if (expectedWorkspaceIdentity !== getWorkspaceCacheIdentity() ||
 			!isDraftChatContextCurrent(context)) {
@@ -430,12 +426,40 @@ async function sendDeleteDraftUnlocked(
 			}
 			return;
 		}
+		// Ordinary deletion must be acknowledged before retiring the recoverable
+		// local draft. Deferred/offline deletion already owns a durable retry intent.
+		let deletedDraftV: number | undefined;
+		if (connected && !deferConnectedRemote && (!context.teamId || context.committed)) {
+			const receipt = waitForDraftDeleteReceipt(chat_id);
+			try {
+				await webSocketService.sendMessage("delete_draft", payload);
+				deletedDraftV = await receipt;
+			} catch (error) {
+				void receipt.catch(() => undefined);
+				throw error;
+			}
+			if (expectedWorkspaceIdentity !== getWorkspaceCacheIdentity() ||
+				!isDraftChatContextCurrent(context)) return;
+			const latest = await chatDB.getChat(chat_id);
+			if (latest?.draft_v !== chatBeforeClear?.draft_v ||
+				latest?.encrypted_draft_md !== chatBeforeClear?.encrypted_draft_md ||
+				latest?.encrypted_draft_preview !== chatBeforeClear?.encrypted_draft_preview) return;
+		}
 		const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
+		if (deletedDraftV !== undefined && clearedDraftChat && isDraftChatContextCurrent(context)) {
+			// clearCurrentUserChatDraft returns display metadata. Raw storage must
+			// receive only the encrypted record, and must preserve a racing new draft.
+			const clearedRawChat = await chatDB.getRawChat(chat_id);
+			if (clearedRawChat && !clearedRawChat.encrypted_draft_md && !clearedRawChat.encrypted_draft_preview) {
+				clearedRawChat.cleared_draft_v = Math.max(clearedRawChat.cleared_draft_v ?? 0, deletedDraftV);
+				await chatDB.upsertRawChat(clearedRawChat);
+			}
+		}
 		localClearCompleted = true;
 		if (clearedDraftChat) {
 			// CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
 			// This prevents stale draft previews from appearing in the chat list
-			chatMetadataCache.invalidateChat(chat_id);
+			chatMetadataCache.invalidateDraftProjection(chat_id);
 			console.debug("[sendDeleteDraftImpl] Invalidated cache for chat:", chat_id);
 
 			serviceInstance.dispatchEvent(
@@ -495,29 +519,8 @@ async function sendDeleteDraftUnlocked(
 				}
 			};
 		}
-		if (connected) {
-			const receipt = waitForDraftDeleteReceipt(chat_id);
-			try {
-				if (!isDraftChatContextCurrent(context)) throw new Error("Draft workspace changed");
-				await webSocketService.sendMessage("delete_draft", payload);
-				const deletedDraftV = await receipt;
-				if (deletedDraftV !== undefined && isDraftChatContextCurrent(context)) {
-					const clearedChat = await chatDB.getRawChat(chat_id);
-					if (clearedChat && !clearedChat.encrypted_draft_md && !clearedChat.encrypted_draft_preview) {
-						clearedChat.cleared_draft_v = Math.max(
-							clearedChat.cleared_draft_v ?? 0,
-							deletedDraftV
-						);
-						await chatDB.upsertRawChat(clearedChat);
-					}
-				}
-				await clearTeamDraftIntent(chat_id, context, "delete");
-			} catch (error) {
-				receipt.catch(() => undefined);
-				throw error;
-			}
-		}
-		if (!connected) await clearTeamDraftIntent(chat_id, context, "delete");
+
+		await clearTeamDraftIntent(chat_id, context, "delete");
 	} catch (error) {
 		if (deferredIntentId && !localClearCompleted) {
 			if (intentCommitted) {
@@ -529,7 +532,7 @@ async function sendDeleteDraftUnlocked(
 			releaseDeferredDraftDelete(deferredIntentId);
 		}
 		console.warn(`[ChatSyncService:Senders] Failed to delete draft for chat ${chat_id}:`, error);
-		if (offlineQueueFailed || (deferredIntentId && !localClearCompleted)) throw error;
+		throw error;
 	}
 }
 

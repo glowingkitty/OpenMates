@@ -20,12 +20,9 @@ export interface LandingPublication {
 
 /** Real example destinations shared by the screenshots and section action links. */
 export const landingSectionExamples = {
-  actionable: landingAppExamples.events,
-  privacy: 'example-plumber-message-email-phone',
-  'model-choice': landingAppExamples.events,
+  actionable: undefined,
+  privacy: undefined,
+  'model-choice': undefined,
   workflows: undefined,
-  devices: landingAppExamples.travel,
+  devices: undefined,
 } as const;
-
-/** Set only after a genuine native Watch capture has been supplied and reviewed. */
-export const landingDeviceMedia: { devicesWatch?: string } = {};

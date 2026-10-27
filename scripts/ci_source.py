@@ -230,6 +230,7 @@ def publish(
     common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
     # Publication keeps its 30 GiB guard; 85% gates new worktrees only.
     with reserve(common_dir.resolve().parent, MAX_CHANGED_BYTES,
+                 operation=f"ci-source:{session_id}",
                  min_free=DISK_RESERVE, max_used_percent=100):
         return _publish_reserved(root, session_id, session_files, base=base,
                                  resolved_patch=resolved_patch,

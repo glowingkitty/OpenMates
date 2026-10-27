@@ -94,8 +94,107 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       const response = await client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
         timeoutMs: 1000, onStream: event => events.push(event) });
       assert.equal(response.content, "Finished reply"); assert.equal(response.recoveryJobId, "job");
+      assert.equal(response.responseFinal, true);
       assert.ok(Date.now() - start < 500, "no optional postprocessor timer gates required reply");
       assert.ok(events.some(event => event.kind === "done" && event.responseTerminal === true));
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=authored-results.lifecycle.encrypted-and-stable,chats.completion.independent-metadata
+  it("hands off a matching recovery job without certifying the provisional authored prefix", async () => {
+    const chat = "authored-prefix-chat", user = "authored-prefix-user", turn = "authored-prefix-turn";
+    const prefix = 'Supplied records.\n\n```json\n{"type":"authored_results","embed_id":"carrier"}\n```\n\n';
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const events: StreamEvent[] = [];
+    try {
+      const socket = (client as unknown as { socket: { emit: (type: string, raw: Buffer) => void } }).socket;
+      const emit = (type: string, payload: Record<string, unknown>) => socket.emit("message", Buffer.from(JSON.stringify({ type, payload })));
+      const pending = client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
+        timeoutMs: 1000, onStream: event => events.push(event) });
+      emit("ai_message_update", { chat_id: chat, user_message_id: user, message_id: "assistant", task_id: "task",
+        recovery_turn_id: turn, recovery_provisional: true, is_final_chunk: false, full_content_so_far: prefix });
+      emit("recovery_jobs_available", { jobs: [{ job_id: "job", chat_id: chat,
+        turn_id: turn, assistant_message_id: "assistant", chat_key_version: 1 }] });
+
+      const response = await pending;
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "job");
+      assert.equal(response.responseFinal, false);
+      assert.equal(response.content, "", "the client must read the sealed or durable complete reply");
+      assert.equal(response.recoveryCreatedAt, null);
+      assert.ok(events.some(event => event.kind === "chunk" && event.content === prefix));
+      assert.ok(events.some(event => event.kind === "done" && event.responseTerminal === false));
+      assert.equal(events.some(event => event.kind === "done" && event.responseTerminal === true), false);
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=authored-results.lifecycle.encrypted-and-stable,chats.completion.independent-metadata
+  it("keeps the full authored suffix when the final frame follows job handoff during embed collection", async () => {
+    const chat = "authored-final-chat", user = "authored-final-user", turn = "authored-final-turn";
+    const prefix = 'Supplied records.\n\n```json\n{"type":"authored_results","embed_id":"carrier"}\n```\n\n';
+    const full = prefix + "The draft recipe and social post remain proposals.";
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const events: StreamEvent[] = [];
+    try {
+      const socket = (client as unknown as { socket: { emit: (type: string, raw: Buffer) => void } }).socket;
+      const emit = (type: string, payload: Record<string, unknown>) => socket.emit("message", Buffer.from(JSON.stringify({ type, payload })));
+      let resolved = false;
+      const pending = client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
+        timeoutMs: 1000, onStream: event => events.push(event) });
+      void pending.then(() => { resolved = true; });
+      emit("send_embed_data", { chat_id: chat, embed_id: "carrier", status: "processing" });
+      emit("ai_message_update", { chat_id: chat, user_message_id: user, message_id: "assistant", task_id: "task",
+        recovery_turn_id: turn, recovery_provisional: true, is_final_chunk: false, full_content_so_far: prefix });
+      emit("recovery_jobs_available", { jobs: [{ job_id: "job", chat_id: chat,
+        turn_id: turn, assistant_message_id: "assistant", chat_key_version: 1 }] });
+      await Promise.resolve();
+      assert.equal(resolved, false);
+      assert.equal(events.some(event => event.kind === "done" && event.responseTerminal === true), false);
+
+      emit("ai_message_update", { chat_id: chat, user_message_id: user, message_id: "assistant", task_id: "task",
+        recovery_turn_id: turn, recovery_job_id: "job", recovery_protocol_version: 1, created_at: 1793022695,
+        recovery_provisional: false, is_final_chunk: true, full_content_so_far: full });
+      emit("send_embed_data", { chat_id: chat, embed_id: "carrier", status: "finished" });
+      const response = await pending;
+      assert.equal(response.responseFinal, true);
+      assert.equal(response.content, full);
+      assert.equal(response.recoveryCreatedAt, 1793022695);
+      assert.ok(events.some(event => event.kind === "done" && event.responseTerminal === true && event.content === full));
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=authored-results.lifecycle.encrypted-and-stable,chats.completion.independent-metadata
+  it("ignores late provisional text after the final authored response while embeds finish", async () => {
+    const chat = "authored-late-prefix-chat", user = "authored-late-prefix-user", turn = "authored-late-prefix-turn";
+    const prefix = 'Supplied records.\n\n```json\n{"type":"authored_results","embed_id":"carrier"}\n```\n\n';
+    const full = prefix + "The draft recipe and social post remain proposals.";
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const events: StreamEvent[] = [];
+    try {
+      const socket = (client as unknown as { socket: { emit: (type: string, raw: Buffer) => void } }).socket;
+      const emit = (type: string, payload: Record<string, unknown>) => socket.emit("message", Buffer.from(JSON.stringify({ type, payload })));
+      let resolved = false;
+      const pending = client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
+        timeoutMs: 1000, onStream: event => events.push(event) });
+      void pending.then(() => { resolved = true; });
+      emit("send_embed_data", { chat_id: chat, embed_id: "carrier", status: "processing" });
+      const identity = { chat_id: chat, user_message_id: user, message_id: "assistant", task_id: "task", recovery_turn_id: turn };
+      emit("ai_message_update", { ...identity, recovery_job_id: "job", recovery_protocol_version: 1,
+        created_at: 1793022695, recovery_provisional: false, is_final_chunk: true, full_content_so_far: full });
+      await Promise.resolve();
+      assert.equal(resolved, false);
+      emit("ai_message_update", { ...identity, recovery_provisional: true, is_final_chunk: false, full_content_so_far: prefix });
+      emit("send_embed_data", { chat_id: chat, embed_id: "carrier", status: "finished" });
+
+      const response = await pending;
+      assert.equal(response.responseFinal, true);
+      assert.equal(response.content, full);
+      assert.equal(response.recoveryCreatedAt, 1793022695);
+      assert.equal(events.some(event => event.kind === "chunk" && event.content === prefix), false);
+      assert.ok(events.some(event => event.kind === "done" && event.responseTerminal === true && event.content === full));
     } finally { client.close(); }
   });
 
@@ -1571,105 +1670,137 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
-  it("waits for the continuation recovery job while sub-chats are running", async () => {
-    const chatId = "chat-sub-chat-recovery";
-    const userMessageId = "user-message-sub-chat-recovery";
-    const turnId = "turn-sub-chat-recovery";
+  for (const jobOrder of ["before", "after", "metadata-late", "missing", "closed"]) {
+    it(`binds child continuation recovery with final job ${jobOrder}`, { timeout: 1_000 }, async () => {
+      const chatId = "chat-sub-chat-recovery";
+      const userMessageId = "user-message-sub-chat-recovery";
+      const turnId = "turn-sub-chat-recovery";
 
-    server.once("connection", (socket) => {
-      setTimeout(() => {
-        socket.send(JSON.stringify({
-          type: "awaiting_sub_chats_completion",
-          payload: { chat_id: chatId, task_id: "task-interim" },
-        }));
-        socket.send(JSON.stringify({
-          type: "ai_message_update",
-          payload: {
-            user_message_id: userMessageId,
-            message_id: "assistant-interim",
-            task_id: "task-interim",
-            chat_id: chatId,
-            is_final_chunk: true,
-            full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "recovery_jobs_available",
-          payload: {
-            jobs: [{
-              job_id: "recovery-job-interim",
+      server.once("connection", (socket) => {
+        setTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "awaiting_sub_chats_completion",
+            payload: { chat_id: chatId, task_id: "task-interim" },
+          }));
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-interim",
+              task_id: "task-interim",
               chat_id: chatId,
-              turn_id: turnId,
-              assistant_message_id: "assistant-interim",
-              chat_key_version: 1,
-            }],
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "post_processing_metadata",
-          payload: { chat_id: chatId },
-        }));
-      }, 5);
+              is_final_chunk: true,
+              full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }));
+        }, 5);
 
-      setTimeout(() => {
-        socket.send(JSON.stringify({
-          type: "sub_chat_completed",
-          payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
-        }));
-        socket.send(JSON.stringify({
-          type: "recovery_jobs_available",
-          payload: {
-            jobs: [{
-              job_id: "recovery-job-final",
+        setTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "sub_chat_completed",
+            payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
+          }));
+          const announceFinalJob = () => socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }, {
+                job_id: "recovery-job-final",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-final",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          if (jobOrder === "before") announceFinalJob();
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: "server-continuation-message",
+              message_id: "assistant-final",
+              task_id: "task-interim",
               chat_id: chatId,
-              turn_id: turnId,
-              assistant_message_id: "assistant-final",
-              chat_key_version: 1,
-            }],
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "ai_message_update",
-          payload: {
-            user_message_id: "server-continuation-message",
-            message_id: "assistant-final",
-            task_id: "task-interim",
-            chat_id: chatId,
-            is_sub_chat_continuation: true,
-            is_final_chunk: true,
-            full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "post_processing_metadata",
-          payload: { chat_id: chatId },
-        }));
-      }, 80);
-    });
-
-    const client = new OpenMatesWsClient({
-      apiUrl,
-      sessionId: "session-sub-chat-recovery",
-      wsToken: "token",
-      refreshToken: null,
-    });
-    await client.open();
-
-    try {
-      const response = await client.collectAiResponse(userMessageId, chatId, {
-        timeoutMs: 1_000,
-        recoveryTurnId: turnId,
+              is_sub_chat_continuation: true,
+              is_final_chunk: true,
+              full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
+            },
+          }));
+          // A replayed interim announcement must not replace the continuation job.
+          socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          const sendFinalMetadata = () => socket.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }));
+          if (jobOrder === "metadata-late") setTimeout(sendFinalMetadata, 400);
+          else sendFinalMetadata();
+          if (jobOrder === "after" || jobOrder === "metadata-late") setTimeout(announceFinalJob, 10);
+          if (jobOrder === "closed") setTimeout(() => socket.close(), 10);
+        }, 80);
       });
 
-      assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
-      assert.equal(response.messageId, "assistant-final");
-      assert.equal(response.recoveryJobId, "recovery-job-final");
-      assert.equal(response.recoveryCreatedAt, null);
-      assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
-    } finally {
-      client.close();
-    }
-  });
+      const client = new OpenMatesWsClient({
+        apiUrl,
+        sessionId: "session-sub-chat-recovery",
+        wsToken: "token",
+        refreshToken: null,
+      });
+      await client.open();
+
+      try {
+        const pendingResponse = client.collectAiResponse(userMessageId, chatId, {
+          timeoutMs: 250,
+          recoveryTurnId: turnId,
+        });
+        if (jobOrder === "missing" || jobOrder === "closed") {
+          await assert.rejects(pendingResponse, jobOrder === "missing"
+            ? /Timed out waiting for AI response/ : /WebSocket closed while waiting for AI response/);
+          return;
+        }
+        const response = await pendingResponse;
+
+        assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
+        assert.equal(response.messageId, "assistant-final");
+        assert.equal(response.recoveryJobId, "recovery-job-final");
+        assert.equal(response.recoveryCreatedAt, null);
+        assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
+      } finally {
+        client.close();
+      }
+    });
+  }
 
   it("waits across focus activation for delegated research synthesis", async () => {
     const chatId = "chat-focus-sub-chat";
@@ -1873,6 +2004,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.recoveryJobId, "recovery-job-current");
       assert.equal(response.messageId, "assistant-message-current");
       assert.equal(response.content, "");
+      assert.equal(response.responseFinal, false);
     } finally {
       client.close();
     }

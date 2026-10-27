@@ -9,6 +9,10 @@ logo_svg: "logos/deepseek.svg"
 privacy_policy: "https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html"
 
 optional_keys:
+  - env_key: "SECRET__BASETEN__API_KEY"
+    vault_path: "kv/data/providers/baseten"
+    vault_key: "api_key"
+    description: "Optional direct Baseten Model API key; retained as an additional DeepSeek V4.1 route."
   - env_key: "SECRET__TOGETHER__API_KEY"
     vault_path: "kv/data/providers/together"
     vault_key: "api_key"
@@ -19,6 +23,87 @@ optional_keys:
     description: "Optional OpenRouter fallback key for DeepSeek model hosting."
 
 models:
+  - id: "deepseek-v4.1-flash"
+    name: "DeepSeek V4.1 Flash"
+    description: >-
+      DeepSeek V4.1 Flash, pinned to the October 17, 2026 snapshot, with native
+      vision, reasoning and tool calling. Together AI is primary, with OpenRouter
+      routing to the same Baseten snapshot as fallback. Direct Baseten remains available.
+    country_origin: "CN"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-10"
+    capability_level: "high"
+    allow_auto_select: true
+    reasoning: true
+    external_ids:
+      together: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+      baseten: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+      openrouter: "deepseek/deepseek-v4.1-flash-20261017"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "together"
+    servers:
+      - id: "together"
+        name: "Together AI"
+        model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        region: "US"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "1", MEDIUM: "25", HIGH: "50", EXTRA_HIGH: "100"}
+          source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
+      - id: "openrouter"
+        name: "OpenRouter (Baseten)"
+        model_id: "deepseek/deepseek-v4.1-flash-20261017"
+        region: "global"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+      - id: "baseten"
+        name: "Baseten"
+        model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        region: "global"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://docs.baseten.co/inference/model-apis/reasoning
+    # Pin the fallback's host: another upstream may have a different cache tariff.
+    provider_overrides:
+      only: ["baseten"]
+      allow_fallbacks: false
+      require_parameters: true
+    pricing:
+      tokens:
+        input: {per_credit_unit: 1100}
+        cache_read: {per_credit_unit: 47500}
+        output: {per_credit_unit: 275}
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [together, openrouter, baseten]
+      source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
+      reviewed_on: "2026-10-25"
+      status: verified_for_activation
+      expires_on: "2026-11-25"
+    # Shared customer cache tariff remains conservative for both documented hosts.
+    # Supplier costs retain actual host-specific cache prices.
+    costs:
+      input_per_million_token: {price: 0.30, currency: USD, max_context: 1048576}
+      cached_input_per_million_token: {price: 0.006, currency: USD}
+      output_per_million_token: {price: 1.20, currency: USD, max_context: 1048576}
+    supplier_cost_profiles:
+      baseten:
+        costs:
+          cached_input_per_million_token: {price: 0.007, currency: USD}
+      openrouter:
+        # The fallback is restricted to the reviewed Baseten endpoint above.
+        costs:
+          cached_input_per_million_token: {price: 0.007, currency: USD}
+    features:
+      max_output_tokens: 262144
+      tool_use: true
+      streaming: true
+
   - id: "deepseek-v4-pro"
     name: "DeepSeek V4 Pro"
     description: "DeepSeek V4 Pro is a large-scale Mixture-of-Experts model with 1.6T total parameters, 49B activated parameters, hybrid attention, and a 512K-token Together context window. Primary: Together AI direct API; Fallback: OpenRouter."
@@ -38,11 +123,19 @@ models:
     default_server: "together" # Use Together directly; OpenRouter is fallback only
     servers:
       - id: "together"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://docs.together.ai/docs/deepseek-v4-quickstart#reasoning-effort
         name: "Together AI"
         model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
         health_check_preferred: true # Known serverless probe; the cheapest configured model requires a dedicated endpoint.
         region: "US" # Server region for UI display
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-pro"
         region: "US" # Server region for UI display
@@ -90,6 +183,10 @@ models:
     default_server: "openrouter" # OpenRouter routes to AtlasCloud first via provider_overrides
     servers:
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-flash"
         region: "US" # Server region for UI display

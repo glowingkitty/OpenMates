@@ -153,17 +153,18 @@ final class SettingsModesParityUITests: XCTestCase {
             trigger.tap()
             let menu = app.descendants(matching: .any)["team-context-menu"].firstMatch
             XCTAssertTrue(menu.waitForExistence(timeout: 5))
-            let personal = app.buttons["team-context-personal"].firstMatch
+            XCTAssertFalse(app.buttons["team-context-personal"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["profile-team-context-switcher"].exists)
             let newTeam = app.buttons["team-context-new-team"].firstMatch
-            XCTAssertTrue(personal.isHittable && newTeam.isHittable)
+            XCTAssertTrue(newTeam.isHittable)
             XCTAssertTrue(app.buttons["team-context-option-synthetic-home-one"].firstMatch.isHittable)
             XCTAssertTrue(app.buttons["team-context-option-synthetic-home-two"].firstMatch.isHittable)
             // Query after opening animation by waiting for stable expected bounds.
-            let settled = NSPredicate { _, _ in abs(menu.frame.height - 208) < 2 && abs(menu.frame.width - 185) < 2 }
+            let settled = NSPredicate { _, _ in abs(menu.frame.height - 157) < 2 && abs(menu.frame.width - 185) < 2 }
             expectation(for: settled, evaluatedWith: menu)
             waitForExpectations(timeout: 5)
-            XCTAssertEqual(menu.frame.height, 208, accuracy: 2)
-            XCTAssertGreaterThanOrEqual(newTeam.frame.minY, personal.frame.maxY)
+            XCTAssertEqual(menu.frame.height, 157, accuracy: 2)
+            XCTAssertGreaterThanOrEqual(newTeam.frame.minY, app.buttons["team-context-option-synthetic-home-two"].frame.maxY)
             XCTAssertLessThanOrEqual(menu.frame.maxY - newTeam.frame.maxY, 20,
                 "Content must end at the web bottom padding without a blank region")
             attachTeamsHomeScreenshot("Teams home " + variant + " fitted menu", app)
@@ -173,7 +174,78 @@ final class SettingsModesParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,settings-ui.parity.web-apple-shell
+    func testPersonalQuickActionRemembersTeamChoiceUntilToggleAndNeverAddsPersonalOption() {
+        let app = launchTeamsHome(variant: "personal")
+        XCTAssertFalse(app.descendants(matching: .any)["profile-team-context-switcher"].exists)
+        let trigger = app.buttons["team-quick-context-dropdown"].firstMatch
+        let toggle = app.switches["team-quick-toggle"].firstMatch
+        XCTAssertTrue(trigger.isHittable && toggle.isHittable)
+        XCTAssertEqual(trigger.value as? String, "xHain")
+        XCTAssertEqual(toggle.value as? String, "Off")
+        trigger.tap()
+        XCTAssertFalse(app.buttons["team-context-personal"].exists)
+        app.buttons["team-context-option-synthetic-home-two"].tap()
+        XCTAssertEqual(trigger.value as? String, "OpenMates")
+        XCTAssertEqual(toggle.value as? String, "Off", "Picker selection must leave Personal active")
+        toggle.tap()
+        let on = NSPredicate(format: "value == 'On'")
+        expectation(for: on, evaluatedWith: toggle); waitForExpectations(timeout: 5)
+        toggle.tap()
+        let off = NSPredicate(format: "value == 'Off'")
+        expectation(for: off, evaluatedWith: toggle); waitForExpectations(timeout: 5)
+        XCTAssertEqual(trigger.value as? String, "OpenMates")
+        toggle.tap()
+        expectation(for: on, evaluatedWith: toggle); waitForExpectations(timeout: 5)
+        trigger.tap()
+        app.buttons["team-context-option-synthetic-home-one"].tap()
+        XCTAssertEqual(trigger.value as? String, "xHain")
+        XCTAssertEqual(toggle.value as? String, "On")
+        attachTeamsHomeScreenshot("Personal picker remembers team and toggle activates it", app)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,settings-ui.parity.web-apple-shell
+    func testSingleTeamMenuIsTeamsOnlyAndLoadingJoinedDisablesSelection() {
+        let app = launchTeamsHome(variant: "single")
+        let trigger = app.buttons["team-quick-context-dropdown"].firstMatch
+        XCTAssertEqual(trigger.value as? String, "SocialHub")
+        trigger.tap()
+        let menu = app.descendants(matching: .any)["team-context-menu"].firstMatch
+        let settled = NSPredicate { _, _ in abs(menu.frame.height - 106) < 2 }
+        expectation(for: settled, evaluatedWith: menu); waitForExpectations(timeout: 5)
+        XCTAssertFalse(app.buttons["team-context-personal"].exists)
+        XCTAssertTrue(app.buttons["team-context-option-synthetic-home-one"].isHittable)
+        XCTAssertTrue(app.buttons["team-context-new-team"].isHittable)
+        attachTeamsHomeScreenshot("SocialHub only team menu", app)
+        trigger.tap()
+        app.switches["team-quick-toggle"].tap()
+        XCTAssertEqual(app.switches["team-quick-toggle"].value as? String, "1")
+        app.terminate()
+        let loading = launchTeamsHome(variant: "loadingJoined")
+        XCTAssertFalse(loading.buttons["team-quick-context-dropdown"].isEnabled)
+        XCTAssertFalse(loading.switches["team-quick-toggle"].isEnabled)
+        XCTAssertFalse(loading.buttons["team-quick-create"].exists)
+        attachTeamsHomeScreenshot("Loading joined roster keeps disabled team controls", loading)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local
+    func testManyTeamMenuShowsFiveChoicesThenExpandsAndRemainsScrollable() {
+        let app = launchTeamsHome(variant: "many")
+        app.buttons["team-quick-context-dropdown"].tap()
+        XCTAssertFalse(app.buttons["team-context-option-synthetic-home-6"].exists)
+        let more = app.buttons["team-context-show-more"].firstMatch
+        XCTAssertTrue(more.isHittable); more.tap()
+        XCTAssertFalse(more.exists)
+        let menu = app.scrollViews["team-context-menu"].firstMatch
+        let last = app.buttons["team-context-option-synthetic-home-7"].firstMatch
+        for _ in 0..<3 where !last.isHittable { menu.swipeUp() }
+        XCTAssertTrue(last.isHittable)
+        XCTAssertFalse(app.buttons["team-context-personal"].exists)
+        attachTeamsHomeScreenshot("Expanded recent team menu remains bounded", app)
+    }
+
     private func launchTeamsHome(variant: String) -> XCUIApplication {
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-authenticated-chat-navigation",
             "--ui-test-account-settings-fixture", "--ui-test-teams-settings-fixture", "--ui-test-teams-home-roster-fixture"]
@@ -181,7 +253,8 @@ final class SettingsModesParityUITests: XCTestCase {
         app.launch()
         let settings = app.buttons["settings-button"].firstMatch
         XCTAssertTrue(settings.waitForExistence(timeout: 15)); settings.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(RealAccountUITestSupport.waitForVisibleSettingsHome(in: app),
+                      "The opened settings pane and home ScrollView must be enabled and visible")
         return app
     }
 
@@ -191,6 +264,7 @@ final class SettingsModesParityUITests: XCTestCase {
     }
 
     private func launchSettingsFixture(extraArguments: [String] = []) -> XCUIApplication {
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache"] + extraArguments
         app.launch()

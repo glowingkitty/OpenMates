@@ -9,7 +9,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -70,7 +71,8 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={Object.fromEntries(["platform", "page", "title", "body", "author", "url", "published_at", "like_count", "reply_count", "repost_count"].filter(key => dc[key] !== undefined).map(key => [key, dc[key]]))}
   appId="social_media"
   skillId="social_post"
   embedHeaderTitle={title}
@@ -94,7 +96,15 @@
     {/if}
   {/snippet}
 
-  {#snippet content()}
+  {#snippet summary()}{#each [['like_count', 'Heart', 'Likes'], ['reply_count', 'MessageCircle', 'Replies'], ['repost_count', 'Repeat2', 'Reposts']] as [key, icon, label]}
+{#if typeof dc[key] === 'number'}<ResultEmbedInfo {icon} {label} value={formatCount(dc[key] as number)}>{#snippet children()}{label}: {formatCount(dc[key] as number)}{/snippet}</ResultEmbedInfo>{/if}{/each}{/snippet}
+
+  {#snippet media()}        {#if mediaUrl}
+          <img class="media" src={proxyImage(mediaUrl, MAX_WIDTH_HEADER_IMAGE)} alt="" use:handleImageError />
+        {/if}
+
+  {/snippet}
+  {#snippet detailContent()}
     <article class="social-post-fullscreen">
       <section class="original-post-card" aria-label="Original social media post">
         <header class="post-header">
@@ -127,21 +137,12 @@
           {/if}
         </div>
 
-        {#if mediaUrl}
-          <img class="media" src={proxyImage(mediaUrl, MAX_WIDTH_HEADER_IMAGE)} alt="" use:handleImageError />
-        {/if}
-
         {#if externalUrl || externalTitle}
           <a class="external-card" href={externalUrl || url} target="_blank" rel="noopener noreferrer">
             <span>{externalTitle || externalUrl}</span>
           </a>
         {/if}
 
-        <footer class="metrics">
-          <span>{formatCount(dc.like_count as number | undefined)} likes</span>
-          <span>{formatCount(dc.reply_count as number | undefined)} replies</span>
-          <span>{formatCount(dc.repost_count as number | undefined)} reposts</span>
-        </footer>
       </section>
 
       <section class="comments">
@@ -167,203 +168,8 @@
       </section>
     </article>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .social-post-fullscreen {
-    width: min(820px, calc(100% - 32px));
-    margin: 0 auto;
-    padding: var(--spacing-12) 0 120px;
-  }
-
-  .original-post-card,
-  .comments {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background: var(--color-surface-primary);
-    box-shadow: 0 16px 40px color-mix(in srgb, var(--color-shadow, #000) 10%, transparent);
-  }
-
-  .original-post-card {
-    overflow: hidden;
-  }
-
-  .post-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-5);
-    padding: var(--spacing-8) var(--spacing-8) 0;
-  }
-
-  .avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex: 0 0 auto;
-  }
-
-  .fallback-avatar {
-    display: grid;
-    place-items: center;
-    background: var(--color-app-socialmedia, var(--color-primary));
-    color: var(--color-font-button);
-    font-weight: 800;
-  }
-
-  .author-block {
-    min-width: 0;
-  }
-
-  .author-name {
-    color: var(--color-text-primary);
-    font-size: var(--font-size-md);
-    font-weight: 700;
-  }
-
-  .post-source {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-  }
-
-  .post-content {
-    padding: var(--spacing-7) var(--spacing-8) var(--spacing-6);
-  }
-
-  .metrics {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-6);
-    flex-wrap: wrap;
-    padding: var(--spacing-5) var(--spacing-8);
-    border-top: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-  }
-
-  h1 {
-    margin: 0 0 var(--spacing-5);
-    color: var(--color-text-primary);
-    font-size: clamp(1.35rem, 2.2vw, 1.95rem);
-    line-height: 1.18;
-  }
-
-  .post-content p {
-    margin: 0;
-    color: var(--color-text-primary);
-    font-size: var(--font-size-md);
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-
-  .post-content p.clamped {
-    display: -webkit-box;
-    -webkit-line-clamp: 9;
-    line-clamp: 9;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .expand-button {
-    margin-top: var(--spacing-5);
-    border: 0;
-    background: transparent;
-    color: var(--color-button-primary);
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .media {
-    width: 100%;
-    max-height: 520px;
-    object-fit: contain;
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-grey-15);
-  }
-
-  .external-card {
-    display: block;
-    margin: 0 var(--spacing-8) var(--spacing-6);
-    padding: var(--spacing-5);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface-secondary);
-    color: var(--color-text-primary);
-    text-decoration: none;
-  }
-
-  .comments {
-    margin-top: var(--spacing-8);
-    padding: var(--spacing-8);
-  }
-
-  .section-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-bottom: var(--spacing-6);
-  }
-
-  .section-heading h2 {
-    margin: 0;
-    color: var(--color-text-primary);
-    font-size: var(--font-size-lg);
-  }
-
-  .section-heading span,
-  .empty-comments {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-  }
-
-  .comment {
-    padding: var(--spacing-5) 0;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .section-heading + .comment {
-    border-top: 0;
-    padding-top: 0;
-  }
-
-  .comment-author {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-    font-weight: 650;
-  }
-
-  .comment p {
-    margin: var(--spacing-2) 0 0;
-    color: var(--color-text-primary);
-    line-height: 1.5;
-    white-space: pre-wrap;
-  }
-
-  @media (max-width: 640px) {
-    .social-post-fullscreen {
-      width: min(100% - 20px, 820px);
-      padding-top: var(--spacing-6);
-    }
-
-    .post-header,
-    .post-content,
-    .comments {
-      padding-left: var(--spacing-5);
-      padding-right: var(--spacing-5);
-    }
-
-    .external-card {
-      margin-left: var(--spacing-5);
-      margin-right: var(--spacing-5);
-    }
-  }
+ .social-post-fullscreen {display:flex;flex-direction:column;gap:var(--spacing-6);width:100%;} .post-header {display:flex;align-items:center;gap:var(--spacing-3);} .avatar {width:36px;height:36px;border-radius:50%;object-fit:cover;} .fallback-avatar {display:grid;place-items:center;background:var(--color-grey-20);} .author-name {font-weight:600;} .post-source,.comment-author,.section-heading {display:flex;flex-wrap:wrap;gap:var(--spacing-2);color:var(--color-font-secondary);font-size:var(--font-size-small);} .post-content {margin-top:var(--spacing-4);} h1,h2 {margin:0 0 var(--spacing-3);font-size:var(--font-size-h4);overflow-wrap:anywhere;} p {margin:0;white-space:pre-wrap;line-height:1.5;overflow-wrap:anywhere;} .clamped {display:-webkit-box;-webkit-line-clamp:9;-webkit-box-orient:vertical;overflow:hidden;} .expand-button {margin-top:var(--spacing-3);border:0;background:transparent;color:var(--color-link);cursor:pointer;min-height:44px;} .media {display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;} .external-card {display:block;color:var(--color-link);margin-top:var(--spacing-4);overflow-wrap:anywhere;} .section-heading {justify-content:space-between;align-items:center;} .section-heading h2 {margin:0;} .comment {padding-block:var(--spacing-4);border-top:1px solid var(--color-grey-20);} .comment p {margin-top:var(--spacing-2);} .empty-comments {margin-top:var(--spacing-3);color:var(--color-font-secondary);}
 </style>

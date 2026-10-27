@@ -1,0 +1,311 @@
+{
+  "afterSha256": "904c42a39c55a76640ac3585986f1907525de5831ee380ba8dc3a20b69b4b71f",
+  "beforeSha256": "c0382cad397e94c5417b2f151ca03e211b318cf995bc3ccfd9d39d149b9da6a1",
+  "counts": {
+    "contracts": 82,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 312
+  },
+  "fixture": "packages/openmates-rust/tests/fixtures/browser-ordinary-retention.json",
+  "gapDeltas": [
+    {
+      "after": "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage. Native Cookie metadata search and Personal draft clearing exist with focused fixtures; full older-chat census, Team draft clear, API-key/facade and npm/Python exposure remain incomplete. Complete cross-language operation/send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified. Private uncompiled Personal-only native cached-list freshness prototype adds explicit protected restoration and platform clock adapters; Linux boot-clock support only, Team/Direct/Mac, executable cross-SDK conformance, runtime regressions and matched-default-flow performance floor remain unverified. Durable native pre-dispatch receipt revocation for uncertain operations is privately staged with restart/save-failure regressions but remains uncompiled and unrun.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.; Ordinary fresh-password retention remains required partial: native policy/public-consumer and genuine WASM/CryptoKey/Worker/IndexedDB retention/read tests are authored unrun; executable shared three-SDK functional retention conformance and generated package/runtime/performance acceptance remain unverified.",
+      "appended": "Ordinary fresh-password retention remains required partial: native policy/public-consumer and genuine WASM/CryptoKey/Worker/IndexedDB retention/read tests are authored unrun; executable shared three-SDK functional retention conformance and generated package/runtime/performance acceptance remain unverified.",
+      "before": "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage. Native Cookie metadata search and Personal draft clearing exist with focused fixtures; full older-chat census, Team draft clear, API-key/facade and npm/Python exposure remain incomplete. Complete cross-language operation/send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified. Private uncompiled Personal-only native cached-list freshness prototype adds explicit protected restoration and platform clock adapters; Linux boot-clock support only, Team/Direct/Mac, executable cross-SDK conformance, runtime regressions and matched-default-flow performance floor remain unverified. Durable native pre-dispatch receipt revocation for uncertain operations is privately staged with restart/save-failure regressions but remains uncompiled and unrun.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+      "index": 93,
+      "language": "rust"
+    },
+    {
+      "after": "sdk.session-client [npm] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.; Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "appended": "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "before": "sdk.session-client [npm] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+      "index": 94,
+      "language": "npm"
+    },
+    {
+      "after": "sdk.session-client [python] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.; Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "appended": "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "before": "sdk.session-client [python] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.; Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.; Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.; Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.; Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+      "index": 95,
+      "language": "python"
+    }
+  ],
+  "matrixDelta": {
+    "afterSha256": "cb10bffa6d3fbe448245415af5a220ba3b244295d028d68c13e574b311ef1edf",
+    "beforeSha256": "6d466f3806f59d5e69ef94072ed2c169ec9f539fc46531c75502a4dacab374e8",
+    "family": "sdk.session-client",
+    "obligation": "Ordinary fresh-password key retention is required partial under the same auth/storage capability. Rust policy/public-consumer tests and genuine Worker/CryptoKey/IndexedDB login/read proof are authored unrun; equivalent direct npm/Python functional retention interfaces, a shared executable three-SDK fixture family/schema and all actual adapter execution remain missing. Language API shapes may differ; foreign enum/helper names are not required. The maintained two-case effect fixture validates synthetic plans only, not storage success, credential ACK, key/account enrollment or cross-database association. Default login remains unchanged; generated WASM/package and full application lifecycle/performance acceptance remain open.",
+    "priorDescription": "Reviewed public SDK capability family: sdk.session-client; support must be proved by actual library conformance. Rust browser platform draft APIs belong to this Client session-authority family; actual browser/WASM runtime and storage integration remain unverified. Classification adds no npm/Python browser API or parity/release claim.",
+    "retentionGaps": {
+      "npm": "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "python": "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
+      "rust": "Ordinary fresh-password retention remains required partial: native policy/public-consumer and genuine WASM/CryptoKey/Worker/IndexedDB retention/read tests are authored unrun; executable shared three-SDK functional retention conformance and generated package/runtime/performance acceptance remain unverified."
+    },
+    "rustApiAdded": [
+      "client.Client.prepare_browser_ordinary_key_retention",
+      "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention",
+      "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.effect_json",
+      "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.take_key"
+    ]
+  },
+  "missingFunctionalConformance": {
+    "npm": "Equivalent direct explicit-credential retention operation/driver and executable shared fixture absent; no matching helper names required.",
+    "python": "Equivalent direct explicit-credential retention operation/driver and executable shared fixture absent; no matching helper names required.",
+    "rust": "Authored native policy/public-consumer and real WASM/browser retention tests unrun; no executable three-SDK retention family."
+  },
+  "nativeExecutions": 0,
+  "oldGapsLosslesslyRetained": true,
+  "oldGapsSha256": "309e5baf7b8d0aa185f76a50005dac99c624d3d877fce00777697000705d0362",
+  "oldPlansSha256": "87eaab316b78a628b6bcd9c125a7147d604adb9819db0c1ad3f59586e17a4cbe",
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "cb10bffa6d3fbe448245415af5a220ba3b244295d028d68c13e574b311ef1edf",
+        "before": "6d466f3806f59d5e69ef94072ed2c169ec9f539fc46531c75502a4dacab374e8"
+      },
+      "packages/openmates-rust/tests/fixtures/browser-local-plan-budget.json": {
+        "after": "8b5d918b42f8b668dd8bfbaa6273a4de5cb9f804adac274aa4dcf1b8f2d34278",
+        "before": null
+      },
+      "packages/openmates-rust/tests/fixtures/browser-ordinary-retention.json": {
+        "after": "ec3920936b6ae1b3c4faf76b5b39f8513ad2b0605af8b1ca8667b8a001360805",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/browser-ordinary-retention.schema.json": {
+        "after": "196adb0546fb9f084a06288cec22eef49f70575a19eb3eabd7a33c677800ad58",
+        "before": null
+      }
+    },
+    "programs": {
+      "frontend/packages/ui/src/services/rustCore/protocol.ts": {
+        "after": "f61242d9f29155d5ee57b95dc4f13b822d4cc1cd7195a2eeb18efd7e8f4573de",
+        "before": "65207ac341b47e15570bdf9a4b1d16cbb434978655e76995ed1ebac468c35a87"
+      },
+      "packages/openmates-browser-bindings/src/browser.rs": {
+        "after": "593219c110bf5d5fd88524b25af3be98f8673fb224efa1fb5f946710a3156f28",
+        "before": "d8b90a4f70373f981c8cdf8ba5ddd7281b6d4127a8e6b0cf640d2aaa9094f57b"
+      },
+      "packages/openmates-rust/src/client.rs": {
+        "after": "776a8b1ba16c11f223d9d3e103896de65dcec358ba7c0ddd3ff64167525ffa8b",
+        "before": "f1298948b1e1f66299ea2e887ffd9318199966853e06138624da117afd4a7225"
+      },
+      "packages/openmates-rust/src/client/browser.rs": {
+        "after": "4806e2ed42a57b5fbbdd7db048f4adc5eb3319a085fd28e0fa73b044edf06511",
+        "before": "131d4a18e19479336500cd2ed06a4564658d7068230d4795c34d40345174983a"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor.rs": {
+        "after": "60740767b1db53896edf73a9943ab972d23d8aaa1a4b117fc4de2175719e095d",
+        "before": "cbd574724d091aae8cce6dc3e52495ba57e9ee047efda0edabd7dadd64a2edc4"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor_tests.rs": {
+        "after": "0956a6a8fdef63e00d9717e9850021f9664c2d7d075c1c394f1fcebb0d0b021b",
+        "before": "20d9bffbd5b176b8219da5bf695ee463bb56faba64f4b12702d68a00522954c5"
+      },
+      "packages/openmates-rust/src/client/browser_ordinary_retention.rs": {
+        "after": "1af50567ed4c54db5d32fededcdc2f3e0756f87538cc919c31acdc473aa59afe",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/browser_ordinary_retention_tests.rs": {
+        "after": "f6ee139e0bcf3156e21ba0c21ce9fa4bb0fd2107baebc96caaf1a9f82710409e",
+        "before": null
+      },
+      "packages/openmates-rust/tests/browser_ordinary_retention_public_api.rs": {
+        "after": "2afa735ab0a51e4703960e319040d8c6cbf4d15ef441c75ed75cd5f6439d2374",
+        "before": null
+      },
+      "scripts/tests/test_sdk_session_embed_version_gate.py": {
+        "after": "5fad523b3e905cd1eb92625e22b4f7378e00a27b36d6b4e3a8a6a9709bbb3254",
+        "before": "03cfaef448a465aa4716cc78efed7f46555f79c0907dcc65bf03cb0a1d2a5efe"
+      }
+    }
+  },
+  "planBudgetManifestSha256": "896a3b0ce01b40864abf9b2c6d4cd80794c196d3c9906c92e625d34db56d428e",
+  "planBudgetPatchSha256": "fd189d2eae24b312e7dbc99019649a1bbd006979c0fb9854f77e5b809bf6f0bd",
+  "plansUnchanged": true,
+  "private": true,
+  "releaseEligible": false,
+  "schema": "tests/sdk-conformance/schemas/browser-ordinary-retention.schema.json",
+  "schemaVersion": 1,
+  "sourceClosure": [
+    {
+      "after": "2daae7ed694dc2e562d43afaa45528cd253c644c8c92f39427644266bfef5306",
+      "before": "7e4df4a83014529122ccea683504952ae4b81815be40374349dc58d96ea2b267",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/apps/web_app/src/lib/rustCore/productionLoader.ts",
+      "sha256": "2daae7ed694dc2e562d43afaa45528cd253c644c8c92f39427644266bfef5306"
+    },
+    {
+      "after": "f67085d71f43b1de1b907f9328fdc410ffe0742b3c0d7a6eeeb473c3bd76228d",
+      "before": null,
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/apps/web_app/tests/rust-core-ordinary-login-retention.spec.ts",
+      "sha256": "f67085d71f43b1de1b907f9328fdc410ffe0742b3c0d7a6eeeb473c3bd76228d"
+    },
+    {
+      "after": "4d979aea2b6c5f1b60a7c3aa7835c55d821ddf009efb17dd3bdfd865d25f5f62",
+      "before": "cb293e11b1bce30c10c67adb9d0443b8635fdc684b6bc8e53f1a147b93a72e40",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/cryptoKeyStorage.ts",
+      "sha256": "4d979aea2b6c5f1b60a7c3aa7835c55d821ddf009efb17dd3bdfd865d25f5f62"
+    },
+    {
+      "after": "e16dc388088832459e09994e0dee7f18bbea24326bf41067a1e70a05bb2b2bc9",
+      "before": "d2bdc9ea9a82b9b1c1e1ae65fa69b4a4164888a6bf0054dc52166eef9c581f63",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/storageLifecycle.test.cjs",
+      "sha256": "e16dc388088832459e09994e0dee7f18bbea24326bf41067a1e70a05bb2b2bc9"
+    },
+    {
+      "after": "d3e7cbf40b6413a3e9756c1035a70bd2ba38bb696f0857f404b4d6b92f80d7d0",
+      "before": null,
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/ordinaryLoginRetention.ts",
+      "sha256": "d3e7cbf40b6413a3e9756c1035a70bd2ba38bb696f0857f404b4d6b92f80d7d0"
+    },
+    {
+      "after": "90e93ff7fdb1bdde93c59480762f0c1c33e62af15db62015097420fa6bbcacae",
+      "before": null,
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/ordinaryLoginRetentionBrowser.ts",
+      "sha256": "90e93ff7fdb1bdde93c59480762f0c1c33e62af15db62015097420fa6bbcacae"
+    },
+    {
+      "after": "e3cccee0b08d29893c603ecb91818932a731573029fb692288619ea12ea0b01d",
+      "before": "713ee9a57cf7ce083535c80bfc78eca21d2db201431993349d345fb4f63142c4",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/platformLifecycle.ts",
+      "sha256": "e3cccee0b08d29893c603ecb91818932a731573029fb692288619ea12ea0b01d"
+    },
+    {
+      "after": "41415d2a17164869a5efd767aee037fc6a1310631bb8695e6c6e9a206182f81d",
+      "before": "bebf3ea18c36402dba2e38300d94a02c48c3c85f2c221493cae65b273878607f",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/productionInvalidationBridge.ts",
+      "sha256": "41415d2a17164869a5efd767aee037fc6a1310631bb8695e6c6e9a206182f81d"
+    },
+    {
+      "after": "832d7ff5a72fd36c8518942a3c0899f6843fe5c5a36cc664b73c9b6a347c5965",
+      "before": "d0f47501c2a10a51452fe3b5c15ece3945f46d13d08a42c8e1c03861ea72ffb4",
+      "bucket": null,
+      "family": "ordinary-retention",
+      "path": "frontend/packages/ui/src/services/rustCore/productionProfileLifecycle.ts",
+      "sha256": "832d7ff5a72fd36c8518942a3c0899f6843fe5c5a36cc664b73c9b6a347c5965"
+    },
+    {
+      "after": "593219c110bf5d5fd88524b25af3be98f8673fb224efa1fb5f946710a3156f28",
+      "before": "d8b90a4f70373f981c8cdf8ba5ddd7281b6d4127a8e6b0cf640d2aaa9094f57b",
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-browser-bindings/src/browser.rs",
+      "sha256": "593219c110bf5d5fd88524b25af3be98f8673fb224efa1fb5f946710a3156f28"
+    },
+    {
+      "after": "776a8b1ba16c11f223d9d3e103896de65dcec358ba7c0ddd3ff64167525ffa8b",
+      "before": "f1298948b1e1f66299ea2e887ffd9318199966853e06138624da117afd4a7225",
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/src/client.rs",
+      "sha256": "776a8b1ba16c11f223d9d3e103896de65dcec358ba7c0ddd3ff64167525ffa8b"
+    },
+    {
+      "after": "4806e2ed42a57b5fbbdd7db048f4adc5eb3319a085fd28e0fa73b044edf06511",
+      "before": "131d4a18e19479336500cd2ed06a4564658d7068230d4795c34d40345174983a",
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/src/client/browser.rs",
+      "sha256": "4806e2ed42a57b5fbbdd7db048f4adc5eb3319a085fd28e0fa73b044edf06511"
+    },
+    {
+      "after": "1af50567ed4c54db5d32fededcdc2f3e0756f87538cc919c31acdc473aa59afe",
+      "before": null,
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/src/client/browser_ordinary_retention.rs",
+      "sha256": "1af50567ed4c54db5d32fededcdc2f3e0756f87538cc919c31acdc473aa59afe"
+    },
+    {
+      "after": "f6ee139e0bcf3156e21ba0c21ce9fa4bb0fd2107baebc96caaf1a9f82710409e",
+      "before": null,
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/src/client/browser_ordinary_retention_tests.rs",
+      "sha256": "f6ee139e0bcf3156e21ba0c21ce9fa4bb0fd2107baebc96caaf1a9f82710409e"
+    },
+    {
+      "after": "2afa735ab0a51e4703960e319040d8c6cbf4d15ef441c75ed75cd5f6439d2374",
+      "before": null,
+      "bucket": "programs",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/tests/browser_ordinary_retention_public_api.rs",
+      "sha256": "2afa735ab0a51e4703960e319040d8c6cbf4d15ef441c75ed75cd5f6439d2374"
+    },
+    {
+      "after": "ec3920936b6ae1b3c4faf76b5b39f8513ad2b0605af8b1ca8667b8a001360805",
+      "before": null,
+      "bucket": "contracts",
+      "family": "ordinary-retention",
+      "path": "packages/openmates-rust/tests/fixtures/browser-ordinary-retention.json",
+      "sha256": "ec3920936b6ae1b3c4faf76b5b39f8513ad2b0605af8b1ca8667b8a001360805"
+    },
+    {
+      "after": "f61242d9f29155d5ee57b95dc4f13b822d4cc1cd7195a2eeb18efd7e8f4573de",
+      "before": "65207ac341b47e15570bdf9a4b1d16cbb434978655e76995ed1ebac468c35a87",
+      "bucket": "programs",
+      "family": "local-plan-budget",
+      "path": "frontend/packages/ui/src/services/rustCore/protocol.ts",
+      "sha256": "f61242d9f29155d5ee57b95dc4f13b822d4cc1cd7195a2eeb18efd7e8f4573de"
+    },
+    {
+      "after": "60740767b1db53896edf73a9943ab972d23d8aaa1a4b117fc4de2175719e095d",
+      "before": "cbd574724d091aae8cce6dc3e52495ba57e9ee047efda0edabd7dadd64a2edc4",
+      "bucket": "programs",
+      "family": "local-plan-budget",
+      "path": "packages/openmates-rust/src/client/browser_local_cursor.rs",
+      "sha256": "60740767b1db53896edf73a9943ab972d23d8aaa1a4b117fc4de2175719e095d"
+    },
+    {
+      "after": "0956a6a8fdef63e00d9717e9850021f9664c2d7d075c1c394f1fcebb0d0b021b",
+      "before": "20d9bffbd5b176b8219da5bf695ee463bb56faba64f4b12702d68a00522954c5",
+      "bucket": "programs",
+      "family": "local-plan-budget",
+      "path": "packages/openmates-rust/src/client/browser_local_cursor_tests.rs",
+      "sha256": "0956a6a8fdef63e00d9717e9850021f9664c2d7d075c1c394f1fcebb0d0b021b"
+    },
+    {
+      "after": "e18bf026f588acd55c25cdcae2f5cc2c89c707452b72ca9e2ebc1756949f16e5",
+      "before": "5d516d350f14ba5720bc2f3992854dbd4f013b7e285ae716a70c3526713dab97",
+      "bucket": null,
+      "family": "local-plan-budget",
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/localCursorWiring.test.cjs",
+      "sha256": "e18bf026f588acd55c25cdcae2f5cc2c89c707452b72ca9e2ebc1756949f16e5"
+    },
+    {
+      "after": "8b5d918b42f8b668dd8bfbaa6273a4de5cb9f804adac274aa4dcf1b8f2d34278",
+      "before": null,
+      "bucket": "contracts",
+      "family": "local-plan-budget",
+      "path": "packages/openmates-rust/tests/fixtures/browser-local-plan-budget.json",
+      "sha256": "8b5d918b42f8b668dd8bfbaa6273a4de5cb9f804adac274aa4dcf1b8f2d34278"
+    },
+    {
+      "after": "03895e765086b417423db840f5ffa40538a14d51212a1ba8e133d9078977217d",
+      "before": "7be376c15d3fad2cd1c7dead7e4e684e6dd3c44e523755d896bc656c1e049b8d",
+      "bucket": null,
+      "family": "local-plan-budget",
+      "path": "frontend/apps/web_app/tests/rust-core-production-local-cursor.spec.ts",
+      "sha256": "03895e765086b417423db840f5ffa40538a14d51212a1ba8e133d9078977217d"
+    }
+  ],
+  "sourceGateRuns": 0,
+  "sourceManifestSha256": "672e6d68d490e73b1c89acbce1d12849d60f8f54368de3c9a9c892d3946fea22",
+  "sourcePatchSha256": "fdfcb4062d860d046f278345b50b3123140cb415ad00172305dff0bdcf1944bf"
+}

@@ -5,17 +5,16 @@ generated_at: '2026-07-21T10:47:07+00:00'
 range:
   since: '2026-07-18T00:00:00+00:00'
   until: '2026-07-19T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 134
+  total_commits: 133
   section_counts:
     features: 6
     bug_fixes: 60
     improvements: 0
     docs: 11
-    tests: 55
+    tests: 54
     infrastructure: 2
     internal: 0
     other: 0
@@ -30,76 +29,57 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -232,8 +212,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -521,7 +499,6 @@ sections:
     - backend/tests/test_native_chats_api.py
     - backend/tests/test_videos_search_candidate_limit.py
     - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
     - frontend/packages/ui/src/components/chats/search/SearchResults.svelte
     release_status: dev_only
     communication_status: dev_only
@@ -782,8 +759,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1060,8 +1035,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1218,8 +1191,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1350,8 +1321,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1931,23 +1900,6 @@ sections:
     authored_at: '2026-07-18T16:08:54+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: expect map fullscreen for urban sports link'
-    section: tests
-    commits:
-    - c211fbb04
-    authored_at: '2026-07-18T15:59:19+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
-    - frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
     release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
@@ -2539,15 +2491,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2898,8 +2846,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'docs: update design icon search evidence'
     commits:
@@ -2960,13 +2906,6 @@ unreleased_progress:
   - title: 'test: hard load saved memory settings deeplink'
     commits:
     - 1d5b86fd7
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: expect map fullscreen for urban sports link'
-    commits:
-    - c211fbb04
     section: tests
     release_status: dev_only
     communication_status: not_user_facing
@@ -3094,8 +3033,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: resolve short issue IDs in issue wrapper'
     commits:
@@ -3262,8 +3199,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: scope recent chat resume assertions'
     commits:
@@ -3402,8 +3337,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: assert shared audio player by test id'
     commits:
@@ -3514,8 +3447,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: authenticate workflow input fake Directus repository'
     commits:
@@ -3528,15 +3459,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: keep background recovery guard quiet'
     commits:
@@ -3742,8 +3669,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: show Design icon search metadata'
@@ -3813,8 +3738,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: make design icon exports native downloads'
@@ -3876,8 +3799,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore CLI team client build'
@@ -4241,7 +4162,6 @@ sources:
     - backend/tests/test_native_chats_api.py
     - backend/tests/test_videos_search_candidate_limit.py
     - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
     - frontend/packages/ui/src/components/chats/search/SearchResults.svelte
     related_feature_ids: []
   - sha: 8e6140df218177fb28cb1de61b154e83906617c9
@@ -4550,7 +4470,6 @@ sources:
   - sha: c211fbb04770e5c258df8127ddb00ed34c907cb1
     short_sha: c211fbb04
     authored_at: '2026-07-18T15:59:19+00:00'
-    subject: 'test: expect map fullscreen for urban sports link'
     in_main: false
     in_dev: true
     changed_paths:

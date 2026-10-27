@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-26T18:39:47.339119+00:00",
+  "kind": "derived-receipt-clarification",
+  "original_evidence_unchanged": true,
+  "explanation": "The original allocation-only probe inherited offline.input_read_after_seal=true from the ordinary benchmark receipt writer. That benchmark-flow field is inapplicable here: this probe returns before the input metadata/read code. Original dynamic_shape_probe.input_read=false and inference_executed=false remain accurate. No original receipt is corrected in place.",
+  "original_preparation_sha256": "97b818583ea7d93be335cd759aa46499e1f261924df6ad62ccc56a1c6ba53c43",
+  "executed_extension": {
+    "path": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/executed-probe-extension.rs.txt",
+    "sha256": "8ee0ea2576cb500fdb5ae3dce312139b7164a20f2375732a7da6abff90d0ed76"
+  },
+  "executed_generated_source": {
+    "path": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/licensed-shape-probe-794fc07f8e465bb3.rs",
+    "sha256": "794fc07f8e465bb31c80d846b8f5ece62f005d1e4d1794ad2a76065b0cfd8417"
+  },
+  "future_fixed_extension": {
+    "path": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-678f/scripts/redact_dynamic_shape_probe.rs",
+    "sha256": "c30b038feb4fdfbe39a0012929aa4240424c94e81d6daceee78238fa70445d76",
+    "executed": false,
+    "change": "Replace inherited offline.input_read_after_seal=true with offline.input_read=false; retain all other offline seal proof fields."
+  },
+  "early_return_proof": {
+    "licensed_probe_after_seal": true,
+    "generated_probe_branch_precedes_input_metadata_and_read": true,
+    "probe_finish_returns_true": true,
+    "generated_host_returns_when_probe_finishes": true
+  },
+  "runs": {
+    "2.2": {
+      "original_result_sha256": "0bae047e7e215788d7ffc846ceb3b4bdd234750ad98d62250c968bc4216dacf8",
+      "original_supervisor_sha256": "2d6372236b188160253b7bd5305f715aca8509b2a882a98d93730ace8685e37a",
+      "original_stderr_sha256": "0cca6b01988b164a9b2ae19b27ab64e47c9787b2f10e91df9143ea8e77abc18a",
+      "original_inherited_field": "offline.input_read_after_seal=true (benchmark-flow field; inapplicable)",
+      "applicable_probe_fields": {
+        "input_read": false,
+        "inference_executed": false
+      },
+      "input_path": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.2/input-must-never-be-read.bin",
+      "input_path_exists_at_clarification": false,
+      "exit_code": 0,
+      "future_receipt_transformation_test_passed": true,
+      "other_offline_seal_fields_unchanged_by_future_fix": true
+    },
+    "2.3.1": {
+      "original_result_sha256": "7a218f15e0179077f4c0722548c063dd908c0e25b851be3e5c30ad8d45417709",
+      "original_supervisor_sha256": "17f884dcd14eac1c7a4a9900995082299f7ff5febde9222d1f7366f97f3f54e8",
+      "original_stderr_sha256": "1231845ec371d160c63f1d775dcd5bb8519a84d604a43a030a97ee84776724cd",
+      "original_inherited_field": "offline.input_read_after_seal=true (benchmark-flow field; inapplicable)",
+      "applicable_probe_fields": {
+        "input_read": false,
+        "inference_executed": false
+      },
+      "input_path": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/runtime-2.3.1/input-must-never-be-read.bin",
+      "input_path_exists_at_clarification": false,
+      "exit_code": 0,
+      "future_receipt_transformation_test_passed": true,
+      "other_offline_seal_fields_unchanged_by_future_fix": true
+    }
+  }
+}

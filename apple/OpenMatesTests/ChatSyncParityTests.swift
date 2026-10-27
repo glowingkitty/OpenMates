@@ -1589,7 +1589,7 @@ final class ChatSyncParityTests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,drafts.persistence.local-first-encrypted
     func testContinuationDraftCardUsesPreviewWithoutMisclassifyingUntitledMessages() {
-        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 1)
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 1, hasNonEmptyDraft: true)
         let existing = makeChat(id: "existing", title: nil, messagesV: 2, draftV: 1)
         let preview = String(repeating: "a", count: 90)
         let card = WelcomeScreenState.cardData(for: draft, draftPreview: preview)
@@ -1614,7 +1614,7 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: ordinaryJSON).draftPreview, ordinaryJSON)
         XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: "  Ordinary\n draft  ").draftPreview, "Ordinary draft")
         XCTAssertNil(WelcomeScreenState.cardData(for: draft).draftPreview)
-        XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: " \n ").draftPreview, "")
+        XCTAssertNil(WelcomeScreenState.cardData(for: draft, draftPreview: " \n ").draftPreview)
         XCTAssertTrue(WelcomeScreenState.isContinuationEligible(draft),
                       "Formatting an empty preview must not discard an addressable draft record")
         let projectMention = #"{"version":1,"nodes":[{"kind":"text","source":"Review "},{"kind":"mention","displayLabel":"@Synthetic-Project","canonicalSyntax":"@project:synthetic-id:read"}]}"#
@@ -1923,4 +1923,345 @@ private actor RecentOfflineCommitGate {
         }
     }
     func release() { continuation?.resume(); continuation = nil }
+}
+
+// Specification: specifications/features/daily-inspiration/specification.yml
+import CryptoKit
+
+@MainActor
+final class NativeDailyInspirationPolicyTests: XCTestCase {
+    private func scope(_ account: String = "fixture-account", team: String? = nil, epoch: UInt64 = 0) -> NativeWorkspaceOfflineScope {
+        .init(accountID: account, server: "https://fixture.invalid", teamID: team,
+              accountGeneration: UUID(), teamEpoch: epoch)
+    }
+    private func rows(_ prefix: String = "fixture", at timestamp: Double = Date().timeIntervalSince1970 - 1) -> [[String: Any]] {
+        (0..<10).map { index in
+            ["inspiration_id": "\(prefix)-\(index)", "phrase": "Local fixture \(index)",
+             "category": "general_knowledge", "generated_at": timestamp,
+             "content_type": index < 3 ? "video" : index < 6 ? "wiki" : "feature"]
+        }
+    }
+    private func payload(_ rows: [[String: Any]]) throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["inspirations": rows], options: .sortedKeys)
+    }
+    private func store(_ cache: NativeWorkspaceOfflineCache, scope: NativeWorkspaceOfflineScope,
+                       key: SymmetricKey) -> NativeDailyInspirationStore {
+        NativeDailyInspirationStore(cache: cache, configure: { _, _ in
+            await cache.configure(scope: scope, masterKey: key); return scope
+        }, check: { expected in
+            guard expected == scope else { throw CancellationError() }
+        }, request: { _ in throw URLError(.notConnectedToInternet) }, masterKey: { _ in key })
+    }
+    private func visible(_ store: NativeDailyInspirationStore, scope: NativeWorkspaceOfflineScope) -> [DailyInspirationData] {
+        store.visibleItems(accountID: scope.accountID, server: scope.server, teamID: scope.teamID,
+            generation: scope.accountGeneration, teamEpoch: scope.teamEpoch)
+    }
+    private func ingest(_ store: NativeDailyInspirationStore, rows: [[String: Any]], scope: NativeWorkspaceOfflineScope) async throws {
+        try await store.ingest(fields: ["payload": ["user_id": scope.accountID, "inspirations": rows]],
+            type: "daily_inspiration", scope: scope)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.authenticated-continuity
+    func testCompleteSetRejectsPartialDuplicateGuestExpiredAndFutureRecords() throws {
+        let now = Date(), current = rows(at: now.timeIntervalSince1970)
+        XCTAssertEqual(NativeDailyInspirationStore.personalizedRows(try payload(current), now: now)?.count, 10)
+        XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(Array(current.dropLast())), now: now))
+        var duplicate = current; duplicate[1]["inspiration_id"] = duplicate[0]["inspiration_id"]
+        XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(duplicate), now: now))
+        var guest = current; guest[0]["feature"] = ["feature_id": "openmates-signup-cta"]
+        XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(guest), now: now))
+        XCTAssertNotNil(NativeDailyInspirationStore.personalizedRows(try payload(rows(at: now.timeIntervalSince1970 - 86400)), now: now))
+        XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(rows(at: now.timeIntervalSince1970 - NativeDailyInspirationStore.ttl)), now: now))
+        XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(rows(at: now.timeIntervalSince1970 + 1)), now: now))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.encrypted-persistence,daily-inspiration.guest-isolated
+    func testActualStoreColdRestoreIsEncryptedAndWrongScopesAreHiddenBeforeReset() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope(), cache = NativeWorkspaceOfflineCache(directory: directory)
+        let warm = store(cache, scope: owner, key: key)
+        try await warm.restore(scope: owner)
+        XCTAssertTrue(visible(warm, scope: owner).isEmpty)
+        try await ingest(warm, rows: rows(), scope: owner)
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory.appendingPathComponent(owner.directoryID), includingPropertiesForKeys: nil).first)
+        let bytes = try Data(contentsOf: file)
+        XCTAssertFalse(String(data: bytes, encoding: .utf8)?.contains("Local fixture") == true)
+        let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await cold.restore(scope: owner)
+        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        for other in [
+            NativeWorkspaceOfflineScope(accountID: "other-account", server: owner.server, teamID: nil,
+                accountGeneration: owner.accountGeneration, teamEpoch: owner.teamEpoch),
+            NativeWorkspaceOfflineScope(accountID: owner.accountID, server: owner.server, teamID: "other-team",
+                accountGeneration: owner.accountGeneration, teamEpoch: owner.teamEpoch),
+            NativeWorkspaceOfflineScope(accountID: owner.accountID, server: "https://other.invalid", teamID: nil,
+                accountGeneration: owner.accountGeneration, teamEpoch: owner.teamEpoch),
+            NativeWorkspaceOfflineScope(accountID: owner.accountID, server: owner.server, teamID: nil,
+                accountGeneration: UUID(), teamEpoch: owner.teamEpoch),
+            NativeWorkspaceOfflineScope(accountID: owner.accountID, server: owner.server, teamID: nil,
+                accountGeneration: owner.accountGeneration, teamEpoch: owner.teamEpoch + 1)] {
+            XCTAssertTrue(visible(cold, scope: other).isEmpty)
+        }
+        do { try await cold.refresh(); XCTFail("Offline request must fail") } catch { }
+        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        cold.reset()
+        XCTAssertTrue(visible(cold, scope: owner).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.encrypted-persistence
+    func testCorruptCiphertextRecoversAndOlderLiveSetCannotReplaceNewerSet() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope(), cache = NativeWorkspaceOfflineCache(directory: directory)
+        let original = store(cache, scope: owner, key: key)
+        try await original.restore(scope: owner)
+        try await ingest(original, rows: rows(), scope: owner)
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory.appendingPathComponent(owner.directoryID), includingPropertiesForKeys: nil).first)
+        try Data("corrupt ciphertext".utf8).write(to: file)
+        let repaired = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        do { try await repaired.restore(scope: owner); XCTFail("Corruption must fail closed") } catch { }
+        let now = Date().timeIntervalSince1970
+        try await ingest(repaired, rows: rows("new", at: now - 1), scope: owner)
+        try await ingest(repaired, rows: rows("old", at: now - 86400), scope: owner)
+        XCTAssertEqual(visible(repaired, scope: owner).count, 10)
+        XCTAssertTrue(visible(repaired, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("new-") == true })
+        let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await cold.restore(scope: owner)
+        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.guest-isolated
+    func testLateConfigurationCannotResetNewerContext() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), first = scope("first"), second = scope("second")
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        var waiting: CheckedContinuation<NativeWorkspaceOfflineScope, Never>?
+        var started: CheckedContinuation<Void, Never>?
+        let store = NativeDailyInspirationStore(cache: cache, configure: { account, _ in
+            if account == first.accountID {
+                return await withCheckedContinuation { waiting = $0; started?.resume(); started = nil }
+            }
+            await cache.configure(scope: second, masterKey: key); return second
+        }, check: { _ in }, request: { _ in throw URLError(.notConnectedToInternet) }, masterKey: { _ in key })
+        let old = Task { try await store.restore(scope: first) }
+        await withCheckedContinuation { continuation in
+            if waiting != nil { continuation.resume() } else { started = continuation }
+        }
+        try await store.restore(scope: second)
+        try await ingest(store, rows: rows("second"), scope: second)
+        waiting?.resume(returning: first)
+        try await old.value
+        XCTAssertEqual(store.scope, second)
+        XCTAssertEqual(visible(store, scope: second).count, 10)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
+    func testEncryptedRecoveryMapsRealRESTFieldsAndDropsBrokenLegacyRows() async throws {
+        let key = SymmetricKey(size: .bits256), now = Date().timeIntervalSince1970 - 1
+        var records: [[String: Any]] = []
+        for value in rows(at: now) {
+            var encrypted = value
+            encrypted["daily_inspiration_id"] = encrypted.removeValue(forKey: "inspiration_id")
+            for field in ["phrase", "category"] {
+                let text = try XCTUnwrap(encrypted.removeValue(forKey: field) as? String)
+                encrypted["encrypted_" + field] = try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: key)
+            }
+            records.append(encrypted)
+        }
+        records.append(["daily_inspiration_id": "broken", "encrypted_phrase": "invalid"])
+        let decoder = NativeDailyInspirationDecoder()
+        let clear = try await decoder.decrypt(payload(records), masterKey: key)
+        let prepared = try await decoder.prepare(clear, personalized: true, retainedAt: Date(), now: Date())
+        XCTAssertEqual(prepared?.items.count, 10)
+        XCTAssertEqual(prepared?.items.first?.text, "Local fixture 0")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
+    func testPublicCacheExpiresAtUTCBoundaryAndPersonalCacheRetainsYesterday() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let decoder = NativeDailyInspirationDecoder()
+        let publicData = try JSONSerialization.data(withJSONObject: ["inspirations": [[
+            "inspiration_id": "public-fixture", "phrase": "Public fixture", "title": "Fixture", "category": "science"]]])
+        let value = try await decoder.prepare(publicData, personalized: false, retainedAt: now, now: now)
+        let midnight = NativeDailyInspirationStore.utc.startOfDay(for: now).addingTimeInterval(86400)
+        XCTAssertEqual(value?.expiresAt, midnight)
+        let expired = try await decoder.prepare(publicData, personalized: false, retainedAt: now, now: midnight)
+        XCTAssertNil(expired)
+        let personal = try await decoder.prepare(payload(rows(at: now.timeIntervalSince1970 - 86400)),
+            personalized: true, retainedAt: now, now: now)
+        XCTAssertEqual(personal?.items.count, 10)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.guest-isolated
+    func testPhase1FromOldTeamEpochCannotReplaceVisibleSet() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope(epoch: 3)
+        let store = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await store.restore(scope: owner)
+        try await ingest(store, rows: rows(), scope: owner)
+        try await store.ingest(fields: ["payload": ["context_epoch": 2, "daily_inspirations": [["invalid": true]]]],
+            type: "phase_1_last_chat_ready", scope: owner)
+        XCTAssertEqual(visible(store, scope: owner).count, 10)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
+    func testPublicFallbackCannotCancelPersonalRecoveryAndLiveDeliveryBeatsOldGET() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope(), cache = NativeWorkspaceOfflineCache(directory: directory)
+        var records: [[String: Any]] = []
+        for row in rows("api") {
+            var record = row
+            record["daily_inspiration_id"] = record.removeValue(forKey: "inspiration_id")
+            for field in ["phrase", "category"] {
+                let text = try XCTUnwrap(record.removeValue(forKey: field) as? String)
+                record["encrypted_" + field] = try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: key)
+            }
+            records.append(record)
+        }
+        let apiBytes = try payload(records)
+        var pending: CheckedContinuation<Data, Never>?
+        var started: CheckedContinuation<Void, Never>?
+        let store = NativeDailyInspirationStore(cache: cache, configure: { _, _ in
+            await cache.configure(scope: owner, masterKey: key); return owner
+        }, check: { _ in }, request: { _ in
+            await withCheckedContinuation { pending = $0; started?.resume(); started = nil }
+        }, masterKey: { _ in key })
+        try await store.restore(scope: owner)
+        let first = Task { try await store.refresh() }
+        await withCheckedContinuation { continuation in
+            if pending != nil { continuation.resume() } else { started = continuation }
+        }
+        let publicBytes = try JSONSerialization.data(withJSONObject: ["inspirations": [[
+            "inspiration_id": "public", "phrase": "Public fixture", "title": "Fixture", "category": "science"]]])
+        try await store.acceptPublic(publicBytes, scope: owner)
+        XCTAssertEqual(visible(store, scope: owner).first?.inspirationId, "public")
+        pending?.resume(returning: apiBytes); pending = nil
+        try await first.value
+        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("api-") == true })
+        let second = Task { try await store.refresh() }
+        await withCheckedContinuation { continuation in
+            if pending != nil { continuation.resume() } else { started = continuation }
+        }
+        try await ingest(store, rows: rows("live"), scope: owner)
+        pending?.resume(returning: apiBytes); pending = nil
+        try await second.value
+        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("live-") == true })
+    }
+
+    private func encryptedPayload(_ rows: [[String: Any]], key: SymmetricKey) async throws -> Data {
+        var records: [[String: Any]] = []
+        for row in rows {
+            var record = row
+            record["daily_inspiration_id"] = record.removeValue(forKey: "inspiration_id")
+            for field in ["phrase", "category"] {
+                let text = try XCTUnwrap(record.removeValue(forKey: field) as? String)
+                record["encrypted_" + field] = try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: key)
+            }
+            records.append(record)
+        }
+        return try payload(records)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
+    func testMalformedLiveAndPhase1DoNotCancelSuspendedValidRESTRecovery() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope(), cache = NativeWorkspaceOfflineCache(directory: directory)
+        let data = try await encryptedPayload(rows("valid-api"), key: key)
+        var pending: CheckedContinuation<Data, Never>?
+        var started: CheckedContinuation<Void, Never>?
+        let store = NativeDailyInspirationStore(cache: cache, configure: { _, _ in
+            await cache.configure(scope: owner, masterKey: key); return owner
+        }, check: { _ in }, request: { _ in
+            await withCheckedContinuation { pending = $0; started?.resume(); started = nil }
+        }, masterKey: { _ in key })
+        try await store.restore(scope: owner)
+        let recovery = Task { try await store.refresh() }
+        await withCheckedContinuation { continuation in
+            if pending != nil { continuation.resume() } else { started = continuation }
+        }
+        try await ingest(store, rows: [["inspiration_id": "incomplete-live"]], scope: owner)
+        try await store.ingest(fields: ["payload": ["context_epoch": owner.teamEpoch,
+            "daily_inspirations": [["daily_inspiration_id": "broken-phase1", "encrypted_phrase": "bad-ciphertext"]]]],
+            type: "phase_1_last_chat_ready", scope: owner)
+        XCTAssertTrue(visible(store, scope: owner).isEmpty)
+        pending?.resume(returning: data)
+        try await recovery.value
+        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("valid-api-") == true })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.encrypted-persistence
+    func testIdenticalDeliveryRetriesFailedCiphertextWriteWithoutLosingVisibleContent() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // A regular file at the cache root deliberately makes its first write fail.
+        try Data("local test write obstruction".utf8).write(to: directory)
+        let key = SymmetricKey(size: .bits256), owner = scope(), cache = NativeWorkspaceOfflineCache(directory: directory)
+        let store = store(cache, scope: owner, key: key), values = rows("retry")
+        try await store.restore(scope: owner)
+        var failed = false
+        do { try await ingest(store, rows: values, scope: owner) } catch { failed = true }
+        XCTAssertTrue(failed)
+        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        try FileManager.default.removeItem(at: directory)
+        try await ingest(store, rows: values, scope: owner)
+        let cold = self.store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await cold.restore(scope: owner)
+        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertTrue(visible(cold, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("retry-") == true })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.encrypted-persistence
+    func testPublicResponseWaitsForSuspendedRestoreAndCannotOverwritePersonalCiphertext() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("inspiration-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = SymmetricKey(size: .bits256), owner = scope()
+        let seeded = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await seeded.restore(scope: owner)
+        try await ingest(seeded, rows: rows("cached-personal"), scope: owner)
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        var pending: CheckedContinuation<Void, Never>?
+        var started: CheckedContinuation<Void, Never>?
+        let returning = NativeDailyInspirationStore(cache: cache, configure: { _, _ in
+            await withCheckedContinuation { pending = $0; started?.resume(); started = nil }
+            await cache.configure(scope: owner, masterKey: key)
+            return owner
+        }, check: { _ in }, request: { _ in throw URLError(.notConnectedToInternet) }, masterKey: { _ in key })
+        let restore = Task { try await returning.restore(scope: owner) }
+        await withCheckedContinuation { continuation in
+            if pending != nil { continuation.resume() } else { started = continuation }
+        }
+        let publicData = try JSONSerialization.data(withJSONObject: ["inspirations": [[
+            "inspiration_id": "public", "phrase": "Public fixture", "title": "Fixture", "category": "science"]]])
+        try await returning.acceptPublic(publicData, scope: owner)
+        XCTAssertTrue(visible(returning, scope: owner).isEmpty)
+        pending?.resume()
+        try await restore.value
+        XCTAssertEqual(visible(returning, scope: owner).count, 10)
+        XCTAssertTrue(visible(returning, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("cached-personal-") == true })
+        let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
+        try await cold.restore(scope: owner)
+        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertTrue(visible(cold, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("cached-personal-") == true })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.public-defaults,daily-inspiration.guest-isolated
+    func testPublicDecodeRejectsRetiredPromotionIDsAndNestedFeatureIDs() throws {
+        let safe: [String: Any] = ["inspiration_id": "public-fixture", "phrase": "Public fixture",
+            "title": "Fixture", "category": "science"]
+        XCTAssertEqual(try DailyInspirationAPIResponse.decode(payload([safe])).inspirations.count, 1)
+        for id in NativeDailyInspirationContentPolicy.retiredPromotionalIDs {
+            var retired = safe; retired["inspiration_id"] = id
+            XCTAssertThrowsError(try DailyInspirationAPIResponse.decode(payload([retired])))
+            var nested = safe; nested["feature"] = ["feature_id": id]
+            XCTAssertThrowsError(try DailyInspirationAPIResponse.decode(payload([nested])))
+        }
+    }
 }

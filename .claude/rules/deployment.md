@@ -24,3 +24,18 @@ Alpha version changes use `scripts/bump_alpha_version_line.py`; do not invent
 patch-version trains. For Vercel failure diagnosis use `backend/scripts/debug.py
 vercel --failed`, with full logs only when needed. Routine warnings on a Ready
 build do not warrant a new repair task.
+
+Production web app releases must pass a real browser startup check. Build success,
+Vercel Ready and HTTP 200 are insufficient. Keep automatic production domain
+assignment disabled in the existing app project; build with production settings
+and `--skip-domain`. After backend compatibility checks, use
+`python3 scripts/promote_production_webapp.py --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
+It opens the exact staged deployment in fresh laptop/phone Chromium contexts,
+requires hydrated app controls and an interactive login screen, reloads, fails
+on console errors or unhandled exceptions, then assigns only `app.openmates.org`
+and repeats the check. A failed live check restores the previous alias unless
+another operator has changed it. Retain the version-bound receipt, screenshots
+and recordings. Do not use raw alias/promote commands or re-enable automatic
+assignment to bypass this check. Emergency restoration to a previously verified
+deployment must immediately repeat the live check. Never declare production
+deployment complete with a failed or missing browser receipt.

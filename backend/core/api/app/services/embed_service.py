@@ -43,6 +43,9 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
+from backend.apps.ai.utils.json_content_fences import json_content_embed_type
+from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
     active_recovery_output_context,
@@ -261,6 +264,11 @@ class EmbedService:
             return {}
         sanitized: Dict[str, Any] = {}
         for key, value in metadata.items():
+            if key == "visual_evaluations":
+                evaluations = sanitize_shopping_visual_evaluations(value)
+                if evaluations:
+                    sanitized[key] = evaluations
+                continue
             if (
                 key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS
                 or any(key.startswith(prefix) for prefix in EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES)
@@ -598,7 +606,7 @@ class EmbedService:
         )["preview_starting_registration"]
         return {
             "id": group.get("id"), "query": group.get("query") or request_metadata.get("query", ""),
-            "provider": "Gandi", "country": group.get("country") or request_metadata.get("country", "DE"),
+            "provider": group.get("provider") or request_metadata.get("provider") or "Unknown", "country": group.get("country") or request_metadata.get("country", "DE"),
             "currency": group.get("currency") or request_metadata.get("currency", "EUR"),
             "checked_at": group.get("checked_at"), "partial": bool(group.get("partial")),
             "warnings": [warning for warning in group.get("warnings", []) if isinstance(warning, str)],
@@ -705,6 +713,8 @@ class EmbedService:
             "mermaid": ("diagrams", "mermaid"),
             "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
+            "calendar_event": ("calendar", "event"),
+            "authored_results": ("ai", "authored_results"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -801,6 +811,9 @@ class EmbedService:
                 "skill_task_id": skill_task_id,  # For individual skill cancellation
                 **sanitized_metadata
             }
+            placeholder_content["embed_ref"] = self._generate_direct_embed_ref(
+                f"{app_id}-{skill_id}", embed_id,
+            )
             
             # Log metadata for debugging (especially query for web search)
             if sanitized_metadata:
@@ -892,6 +905,7 @@ class EmbedService:
             return {
                 "embed_id": embed_id,
                 "embed_reference": embed_reference,
+                "embed_ref": placeholder_content["embed_ref"],
                 "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
             }
 
@@ -3578,46 +3592,60 @@ class EmbedService:
             return False
 
     # =========================================================================
-    # Mind map embed methods (for ```openmates_mindmap ... ``` fenced blocks)
-    # Source-first direct embeds owned by the Mind Maps app.
+    # Explicit JSON content embeds share encryption and streaming lifecycle.
+    # App-owned normalizers retain each artifact's domain validation.
     # =========================================================================
 
-    async def create_mindmap_embed_placeholder(
+    async def create_mindmap_embed_placeholder(self, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        """Preserve existing Mind Maps callers while sharing streaming lifecycle."""
+        return await self.create_json_content_embed_placeholder(source_language="openmates_mindmap", **kwargs)
+
+    async def update_mindmap_embed_content(self, **kwargs: Any) -> bool:
+        """Preserve existing Mind Maps editing callers."""
+        return await self.update_json_content_embed_content(source_language="openmates_mindmap", **kwargs)
+
+    async def create_json_content_embed_placeholder(
         self,
         chat_id: str,
         message_id: str,
         user_id: str,
         user_id_hash: str,
         user_vault_key_id: str,
+        source_language: str = "openmates_mindmap",
         task_id: Optional[str] = None,
         title: Optional[str] = None,
         log_prefix: str = "",
     ) -> Optional[Dict[str, Any]]:
-        """Create a processing Mind Maps direct embed placeholder."""
+        """Create an encrypted placeholder for a supported explicit JSON artifact."""
         try:
+            embed_type = json_content_embed_type(source_language)
+            if embed_type is None:
+                raise ValueError("Unsupported JSON content fence")
+            app_id, skill_id = self._direct_embed_app_skill(embed_type)
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
-            next_title = title or "Mind Map"
+            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results"}.get(embed_type, "Mind Map")
             embed_ref = self._generate_direct_embed_ref(
-                "mindmap",
+                embed_type,
                 embed_id,
                 {"title": next_title},
             )
             now = int(datetime.now().timestamp())
             placeholder_content = {
-                "type": "mindmap",
-                "app_id": "mindmaps",
-                "skill_id": "mindmap",
+                "type": embed_type,
+                "app_id": app_id,
+                "skill_id": skill_id,
                 "title": next_title,
                 "source_json": "",
                 "model": None,
                 "embed_ref": embed_ref,
                 "status": "processing",
-                "node_count": 0,
-                "edge_count": 0,
+                **({"primary_event": None, "context_events": []} if embed_type == "calendar_event"
+                   else {"items": [], "embed_ids": [], "view": {"mode": "auto", "embeds": []}}
+                   if embed_type == "authored_results" else {"node_count": 0, "edge_count": 0}),
                 "validation": {"status": "processing", "warnings": []},
                 "version_number": 1,
             }
@@ -3628,7 +3656,7 @@ class EmbedService:
             )
             embed_data = {
                 "embed_id": embed_id,
-                "type": "mindmap",
+                "type": embed_type,
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "hashed_chat_id": hashed_chat_id,
@@ -3649,7 +3677,7 @@ class EmbedService:
             await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
-                embed_type="mindmap",
+                embed_type=embed_type,
                 content_toon=placeholder_toon,
                 chat_id=chat_id,
                 message_id=message_id,
@@ -3665,16 +3693,18 @@ class EmbedService:
                 log_prefix=log_prefix,
             )
 
-            logger.info(f"{log_prefix} Created processing mind map embed {embed_id}")
+            logger.info(f"{log_prefix} Created processing JSON content embed {embed_id}")
             return {
                 "embed_id": embed_id,
-                "embed_reference": json.dumps({"type": "mindmap", "embed_id": embed_id}),
+                "embed_reference": json.dumps({"type": embed_type, "embed_id": embed_id}),
             }
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
-            logger.error(f"{log_prefix} Error creating mind map embed placeholder: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Error creating JSON content embed placeholder: {e}", exc_info=True)
             return None
 
-    async def update_mindmap_embed_content(
+    async def update_json_content_embed_content(
         self,
         embed_id: str,
         source_json: str,
@@ -3682,6 +3712,7 @@ class EmbedService:
         user_id: str,
         user_id_hash: str,
         user_vault_key_id: str,
+        source_language: str = "openmates_mindmap",
         status: str = "finished",
         title: Optional[str] = None,
         version_number: Optional[int] = None,
@@ -3689,11 +3720,23 @@ class EmbedService:
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = "",
     ) -> bool:
-        """Update Mind Maps source JSON and derived render metadata."""
+        """Normalize a JSON artifact and retain the established encrypted lifecycle."""
         try:
+            embed_type = json_content_embed_type(source_language)
+            if embed_type is None:
+                raise ValueError("Unsupported JSON content fence")
+            if embed_type == "authored_results":
+                from backend.core.api.app.services.authored_result_service import update_authored_results_embed
+                return await update_authored_results_embed(
+                    self, embed_id=embed_id, source_json=source_json, chat_id=chat_id,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id, status=status, title=title,
+                    version_number=version_number, log_prefix=log_prefix,
+                )
+            app_id, skill_id = self._direct_embed_app_skill(embed_type)
             cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             if not cached_embed:
-                logger.warning(f"{log_prefix} Mind map embed {embed_id} not found in cache, cannot update")
+                logger.warning(f"{log_prefix} JSON content embed {embed_id} not found in cache, cannot update")
                 return False
 
             existing_content: Dict[str, Any] = {}
@@ -3706,31 +3749,39 @@ class EmbedService:
                 except RequiredRecoveryOutputError:
                     raise
                 except Exception as e:
-                    logger.warning(f"{log_prefix} Failed to decode existing mind map content: {e}")
+                    logger.warning(f"{log_prefix} Failed to decode existing JSON content: {e}")
 
-            normalized = normalize_mindmap_source(source_json)
+            normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
+                          else normalize_mindmap_source(source_json))
+            if embed_type == "calendar_event" and status == "finished" and normalized.model is None:
+                status = "error"
             next_title = title or normalized.title or existing_content.get("title") or "Mind Map"
             next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
             next_content_hash = content_hash
             if next_content_hash is None and status == "finished":
                 next_content_hash = hashlib.sha256(normalized.source_json.encode("utf-8")).hexdigest()
 
+            artifact_fields = (
+                {"primary_event": (normalized.model or {}).get("primary_event"),
+                 "context_events": (normalized.model or {}).get("context_events", [])}
+                if embed_type == "calendar_event"
+                else {"node_count": normalized.node_count, "edge_count": normalized.edge_count}
+            )
             updated_content = {
                 **existing_content,
-                "type": "mindmap",
-                "app_id": "mindmaps",
-                "skill_id": "mindmap",
+                "type": embed_type,
+                "app_id": app_id,
+                "skill_id": skill_id,
                 "title": next_title,
                 "source_json": normalized.source_json,
                 "model": normalized.model,
                 "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
-                    "mindmap",
+                    embed_type,
                     embed_id,
                     {"title": next_title},
                 ),
                 "status": status,
-                "node_count": normalized.node_count,
-                "edge_count": normalized.edge_count,
+                **artifact_fields,
                 "validation": {
                     "status": normalized.status,
                     "warnings": normalized.warnings,
@@ -3745,7 +3796,7 @@ class EmbedService:
             )
             updated_embed_data = {
                 **cached_embed,
-                "type": "mindmap",
+                "type": embed_type,
                 "encrypted_content": encrypted_content,
                 "status": status,
                 "version_number": next_version_number,
@@ -3761,7 +3812,7 @@ class EmbedService:
             if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
-                    embed_type="mindmap",
+                    embed_type=embed_type,
                     content_toon=updated_toon,
                     chat_id=chat_id,
                     message_id=cached_embed.get("message_id", ""),
@@ -3785,8 +3836,8 @@ class EmbedService:
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.info(
-                f"{log_prefix} Updated mind map embed {embed_id} "
-                f"(nodes={normalized.node_count}, edges={normalized.edge_count}, status={status})"
+                f"{log_prefix} Updated JSON content embed {embed_id} "
+                f"(type={embed_type}, status={status})"
             )
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
@@ -3794,7 +3845,7 @@ class EmbedService:
         except RequiredRecoveryOutputError:
             raise
         except Exception as e:
-            logger.error(f"{log_prefix} Error updating mind map embed content: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Error updating JSON content embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================
@@ -4498,6 +4549,36 @@ class EmbedService:
             logger.error(f"{log_prefix} Error extracting code blocks from user message: {e}", exc_info=True)
             return content, []  # Return original content on error
 
+    async def _get_embed_record(self, embed_id: str, log_prefix: str = "") -> Optional[Dict[str, Any]]:
+        """Read encrypted metadata from cache, then its normal durable store.
+
+        This never decrypts durable client ciphertext or grants access. Callers
+        must authorize the outer owner/chat before consuming plaintext content.
+        """
+        client = None
+        try:
+            client = await self.cache_service.client
+            cached = await client.get(f"embed:{embed_id}") if client else None
+            if cached:
+                record = cached if isinstance(cached, dict) else json.loads(cached)
+                if isinstance(record, dict):
+                    return record
+        except Exception as exc:
+            logger.warning("%s Embed cache read failed (%s); checking durable metadata", log_prefix, type(exc).__name__)
+        try:
+            record = await self.directus_service.embed.get_embed_by_id(embed_id)
+        except Exception as exc:
+            logger.warning("%s Embed durable metadata unavailable (%s)", log_prefix, type(exc).__name__)
+            return None
+        if not isinstance(record, dict):
+            return None
+        if client:
+            try:
+                await client.set(f"embed:{embed_id}", json.dumps(record), ex=EMBED_CACHE_TTL_SECONDS)
+            except Exception as exc:
+                logger.warning("%s Embed metadata cache refill failed (%s)", log_prefix, type(exc).__name__)
+        return record
+
     async def _get_cached_embed_toon(
         self,
         embed_id: str,
@@ -4519,23 +4600,13 @@ class EmbedService:
             Decrypted TOON string or None if not found
         """
         try:
-            cache_key = f"embed:{embed_id}"
-            client = await self.cache_service.client
-            if not client:
-                logger.warning(f"{log_prefix} Redis client not available")
+            embed_data = await self._get_embed_record(embed_id, log_prefix)
+            if not embed_data:
                 return None
-                
-            embed_json = await client.get(cache_key)
-            if not embed_json:
-                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
-                return None
-                
-            import json as json_lib
-            embed_data = json_lib.loads(embed_json)
             
             # Decrypt content using vault key
             encrypted_content = embed_data.get("encrypted_content")
-            if not encrypted_content:
+            if not isinstance(encrypted_content, str) or not encrypted_content.startswith("vault:v"):
                 logger.debug(f"{log_prefix} Embed {embed_id} has no encrypted_content")
                 return None
                 
@@ -4654,23 +4725,14 @@ class EmbedService:
             Decrypted embed data dictionary or None if not found
         """
         try:
-            cache_key = f"embed:{embed_id}"
-            client = await self.cache_service.client
-            if not client:
-                logger.warning(f"{log_prefix} Redis client not available")
+            embed_data = await self._get_embed_record(embed_id, log_prefix)
+            if not embed_data:
                 return None
-                
-            embed_json = await client.get(cache_key)
-            if not embed_json:
-                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
-                return None
-                
-            import json as json_lib
-            embed_data = json_lib.loads(embed_json)
+            embed_data = dict(embed_data)
             
             # Decrypt content using vault key if present
             encrypted_content = embed_data.get("encrypted_content")
-            if encrypted_content:
+            if isinstance(encrypted_content, str) and encrypted_content.startswith("vault:v"):
                 plaintext_content = await self.encryption_service.decrypt_with_user_key(
                     encrypted_content,
                     user_vault_key_id
@@ -4694,7 +4756,13 @@ class EmbedService:
                             )
                             # Merge decoded content into embed_data for easy access
                             # The decoded content contains the actual data (query, provider, etc.)
+                            authority = {key: embed_data[key] for key in (
+                                "embed_id", "type", "chat_id", "message_id", "hashed_user_id",
+                                "hashed_chat_id", "hashed_message_id", "parent_embed_id", "embed_ids",
+                                "encrypted_content", "encryption_mode", "status", "is_private", "is_shared",
+                            ) if key in embed_data}
                             embed_data.update(decoded_content)
+                            embed_data.update(authority)
                             logger.debug(
                                 f"{log_prefix} After merge, embed_data has 'query': {'query' in embed_data}, "
                                 f"'provider': {'provider' in embed_data}"
@@ -4729,6 +4797,7 @@ class EmbedService:
     # aes_key (used only by the client for local decryption) from ever entering
     # the LLM context.
     _TOON_LLM_STRIP_FIELDS = frozenset({
+        "authored_media",        # Selected image keys remain encrypted presentation data.
         "aes_key",               # Plaintext AES key — client-only, never for LLM
         "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
         "aes_nonce",             # AES-GCM nonce — resolved server-side
@@ -4807,6 +4876,14 @@ class EmbedService:
             app_id = decoded.get("app_id")
             skill_id = decoded.get("skill_id")
             embed_type = decoded.get("type")
+
+            if embed_type == "authored_results":
+                # The actual typed children are expanded separately. Never repeat
+                # the raw authoring envelope or expose transport-only UUIDs.
+                filtered = {key: decoded[key] for key in ("type", "title", "status", "validation") if key in decoded}
+                filtered["items"] = [{key: item[key] for key in ("kind", "title", "embed_ref") if key in item}
+                                     for item in decoded.get("items", []) if isinstance(item, dict)]
+                return encode(filtered), None
 
             if embed_type == "audio-recording":
                 # Audio recording embeds: the LLM only needs the transcript for context
@@ -5562,6 +5639,18 @@ class EmbedService:
 
                 try:
                     decoded_for_type = decode(toon_content)
+                    if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "authored_results":
+                        from backend.core.api.app.services.authored_result_service import authored_children_for_context
+                        children = await authored_children_for_context(
+                            self, embed_id, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+                        )
+                        for child_id, child_toon in children:
+                            child_filtered, child_ref = self._filter_toon_for_llm(
+                                child_toon, child_id, log_prefix, seen_embed_refs,
+                            )
+                            if child_ref:
+                                file_path_index[child_ref] = child_id
+                            resolved_text += f"\n\n```toon\n{child_filtered}\n```"
                     if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "code":
                         code_run_output_toon = await self._get_cached_code_run_output_toon(
                             embed_id,
@@ -5841,6 +5930,10 @@ class EmbedService:
                         **original_metadata,  # Preserve query, provider, url, etc. from placeholder
                         **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                     }
+                    parent_content["embed_ref"] = (
+                        (original_content or {}).get("embed_ref")
+                        or self._generate_direct_embed_ref(f"{app_id}-{skill_id}", embed_id)
+                    )
                     if hosting_graph:
                         parent_content.update(EmbedService._hosting_parent_metadata(
                             hosting_group, embed_results, child_embed_ids, original_metadata,
@@ -5939,6 +6032,7 @@ class EmbedService:
                     return {
                         "embed_id": embed_id,
                         "child_embed_ids": child_embed_ids,
+                        "embed_ref": parent_content["embed_ref"],
                         "status": "finished"
                     }
 
@@ -6122,9 +6216,9 @@ class EmbedService:
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "status": "error",
-                "error": error_message,
+                "error": str(error_message or "").strip() or "Skill execution failed. Please try again.",
                 "result_count": 0,
-                "embed_ids": None,  # No child embeds for error case
+                "embed_ids": [],  # Failed execution has no result children
                 **original_metadata  # Preserve query, provider, etc. from placeholder
             }
             
@@ -6137,19 +6231,32 @@ class EmbedService:
             
             updated_at = int(datetime.now().timestamp())
             
-            # CLEANUP: Remove the "processing" placeholder from cache instead of
-            # storing an error embed. Failed embeds are wasted storage — the error
-            # is already logged and the client will hide the embed from the UI.
-            try:
-                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
-                logger.debug(f"{log_prefix} Removed processing placeholder for failed embed {embed_id} from cache")
-            except Exception as cache_err:
-                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
-            
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can:
-            # 1. Remove the in-memory processing placeholder
-            # 2. Track the error in _embedErrors for UI cleanup (hide embed, show error banner)
-            # 3. Skip persisting to IndexedDB (no store_embed sent back to server)
+            # Keep a vault-encrypted working copy and seal recovery output before
+            # delivery, just as for successful app skills. The client encrypts the
+            # terminal payload for durable IndexedDB/Directus storage.
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                error_content_toon, user_vault_key_id
+            )
+            error_embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashlib.sha256(chat_id.encode()).hexdigest(),
+                "hashed_message_id": hashlib.sha256(message_id.encode()).hexdigest(),
+                "hashed_task_id": hashlib.sha256(task_id.encode()).hexdigest() if task_id else None,
+                "task_id": task_id,
+                "hashed_user_id": user_id_hash,
+                "status": "error",
+                "encryption_mode": "client",
+                "is_private": False,
+                "is_shared": False,
+                "embed_ids": [],
+                "encrypted_content": encrypted_content,
+                "text_length_chars": error_text_length_chars,
+                "created_at": updated_at,
+                "updated_at": updated_at,
+            }
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -6163,15 +6270,24 @@ class EmbedService:
                 text_length_chars=error_text_length_chars,
                 created_at=updated_at,
                 updated_at=updated_at,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                app_id=app_id,
+                skill_id=skill_id,
+                embed_ids=[],
+                producer_final_children=[],
+                finished_cache_data=error_embed_data,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
             
+            self._schedule_embed_persistence_fallback(embed_id)
+
             logger.info(f"{log_prefix} Updated embed {embed_id} to error status: {error_message}")
             
             return {
                 "embed_id": embed_id,
                 "child_embed_ids": [],
-                "status": "error"
+                "status": "error",
+                "from_placeholder": True,
             }
             
         except RequiredRecoveryOutputError:
@@ -6288,9 +6404,6 @@ class EmbedService:
 
     @staticmethod
     def _finished_recovery_required() -> bool:
-        from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context
-        if active_voice_worker_context.get() is not None:
-            return True
         producer = active_verified_output_producer.get()
         return active_recovery_output_context.get() is not None or (
             producer is not None and (
@@ -6364,21 +6477,13 @@ class EmbedService:
             raise RequiredRecoveryOutputError("Claimed embed producer is no longer authorized")
 
     async def _require_finished_publication_authority(self, user_id_hash: str) -> None:
-        from backend.apps.ai.processing.voice_async_skills import (
-            active_voice_worker_context, require_voice_publication,
-        )
-        voice = active_voice_worker_context.get()
-        if voice is not None:
-            await require_voice_publication(context=voice, cache_service=self.cache_service,
-                directus_service=self.directus_service, encryption_service=self.encryption_service,
-                owner_hash=user_id_hash)
         await self._require_live_volatile_publication(user_id_hash)
         await self._require_claimed_direct_publication(user_id_hash)
 
     @staticmethod
     def _registered_child_embed_id(parent_embed_id: str, child_index: int) -> str:
         producer = active_verified_output_producer.get()
-        if producer is None or producer.classification not in {"registered_ai", "authorized_voice"}:
+        if producer is None or producer.classification != "registered_ai":
             # UUIDv5 is reserved for Project files and durably registered
             # producer children. Ordinary chat children keep their UUIDv4 IDs.
             return str(uuid.uuid4())
@@ -6534,9 +6639,11 @@ class EmbedService:
         data = payload["payload"]
         embed_id, chat_id, message_id = data["embed_id"], data["chat_id"], data["message_id"]
         user_id, status, embed_type = data["user_id"], data["status"], data["type"]
-        if status == "finished" and finished_cache_data is not None:
+        if finished_cache_data is not None and (
+            status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})
+        ):
             if (finished_cache_data.get("embed_id") != embed_id
-                    or finished_cache_data.get("status") != "finished"
+                    or finished_cache_data.get("status") != status
                     or finished_cache_data.get("chat_id", chat_id) != chat_id
                     or finished_cache_data.get("message_id", message_id) != message_id):
                 raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
@@ -6558,7 +6665,7 @@ class EmbedService:
             )
 
             # Track finished embeds as pending client encryption
-            if status == "finished" and chat_id and message_id and not self._volatile_incognito_publication_required():
+            if (status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})) and chat_id and message_id and not self._volatile_incognito_publication_required():
                 await self._track_pending_embed(user_id, embed_id, log_prefix)
 
             return True
@@ -6802,17 +6909,9 @@ class EmbedService:
         """
         required_delivery = False
         try:
-            from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context
-            voice = active_voice_worker_context.get()
-            if voice is not None:
-                allowed_ids = {voice.embed_id, *(str(uuid.uuid5(uuid.UUID(voice.task_id),
-                    f"embed-child:{index}")) for index in range(32))}
-                if (user_id != voice.binding["user_id"] or user_id_hash != voice.binding["user_hash"]
-                        or chat_id != voice.binding["chat_id"]
-                        or message_id != voice.binding["assistant_message_id"] or embed_id not in allowed_ids):
-                    raise RequiredRecoveryOutputError("Voice embed output identity mismatch")
             required_delivery = (
-                status == "finished" and encryption_mode == "client" and self._finished_recovery_required()
+                (status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"}))
+                and encryption_mode == "client" and self._finished_recovery_required()
             ) or self._volatile_incognito_publication_required()
             await self._require_finished_publication_authority(user_id_hash)
             if embed_type == "app_skill_use":
@@ -6842,7 +6941,7 @@ class EmbedService:
                                     f"'{current_status}' → '{status}' for embed {embed_id}. "
                                     f"This prevents duplicate or out-of-order status events."
                                 )
-                                if required_delivery and current_status != "finished":
+                                if required_delivery and current_status != status:
                                     raise RequiredRecoveryOutputError("Required embed has an invalid cached state transition")
                                 if not required_delivery:
                                     return False
@@ -6922,7 +7021,9 @@ class EmbedService:
                 # or continue dependent work until its explicit durable flush.
                 return True
 
-            if status == "finished" and encryption_mode == "client":
+            if encryption_mode == "client" and (
+                status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})
+            ):
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
@@ -7020,7 +7121,12 @@ class EmbedService:
         """
         hosting_graph = app_id == "hosting" and skill_id == "search_domains" and isinstance(hosting_group, dict)
         embed_results = EmbedService._hosting_checked_children(hosting_group, results) if hosting_graph else results
-        if not embed_results and not hosting_graph:
+        shopping_visual_graph = (
+            app_id == "shopping" and skill_id == "search_products"
+            and isinstance(request_metadata, dict)
+            and bool(sanitize_shopping_visual_evaluations(request_metadata.get("visual_evaluations")))
+        )
+        if not embed_results and not hosting_graph and not shopping_visual_graph:
             logger.warning(f"{log_prefix} No results to create embeds from")
             return None
 
@@ -7045,7 +7151,7 @@ class EmbedService:
                 # This enables key inheritance: child embeds use parent's encryption key
                 async with self._defer_completed_embed_publications() as batch:
                     producer = active_verified_output_producer.get()
-                    parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification in {"registered_ai", "authorized_voice"}
+                    parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
                                        else str(uuid.uuid4()))
                 
                     for child_index, result in enumerate(embed_results):
@@ -7160,9 +7266,8 @@ class EmbedService:
                     # Generate an embed_ref for the parent (composite skill result).
                     # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
                     # whole result set (e.g. "web-search-k8D") as well as individual items.
-                    parent_embed_ref = self._generate_embed_ref_slug(
-                        f"{app_id}-{skill_id}",
-                        safe_request_metadata,
+                    parent_embed_ref = self._generate_direct_embed_ref(
+                        f"{app_id}-{skill_id}", parent_embed_id,
                     )
 
                     # Parent embed content: metadata about the skill execution
@@ -7188,6 +7293,10 @@ class EmbedService:
                             parent_content["provider"] = safe_request_metadata["provider"]
                         if "providers" in safe_request_metadata:
                             parent_content["providers"] = safe_request_metadata["providers"]
+                        if app_id == "shopping" and skill_id == "search_products":
+                            for key in ("visual_evaluations", "grounding_notice"):
+                                if key in safe_request_metadata:
+                                    parent_content[key] = safe_request_metadata[key]
                         # Add other user-visible request metadata needed to distinguish searches.
                         for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                             if key in safe_request_metadata:
@@ -7296,6 +7405,7 @@ class EmbedService:
                     return {
                         "parent_embed_id": parent_embed_id,
                         "embed_reference": embed_reference,
+                        "embed_ref": parent_embed_ref,
                         "child_embed_ids": child_embed_ids
                     }
             
@@ -7303,7 +7413,7 @@ class EmbedService:
                 # Non-composite result - create single app_skill_use embed
                 # All skills return results as an array, so we always structure it consistently
                 producer = active_verified_output_producer.get()
-                embed_id = (producer.primary_embed_id if producer is not None and producer.classification in {"registered_ai", "authorized_voice"}
+                embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
                             else str(uuid.uuid4()))
 
                 # Generate embed_ref for this single embed (injected inside encrypted TOON).
@@ -7529,13 +7639,10 @@ class EmbedService:
             check_cache_status=True,
             app_id=app_id,
             skill_id=skill_id,
-            producer_final_children=[] if final_status == "finished" else None,
-            finished_cache_data=updated_embed_data if final_status == "finished" else None,
+            producer_final_children=[],
+            finished_cache_data=updated_embed_data,
             finished_cache_vault_key_id=user_vault_key_id,
         )
-
-        if final_status != "finished":
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
         # Schedule fallback persistence
         self._schedule_embed_persistence_fallback(embed_id)
@@ -7603,7 +7710,7 @@ class EmbedService:
             logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
             # A caller must not publish or depend on an embed with no retained
             # working copy. The surrounding task can pause or retry safely.
-            if embed_data.get("status") == "finished" and self._finished_recovery_required():
+            if embed_data.get("status") in {"finished", "error"} and self._finished_recovery_required():
                 raise RequiredRecoveryOutputError("Required finished embed cache write failed") from e
             raise
 

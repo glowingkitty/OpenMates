@@ -63,7 +63,14 @@ function splitLongParagraph(paragraph: string): string[] {
   const chunks: string[] = [];
   let remainder = paragraph;
   while (remainder.length > MAX_SEGMENT_CHARACTERS) {
-    let boundary = remainder.lastIndexOf(" ", MAX_SEGMENT_CHARACTERS);
+    // Preserve complete sentences when a paragraph needs more than one request.
+    const sentences = Array.from(remainder.slice(0, MAX_SEGMENT_CHARACTERS + 1)
+      .matchAll(/[.!?。！？]["'”’)\]]*(?:\s+|$)/gu));
+    const sentence = sentences.at(-1);
+    let boundary = sentence ? sentence.index + sentence[0].trimEnd().length : 0;
+    if (boundary <= 0 || boundary > MAX_SEGMENT_CHARACTERS) {
+      boundary = remainder.lastIndexOf(" ", MAX_SEGMENT_CHARACTERS);
+    }
     if (boundary <= 0) boundary = MAX_SEGMENT_CHARACTERS;
     chunks.push(remainder.slice(0, boundary).trim());
     remainder = remainder.slice(boundary).trimStart();

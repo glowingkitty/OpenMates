@@ -8,19 +8,27 @@ final class LandingOnboardingParityUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
     // contract-test: direct surface=gui.apple assertions=landing-onboarding.apple-web-parity
-    func testSignedOutAppStartsWithNormalDailyInspirationTopicsAndWorkingLogin() {
+    func testSignedOutAppStartsWithDailyInspirationExamplesAndInterestLinkBelowCards() {
         let app = launchWelcome()
         let inspiration = element(app, "daily-inspiration-card")
         XCTAssertTrue(inspiration.waitForExistence(timeout: 15)); XCTAssertTrue(inspiration.isHittable)
-        XCTAssertTrue(element(app, "guest-interest-rail").exists)
-        XCTAssertTrue(app.buttons["guest-interest-skip"].isHittable)
+        let examples = element(app, "welcome-chat-cards-carousel")
+        XCTAssertTrue(examples.waitForExistence(timeout: 10))
+        XCTAssertFalse(exampleIDs(app).isEmpty)
+        XCTAssertFalse(element(app, "guest-interest-rail").exists)
+        XCTAssertFalse(app.buttons["guest-interest-skip"].exists)
+        let interests = app.buttons["guest-interest-select-interests"]
+        XCTAssertTrue(interests.isHittable)
+        XCTAssertGreaterThanOrEqual(interests.frame.minY, examples.frame.maxY - 2,
+            "Select interests follows the example carousel, as on the signed-out web home")
+        XCTAssertTrue(app.buttons["guest-show-all-examples"].isHittable)
         XCTAssertTrue(element(app, "message-editor").exists)
         XCTAssertFalse(element(app, "landing-intro-expanded").exists)
         XCTAssertFalse(element(app, "landing-story-id").exists)
         XCTAssertFalse(element(app, "landing-signup-benefits").exists)
         let login = app.buttons["header-login-signup-btn"]
         XCTAssertTrue(login.isHittable)
-        attachScreenshot("Signed-out app with normal Daily Inspiration and topic selection")
+        attachScreenshot("Signed-out app with immediate examples and Select interests below")
         login.tap()
         XCTAssertTrue(app.buttons["auth-login-tab"].waitForExistence(timeout: 8) || app.buttons["auth-signup-tab"].exists)
     }
@@ -29,8 +37,8 @@ final class LandingOnboardingParityUITests: XCTestCase {
     func testTopicSelectionNarrowsExamplesAndSkipRestoresCatalog() {
         let app = launchWelcome()
         let skip = app.buttons["guest-interest-skip"]
-        XCTAssertTrue(skip.waitForExistence(timeout: 15)); skip.tap()
-        XCTAssertTrue(element(app, "welcome-chat-cards-carousel").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "welcome-chat-cards-carousel").waitForExistence(timeout: 15))
+        XCTAssertFalse(skip.exists)
         let all = exampleIDs(app)
         XCTAssertFalse(all.isEmpty)
         app.buttons["guest-interest-select-interests"].tap()

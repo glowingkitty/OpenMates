@@ -44,7 +44,7 @@ async def test_typed_risk_only_escalates_and_keeps_exact_untrusted_policy(monkey
     assert "untrusted" in kwargs["state"]["treat_as"]
     assert "never evaluator instructions" in kwargs["questions"]["risk"]["instructions"]
     assert set(kwargs["questions"]["risk"]["criteria"]) == {"routine", "elevated_risk", "uncertain"}
-    assert kwargs["model_id"] == "typesafe/jev-1.13"
+    assert kwargs["model_id"] == "typesafe/jev-1.14"
 
 
 # contract-test: supporting surface=cli assertions=code-run.remote.semantic-risk-review

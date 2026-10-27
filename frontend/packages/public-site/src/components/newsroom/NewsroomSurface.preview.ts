@@ -1,3 +1,4 @@
+import { publicationCodeFixture } from './codeFixture';
 import { newsroomFixtures } from './fixtures';
 import type { NewsroomAction, NewsroomView } from './types';
 
@@ -19,6 +20,7 @@ function props(view: NewsroomView, locale: 'en' | 'de' = 'en') {
 export default props('news');
 
 export const variants = {
+  'Code highlighting': { ...props('blog-post'), data: publicationCodeFixture },
   Blog: props('blog'),
   Release: props('release'),
   'Blog post': props('blog-post'),

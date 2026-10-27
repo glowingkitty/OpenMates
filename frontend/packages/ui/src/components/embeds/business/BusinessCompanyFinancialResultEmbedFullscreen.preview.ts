@@ -44,6 +44,7 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  missingData: { ...defaultProps, data: { ...defaultProps.data, decodedContent: { company: 'Example Research', ticker: 'EXAM', currency: 'USD' } } },
   quarterly: {
     ...defaultProps,
     embedId: 'preview-business-financial-vitl-quarter',

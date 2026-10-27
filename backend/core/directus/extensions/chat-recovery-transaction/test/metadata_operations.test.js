@@ -61,6 +61,28 @@ test('same-turn initial commit can advance to final metadata without losing summ
   assert.equal(db.rows.chats[0].encrypted_icon, 'postprocessing-icon');
 });
 
+test('early intent summary refines to final summary while preserving an intervening manual title', async () => {
+  const db = fakeDatabase(seed());
+  const initial = create();
+  initial.encrypted_fields.push('encrypted_chat_summary');
+  await run(db, 'create_metadata_job', initial);
+  const initialCommit = persist();
+  initialCommit.encrypted_metadata.encrypted_chat_summary = 'initial-intent-summary';
+  await run(db, 'persist_metadata_job', initialCommit);
+  assert.equal(db.rows.chats[0].encrypted_chat_summary, 'initial-intent-summary');
+  db.rows.chats[0].encrypted_title = 'manual-title';
+  db.rows.chats[0].title_v = 2;
+  db.rows.chats[0].metadata_v = 2;
+  await run(db, 'create_metadata_job', create('postprocessing'));
+  const final = await run(db, 'persist_metadata_job', persist('postprocessing'));
+  assert.equal(final.state, 'TERMINAL');
+  assert.equal(final.encrypted_metadata.encrypted_title, undefined);
+  assert.equal(db.rows.chats[0].encrypted_title, 'manual-title');
+  assert.equal(db.rows.chats[0].encrypted_chat_summary, 'final-summary');
+  assert.equal((await run(db, 'persist_metadata_job', initialCommit)).versions.metadata_v, 1);
+  assert.equal(db.rows.chats[0].encrypted_chat_summary, 'final-summary');
+});
+
 test('intervening owner title edit survives while unchanged missing summary is recovered', async () => {
   const db = fakeDatabase(seed());
   await run(db, 'create_metadata_job', create());

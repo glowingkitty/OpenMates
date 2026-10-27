@@ -12,6 +12,7 @@ const defaultProps = {
 	skillId: 'generate' as const,
 	prompt: 'A serene mountain landscape at sunset with vibrant orange and purple skies',
 	model: 'flux-schnell',
+	previewImageUrl: '/images/examples/group1.jpg',
 	status: 'finished' as const,
 	isMobile: false,
 	onFullscreen: () => {}
@@ -26,6 +27,7 @@ export const variants = {
 		...defaultProps,
 		id: 'preview-image-gen-public-child',
 		model: 'google/gemini-3-pro-image-preview',
+		provider: 'Google',
 		previewImageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="128" height="96"%3E%3Crect width="128" height="96" fill="%23ad64e0"/%3E%3C/svg%3E'
 	},
 	/** Processing state — shows generation progress */

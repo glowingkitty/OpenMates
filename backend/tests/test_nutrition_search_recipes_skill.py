@@ -35,6 +35,7 @@ def _skill() -> Any:
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 async def test_search_recipes_requires_query_not_legacy_filters() -> None:
     response = await _skill().execute(
         requests=[{"filters": ["vegan", "pasta"], "max_results": 3}],
@@ -48,6 +49,7 @@ async def test_search_recipes_requires_query_not_legacy_filters() -> None:
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_search_recipes_calls_edamam_provider_with_query_and_filters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,9 +108,11 @@ async def test_search_recipes_calls_edamam_provider_with_query_and_filters(
     assert calls[0]["max_results"] == 10
 
 
-def test_search_recipes_module_no_longer_imports_rewe_provider() -> None:
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+def test_search_recipes_module_exports_typed_skill_contract() -> None:
     import backend.apps.nutrition.skills.search_recipes as module
 
-    assert "rewe_recipe_provider" not in (module.__file__ or "")
-    assert not hasattr(module, "search_recipes_by_filter")
-    assert not hasattr(module, "fetch_recipe_details")
+    request = module.SearchRecipesRequest(requests=[{"query": "vegetable soup"}])
+    assert request.requests[0].query == "vegetable soup"
+    assert module.SearchRecipesSkill.__module__ == module.__name__
+    assert module.SearchRecipesResponse(results=[]).results == []

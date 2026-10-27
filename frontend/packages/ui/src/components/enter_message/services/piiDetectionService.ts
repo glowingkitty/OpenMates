@@ -33,6 +33,11 @@ import { codingIdentifierRanges } from "../../../../../secret-scanner/src/identi
 export type PIIType =
   | "EMAIL"
   | "ADDRESS"
+  | "PERSON_NAME"
+  | "BANK_ACCOUNT"
+  | "GOVERNMENT_ID"
+  | "DRIVERS_LICENSE"
+  | "IMEI"
   | "PHONE"
   | "AWS_ACCESS_KEY"
   | "AWS_SECRET_KEY"
@@ -656,6 +661,11 @@ const MIN_PII_TEXT_LENGTH = 6;
 export const PII_TYPE_TO_CATEGORY: Record<PIIType, string> = {
   EMAIL: "email_addresses",
   ADDRESS: "addresses",
+  PERSON_NAME: "names",
+  BANK_ACCOUNT: "iban_bank_account",
+  GOVERNMENT_ID: "government_ids",
+  DRIVERS_LICENSE: "drivers_licenses",
+  IMEI: "imei_numbers",
   PHONE: "phone_numbers",
   CREDIT_CARD: "credit_card_numbers",
   SSN: "social_security_numbers",
@@ -965,7 +975,8 @@ export function replacePIIWithPlaceholders(
  * from deserialized PII mappings.
  */
 export function getPIILabel(type: string): string {
-  if (type === "ADDRESS") return "Address";
+  const modelLabels: Record<string, string> = { ADDRESS: "Address", PERSON_NAME: "Name", BANK_ACCOUNT: "Bank account", GOVERNMENT_ID: "Government ID", DRIVERS_LICENSE: "Driver’s license", IMEI: "Device identifier" };
+  if (modelLabels[type]) return modelLabels[type];
   const pattern = PII_PATTERNS.find((p) => p.type === type);
   return pattern?.label ?? type;
 }

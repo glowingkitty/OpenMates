@@ -68,7 +68,7 @@ Redis/Dragonfly holds short-lived decrypted copies of profile, device, chat list
 | `openmates-userdata-backups` | User master key | 60 days |
 | `openmates-compliance-logs-backups` | Plaintext | 2 y audit / 10 y financial |
 | `openmates-usage-archives` | Server key | 3 years |
-| `openmates-temp-images` | Plaintext, **private** (15 min presigned URL to SerpAPI) | 1 day (safety net) |
+| `openmates-temp-images` | Plaintext, **private** (15 min presigned URL) | 1 day (safety net) |
 | `openmates-review-media` | Plaintext, **private** (48 h presigned URL for agent-rendered response media) | 2 days |
 | `openmates-issue-logs` | Encrypted YAML + plaintext PNG | 1 year |
 
@@ -107,11 +107,9 @@ The privacy policy is restructured into provider-trigger groups (commit `7b1c22e
 | B | Payments | Stripe |
 | C | AI models | Anthropic (direct + Bedrock), OpenAI (direct + OpenRouter), Vertex MaaS (DeepSeek), Together AI, Groq, Cerebras, Mistral |
 | D | Image generation | FAL (Flux), Recraft |
-| E | Web / search | Brave, Firecrawl, SerpAPI, Google (Maps, Vision safety, Lens via SerpAPI) |
-| F | Travel | Flightradar24, Travelpayouts, SerpAPI flights/hotels, Transitous |
-| G | Events | Meetup, Luma, Bachtrack, Resident Advisor, ClassicTIC, Berlin Philharmonic, Siegessäule |
-| H | Health | Doctolib, Jameda (via Webshare proxy) — Art. 9 disclosure |
-| I | Shopping | REWE, Amazon |
+| E | Web / search | Brave, Google (Maps, Vision safety) |
+| F | Travel | Flightradar24, Travelpayouts |
+| I | Shopping | Amazon |
 | J | Community | Discord, YouTube metadata |
 
 **Dead code removed** (`OPE-373`): Revolut, Mailjet, Azure OpenAI scaffold, Google Calendar events provider. These were never disclosed precisely because the code path was never live; the source files have been deleted.

@@ -4,12 +4,12 @@
 
 OpenMates is an open-source, provider-independent AI assistant platform with built-in apps, rich results inside chat, client-side encrypted storage, automatic model selection, a terminal CLI, JavaScript and Python SDKs, and self-hosting support.
 
-[Open the web app](https://openmates.org) | [Documentation](https://openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
+[Open the web app](https://app.openmates.org) | [Documentation](https://app.openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
 
-[![OpenMates daily inspiration screenshot](./docs/images/readme-daily-inspiration.png)](https://openmates.org)
+[![OpenMates daily inspiration screenshot](./docs/images/readme-daily-inspiration.png)](https://app.openmates.org)
 
 > [!NOTE]
-> OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.27**.
+> OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.28**.
 
 ## See it in action
 
@@ -19,16 +19,14 @@ Public example chats open without an account. Each is a complete, interactive co
 
 ### Developer and technical workflows
 
-- [Build a responsive single-page interface](https://openmates.org/example/beautiful-single-page-html): generate a complete HTML/CSS landing page as a reusable code artifact.
-- [Research Rust vector databases](https://openmates.org/example/rust-vector-database-repos): search GitHub and compare repositories in a structured table.
-- [Create a USB-C power schematic](https://openmates.org/example/usb-c-3v3-ldo-pcb-schematic): generate an editable Atopile circuit design for a 3.3 V regulator.
+- [Build an interactive habit garden](https://app.openmates.org/example/habit-garden-web-application): generate a Svelte web application for tracking habits.
+- [Research Rust vector databases](https://app.openmates.org/example/rust-vector-database-repos): search GitHub and compare repositories in a structured table.
 
 ### Other real workflows
 
-- [Find flights from Berlin to Bangkok](https://openmates.org/example/flights-berlin-to-bangkok): inspect live-style travel connections, prices, carriers, and timings inside chat.
-- [Research right-to-repair laws in the EU and US](https://openmates.org/example/right-to-repair-laws-eu-us): compare legislation with source-linked research.
+- [Research right-to-repair laws in the EU and US](https://app.openmates.org/example/right-to-repair-laws-eu-us): compare legislation with source-linked research.
 
-New to the project? Read [who develops OpenMates](https://openmates.org/intro/who-develops-openmates) or explore the real workflows above.
+New to the project? Read [who develops OpenMates](https://app.openmates.org/intro/who-develops-openmates) or explore the real workflows above.
 
 ## What makes OpenMates different
 
@@ -46,7 +44,7 @@ Learn more about [apps and skills](./docs/user-guide/apps/README.md), [focus mod
 
 | Surface               | Best for                                                 | Start here                                         |
 | --------------------- | -------------------------------------------------------- | -------------------------------------------------- |
-| Cloud web app         | Using OpenMates without managing infrastructure          | [openmates.org](https://openmates.org)             |
+| Cloud web app         | Using OpenMates without managing infrastructure          | [app.openmates.org](https://app.openmates.org)     |
 | CLI and terminal chat | Interactive terminal use, scripts, and server management | `npm install -g openmates`                         |
 | JavaScript SDK        | Node.js applications and automation                      | `npm install openmates`                            |
 | Python SDK            | Python applications and automation                       | `pip install openmates`                            |
@@ -88,7 +86,7 @@ const result = await openmates.apps.web.search({
 });
 ```
 
-The [SDK guide](https://openmates.org/docs/user-guide/developers/sdk) covers JavaScript and Python. The Python package has additional examples in [`packages/openmates-python`](./packages/openmates-python/README.md).
+The [SDK guide](https://app.openmates.org/docs/user-guide/developers/sdk) covers JavaScript and Python. The Python package has additional examples in [`packages/openmates-python`](./packages/openmates-python/README.md).
 
 ## Self-host OpenMates
 
@@ -164,11 +162,11 @@ git clone https://github.com/glowingkitty/OpenMates.git
 cd OpenMates
 git switch dev
 corepack enable
-corepack prepare pnpm@10.27.0 --activate
+corepack prepare pnpm@10.28.0 --activate
 pnpm install --frozen-lockfile
 ```
 
-Contributor development uses Node.js 24.x and pnpm 10.27.0. Pull requests should normally target `dev`.
+Contributor development uses Node.js 24.x and pnpm 10.28.0. Pull requests should normally target `dev`.
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md), the [frontend standards](./docs/contributing/standards/frontend.md), [backend standards](./docs/contributing/standards/backend.md), and [testing guide](./docs/contributing/guides/testing.md) before making code changes.
 
@@ -182,7 +180,7 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md), the [frontend standards](./docs/contr
 - [GitHub issues](https://github.com/glowingkitty/OpenMates/issues)
 - [Signal developer group](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq)
 - [Discord community](https://discord.gg/bHtkxZB5cc)
-- [Support OpenMates](https://openmates.org/#settings/support)
+- [Support OpenMates](https://app.openmates.org/#settings/support)
 
 ## License
 

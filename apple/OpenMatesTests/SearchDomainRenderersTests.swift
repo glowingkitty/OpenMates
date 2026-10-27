@@ -128,13 +128,13 @@ final class SearchDomainRenderersTests: XCTestCase {
     func testHealthAppointmentKeepsProviderBookingSlotAndHydratedMetadata() {
         let fields: [String: AnyCodable] = [
             "name": AnyCodable("Synthetic Doctor"), "speciality": AnyCodable("Synthetic Specialty"),
-            "slot_datetime": AnyCodable("2026-04-03T10:30:00"), "provider_platform": AnyCodable("Jameda"),
+            "slot_datetime": AnyCodable("2026-04-03T10:30:00"), "provider_platform": AnyCodable("ExampleClinicB"),
             "booking_url": AnyCodable("https://example.com/booking"),
             "practice_url": AnyCodable("https://example.com/practice"),
             "additional_slot_datetimes": AnyCodable(["2026-04-03T14:00:00"])]
         let model = HealthAppointmentModel(fields)
         XCTAssertEqual(model.bookingURL?.path, "/booking")
-        XCTAssertEqual(model.provider, "Jameda")
+        XCTAssertEqual(model.provider, "ExampleClinicB")
         XCTAssertEqual(model.subtitle, "Synthetic Doctor · Synthetic Specialty")
         XCTAssertNotNil(model.fullSlotLabel)
         XCTAssertEqual(model.fields.stringArray("additional_slot_datetimes"), ["2026-04-03T14:00:00"])
@@ -152,7 +152,7 @@ final class SearchDomainRenderersTests: XCTestCase {
             id: "health-parent", type: "app:health:search_appointments",
             data: [
                 "query": AnyCodable("Ophthalmologist in Munich"),
-                "provider": AnyCodable("Doctolib, Jameda"),
+                "provider": AnyCodable("ExampleClinicA, ExampleClinicB"),
                 "results": AnyCodable([[
                     "id": "group",
                     "results": [
@@ -164,7 +164,7 @@ final class SearchDomainRenderersTests: XCTestCase {
         )
         let model = SearchDomainParentModel(kind: .health, embed: parent, allEmbedRecords: [:])
         XCTAssertEqual(model.query, "Ophthalmologist in Munich")
-        XCTAssertEqual(model.provider, "Doctolib, Jameda")
+        XCTAssertEqual(model.provider, "ExampleClinicA, ExampleClinicB")
         XCTAssertEqual(model.results.map(\.id), ["appointment-a", "appointment-b"])
         XCTAssertEqual(model.results.map(\.type), ["health-appointment", "health-appointment"])
         XCTAssertEqual(model.resultCount, 2)
@@ -222,7 +222,7 @@ final class SearchDomainRenderersTests: XCTestCase {
             "price_label": AnyCodable("850 EUR/month"),
             "size_sqm": AnyCodable(55),
             "rooms": AnyCodable(2),
-            "url": AnyCodable("https://www.immobilienscout24.de/expose/12345")
+            "url": AnyCodable("https://example.com/expose/12345")
         ])
         XCTAssertEqual(home.homeMetadata, ["55 m²", "2 rooms"])
         XCTAssertNotNil(home.secureURL("url"))

@@ -38,7 +38,7 @@ from backend.core.api.app.utils.override_parser import UserOverrides
 # This replaces the previous hardcoded keyword-based detection in china_sensitivity.py
 
 # Import model selector for intelligent model selection based on leaderboard rankings
-from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL, ModelSelector
+from backend.apps.ai.utils.model_selector import ModelSelector
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
@@ -51,9 +51,17 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
+from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
+from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
+from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
+from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
+    MERCURY_MODEL,
+    history_requires_non_text,
+    automatic_model_candidates,
+    automatic_model_allowed_servers,
     LOW_TIER,
     MAX_TIER,
     MEDIUM_TIER,
@@ -68,7 +76,7 @@ from backend.apps.ai.processing.routing_ledger import (
     build_preprocessing_history_projection,
     load_skill_ledger,
 )
-from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -87,10 +95,27 @@ logger = logging.getLogger(__name__)
 SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-5-5"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 5.5"
-IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+
+def _voice_delivery_context(request_data: AskSkillRequest) -> str:
+    """Use canonical history before its routing-only projection drops older text."""
+    if not request_data.voice_mode:
+        return ""
+    return build_voice_heard_context(request_data.voice_heard_boundary, request_data.message_history)
+
+
+def _skill_routing_candidate(app_id: str, skill: Any) -> str:
+    """Carry public provider brands into both stages of skill selection."""
+    identifier = f"{app_id}-{skill.id}"
+    providers = list(dict.fromkeys(
+        provider.display_name or provider.name
+        for provider in (getattr(skill, "providers", None) or [])
+    ))
+    hint = (getattr(skill, "preprocessor_hint", None) or "").strip()
+    if providers:
+        hint = f"Providers: {', '.join(providers)}; {hint or skill.id}"
+    return f"{identifier}: {hint}" if hint else identifier
 
 
 def _resolve_override_model_provider(model_id: str, override_provider: Optional[str], config_manager_obj: Any) -> Optional[str]:
@@ -271,8 +296,118 @@ def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
     return False
 
 
-def _is_google_model(model_ref: Optional[str]) -> bool:
-    return bool(model_ref and model_ref.startswith("google/"))
+def _image_reference_consumer_skills(
+    skills: Any, discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+) -> set[str]:
+    """Find selected tools whose published schema accepts an image reference."""
+    selected = set(skills or [])
+
+    def accepts_reference(schema: Any, *, image_app: bool) -> bool:
+        if not isinstance(schema, dict):
+            return False
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict) and (
+            {"reference_images", "source_image"} & properties.keys()
+            or (image_app and "file_path" in properties)
+        ):
+            return True
+        return any(
+            accepts_reference(child, image_app=image_app)
+            for value in schema.values()
+            for child in (value if isinstance(value, list) else [value])
+        )
+
+    return {
+        f"{app_id}-{skill.id}"
+        for app_id, app in (discovered_apps_metadata or {}).items()
+        for skill in (getattr(app, "skills", None) or [])
+        if f"{app_id}-{skill.id}" in selected
+        and f"{app_id}-{skill.id}" != "images-view"
+        and accepts_reference(getattr(skill, "tool_schema", None), image_app=app_id == "images")
+    }
+
+
+def _image_inspection_fallback_skills(
+    request_data: AskSkillRequest,
+    selected_skills: List[str],
+    available_skill_ids: List[str],
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+) -> List[str]:
+    """Offer viewing for current uploads and explicit image questions.
+
+    Existing semantic viewer selection remains authoritative in every language.
+    A current upload must not depend on inspection keywords to make viewing
+    available. Reference consumers retain direct handoff, and unrelated image
+    history alone does not enable viewing. Availability does not load pixels.
+    """
+    selected = list(selected_skills)
+    if "images-view" in selected or "images-view" not in available_skill_ids:
+        return selected
+    if not _request_has_image_upload_embed(request_data):
+        return selected
+    latest = getattr(request_data, "current_user_content", None)
+    if not isinstance(latest, str):
+        latest = _latest_user_text_from_history(request_data.message_history)
+    current_image = bool(getattr(request_data, "has_image_upload_embed", False)) or _content_has_image_upload_embed(latest)
+    consumers = _image_reference_consumer_skills(selected, discovered_apps_metadata)
+    if current_image and not consumers:
+        return ["images-view", *selected]
+
+    # Resolved attachment captions/metadata are data, not user inspection intent.
+    prose = re.sub(
+        r"```(?:toon|json|json_embed)\s*\n[\s\S]*?```",
+        lambda match: "" if _content_has_image_upload_embed(match.group()) else match.group(),
+        latest,
+    ).strip()
+    if _content_has_image_upload_embed(prose) and prose.startswith(("app_id:", "type:", "{")):
+        prose = ""
+    def targets_image(text: str) -> bool:
+        return bool(
+            re.search(r"\b(?:image|photo|picture|screenshot|chart|diagram|label)\b", text, re.IGNORECASE)
+            or any(
+                _embed_ref_is_image_upload(ref) and ref.casefold() in text.casefold()
+                for ref in (getattr(request_data, "embed_file_path_index", None) or {})
+            )
+        )
+
+    action = re.search(
+        r"\b(?:describe|inspect|analy[sz]e|read|identify|explain|count|recognize|recognise|look at)\b",
+        prose, re.IGNORECASE,
+    )
+    # Start a genuine question clause; a relative clause such as 'find fabrics
+    # which match this photo' is still a reference handoff, not inspection.
+    question = re.search(
+        r"(?:^|[.!?;\n]|\b(?:and|then)\b)\s*(?:please\s+)?"
+        r"(?:what|which|how many)\b[^?!;\n]*",
+        prose, re.IGNORECASE,
+    )
+    targeted_inspection = bool(
+        (action and targets_image(prose[action.end():]))
+        or (question and targets_image(question.group()))
+    )
+    # Mixed requests and historical images still need explicit inspection intent.
+    if targeted_inspection:
+        return ["images-view", *selected]
+    return selected
+
+
+def _history_has_loaded_image_blocks(value: Any) -> bool:
+    """Detect actual canonical image inputs, without treating embed refs as pixels."""
+    if isinstance(value, list):
+        return any(_history_has_loaded_image_blocks(child) for child in value)
+    if not isinstance(value, dict):
+        content = getattr(value, "content", None)
+        return content is not None and _history_has_loaded_image_blocks(content)
+    if value.get("type") in {"image_url", "input_image"}:
+        image = value.get("image_url")
+        url = image.get("url") if isinstance(image, dict) else image
+        if isinstance(url, str) and url.startswith("data:image/"):
+            return True
+    if value.get("type") == "image" and isinstance(value.get("source"), dict):
+        if value["source"].get("type") == "base64" and value["source"].get("data"):
+            return True
+    return any(_history_has_loaded_image_blocks(child) for child in value.values())
+
 
 TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
     "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
@@ -1301,7 +1436,7 @@ class PreprocessingResult(BaseModel):
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (low, medium, high, or max).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app memories keys to load (e.g., ['app_id:item_key']).")
-    relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
+    relevant_embedded_previews: Optional[List[str]] = Field(None, description="Relevant legacy preview types and app-qualified authored-result kinds; several kinds may be relevant.")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="Concise summary (max 20 words) of the full conversation so far.")
@@ -1318,6 +1453,9 @@ class PreprocessingResult(BaseModel):
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
+    requested_reasoning_level: Optional[Literal["LOW", "MEDIUM", "HIGH", "EXTRA_HIGH"]] = Field(
+        None, description="Independent optional reasoning recommendation; model capabilities clamp it at dispatch.",
+    )
     selected_main_llm_thinking_level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = Field(
         None, description="Server-selected reasoning level for the automatic default model profile.",
     )
@@ -1708,6 +1846,26 @@ async def check_preprocessing_credits(
     return None
 
 
+JEV_GENERATIVE_RECOVERY_MODEL = MERCURY_MODEL
+JEV_GENERATIVE_RECOVERY_SECONDARY = "google/gemini-3.5-flash-lite"
+
+
+async def _recover_jev_preprocessing(
+    result: Optional[LLMPreprocessingCallResult], **request_arguments: Any,
+) -> LLMPreprocessingCallResult:
+    """Keep valid Jev output; use the approved two-model recovery only if absent."""
+    if result is not None:
+        return result
+    logger.info("Jev unavailable; starting bounded Mercury LOW / Gemini Flash Lite recovery")
+    return await call_preprocessing_llm(
+        model_id=JEV_GENERATIVE_RECOVERY_MODEL,
+        fallback_models=[JEV_GENERATIVE_RECOVERY_SECONDARY],
+        reasoning_effort="low",
+        resolve_logical_fallbacks=True,
+        **request_arguments,
+    )
+
+
 async def _select_main_model(
     llm_analysis_args: Dict[str, Any], request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig, user_overrides: Optional[UserOverrides],
@@ -1783,11 +1941,6 @@ async def _select_main_model(
         )
 
     has_image_upload_embed = _request_has_image_upload_embed(request_data)
-    if has_image_upload_embed:
-        logger.info(
-            f"{log_prefix} IMAGE_MODEL_GUARD: Detected uploaded image embed in chat history. "
-            f"Google/Gemini text models will be excluded from main chat inference."
-        )
 
     # Initialize model selection variables
     selected_llm_for_main_id: Optional[str] = None
@@ -1850,17 +2003,6 @@ async def _select_main_model(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
-            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
-                logger.warning(
-                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                )
-                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                model_selection_reason = (
-                    f"Image upload guard: replaced user override {override_model_id} "
-                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-5-5:anthropic)
             resolved_override_provider = _resolve_override_model_provider(override_model_id, override_provider, config_manager)
@@ -1878,17 +2020,6 @@ async def _select_main_model(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
-            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
-                logger.warning(
-                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                )
-                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                model_selection_reason = (
-                    f"Image upload guard: replaced user override {override_provider}/{override_model_id} "
-                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                )
         else:
             # User provided only model_id without provider prefix - try to resolve the provider
             logger.info(
@@ -1906,50 +2037,20 @@ async def _select_main_model(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
                     f"Full model ID: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
                 )
-                if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
-                    logger.warning(
-                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                    )
-                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                    model_selection_reason = (
-                        f"Image upload guard: replaced user override {resolved_provider}/{override_model_id} "
-                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                    )
             else:
                 logger.warning(
-                    f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
-                    f"Model not found in any provider configuration. Falling back to {DEFAULT_FALLBACK_MODEL}."
+                    "%s USER_OVERRIDE: Unresolved model; using permitted automatic selection", log_prefix,
                 )
-                selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
-                fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
-                selected_llm_for_main_name = (
-                    config_manager.get_model_display_name(fallback_model_id, fallback_provider)
-                    or fallback_model_id
-                )
-                model_override_applied = True
-                model_selection_reason = f"Unresolved user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
 
-        # The parser accepts authored model IDs that may have since been removed.
-        # Keep the existing explicit-override fallback, but never dispatch a
-        # retired model or a non-chat model to its old provider.
+        # An invalid selection is automatic recovery, never an explicit choice
+        # that may bypass disabled-model or input-capability restrictions.
         validated_override = _usable_chat_model_reference(selected_llm_for_main_id, config_manager)
         if validated_override:
             selected_llm_for_main_id, selected_llm_for_main_name = validated_override
         else:
-            logger.warning(
-                f"{log_prefix} USER_OVERRIDE: Model '{selected_llm_for_main_id}' is not a routable "
-                f"chat model in the current catalogue. Falling back to {DEFAULT_FALLBACK_MODEL}."
-            )
-            selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
-            fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
-            selected_llm_for_main_name = (
-                config_manager.get_model_display_name(fallback_model_id, fallback_provider)
-                or fallback_model_id
-            )
-            model_override_applied = True
-            model_selection_reason = f"Invalid user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
+            model_override_applied = False
+            selected_llm_for_main_id = selected_llm_for_main_name = None
+            model_selection_reason = "Invalid user override; permitted automatic selection"
 
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
@@ -1978,17 +2079,6 @@ async def _select_main_model(
                     f"({user_default_key}={selected_llm_for_main_id}, complexity={complexity_val}). "
                     f"Name: {selected_llm_for_main_name}"
                 )
-                if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
-                    logger.warning(
-                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing Google user default "
-                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                    )
-                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                    model_selection_reason = (
-                        f"Image upload guard: replaced user default {user_default_model} "
-                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                    )
 
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
@@ -1999,19 +2089,14 @@ async def _select_main_model(
         if enable_auto_select:
             # Use ModelSelector to select models based on leaderboard rankings
             try:
-                from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
-
-                # Get leaderboard data from cache (preloaded on server startup)
-                leaderboard_data = await get_leaderboard_data()
-
-                # Create model selector and select models
-                model_selector = ModelSelector(leaderboard_data=leaderboard_data)
+                # Tier profiles and affordable recovery are deployment policy;
+                # external rankings cannot silently introduce another provider.
+                model_selector = ModelSelector()
                 selection_result = model_selector.select_models(
                     task_area=task_area_val,
                     complexity=complexity_val,
                     china_related=china_related,
                     user_unhappy=user_unhappy_val,
-                    excluded_provider_ids=IMAGE_CHAT_EXCLUDED_PROVIDER_IDS if has_image_upload_embed else None,
                     log_prefix=log_prefix
                 )
 
@@ -2055,8 +2140,9 @@ async def _select_main_model(
                     selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                     selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
                 else:
-                    selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
-                    selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+                    selected_llm_for_main_id = default_profile_for_tier(LOW_TIER)["model"]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
                 model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
                 logger.info(
@@ -2078,10 +2164,45 @@ async def _select_main_model(
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
             else:
-                selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
-                selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+                selected_llm_for_main_id = default_profile_for_tier(LOW_TIER)["model"]
+                provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
+
+    # Apply the same restrictions to every automatic tier and recovery model.
+    # Explicit chat and saved-tier choices retain their existing precedence.
+    if not model_override_applied:
+        candidates = []
+        configured_candidates = automatic_model_candidates(complexity_val)
+        if not enable_auto_select and selected_llm_for_main_id:
+            # Disabling automatic selection preserves the operator's configured
+            # primary; recovery still uses the current affordable policy.
+            configured_candidates = list(dict.fromkeys([selected_llm_for_main_id, *configured_candidates]))
+        for model_id in configured_candidates:
+            provider = model_id.split("/", 1)[0]
+            if not _usable_chat_model_reference(model_id, config_manager):
+                continue
+            if not automatic_model_allowed_servers(
+                model_id, request_data.user_preferences, config_manager.get_provider_config(provider),
+            ):
+                continue
+            if model_id == MERCURY_MODEL:
+                if has_image_upload_embed or history_requires_non_text(request_data.message_history):
+                    continue
+                # Avoid a known unavailable primary without a provider call.
+                # Recovery attempts recheck health at the dispatch boundary.
+                if not candidates and not await is_provider_healthy("inception", CacheService()):
+                    continue
+            candidates.append(model_id)
+        selected_llm_for_main_id = candidates[0] if candidates else None
+        selected_secondary_model_id = candidates[1] if len(candidates) > 1 else None
+        selected_fallback_model_id = candidates[-1] if len(candidates) > 1 else None
+        selected_llm_for_main_name = None
+        if selected_llm_for_main_id:
+            provider, model = selected_llm_for_main_id.split("/", 1)
+            selected_llm_for_main_name = config_manager.get_model_display_name(model, provider) or model
+        model_selection_reason = f"{model_selection_reason}; Permitted automatic chain: {candidates}"
 
     selected_llm_thinking_level = (
         automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
@@ -2102,6 +2223,7 @@ async def _select_main_model(
         "model_selection_reason": model_selection_reason,
         "filtered_cn_models": filtered_cn_models,
         "model_override_applied": model_override_applied,
+        "model_selection_unavailable": not bool(selected_llm_for_main_id),
         "selected_llm_thinking_level": selected_llm_thinking_level,
     }
 
@@ -2190,6 +2312,7 @@ def _reusable_stage_one_project_none(request_data: AskSkillRequest,
             and request_data.admission_context.get("scope_complete") is True)
 
 
+@voice_preprocessing_scope
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -2209,6 +2332,7 @@ async def handle_preprocessing(
     precomputed_stage_one: Optional[Dict[str, Any]] = None,
     routing_scope_validated: bool = False,
     before_related_summary_read: Optional[Callable[[], Awaitable[None]]] = None,
+    on_metadata_context_ready: Optional[Callable[[List[Dict[str, Any]], str], None]] = None,
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -2303,6 +2427,7 @@ async def handle_preprocessing(
 
     # Build the preprocessing-only projection before expensive URL sanitization.
     # The main processor continues to receive request_data.message_history unchanged.
+    voice_heard_context = _voice_delivery_context(request_data)
     try:
         routing_ledger = await load_skill_ledger(cache_service, request_data)
     except Exception as ledger_error:
@@ -2392,6 +2517,11 @@ async def handle_preprocessing(
             rejection_reason="preprocessing_context_limit_exceeded",
             error_message="The latest message is too large to route safely. Please shorten it or attach the content as a file.",
         )
+
+    # The caller owns optional metadata inference. It overlaps routing and main
+    # processing, and must never become a routing/first-answer barrier.
+    if on_metadata_context_ready:
+        on_metadata_context_ready(sanitized_message_history, user_system_language)
 
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")
@@ -2487,7 +2617,7 @@ async def handle_preprocessing(
                     user_id=request_data.user_id, team_id=request_data.team_id,
                 )
             public_skills = [
-                f"{app_id}-{skill.id}: {skill.preprocessor_hint or skill.id}"
+                _skill_routing_candidate(app_id, skill)
                 for app_id, metadata in (discovered_apps_metadata or {}).items()
                 for skill in (getattr(metadata, "skills", None) or [])
                 if (app_id, skill.id) not in {("ai", "ask"), ("projects", "search")}
@@ -2532,6 +2662,8 @@ async def handle_preprocessing(
                 model_id=decision_model, secrets_manager=secrets_manager,
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=list(discovered_apps_metadata or {}),
                 available_skills=public_skills, available_focus_modes=public_focuses,
                 project_candidates=request_data.project_focus_candidates,
@@ -2641,6 +2773,11 @@ async def handle_preprocessing(
     # Deepcopy the tool definitions to allow modification
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
+    if voice_heard_context:
+        # Independent recovery needs the same delivery evidence as Jev. Keep it
+        # outside user/history messages so rich history and turn identity persist.
+        function = tool_definition_for_llm["function"]
+        function["description"] = function.get("description", "") + "\n\n" + voice_heard_context
 
     # Determine whether this is the first message (no title yet) or a follow-up.
     # CRITICAL: Use chat_has_title flag from client, NOT message_history length
@@ -2878,11 +3015,7 @@ async def handle_preprocessing(
                     # Use hyphen format for skill identifiers (consistent with tool names)
                     skill_identifier = f"{app_id}-{skill.id}"
                     available_skill_ids.append(skill_identifier)
-                    # Include preprocessor_hint if available so the LLM can make informed skill selection decisions
-                    if skill.preprocessor_hint:
-                        available_skills_list.append(f"{skill_identifier}: {skill.preprocessor_hint.strip()}")
-                    else:
-                        available_skills_list.append(skill_identifier)
+                    available_skills_list.append(_skill_routing_candidate(app_id, skill))
 
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)
@@ -2946,19 +3079,8 @@ async def handle_preprocessing(
     logger.debug(f"{log_prefix} Focus modes with hints: {available_focus_modes_list}")
     logger.debug(f"{log_prefix} App settings/memories metadata: {user_app_settings_and_memories_metadata}")
 
-    preprocessing_model = skill_config.default_llms.preprocessing_model
-
-    # Resolve fallback servers from provider config instead of hardcoded list in app.yml
-    # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
-    from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-    preprocessing_fallbacks = utility_model_fallbacks(
-        preprocessing_model,
-        resolve_fallback_servers_from_provider_config(preprocessing_model),
-    )
-
-    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
-    if preprocessing_fallbacks:
-        logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
+    # This is recovery after unavailable Jev, independent of other utility chains.
+    preprocessing_model = JEV_GENERATIVE_RECOVERY_MODEL
 
     # Build dynamic context with categories and available app skills (with descriptions).
     # Include current date/time so preprocessing LLMs know temporal context.
@@ -3040,6 +3162,8 @@ async def handle_preprocessing(
                     model_id=decision_model, secrets_manager=secrets_manager,
                     telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                     message_history=sanitized_message_history,
+                    voice_heard_context=voice_heard_context,
+                    authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                     available_apps=list(discovered_apps_metadata or {}),
                     available_skills=available_skills_list,
                     available_focus_modes=available_focus_modes_list,
@@ -3203,6 +3327,7 @@ async def handle_preprocessing(
             decision_arguments = await decide_preprocessing_with_jev(
                 model_id=decision_model, secrets_manager=secrets_manager,
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
                 topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
                 available_skills=[], available_focus_modes=[],
                 available_settings_and_memories={}, recent_skill_activity=list(routing_ledger.prompt_rows),
@@ -3210,6 +3335,7 @@ async def handle_preprocessing(
                 is_first_message=is_first_message, skip_mate_routing=explicit_mate is not None,
                 available_rules=[], available_workflows=[], effective_focus={},
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=[], selected_app_ids=[], early_decisions=early_routing["early_decisions"],
                 candidate_discovery_complete=True,
                 related_discovery_complete=True,
@@ -3293,6 +3419,7 @@ async def handle_preprocessing(
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 secrets_manager=secrets_manager,
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
                 topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
                 available_skills=available_skills_list,
                 available_focus_modes=available_focus_modes_list,
@@ -3306,6 +3433,7 @@ async def handle_preprocessing(
                 available_workflows=initial_workflow_metadata,
                 effective_focus={"id": request_data.active_focus_id,
                                  "phase": ((request_data.focus_phase_state or {}).get(request_data.active_focus_id or "") or {}).get("phase_id")},
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=available_app_ids,
                 forced_app_ids=forced_app_ids,
                 selected_app_ids=selected_app_ids,
@@ -3339,18 +3467,15 @@ async def handle_preprocessing(
                 f"using independent preprocessing fallback ({type(exc).__name__})."
             )
 
-    if llm_call_result is None:
-        logger.info(f"{log_prefix} Firing generative preprocessing fallback (routing + safety + language).")
-        llm_call_result = await call_preprocessing_llm(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}",
-            model_id=preprocessing_model,
-            fallback_models=preprocessing_fallbacks,
-            message_history=sanitized_message_history,
-            tool_definition=tool_definition_for_llm,
-            secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-            dynamic_context=dynamic_context,
-        )
+    llm_call_result = await _recover_jev_preprocessing(
+        llm_call_result,
+        task_id=f"{request_data.chat_id}_{request_data.message_id}",
+        message_history=sanitized_message_history,
+        tool_definition=tool_definition_for_llm,
+        secrets_manager=secrets_manager,
+        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+        dynamic_context=dynamic_context,
+    )
 
     if llm_call_result.error_message or not llm_call_result.arguments:
         default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
@@ -3498,6 +3623,11 @@ async def handle_preprocessing(
     model_selection = early_model_selection or await _select_main_model(
         llm_analysis_args, request_data, skill_config, user_overrides, log_prefix,
     )
+    if model_selection.get("model_selection_unavailable"):
+        return PreprocessingResult(
+            can_proceed=False, rejection_reason="no_available_ai_model",
+            error_message="No permitted AI model is available for this request. Review your model settings and try again.",
+        )
     complexity_val = model_selection["complexity_val"]
     task_area_val = model_selection["task_area_val"]
     # The validated decision is separate from model routing in either pass.
@@ -3995,16 +4125,19 @@ async def handle_preprocessing(
                                              if identifier in available_focus_mode_ids]
         ))
 
+    from backend.apps.ai.sub_chat_orchestration import resolve_sub_chat_depth, is_sub_chat_continuation
+
     resolved_enable_subchats = resolve_subchat_enablement(
         enable_subchats_val,
         active_focus_id=request_data.active_focus_id,
+        chat_depth=resolve_sub_chat_depth(request_data),
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
     )
     if resolved_enable_subchats != enable_subchats_val:
         enable_subchats_val = resolved_enable_subchats
-        llm_analysis_args["enable_subchats"] = True
-        logger.info(
-            f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."
-        )
+        llm_analysis_args["enable_subchats"] = resolved_enable_subchats
+        logger.info("%s Applied server sub-chat depth/focus/continuation policy: enabled=%s",
+                    log_prefix, resolved_enable_subchats)
     if request_data.is_incognito:
         # Child orchestration writes canonical chat rows. Incognito has no
         # durable child implementation, so keep its work in the main turn.
@@ -4061,20 +4194,11 @@ async def handle_preprocessing(
             if has_image_upload_embed and has_pdf_embed and has_video_embed and has_website_embed:
                 break  # No need to scan further
 
-        # --- images-view ---
-        if has_image_upload_embed and "images-view" in available_skill_ids:
-            if "images-view" not in validated_relevant_skills:
-                # Prepend so images-view is first (highest priority for image questions)
-                validated_relevant_skills = ["images-view"] + validated_relevant_skills
-                logger.info(
-                    f"{log_prefix} [RULE_BASED] Forced 'images-view' into preselected skills: "
-                    f"detected images/upload toon block in message history. "
-                    f"(Prevents hallucination when preprocessing LLM misses image skill.)"
-                )
-            else:
-                logger.debug(
-                    f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
-                )
+        # A selected image-consuming skill can resolve refs itself. Keep the
+        # semantic viewer decision, adding a viewer only for actual inspection.
+        validated_relevant_skills = _image_inspection_fallback_skills(
+            request_data, validated_relevant_skills, available_skill_ids, discovered_apps_metadata,
+        )
 
         # --- code-image_to_html ---
         # Screenshot/mockup-to-HTML requests contain image terms and can be
@@ -4395,6 +4519,7 @@ async def handle_preprocessing(
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
+        requested_reasoning_level=_canonical_requested_reasoning_level(llm_analysis_args.get("reasoning_level")),
         selected_main_llm_thinking_level=selected_llm_thinking_level,
         selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
         selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)

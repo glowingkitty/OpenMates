@@ -36,7 +36,7 @@ const SOURCES_DIR = path.join(__dirname, '../src/i18n/sources');
 const SRC_DIR = path.join(__dirname, '../src');
 // Also scan the web_app source directory for $text() calls (routes, pages, etc.)
 const WEB_APP_SRC_DIR = path.join(__dirname, '../../apps/web_app/src');
-const LEGAL_CONTENT_PATH = path.join(SRC_DIR, 'legal', 'buildLegalContent.ts');
+const LEGAL_CONTENT_PATH = path.resolve(SRC_DIR, '..', '..', 'public-site', 'src', 'legal', 'buildLegalContent.ts');
 
 // ─── Helper: walk a directory tree ──────────────────────────────────────────
 
@@ -378,14 +378,14 @@ function validateLegalContentKeys(enLocale) {
     for (const [key, line] of keys.entries()) {
         const resolved = resolveDotKey(enLocale, key);
         if (resolved === undefined) {
-            missingKeys.push({ key, file: 'src/legal/buildLegalContent.ts', line });
+            missingKeys.push({ key, file: '../public-site/src/legal/buildLegalContent.ts', line });
         } else if (
             typeof resolved !== 'object' ||
             resolved === null ||
             !('text' in resolved) ||
             typeof resolved.text !== 'string'
         ) {
-            objectKeys.push({ key, file: 'src/legal/buildLegalContent.ts', line });
+            objectKeys.push({ key, file: '../public-site/src/legal/buildLegalContent.ts', line });
         }
     }
 

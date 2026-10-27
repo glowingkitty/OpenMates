@@ -14,15 +14,17 @@
 <script lang="ts">
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onDestroy, getContext} from 'svelte';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
   import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
-  import { modelsMetadata } from '../../../data/modelsMetadata';
+  import { getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { imageGenerationAttribution, imageGenerationFilename } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
@@ -92,7 +94,8 @@
   let ed = $derived(data.embedData);
   let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : undefined);
   let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let provider = $derived(typeof dc.provider === 'string' ? dc.provider : undefined);
+  let filename = $derived(imageGenerationFilename(dc, embedId));
   let aspectRatio = $derived(typeof dc.aspect_ratio === 'string' ? dc.aspect_ratio : undefined);
   let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined);
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as ImageFiles : undefined);
@@ -127,14 +130,9 @@
   
   const skillIconName = 'ai';
 
-  // Header title: truncated prompt (max 80 chars), fallback to skill name
-  let embedHeaderTitle = $derived.by(() => {
-    const name = skillIdProp === 'generate_draft'
-      ? $text('embeds.image_generate_draft')
-      : $text('common.generate');
-    if (!prompt) return name;
-    return prompt.length > 80 ? prompt.slice(0, 79) + '\u2026' : prompt;
-  });
+  // The header and download use the same saved asset name.
+  let embedHeaderTitle = $derived(filename || (skillIdProp === 'generate_draft'
+    ? $text('embeds.image_generate_draft') : $text('common.generate')));
 
   // Header subtitle: skill display name (doubles as "Generated image" label)
   let embedHeaderSubtitle = $derived(
@@ -143,19 +141,9 @@
       : $text('common.generate')
   );
   
-  // Look up full model metadata (name, logo) from modelsMetadata registry
-  let modelMetadata = $derived(
-    model ? modelsMetadata.find(m => m.id === model) : undefined
-  );
-  
-  // Display name: prefer metadata name, fallback to extracting last segment of model ID
-  let modelDisplayName = $derived.by(() => {
-    if (modelMetadata?.name) return modelMetadata.name;
-    if (!model) return '';
-    const parts = model.split('/');
-    return parts[parts.length - 1] || model;
-  });
-  
+  let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
+  let modelDisplayName = $derived(imageGenerationAttribution(model, provider));
+
   // Provider icon URL resolved from metadata logo_svg field
   let providerIconUrl = $derived(
     modelMetadata?.logo_svg ? getProviderIconUrl(modelMetadata.logo_svg) : undefined
@@ -357,13 +345,13 @@
       }
       
       // Generate a human-readable filename from the prompt
-      const filename = generateImageFilename(prompt, ext);
+      const downloadFilename = filename || generateImageFilename(prompt, ext);
       
       // Create download link
       const url = URL.createObjectURL(downloadBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -421,8 +409,8 @@
       new Uint8Array(ab).set(metadataBytes);
       resultBlob = new Blob([ab], { type: 'image/png' });
     }
-    const filename = generateImageFilename(prompt, ext);
-    return { blob: resultBlob, filename };
+    const downloadFilename = filename || generateImageFilename(prompt, ext);
+    return { blob: resultBlob, filename: downloadFilename };
   }
 
   /**
@@ -442,7 +430,9 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ filename, prompt, model, provider, aspect_ratio: aspectRatio, generated_at: generatedAt }}
+  mediaLayout="immersive"
   appId="images"
   skillId={skillIdProp}
   {skillIconName}
@@ -460,7 +450,10 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content()}
+  {#snippet summary()}
+    {#if aspectRatio}<ResultEmbedInfo icon="ratio" label={aspectRatio} value={aspectRatio} />{/if}
+  {/snippet}
+  {#snippet media()}
     <div class="image-fullscreen">
       {#if error}
         <!-- Error state -->
@@ -478,13 +471,13 @@
           {#if fullImageUrl}
             <div class="image-wrapper">
               <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
-                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" />
               </a>
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
             <div class="image-wrapper progressive">
-              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="full-image preview-placeholder" />
+              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image preview-placeholder" />
               <div class="progressive-overlay">
                 <div class="loading-spinner small"></div>
               </div>
@@ -502,6 +495,12 @@
           {/if}
         </div>
 
+
+      {/if}
+    </div>
+  {/snippet}
+  {#snippet detailContent()}
+    {#if !error}
         <!-- Prompt area: "Generated by" line + quote card with prompt text.
              On desktop (wide containers) this sits on the left; on narrow containers it goes below the image. -->
         <div class="prompt-area">
@@ -561,12 +560,13 @@
             </div>
           {/if}
         </div>
-      {/if}
-    </div>
+    {/if}
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
+
+  .image-section { width: 100%; box-sizing: border-box; }
   /* ===========================================
      Main Layout Container
      Wide containers: side-by-side (image left, prompt right)
@@ -577,9 +577,9 @@
   
   .image-fullscreen {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: auto;
     overflow: auto;
     align-items: center;
     gap: 0;
@@ -596,10 +596,11 @@
     justify-content: center;
     min-height: 0;
     min-width: 0;
-    padding: var(--spacing-12);
+    padding: 0;
   }
   
   .image-wrapper {
+    width: 100%;
     max-width: 100%;
     max-height: 100%;
     display: flex;
@@ -609,6 +610,7 @@
   
   /* Clickable link wrapper for the image - opens full size in new tab */
   .image-link {
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -618,6 +620,8 @@
   }
   
   .full-image {
+    width: 100%;
+    height: auto;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
@@ -664,9 +668,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
-    padding: 24px 24px 24px 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
     align-self: center;
-    max-width: 380px;
+    max-width: 100%;
     flex-shrink: 0;
   }
   
@@ -971,7 +977,7 @@
     .image-section {
       order: 1;
       flex: none;
-      padding: var(--spacing-8);
+      padding: 0;
       width: 100%;
     }
     

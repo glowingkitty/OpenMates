@@ -64,24 +64,24 @@ def test_loads_a_typed_versioned_voice_profile_for_every_builtin_mate() -> None:
     if not (mates_dir / "onboarding_support.md").exists():
         active_profile_keys.remove("suki")
     assert {mate.voice_profile.key for mate in mates if mate.voice_profile} == active_profile_keys
-    assert {mate.voice_profile.version for mate in mates if mate.voice_profile} == {1}
+    assert {mate.voice_profile.version for mate in mates if mate.voice_profile} == {2}
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
 def test_resolves_a_provider_neutral_profile_without_exposing_voice_ids() -> None:
-    resolved = resolve_assistant_voice_profile("hiro", version=1)
+    resolved = resolve_assistant_voice_profile("hiro", version=2)
 
-    assert resolved.provider == "elevenlabs"
-    assert resolved.model == "eleven_v4_turbo"
-    assert resolved.output_format == "mp3_44100_128"
-    assert resolved.voice_settings == {"speed": 1.0}
+    assert resolved.provider == "mistral"
+    assert resolved.model == "voxtral-mini-tts-3-0"
+    assert resolved.output_format == "mp3"
+    assert resolved.voice_settings == {}
     assert not hasattr(resolved, "voice_id")
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
 def test_resolves_a_unique_provider_voice_for_every_builtin_mate() -> None:
     provider_voice_ids = {
-        resolve_assistant_voice_profile(key, version=1).elevenlabs_request()["voice_id"]
+        resolve_assistant_voice_profile(key, version=2).mistral_request()["voice_id"]
         for key in EXPECTED_MATE_PROFILE_KEYS
     }
 

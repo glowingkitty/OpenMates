@@ -50,13 +50,13 @@
     },
     {
       "title": "Research alternative providers for image search",
-      "summary": "Evaluate whether Flickr Commons and Wikidata/Wikimedia media APIs should complement the current Brave image search and SerpAPI Google Lens providers.",
-      "reason_retained": "The image search skill currently documents and implements Brave text image search plus SerpAPI Google Lens reverse search; Flickr/Wikidata image-provider support was not found, but the related research is older than eight weeks.",
+      "summary": "Evaluate whether official Flickr Commons and Wikidata/Wikimedia media APIs should complement the current Brave image search.",
+      "reason_retained": "Brave text image search remains available; additional official media APIs need a current assessment of licensing, privacy and result quality.",
       "acceptance_criteria": [
-        "Compare Flickr Commons, Wikidata/Wikimedia media, and existing Brave/SerpAPI coverage for licensing, result quality, privacy, quota, and cost.",
-        "Document whether each provider should be added to images/search, daily inspirations, or neither.",
-        "If a provider is recommended, define the shared provider wrapper, privacy-policy impact, and test coverage needed before implementation.",
-        "Avoid adding a provider unless it improves result quality or licensing coverage beyond the current providers."
+        "Compare official Flickr Commons and Wikidata/Wikimedia media APIs with Brave image search for licensing, result quality, privacy, quota, and cost.",
+        "Document whether each permitted source should be added to images/search, daily inspirations, or neither.",
+        "If a source is recommended, define the documented API, applicable usage rights, privacy-policy impact, and test coverage needed before implementation.",
+        "Add a source only when its documented terms permit the intended use and it improves result quality or licensing coverage."
       ],
       "suggested_labels": ["enhancement"]
     },
@@ -147,7 +147,7 @@
     {
       "title": "Add anti-scam filtering guidance for home search results",
       "summary": "Improve home/apartment search responses so obvious scammy listings are filtered or flagged and users receive safety guidance when searching housing listings.",
-      "reason_retained": "The Home app search instruction covers provider usage and filters, but no explicit apartment-scam filtering or renter safety guidance was found.",
+      "reason_retained": "Historical housing listings remain viewable; no explicit apartment-scam filtering or renter safety guidance was found.",
       "acceptance_criteria": [
         "Add guidance for identifying obvious apartment listing scams or spam in home search results.",
         "Ensure the assistant flags suspicious results instead of presenting them as normal recommendations.",
@@ -197,7 +197,7 @@
     {
       "title": "Unify provider routing metadata across app skills",
       "summary": "Create a shared provider-routing model for country, category, scope, and provider compatibility across skills instead of duplicating logic per app.",
-      "reason_retained": "Provider routing exists in individual apps such as events, shopping, travel, payments, and frontend metadata, but no unified cross-skill provider registry was found.",
+      "reason_retained": "App metadata and retained provider routing remain distributed across skills, payments, and frontend display; a unified permitted-source registry needs assessment.",
       "acceptance_criteria": [
         "Inventory provider routing needs across apps with country, category, scope, and opt-in constraints.",
         "Define shared provider metadata that can serve backend routing, frontend display, privacy policy, and health checks.",
@@ -207,14 +207,14 @@
       "suggested_labels": ["enhancement", "apps"]
     },
     {
-      "title": "Fix Siegessaeule event provider timeout and opt-in routing",
-      "summary": "Make the Siegessaeule events provider safe to re-enable by fixing timeout hierarchy and only selecting it for Berlin LGBTQ+ event intent.",
-      "reason_retained": "The events provider registry still excludes Siegessaeule from auto-select with a comment pointing at the unresolved timeout and opt-in routing work.",
+      "title": "Keep official conference schedule requests within skill deadlines",
+      "summary": "Bound supported official conference schedule requests so slow responses produce a clear error within the enclosing skill deadline.",
+      "reason_retained": "Event search is limited to known official conference schedule exports; deadline and error handling remain useful safeguards for these supported sources.",
       "acceptance_criteria": [
-        "Ensure Siegessaeule provider timeouts cannot exceed the enclosing skill executor timeout.",
-        "Keep Siegessaeule opt-in or intent-gated for Berlin LGBTQ+ event searches.",
-        "Re-enable it only when slow proxy responses do not fail unrelated event searches.",
-        "Add provider routing and timeout coverage for Berlin LGBTQ+ and generic Berlin event queries."
+        "Ensure supported schedule request timeouts fit within the enclosing skill executor timeout.",
+        "Dispatch only the requested known official conference schedule.",
+        "Return a clear unavailable error when a schedule request exceeds its deadline.",
+        "Cover conference routing, timeout and unavailable-source behavior without live upstream requests."
       ],
       "suggested_labels": ["bug", "apps"]
     },
@@ -438,9 +438,9 @@
     {
       "title": "Research Treatwell as a beauty appointment provider",
       "summary": "Evaluate adding a beauty/wellness appointment app or provider backed by Treatwell or similar salon-booking sources.",
-      "reason_retained": "Health appointment search exists for medical appointments, and shopping has a generic beauty category, but no beauty appointment app, Treatwell provider, or salon-booking workflow was found.",
+      "reason_retained": "Appointment search is currently unavailable, and no beauty appointment app or authorized salon-booking integration was found.",
       "acceptance_criteria": [
-        "Research Treatwell provider feasibility, privacy impact, locale coverage, and anti-bot constraints.",
+        "Assess documented salon-booking APIs and intended-use rights, privacy impact, and locale coverage.",
         "Decide whether beauty appointments should be a new app or a non-medical provider category under an existing app.",
         "Define the search request schema and embed type needed for salon/beauty bookings.",
         "Document whether implementation should proceed or be rejected due to provider, privacy, or product-fit constraints."
@@ -448,14 +448,14 @@
       "suggested_labels": ["idea", "apps"]
     },
     {
-      "title": "Expand concert and classical music event search",
-      "summary": "Improve event search coverage for concerts, classical music, and related cultural events beyond the current Berlin Philharmonic-specific path.",
-      "reason_retained": "Events search supports general providers and a Berlin Philharmonic provider with concert tags, but broader concert/classical music provider coverage and routing were not found.",
+      "title": "Assess official cultural-event APIs and licensed feeds",
+      "summary": "Assess documented official APIs or licensed feeds for cultural-event discovery, with explicit intended-use rights and privacy boundaries.",
+      "reason_retained": "Current event search covers known official conference schedules; cultural-event discovery needs a separate permitted-source assessment.",
       "acceptance_criteria": [
-        "Audit current concert coverage across Eventbrite, Google Events, Resident Advisor, and Berlin Philharmonic.",
-        "Identify provider gaps for classical music, concert halls, and ticketed cultural events in target regions.",
-        "Add or document provider routing so concert queries select the right sources without narrowing generic event search.",
-        "Verify representative classical and non-classical concert searches."
+        "Identify official APIs or explicitly licensed feeds for cultural events in target regions.",
+        "Record intended-use permission, attribution, retention, display and rate-limit conditions for each candidate.",
+        "Document the supported query scope and privacy implications before considering an integration.",
+        "Use synthetic fixtures to assess schemas and result contracts; do not implement a source without the required usage rights."
       ],
       "suggested_labels": ["enhancement", "apps"]
     },

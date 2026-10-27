@@ -1,6 +1,18 @@
 schema_version: 1
 specification: architecture.storage-lifecycle@2
 
+client_persistence_adapters:
+  - id: browser-and-apple-keep-existing-data
+    assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
+    given: A user has encrypted local chats in browser IndexedDB and Apple SwiftData, including an older archived chat and pending recovery state.
+    when: The application adopts shared Rust client policy through thin persistence adapters.
+    then: Existing stores and data remain readable under the same owner and encryption boundaries; archive reads and recovery preserve their server authority, and no SQLite or OPFS conversion or cache reset is required.
+  - id: logout-and-owner-boundaries-survive-adapter-change
+    assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
+    given: A user logs out while a local save is pending, then signs into another account on the migrated client.
+    when: A delayed write or recovery result from the previous account arrives.
+    then: Shared Rust and the explicit adapter preserve durable logout/deletion fences and account partitioning, so old data is not restored or shown to the new account; unrelated retained data is not discarded to simplify migration.
+
 region_replication:
   - id: active-write-survives-replica-outage
     given: {configured_regions: [nbg1, fsn1, hel1], active_write_region: nbg1, fsn1_health: unavailable, hel1_health: healthy}
@@ -281,3 +293,10 @@ version_reconstruction:
     given: An older embed has only its initial encrypted snapshot and a long sequence of dependent encrypted patches.
     when: The archive migration considers pruning its PostgreSQL history payloads.
     then: The history remains pending archival and preserves every required reconstruction dependency until a write-authorized capable client supplies the bounded path; a read-only viewer cannot publish a snapshot, and the server does not decrypt plaintext or break historical restore and commit replay.
+
+queued_output_discovery:
+- id: acknowledged-output-in-older-discovery-page
+  assertion_ids: [storage.background.complete-sealed-recovery, chats.persistence.client-encrypted]
+  given: Two signed discovery pages contain the same immutable output; the first is durably acknowledged and successfully handled locally.
+  when: The queued older page is consumed after that acknowledgment.
+  then: The same session skips the acknowledged identity. Changed identity, failed acknowledgment, failed local handling and a lifecycle reset remain eligible for recovery; genuine failures remain visible.

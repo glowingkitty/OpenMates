@@ -1,6 +1,57 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "web_browse_embed_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare Browse preview/fullscreen and browser viewer fixtures. Synthetic local page images and typed in-memory session controls prove component behavior without backend, E2B, account credentials or AI inference. Actual owner HTTP and deployed provider flows are verified separately.",
+      "specs": [
+        "components/web-browse-embeds.spec.ts"
+      ]
+    },
+    "web_pii_local_trial": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare composer with the normal notification deck. Download pinned public Redact model/runtime assets and run only on-device token classification with synthetic text, including full regex fallback, one-time notice, network-disabled warm inference and download failure/retry. The vendor SDK may send required content-free licensing metadata. No OpenMates chat inference, paid model provider, backend, signup, account or provider credential is required.",
+      "specs": [
+        "components/composer-local-pii.spec.ts"
+      ]
+    },
+    "calendar_event_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free bare preview of calendar event components and the shared weekly renderer, using synthetic event DTOs and real local browser downloads. No backend, calendar account, external provider or AI inference.",
+      "specs": [
+        "components/calendar-event-embed.spec.ts",
+        "components/event-reference-hydration.spec.ts"
+      ]
+    },
+    "image_embed_file_actions": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare component previews using local image bytes, the production ChatMessage renderer and real browser clipboard/download APIs. Storage transport uses fixture ciphertext and AES-GCM readers; no account, backend, external provider credentials or AI inference.",
+      "specs": [
+        "components/image-embed-preview-layout.spec.ts",
+        "components/image-embed-message-actions.spec.ts"
+      ]
+    },
+    "reminder_notification_setup": {
+      "execution": "e2e",
+      "enabling_work": "Uses fresh runner-private accounts and the core API/CMS/cache/Vault to persist email settings, create and cancel future notification-only reminders, and follow their real WebSocket activation toast. No reminder firing, scheduler, email provider, or AI inference is required.",
+      "specs": [
+        "reminder-notification-setup.spec.ts"
+      ]
+    },
+    "notification_grouping_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free notification-store events and bare standard, chat, count, and stack previews. The component marker selects the Vite-only runner; no backend, account, external provider, or AI inference is required.",
+      "specs": [
+        "components/notification-grouping.spec.ts"
+      ]
+    },
+    "native_push_registration": {
+      "execution": "e2e",
+      "enabling_work": "Use two fresh runner-private authenticated accounts and the isolated core API/CMS. Native tokens and X25519 keys are synthetic; inspect only allowlisted synthetic owners' persisted target JSON. No APNs delivery, external provider, or real AI inference.",
+      "specs": [
+        "push-subscription-lifecycle.spec.ts"
+      ]
+    },
     "telemetry_proxy_boundary": {
       "execution": "e2e",
       "enabling_work": "Use the isolated internal-network API, synthetic collector credentials, a disposable primary admin and a normal secondary account. The collector is absent; verify authorization, interrupted uploads, proxy availability and the unchanged per-IP quota without real provider credentials or shared endpoints.",
@@ -141,8 +192,6 @@
         "audio-recording-and-speech.spec.ts",
         "hpfsl-acknowledgement-timing.spec.ts",
         "skill-code-search-repos.spec.ts",
-        "skill-events-search.spec.ts",
-        "skill-fitness-urban-sports.spec.ts",
         "skill-health-appointments.spec.ts",
         "skill-home-search.spec.ts",
         "skill-images-search.spec.ts",
@@ -168,12 +217,18 @@
     },
     "browser_component_contract": {
       "specs": [
+        "components/audio-recording-compact-send.spec.ts",
+        "components/results-view-source-validation.spec.ts",
         "components/embed-preview-visual-fixes.spec.ts",
         "components/generated-media-child.spec.ts",
         "example-chat-ipad-multitab.spec.ts",
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
         "components/voice-call-bar.spec.ts",
+        "components/voice-call-chat-header.spec.ts",
+        "components/voice-call-media.spec.ts",
+        "components/voice-call-artifact-progress.spec.ts",
+        "components/skill-input-thumbnails.spec.ts",
         "components/voice-call-audio-gate.spec.ts",
         "components/voice-call-event-notice.spec.ts",
         "components/voice-call-composer.spec.ts",
@@ -181,14 +236,26 @@
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",
         "components/apps-workspace-preview.spec.ts",
+        "components/app-embeds-fullscreen.spec.ts",
+        "app-embeds-workspace.spec.ts",
+        "components/apps-sidebar-preview.spec.ts",
+        "components/home-search-details.spec.ts",
+        "components/apps-request-composer.spec.ts",
+        "components/chat-message-expansion.spec.ts",
+        "components/chat-message-copy.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",
         "components/connection-status-preview.spec.ts",
         "components/embed-version-timeline.spec.ts",
         "components/shared-auxiliary-load-button.spec.ts",
         "components/read-only-message-parsed-doc.spec.ts",
+        "components/read-only-message-pii-labels.spec.ts",
+        "components/voice-call-speech-rendering.spec.ts",
+        "components/svg-image-embed.spec.ts",
+        "components/chat-header-image-lifecycle.spec.ts",
         "components/chat-message-results-width.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
+        "web-runtime-security.spec.ts",
         "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",
         "assistant-speech-player.spec.ts",
@@ -229,7 +296,11 @@
         "components/workflow-ai-pending-preview.spec.ts",
         "components/chat-composer-focus.spec.ts",
         "components/chat-presentation-animation.spec.ts",
+        "components/chat-response-scroll.spec.ts",
+        "components/chat-sent-message-visibility.spec.ts",
         "components/composer-send-readiness.spec.ts",
+        "components/message-input-minimized-send.spec.ts",
+        "components/message-input-image-send.spec.ts",
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
@@ -244,7 +315,9 @@
         "components/diagram-html-embed.spec.ts",
         "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
+        "components/map-result-deduplication.spec.ts",
         "components/newsroom-surface.spec.ts",
+        "components/publication-code-highlighting.spec.ts",
         "components/marketing-landing.spec.ts",
         "components/landing-header.spec.ts",
         "components/public-newsroom-header.spec.ts",
@@ -252,6 +325,7 @@
         "marketing-landing-route.spec.ts",
         "landing-guest-workflows.spec.ts",
         "settings-chat-viewport.spec.ts",
+        "composer-mobile-keyboard.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
@@ -260,8 +334,10 @@
         "components/hosting-domain-search.spec.ts",
         "components/trademark-search.spec.ts",
         "components/composer-embed-suggestions.spec.ts",
+        "components/composer-public-embed.spec.ts",
         "components/new-chat-embed-suggestions.spec.ts",
         "composer-embed-open.spec.ts",
+        "composer-split-layout.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
@@ -306,7 +382,6 @@
         "paste-classification.spec.ts",
         "plumber-privacy-example.spec.ts",
         "preview-error.spec.ts",
-        "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
         "public-publications.spec.ts",
         "report-issue-email-fallback.spec.ts",
@@ -338,6 +413,7 @@
         "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
         "components/maps-discovery.spec.ts",
+        "components/maps-place-label.spec.ts",
         "components/agent-context-message.spec.ts",
         "components/project-focus-specialist.spec.ts",
         "components/rule-document-manager.spec.ts",
@@ -356,6 +432,7 @@
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
         "website-public-routes.spec.ts",
+        "website-redirects.spec.ts",
         "components/team-openmates-mention-dropdown.spec.ts",
         "components/team-chat-reminder.spec.ts",
         "components/team-settings-header-member.spec.ts",
@@ -365,6 +442,7 @@
         "components/chat-assistant-response-activity.spec.ts",
         "components/chat-history-saved-assistant.spec.ts",
         "components/image-upload-preview.spec.ts",
+        "components/image-view-preview.spec.ts",
         "components/team-direct-message-action.spec.ts",
         "components/diagram-html-real-examples.spec.ts",
         "components/assistant-activity-group.spec.ts",
@@ -383,7 +461,9 @@
         "public-example-activity-summary.spec.ts",
         "components/chat-message-openmates-identity.spec.ts",
         "components/voice-call-header-actions.spec.ts",
+        "components/voice-call-focused-draft.spec.ts",
         "landing-shopping-replacement.spec.ts",
+        "landing-home-replacement.spec.ts",
         "landing-videos-replacement.spec.ts",
         "landing-reviewed-media-recipes.spec.ts",
         "landing-mindmap-preserved-examples.spec.ts",
@@ -402,12 +482,21 @@
         "landing-web-laptop.spec.ts",
         "components/chat-open-focus.spec.ts",
         "public-example-input-focus.spec.ts",
+        "chat-focused-scroll.spec.ts",
         "components/questionnaire-recipe-options.spec.ts",
         "questionnaire-recipe-options-public.spec.ts",
         "components/landing-section-replay.spec.ts",
         "components/landing-mobile-stories.spec.ts",
         "components/chat-message-voice-transcript-status.spec.ts",
-        "components/voice-call-privacy.spec.ts"
+        "components/video-transcript-media-ccc.spec.ts",
+        "components/voice-call-privacy.spec.ts",
+        "components/workspace-pane-motion.spec.ts",
+        "components/assistant-generated-media-activity.spec.ts",
+        "guest-workspace-navigation.spec.ts",
+        "legal-website-navigation.spec.ts",
+        "example-chat-removals.spec.ts",
+        "components/shopping-product-gallery.spec.ts",
+        "components/assistant-speech-action.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -423,32 +512,42 @@
       "execution": "e2e",
       "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
+        "draft-embed-preview.spec.ts",
         "apple-ui-contracts.spec.ts",
         "profile-image-recovery.spec.ts",
         "teams-management-flow.spec.ts",
         "teams-image-upload.spec.ts",
         "teams-direct-chat.spec.ts",
         "cli-tui-team-direct-chat.spec.ts",
-        "newsletter-flow.spec.ts"
+        "newsletter-flow.spec.ts",
+        "voice-call.spec.ts",
+        "authored-results-media.spec.ts"
       ]
     },
     "credential_free_domains": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
+      "enabling_work": "Fresh runner-local accounts and normal REST/CLI/SDK authentication. Verify domain-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
       "specs": [
         "skill-hosting-search-api.spec.ts"
       ]
     },
+    "credential_free_fitness": {
+      "execution": "e2e",
+      "enabling_work": "Fresh runner-local accounts and normal CLI authentication. Verify class-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
+      "specs": [
+        "skill-fitness-class-search.spec.ts"
+      ]
+    },
     "credential_free_jobs": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/npm/pip device approval; bounded real HTTPS queries only to public Arbeitnow, Arbeitsagentur and JobTech vacancy APIs. No AI worker, inference, private provider credentials or shared dev endpoint. Invalid inputs and unsupported source/country combinations make no provider call.",
+      "enabling_work": "Fresh runner-local accounts and normal REST/CLI/npm/pip authentication; bounded queries to supported documented job APIs. Invalid inputs and unsupported source/country combinations make no provider call.",
       "specs": [
         "skill-jobs-search-api.spec.ts"
       ]
     },
     "credential_free_trademarks": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts with normal REST, CLI and npm/pip device approval. Bounded real HTTPS queries to the anonymous USPTO trademark search website API; no provider account, key, paid proxy, challenge bypass, AI worker or inference. Unsupported regions and invalid input make no provider call.",
+      "enabling_work": "Fresh runner-local accounts with normal REST, CLI and npm/pip authentication. Verify trademark-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
       "specs": [
         "skill-business-trademarks-api.spec.ts",
         "skill-business-trademarks-browser.spec.ts"
@@ -456,9 +555,13 @@
     },
     "ai_committed_fixtures": {
       "execution": "e2e",
-      "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
+      "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed. Voice-call fixtures activate canonical recovery epoch 1 only in the exact isolated full-storage voice profile before browser execution.",
       "specs": [
+        "draft-embed-preview.spec.ts",
+        "calendar-event-embed.spec.ts",
+        "cli-authored-results.spec.ts",
         "ai-response-language.spec.ts",
+        "apps-workspace.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "cli-recovery-discovery.spec.ts",
         "chat-key-wrapper-migration.spec.ts",
@@ -471,7 +574,9 @@
         "default-model-cli.spec.ts",
         "default-model-settings-proof.spec.ts",
         "default-model-settings.spec.ts",
+        "embed-canonical-replay.spec.ts",
         "embed-json-leak.spec.ts",
+        "embed-fullscreen-followup.spec.ts",
         "focus-mode-career-insights.spec.ts",
         "focus-mode-rejection.spec.ts",
         "focus-mode-ui-after-activation.spec.ts",
@@ -497,7 +602,16 @@
         "chat-queued-followups-protocol.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "voice-call.spec.ts",
-        "cli-recovery-fixtures.spec.ts"
+        "cli-recovery-fixtures.spec.ts",
+        "rust-core-browser-session.spec.ts",
+        "rust-core-browser-password-entry.spec.ts",
+        "rust-core-production-saved-session.spec.ts",
+        "rust-core-production-platform.spec.ts",
+        "rust-core-production-local-cursor.spec.ts",
+        "rust-core-production-saved-paging.spec.ts",
+        "rust-core-ordinary-login-retention.spec.ts",
+        "authored-results-flow.spec.ts",
+        "authored-results-media.spec.ts"
       ]
     },
     "external_integration": {
@@ -524,7 +638,7 @@
     },
     "workflow_weather": {
       "execution": "e2e",
-      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo, bounded anonymous Gandi shop/USPTO trademark, and official JobTech HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with the dedicated queue and canonical trigger scanner. Supported weather and JobTech APIs need no credentials. Domain and trademark steps return unavailable without external requests; no paid AI/provider keys or generic periodic jobs.",
       "specs": [
         "cli-workflows-rain-real.spec.ts",
         "cli-workflows-jobs-search-real.spec.ts",
@@ -571,7 +685,8 @@
         "skill-news-search.spec.ts",
         "skill-reminder-set.spec.ts",
         "skill-web-read.spec.ts",
-        "skill-web-search.spec.ts"
+        "skill-web-search.spec.ts",
+        "mercury3-model-picker.spec.ts"
       ]
     },
     "local_email_signup": {
@@ -583,6 +698,7 @@
         "workflow-email-digest.spec.ts",
         "workflow-completion-notifications.spec.ts",
         "chat-response-email.spec.ts",
+        "reminder-email-delivery.spec.ts",
         "notification-email-migration.spec.ts",
         "teams-invite-acceptance.spec.ts",
         "newsletter-flow.spec.ts",
@@ -615,7 +731,7 @@
     },
     "ai_cached_public_provider": {
       "execution": "e2e",
-      "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",
+      "enabling_work": "Run the current electronics unavailable-response contract with runner-local accounts. No external provider requests or credentials.",
       "specs": [
         "skill-electronics-search-components.spec.ts"
       ]
@@ -630,7 +746,6 @@
     "core_authenticated": {
       "execution": "e2e",
       "specs": [
-        "video-call-experiment.spec.ts",
         "upload-metadata-privacy.spec.ts",
         "cli-privacy.spec.ts",
         "a11y-keyboard-nav.spec.ts",
@@ -684,6 +799,7 @@
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
         "debug-logging-settings.spec.ts",
+        "draft-clear-cleanup.spec.ts",
         "draft-embed-preview.spec.ts",
         "export-account-flow.spec.ts",
         "focus-mode-mention.spec.ts",
@@ -742,6 +858,7 @@
         "workflows-website-changes.spec.ts",
         "workflows-input.spec.ts",
         "workflows-input-stream.spec.ts",
+        "workflows-load-failure.spec.ts",
         "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts",
@@ -751,12 +868,14 @@
         "notification-email-links.spec.ts",
         "chat-sidebar-projects.spec.ts",
         "maps-discovery-sdk.spec.ts",
+        "maps-opening-hours.spec.ts",
         "cli-project-focus-settings.spec.ts",
         "jev-project-context-api.spec.ts",
         "cli-tui-rich-chat-proof.spec.ts",
         "teams-billing-address.spec.ts",
         "storage-offline-cache-logout.spec.ts",
         "billing-reservation-summary.spec.ts",
+        "nested-chat-cache-billing.spec.ts",
         "landing-auth-links.spec.ts",
         "teams-resource-context.spec.ts",
         "cli-team-tasks-real.spec.ts",
@@ -764,7 +883,10 @@
         "cli-team-artifacts-parity.spec.ts",
         "audio-recording.spec.ts",
         "example-chat-embed-uuid-isolation.spec.ts",
-        "multi-tab-session-routing.spec.ts"
+        "multi-tab-session-routing.spec.ts",
+        "offline-draft-replay.spec.ts",
+        "assistant-speech-availability.spec.ts",
+        "web-read-public-page.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },
@@ -789,9 +911,173 @@
         "anonymous-usage-limit.spec.ts",
         "components/anonymous-usage-limit.spec.ts"
       ]
+    },
+    "language_preferences": {
+      "execution": "e2e",
+      "enabling_work": "Runner-local browser language resolution, public website server rendering and first-party settings/inspiration checks. Component-marked previews use the Vite-only profile; route checks use the isolated core API and disposable accounts. Static localized content only, with no live AI inference or provider credentials.",
+      "specs": [
+        "components/language-settings.spec.ts",
+        "components/inspiration-language.spec.ts",
+        "website-language.spec.ts",
+        "inspiration-language.spec.ts"
+      ]
+    },
+    "apps_workspace_private_api": {
+      "execution": "e2e",
+      "enabling_work": "Use isolated core session authentication, Vault and Directus with a disposable account. Verify private saved-search persistence, explicit disabled daily searches, account/Team denial and invalid parser/rank admission without provider calls, inference or daily charges.",
+      "specs": [
+        "apps-workspace-api.spec.ts"
+      ]
+    },
+    "application_preview_readiness_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only application fullscreen component. Mocked preview REST and a synthetic iframe test pending-session adoption, owner-status delivery and obsolete request failures; no accounts, backend services, provider credentials, generated app compilation or E2B execution. The component marker selects the isolated Vite-only profile.",
+      "specs": [
+        "components/application-preview-readiness.spec.ts"
+      ]
+    },
+    "canonical_embed_replay": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated core account, browser AES encryption and fixture-owned opaque Directus rows. Exercise real canonical reads and sender replay with parent wrappers and durable ACKs; no AI inference, provider credentials, external mail, or shared dev endpoints.",
+      "specs": [
+        "embed-canonical-replay.spec.ts"
+      ]
+    },
+    "result_embed_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare component fixtures for result preview/fullscreen layout, gallery, icon explanations and missing-data states. Uses the Vite-only component profile; no backend, account, AI inference or external provider action is invoked.",
+      "specs": [
+        "components/result-entry-design.spec.ts",
+        "components/social-date-pill.spec.ts",
+        "components/saved-result-preview.spec.ts",
+        "components/result-web-news-design.spec.ts",
+        "components/result-catalog-design.spec.ts",
+        "components/media-result-layout.spec.ts",
+        "components/embed-fullscreen-followup.spec.ts",
+        "components/result-travel-event-design.spec.ts",
+        "components/result-shopping-lifestyle-design.spec.ts",
+        "components/result-overview-design.spec.ts",
+        "components/result-specialized-design.spec.ts",
+        "components/specialized-preview-tools.spec.ts",
+        "components/result-preview-standard.spec.ts",
+        "components/grouped-result-preview.spec.ts"
+      ]
+    },
+    "chat_message_timeline": {
+      "execution": "e2e",
+      "enabling_work": "Account-free timeline fixtures use the Vite-only component profile. The product flow uses a fresh isolated account, paired candidate CLI for client encryption, and disposable API/CMS/cache/Vault to seed ten thousand encrypted exchanges and two checkpoints. Successful reads use the real backend. No inference or provider credentials.",
+      "specs": [
+        "components/chat-message-timeline.spec.ts",
+        "chat-message-timeline.spec.ts"
+      ]
+    },
+    "provider_boundary": {
+      "execution": "e2e",
+      "enabling_work": "Use the isolated core API and runner-local accounts to verify unavailable-skill rejection and supported catalog metadata, plus historical component fixtures for saved embeds and shopping galleries. No AI worker, inference, provider calls, upload service, replay caches or provider credentials are required.",
+      "specs": [
+        "provider-boundary.spec.ts",
+        "skill-events-search.spec.ts",
+        "skill-shopping-images.spec.ts",
+        "skill-fitness-unavailable.spec.ts"
+      ]
+    },
+    "rust_core_session_harness": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only component presentation preview selected by the isolated component marker. No Rust or CLI build, WASM, account, backend services, external provider credentials or AI inference.",
+      "specs": [
+        "components/rust-core-session-harness.spec.ts"
+      ]
+    },
+    "rust_core_browser_session": {
+      "execution": "e2e",
+      "enabling_work": "Exact standalone browser target uses fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. Includes existing authenticated lifetime, bounded saved-read and passive reconnect cases plus gated genuine encrypted saved-chat send, incremental stream and cooperative cancellation using committed replay on isolated AI worker. No live inference/provider egress, browser credential persistence receipt, full sync/recovery or production Rust activation.",
+      "specs": [
+        "rust-core-browser-session.spec.ts"
+      ]
+    },
+    "rust_core_browser_password_entry": {
+      "execution": "e2e",
+      "enabling_work": "Exact standalone fresh-password positive migration proof using runner-private account and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. Reuses existing marker-only committed-replay profile for the owned encrypted history fixture epoch; no AI request or real inference. Worker holds refresh WebLock, uses normal password-v2 lookup/challenge/login/canonical master wrapper with Fetch Include, verifies memory-only authority, exact bounded saved-chat hashes and actual Worker close. No prior key/session import, remote-email enrollment, stored-profile/native ACK/full persistence proof or production activation. Original12case browser session suite remains separately required; known4 strong-persistence failures are not waived.",
+      "specs": [
+        "rust-core-browser-password-entry.spec.ts"
+      ]
+    },
+    "rust_core_production_saved_reads": {
+      "execution": "e2e",
+      "enabling_work": "Exact production-loader browser targets use fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and a fresh opt-in application build in the same job before Playwright. Genuine existing IndexedDB CryptoKeys, bounded encrypted saved-chat reads, 65-row composite local-cursor history and its checkpoint plus exact canonical latest/before/after/around saved paging and explicit fresh-password ordinary key retention before new saved-read admission through the genuine DedicatedWorker/IndexedDB, owner verification and revocation are exercised without exporting keys or changing login/storage policy. The isolated committed-replay worker provides only the owned marker-chat fixture epoch; no live inference, provider egress, full ActiveChat acceptance, persistence ACK or default production Rust activation.",
+      "specs": [
+        "rust-core-production-saved-session.spec.ts",
+        "rust-core-production-platform.spec.ts",
+        "rust-core-production-local-cursor.spec.ts",
+        "rust-core-production-saved-paging.spec.ts",
+        "rust-core-ordinary-login-retention.spec.ts"
+      ]
+    },
+    "native_bounded_saved_read": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated account and real browser-authorized encrypted-vault Rust CLI pairing, private internal-network core API/CMS/cache/Vault, and exactly 65 genuinely encrypted owned messages. Exercises bounded/default, explicit full and existing machine history reads plus existing Project unlink checks. Requires an exact-source prebuilt Rust ELF; no AI worker, inference, provider credentials, marker-chat epoch, external network or shared account.",
+      "specs": [
+        "cli-native-bounded-saved-read.spec.ts"
+      ]
+    },
+    "native_os_keyring": {
+      "execution": "e2e",
+      "enabling_work": "Exact-source Rust ELF, two fresh isolated browser-authorized accounts, private internal core stack, signed packaged GNOME Secret Service on private D-Bus/XDG/control paths. Actual default native CLI cross-process persistence/fail-closed/restart/logout with recorded terminals; no AI, marker epoch, shared account or external provider.",
+      "specs": [
+        "cli-rust-native-keyring.spec.ts"
+      ]
+    },
+    "public_landing_admitted_examples": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare landing previews over committed public examples and assets. Browser-local controls and isolated destination navigation only; no backend, account, provider credentials, or AI inference.",
+      "specs": [
+        "components/landing-admitted-content.spec.ts"
+      ]
+    },
+    "app_catalog_and_focus_instructions": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare Apps, Settings and focus-detail previews over committed metadata and localized source text, with isolated browser stores and mocked metadata transport. No backend, account, external provider or AI inference.",
+      "specs": [
+        "components/apps-catalog-availability.spec.ts",
+        "components/focus-mode-instructions.spec.ts"
+      ]
+    },
+    "web_browse_boundary": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated browser account and core API/CMS/cache/Vault only. Exercises real first-party authentication, missing owner/chat records, malformed-input redaction and per-owner limits. Every request is rejected before sandbox creation or model inference; no E2B, Jev, Together or Gemini credentials are used.",
+      "specs": [
+        "web-browse-api.spec.ts"
+      ]
+    },
+    "authored_result_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare component fixtures for all 25 authored result types, TV metadata, calendar downloads, mixed maps, store-event hydration and reactive fullscreen navigation. Vite-only component profile; no backend, account, live inference, provider credentials or external provider actions.",
+      "specs": [
+        "components/authored-results-matrix.spec.ts",
+        "components/authored-results-tv.spec.ts",
+        "components/authored-results-map.spec.ts",
+        "components/authored-results-live-guards.spec.ts"
+      ]
+    },
+    "authored_result_landing_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare public landing animation fixture, supplied date-only FOSDEM facts, source/provenance and reduced-motion controls. Vite-only component profile; no backend, account, provider action or inference.",
+      "specs": [
+        "components/landing-authored-event-animation.spec.ts"
+      ]
+    },
+    "authored_results_media": {
+      "execution": "e2e",
+      "enabling_work": "Actual isolated CLI image uploads, private S3-compatible storage/ClamAV and committed deterministic AI fixture; exact full-storage epoch activation preserves selected media after source-message deletion and explicit sharing. No live AI/provider inference or external provider requests.",
+      "specs": [
+        "authored-results-media.spec.ts"
+      ]
     }
   },
   "holds": {
+    "web-browse-real.spec.ts": {
+      "next_action": "Real Jev/text-helper inference and E2B sessions: run only against dev with automatic chat routing, the isolated personal test profile, explicit shared-runtime lease and exact owned-source check. Account authentication is excluded from recordings; demo website credentials are public training fixtures. Never submit this provider-billed flow to isolated CI. Deterministic component and HTTP boundaries run in CI separately."
+    },
     "anonymous-cli-skill.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Run the public anonymous skill boundary against an isolated official-cloud billing profile. The portable self-host runner intentionally returns 404 for this cloud-only route.",
@@ -922,7 +1208,7 @@
     },
     "cli-images.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image generation via chat: zero-knowledge pipeline create \u2192 embed show (JSON). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image generation via chat: zero-knowledge pipeline create → embed show (JSON). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -940,7 +1226,7 @@
     },
     "cli-skills-pdf.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: pdf upload via web app \u2192 AI reads via CLI chats (pdf/read skill). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: pdf upload via web app → AI reads via CLI chats (pdf/read skill). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1030,7 +1316,7 @@
     },
     "deeplink-webhook-message.spec.ts": {
       "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: deeplink-webhook-message \u2014 deep link to webhook chat shows system message + AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: deeplink-webhook-message — deep link to webhook chat shows system message + AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_API_URL"
@@ -1199,31 +1485,31 @@
     },
     "reminder-button-settings.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 settings page: create reminder via top-bar button and verify it fires. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — settings page: create reminder via top-bar button and verify it fires. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-email.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For reminder \u2014 email: reminder email arrives after browser is closed, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
+      "next_action": "For reminder — email: reminder email arrives after browser is closed, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-new-chat.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 new-chat: reminder fires into a newly created chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — new-chat: reminder fires into a newly created chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-redesign.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder redesign \u2014 UI matches Figma: header, type dropdown, explainer, fields. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder redesign — UI matches Figma: header, type dropdown, explainer, fields. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-repeating-and-cancel.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 daily repeating cancellation prevents firing. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — daily repeating cancellation prevents firing. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1231,7 +1517,7 @@
     },
     "reminder-same-chat.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 same-chat: system message fires in the same chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — same-chat: system message fires in the same chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -1330,62 +1616,27 @@
         "code_search_repos_web": 3
       }
     },
-    "skill-events-search.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path with live event sources. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL",
-        "PLAYWRIGHT_VIDEO_HEIGHT",
-        "PLAYWRIGHT_VIDEO_WIDTH"
-      ],
-      "committed_cache_files": {
-        "events_search_cli": 30,
-        "events_search_web": 37
-      }
-    },
-    "skill-fitness-urban-sports.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) fitness_urban_sports_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "fitness_urban_sports_web": 0
-      }
-    },
     "skill-health-appointments.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) health_appointments_cli, health_appointments_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "health_appointments_cli": 0,
-        "health_appointments_web": 0
-      }
+      ]
     },
     "skill-home-search.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) home_search_cli, home_search_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "home_search_cli": 0,
-        "home_search_web": 0
-      }
+      ]
     },
     "skill-images-generate-safety-upload.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: uploaded photo + benign edit \u2192 safety pipeline allows, AI returns generated image. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: uploaded photo + benign edit → safety pipeline allows, AI returns generated image. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -1437,17 +1688,13 @@
       }
     },
     "skill-shopping-search.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) shopping_search_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "shopping_search_cli": 0,
-        "shopping_search_web": 11
-      }
+      ]
     },
     "skill-social-media.spec.ts": {
       "dependency": "missing_original_recorded_cache",
@@ -1460,42 +1707,31 @@
       }
     },
     "skill-travel-connections.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Flights for the original flight search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_connections_cli": 2,
-        "travel_connections_web": 12
-      }
+      ]
     },
     "skill-travel-stays.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Hotels for the original hotels search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_stays_cli": 3,
-        "travel_stays_web": 6
-      }
+      ]
     },
     "skill-travel-train-connections.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) travel_train_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_train_cli": 0
-      }
+      ]
     },
     "skill-videos-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",
@@ -1550,7 +1786,7 @@
     },
     "webhook-incoming-chat.spec.ts": {
       "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: webhook \u2014 create key, POST to /incoming, new chat appears with AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: webhook — create key, POST to /incoming, new chat appears with AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_API_URL"
@@ -1615,5 +1851,16 @@
       "user_input_required": true,
       "source_environment_names": []
     }
+  },
+  "selfhost_recipe_targets": {
+    "targets": [
+      "selfhost-source",
+      "selfhost-image",
+      "selfhost-legacy"
+    ],
+    "recipe": ".github/workflows/selfhost-smoke-rust.yml",
+    "browser_owner": "selfhost-image",
+    "browser_cases": 4,
+    "aggregate_requires": "all three scopes with identical immutable source/tree/input-set/recipe/harness identities"
   }
 }

@@ -2,6 +2,9 @@
 const defaultProps = {
   appBaseUrl: 'https://app.dev.openmates.org',
   websiteBaseUrl: 'https://app.dev.openmates.org',
+  apiBaseUrl: 'https://api.dev.openmates.org',
+  initialLanguage: 'en',
+  initialLanguageMode: 'auto',
   events: [],
   news: [],
   posts: [],

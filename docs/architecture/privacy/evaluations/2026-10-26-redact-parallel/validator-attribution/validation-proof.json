@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "recipe_sha256": "1afccaf72a4e87bfd37359775b2ee52e7cbc1cc1358c7f9c0fb042c54cfec09d",
+  "original_host_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5",
+  "generated_source_sha256": "5b88319b2525a4bcc3b03bd04eb2303cd5ece317ce66d9d1f72abbbe41c22b4d",
+  "validator_function_sha256": "8310f013b92c6c75c3a7254317545b264344b72fd2e01228e450ca84ce252648",
+  "validator_function_byteidentical": true,
+  "only_host_change": "rename original main; append pure validation main",
+  "fixture_generator_sha256": "203a2e6de56b20ac8c61250fb24d2cca60176fbeb87783499888500e0e70cafe",
+  "recorded_model_results_sha256": "ba952f4c365cdcd8c315d1fd0e93fa2bc726919454a78cb30de617a4c3550d6c",
+  "private_synthetic_payloads_sha256": "737d6a4c0935549819f9c93c04baac811482f315da14e4b383c83d2b1c100c90",
+  "binary_sha256": "7261d6533559b1c18b317baf16850da64af7933dd182ee14adf96252b886ce1a",
+  "result_sha256": "ab8e6a544c348de84d55d474fcd268f2032ff309a25fa562c855f3b7d4e023f5",
+  "compile_command": [
+    "/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin/rustc",
+    "--edition=2021",
+    "-O",
+    "-C",
+    "debuginfo=0",
+    "/tmp/openmates-redact-parallel-678f/validation-timing/validation-only.rs",
+    "-o",
+    "/tmp/openmates-redact-parallel-678f/validation-timing/validation-only"
+  ],
+  "cpu_affinity": [
+    10,
+    11
+  ],
+  "nice": 10,
+  "wall_seconds": 3.041782065294683,
+  "wall_bound_seconds": 30,
+  "repetitions_per_case": 3,
+  "model_or_sdk_calls": 0,
+  "licensing_or_network_calls": 0,
+  "reconstruction": "original UTF16 slices; ordered label counters and literal placeholders; JSON confidence roundtrip to f64; original parse_result validates all restoration and offsets; recorded fingerprint checked after timer"
+}

@@ -9,7 +9,7 @@ title:
   ru: Творческие встречи по рисованию в Берлине
   ja: ベルリンのクリエイティブ・ドローイング・ミートアップ
   ko: 베를린 창작 드로잉 모임
-  it: Meetup di Disegno e Creatività a Berlino
+  it: Gathering di Disegno e Creatività a Berlino
   tr: Berlin'de Yaratıcılık ve Çizim Buluşmaları
   vi: Gặp mặt Vẽ Sáng tạo tại Berlin
   id: Pertemuan Kreativitas dan Menggambar di Berlin
@@ -34,7 +34,7 @@ summary:
   ru: Пользователь искал творческие встречи и мероприятия по рисованию в Берлине на предстоящую неделю и получил подборку событий, включая открытые сессии рисования, мастер-классы по акварели, рисование с натуры, линогравюру и креативный коворкинг.
   ja: ユーザーがベルリンの翌週のクリエイティビティ・ドローイング関連ミートアップを検索し、オープンドローセッション、水彩ワークショップ、ライフドローイング、リノカット、クリエイティブコワーキングなどの厳選イベントリストを受け取りました。
   ko: 사용자가 다음 주 베를린의 창작 및 드로잉 관련 모임을 검색하여 오픈 드로잉 세션, 수채화 워크숍, 인체 드로잉, 리노컷, 크리에이티브 코워킹 등 엄선된 이벤트 목록을 받았습니다.
-  it: L'utente ha cercato meetup di creatività e disegno a Berlino per la settimana successiva, e ha ricevuto una lista curata di eventi tra cui sessioni di disegno aperto, workshop di acquerello, disegno dal vivo, linoleografia e co-working creativo.
+  it: L'utente ha cercato Gathering di creatività e disegno a Berlino per la settimana successiva, e ha ricevuto una lista curata di eventi tra cui sessioni di disegno aperto, workshop di acquerello, disegno dal vivo, linoleografia e co-working creativo.
   tr: Kullanıcı gelecek hafta Berlin'deki yaratıcılık ve çizim buluşmalarını aradı ve açık çizim seansları, suluboya atölyeleri, canlı model çizimi, linol baskı ve yaratıcı ortak çalışma dahil özenle seçilmiş bir etkinlik listesi aldı.
   vi: Người dùng đã tìm kiếm các buổi gặp mặt về sáng tạo và vẽ tại Berlin trong tuần tới, và nhận được danh sách sự kiện được tuyển chọn bao gồm các buổi vẽ mở, hội thảo màu nước, vẽ người mẫu, in khắc lino và không gian làm việc sáng tạo chung.
   id: Pengguna mencari pertemuan kreativitas dan menggambar di Berlin untuk minggu depan, dan menerima daftar acara pilihan termasuk sesi menggambar terbuka, lokakarya cat air, menggambar model hidup, cetak lino, dan co-working kreatif.
@@ -59,7 +59,7 @@ user_message_1:
   ru: Какие творческие / художественные встречи проходят в Берлине на следующей неделе?
   ja: 来週ベルリンで開催されるクリエイティビティ／ドローイング関連のミートアップは？
   ko: 다음 주 베를린에서 열리는 창작/드로잉 관련 모임은?
-  it: Quali meetup di creatività / disegno si tengono a Berlino la prossima settimana?
+  it: Quali Gathering di creatività / disegno si tengono a Berlino la prossima settimana?
   tr: Gelecek hafta Berlin'de hangi yaratıcılık / çizim buluşmaları var?
   vi: Tuần tới có những buổi gặp mặt sáng tạo / vẽ nào diễn ra tại Berlin?
   id: Pertemuan kreativitas / menggambar apa saja yang ada di Berlin minggu depan?
@@ -81,15 +81,15 @@ assistant_message_1:
     Markdown links with embed: URLs must keep the URL unchanged.
   en: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     [Berlin](wiki:Berlin) has a vibrant creative scene with several drawing and art-related meetups scheduled for next week (April 13–19, 2026). Here are some of the highlights:
@@ -120,15 +120,15 @@ assistant_message_1:
     *   [Find art supply stores in your area](/#settings/apps/maps)
   de: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     [Berlin](wiki:Berlin) hat eine lebendige Kreativszene mit mehreren Zeichen- und Kunst-Meetups für nächste Woche (13.–19. April 2026). Hier sind einige Highlights:
@@ -159,15 +159,15 @@ assistant_message_1:
     *   [Kunstbedarfsläden in deiner Nähe finden](/#settings/apps/maps)
   zh: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     柏林拥有充满活力的创意场景，下周（2026年4月13日至19日）有多场绘画和艺术相关聚会。以下是一些精选活动：
@@ -198,15 +198,15 @@ assistant_message_1:
     *   [查找附近的美术用品店](/#settings/apps/maps)
   es: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlín tiene una vibrante escena creativa con varios encuentros de dibujo y arte programados para la próxima semana (13–19 de abril de 2026). Estos son algunos de los destacados:
@@ -237,15 +237,15 @@ assistant_message_1:
     *   [Encontrar tiendas de materiales artísticos en tu zona](/#settings/apps/maps)
   fr: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin possède une scène créative dynamique avec plusieurs meetups de dessin et d'art prévus pour la semaine prochaine (13–19 avril 2026). Voici quelques temps forts :
@@ -276,15 +276,15 @@ assistant_message_1:
     *   [Trouver des magasins de fournitures artistiques dans votre quartier](/#settings/apps/maps)
   pt: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlim tem uma cena criativa vibrante com vários encontros de desenho e arte programados para a próxima semana (13–19 de abril de 2026). Aqui estão alguns destaques:
@@ -315,15 +315,15 @@ assistant_message_1:
     *   [Encontrar lojas de material artístico na sua zona](/#settings/apps/maps)
   ru: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Берлин обладает яркой творческой сценой с несколькими встречами по рисованию и искусству, запланированными на следующую неделю (13–19 апреля 2026). Вот некоторые из главных событий:
@@ -354,15 +354,15 @@ assistant_message_1:
     *   [Найти магазины художественных принадлежностей поблизости](/#settings/apps/maps)
   ja: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     ベルリンには活気あるクリエイティブシーンがあり、来週（2026年4月13日〜19日）にはいくつかのドローイング・アート関連ミートアップが予定されています。ハイライトをご紹介します：
@@ -393,15 +393,15 @@ assistant_message_1:
     *   [お近くの画材店を探す](/#settings/apps/maps)
   ko: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     베를린은 활기찬 크리에이티브 씬이 있으며, 다음 주(2026년 4월 13일~19일)에 여러 드로잉 및 미술 관련 모임이 예정되어 있습니다. 주요 하이라이트를 소개합니다:
@@ -432,18 +432,18 @@ assistant_message_1:
     *   [근처 미술 용품점 찾기](/#settings/apps/maps)
   it: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
-    Berlino ha una vivace scena creativa con diversi meetup di disegno e arte in programma per la prossima settimana (13–19 aprile 2026). Ecco alcuni dei punti salienti:
+    Berlino ha una vivace scena creativa con diversi Gathering di disegno e arte in programma per la prossima settimana (13–19 aprile 2026). Ecco alcuni dei punti salienti:
 
     ### Lunedì, 13 aprile
     *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) all'Offenes Wohnzimmer, Moabit. Una serata rilassata per disegnare, dipingere e socializzare. Vengono forniti materiali come carboncino, acquerelli e acrilici.
@@ -471,15 +471,15 @@ assistant_message_1:
     *   [Trova negozi di materiale artistico nella tua zona](/#settings/apps/maps)
   tr: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin, gelecek hafta (13–19 Nisan 2026) için planlanmış birçok çizim ve sanat buluşmasıyla canlı bir yaratıcı sahneye sahiptir. İşte öne çıkanlardan bazıları:
@@ -510,15 +510,15 @@ assistant_message_1:
     *   [Yakınındaki sanat malzemesi mağazalarını bul](/#settings/apps/maps)
   vi: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin có một cộng đồng sáng tạo sôi động với nhiều buổi gặp mặt về vẽ và nghệ thuật được lên lịch cho tuần tới (13–19 tháng 4, 2026). Dưới đây là một số điểm nổi bật:
@@ -549,15 +549,15 @@ assistant_message_1:
     *   [Tìm cửa hàng vật liệu nghệ thuật gần bạn](/#settings/apps/maps)
   id: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin memiliki komunitas kreatif yang semarak dengan beberapa pertemuan menggambar dan seni yang dijadwalkan untuk minggu depan (13–19 April 2026). Berikut beberapa yang menonjol:
@@ -588,15 +588,15 @@ assistant_message_1:
     *   [Temukan toko perlengkapan seni di sekitar Anda](/#settings/apps/maps)
   pl: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin ma tętniącą życiem scenę kreatywną z kilkoma spotkaniami rysunkowymi i artystycznymi zaplanowanymi na przyszły tydzień (13–19 kwietnia 2026). Oto niektóre z najciekawszych:
@@ -627,15 +627,15 @@ assistant_message_1:
     *   [Znajdź sklepy z materiałami artystycznymi w pobliżu](/#settings/apps/maps)
   nl: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlijn heeft een levendige creatieve scene met meerdere teken- en kunstmeetups gepland voor volgende week (13–19 april 2026). Hier zijn enkele hoogtepunten:
@@ -666,15 +666,15 @@ assistant_message_1:
     *   [Vind kunstwinkels in je buurt](/#settings/apps/maps)
   ar: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     تتميز برلين بمشهد إبداعي نابض بالحياة مع عدة لقاءات للرسم والفن مجدولة للأسبوع القادم (13–19 أبريل 2026). إليك بعض أبرز الفعاليات:
@@ -705,15 +705,15 @@ assistant_message_1:
     *   [العثور على متاجر مستلزمات فنية بالقرب منك](/#settings/apps/maps)
   hi: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     बर्लिन में एक जीवंत क्रिएटिव सीन है और अगले सप्ताह (13–19 अप्रैल 2026) के लिए कई ड्राइंग और कला संबंधी मीटअप निर्धारित हैं। यहाँ कुछ प्रमुख आकर्षण हैं:
@@ -744,15 +744,15 @@ assistant_message_1:
     *   [अपने क्षेत्र में कला सामग्री की दुकानें खोजें](/#settings/apps/maps)
   th: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     เบอร์ลินมีชุมชนสร้างสรรค์ที่มีชีวิตชีวา โดยมีมีตอัปเกี่ยวกับการวาดรูปและศิลปะหลายรายการที่กำหนดไว้สำหรับสัปดาห์หน้า (13–19 เมษายน 2026) นี่คือไฮไลท์บางส่วน:
@@ -783,15 +783,15 @@ assistant_message_1:
     *   [ค้นหาร้านอุปกรณ์ศิลปะใกล้คุณ](/#settings/apps/maps)
   cs: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlín má živou kreativní scénu s několika kreslířskými a uměleckými meetupy naplánovanými na příští týden (13.–19. dubna 2026). Zde jsou některé z nejzajímavějších:
@@ -822,15 +822,15 @@ assistant_message_1:
     *   [Najít obchody s výtvarnými potřebami ve vašem okolí](/#settings/apps/maps)
   sv: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     Berlin har en livlig kreativ scen med flera tecknings- och konstrelaterade träffar planerade för nästa vecka (13–19 april 2026). Här är några av höjdpunkterna:
@@ -861,15 +861,15 @@ assistant_message_1:
     *   [Hitta konsttillbehörsbutiker i närheten](/#settings/apps/maps)
   he: |
     ```json
-    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing Gathering", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Gathering"}
     ```
 
     ```json
-    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching Gathering", "provider": "Gathering"}
     ```
 
     לברלין יש סצנה יצירתית תוססת עם מספר מפגשי ציור ואמנות מתוכננים לשבוע הבא (13–19 באפריל 2026). הנה כמה מנקודות השיא:
@@ -936,7 +936,7 @@ follow_up_2:
   ru: Поиск фотовстреч и фотопрогулок в Берлине
   ja: ベルリンの写真ミートアップとフォトウォークを検索
   ko: 베를린의 사진 모임과 포토워크 검색
-  it: Cerca meetup di fotografia e passeggiate fotografiche a Berlino
+  it: Cerca Gathering di fotografia e passeggiate fotografiche a Berlino
   tr: Berlin'de fotoğraf buluşmaları ve fotoğraf yürüyüşleri ara
   vi: Tìm kiếm các buổi gặp mặt nhiếp ảnh và đi dạo chụp ảnh tại Berlin
   id: Cari pertemuan fotografi dan jalan-jalan foto di Berlin

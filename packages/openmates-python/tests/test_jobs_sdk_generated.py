@@ -24,7 +24,7 @@ def test_jobs_search_metadata_and_native_method() -> None:
     assert request["countries"]["x-ui"]["basic"] is False
     assert request["limit"]["maximum"] == 50
     assert request["provider"]["enum"] == [
-        "auto", "Arbeitnow", "Arbeitsagentur", "JobTech", "80,000 Hours", "Hard Problems",
+        "auto", "JobTech",
     ]
     sdk_group = metadata["output_schema"]["properties"]["results"]["items"]["properties"]
     assert "title" not in sdk_group
@@ -38,14 +38,29 @@ def test_jobs_search_metadata_and_native_method() -> None:
     assert metadata["output_schema"]["properties"]["error"]["type"] == ["string", "null"]
 
     calls = []
-    response = {"success": True, "error": None, "results": [{"id": 1, "country": None, "countries": ["DE", "SE"], "results": [
-        {"title": "Engineer", "country": "DE", "remote": None, "salary_min": None, "company": None},
+    response = {"success": True, "error": None, "results": [{"id": 1, "country": None, "countries": ["SE"], "results": [
+        {"title": "Engineer", "country": "SE", "remote": None, "salary_min": None, "company": None},
     ]}]}
 
     def runner(app_id, skill_id, input_data, **options):
         calls.append((app_id, skill_id, input_data, options))
         return response
 
-    input_data = {"countries": ["DE", "SE"], "requests": [{"query": "engineer"}]}
+    input_data = {"countries": ["SE"], "requests": [{"query": "engineer"}]}
     assert GeneratedAppSkills(runner).jobs.search(input_data) == response
+    assert calls == [("jobs", "search", input_data, {"prompt_injection_protection": None})]
+
+
+# contract-test: supporting surface=sdks.pip assertions=app-skills.surface.semantic-parity
+def test_jobs_sdk_preserves_unsupported_de_response_without_broadening_country() -> None:
+    calls = []
+    response = {"success": False, "error": "Job search is unavailable for DE.",
+                "results": [{"id": 1, "countries": ["DE"], "results": []}]}
+
+    def runner(app_id, skill_id, input_data, **options):
+        calls.append((app_id, skill_id, input_data, options))
+        return response
+
+    input_data = {"countries": ["DE"], "requests": [{"query": "engineer"}]}
+    assert GeneratedAppSkills(runner).jobs.search(input_data) is response
     assert calls == [("jobs", "search", input_data, {"prompt_injection_protection": None})]

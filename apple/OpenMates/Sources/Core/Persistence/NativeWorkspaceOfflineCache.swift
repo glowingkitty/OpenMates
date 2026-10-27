@@ -128,12 +128,16 @@ actor NativeWorkspaceOfflineCache {
         var responses: [String: Data]
     }
     private let directory: URL
+    private let writeCiphertext: @Sendable (Data, URL) throws -> Void
     private var activeScope: NativeWorkspaceOfflineScope?
     private var key: SymmetricKey?
     private var snapshots: [String: Snapshot] = [:]
     private var revisions: [String: UUID] = [:]
 
-    init(directory: URL? = nil) {
+    init(directory: URL? = nil, writeCiphertext: @escaping @Sendable (Data, URL) throws -> Void = {
+        try $0.write(to: $1, options: .atomic)
+    }) {
+        self.writeCiphertext = writeCiphertext
         self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory,
             in: .userDomainMask)[0].appendingPathComponent("OpenMates/workspace-ciphertext", isDirectory: true)
     }
@@ -167,10 +171,36 @@ actor NativeWorkspaceOfflineCache {
         return key
     }
 
+    private static func digest(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func readmeImagesDirectory(projectID: String, scope: NativeWorkspaceOfflineScope) -> URL {
+        directory.appendingPathComponent(scope.directoryID, isDirectory: true)
+            .appendingPathComponent("readme-images", isDirectory: true)
+            .appendingPathComponent(Self.digest(projectID), isDirectory: true)
+    }
+
+    private func imageNamespace(projectID: String, snapshot: ProjectReadmeOfflineSnapshot, source: String) throws -> String {
+        var metadata = snapshot
+        metadata.images = [:]
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let document = SHA256.hash(data: try encoder.encode(metadata)).map { String(format: "%02x", $0) }.joined()
+        return ["project-readme-image", Self.digest(projectID), document, Self.digest(source)].joined(separator: ":")
+    }
+
     private func file(_ namespace: String, scope: NativeWorkspaceOfflineScope) -> URL {
-        let name = SHA256.hash(data: Data(namespace.utf8)).map { String(format: "%02x", $0) }.joined()
-        return directory.appendingPathComponent(scope.directoryID, isDirectory: true)
-            .appendingPathComponent(name + ".aesgcm")
+        let root = directory.appendingPathComponent(scope.directoryID, isDirectory: true)
+        let parts = namespace.split(separator: ":")
+        if parts.count == 4, parts[0] == "project-readme-image",
+           parts.dropFirst().allSatisfy({ $0.count == 64 && $0.allSatisfy { $0.isHexDigit } }) {
+            return root.appendingPathComponent("readme-images", isDirectory: true)
+                .appendingPathComponent(String(parts[1]), isDirectory: true)
+                .appendingPathComponent(String(parts[2]), isDirectory: true)
+                .appendingPathComponent(String(parts[3]) + ".aesgcm")
+        }
+        return root.appendingPathComponent(Self.digest(namespace) + ".aesgcm")
     }
 
     private func snapshot(_ namespace: String, scope: NativeWorkspaceOfflineScope) throws -> Snapshot {
@@ -185,7 +215,7 @@ actor NativeWorkspaceOfflineCache {
             authenticating: Data((scope.directoryID + namespace).utf8))
         let loaded = try JSONDecoder().decode(Snapshot.self, from: plaintext)
         guard loaded.identity == scope.directoryID else { throw CancellationError() }
-        if !namespace.hasPrefix("project-readme:") { snapshots[namespace] = loaded }
+        if !namespace.hasPrefix("project-readme") { snapshots[namespace] = loaded }
         return loaded
     }
 
@@ -193,33 +223,118 @@ actor NativeWorkspaceOfflineCache {
         try snapshot(namespace, scope: scope).responses[path]
     }
 
-    func projectReadme(projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws -> ProjectReadmeOfflineSnapshot? {
+    private func readmeSnapshot(projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws -> ProjectReadmeOfflineSnapshot? {
         guard let data = try read(namespace: "project-readme:" + projectID, path: "document", scope: scope) else { return nil }
         let value = try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: data)
         return value.binding == binding ? value : nil
     }
 
+    func projectReadme(projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws -> ProjectReadmeOfflineSnapshot? {
+        guard var value = try readmeSnapshot(projectID: projectID, binding: binding, scope: scope) else { return nil }
+        // Legacy envelopes contain at most eight images; never hand original-byte
+        // inventories to the foreground. Each image is reopened independently.
+        value.images = [:]
+        return value
+    }
+
+    private func matches(_ snapshot: ProjectReadmeOfflineSnapshot, document: ProjectWorkspaceReadme) -> Bool {
+        snapshot.markdown == document.markdown && snapshot.truncated == document.truncated &&
+            snapshot.origin == document.origin && snapshot.sourceID == document.sourceID &&
+            snapshot.sourceKeyEpoch == document.sourceKeyEpoch
+    }
+
+    func projectReadmeImage(source: String, document: ProjectWorkspaceReadme, projectID: String,
+                            binding: String, scope: NativeWorkspaceOfflineScope) throws -> Data? {
+        guard let value = try readmeSnapshot(projectID: projectID, binding: binding, scope: scope),
+              matches(value, document: document) else { return nil }
+        let namespace = try imageNamespace(projectID: projectID, snapshot: value, source: source)
+        if let data = try read(namespace: namespace, path: "image", scope: scope) {
+            guard !data.isEmpty, data.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
+            // An earlier image write may have succeeded while its metadata
+            // compaction failed. Retry on hits as well as first migration.
+            try compactLegacyReadmeImage(source: source, snapshot: value, projectID: projectID, scope: scope)
+            return data
+        }
+        guard let legacy = value.images[source], !legacy.isEmpty,
+              legacy.count <= 2 * 1_024 * 1_024 else { return nil }
+        // Migrate one bounded original at a time. A failed object or metadata
+        // write leaves its legacy bytes readable; neither write clears an overview.
+        do {
+            try retain(namespace: namespace, path: "image", data: legacy, scope: scope)
+            try compactLegacyReadmeImage(source: source, snapshot: value, projectID: projectID, scope: scope)
+        } catch {
+            _ = try check(scope)
+        }
+        return legacy
+    }
+
+    private func compactLegacyReadmeImage(source: String, snapshot: ProjectReadmeOfflineSnapshot,
+                                           projectID: String, scope: NativeWorkspaceOfflineScope) throws {
+        guard snapshot.images[source] != nil else { return }
+        do {
+            // This actor does not suspend between rechecking the current
+            // document and its atomic metadata rewrite.
+            guard var current = try readmeSnapshot(projectID: projectID, binding: snapshot.binding, scope: scope),
+                  matches(current, document: snapshot.document), current.images.removeValue(forKey: source) != nil else { return }
+            try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(current), scope: scope)
+        } catch {
+            // A valid independent object remains readable after disk failure.
+            // Cancellation or a changed scope still rejects the response.
+            _ = try check(scope)
+        }
+    }
+
     func retainProjectReadme(_ document: ProjectWorkspaceReadme, projectID: String, binding: String,
                              scope: NativeWorkspaceOfflineScope) throws {
         guard document.markdown.utf8.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
-        let previous = try projectReadme(projectID: projectID, binding: binding, scope: scope)
-        let keepImages = previous?.markdown == document.markdown && previous?.origin == document.origin &&
-            previous?.sourceID == document.sourceID && previous?.sourceKeyEpoch == document.sourceKeyEpoch
+        let previous = try readmeSnapshot(projectID: projectID, binding: binding, scope: scope)
+        let keepImages = previous.map { matches($0, document: document) } == true
         let value = ProjectReadmeOfflineSnapshot(binding: binding, markdown: document.markdown,
             truncated: document.truncated, origin: document.origin, sourceID: document.sourceID,
             sourceKeyEpoch: document.sourceKeyEpoch, images: keepImages ? previous?.images ?? [:] : [:])
         try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(value), scope: scope)
+        // The actor has no suspension between the successful metadata swap and
+        // pruning. An image for an older document cannot attach or prune this one.
+        try pruneReadmeImages(projectID: projectID, keeping: value, scope: scope)
     }
 
     func retainProjectReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme,
                                   projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws {
         guard !data.isEmpty, data.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
-        guard var value = try projectReadme(projectID: projectID, binding: binding, scope: scope),
-              value.markdown == document.markdown, value.origin == document.origin,
-              value.sourceID == document.sourceID, value.sourceKeyEpoch == document.sourceKeyEpoch,
-              value.images[source] != nil || value.images.count < 8 else { return }
-        value.images[source] = data
-        try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(value), scope: scope)
+        guard var value = try readmeSnapshot(projectID: projectID, binding: binding, scope: scope),
+              matches(value, document: document) else { return }
+        try retain(namespace: imageNamespace(projectID: projectID, snapshot: value, source: source),
+                   path: "image", data: data, scope: scope)
+        if value.images.removeValue(forKey: source) != nil {
+            try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(value), scope: scope)
+        }
+    }
+
+    func clearProjectReadme(projectID: String, scope: NativeWorkspaceOfflineScope) throws {
+        let namespace = "project-readme:" + projectID
+        let revision = try beginRefresh(namespace: namespace, scope: scope)
+        try commit(namespace: namespace, responses: [:], scope: scope, revision: revision)
+        try pruneReadmeImages(projectID: projectID, keeping: nil, scope: scope)
+    }
+
+    private func pruneReadmeImages(projectID: String, keeping value: ProjectReadmeOfflineSnapshot?,
+                                   scope: NativeWorkspaceOfflineScope) throws {
+        _ = try check(scope)
+        if let value {
+            guard let current = try readmeSnapshot(projectID: projectID, binding: value.binding, scope: scope),
+                  matches(current, document: value.document) else { return }
+        } else {
+            guard try read(namespace: "project-readme:" + projectID, path: "document", scope: scope) == nil else { return }
+        }
+        let root = readmeImagesDirectory(projectID: projectID, scope: scope)
+        guard FileManager.default.fileExists(atPath: root.path) else { return }
+        let retainedGeneration = try value.map {
+            String(try imageNamespace(projectID: projectID, snapshot: $0, source: "").split(separator: ":")[2])
+        }
+        for child in try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where child.lastPathComponent != retainedGeneration {
+            _ = try check(scope)
+            try FileManager.default.removeItem(at: child)
+        }
     }
 
     func hasCompleteSnapshot(namespace: String, scope: NativeWorkspaceOfflineScope) throws -> Bool {
@@ -246,7 +361,7 @@ actor NativeWorkspaceOfflineCache {
         var retained = try snapshot(namespace, scope: scope)
         guard retained.responses[path] != data else { return }
         retained.responses[path] = data
-        revisions[namespace] = UUID()
+        if !namespace.hasPrefix("project-readme-image:") { revisions[namespace] = UUID() }
         // An endpoint refresh does not prove the entire workspace is current.
         retained.complete = false
         try write(retained, namespace: namespace, scope: scope, key: key)
@@ -260,12 +375,12 @@ actor NativeWorkspaceOfflineCache {
         _ = try check(scope)
         let url = file(namespace, scope: scope)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try ciphertext.write(to: url, options: .atomic)
+        try writeCiphertext(ciphertext, url)
         var excluded = url
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? excluded.setResourceValues(values)
-        if !namespace.hasPrefix("project-readme:") { snapshots[namespace] = snapshot }
+        if !namespace.hasPrefix("project-readme") { snapshots[namespace] = snapshot }
     }
 }
 
@@ -1116,6 +1231,10 @@ enum TeamWorkspaceOfflineRetention {
         for row in rows {
             if let returnedTeam = row["team_id"] as? String, returnedTeam != teamID { throw TeamWorkspaceError.invalidResponse }
             guard let id = row[idKey] as? String else { throw TeamWorkspaceError.invalidResponse }
+            // Both run and scheduled-run rows use the board's workflow_run
+            // discriminator. Keep them in the inventory, but they have no
+            // canonical Task dependency graph or activity collection.
+            if namespace == "user-tasks", row["source"] as? String == "workflow_run" { continue }
             let path = base + "/" + UserTasksPaths.escaped(id)
             if namespace == "workflows" {
                 let detail = try await get(path, teamID: teamID, fence: fence, transport: transport)

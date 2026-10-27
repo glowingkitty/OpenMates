@@ -14,8 +14,16 @@ are represented here by their public copy, publication time, owned media URL,
 and exact per-platform permalink. Updating this manifest does not send an email
 or create a social post.
 
-English is the required source locale. German copy is optional per record;
-when it is absent, the public route preserves the original English post rather
+English is the required source locale. German copy is optional per record.
+Each locale can optionally provide a `slug` using lowercase ASCII letters,
+numbers, and single hyphens between words. Routes use that locale's slug or the
+legacy root `slug` when its copy has no slug. A missing German translation uses
+the English copy and its slug (or the root slug). Slugs must be unique within
+each publication kind and locale, including these fallback routes. Language
+switches and sitemap alternates match the record's stable `id`, so translations
+can use different URLs. Existing records without localized slugs keep their URLs.
+
+When German copy is absent, the public route preserves the original English post rather
 than inventing a translation. Full videos and original downloadable images use
 content-addressed objects below the permanent `publications/social/` prefix in
 Hetzner Object Storage. Small posters use the app's `/publications/social/`

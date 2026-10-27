@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, tick, unmount } from 'svelte';
-import { readFileSync } from 'node:fs';
 import FreshShellMountHarness from './FreshShellMountHarness.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -123,7 +122,7 @@ describe('rendered fresh-shell startup', () => {
     mocks.getRawChat.mockResolvedValue(null);
   });
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
-  it('keeps the visible, draft, and prepared IDs equal when focus beats async initialization', async () => {
+  it('binds the visible draft before focus and keeps it through delayed initialization', async () => {
     let finishInitialize!: () => void;
     const initialize = new Promise<void>((resolve) => { finishInitialize = resolve; });
     const target = document.createElement('div');
@@ -133,27 +132,43 @@ describe('rendered fresh-shell startup', () => {
       await tick();
       const shellId = target.querySelector('[data-testid="shell-id"]')!.textContent;
       expect(shellId).toBe('new-1');
+      expect(mocks.draftChatId).toBe(shellId);
       const editor = target.querySelector('input')!;
       editor.focus();
       await tick();
       expect(mocks.draftChatId).toBe(shellId);
-      expect(target.querySelector('[data-testid="prepared-id"]')!.textContent).toBe(shellId);
       editor.blur();
       editor.focus();
-      await getPreparedChatForSend(shellId!)?.ready;
-      expect(mocks.createKey).toHaveBeenCalledExactlyOnceWith(shellId);
-      expect(mocks.getRawChat).toHaveBeenCalledExactlyOnceWith(shellId);
       finishInitialize();
       await initialize;
       await tick();
       expect(target.querySelector('[data-testid="shell-id"]')!.textContent).toBe(shellId);
       expect(target.querySelector('[data-testid="allocation-count"]')!.textContent).toBe('1');
-      const activeChatSource = readFileSync(new URL('../../components/ActiveChat.svelte', import.meta.url), 'utf8');
-      expect(activeChatSource.indexOf('temporaryChatId = reserveInitialFreshShellId({', activeChatSource.indexOf('onMount(() => {'))).toBeLessThan(
-        activeChatSource.indexOf('const initialize = async () =>', activeChatSource.indexOf('onMount(() => {')));
+      expect(mocks.draftChatId).toBe(shellId);
     } finally {
       await unmount(component);
       target.remove();
     }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,video-call.chat.project-context
+  it('adopts the exact prepared identity when Project focus happens before the composer mounts', async () => {
+    prepareChatForSend();
+    const preparedId = mocks.draftChatId;
+    await getPreparedChatForSend(preparedId!)?.ready;
+    let finishInitialize!: () => void;
+    const initialize = new Promise<void>(resolve => { finishInitialize = resolve; });
+    const target = document.createElement('div'); document.body.append(target);
+    const component = mount(FreshShellMountHarness, { target, props: { initialize: () => initialize } });
+    try {
+      await tick();
+      expect(target.querySelector('[data-testid="shell-id"]')!.textContent).toBe(preparedId);
+      expect(target.querySelector('[data-testid="allocation-count"]')!.textContent).toBe('0');
+      target.querySelector('input')!.focus();
+      finishInitialize(); await initialize; await tick();
+      expect(target.querySelector('[data-testid="shell-id"]')!.textContent).toBe(preparedId);
+      expect(mocks.draftChatId).toBe(preparedId);
+      expect(mocks.createKey).toHaveBeenCalledExactlyOnceWith(preparedId);
+    } finally { await unmount(component); target.remove(); }
   });
 });

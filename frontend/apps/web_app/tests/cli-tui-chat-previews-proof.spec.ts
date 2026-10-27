@@ -145,8 +145,8 @@ function seedFitnessEmbeds(apiUrl: string, home: string, cli: string, fixture: C
 		try{
 			for(const [index,embedId] of input.embedIds.entries()){
 				const key=randomBytes(32),content={app_id:'fitness',skill_id:'search_classes',status:'finished',
-					provider:'Urban Sports Club',query:index===0?'Dance in Berlin':'Yoga in Berlin',
-					results:[{provider:'Urban Sports Club',filters:{city:'Berlin',radius_km:5},
+					provider:'ExampleFitness',query:index===0?'Dance in Berlin':'Yoga in Berlin',
+					results:[{provider:'ExampleFitness',filters:{city:'Berlin',radius_km:5},
 						summary:index===0?'Two nearby classes':'Two more nearby classes',result_count:2,
 						results:index===0?danceResults:yogaResults}]};
 				await send('store_embed','store_embed_confirmed',{embed_id:embedId,
@@ -259,7 +259,7 @@ test('records encrypted text-only request, Fitness carousel, aliases, and worksp
 		expect(opened).toContain('Find two local Fitness class searches in Berlin.');
 		expect(opened).toContain('Melvin');
 		const userSection=opened.slice(opened.indexOf('Find two local Fitness class searches in Berlin.'),opened.indexOf('Melvin'));
-		expect(userSection).not.toMatch(/Search classes|Urban Sports Club|\/embed /);
+		expect(userSection).not.toMatch(/Search classes|ExampleFitness|\/embed /);
 		expect(opened).toContain('Dance studio Mitte');
 		expect(opened).toContain('/embed fit-s_c-1');
 		expect(opened).toContain('Embed 1/2');
@@ -268,7 +268,7 @@ test('records encrypted text-only request, Fitness carousel, aliases, and worksp
 			const request=shown.indexOf('Find two local Fitness class searches in Berlin.'),assistant=shown.indexOf('Melvin');
 			expect(request).toBeGreaterThanOrEqual(0);
 			expect(assistant).toBeGreaterThan(request);
-			expect(shown.slice(request,assistant)).not.toMatch(/Search classes|Urban Sports Club|\/embed /);
+			expect(shown.slice(request,assistant)).not.toMatch(/Search classes|ExampleFitness|\/embed /);
 			expect(shown).not.toContain('/embed emb-v');
 		}
 		expect(opened.split('\n')[0]).not.toContain('Terminal fitness proof');

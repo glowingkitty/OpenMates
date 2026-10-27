@@ -1,12 +1,5 @@
 landing:
-  order: 21
-  capability:
-    type: skill
-    id: get_transcript
-  caption:
-    en: Summarize this video
-    de: Fasse dieses Video zusammen
-  example_chat_id: example-ted-talk-transcript-summary
+  enabled: false
 
 name_translation_key: videos
 description_translation_key: videos.description
@@ -17,6 +10,9 @@ last_updated: "2025-11-12"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
+    authoring:
+      kind: videos.video
+      schema_id: videos.video
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use
@@ -72,9 +68,11 @@ embed_types:
       - {name: embed_ref, type: string}
       - {name: result_count, type: number, required: true}
       - {name: embed_ids, type: array, required: true}
+      - {name: input_embed_ids, type: array}
       - {name: output_embed_refs, type: array}
       - {name: failed_results, type: array}
     child_content_fields:
+      - {name: input_embed_ids, type: array}
       - {name: prompt, type: string, required: true}
       - {name: model, type: string, required: true}
       - {name: files, type: object, required: true}
@@ -212,6 +210,7 @@ skills:
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
     providers:
       - Google
+      - fal.ai
     full_model_reference: google/veo-3.1-generate-preview
     pricing:
       per_second: 600
@@ -241,14 +240,21 @@ skills:
                 x-ui:
                   basic: true
                 type: integer
-                enum: [4, 6, 8]
+                enum: [4, 5, 6, 8]
                 default: 8
               resolution:
                 x-ui:
                   basic: true
                 type: string
-                enum: ["720p", "1080p", "4k"]
+                enum: ["480p", "720p", "1080p", "4k"]
                 default: "720p"
+              input_embed_ids:
+                type: array
+                maxItems: 1
+                items:
+                  type: string
+                  format: uuid
+                description: Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas.
               seed:
                 x-ui:
                   basic: false
@@ -258,7 +264,8 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001"]
+                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001", "minimax/h3-max-turbo/image-to-video"]
+                description: H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.
                 default: "veo-3.1-generate-preview"
             required:
               - prompt
@@ -316,17 +323,23 @@ skills:
     description_translation_key: videos.get_transcript.description
     icon_image: transcript.svg
     preprocessor_hint: >
-      Get the transcript/content of a specific YouTube video URL.
+      Get published captions/transcript content for a media.ccc.de talk URL.
+      YouTube transcript retrieval is unavailable. Use this for summaries of media.ccc.de talks.
+      Some talks have no published captions; report that limitation honestly
+      instead of treating the page description as a transcript.
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
     providers:
-      - YouTube
+      - name: media.ccc.de
+        id: media_ccc
+        no_api_key: true
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # These fields are removed before adding to message history for LLM processing
     # but remain in the full response stored in chat history for proper UI rendering
     exclude_fields_for_llm:
       - "type"
       - "hash"
+      - "metadata"
     tool_schema:
       type: object
       properties:
@@ -337,9 +350,10 @@ skills:
           description: |
             REQUIRED: Array of transcript request objects for parallel processing. 
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.
-            Example for single transcript: {"requests": [{"url": "https://youtube.com/watch?v=abc123"}]}
-            Example for multiple transcripts: {"requests": [{"url": "https://youtube.com/watch?v=abc123"}, {"url": "https://youtube.com/watch?v=def456"}]}
-            Each object must contain 'url' (YouTube video URL), and can include optional parameters (languages).
+            Example for single transcript: {"requests": [{"url": "https://media.ccc.de/v/talk-one"}]}
+            Example for multiple transcripts: {"requests": [{"url": "https://media.ccc.de/v/talk-one"}, {"url": "https://media.ccc.de/v/talk-two"}]}
+            Each object must contain 'url' (media.ccc.de talk URL), and can include optional parameters (languages).
+            media.ccc.de example: {"requests": [{"url": "https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet"}]}
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
@@ -349,7 +363,7 @@ skills:
                   basic: true
                 type: string
                 format: uri
-                description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
+                description: Canonical https://media.ccc.de/v/<slug> URL. Retrieves published captions only; some talks have none.
               languages:
                 x-ui:
                   basic: true
@@ -551,9 +565,9 @@ marketing_discovery:
     get_transcript:
       enabled: true
       keywords:
-        - summarize YouTube transcript
-        - fact check YouTube video
-        - YouTube video analysis AI
+        - summarize media.ccc.de talk transcript
+        - fact check media.ccc.de talk
+        - media.ccc.de talk analysis AI
       pain_points:
         - video content is hard to skim
       demo_angles:

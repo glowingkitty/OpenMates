@@ -73,6 +73,32 @@ async def _key() -> str:
     return "test-key"
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.asyncio
+async def test_google_browser_transport_bounds_do_not_change_ordinary_chat_defaults(monkeypatch):
+    captured = []
+
+    async def generate_content(**kwargs):
+        captured.append(kwargs["config"])
+        return SimpleNamespace(text="Answer", function_calls=None, usage_metadata=None)
+
+    async def aclose():
+        pass
+
+    client = SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content), aclose=aclose), close=lambda: None)
+    monkeypatch.setattr(google_client.genai, "Client", lambda **_kwargs: client)
+    monkeypatch.setattr(google_client, "_get_google_ai_studio_api_key", lambda _manager: _key())
+    monkeypatch.setattr(google_client, "calculate_token_breakdown", lambda *_args, **_kwargs: {})
+    for bounds in ({}, {"request_attempts": 1, "request_timeout_seconds": 20}):
+        response = await google_client.invoke_google_ai_studio_chat_completions(
+            task_id="test", model_id="gemini-3.8-flash", messages=[{"role":"user", "content":"hello"}], **bounds,
+        )
+        assert response.success
+    assert captured[0].http_options is None
+    assert captured[1].http_options.retry_options.attempts == 1
+    assert captured[1].http_options.timeout == 20_000
+
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
 async def test_google_client_reuses_only_matching_loop_and_credential(monkeypatch) -> None:

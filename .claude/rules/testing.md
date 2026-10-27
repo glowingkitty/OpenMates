@@ -40,6 +40,13 @@ live-inference verification; shared runtime changes require an explicit target
 and coordinator lease. Record the deployed revision and actual live results.
 Do not add a paid-provider CI profile or substitute replay for real-inference proof.
 
+Real-inference OpenMates tests use Gemini 3.8 Flash unless the user explicitly
+requests another model. Select the supported `@Gemini-3.8-Flash` mention for the
+test chat and verify the persisted assistant model; fail the check if another
+model answered. Do not change account defaults. Deterministic fixtures remain
+provider-free, and tests of a decision provider such as Jev still exercise that
+provider alongside the Gemini assistant.
+
 Choose checks for the actual changed behavior and affected clients. Shared API
 changes need relevant API/client coverage; a web-only fix does not create an
 automatic Apple-verification ladder. Use existing test helpers, fixtures and

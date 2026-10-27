@@ -20,7 +20,19 @@ from backend.core.api.app.routes.application_preview import (
 )
 from backend.shared.providers.e2b_application_preview import ApplicationPreviewRuntime
 from backend.shared.python_utils.media_encryption import encrypt_media_variants
-from backend.tests.test_application_preview_config import FakeCache, _user
+from backend.tests.test_application_preview_config import FakeCache as BaseFakeCache, _user
+
+
+class FakeCache(BaseFakeCache):
+    def __init__(self):
+        super().__init__()
+        self.published_events = []
+
+    async def publish_event(self, channel, event):
+        session = json.loads(await self.redis.get(application_preview_session_key(event["payload"]["session_id"])))
+        assert session["status"] == event["payload"]["status"]
+        self.published_events.append((channel, event))
+        return True
 
 
 PNG_BYTES = (
@@ -141,6 +153,8 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     cache = FakeCache()
     stopped: list[dict[str, str]] = []
     charges: list[dict[str, object]] = []
+    scheduled: list[tuple[str, str]] = []
+    elapsed = [0.0]
 
     await create_application_preview_session(
         cache_service=cache,
@@ -153,8 +167,8 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         preview_token="token-abc",
     )
 
-    async def fake_sleep(_seconds: float) -> None:
-        return None
+    async def fake_sleep(seconds: float) -> None:
+        elapsed[0] += seconds
 
     async def fake_provider(**_kwargs):
         return ApplicationPreviewRuntime(
@@ -171,6 +185,7 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         charges.append(kwargs)
 
     monkeypatch.setattr(worker.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(worker, "time", SimpleNamespace(time=lambda: 2000 + elapsed[0], monotonic=lambda: elapsed[0]))
     monkeypatch.setattr(worker, "_charge_preview_credits", fake_charge_preview_credits)
 
     await worker.run_application_preview_session(
@@ -183,8 +198,18 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         },
         provider_start=fake_provider,
         provider_stop=fake_provider_stop,
+        deadline_scheduler=lambda session, sandbox: scheduled.append((session, sandbox)),
     )
 
+    assert scheduled == [("session-1", "sandbox-1")]
+    assert elapsed == [60]
+    assert stopped == [{"sandbox_id": "sandbox-1", "api_key": "e2b-key"}]
+    assert len(charges) == 1
+    # The delayed recovery task cannot stop or charge the completed session again.
+    await worker._stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache, session_id="session-1", sandbox_id="sandbox-1",
+        api_key="e2b-key", provider_stop=fake_provider_stop,
+    )
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     assert stored["status"] == "timeout"
     assert stored["stop_reason"] == "auto_unopened_timeout"
@@ -701,6 +726,13 @@ async def test_runtime_is_visible_before_screenshot_storage_completes() -> None:
     async def thumbnail(**_kwargs):
         data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
         assert data["status"] == "running" and data["upstream_base_url"] == "https://sandbox.e2b.app"
+        channel, event = cache.published_events[-1]
+        assert channel == f"user_updates::{data['viewer_user_id_hash']}"
+        assert event == {
+            "event_for_client": "application_preview_status", "user_id_uuid": "alice-user",
+            "payload": {"chat_id": "chat-1", "application_embed_id": "app-embed-1",
+                "session_id": "session-1", "status": "running", "updated_at": 2030},
+        }
         # A user's stop while capture is pending must not be undone by its completion.
         data["status"] = "stopped"
         await cache.redis.set(application_preview_session_key("session-1"), json.dumps(data))
@@ -711,3 +743,139 @@ async def test_runtime_is_visible_before_screenshot_storage_completes() -> None:
         provider_start=provider, thumbnail_store=thumbnail, now=2030)
     data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
     assert data["status"] == "stopped" and data["latest_screenshot_url"].endswith("screenshot")
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
+def test_unopened_preview_deadline_dispatch_contains_no_secrets_and_does_not_sleep(monkeypatch):
+    worker = _load_worker_module()
+    dispatches = []
+    monkeypatch.setattr(worker, 'app', SimpleNamespace(send_task=lambda *args, **kwargs: dispatches.append((args, kwargs))))
+    worker._dispatch_unopened_preview_deadline('session-1', 'sandbox-1')
+    assert dispatches == [(('code.expire_unopened_application_preview',), {
+        'args': ['session-1', 'sandbox-1'], 'queue': 'app_code', 'countdown': 60,
+    })]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
+@pytest.mark.anyio
+@pytest.mark.parametrize('change', [{'auto_opened_at': 2040}, {'sandbox_id': 'replacement-sandbox'}, {'auto_started': False}])
+async def test_old_deadline_preserves_opened_or_replaced_previews(change):
+    worker = _load_worker_module()
+    cache = FakeCache()
+    state = {'auto_started': True, 'sandbox_id': 'sandbox-1', 'status': 'running', **change}
+    await cache.redis.set(application_preview_session_key('session-1'), json.dumps(state))
+    reclaimed = []
+    async def unexpected_stop(**_kwargs):
+        assert change.get('sandbox_id') == 'replacement-sandbox'
+        assert _kwargs['sandbox_id'] == 'sandbox-1'
+        reclaimed.append(_kwargs['sandbox_id'])
+        return True
+    await worker._stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache, session_id='session-1', sandbox_id='sandbox-1',
+        api_key='test-key', provider_stop=unexpected_stop,
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key('session-1'))).decode())
+    assert stored == state
+    assert reclaimed == (['sandbox-1'] if change.get('sandbox_id') else [])
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
+@pytest.mark.anyio
+async def test_cleanup_dispatch_failure_stops_runtime_instead_of_leaking_it(monkeypatch):
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache, session_id='session-1', application_embed_id='app-embed-1',
+        body=ApplicationPreviewStartRequest(chat_id='chat-1', auto_started=True, source_message_id='assistant-message-1'),
+        current_user=_user('alice-user'), preview_origin='https://openmatesusercontent.org', now=2000,
+    )
+    stopped = []
+    async def provider(**_kwargs):
+        return ApplicationPreviewRuntime(sandbox_id='sandbox-1', upstream_base_url='https://5173-fixture.e2b.app', ports={'frontend': 5173})
+    async def stop(**kwargs):
+        stopped.append(kwargs['sandbox_id'])
+        return True
+    async def charge(**_kwargs):
+        return None
+    def unavailable_scheduler(*_args):
+        raise RuntimeError('Cleanup scheduling unavailable')
+    monkeypatch.setattr(worker, '_charge_preview_credits', charge)
+    await worker.run_application_preview_session(
+        cache_service=cache, session_id='session-1', payload={
+            'api_key': 'test-key', 'files': [{'path': 'index.html', 'content': '<main>Test</main>'}],
+            'entrypoints': [{'name': 'frontend', 'command': 'python -m http.server 5173', 'port': 5173}],
+        }, provider_start=provider, provider_stop=stop, deadline_scheduler=unavailable_scheduler,
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key('session-1'))).decode())
+    assert stopped == ['sandbox-1']
+    assert stored['status'] == 'failed'
+    assert stored['sandbox_stopped_at']
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits,code-run.execution.stream-status-visible
+@pytest.mark.anyio
+@pytest.mark.parametrize('opened', ['immediately', 'next_check', 'never'])
+async def test_startup_preserves_unopened_deadline_even_when_cleanup_queue_is_busy(monkeypatch, opened):
+    import asyncio
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache, session_id='session-1', application_embed_id='app-embed-1',
+        body=ApplicationPreviewStartRequest(chat_id='chat-1', auto_started=True, source_message_id='assistant-message-1'),
+        current_user=_user('alice-user'), preview_origin='https://openmatesusercontent.org', now=1000,
+    )
+    elapsed = [0.0]
+    stopped = []
+    dispatches = []
+    charges = []
+    async def mark_opened():
+        state = json.loads(await cache.redis.get(application_preview_session_key('session-1')))
+        state['auto_opened_at'] = 1000 + elapsed[0]
+        await cache.redis.set(application_preview_session_key('session-1'), json.dumps(state))
+    async def advance(seconds):
+        elapsed[0] += seconds
+        if opened == 'next_check':
+            await mark_opened()
+    monkeypatch.setattr(worker, 'time', SimpleNamespace(time=lambda: 1000 + elapsed[0], monotonic=lambda: elapsed[0]))
+    monkeypatch.setattr(worker, 'asyncio', SimpleNamespace(sleep=advance, iscoroutine=asyncio.iscoroutine))
+    async def provider(**_kwargs):
+        return ApplicationPreviewRuntime(sandbox_id='sandbox-1', upstream_base_url='https://5173-fixture.e2b.app', ports={'frontend': 5173})
+    async def thumbnail(**_kwargs):
+        if opened == 'immediately':
+            await mark_opened()
+    async def stop(**kwargs):
+        stopped.append((kwargs['sandbox_id'], elapsed[0]))
+        return True
+    async def charge(**kwargs):
+        charges.append(kwargs['credits'])
+    monkeypatch.setattr(worker, '_charge_preview_credits', charge)
+    # Dispatch is deliberately never executed: the startup guard owns the deadline.
+    await worker.run_application_preview_session(
+        cache_service=cache, session_id='session-1', payload={
+            'api_key': 'test-key', 'files': [{'path': 'index.html', 'content': '<main>Test</main>'}],
+            'entrypoints': [{'name': 'frontend', 'command': 'python -m http.server 5173', 'port': 5173}],
+        }, provider_start=provider, provider_stop=stop, thumbnail_store=thumbnail,
+        deadline_scheduler=lambda *args: dispatches.append(args),
+    )
+    stored = json.loads(await cache.redis.get(application_preview_session_key('session-1')))
+    assert elapsed[0] == {'immediately': 0, 'next_check': 1, 'never': 60}[opened]
+    assert stored['status'] == ('timeout' if opened == 'never' else 'running')
+    assert stopped == ([('sandbox-1', 60)] if opened == 'never' else [])
+    assert charges == ([5] if opened == 'never' else [])
+    assert len(dispatches) == (0 if opened == 'immediately' else 1)
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible
+@pytest.mark.anyio
+async def test_preview_notification_failure_preserves_persisted_running_status() -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(cache_service=cache, session_id="notification-failure",
+        application_embed_id="app-embed-1", body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"), preview_origin="https://openmatesusercontent.org", now=2000)
+    async def fail_publish(*args):
+        raise RuntimeError("event transport unavailable")
+    cache.publish_event = fail_publish
+    await worker._patch_session(cache, "notification-failure", {"status": "running", "updated_at": 2030})
+    data = json.loads(await cache.redis.get(application_preview_session_key("notification-failure")))
+    assert data["status"] == "running"

@@ -1,20 +1,22 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
 
-  Child preview card for a single Urban Sports Club location or class result.
+  Child preview card for a single fitness location or class result.
   Used by FitnessSearchEmbedFullscreen inside SearchResultsTemplate so Fitness
   search behaves like Events search: parent grid, child cards, drill-down.
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
   import {
     asNumber,
     asText,
     getFitnessResultAddress,
     getFitnessResultTitle,
+    getFitnessResultImageUrl,
     normalizePipedList,
     type FitnessResult,
     type FitnessSkillId,
@@ -25,22 +27,28 @@
     result: FitnessResult;
     skillId: FitnessSkillId;
     isMobile?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
-  let { id, result, skillId, isMobile = false, onFullscreen }: Props = $props();
+  let { id, result, skillId, isMobile = false, resultContext = 'auto', onFullscreen }: Props = $props();
 
-  let imageError = $state(false);
   let title = $derived(getFitnessResultTitle(result));
   let address = $derived(getFitnessResultAddress(result));
   let distance = $derived(asNumber(result.distance_km));
-  let plans = $derived(normalizePipedList(result.plans_required));
   let disciplines = $derived(normalizePipedList(result.disciplines));
-  let imageUrl = $derived(result.image_url ? proxyImage(asText(result.image_url), MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
-  let subtitle = $derived.by(() => {
-    if (skillId === 'search_classes') return [result.date, result.time_range, result.venue_name].map(asText).filter(Boolean).join(' · ');
-    return address;
+  let imageUrl = $derived(proxyImage(getFitnessResultImageUrl(result), MAX_WIDTH_PREVIEW_THUMBNAIL));
+  let classDate = $derived.by(() => {
+    if (skillId !== 'search_classes' || typeof result.date !== 'string') return '';
+    const value = result.date.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : '';
   });
+  let classTime = $derived(skillId === 'search_classes' ? asText(result.time_range) : '');
+  let compactClassTime = $derived(classTime.match(/^\s*(\d{1,2}:\d{2})\b/)?.[1] || classTime);
+  let classVenue = $derived(skillId === 'search_classes' ? asText(result.venue_name) : '');
+  let subtitle = $derived(skillId === 'search_classes' ? undefined : address);
 
   async function handleStop() {
     // Child result embeds are already finished and cannot be cancelled.
@@ -58,99 +66,42 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
+  {resultContext}
+  resultPreview={true}
   showStatus={false}
   showSkillIcon={false}
   hasFullWidthImage={!!imageUrl && !title}
 >
-  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout = false })}
-    <div class="fitness-result-preview" class:mobile={isMobileLayout} class:large={isLargeLayout} data-testid="fitness-result-preview">
-      <div class="fitness-result-text">
-        {#if isLargeLayout}
-          <div class="fitness-result-title">{title}</div>
+  {#snippet details()}
+    <div class="fitness-result-preview" data-testid="fitness-result-preview"><ResultEmbedCard {title} description={subtitle} imageUrl={imageUrl} imageAlt={title} badge={classDate ? classBadge : undefined}>
+      {#snippet classBadge()}<EmbedCalendarDate date={classDate} />{/snippet}
+      {#snippet facts()}
+        {#if skillId === 'search_classes' && (classTime || classVenue)}
+          <div class="fitness-class-meta">
+            {#if classTime}<span class="fitness-class-time" data-testid="fitness-class-time" title={classTime}>{compactClassTime}</span>{/if}
+            {#if classTime && classVenue}<span aria-hidden="true">·</span>{/if}
+            {#if classVenue}<span class="fitness-class-venue" data-testid="fitness-class-venue" title={classVenue}>{classVenue}</span>{/if}
+          </div>
         {/if}
-        {#if subtitle}
-          <div class="fitness-result-subtitle">{subtitle}</div>
-        {/if}
-        <div class="fitness-result-meta">
+        <div class="fitness-extra-facts">
           {#if distance !== undefined}<span>{distance.toFixed(2)} km</span>{/if}
           {#if result.spots_display}<span>{result.spots_display}</span>{/if}
-          {#if disciplines.length > 0}<span>{disciplines.slice(0, 2).join(', ')}</span>{/if}
-          {#if plans.length > 0}<span>{plans.join(', ')}</span>{/if}
+          {#if disciplines.length}<span>{disciplines.slice(0, 2).join(', ')}</span>{/if}
+          {#if classTime && classTime !== compactClassTime}<span>{classTime}</span>{/if}
         </div>
-      </div>
-      {#if imageUrl && !imageError && !isMobileLayout}
-        <div class="fitness-result-image">
-          <img
-            src={imageUrl}
-            alt={title}
-            loading="lazy"
-            crossorigin="anonymous"
-            onerror={(event) => {
-              imageError = true;
-              handleImageError(event.currentTarget as HTMLImageElement);
-            }}
-          />
-        </div>
-      {/if}
-    </div>
+      {/snippet}
+    </ResultEmbedCard></div>
   {/snippet}
 </UnifiedEmbedPreview>
 
+
 <style>
-  .fitness-result-preview {
-    align-items: center;
-    display: flex;
-    gap: var(--spacing-3);
-    height: 100%;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .fitness-result-text {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    min-width: 0;
-  }
-
-  .fitness-result-title,
-  .fitness-result-subtitle,
-  .fitness-result-meta span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .fitness-result-title {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 700;
-  }
-
-  .fitness-result-subtitle,
-  .fitness-result-meta {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xs);
-  }
-
-  .fitness-result-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-  }
-
-  .fitness-result-image {
-    border-radius: var(--radius-3);
-    flex: 0 0 84px;
-    height: 64px;
-    overflow: hidden;
-  }
-
-  .fitness-result-image img {
-    display: block;
-    height: 100%;
-    object-fit: cover;
-    width: 100%;
+  .fitness-result-preview { width:100%; height:100%; }
+  .fitness-class-meta { display:flex; align-items:baseline; gap:var(--spacing-1); width:100%; min-width:0; font-size:var(--font-size-xxs); line-height:1.2; }
+  .fitness-class-time { flex:0 0 auto; }
+  .fitness-class-venue { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fitness-extra-facts { display:none; }
+  @container result-card (min-width: 401px) {
+    .fitness-extra-facts { display:flex; flex-wrap:wrap; gap:var(--spacing-2); font-size:var(--font-size-xxs); }
   }
 </style>

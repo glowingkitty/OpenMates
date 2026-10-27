@@ -215,3 +215,188 @@ inspiration_weather_feature_description:
   en: Choose a location and dates.
   de: Wähle einen Ort und die gewünschten Tage.
   verified_by_human: []
+
+request_placeholder:
+  context: Apps natural-language workspace and shared result view
+  en: Describe what you search for
+  de: Beschreibe, wonach du suchst
+
+followup_placeholder:
+  context: Apps natural-language workspace and shared result view
+  en: Ask a follow-up
+  de: Stelle eine Folgefrage
+
+submit_request:
+  context: Apps natural-language workspace and shared result view
+  en: Send request
+  de: Anfrage senden
+
+interpreting_request:
+  context: Apps natural-language workspace and shared result view
+  en: Understanding your request…
+  de: Deine Anfrage wird verarbeitet…
+
+add_files:
+  context: Apps natural-language workspace and shared result view
+  en: Attach files
+  de: Dateien anhängen
+
+remove_file:
+  context: Apps natural-language workspace and shared result view
+  en: Remove file
+  de: Datei entfernen
+
+audio_attached:
+  context: Apps natural-language workspace and shared result view
+  en: Audio attached
+  de: Audio angehängt
+
+filter_results:
+  context: Apps natural-language workspace and shared result view
+  en: Filter results
+  de: Ergebnisse filtern
+
+all_results:
+  context: Apps natural-language workspace and shared result view
+  en: All results
+  de: Alle Ergebnisse
+
+save_search:
+  context: Apps natural-language workspace and shared result view
+  en: Save this search
+  de: Diese Suche speichern
+
+create_workflow:
+  context: Apps natural-language workspace and shared result view
+  en: Create a workflow
+  de: Workflow erstellen
+
+recommended:
+  context: Apps natural-language workspace and shared result view
+  en: Recommended
+  de: Empfohlen
+
+recent:
+  context: Apps natural-language workspace and shared result view
+  en: Recent
+  de: Zuletzt
+
+saved_search:
+  context: Apps natural-language workspace and shared result view
+  en: Saved search
+  de: Gespeicherte Suche
+
+run_saved_search:
+  context: Apps natural-language workspace and shared result view
+  en: Run this search again
+  de: Diese Suche erneut ausführen
+
+example_chats:
+  context: Apps natural-language workspace and shared result view
+  en: Example chats
+  de: Beispielchats
+
+daily_search_notice:
+  context: Apps natural-language workspace and shared result view
+  en: Your saved search will run daily and use credits.
+  de: Deine gespeicherte Suche wird täglich ausgeführt und verbraucht Credits.
+
+daily_search_notice_details:
+  context: Apps natural-language workspace and shared result view
+  en: We refresh only your latest saved search per app while you have been active
+    in the last 7 days. You can turn off Daily searches in app settings.
+  de: Wir aktualisieren nur deine zuletzt gespeicherte Suche pro App, wenn du in den
+    letzten 7 Tagen aktiv warst. Du kannst tägliche Suchen in den App-Einstellungen
+    ausschalten.
+
+daily_search_ok:
+  context: Apps natural-language workspace and shared result view
+  en: OK
+  de: OK
+
+daily_search_turn_off:
+  context: Apps natural-language workspace and shared result view
+  en: Turn off
+  de: Ausschalten
+
+daily_searches:
+  context: Apps natural-language workspace and shared result view
+  en: Daily searches
+  de: Tägliche Suchen
+
+daily_searches_description:
+  context: Apps natural-language workspace and shared result view
+  en: Refresh your latest saved search daily using credits. Runs pause after 7 days
+    of inactivity.
+  de: Aktualisiere deine zuletzt gespeicherte Suche täglich mit Credits. Nach 7 Tagen
+    ohne Aktivität pausieren die Suchen.
+
+back_to_app:
+  context: Apps natural-language workspace and shared result view
+  en: Back to app
+  de: Zurück zur App
+
+app_settings:
+  context: Apps natural-language workspace and shared result view
+  en: App settings
+  de: App-Einstellungen
+
+pricing_and_providers:
+  context: Apps natural-language workspace and shared result view
+  en: Pricing and providers
+  de: Preise und Anbieter
+
+saved_and_recent:
+  context: Apps natural-language workspace and shared result view
+  en: Saved and recent entries
+  de: Gespeicherte und letzte Einträge
+
+toggle_map:
+  context: Apps natural-language workspace and shared result view
+  en: Switch between map and app overview
+  de: Zwischen Karte und App-Übersicht wechseln
+
+app_greeting:
+  context: Apps natural-language workspace and shared result view
+  en: Hey {name}!
+  de: Hallo {name}!
+
+recommended_for_you:
+  context: Apps natural-language workspace and shared result view
+  en: Fresh recommendations for you
+  de: Neue Empfehlungen für dich
+
+your_saved_searches:
+  context: Apps natural-language workspace and shared result view
+  en: Your saved searches
+  de: Deine gespeicherten Suchen
+
+your_recent_results:
+  context: Apps natural-language workspace and shared result view
+  en: Your recent results
+  de: Deine letzten Ergebnisse
+
+try_an_example:
+  context: Apps natural-language workspace and shared result view
+  en: Try an example or describe what you need
+  de: Öffne ein Beispiel oder beschreibe, was du brauchst
+
+create_workflow_from_search:
+  context: Apps natural-language workspace and shared result view
+  en: Create a workflow based on this search.
+  de: Erstelle einen Workflow auf Grundlage dieser Suche.
+
+show_more:
+  context: Apps recent result carousel pagination
+  en: Show more
+  de: Mehr anzeigen
+
+calendar_view:
+  context: Calendar app workspace calendar button
+  en: Calendar view
+  de: Kalenderansicht
+
+results_for:
+  context: Centered heading above shared search result cards
+  en: Results for
+  de: Ergebnisse für

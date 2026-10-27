@@ -363,6 +363,9 @@ async def sanitize_long_text_fields_in_payload(
         return sanitized
     except Exception as exc:
         # Never include provider exception text or untrusted source content in logs.
+        from backend.shared.python_utils.strict_output_safety import active_strict_scanner
+        if active_strict_scanner.get() is not None:
+            raise
         reason = "OUTPUT_SAFETY_TIMEOUT" if isinstance(exc, TimeoutError) else (
             str(exc) if isinstance(exc, StructuredScanError) else "OUTPUT_SAFETY_UNAVAILABLE"
         )

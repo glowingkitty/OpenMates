@@ -9,7 +9,7 @@
   the TravelConnectionEmbedFullscreen booking flow). The track data comes from the
   embed content decoded by the embed resolver.
 
-  Architecture: Uses UnifiedEmbedFullscreen as base.
+  Architecture: Uses ResultEmbedFullscreen as base.
   See docs/architecture/app-skills.md for the skill execution model.
 
   Native Swift counterparts:
@@ -17,13 +17,10 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { onDestroy } from 'svelte';
-  import 'leaflet/dist/leaflet.css';
-  import type { Map as LeafletMap } from 'leaflet';
-  import { isDarkThemeActive, watchDarkThemeActive } from '../../../utils/themeDetection';
-
   // ---------------------------------------------------------------------------
   // Interfaces
   // ---------------------------------------------------------------------------
@@ -67,7 +64,7 @@
   // Extract fields from data.decodedContent with type safety
   // ---------------------------------------------------------------------------
 
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(data.decodedContent ?? {});
 
   let flightNumber = $derived(typeof dc.flight_number === 'string' ? dc.flight_number : undefined);
   let departureDate = $derived(typeof dc.departure_date === 'string' ? dc.departure_date : undefined);
@@ -140,121 +137,22 @@
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   });
 
-  // ---------------------------------------------------------------------------
-  // Route map (Leaflet / OpenStreetMap)
-  // ---------------------------------------------------------------------------
-
-  let mapContainer: HTMLDivElement | undefined = $state(undefined);
-  let L: typeof import('leaflet') | null = null;
-  let map: LeafletMap | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let routeTileLayer: any = null;
-  let mapInitialized = $state(false);
-  let isDarkMode = $state(false);
-  let stopWatchingMapTheme: (() => void) | null = null;
-
-  function applyTileTheme(nextIsDarkMode: boolean) {
-    isDarkMode = nextIsDarkMode;
-    const container = routeTileLayer?.getContainer?.();
-    container?.classList.toggle('dark-tiles', isDarkMode);
-  }
-
-  /** Whether we have enough track data to show the map */
   let hasTrackData = $derived(tracks.length >= 2);
-
-  /**
-   * Initialize the Leaflet map showing the real GPS flight track.
-   * If track data is available, draws the actual polyline from FR24.
-   */
-  async function initializeMap() {
-    if (!mapContainer || !hasTrackData || mapInitialized) return;
-
-    try {
-      L = await import('leaflet');
-
-      const firstPoint = tracks[0];
-      map = L.map(mapContainer, {
-        center: [firstPoint.lat, firstPoint.lon],
-        zoom: 5,
-        zoomControl: true,
-        scrollWheelZoom: false,
-        attributionControl: true,
-      });
-      isDarkMode = isDarkThemeActive();
-
-      // OSM tile layer
-      routeTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-          '| Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener">Flightradar24</a>',
-        className: isDarkMode ? 'dark-tiles' : '',
-      });
-      routeTileLayer.addTo(map);
-
-      // Airport marker icon
-      const airportIcon = L.divIcon({
-        className: 'travel-route-marker',
-        html: '<div class="marker-dot"></div>',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-
-      // Start marker
-      L.marker([tracks[0].lat, tracks[0].lon], { icon: airportIcon })
-        .addTo(map)
-        .bindPopup(originIata || 'Departure');
-
-      // End marker
-      const lastPoint = tracks[tracks.length - 1];
-      L.marker([lastPoint.lat, lastPoint.lon], { icon: airportIcon })
-        .addTo(map)
-        .bindPopup(
-          diverted && actualDestinationIata
-            ? `${actualDestinationIata} (Diverted)`
-            : destinationIata || 'Arrival',
-        );
-
-      // Draw real track polyline from FR24 GPS data
-      const latLngs = tracks.map(p => L.latLng(p.lat, p.lon));
-      L.polyline(latLngs, {
-        color: 'var(--color-primary, #6366f1)',
-        weight: 2.5,
-        opacity: 0.85,
-      }).addTo(map);
-
-      // Fit bounds to the track
-      const bounds = L.latLngBounds(latLngs);
-      map.fitBounds(bounds, { padding: [40, 40] });
-
-      stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
-
-      mapInitialized = true;
-    } catch (err) {
-      console.error('[TravelFlightDetailsEmbedFullscreen] Failed to initialize map:', err);
-    }
-  }
-
-  // Initialize map when container and track data are ready
-  $effect(() => {
-    if (mapContainer && hasTrackData && !mapInitialized) {
-      initializeMap();
-    }
-  });
-
-  // Cleanup on destroy
-  onDestroy(() => {
-    stopWatchingMapTheme?.();
-    stopWatchingMapTheme = null;
-    routeTileLayer = null;
-    if (map) {
-      map.remove();
-      map = null;
-    }
-  });
+  let mapCenter = $derived(hasTrackData ? { lat: tracks[0].lat, lon: tracks[0].lon } : undefined);
+  let mapMarkers = $derived(hasTrackData ? [
+    { lat: tracks[0].lat, lon: tracks[0].lon, label: originIata || 'Departure' },
+    { lat: tracks[tracks.length - 1].lat, lon: tracks[tracks.length - 1].lon,
+      label: diverted && actualDestinationIata ? `${actualDestinationIata} (Diverted)` : destinationIata || 'Arrival' },
+  ] : []);
+  function openProvider() { window.open('https://www.flightradar24.com', '_blank', 'noopener,noreferrer'); }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={dc}
+  {mapCenter}
+  {mapMarkers}
+  mapPath={tracks}
+  mapZoom={5}
   appId="travel"
   skillId="get_flight"
   {onClose}
@@ -267,8 +165,16 @@
   {onNavigatePrevious}
   {onNavigateNext}
 >
-  {#snippet content()}
-    <div class="flight-details-fullscreen">
+  {#snippet embedHeaderCta()}
+    <EmbedHeaderCtaButton label="Open on Flightradar24" onclick={openProvider} testId="external-provider-cta" />
+  {/snippet}
+  {#snippet summary()}
+    {#if durationDisplay}<ResultEmbedInfo icon="clock" label="Flight duration" value={durationDisplay}>{durationDisplay}</ResultEmbedInfo>{/if}
+    {#if distanceDisplay}<ResultEmbedInfo icon="route" label="Recorded flight distance" value={distanceDisplay}>{distanceDisplay}</ResultEmbedInfo>{/if}
+    <ResultEmbedInfo icon="plane" label="Track coverage" value={hasTrackData ? `${tracks.length} points` : 'No track data'} state={hasTrackData ? 'yes' : 'unknown'}>{hasTrackData ? 'Recorded GPS flight track supplied by Flightradar24.' : 'No recorded track is available; a route is not inferred.'}</ResultEmbedInfo>
+  {/snippet}
+  {#snippet detailContent()}
+    <div class="flight-details-fullscreen" data-testid="flight-track-details">
       <!-- Date header -->
       {#if displayDate}
         <div class="date-header">{displayDate}</div>
@@ -285,18 +191,8 @@
         </div>
       {/if}
 
-      <!-- Route map -->
-      {#if hasTrackData}
-        <div class="route-map-container" bind:this={mapContainer}></div>
-        <div class="fr24-attribution">
-          Track data: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a>
-        </div>
-      {:else}
-        <div class="no-track-placeholder">
-          <span class="no-track-icon">✈</span>
-          <span class="no-track-text">No track data available</span>
-        </div>
-      {/if}
+      <div class="fr24-attribution">Track data: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a></div>
+      {#if !hasTrackData}<p role="status" data-testid="flight-track-unavailable">No track data available</p>{/if}
 
       <!-- Flight details grid -->
       <div class="details-grid">
@@ -354,13 +250,11 @@
       </div>
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
   .flight-details-fullscreen {
-    max-width: 600px;
-    margin: 60px auto 120px;
-    padding: 0 20px;
+    width: 100%;
   }
 
   .date-header {
@@ -388,19 +282,6 @@
     font-size: 1rem;
   }
 
-  /* Map */
-  .route-map-container {
-    width: 100%;
-    height: 280px;
-    border-radius: var(--radius-5);
-    overflow: hidden;
-    margin-bottom: var(--spacing-3);
-    /* Dark filter for OpenStreetMap tiles in dark mode */
-    :global(.dark-tiles) {
-      filter: invert(100%) hue-rotate(180deg) brightness(0.85) contrast(1.1);
-    }
-  }
-
   .fr24-attribution {
     font-size: 0.7rem;
     color: var(--color-text-tertiary, var(--color-text-secondary));
@@ -412,27 +293,6 @@
     color: inherit;
     text-decoration: underline;
     text-underline-offset: 2px;
-  }
-
-  .no-track-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-4);
-    padding: var(--spacing-20) var(--spacing-10);
-    background: var(--color-grey-10, rgba(0, 0, 0, 0.04));
-    border-radius: var(--radius-5);
-    margin-bottom: var(--spacing-10);
-  }
-
-  .no-track-icon {
-    font-size: 2rem;
-    opacity: 0.4;
-  }
-
-  .no-track-text {
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
   }
 
   /* Details grid */

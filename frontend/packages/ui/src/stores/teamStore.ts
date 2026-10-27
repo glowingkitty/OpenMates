@@ -65,13 +65,20 @@ activeTeamContext.subscribe(({ teamId }) => {
 userProfile.subscribe((profile) => {
   const accountId = profile.user_id;
   if (accountId === currentAccountId) return;
+  const previousAccountId = currentAccountId;
   currentAccountId = accountId;
   const current = get(activeTeamContext);
   const teamId = readActiveTeamId();
   const next = { team: null, teamId, epoch: current.epoch + 1 };
   activeTeamContext.set(next);
   invalidateWorkspaceCaches();
-  if (typeof window !== 'undefined') {
+  // Hydrating the first owner in an already-Personal workspace is identity
+  // initialization, not navigation. Keep epoch/cache fences, but do not tell
+  // switch listeners to discard the pending chat/embed/message destination.
+  // Logout, account replacement and restored/changed Team scope still switch.
+  const initializesPersonalAccount = previousAccountId === null && accountId !== null &&
+    current.teamId === null && teamId === null;
+  if (!initializesPersonalAccount && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent<TeamContextSnapshot>(TEAM_CONTEXT_CHANGED_EVENT, { detail: next }));
   }
 });

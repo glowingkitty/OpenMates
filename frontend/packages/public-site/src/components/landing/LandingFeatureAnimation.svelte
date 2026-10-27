@@ -2,7 +2,10 @@
   import { onMount, untrack } from 'svelte';
   import generalKnowledgeAvatar from '../../assets/landing/general_knowledge.jpeg';
   import businessDevelopmentAvatar from '../../assets/landing/business_development.jpeg';
-  import { proxyImage } from '../../data/proxyImage';
+  import EmbedPreviewCorner from '../results/EmbedPreviewCorner.svelte';
+  import eventIcon from '../../assets/results/event.svg?url';
+  import eventImage from '../../assets/results/community-event.webp';
+  import EventResultCard from '../results/EventResultCard.svelte';
   import { actionableStages, privacyStages, featureAnimationCopy } from './landingFeatureAnimationContent';
 
   interface Props {
@@ -41,7 +44,7 @@
     return () => observer.disconnect();
   });
   let completed = false;
-  const eventImage = proxyImage('https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519', 400);
+  const eventDate = '2026-08-29T18:30:00+02:00';
   let copy = $derived(featureAnimationCopy[language === 'de' ? 'de' : 'en']);
   let stages = $derived(section === 'actionable' ? actionableStages : privacyStages);
   let durationMs = $derived(stages.reduce((sum, item) => sum + item.durationMs, 0));
@@ -56,7 +59,7 @@
   let playing = $derived(active && visible && !reducedMotion);
   let interaction = $derived(scene.id === 'event-preview'
     ? (scene.timeMs >= 1800 ? 'preview-clicked' : scene.timeMs >= 1000 ? 'preview-targeted' : 'idle')
-    : scene.id === 'luma-cta'
+    : scene.id === 'provider-cta'
       ? (scene.timeMs >= 1450 ? 'cta-clicked' : scene.timeMs >= 700 ? 'cta-targeted' : 'idle')
       : 'idle');
 
@@ -119,20 +122,12 @@
           </div>
         </div>
       {:else if scene.id === 'event-preview'}
-        <!-- Static rendering of the existing EventEmbedPreview. Keeping this
-             presentation surface local avoids importing authenticated UI stores. -->
         <div class="event-preview" class:pressed={interaction === 'preview-clicked'} data-testid="landing-actionable-event-preview">
-          <div class="event-title"><span class="app-icon">{@render icon('event')}</span><strong>{copy.actionable_event_title}</strong></div>
-          <div class="event-content">
-            <div class="event-details">
-              <div class="event-meta"><span class="event-date">{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date('2024-05-22T11:00:00+02:00'))}</span><span class="event-time">{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date('2024-05-22T11:00:00+02:00'))}</span><span class="event-location">{language === 'de' ? 'Berlin, Deutschland' : 'Berlin, Germany'}</span></div>
-              <div class="event-badges"><span class="event-type-badge">{copy.actionable_event_in_person}</span><span class="event-rsvps">460 {copy.actionable_event_rsvps}</span><span class="event-source">Luma</span></div>
-            </div>
-            <img class="event-image" src={eventImage} alt="" width="139" height="139" />
-          </div>
+          <EmbedPreviewCorner background="var(--color-app-events, var(--color-primary))" iconUrl={`url(${JSON.stringify(eventIcon)})`} />
+          <EventResultCard title={copy.actionable_event_title} imageUrl={eventImage} date={eventDate} timezone="Europe/Berlin" locale={language === 'de' ? 'de-DE' : 'en-US'} attribution={new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(eventDate))} rsvpCount={460} rsvpLabel={copy.actionable_event_rsvps} />
         </div>
-      {:else if scene.id === 'luma-cta'}
-        <div class="luma-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-luma-button">{copy.actionable_event_open_luma}</div>
+      {:else if scene.id === 'provider-cta'}
+        <div class="provider-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-provider-button">{copy.actionable_event_open_provider}</div>
       {:else if scene.id === 'encryption-lock'}
         <div class="data-orbit">
           {#each ['chat', 'file', 'folder', 'task'] as name, index}
@@ -157,15 +152,14 @@
       </div>
     </div>
   {/key}
-  {#if scene.id === 'event-preview' || scene.id === 'luma-cta'}
+  {#if scene.id === 'event-preview' || scene.id === 'provider-cta'}
     <div class="pointer" class:targeted={interaction !== 'idle'} class:clicked={interaction.endsWith('clicked')} data-testid="landing-actionable-pointer">{@render icon('pointer')}</div>
   {/if}
 </div>
 
 {#snippet icon(name: string)}
-  <svg viewBox={name === 'event' ? '0 0 48 48' : '0 0 24 24'} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     {#if name === 'pointer'}<path d="m4 3 7.07 17 2.51-7.39L21 10.1 4 3Z" />
-    {:else if name === 'event'}<path fill="currentColor" stroke="none" d="M33.778 26.4h-7.334C25.1 26.4 24 27.48 24 28.8V36c0 1.32 1.1 2.4 2.444 2.4h7.334c1.344 0 2.444-1.08 2.444-2.4v-7.2c0-1.32-1.1-2.4-2.444-2.4zm0-24v2.4H14.222V2.4c0-1.32-1.1-2.4-2.444-2.4-1.345 0-2.445 1.08-2.445 2.4v2.4H6.89c-2.713 0-4.865 2.16-4.865 4.8L2 43.2c0 1.273.515 2.494 1.432 3.394.917.9 2.16 1.406 3.457 1.406H41.11C43.8 48 46 45.84 46 43.2V9.6c0-2.64-2.2-4.8-4.889-4.8h-2.444V2.4c0-1.32-1.1-2.4-2.445-2.4-1.344 0-2.444 1.08-2.444 2.4zm4.889 40.8H9.333c-1.344 0-2.444-1.08-2.444-2.4v-24H41.11v24c0 1.32-1.1 2.4-2.444 2.4z" />
     {:else if name === 'lock' || name === 'unlock'}<rect x="5" y="10" width="14" height="11" rx="2" /><path d={name === 'lock' ? 'M8 10V6a4 4 0 0 1 8 0v4' : 'M8 10V6a4 4 0 0 1 7.5-2'} /><path d="M12 15v2" />
     {:else if name === 'chat'}<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
     {:else if name === 'folder'}<path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
@@ -191,24 +185,9 @@
   .assistant { background: var(--color-grey-10); }
   .mate-name { color: var(--color-font-tertiary); font-size: var(--font-size-xs); margin-bottom: var(--spacing-2); }
   .copy { max-width: 30rem; margin: 0; font-size: clamp(1.25rem, 3.8cqi, 1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
-  /* Mirror the deployed EventEmbedPreview: BasicInfosBar above the details.
-     Child event previews have an app icon and title, without a skill/status row. */
-  .event-preview { display: flex; flex-direction: column; width: 300px; max-width: 100%; height: 200px; border-radius: 30px; overflow: hidden; background: var(--color-grey-25); box-shadow: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%); transition: transform 140ms ease; }
-  .event-title { display: flex; align-items: center; gap: var(--spacing-3); height: 61px; flex: 0 0 61px; border-radius: 30px; background: var(--color-grey-30); color: var(--color-grey-100); }
-  .event-title strong { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--font-size-p); font-weight: 600; line-height: 1.2; word-break: break-word; }
-  .app-icon { display: grid; place-items: center; flex: 0 0 61px; height: 61px; border-radius: var(--radius-full); background: var(--color-app-events); color: white; }
-  .event-content { display: flex; align-items: stretch; gap: var(--spacing-4); min-height: 0; flex: 1; padding-inline: var(--spacing-10); }
-  .event-details { display: flex; flex-direction: column; align-items: start; align-self: center; flex: 1; min-width: 0; gap: var(--spacing-2); padding-block: 2px; }
-  .event-meta { display: flex; flex-direction: column; gap: 1px; max-width: 100%; }
-  .event-meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .event-date, .event-time { font-size: var(--font-size-small); font-weight: 600; color: var(--color-grey-70); }
-  .event-location { font-size: var(--font-size-xxs); color: var(--color-grey-60); }
-  .event-badges { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-1); }
-  .event-type-badge { padding: var(--spacing-1) var(--spacing-4); border-radius: var(--radius-full); background: var(--color-app-events-start); color: white; font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-  .event-rsvps, .event-source { font-size: 0.6875rem; color: var(--color-grey-60); }
-  .event-source { color: var(--color-grey-50); }
-  .event-image { flex: 0 0 139px; width: 139px; height: 139px; min-width: 0; object-fit: contain; }
-  .luma-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
+  /* The app and public demo render the same pure event/card/calendar presentation. */
+  .event-preview { position: relative; container: result-card / inline-size; width: 300px; max-width: 100%; height: 200px; border-radius: 30px; overflow: hidden; background: var(--color-grey-0); box-shadow: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%); transition: transform 140ms ease; }
+  .provider-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
   .pressed { transform: scale(0.97); }
   .pointer { position: absolute; left: 54%; top: calc(100% + 40px); width: 38px; height: 38px; color: var(--color-font-primary); opacity: 0; transform: translate(-15%, -12%) scale(0.82); transition: left 620ms cubic-bezier(0.16, 1, 0.3, 1), top 620ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, transform 140ms ease; }
   .pointer.targeted { top: 53%; left: 57%; opacity: 1; transform: translate(-15%, -12%) scale(1); }

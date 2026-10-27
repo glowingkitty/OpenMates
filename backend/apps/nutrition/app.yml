@@ -37,6 +37,9 @@ settings_and_memories:
     type: list
 embed_types:
   - id: search_recipes
+    authoring:
+      kind: nutrition.recipe
+      schema_id: nutrition.recipe
     category: app-skill-use
     skill_id: search_recipes
     frontend_type: app-skill-use

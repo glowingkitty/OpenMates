@@ -4,6 +4,9 @@ icon_image: |
   tv.svg
 category: personal
 last_updated: "2025-11-12"
+# Backend-only authored results have no published web tour or example yet.
+landing:
+  enabled: false
 settings_and_memories:
   - id: watched_movies
     name_translation_key: tv.watched_movies
@@ -179,4 +182,22 @@ settings_and_memories:
       required:
         - title
         - type
+# Backend authoring admission precedes web renderer registration (CLI-first).
+embed_types:
+  - id: movie
+    category: direct
+    frontend_type: ""
+    backend_type: tv_movie
+    has_children: false
+    authoring:
+      kind: tv.movie
+      schema_id: tv.movie
+  - id: series
+    category: direct
+    frontend_type: ""
+    backend_type: tv_series
+    has_children: false
+    authoring:
+      kind: tv.series
+      schema_id: tv.series
 skills: []

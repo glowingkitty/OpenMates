@@ -194,6 +194,14 @@ async def test_same_turn_snapshot_preserves_legacy_admission_without_private_his
     from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
     request = _request()
+    request.voice_mode = True
+    request.voice_call_id = "a" * 32
+    request.voice_turn_id = request.message_id
+    request.auto_speak_response = True
+    request = type(request).model_validate({**request.model_dump(), "voice_heard_boundary": {
+        "assistant_message_id": "previous-answer", "completed_sequences": [0, 1],
+        "active_sequence": 2, "active_offset_ms": 420,
+    }})
     for field in ("recovery_task_id", "recovery_inference_task_id", "recovery_preflight_id",
                   "recovery_turn_id", "recovery_public_key", "chat_key_version"):
         setattr(request, field, None)
@@ -211,6 +219,9 @@ async def test_same_turn_snapshot_preserves_legacy_admission_without_private_his
     )
     context = await cache.get(async_skill_continuation.async_skill_continuation_key("producer-legacy"))
     snapshot = context["request_data"]
+    assert snapshot["voice_heard_boundary"] == request.voice_heard_boundary.model_dump(mode="json")
+    assert snapshot["voice_mode"] is True and snapshot["voice_call_id"] == request.voice_call_id
+    assert snapshot["voice_turn_id"] == request.message_id and snapshot["auto_speak_response"] is True
     assert snapshot["legacy_cutover_task_id"] == snapshot["root_legacy_cutover_task_id"] == identity
     assert snapshot["root_turn_id"] == request.root_turn_id
     assert snapshot["root_user_message_id"] == request.message_id
@@ -478,12 +489,21 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("assistant_tail", [False, True])
-# contract-test: tooling
-async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation, assistant_tail):
+@pytest.mark.parametrize("voice_mode", [False, True])
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.audio.spoken-rich-response
+async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation, assistant_tail, voice_mode):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
     request = _request()
+    request.voice_mode = voice_mode
+    request.voice_call_id = "a" * 32 if voice_mode else None
+    request.voice_turn_id = request.message_id if voice_mode else None
+    request.auto_speak_response = voice_mode
+    request.assistant_response_source_revision = 7
+    heard = {"assistant_message_id": "previous-answer", "completed_sequences": [0],
+             "active_sequence": 1, "active_offset_ms": 420} if voice_mode else None
+    request = type(request).model_validate({**request.model_dump(), "voice_heard_boundary": heard})
     if assistant_tail:
         request.message_history.append(AIHistoryMessage(
             role="assistant", content="The tool is running.", created_at=2,
@@ -513,6 +533,12 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     skill_config_payload = fake_celery_app.sent[0]["kwargs"]["skill_config_dict"]
     assert request_payload["chat_id"] == "chat-1"
     assert request_payload["is_async_skill_continuation"] is True
+    assert request_payload["voice_mode"] is voice_mode
+    assert request_payload["voice_call_id"] == request.voice_call_id
+    assert request_payload["voice_turn_id"] == request.voice_turn_id
+    assert request_payload["voice_heard_boundary"] == heard
+    assert request_payload["auto_speak_response"] is voice_mode
+    assert request_payload["assistant_response_source_revision"] == 7
     assert request_payload["original_user_message_id"] == "message-1"
     assert request_payload["async_skill_task_id"] == "async-task-1"
     assert request_payload["preprocessing_resume_ref"] == "server-owned-routing-ref"
@@ -697,8 +723,11 @@ async def test_specialist_seal_failure_keeps_all_private_context_off_celery(monk
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("deferred", [False, True])
+@pytest.mark.parametrize("capacity_replay", [False, True])
 # contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy,projects.focus.inferred-consent
-async def test_project_file_result_is_opaque_before_redis_or_celery(monkeypatch, async_skill_continuation, deferred):
+async def test_project_file_result_is_opaque_before_redis_or_celery(
+    monkeypatch, async_skill_continuation, deferred, capacity_replay, tmp_path,
+):
     from backend.apps.ai.skills.ask_skill import AskSkillRequest
     from backend.shared.python_utils import recent_work_summary_client
     from backend.shared.python_utils.recent_work_summary_client import (
@@ -724,17 +753,35 @@ async def test_project_file_result_is_opaque_before_redis_or_celery(monkeypatch,
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
     request = _request()
+    if capacity_replay:
+        from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+        _capacity_environment(monkeypatch)
+        request.message_history[0].content = (
+            "STORAGE_CAPACITY_SCENARIO:version_update\n"
+            "CAPACITY_VERSION_OLD:aaaa\nCAPACITY_VERSION_NEW:bbbb\n"
+        )
+        request.current_user_content = request.message_history[0].content
+        request.live_mock_mode = "mock"
+        request.live_mock_group = "storage_capacity_v1"
+        activate_mock_mode("mock", "storage_capacity_v1")
     project_id = "11111111-1111-4111-8111-111111111111"
     request.active_project_focus = {"project_id": project_id}
-    await async_skill_continuation.cache_async_skill_continuation_context(
-        cache_service=cache, async_task_id="project-read-1", request_data=request,
-        skill_config_dict=_skill_config_dict(), app_id="system", skill_id="project_read_text",
-        tool_name="project_read_text", tool_arguments={"path": "README.md"},
-        defer_until_initial_response_complete=deferred,
-    )
+    try:
+        await async_skill_continuation.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id="project-read-1", request_data=request,
+            skill_config_dict=_skill_config_dict(), app_id="system", skill_id="project_read_text",
+            tool_name="project_read_text", tool_arguments={"path": "capacity.txt" if capacity_replay else "README.md"},
+            defer_until_initial_response_complete=deferred,
+        )
+    finally:
+        if capacity_replay:
+            deactivate_mock_mode()
     await async_skill_continuation.dispatch_async_skill_continuation(
         cache_service=cache, async_task_id="project-read-1",
-        completed_results=[{"status": "completed", "content": "PRIVATE README CONTENT"}],
+        completed_results=[{"status": "completed", "content": "PRIVATE README CONTENT", **({
+            "operation": "read_text", "path": "capacity.txt", "truncated": False, "expected_base": "a" * 64,
+        } if capacity_replay else {})}],
+        result_status="completed",
     )
     if deferred:
         stored = cache.values[async_skill_continuation.async_skill_deferred_completion_key("project-read-1")]["value"]
@@ -756,6 +803,140 @@ async def test_project_file_result_is_opaque_before_redis_or_celery(monkeypatch,
         "async_tool_history": [{**sealed_fields["async_tool_history"][-1], "index": 0}],
     })
     assert wrong_task.message_history[-1].content == PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER
+    if capacity_replay:
+        from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
+        from backend.shared.testing.api_response_cache import ApiResponseCache
+        from backend.shared.testing.mock_context import resolve_live_marker_or_raise, strip_live_marker
+
+        ordinary_user = next(message for message in reversed(worker_request.message_history)
+                             if message.role == "user" and message.sender_name != "async_tool_result")
+        marker = resolve_live_marker_or_raise(ordinary_user.content, worker_request.user_id)
+        assert marker is not None and marker.mode == "mock" and marker.group_id == "storage_capacity_v1"
+        ordinary_user.content = strip_live_marker(ordinary_user.content)
+        calls = 0
+
+        async def provider(**_kwargs):
+            nonlocal calls
+            calls += 1
+            raise AssertionError("Resumed capacity replay must not reach a provider")
+
+        wrapped = wrap_provider_with_cache(provider, ApiResponseCache(root=tmp_path))
+        activate_mock_mode(marker.mode, marker.group_id)
+        try:
+            result = await wrapped(
+                model="gemini-3.5-flash-lite", stream=True,
+                messages=[message.model_dump(mode="json") for message in worker_request.message_history],
+                tools=[{"function": {"name": "project_update_file"}}],
+            )
+            chunks = [chunk async for chunk in result]
+        finally:
+            deactivate_mock_mode()
+        assert chunks[0].function_name == "project_update_file"
+        assert calls == 0
+
+
+def _capacity_environment(monkeypatch):
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
+    monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setenv("OPENMATES_STORAGE_CAPACITY_FIXTURES", "true")
+    monkeypatch.setenv("DAILY_AI_TEST_CONTEXT_SECRET", "disposable-unit-secret")
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
+async def test_async_capacity_context_cannot_be_minted_from_request_flags(monkeypatch, async_skill_continuation):
+    _capacity_environment(monkeypatch)
+    request = _request()
+    request.message_history[0].content = "STORAGE_CAPACITY_SCENARIO:version_update"
+    request.live_mock_mode = "mock"
+    request.live_mock_group = "storage_capacity_v1"
+    cache = _FakeCache()
+    with pytest.raises(RuntimeError, match="active signed replay"):
+        await async_skill_continuation.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id="read-1", request_data=request,
+            app_id="system", skill_id="project_read_text", tool_name="project_read_text",
+            tool_arguments={"path": "README.md"},
+        )
+    assert cache.values == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("deferred", [False, True])
+@pytest.mark.parametrize("invalid", [
+    "missing", "unsigned", "tampered", "expired", "other-user", "other-group", "record",
+    "production", "disabled", "not-isolated", "history",
+])
+# contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
+async def test_async_capacity_resume_rejects_invalid_authority_before_dispatch(
+    monkeypatch, async_skill_continuation, invalid, deferred,
+):
+    from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode, sign_live_marker
+
+    _capacity_environment(monkeypatch)
+    request = _request()
+    request.message_history[0].content = "STORAGE_CAPACITY_SCENARIO:version_update"
+    request.live_mock_mode = "mock"
+    request.live_mock_group = "storage_capacity_v1"
+    cache = _FakeCache()
+    cache.active_task = "initial-task" if deferred else None
+    app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", app)
+    activate_mock_mode("mock", "storage_capacity_v1")
+    try:
+        await async_skill_continuation.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id="read-1", request_data=request,
+            skill_config_dict=_skill_config_dict(), app_id="system", skill_id="project_read_text",
+            tool_name="project_read_text", tool_arguments={"path": "README.md"},
+            defer_until_initial_response_complete=deferred,
+        )
+    finally:
+        deactivate_mock_mode()
+    context = cache.values[async_skill_continuation.async_skill_continuation_key("read-1")]["value"]
+    if deferred:
+        await async_skill_continuation.dispatch_async_skill_continuation(
+            cache_service=cache, async_task_id="read-1", completed_results=[],
+        )
+        assert app.sent == []
+        cache.active_task = None
+    if invalid == "missing":
+        context.pop("capacity_replay_marker", None)
+    elif invalid == "unsigned":
+        context["capacity_replay_marker"] = "<<<TEST_LIVE_MOCK:storage_capacity_v1>>>"
+    elif invalid == "tampered":
+        context["capacity_replay_marker"] = context["capacity_replay_marker"].replace("storage_capacity_v1", "storage_capacity_v2")
+    elif invalid in {"expired", "other-user", "other-group", "record"}:
+        marker = "<<<TEST_LIVE_RECORD:other_group:test-run>>>" if invalid == "record" else (
+            "<<<TEST_LIVE_MOCK:other_group>>>" if invalid == "other-group" else "<<<TEST_LIVE_MOCK:storage_capacity_v1>>>"
+        )
+        context["capacity_replay_marker"] = sign_live_marker(
+            marker, "other-user" if invalid == "other-user" else request.user_id,
+            is_allowlisted_test_account=True, ttl_seconds=-1 if invalid == "expired" else 600,
+        )
+    elif invalid == "production":
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    elif invalid == "disabled":
+        monkeypatch.setenv("MOCK_EXTERNAL_APIS", "false")
+    elif invalid == "not-isolated":
+        monkeypatch.setenv("OPENMATES_CI_ISOLATED", "0")
+    elif invalid == "history":
+        if deferred:
+            from backend.shared.testing.mock_context import strip_live_marker
+            completion = cache.values[async_skill_continuation.async_skill_deferred_completion_key("read-1")]["value"]
+            message = completion["request_data_dict"]["message_history"][0]
+            message["content"] = strip_live_marker(message["content"])
+        else:
+            context["request_data"]["message_history"][0]["role"] = "assistant"
+    with pytest.raises(RuntimeError):
+        if deferred:
+            await async_skill_continuation.dispatch_deferred_async_skill_continuations(
+                cache_service=cache, user_id=request.user_id, chat_id=request.chat_id,
+            )
+        else:
+            await async_skill_continuation.dispatch_async_skill_continuation(
+                cache_service=cache, async_task_id="read-1", completed_results=[],
+            )
+    assert app.sent == []
 
 
 @pytest.mark.asyncio

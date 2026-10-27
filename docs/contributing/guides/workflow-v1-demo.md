@@ -5,15 +5,14 @@ The updated web builder saves each node explicitly. Save commits a new workflow 
 Editable examples are in `examples/workflows/`:
 
 - `morning-weather-news.yml`: daily 09:00, Weather → rain Check → News → one new chat.
-- `weekly-ai-events.yml`: Sunday, events for the upcoming calendar Monday–Sunday → new chat.
-- `hourly-apartments.yml`: hourly apartment search → new chat with only previously undelivered listings.
+- `weekly-ai-events.yml`: Sunday, sessions from a selected supported official conference schedule → new chat.
 
-The examples use Berlin, Germany news and a €1,200/month apartment ceiling. Edit these inputs and the timezone as needed. Home provider selection and known skill costs are visible; bounded search results are not an exhaustive listing inventory. Provider warnings distinguish incomplete coverage from an empty successful search.
+The examples use Berlin weather, Germany news and an official conference schedule. Edit the supported inputs and timezone as needed. Provider warnings distinguish incomplete coverage from an empty successful search.
 
 Create and test a disabled example using the existing signed-in CLI:
 
 ```sh
-openmates workflows create --file examples/workflows/hourly-apartments.yml
+openmates workflows create --file examples/workflows/morning-weather-news.yml
 openmates workflows run <workflow-id> --idempotency-key <unique-run-key> --wait
 openmates workflows runs <workflow-id>
 openmates workflows run-show <workflow-id> <run-id>

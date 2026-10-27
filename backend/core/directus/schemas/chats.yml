@@ -51,6 +51,11 @@ chats:
       type: text # Suitable for potentially longer titles
       note: "[Client-encrypted permanent storage] User-defined title of the chat, encrypted with the chat-specific key before storage in Directus"
 
+    title_is_manual:
+      type: boolean
+      default: false
+      note: "Server-owned marker set by explicit title edits; automatic voice metadata preserves these titles."
+
     encrypted_slug:
       type: text
       nullable: true

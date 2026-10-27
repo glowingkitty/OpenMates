@@ -14,10 +14,16 @@
 -->
 
 <script lang="ts">
+  import { getContext, onDestroy } from 'svelte';
+  import { notificationStore } from '../../../stores/notificationStore';
+  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { prepareDocsDownload, triggerDocsDownload } from './docsDownload';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import {
     sanitizeDocumentHtml,
+    docxModelToHtml,
     extractDocumentTitle,
     extractDocumentFilename,
     generateFilenameFromTitle,
@@ -79,11 +85,25 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
   let localScreenshotS3Keys = $state<Record<string, string> | undefined>(undefined);
+  let localDocxS3Key = $state<string | undefined>(undefined);
+  let downloading = $state(false);
+  let alive = true;
+  onDestroy(() => { alive = false; });
+  const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   let localAesKey = $state<string | undefined>(undefined);
   let localPreviewPageUrls = $state<Record<string, string> | undefined>(undefined);
   let storeResolved = $state(false);
   let firstPageUrl = $state<string | undefined>(undefined);
   let contentEl: HTMLDivElement | undefined = $state(undefined);
+
+  $effect(() => {
+    // A reused preview must never download a previous document's artifact.
+    void id;
+    localDocxS3Key = undefined;
+    localAesKey = undefined;
+    downloading = false;
+    storeResolved = false;
+  });
 
   // Initialize local state from props
   $effect(() => {
@@ -191,6 +211,7 @@
   // Dynamic scale for large preview — measure viewport width and compute scale from A4 width
   const DOC_FULL_WIDTH = 794;
   let viewportWidth = $state(0);
+  let pageHeight = $state(0);
   let dynamicScale = $derived(
     viewportWidth > 0 ? Math.min(viewportWidth / DOC_FULL_WIDTH, 0.85) : 0
   );
@@ -206,6 +227,8 @@
     task_id?: string;
     screenshot_s3_keys?: Record<string, string>;
     aes_key?: string;
+    docx_s3_key?: string;
+    docx_model?: unknown;
   }
 
   $effect(() => {
@@ -249,6 +272,8 @@
     if (data.decodedContent) {
       if (data.decodedContent.html !== undefined) {
         localHtmlContent = data.decodedContent.html || '';
+      } else if (data.decodedContent.docx_model) {
+        localHtmlContent = docxModelToHtml(data.decodedContent.docx_model);
       }
       if (data.decodedContent.title !== undefined) {
         localTitle = data.decodedContent.title;
@@ -265,6 +290,9 @@
       if (data.decodedContent.screenshot_s3_keys !== undefined) {
         localScreenshotS3Keys = data.decodedContent.screenshot_s3_keys;
       }
+      if (data.decodedContent.docx_s3_key !== undefined) {
+        localDocxS3Key = data.decodedContent.docx_s3_key;
+      }
       if (data.decodedContent.aes_key !== undefined) {
         localAesKey = data.decodedContent.aes_key;
       }
@@ -278,6 +306,42 @@
     }
   }
   
+  async function handleDownload() {
+    if (downloading) return;
+    const originId = id;
+    downloading = true;
+    try {
+      // Renderer props can contain only the HTML preview. Read the existing
+      // scoped embed record so an authoritative encrypted DOCX stays preferred.
+      if (!localDocxS3Key && id && !needsSignup) {
+        const embed = await resolveEmbed(id, { chatId: sourceChat?.chatId ?? undefined });
+        if (!alive || originId !== id) return;
+        if (embed?.content) {
+          const decodedContent = await decodeToonContent(embed.content);
+          if (!alive || originId !== id) return;
+          if (decodedContent) handleEmbedDataUpdated({ status: embed.status, decodedContent });
+        }
+      }
+      const download = await prepareDocsDownload({
+        filename: displayFilename,
+        title: displayTitle,
+        htmlContent,
+        piiMappings: embedPIIState.mappings,
+        piiRevealed: embedPIIState.revealed,
+        docxS3Key: localDocxS3Key,
+        aesKey,
+      });
+      if (!alive || originId !== id) return;
+      triggerDocsDownload(download);
+      notificationStore.success('Document downloaded successfully');
+    } catch (error) {
+      console.error('[DocsEmbedPreview] Failed to download document:', error);
+      if (alive && originId === id) notificationStore.error('Failed to download document');
+    } finally {
+      if (alive && originId === id) downloading = false;
+    }
+  }
+
   // Handle stop button click (not applicable for documents, but included for API consistency)
   async function handleStop() {
     console.debug('[DocsEmbedPreview] Stop requested (not applicable for documents)');
@@ -285,6 +349,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   appId="docs"
   skillId="doc"
@@ -300,11 +365,18 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished'}
+      <button type="button" aria-label={$text('common.download')} title={$text('common.download')} data-testid="preview-download" disabled={downloading} onclick={(event) => { event.stopPropagation(); void handleDownload(); }}>
+        <span class="clickable-icon icon_download" aria-hidden="true"></span>
+      </button>
+    {/if}
+  {/snippet}
   {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
-    <div class="doc-details" class:mobile={isMobileLayout}>
+    <div class="doc-details" class:mobile={isMobileLayout} style={isLargeLayout && dynamicScale > 0 ? `--doc-preview-scale: ${dynamicScale}` : ''}>
       {#if displayedFirstPageUrl}
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <img class="doc-page-image" src={displayedFirstPageUrl} alt={displayTitle} />
           </div>
         </div>
@@ -315,8 +387,8 @@
           inside a container, then scale it down to fit the preview card.
           This creates an exact miniature of the fullscreen document view.
         -->
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <div class="doc-page">
               <div class="doc-page-content" bind:this={contentEl}>
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
@@ -327,8 +399,8 @@
         </div>
       {:else if status === 'processing'}
         <!-- Processing state - skeleton A4 page -->
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <div class="doc-page processing-page">
               <div class="processing-lines">
                 <div class="line-placeholder" style="width: 60%"></div>
@@ -387,13 +459,15 @@
   /* Desktop preview is ~276px wide (300 - padding), so scale = 276/794 ≈ 0.348 */
   .doc-page-scaler {
     width: 794px; /* A4 at 96 DPI */
-    transform: scale(0.348);
-    transform-origin: top left;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%) scale(var(--doc-preview-scale, 0.348));
+    transform-origin: top center;
   }
   
-  .doc-details.mobile .doc-page-scaler {
+  .doc-details.mobile {
     /* Mobile preview is ~126px wide (150 - padding), scale = 126/794 ≈ 0.159 */
-    transform: scale(0.159);
+    --doc-preview-scale: 0.159;
   }
 
   .doc-page-image {
@@ -406,6 +480,7 @@
   
   /* White A4 page - same styling as fullscreen for exact match */
   .doc-page {
+    box-sizing: border-box;
     width: 100%;
     background: white;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);

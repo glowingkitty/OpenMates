@@ -14,6 +14,8 @@ from backend.core.api.app.utils.config_manager import config_manager
 from .openai_shared import calculate_token_breakdown
 from .types import StreamChunkType, UnifiedStreamChunk
 
+from .openai_shared import merge_openai_usage, openai_usage_details
+
 logger = logging.getLogger(__name__)
 
 MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1"
@@ -49,6 +51,7 @@ class MistralUsage(BaseModel):
     total_tokens: int
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    reasoning_tokens: Optional[int] = None
     cache_read_input_tokens: Optional[int] = None
     cache_creation_input_tokens: Optional[int] = None
     cache_creation_5m_input_tokens: Optional[int] = None
@@ -187,6 +190,7 @@ async def invoke_mistral_chat_completions(
     stream: bool = False,
     prompt_cache_key: Optional[str] = None,
     catalog_model_id: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
     if not MISTRAL_API_KEY and secrets_manager:
@@ -219,10 +223,16 @@ async def invoke_mistral_chat_completions(
         payload["prompt_cache_key"] = prompt_cache_key
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    requested_reasoning_effort = reasoning_effort
     reasoning_effort = (
         _get_mistral_reasoning_effort(model_id, catalog_model_id)
         if catalog_model_id else _get_mistral_reasoning_effort(model_id)
     )
+    if requested_reasoning_effort is not None:
+        supported = GLM_REASONING_EFFORTS if model_id.startswith("zai-glm-") else MISTRAL_REASONING_EFFORTS
+        if requested_reasoning_effort not in supported:
+            raise ValueError(f"Invalid Mistral reasoning effort override: {requested_reasoning_effort!r}")
+        reasoning_effort = requested_reasoning_effort
     if reasoning_effort is not None:
         payload["reasoning_effort"] = reasoning_effort
     if tools:
@@ -255,9 +265,11 @@ async def invoke_mistral_chat_completions(
             if raw_api_response.usage:
                 raw_api_response.usage.user_input_tokens = token_breakdown.get("user_input_tokens")
                 raw_api_response.usage.system_prompt_tokens = token_breakdown.get("system_prompt_tokens")
-                details = (response_json.get("usage") or {}).get("prompt_tokens_details") or {}
-                raw_api_response.usage.cache_read_input_tokens = details.get("cached_tokens")
-                raw_api_response.usage.provider_request_id = response_json.get("id")
+                for key, value in openai_usage_details(
+                    response_json.get("usage"), inference_host="mistral", provider_request_id=response_json.get("id"),
+                ).items():
+                    if key in MistralUsage.model_fields:
+                        setattr(raw_api_response.usage, key, value)
                 
             unified_resp_obj = UnifiedMistralResponse(
                 task_id=task_id, model_id=model_id, success=True,
@@ -317,7 +329,9 @@ async def invoke_mistral_chat_completions(
                             chunk = json.loads(data_json)
                             provider_request_id = provider_request_id or chunk.get("id")
                             if "usage" in chunk and chunk["usage"] is not None:
-                                usage_info = chunk["usage"]
+                                if usage_info is None:
+                                    usage_info = {}
+                                merge_openai_usage(usage_info, chunk["usage"])
                                 # Do not continue here, as the last chunk can have both usage and a final delta.
                             
                             if chunk.get("choices"):
@@ -389,8 +403,9 @@ async def invoke_mistral_chat_completions(
                 total_tokens=usage_info.get("total_tokens", 0),
                 user_input_tokens=token_breakdown.get("user_input_tokens"),
                 system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
-                cache_read_input_tokens=(usage_info.get("prompt_tokens_details") or {}).get("cached_tokens"),
-                provider_request_id=provider_request_id,
+                **{key: value for key, value in openai_usage_details(
+                    usage_info, inference_host="mistral", provider_request_id=provider_request_id,
+                ).items() if key in MistralUsage.model_fields},
             )
             logger.info(f"[{task_id}] Mistral Client: Yielding final usage info from streaming response.")
             yield final_usage

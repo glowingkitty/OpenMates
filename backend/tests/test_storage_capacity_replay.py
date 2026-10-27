@@ -259,9 +259,10 @@ async def test_generated_preprocess_and_stream_keep_provider_unreached(monkeypat
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("preprocessing_model", ["gemini-3.5-flash-lite", "mercury-3"])
 # contract-test: direct surface=rest_api assertions=storage.validation.synthetic-capacity
-async def test_actual_gemini_nonstream_preprocessing_replays_and_unknowns_fail(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+async def test_nonstream_preprocessing_replays_and_unknowns_fail(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, preprocessing_model: str,
 ) -> None:
     monkeypatch.setenv("OPENMATES_STORAGE_CAPACITY_FIXTURES", "true")
     calls = 0
@@ -276,11 +277,12 @@ async def test_actual_gemini_nonstream_preprocessing_replays_and_unknowns_fail(
     activate_mock_mode("mock", "storage_capacity_v1")
     try:
         response = await wrapped(
-            model_id="gemini-3.5-flash-lite", messages=prompt,
+            model_id=preprocessing_model, messages=prompt,
             tools=[{"function": {"name": "analyze_request_properties"}}],
             tool_choice="required", stream=False,
         )
         assert response.success is True
+        assert response.model_id == preprocessing_model
         assert response.tool_calls_made[0].function_name == "analyze_request_properties"
         assert response.tool_calls_made[0].function_arguments_parsed["title"] == "Synthetic Storage Capacity Chat"
         postprocess = await wrapped(
@@ -300,7 +302,7 @@ async def test_actual_gemini_nonstream_preprocessing_replays_and_unknowns_fail(
         )
         with pytest.raises(MockCacheMiss):
             await wrapped(
-                model_id="gemini-3.5-flash-lite", messages=prompt,
+                model_id=preprocessing_model, messages=prompt,
                 tools=[{"function": {"name": "unknown_tool"}}],
                 tool_choice="required", stream=False,
             )

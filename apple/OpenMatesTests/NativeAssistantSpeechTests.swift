@@ -8,6 +8,29 @@ import SwiftData
 final class NativeAssistantSpeechTests: XCTestCase {
 
 
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.spoken-rich-response,video-call.audio.single-owner
+    func testVoiceCallSpeechIsPerTurnAndNeverWritesSavedPreferenceOrUsesLocalModel() async throws {
+        var writes = 0
+        var deps = dependencies()
+        deps.readPreference = { _ in false }
+        deps.writePreference = { _, _ in writes += 1 }
+        deps.localSpeechAvailable = { true }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        await speech.activate(scope)
+        XCTAssertFalse(speech.enabled)
+        speech.setVoiceCallMode(true)
+        XCTAssertEqual(speech.messageFields(for: scope)["auto_speak_response"] as? Bool, true)
+        speech.expectResponse("ordinary-assistant-id", in: scope)
+        XCTAssertEqual(speech.currentMessageID, "ordinary-assistant-id")
+        XCTAssertEqual(speech.playbackStatus, .waitingForSegment)
+        XCTAssertFalse(speech.enabled)
+        XCTAssertEqual(writes, 0)
+        await speech.request(messageID: "unrelated-old-message", markdown: "Independent playback")
+        XCTAssertEqual(speech.currentMessageID, "ordinary-assistant-id", "The active call retains sole playback ownership")
+        speech.reset()
+        XCTAssertFalse(speech.voiceCallMode)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle
     func testStoreChangesCannotWarmLocalSpeechDuringCaptureOrFinalDecode() async {
         await assertRecordingSuppressesPreparation(terminal: .correctionDone(.init(

@@ -72,7 +72,21 @@ export type ProcessingPhase =
     }
   | null;
 
+/** Ephemeral playback observation; canonical assistant content stays complete. */
+export interface VoiceHeardBoundary {
+  assistant_message_id: string;
+  completed_sequences: number[];
+  active_sequence: number | null;
+  active_offset_ms: number;
+}
+
 export interface Message {
+  /** Transient call delivery context; never a persisted account/chat preference. */
+  voice_call_id?: string;
+  voice_turn_id?: string;
+  voice_heard_boundary?: VoiceHeardBoundary;
+  voice_mode?: boolean;
+  auto_speak?: boolean;
   /** Separate submission, such as a wiki question, that retains the encrypted composer draft. */
   preserve_draft?: boolean;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
@@ -639,10 +653,15 @@ export interface ChatListItem {
 
 export interface OfflineChange {
   change_id: string;
+  // Positive safe integer assigned atomically when this row enters the queue.
+  // Older queued rows may not have an insertion order.
+  queue_order?: number;
+  queue_token?: string;
   chat_id: string;
   team_id?: string | null;
   type: "title" | "draft" | "delete_draft";
   value: string | TiptapJSON | null;
+  encrypted_draft_preview?: string | null;
   version_before_edit: number;
 }
 
@@ -991,6 +1010,13 @@ export interface TeamAIResponseCompletedPayload {
 export interface ChatDeletedPayload {
   chat_id: string;
   tombstone: boolean;
+  /** Server-owned authority; generic delete_chat requests cannot supply this. */
+  empty_call_cleanup?: {
+    cleanup_attempt_id: string;
+    call_id: string | null;
+    expected_messages_v: number;
+    lifecycle_message_ids: string[];
+  };
 }
 
 export interface MessageDeletedPayload {

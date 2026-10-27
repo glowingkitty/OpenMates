@@ -97,14 +97,35 @@ Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/
 
 - **`enable_auto_model_selection`**: When `true` (current default), uses intelligent leaderboard-based selection. When `false`, falls back to hardcoded `default_llms`.
 - **`default_llms`**: Hardcoded model IDs for preprocessing, simple requests, complex requests, and content sanitization.
-- **Current defaults**: Jev (`typesafe/jev-1.13`) for bounded decisions and Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
+- **Current defaults**: Jev (`typesafe/jev-1.14`) handles bounded decisions. Only decision paths that already permit generative recovery use native Mercury 3 LOW, then Gemini 3.5 Flash-Lite (`google/gemini-3.5-flash-lite`); healthy Jev and its Unsure contracts are unchanged. Generative postprocessing retains Flash-Lite. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
 
-| Request complexity | Automatic model | Google thinking | Saved preference bucket |
+| Request complexity | Automatic model | Thinking | Saved preference bucket |
 | --- | --- | --- | --- |
-| low | Gemini 3.8 Flash | LOW | Simple |
+| low | Mercury 3 (direct Inception) | MEDIUM | Simple |
 | medium | Gemini 3.8 Flash | MEDIUM | Complex |
 | high | Gemini 3.8 Flash | HIGH | Complex |
 | max | Gemini 4 Argon | HIGH | Most demanding |
+
+These are defaults when Jev supplies no separate effort recommendation. Jev may
+recommend LOW, MEDIUM, HIGH or EXTRA_HIGH independently of complexity, resolved
+against each actual model/server's documented controls. See
+[main-answer reasoning recommendations](./reasoning-routing.md).
+
+Eligible low-complexity text uses native Mercury 3 MEDIUM by default. Gemini 3.8 Flash LOW
+handles unavailable credentials/models, disabled model/server restrictions,
+unsupported modalities and provider outages, or an effort-specific deadline before
+the first substantive output (5/15/60 seconds for Mercury LOW/MEDIUM/HIGH).
+Its combined reasoning-plus-answer caps are 8192/16384/32768 tokens, reduced by
+smaller existing credit and output limits. A stream that has already published useful output
+is not silently replayed through another model. Exact chat choices and saved
+preferences retain precedence over this automatic default.
+
+Ordinary transcript correction separately uses Mercury LOW with a five-second
+deadline including credential lookup, then Gemini 3.8 Flash LOW. Workflow
+authoring allows at most three actual calls: Mercury INSTANT, Mercury LOW repair,
+then Gemini 3.8 Flash LOW repair. Accepted steps remain immutable; exhausted
+recovery retains a validated disabled partial with an explanation. Jev remains
+the workflow decision model. See the [rollout record](../../plans/mercury-fast-inference/rollout-addendum.md).
 
 Low covers ordinary Q&A, retrieval and transformations; medium covers bounded
 multi-step reasoning and synthesis; high covers intricate debugging, proofs and
@@ -150,7 +171,7 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
    - Uses the eligible pinned profile for the classified request complexity
    - If that profile is excluded or unavailable, low requests prefer economical ranked models; medium, high and max prefer premium ranked models
    - Dissatisfaction can affect ranked fallback selection without automatically promoting the request to max
-   - Returns primary + secondary + fallback (3 models total)
+   - Returns the eligible tier default and the ordered, current recovery models; rankings never add a premium model to failure handling
 
 4. **Main processing with fallback** ([`main_processor.py`](../../backend/apps/ai/processing/main_processor.py)):
    - Tries primary model first
@@ -192,15 +213,27 @@ Rankings are aggregated into a leaderboard file loaded to cache on server startu
 
 ### Fallback Strategy
 
-Three tiers of fallback ensure reliability:
+Automatic recovery uses current models with a bounded cost:
 
 | Tier | Source | Example |
 |------|--------|---------|
-| Primary | Best ranked for task area | `alibaba/qwen3-235b-a22b-2507` |
-| Secondary | Second-best ranked | `google/gemini-3.1-pro-preview` |
-| Tertiary | Hardcoded reliable default | `anthropic/claude-sonnet-5` |
+| Primary | Configured request-tier profile | Mercury 3 MEDIUM, Gemini 3.8 Flash MEDIUM/HIGH, or Gemini 4 Argon HIGH |
+| Secondary | Current compatible Gemini recovery, when different from primary | `google/gemini-3.8-flash` |
+| Last resort | Inexpensive text-only recovery, when different from primary | `inception/mercury-3` MEDIUM by default; Jev effort is retained and clamped |
 
 Each model tries its configured servers in order (e.g., Bedrock then direct API) before moving to the next tier.
+
+Duplicates are omitted. Disabled models, providers and servers remain excluded;
+images and documents never lose their content to fit Mercury's text-only input.
+Gemini 3.7 and premium Anthropic/OpenAI models are not automatic recovery routes.
+Exact user selections and saved tier preferences retain their precedence.
+
+When a model emits internal tool-result protocol instead of a final answer, the
+guard suppresses it and first retries the same model with clean evidence and
+tools disabled. That retry removes tool-selection and dispatch instructions
+while retaining safety, supported citations and the already-published answer.
+Only a failed retry advances to the next permitted model in order; provider
+diversity cannot reorder this list. Two answer-only attempts bound recovery.
 
 Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
 

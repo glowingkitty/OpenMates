@@ -3,33 +3,32 @@ id: feature.app-skill.videos-get-transcript
 version: 1
 status: draft
 title: Video Transcript Retrieval And CLI-Local Video Audio
-summary: >
-  Backfill the shipped YouTube caption pipeline and extend only the CLI to
-  extract local video audio before using the existing audio transcription path.
+summary: Retrieve published media.ccc.de captions while preserving existing local-video audio transcription, timestamp
+  and export contracts.
 
 inherits:
   - architecture.app-skill-execution@1
 
 scope:
   includes:
-    - Backfilled server-side YouTube caption retrieval through videos/get_transcript.
-    - Proposed CLI-local video probing, audio extraction, upload, audio/transcribe invocation, and JSON output.
-    - Audio timestamp schemas with word timings enabled by default and explicitly disabled for existing speech input.
+  - Published captions from the official media.ccc.de API through videos/get_transcript.
+  - Proposed CLI-local video probing, audio extraction, upload, audio/transcribe invocation, and JSON output.
+  - Audio timestamp schemas with word timings enabled by default and explicitly disabled for existing speech input.
   excludes:
-    - Full-video upload, server-side local paths, a Videos uploaded-audio route, or a provider fork.
-    - YouTube downloading, Shorts, arbitrary video URLs, new GUI file pickers, SRT export, and new retention APIs.
-    - New billing reservations, refunds, duration probes, auth redesign, or a global API-key restriction.
-    - Disabling regular audio correction, title generation, waveform extraction, or existing web/native embeds.
+  - Full-video upload, server-side local paths, a Videos uploaded-audio route, or a provider fork.
+  - Arbitrary video-site downloading or caption fallback, new GUI file pickers, SRT export, and new retention APIs.
+  - New billing reservations, refunds, duration probes, auth redesign, or a global API-key restriction.
+  - Disabling regular audio correction, title generation, waveform extraction, or existing web/native embeds.
 
 models:
-  ExistingYouTubeRequest:
-    requests: {type: array, items: ExistingYouTubeRequestItem, required: true, constraints: {preserve_input_order: true}}
-  ExistingYouTubeRequestItem:
+  PublishedCaptionRequest:
+    requests: {type: array, items: PublishedCaptionRequestItem, required: true, constraints: {preserve_input_order: true}}
+  PublishedCaptionRequestItem:
     id: {type: correlation_id, nullable: true, constraints: {generated_when_absent: true}}
-    url: {type: string, required: true, constraints: {accepted_hosts: [youtube.com_watch, youtu.be], shorts: forbidden, fragment: remove_before_fetch}}
+    url: {type: string, required: true, constraints: {accepted_hosts: [media.ccc.de], canonical_path: /v/<slug>, unsupported_sources: reject_before_network}}
     languages: {type: array, items: language_code, nullable: true, default: [en, de, es, fr], constraints: {ordered_preference: true}}
-    additional_metadata: {type: object, additional_properties: true, constraints: {does_not_change_youtube_source_validation: true}}
-  YouTubeTranscriptResult:
+    additional_metadata: {type: object, additional_properties: true, constraints: {does_not_expand_caption_source_access: true}}
+  PublishedTranscriptResult:
     type: {type: literal, value: transcript_result}
     url: {type: string, required: true}
     transcript: {type: string, required: true, constraints: {caption_format: '[HH:MM:SS.mmm] text', sanitization: fail_closed}}
@@ -75,15 +74,14 @@ models:
     safety: {type: local_path_validation, constraints: {explicit_output: true, source_alias_or_symlink_or_hardlink: reject, secrets: forbidden, absolute_source_path: forbidden}}
 
 backfilled_existing:
-  youtube_pipeline:
-    input: ExistingYouTubeRequest
-    provider: {type: youtube-transcript-api, proxy: Webshare, credentials: server_vault_secrets}
-    execution: {type: direct_async, polling: forbidden, retries: {maximum_attempts: 10, deadline_seconds: 45}}
-    processing: {type: raw_caption_items, format: '[HH:MM:SS.mmm] text', sanitize_external_content: required, sanitization_failure: visible_fail_closed}
-    output: {type: grouped_results, item: YouTubeTranscriptResult, preserve_request_order: true, partial_failures: retained}
+  published_caption_pipeline:
+    input: PublishedCaptionRequest
+    provider: {type: official_media_ccc_api}
+    processing: {type: published_caption_items, sanitize_external_content: required}
+    output: {type: grouped_results, item: PublishedTranscriptResult, preserve_request_order: true, partial_failures: retained}
+    unsupported_sources: {network_requests: forbidden, alternate_caption_fallback: forbidden}
   pricing_and_surfaces:
     videos_pricing: {type: configured_skill_framework_pricing, constraints: {unchanged: true}}
-    creator_income: {type: existing_creator_and_platform_split, constraints: {creator_credits: 9, youtube_credits: 1, payment_disabled_skips_income: true, metadata_or_income_failure_does_not_fail_transcript: true}}
     surfaces: {web_and_native_embeds: retained, rest: existing_videos_endpoint, cli_url: existing_videos_endpoint}
   regular_audio_pipeline:
     processing: {type: existing_audio_transcribe, steps: [vault_key_unwrap, private_s3_fetch_and_decrypt, configured_mistral_voxtral_transcription, deterministic_sanitization, best_effort_waveform, optional_gemini_correction_and_title]}
@@ -106,18 +104,31 @@ proposed_extension:
     result: {type: CliJsonExport, constraints: {retain: [title, duration_seconds, model, language, transcript, transcript_original, transcript_corrected, use_corrected, correction_model, waveform, segments, words], timing_unit: seconds, timing_origin: source_video_start, extraction_offset_recorded: true}}
 
 assertions:
-  - id: videos.transcript.backfilled-youtube-contract
+  - id: videos.transcript.published-captions
     type: behavior
-    must: "The existing Videos endpoint accepts ordered request arrays, generates missing correlation IDs, accepts only YouTube watch and youtu.be URLs without Shorts, removes fragments, uses the ordered en/de/es/fr default, and returns grouped results in request order with visible per-item failures."
-    depends_on: [models.ExistingYouTubeRequest, models.ExistingYouTubeRequestItem, models.GroupedResult, examples.backfilled_youtube]
-  - id: videos.transcript.backfilled-youtube-safety
+    must: The Videos endpoint accepts canonical media.ccc.de talk URLs, uses only its official API and published captions,
+      preserves request IDs and grouped order and reports unsupported URLs or absent captions visibly. It never falls
+      back to retired caption sources or downloads unrelated video-site media.
+    depends_on:
+    - models.PublishedCaptionRequest
+    - models.GroupedResult
+    - examples.published_captions
+  - id: videos.transcript.published-safety
     type: privacy
-    must: "Caption retrieval uses youtube-transcript-api and server-configured Webshare credentials with at most ten attempts within 45 seconds. Raw caption start and duration are rendered as timestamped text; sanitizer failures or blocks fail closed and are visible rather than returning unsafe content."
-    depends_on: [models.YouTubeTranscriptResult, examples.backfilled_youtube]
-  - id: videos.transcript.backfilled-youtube-result
+    must: Published caption text retains inherited external-output safety and safe visible failure behavior. Unsupported
+      URLs are rejected before any upstream request, proxy credential lookup, browser automation or alternate-source
+      fallback.
+    depends_on:
+    - models.PublishedTranscriptResult
+    - examples.published_captions
+  - id: videos.transcript.published-result
     type: behavior
-    must: "Each successful YouTube item contains transcript_result, URL, formatted transcript, word_count, characters_count, language, and hash. Hash and type remain available to UI rendering but are excluded from inference; the existing async direct response has no polling. Existing Videos pricing metadata and creator/platform income behavior remain unchanged."
-    depends_on: [models.YouTubeTranscriptResult, examples.backfilled_youtube]
+    must: Successful published captions preserve the generic transcript result, source URL, transcript text, counts,
+      language and hash. Previously saved transcript and audio embeds remain readable; history does not re-enable
+      retired source access or invent a fresh caption verification.
+    depends_on:
+    - models.PublishedTranscriptResult
+    - examples.published_captions
   - id: videos.transcript.local-cli-orchestration
     type: behavior
     must: "--file is CLI-only orchestration and mutually exclusive with URL input: probe and extract an audio derivative locally, clean temporary data on every terminal path, upload it with uploadFile, then call transcribeUploadedAudio on the regular audio endpoint. Reject missing dependencies, unsupported or audio-free files, invalid options and unsafe output paths before upload; apply the existing upload size limit to the audio derivative, not the original video. The public Videos schema remains URL-only and no Videos uploaded-audio route, provider fork, backend app import, or shared backend refactor is required."
@@ -144,15 +155,27 @@ assertions:
     depends_on: [models.CliLocalVideo, examples.local_cli, examples.audio_pipeline]
   - id: videos.transcript.surface-parity
     type: parity
-    must: "REST remains the existing Videos endpoint plus enhanced audio schemas with unchanged auth. CLI adds local orchestration only. SDKs add audio timestamp schemas and preserve YouTube parity without login or private-media access work. Existing web and native transcript/audio embeds retain their behavior; no local-video picker is required."
+    must: "REST remains the existing Videos endpoint plus enhanced audio schemas with unchanged auth. CLI adds local orchestration only. SDKs add audio timestamp schemas and preserve media.ccc.de caption parity without login or private-media access work. Existing web and native transcript/audio embeds retain their behavior; no local-video picker is required."
     depends_on: [applies_to, models]
 
 applies_to:
   rest_api: {required: true, role: Existing Videos URL endpoint and regular audio timestamp extension; authentication unchanged.}
   cli: {required: true, role: Existing URL command plus proposed local audio extraction, paired upload, audio transcription, and JSON export.}
-  sdks: {required: true, parity: semantic, implementations: {npm: {required: true}, pip: {required: true}}, role: Additive audio timestamp schemas and existing YouTube parity only.}
+  sdks: {required: true, parity: semantic, implementations: {npm: {required: true}, pip: {required: true}}, role: Additive audio timestamp schemas and media.ccc.de caption parity only.}
   gui: {required: true, parity: semantic, implementations: {web: {required: true}, apple: {required: true}}, role: Preserve existing embeds; no local picker.}
 
 examples:
   file: examples.yml
-  required_groups: [backfilled_youtube, local_cli, audio_timestamps, audio_pipeline, billing, export, parity]
+  required_groups:
+  - published_captions
+  - local_cli
+  - audio_timestamps
+  - audio_pipeline
+  - billing
+  - export
+  - parity
+
+approval_source:
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. No exact-fingerprint approval is claimed.
+  review_status: Changed fingerprint requires the coordinator approval-artifact gate.

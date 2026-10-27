@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 DECISIONS = {"accept", "stop", "waive", "resume"}
-SURFACES = {"appearance", "proof", "task"}
+SURFACES = {"appearance", "proof", "task", "specification-approval-prompt"}
 
 
 def read_user_message(source: dict) -> dict:

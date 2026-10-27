@@ -6,6 +6,10 @@ Use this document to keep new Svelte, React, native app, video, print, social, a
 
 ## Source Files
 
+Result previews and fullscreens must follow
+[`docs/design-guide/result-embeds.md`](docs/design-guide/result-embeds.md), including
+its shared structures, icon information, media fitting and specialized-editor exceptions.
+
 Use these files for exact implementation details:
 
 | Area | Source |
@@ -248,6 +252,10 @@ Global default buttons are orange, pill-shaped, shadowed, and pressable. Setting
 
 Avoid relying on global `button` styles inside complex components. Reset or use canonical primitives where needed.
 
+### Text links
+
+Never underline text links, including hover, active, visited, and focus states. Use color and visible focus outlines to communicate interaction.
+
 ### Inputs
 
 General input pattern:
@@ -336,6 +344,12 @@ Create a new settings element only when the pattern appears in at least three se
 
 Chat should remain familiar and readable.
 
+The empty minimized composer has a 40px attachment shortcut at the leading edge:
+camera on phones and tablets, file picker on desktop. Use the existing camera and
+files icons with translated accessible names. Activating it does not focus the
+text editor. Mobile app bounds follow the visual viewport so keyboard and picker
+transitions keep composer controls visible.
+
 Empty-chat welcome content fades completely out during composer focus while
 keeping its layout measurements; disable its controls immediately with `inert`.
 New-chat suggestions remain visible and interactive above the active composer;
@@ -374,29 +388,51 @@ Use `UnifiedEmbedPreview.svelte`.
 
 | Property | Rule |
 |---|---|
-| Desktop size | `300px × 200px`. |
-| Mobile size | `150px × 290px`. |
-| Large container | Full width by `400px` via container query. |
+| Desktop size | `300px` wide, at most `200px` high. Media/results and executions use the full height; plain assistant content can shrink. |
+| Mobile size | `150px` wide, at most `290px` high, with the same assistant-only natural-height rule. |
+| Large container | Full width, at most `400px` high via container query. Short assistant Code/Sheets and their outer hosts shrink; grids remain fixed. Execution previews always retain standard compact/mobile sizes. |
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |
-| Layout | `BasicInfosBar` at the top, details section below, for every preview status and size. |
-| Text selection | Disabled; preview acts as one interactive object. |
-| Finished state | Pointer cursor, keyboard activation, hover/tilt, active press. |
+| Layout | Every result automatically uses the shared app corner; Code/Docs/Sheets retain their content beneath the compact identity header. The circular icon and original `BasicInfosBar` belong exclusively to app-skill execution previews. See `docs/design-guide/result-embeds.md`. |
+| Text selection | Assistant result content stays selectable; Expand opens fullscreen. Clickable result collections retain card activation. |
+| Calendar event content | Keep the shared Expand/More controls and a separate Add to calendar quick action. Compact and large previews split primary details (one third) and the shared weekly results calendar (two thirds). Use the shared 300px landscape shell on phones so the split and three actions remain readable. Context entries have reduced opacity and dashed borders; the primary stays highlighted. Reuse `ResultCalendarWeek` for results and event cards. |
+| Skill source images | A compact horizontal “Image used” strip appears above skill details when `input_embed_ids` is present; each thumbnail opens the original image viewer. |
+| Finished state | Pointer cursor, keyboard activation, hover/tilt and active press only when the card itself opens fullscreen. |
 | Error state | Error border and error-tinted background. |
 
 Preview interaction:
 
+Per-card previous/next arrows are only for grouped individual results in assistant
+responses. App-skill execution rows use native horizontal scrolling and their
+position indicator, without per-card arrows, in every execution state.
+
 | State | Rule |
 |---|---|
-| Hover | Subtle 3D tilt toward pointer, max about `3deg`; large previews max about `1deg`. |
+| Hover | Clickable cards only: subtle 3D tilt toward pointer, max about `3deg`; large previews max about `1deg`. |
 | Hover scale | Slight press-in feel around `0.985`; large cards around `0.995`. |
 | Active | Scale to about `0.96`. |
 | Reduced motion | Disable tilt/scroll-driven effects. |
 
+### Home location maps
+
+A home pin requires a published exact address and coordinates confirmed to match
+that address precisely. Render approximate home locations as translucent circles
+whose radius is measured in meters; show the description, district, or city basis
+and radius in readable labels. Fit the whole circle inside the available map area,
+including space for overlapping detail panels. Keep area selection accessible by
+pointer and keyboard and linked to the matching cards and filters in listing,
+search, and shared maps. Never place an apartment pin at an approximate area's
+center. Legacy approximate centers without a supported radius show uncertainty
+text without invented geometry. Use `EmbedLeafletMap`'s `MapMarker.radiusM` so
+ordinary map pins and travel routes retain their existing behavior.
+
 ### BasicInfosBar
 
-Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`.
+Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`. Its original circular
+app-icon bar is exclusively for app-skill execution previews. Result previews
+automatically use the shared corner tile; specialized result bodies reuse the
+bar's identity/status logic through its compact content presentation.
 
 Terminal embed previews keep details above a bottom app/skill info bar. Use the
 app's `APP_GRADIENTS` start color as a solid bar background, with contrasting text;
@@ -507,6 +543,12 @@ Required accessibility:
 | Keep motion functional: state feedback, spatial continuity, loading, or brand atmosphere. |
 
 ## Accessibility
+
+In-app notification headers show repeated triggers in a compact `×N` pill before
+the dismiss button, starting at two occurrences. Standard and chat cards share
+`NotificationRepeatCount.svelte`: theme grey-30 background, primary font color,
+0.75rem semibold tabular numerals, and a translated accessible occurrence count.
+Long titles truncate to leave the count and dismiss control visible.
 
 Accessibility is part of the design language.
 

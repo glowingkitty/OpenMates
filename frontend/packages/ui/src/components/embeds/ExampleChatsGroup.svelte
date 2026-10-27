@@ -24,7 +24,7 @@
   import type { Chat } from '../../types/chat';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { copyChatToClipboard } from '../../services/chatExportService';
-  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } from '../../demo_chats';
+  import { DEMO_CHATS, getDemoMessages } from '../../demo_chats';
   import { notificationStore } from '../../stores/notificationStore';
 
   /**
@@ -104,7 +104,7 @@
     if (action === 'download') {
       isDownloading = true;
       try {
-        const messages = getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+        const messages = getDemoMessages(chat.chat_id, DEMO_CHATS);
         await downloadChatAsZip(chat, messages);
         notificationStore.success('Chat downloaded successfully');
       } catch (err) {
@@ -117,7 +117,7 @@
     }
 
     if (action === 'copy') {
-      const messages = getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+      const messages = getDemoMessages(chat.chat_id, DEMO_CHATS);
       await copyChatToClipboard(chat, messages);
       contextMenuShow = false;
       return;

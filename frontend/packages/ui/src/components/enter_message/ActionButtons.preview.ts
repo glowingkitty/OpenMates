@@ -6,6 +6,7 @@ export default {
 };
 
 export const variants = {
+    emptyDraft: { showSendButton: false, isAuthenticated: true },
     restoringModel: { showSendButton: true, isAuthenticated: true, modelSelectionReady: false },
     queuedEdit: { showSendButton: true, isAuthenticated: true, modelSelectionReady: false, queuedEditActive: true },
 };

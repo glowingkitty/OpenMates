@@ -20,10 +20,22 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import yaml
 
 # Context integration uses real immutable guide/source models. Load the main
 # module before the legacy dependency fallbacks so this file also runs alone.
 from backend.apps.ai.processing import main_processor as _context_main_processor
+
+
+@pytest.fixture(autouse=True)
+def _repository_google_provider_catalogue(monkeypatch):
+    """Exercise real route admission without the container's /app config mount."""
+    config = _context_main_processor.config_manager
+    google = Path(__file__).resolve().parents[1] / "providers" / "google.yml"
+    monkeypatch.setattr(config, "_provider_configs", {
+        **(getattr(config, "_provider_configs", None) or {}),
+        "google": yaml.safe_load(google.read_text()),
+    })
 
 
 _INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
@@ -56,8 +68,6 @@ ask_skill_stub.AskSkillRequest = object
 _install_stub("backend.apps.ai.skills.ask_skill", ask_skill_stub)
 
 preprocessor_stub = types.ModuleType("backend.apps.ai.processing.preprocessor")
-preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_ID = "test-model"
-preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_NAME = "Test Model"
 preprocessor_stub.PreprocessingResult = object
 _install_stub("backend.apps.ai.processing.preprocessor", preprocessor_stub)
 
@@ -266,6 +276,21 @@ if getattr(guard_module, "aggregate_paragraphs", None) is object:
         delattr(utils_package, "tool_protocol_guard")
 
 
+def _load_same_turn_barrier_without_worker_bootstrap(monkeypatch):
+    """Load the real pure helper without task-package autodiscovery side effects."""
+    name = "backend.apps.ai.tasks.same_turn_skill_barrier"
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
+    source = Path(__file__).resolve().parents[1] / "apps/ai/tasks/same_turn_skill_barrier.py"
+    spec = importlib.util.spec_from_file_location(name, source)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, name, module)
+    spec.loader.exec_module(module)
+    return module
+
+
 async def _run_mocked_protocol_guard_main_processor(
     monkeypatch,
     streams,
@@ -288,6 +313,8 @@ async def _run_mocked_protocol_guard_main_processor(
     user_overrides_for_main=None,
     exact_base_instructions=False,
     resolved_chat_depth=0,
+    always_include_skills=None,
+    on_tool_generation=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -310,6 +337,17 @@ async def _run_mocked_protocol_guard_main_processor(
         SimpleNamespace(THINKING="thinking", THINKING_SIGNATURE="signature", TEXT="text"),
     )
 
+    # Every provider boundary is local in this loop fixture, including the
+    # post-tool direction assessment. A new hook must not reach the network.
+    import httpx
+
+    async def blocked_network(*_args, **_kwargs):
+        raise AssertionError("External network is forbidden in processor unit tests")
+
+    monkeypatch.setattr(httpx.AsyncClient, "send", blocked_network)
+    monkeypatch.setattr(main_processor, "assess_chat_direction", AsyncMock(
+        return_value=SimpleNamespace(outcome="on_track"),
+    ))
     calls = []
 
     def call_main_llm_stream(**kwargs):
@@ -375,8 +413,14 @@ async def _run_mocked_protocol_guard_main_processor(
         "truncate_message_history_to_token_budget",
         truncate_history or (lambda history, **_kwargs: history),
     )
-    monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
-    monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
+    monkeypatch.setattr(main_processor, "model_history_token_budget",
+                        history_budget if callable(history_budget) else lambda *_args, **_kwargs: history_budget)
+    def generate_tools(**kwargs):
+        if on_tool_generation is not None:
+            return on_tool_generation(kwargs)
+        return generated_tools or []
+
+    monkeypatch.setattr(main_processor, "generate_tools_from_apps", generate_tools)
     # This loop fixture owns fake integration boundaries; never make real IPC
     # requests while exercising tool parsing, fallback and prompt behavior.
     monkeypatch.setattr(main_processor, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
@@ -460,6 +504,7 @@ async def _run_mocked_protocol_guard_main_processor(
     request_data.__dict__.update(request_overrides or {})
     request_data.model_dump = lambda **_kwargs: request_data.__dict__.copy()
     preprocessing_results = SimpleNamespace(
+        complexity="medium",
         load_app_settings_and_memories=[],
         rejection_reason=None,
         relevant_app_skills=[],
@@ -499,6 +544,7 @@ async def _run_mocked_protocol_guard_main_processor(
             user_vault_key_id,
             all_mates_configs or [],
             discovered_apps_metadata=discovered_apps_metadata or {},
+            always_include_skills=always_include_skills,
             cache_service=cache_service,
             user_overrides=(user_overrides_for_main if user_overrides_for_main is not None
                             else SimpleNamespace(skills=None, wikipedia_references=[])),
@@ -630,7 +676,19 @@ def private_focus_activation_context(monkeypatch):
     from backend.apps.ai.processing import focus_phases
     from backend.core.api.app.services.embed_service import EmbedService
     from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
-    from backend.core.api.app.tasks.celery_config import app as celery_app
+    # Queue dispatch is an external boundary. Importing the worker's actual
+    # celery_config executes task autodiscovery (email/PDF/all app workers),
+    # which this processor test neither needs nor exercises.
+    countdown = Mock()
+    celery_config = types.ModuleType("backend.core.api.app.tasks.celery_config")
+    celery_config.app = SimpleNamespace(send_task=countdown)
+    monkeypatch.setitem(sys.modules, celery_config.__name__, celery_config)
+    # Public Focus scheduling reads this task's delay, while private Focus
+    # must not schedule it. Isolate both leaves used by those real branches;
+    # importing the task module would bootstrap the entire AI worker package.
+    focus_task = types.ModuleType("backend.apps.ai.tasks.focus_mode_auto_confirm_task")
+    focus_task.FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN = 5
+    monkeypatch.setitem(sys.modules, focus_task.__name__, focus_task)
 
     active_id = "project-focus:project-1:old-specialist"
     other_id = "project-focus:project-1:other-specialist"
@@ -673,9 +731,6 @@ Full accepted specialist instruction sentinel.
     monkeypatch.setattr(focus_phases, "invalidate_phase_runtime", invalidate)
     embed = AsyncMock(return_value={"embed_id": "unexpected-activation", "embed_reference": "unexpected-embed"})
     monkeypatch.setattr(EmbedService, "create_focus_mode_activation_embed", embed)
-    countdown = Mock()
-    monkeypatch.setattr(celery_app, "send_task", countdown)
-
     class Cache:
         get_pending_app_settings_memories_request = AsyncMock(return_value=None)
         store_pending_focus_activation = AsyncMock(return_value=True)
@@ -688,7 +743,8 @@ Full accepted specialist instruction sentinel.
 
     return SimpleNamespace(active_id=active_id, other_id=other_id, state=state,
         private_document=private_document, cache=Cache(), embed=embed,
-        countdown=countdown, invalidate=invalidate)
+        countdown=countdown, confirmation_delay=focus_task.FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+        invalidate=invalidate)
 
 
 def _private_focus_request_overrides(context, *, active=True):
@@ -969,6 +1025,73 @@ async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(
     prompt = calls[0]["system_prompt"]
     assert "SELECTED_APP_INSTRUCTION" in prompt
     assert "UNRELATED_APP_INSTRUCTION" not in prompt
+
+
+def _baseline_search_test_catalog():
+    def metadata(app_id, skill_ids):
+        return SimpleNamespace(
+            instructions=[SimpleNamespace(
+                instruction=f"{app_id.upper()}_APP_GUIDANCE", for_embed_types=[], categories=[],
+            )],
+            skills=[SimpleNamespace(
+                id=skill_id, description_translation_key=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            ) for skill_id in skill_ids],
+            focuses=[],
+        )
+    return {"web": metadata("web", ["search", "read"]),
+            "images": metadata("images", ["search", "view"]),
+            "unrelated": metadata("unrelated", ["search"])}
+
+
+def _configured_baseline_search_skills():
+    import yaml
+    config = yaml.safe_load((Path(__file__).parents[1] / "apps/ai/app.yml").read_text())
+    return next(skill for skill in config["skills"] if skill["id"] == "ask")["skill_config"]["always_include_skills"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,app-skills.images.reference-handoff,web-search.surface-parity
+@pytest.mark.parametrize("selected_apps", [None, [], ["unrelated"]])
+async def test_baseline_searches_reach_provider_without_preprocessing_selection(monkeypatch, selected_apps):
+    from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+    baseline = _configured_baseline_search_skills()
+    assert set(baseline) == {"web-search", "images-search"}
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer without needing a search."]],
+        discovered_apps_metadata=_baseline_search_test_catalog(),
+        preprocessing_overrides={"selected_app_ids": selected_apps, "relevant_app_skills": []},
+        always_include_skills=baseline + ["images-view"],
+        on_tool_generation=lambda kwargs: generate_tools_from_apps(**kwargs),
+    )
+    assert len(calls) == 1
+    assert {tool["function"]["name"] for tool in calls[0]["tools"]} == set(baseline)
+    assert "WEB_APP_GUIDANCE" in calls[0]["system_prompt"]
+    assert "IMAGES_APP_GUIDANCE" in calls[0]["system_prompt"]
+    assert "UNRELATED_APP_GUIDANCE" not in calls[0]["system_prompt"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("restriction,expected", [
+    ("exact", {"web-read"}), ("disabled", set()), ("mate-none", set()),
+    ("mate-web", {"web-search"}), ("unregistered", {"web-search"}),
+])
+async def test_baseline_searches_preserve_tool_permissions(monkeypatch, restriction, expected):
+    from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+    metadata = _baseline_search_test_catalog()
+    if restriction == "unregistered":
+        del metadata["images"]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer."]], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": [],
+            "relevant_app_skills": ["web-read"] if restriction == "exact" else [],
+            "user_requested_skills_only": restriction == "exact"},
+        request_overrides={"user_preferences": {"apps_enabled": False}} if restriction == "disabled" else {},
+        all_mates_configs=[SimpleNamespace(id="mate-1", default_system_prompt="Mate guidance.",
+            tools=[] if restriction == "mate-none" else ["web"])] if restriction.startswith("mate-") else [],
+        always_include_skills=_configured_baseline_search_skills(),
+        on_tool_generation=lambda kwargs: generate_tools_from_apps(**kwargs),
+    )
+    assert {tool["function"]["name"] for tool in calls[0]["tools"] or []} == expected
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
@@ -1569,7 +1692,7 @@ async def test_main_processor_uses_configured_alternate_after_repeated_protocol(
     )
 
     assert [call["model_id"] for call in calls] == [
-        "google/test-model", "google/test-model", "anthropic/recovery-model",
+        "google/test-model", "google/test-model", "google/secondary",
     ]
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix + continuation
     for call in calls[1:]:
@@ -2091,16 +2214,85 @@ async def test_main_model_call_forwards_only_saved_profile_choice(monkeypatch, m
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
-async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None:
+@pytest.mark.parametrize("tier,model_id,thinking_level", [
+    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("medium", "google/gemini-3.8-flash", "MEDIUM"),
+    ("high", "google/gemini-3.8-flash", "HIGH"),
+    ("max", "google/gemini-4-argon", "HIGH"),
+])
+async def test_uploaded_image_auto_profile_reaches_main_dispatch(
+    monkeypatch, tier, model_id, thinking_level,
+) -> None:
+    from backend.apps.ai.processing.preprocessor import _select_main_model
+
+    # Ranking retrieval is external. Loading its worker package just to mock
+    # the lookup would bootstrap unrelated email/PDF/app task services.
+    leaderboard_tasks = types.ModuleType("backend.core.api.app.tasks.leaderboard_tasks")
+    leaderboard_tasks.get_leaderboard_data = AsyncMock(return_value={
+        "rankings": [{"rank": 1, "provider_id": "alibaba", "model_id": "qwen3-235b-a22b-2507"}],
+    })
+    monkeypatch.setitem(sys.modules, leaderboard_tasks.__name__, leaderboard_tasks)
+    selection = await _select_main_model(
+        {"complexity": tier, "china_model_sensitive": False},
+        SimpleNamespace(user_preferences={}, has_image_upload_embed=False, message_history=[
+            SimpleNamespace(role="user", content="app_id: images\nskill_id: upload\nembed_ref: photo.jpg"),
+        ]),
+        SimpleNamespace(enable_auto_model_selection=True), None, "test",
+    )
+    assert selection["selected_llm_for_main_id"] == model_id
+    assert selection["selected_llm_thinking_level"] == thinking_level
+    assert selection["model_override_applied"] is False
     _output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch, streams=[["Answer."]], preprocessing_overrides={
-            "selected_main_llm_model_id": "google/gemini-3.8-flash",
-            "selected_main_llm_thinking_level": "LOW",
+            "complexity": tier,
+            "selected_main_llm_model_id": selection["selected_llm_for_main_id"],
+            "selected_main_llm_thinking_level": selection["selected_llm_thinking_level"],
             "relevant_app_skills": ["images-view"],
         },
     )
     assert len(calls) == 1
-    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
+    assert calls[0]["model_id"] == model_id
+    assert calls[0]["thinking_level"] == thinking_level
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("override_form", ["full", "provider", "bare"])
+@pytest.mark.parametrize("model_id", ["gemini-3.8-flash", "gemini-4-argon"])
+@pytest.mark.parametrize("thinking_level", [None, "LOW"])
+async def test_explicit_gemini_image_selection_preserves_model_and_thinking(
+    monkeypatch, override_form, model_id, thinking_level,
+) -> None:
+    overrides = SimpleNamespace(
+        model_id=f"google/{model_id}" if override_form == "full" else model_id,
+        model_provider="google" if override_form == "provider" else None,
+        skills=None, wikipedia_references=[],
+    )
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": f"google/{model_id}",
+            "selected_main_llm_thinking_level": thinking_level,
+            "relevant_app_skills": ["images-view"],
+        }, user_overrides_for_main=overrides,
+    )
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == f"google/{model_id}"
+    assert calls[0]["thinking_level"] == thinking_level
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto
+@pytest.mark.parametrize("model_id", [
+    "google/gemini-3.8-flash", "google/gemini-4-argon", "anthropic/claude-haiku-5-5",
+])
+async def test_saved_image_model_selection_reaches_main_unchanged(monkeypatch, model_id) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": model_id,
+            "selected_main_llm_thinking_level": None,
+            "relevant_app_skills": ["images-view"],
+        },
+    )
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == model_id
     assert calls[0]["thinking_level"] is None
 
 
@@ -2209,6 +2401,7 @@ async def test_natural_public_focus_reuses_countdown_without_extra_answer_infere
         context.countdown.assert_called_once()
         assert context.countdown.call_args.args[0] == "apps.ai.tasks.focus_mode_auto_confirm"
         assert context.countdown.call_args.kwargs["countdown"] > 0
+        assert context.countdown.call_args.kwargs["countdown"] == context.confirmation_delay
         assert any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
                    and chunk["focus_id"] == "web-research" for chunk in output)
         assert "unexpected-embed" in "".join(chunk for chunk in output if isinstance(chunk, str))
@@ -2240,7 +2433,7 @@ def test_only_videos_create_accepts_rendering_as_async_dispatch() -> None:
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume,app-skills.execution.registered-validated
 async def test_videos_create_rendering_waits_for_terminal_child_before_answer(monkeypatch) -> None:
-    from backend.apps.ai.tasks import same_turn_skill_barrier as barrier
+    barrier = _load_same_turn_barrier_without_worker_bootstrap(monkeypatch)
     from backend.shared.python_utils import recent_work_summary_client
 
     render_task_id = "render-job-1"
@@ -2433,3 +2626,619 @@ def test_diff_prompt_shared_config_reports_container_read_failure(monkeypatch, t
         assert "Could not read shared embed type metadata" in caplog.text
     finally:
         main_processor._diffable_embed_types_from_shared_config.cache_clear()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("category", ["general", "software_development"])
+async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_safety_rules(
+    monkeypatch, category,
+) -> None:
+    import yaml
+    from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 2)
+    definitions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/web/app.yml").read_text())
+    instructions = [AppInstructionDefinition.model_validate(value) for value in definitions["instructions"]]
+    presentation = "PRESENTATION_RULE: Quote only actual returned evidence and retain exact citations."
+    # Untagged instructions can govern answer accuracy and must survive, even
+    # without for_embed_types. Never infer dispatch-only from missing embed IDs.
+    instructions.append(AppInstructionDefinition(instruction=presentation))
+    guarded = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
+    answer = "A safe answer using the available evidence."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[guarded], [answer]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search."}}],
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[SimpleNamespace(id="search")], instructions=instructions, focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"],
+                                 "category": category},
+    )
+    assert len(calls) == 2
+    primary, recovery = calls
+    assert recovery["tools"] is None and recovery["tool_choice"] == "none"
+    assert "MUST make a SINGLE skill call" in primary["system_prompt"]
+    assert "MUST make a SINGLE skill call" not in recovery["system_prompt"]
+    for instruction in instructions:
+        included = not instruction.categories or category in instruction.categories
+        assert (instruction.instruction in primary["system_prompt"]) is included
+        assert (instruction.instruction in recovery["system_prompt"]) is (included and not instruction.tool_phase_only)
+    actual = load_base_instructions()
+    assert actual["base_ethics_instruction"] in recovery["system_prompt"]
+    assert actual["base_privacy_instruction"] in recovery["system_prompt"]
+    assert actual["base_capabilities_instruction"] in recovery["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery["system_prompt"]
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.images.reference-handoff,shopping-search.relevance.truthful-fallback
+@pytest.mark.parametrize("flow", ["initial-answer", "tool-synthesis", "answer-recovery"])
+async def test_real_shopping_answer_policy_survives_every_model_dispatch(monkeypatch, flow):
+    import yaml
+    from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/shopping/app.yml").read_text())
+    instructions = [AppInstructionDefinition.model_validate(row) for row in app["instructions"]]
+    [policy] = instructions
+    assert policy.tool_phase_only is False
+    assert policy.categories is None and policy.for_embed_types is None
+    answer = "The catalogue names a striped beige fabric; its similarity score is 3.1/4."
+    tool = {"type": "function", "function": {"name": "shopping-search_products", "description": "Search."}}
+    schema = {"type": "object", "properties": {"query": {"type": "string"}}}
+    if flow == "tool-synthesis":
+        monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", AsyncMock(
+            return_value=[{"id": 1, "results": [{"title": "Striped beige fabric"}]}]))
+        streams = [[{"fake_google_tool_call": "shopping-search_products", "arguments": {"query": "fabric"}}], [answer]]
+    elif flow == "answer-recovery":
+        streams = [["```toon\napp_id: shopping\nskill_id: search_products\nstatus: finished\n```"], [answer]]
+    else:
+        streams = [[answer]]
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams, generated_tools=[tool] if flow == "tool-synthesis" else [],
+        discovered_apps_metadata={"shopping": SimpleNamespace(
+            skills=[SimpleNamespace(id="search_products", parallel_safe=False, pricing=None,
+                                    exclude_fields_for_llm=None, tool_schema=schema)],
+            instructions=instructions, focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["shopping"], "relevant_app_skills": ["shopping-search_products"]},
+        request_overrides={"has_image_upload_embed": True,
+                           "embed_file_path_index": {"fabric.jpg": "private-image-id"},
+                           "current_user_content": "Find fabric using fabric.jpg without inspecting it."},
+    )
+    assert len(calls) == (1 if flow == "initial-answer" else 2)
+    for call in calls:
+        assert policy.instruction in call["system_prompt"]
+        assert "data:image/" not in json.dumps(call["message_history"])
+    if flow == "tool-synthesis":
+        assert any(message.get("role") == "tool" for message in calls[-1]["message_history"])
+    elif flow == "answer-recovery":
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+        assert calls[-1]["tools"] is None
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
+@pytest.mark.parametrize("skill,field", [
+    ("shopping-search_products", "reference_images"),
+    ("images-generate", "reference_images"),
+    ("images-search", "file_path"),
+])
+@pytest.mark.parametrize("explicit", [False, True])
+async def test_image_reference_handoff_reaches_first_dispatch_without_viewer(monkeypatch, skill, field, explicit):
+    app_id, skill_id = skill.split("-", 1)
+    captured_scopes = []
+    original_ref = ["fabric.jpg"] if field == "reference_images" else "fabric.jpg"
+    arguments = {"requests": [{field: original_ref}]}
+    asynchronous = skill == "images-generate"
+    result = ([{"status": "processing", "task_id": "image-gen-job",
+                "embed_id": "22222222-2222-4222-8222-222222222222"}]
+              if asynchronous else [{"results": [{"title": "Reference result"}]}])
+    dispatched = AsyncMock(return_value=result)
+    cache = None
+    if asynchronous:
+        barrier = _load_same_turn_barrier_without_worker_bootstrap(monkeypatch)
+        monkeypatch.setattr(barrier, "preflight_private_checkpoint_capacity", Mock())
+        monkeypatch.setattr(main_processor, "_publish_skill_status", AsyncMock())
+        continuation = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+        continuation.cache_async_skill_continuation_context = AsyncMock()
+        continuation.wait_for_async_skill_completion = AsyncMock(return_value=None)
+        monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
+        client = asyncio.get_running_loop().create_future()
+        client.set_result(None)
+        cache = SimpleNamespace(client=client, get=AsyncMock(return_value=None),
+                                set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True))
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+
+    def generate_tools(kwargs):
+        captured_scopes.append(set(kwargs["preselected_skills"]))
+        return [{"type": "function", "function": {"name": name, "description": "Selected skill."}}
+                for name in kwargs["preselected_skills"]]
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{"fake_google_tool_call": skill, "arguments": arguments}], ["Reference result."]],
+        cache_service=cache,
+        discovered_apps_metadata={app_id: SimpleNamespace(
+            skills=[SimpleNamespace(id=skill_id, parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {
+                    "type": "object", "properties": {field: {"type": "array", "items": {"type": "string"}}
+                                                          if field == "reference_images" else {"type": "string"}},
+                }}}})], instructions=[], focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": [app_id], "relevant_app_skills": [skill],
+                                 "user_requested_skills_only": explicit},
+        request_overrides={"current_user_content": ("Describe the pattern in this photo and find similar fabric"
+                                                    if explicit else "Find similar using fabric.jpg"),
+                           "has_image_upload_embed": True,
+                           "embed_file_path_index": {"fabric.jpg": "private-image-id"},
+                           "message_history": [{"role": "user", "content": "Use fabric.jpg as the reference."}]},
+        always_include_skills=["images-view"], on_tool_generation=generate_tools,
+        base_instructions={"base_image_content_safety_instruction": "IMAGE_INSPECTION_SAFETY",
+                           "base_image_reference_handoff_instruction": "DIRECT_REFERENCE_HANDOFF"},
+    )
+    assert captured_scopes[0] == {skill}
+    assert len(calls) == (1 if asynchronous else 2)
+    if asynchronous:
+        pause = next(item for item in output if isinstance(item, dict) and item.get("__same_turn_skill_pause__"))
+        assert pause["task_ids"] == ["image-gen-job"]
+        assert not any(isinstance(item, str) and item.strip() for item in output)
+    dispatched.assert_awaited_once()
+    assert dispatched.await_args.kwargs["app_id"] == app_id
+    assert dispatched.await_args.kwargs["skill_id"] == skill_id
+    normalized = dispatched.await_args.kwargs["arguments"]
+    assert normalized.get("requests", [normalized])[0][field] == original_ref
+    assert "DIRECT_REFERENCE_HANDOFF" in calls[0]["system_prompt"]
+    assert "IMAGE_INSPECTION_SAFETY" not in calls[0]["system_prompt"]
+    assert "data:image/" not in json.dumps(calls[0]["message_history"])
+    assert {tool["function"]["name"] for tool in calls[0]["tools"]} == {skill}
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
+async def test_unrelated_historical_image_does_not_readd_viewer_or_image_safety(monkeypatch):
+    scopes = []
+
+    def generate_tools(kwargs):
+        scopes.append(set(kwargs["preselected_skills"]))
+        return []
+
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Rome."]],
+        preprocessing_overrides={"selected_app_ids": [], "relevant_app_skills": []},
+        request_overrides={"current_user_content": "What is the capital of Italy?",
+                           "embed_file_path_index": {"old.jpg": "private-image-id"},
+                           "message_history": [{"role": "user", "content": "app_id: images\nskill_id: upload\nembed_ref: old.jpg"},
+                                               {"role": "user", "content": "What is the capital of Italy?"}]},
+        always_include_skills=["images-view"], on_tool_generation=generate_tools,
+        base_instructions={"base_image_content_safety_instruction": "IMAGE_INSPECTION_SAFETY"},
+    )
+    assert scopes == [] or scopes[0] == set()
+    assert "IMAGE_INSPECTION_SAFETY" not in calls[0]["system_prompt"]
+    assert not calls[0]["tools"]
+
+
+# contract-test: supporting surface=rest_api assertions=images-view.response.post-tool-inference
+@pytest.mark.parametrize("loaded_pixels", [False, True])
+async def test_inspection_safety_follows_selected_viewer_or_actual_pixels(monkeypatch, loaded_pixels):
+    content = [{"type": "image_url", "image_url": {"url": "data:image/png;base64,aW1hZ2U="}}] if loaded_pixels else "Describe photo.jpg"
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Observed image answer."]],
+        preprocessing_overrides={"relevant_app_skills": [] if loaded_pixels else ["images-view"]},
+        request_overrides={"message_history": [{"role": "user", "content": content}]},
+        base_instructions={"base_image_content_safety_instruction": "IMAGE_INSPECTION_SAFETY"},
+    )
+    assert "IMAGE_INSPECTION_SAFETY" in calls[0]["system_prompt"]
+
+
+# contract-test: supporting surface=rest_api assertions=images-view.response.post-tool-inference
+async def test_multimodal_tool_result_adds_image_safety_before_next_dispatch(monkeypatch):
+    blocks = [{"type": "text", "text": "PDF page 1"},
+              {"type": "image_url", "image_url": {"url": "data:image/png;base64,aW1hZ2U="}}]
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", AsyncMock(return_value=[blocks]))
+    tool = {"type": "function", "function": {"name": "pdf-view", "description": "View page."}}
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{"fake_google_tool_call": "pdf-view", "arguments": {"file_path": "chart.pdf"}}], ["Read page."]],
+        generated_tools=[tool],
+        discovered_apps_metadata={"pdf": SimpleNamespace(skills=[SimpleNamespace(
+            id="view", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+            tool_schema={"type": "object", "properties": {"file_path": {"type": "string"}}},
+        )], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": ["pdf"], "relevant_app_skills": ["pdf-view"]},
+        base_instructions={"base_image_content_safety_instruction": "IMAGE_INSPECTION_SAFETY"},
+    )
+    assert len(calls) == 2
+    assert "IMAGE_INSPECTION_SAFETY" not in calls[0]["system_prompt"]
+    assert "IMAGE_INSPECTION_SAFETY" in calls[1]["system_prompt"]
+    assert any(message.get("content") == blocks for message in calls[1]["message_history"])
+
+
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+@pytest.mark.parametrize("flow", ["first-answer", "tool-synthesis", "answer-recovery"])
+async def test_composer_output_contract_ends_actual_provider_prompt(monkeypatch, flow):
+    budget_prompts = []
+    original_fit = main_processor._fit_orchestrated_output_token_limit
+
+    async def capture_budget(**kwargs):
+        budget_prompts.append(kwargs["system_prompt"])
+        return await original_fit(**kwargs)
+
+    monkeypatch.setattr(main_processor, "_fit_orchestrated_output_token_limit", capture_budget)
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    answer = "A complete answer."
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    if flow == "tool-synthesis":
+        monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", AsyncMock(
+            return_value=[{"results": [{"title": "Grounded result"}]}]))
+        streams = [[{"fake_google_tool_call": "web-search", "arguments": {"query": "options"}}], [answer]]
+    elif flow == "answer-recovery":
+        streams = [["```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"], [answer]]
+    else:
+        streams = [[answer]]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams, generated_tools=[tool] if flow == "tool-synthesis" else [],
+        preprocessing_overrides={"complexity": "low"},
+    )
+    assert len(calls) == (1 if flow == "first-answer" else 2)
+    assert budget_prompts == [call["system_prompt"] for call in calls]
+    for call in calls:
+        prompt = call["system_prompt"]
+        assert actual["follow_up_instruction"] in prompt
+        assert prompt.endswith(main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER)
+        assert prompt.count(main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER) == 1
+    if flow == "answer-recovery":
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+    if flow == "tool-synthesis":
+        assert any(message.get("role") == "tool" for message in calls[-1]["message_history"])
+
+
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+@pytest.mark.parametrize("overrides", [
+    {"user_preferences": {"follow_up_suggestions_enabled": False}},
+    {"is_incognito": True},
+    {"is_sub_chat": True},
+    {"is_external": True},
+])
+async def test_ineligible_provider_prompt_omits_composer_output_reminder(monkeypatch, overrides):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A complete answer."]], request_overrides=overrides,
+        preprocessing_overrides={"complexity": "low"},
+    )
+    assert len(calls) == 1
+    assert main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER not in calls[0]["system_prompt"]
+    assert actual["follow_up_instruction"] not in calls[0]["system_prompt"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+@pytest.mark.parametrize("outcome,request_count,expected_errors,expected_successes", [
+    (TimeoutError(), 1, 1, 0),
+    (TimeoutError(), 2, 2, 0),
+    ([{"error": "Provider unavailable"}], 1, 1, 0),
+    ([{"results": [{"id": 1, "error": "Provider unavailable"}]}], 1, 1, 0),
+    ([{"results": [{"id": 1, "error": "Provider unavailable"}, {"id": 2, "results": []}]}], 2, 1, 1),
+    ([{"results": [{"id": 1, "results": []}]}], 1, 0, 1),
+    ([{"results": [{"id": "resource-1", "title": "Preserved flat result"}]}], 1, 0, 1),
+    ([{"results": [{"id": 1, "results": [], "status": "error"}, {"id": 2, "error": "Provider unavailable"}]}], 2, 2, 0),
+])
+async def test_skill_failure_finalization_preserves_all_placeholders_and_zero_hit_success(
+    monkeypatch, outcome, request_count, expected_errors, expected_successes,
+) -> None:
+    from backend.core.api.app.services import embed_service as embed_module
+
+    created = []
+    async def create_placeholder(**kwargs):
+        embed_id = f"execution-{len(created) + 1}"
+        result = {"embed_id": embed_id, "embed_reference": json.dumps({
+            "type": "app_skill_use", "embed_id": embed_id, "app_id": "web", "skill_id": "search",
+        })}
+        created.append(result)
+        return result
+
+    async def finalize_error(**kwargs):
+        return {"embed_id": kwargs["embed_id"], "status": "error", "child_embed_ids": [], "from_placeholder": True}
+    async def finalize_success(**kwargs):
+        return {"embed_id": kwargs["embed_id"], "status": "finished", "child_embed_ids": [], "from_placeholder": True}
+
+    errors = AsyncMock(side_effect=finalize_error)
+    successes = AsyncMock(side_effect=finalize_success)
+    fake_service = SimpleNamespace(create_processing_embed_placeholder=create_placeholder,
+                                   update_embed_status_to_error=errors, update_embed_with_results=successes)
+    monkeypatch.setattr(embed_module, "EmbedService", lambda **_kwargs: fake_service)
+    dispatched = AsyncMock(side_effect=outcome) if isinstance(outcome, Exception) else AsyncMock(return_value=outcome)
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_resolve_skill_preview_metadata", AsyncMock(return_value={}))
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main_processor, "_charge_skill_credits", AsyncMock())
+    published = AsyncMock()
+    monkeypatch.setattr(main_processor, "_publish_skill_status", published)
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(client=client, get=AsyncMock(return_value=None), set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True))
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    requests = [{"query": f"query {index + 1}"} for index in range(request_count)]
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search", "arguments": {"requests": requests}, "tool_call_id": "search-call"}], ["Search complete."]],
+        cache_service=cache, directus_service=Mock(), user_vault_key_id="vault-key",
+        generated_tools=[tool], discovered_apps_metadata={"web": SimpleNamespace(skills=[SimpleNamespace(
+            id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+            tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+        )], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"], "complexity": "simple"},
+    )
+    assert len(calls) == 2
+    assert len(created) == request_count
+    assert errors.await_count == expected_errors
+    assert successes.await_count == expected_successes
+    for call in errors.await_args_list:
+        assert call.kwargs["error_message"].strip()
+    for call in successes.await_args_list:
+        if isinstance(outcome, list) and outcome[0].get("results", [{}])[0].get("id") == "resource-1":
+            assert call.kwargs["results"][0]["id"] == "resource-1"
+            assert call.kwargs["results"][0]["title"] == "Preserved flat result"
+        else:
+            assert call.kwargs["results"] == []
+    terminal = [call.kwargs["status"] for call in published.await_args_list if call.kwargs["status"] != "processing"]
+    assert terminal == ["error" if expected_errors and not expected_successes else "finished"]
+    markdown = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert markdown.count('"type": "app_skill_use"') == request_count
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+async def test_mercury_rechecks_media_restored_in_answer_recovery(monkeypatch):
+    protocol = '```toon\napp_id: web\nskill_id: search\nstatus: finished\n```'
+    def catalog(provider):
+        model = 'mercury-3' if provider == 'inception' else 'gemini-3.8-flash'
+        host = 'inception' if provider == 'inception' else 'google_ai_studio'
+        return {'models': [{'id': model, 'servers': [{'id': host}]}]}
+    monkeypatch.setattr(main_processor.config_manager, 'get_provider_config', catalog)
+    original_build = main_processor.build_answer_recovery_history
+    restored = []
+    def restore_media(history, current, **kwargs):
+        result = original_build(history, current, **kwargs)
+        # Model-dependent fitting can restore older evidence for Mercury's
+        # larger budget after a Gemini retry omitted it.
+        if kwargs['max_tokens'] == 200000:
+            restored.append(True)
+            result.insert(0, {'role': 'user', 'content': [
+                {'type': 'image_url', 'image_url': {'url': 'https://example.test/evidence.png'}},
+            ]})
+        return result
+    monkeypatch.setattr(main_processor, 'build_answer_recovery_history', restore_media)
+    observed = []
+    def budget(model, *_args, **_kwargs):
+        return 200000 if model == 'inception/mercury-3' else 100000
+    def record(call):
+        observed.append(call['model_id'])
+        assert call['model_id'] != 'inception/mercury-3'
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [protocol]],
+        history_budget=budget,
+        preprocessing_overrides={'complexity': 'medium',
+            'selected_main_llm_model_id': 'google/gemini-3.8-flash',
+            'selected_main_llm_thinking_level': 'MEDIUM',
+            'selected_secondary_model_id': None, 'selected_fallback_model_id': 'inception/mercury-3'},
+        on_provider_call=record,
+    )
+    assert observed == ['google/gemini-3.8-flash', 'google/gemini-3.8-flash']
+    assert len(calls) == 2
+    assert restored == [True]
+    assert any(isinstance(chunk, dict) and chunk.get('__main_processing_failure__') for chunk in _output)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('effort,deadline,cap', [
+    (None, 15, 16_384), ('LOW', 5, 8_192), ('MEDIUM', 15, 16_384),
+    ('HIGH', 60, 32_768), ('EXTRA_HIGH', 60, 32_768),
+])
+async def test_jev_mercury_effort_caps_real_loop_before_reservation(monkeypatch, effort, deadline, cap):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    events = []
+
+    async def reserve(**kwargs):
+        events.append(('reserve', kwargs['output_token_limit']))
+        assert kwargs['output_token_limit'] == cap
+        return None
+
+    def dispatch(kwargs):
+        events.append(('dispatch', kwargs['max_tokens']))
+        assert kwargs['first_substantive_timeout_seconds'] == deadline
+        assert kwargs['requested_reasoning_level'] == effort
+        assert kwargs['thinking_level'] == 'MEDIUM'
+
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']], on_provider_call=dispatch,
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'LOW', 'requested_reasoning_level': effort},
+    )
+    assert len(calls) == 1
+    assert events == [('reserve', cap), ('dispatch', cap)]
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('scope,expected', [('anonymous', 4096), ('orchestration', 2048)])
+async def test_jev_mercury_high_effort_preserves_smaller_scope_limits(monkeypatch, scope, expected):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    if scope == 'orchestration':
+        next(model for model in inception['models'] if model['id'] == 'mercury-3')['features']['max_output_tokens'] = 2048
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    reserve = AsyncMock(return_value=None)
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    # Budget storage is external; leave the real initial scope/model cap in place.
+    async def fit(**kwargs):
+        return kwargs['requested_output_token_limit']
+    monkeypatch.setattr(main_processor, '_fit_anonymous_output_token_limit', fit)
+    monkeypatch.setattr(main_processor, '_fit_orchestrated_output_token_limit', fit)
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']],
+        request_overrides={'is_anonymous': scope == 'anonymous',
+                           'orchestration_id': 'scope-budget' if scope == 'orchestration' else None},
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'LOW', 'requested_reasoning_level': 'HIGH'},
+    )
+    assert len(calls) == 1
+    assert calls[0]['max_tokens'] == expected
+    assert calls[0]['first_substantive_timeout_seconds'] == 60
+    assert reserve.await_args.kwargs['output_token_limit'] == expected
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('profile,effort', [('MEDIUM', None), ('HIGH', 'LOW'), (None, 'EXTRA_HIGH')])
+async def test_jev_gemini_effort_stays_independent_of_profile_provenance(monkeypatch, profile, effort):
+    model = 'google/gemini-3.8-flash'
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']],
+        preprocessing_overrides={'complexity': 'medium', 'selected_main_llm_model_id': model,
+            'selected_main_llm_thinking_level': profile, 'requested_reasoning_level': effort},
+        user_overrides_for_main=SimpleNamespace(model_id=model, model_provider='google',
+            skills=None, wikipedia_references=[]),
+    )
+    assert len(calls) == 1
+    assert calls[0]['model_id'] == model
+    assert calls[0]['thinking_level'] == profile
+    assert calls[0]['requested_reasoning_level'] == effort
+    assert calls[0]['first_substantive_timeout_seconds'] is None
+    if profile is None:
+        assert calls[0]['allowed_server_ids'] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+async def test_jev_mercury_effort_survives_protocol_answer_recovery(monkeypatch):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    monkeypatch.setattr(main_processor, 'MAX_TOOL_CALL_ITERATIONS', 1)
+    reserve = AsyncMock(return_value=None)
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{'fake_google_tool_call': 'unavailable-tool'}], ['Recovered answer.']],
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'MEDIUM', 'requested_reasoning_level': 'HIGH'},
+    )
+    assert len(calls) == 2
+    for call in calls:
+        assert call['requested_reasoning_level'] == 'HIGH'
+        assert call['thinking_level'] == 'MEDIUM'
+        assert call['first_substantive_timeout_seconds'] == 60
+        assert call['max_tokens'] == 32_768
+    assert calls[1]['tools'] is None
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]['system_prompt']
+    assert all(call.kwargs['output_token_limit'] == 32_768 for call in reserve.await_args_list)
+    assert 'Recovered answer.' in ''.join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+@pytest.mark.parametrize("app_id,mode", [
+    (app, mode) for app in ("web", "events") for mode in ("duplicate", "mixed", "refined", "failed")
+] + [("events", mode) for mode in ("expanded", "more", "query")])
+async def test_completed_search_member_is_reused_across_batches(monkeypatch, app_id, mode):
+    from backend.apps.ai.processing.search_skill_reliability import search_request_key
+    requests = [{"query": f"synthetic option {index}", "count": 8} for index in range(3)]
+    if app_id == "events":
+        requests = [{**item, "location": "Berlin", "start_date": "2027-10-24", "end_date": "2027-10-31"}
+                    for item in requests]
+    outcomes = []
+    def execute(**kwargs):
+        outcomes.append(kwargs)
+        return [{"results": [
+            {"id": item.get("id", index+1), **({"error": "Synthetic provider unavailable"}
+                if mode == "failed" and len(outcomes) == 1 else {"results": []})}
+            for index, item in enumerate(kwargs["arguments"]["requests"])
+        ]}]
+    dispatched = AsyncMock(side_effect=execute)
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    repeated = [{**requests[0], "id": "different-correlation"}]
+    if mode == "mixed":
+        repeated.append({"query": "synthetic new option", "count": 8})
+    elif mode == "refined":
+        repeated[0].update({"start_date": "2027-10-28", "count": 5})
+    elif mode == "expanded":
+        repeated[0].update({"start_date": "2027-10-20", "end_date": "2027-11-10"})
+    elif mode == "more":
+        repeated[0]["count"] = 15
+    elif mode == "query":
+        repeated[0]["query"] = "synthetic refined preference"
+    tool_name = f"{app_id}-search"
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": tool_name, "arguments": {"requests": requests}, "tool_call_id": "initial-search"}],
+         ["The available evidence supports option one.\n\n", {"fake_google_tool_call": tool_name, "arguments": {"requests": repeated}, "tool_call_id": "repeat-search"}],
+         ["The remaining limitation is availability."]],
+        generated_tools=[{"type": "function", "function": {"name": tool_name, "description": "Search."}}],
+        discovered_apps_metadata={app_id: SimpleNamespace(skills=[SimpleNamespace(
+            id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+            tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+        )], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": [app_id], "relevant_app_skills": [tool_name], "complexity": "simple"},
+    )
+    assert dispatched.await_count == (1 if mode == "duplicate" else 2)
+    if mode == "mixed":
+        assert [r['query'] for r in dispatched.await_args_list[1].kwargs['arguments']['requests']] == ['synthetic new option']
+    elif mode == "duplicate":
+        assert calls[-1]['tools'] is None and calls[-1]['tool_choice'] == 'none'
+        assert 'ALREADY PUBLISHED TO THE USER' in str(calls[-1]['message_history'])
+    else:
+        assert dispatched.await_args_list[1].kwargs['arguments']['requests'] == repeated
+    assert ''.join(c for c in output if isinstance(c, str)).count('The available evidence supports option one.') == 1
+    original = {"requests": requests}
+    first_key = search_request_key(app_id, original, requests[0])
+    assert first_key == search_request_key(app_id, original, {**requests[0], 'id': 'new-id'})
+    options = ({'count': 9}, {'provider': 'other'}, {'relevance_criteria': 'specific preference'}, {'future_option': True})
+    if app_id == "events":
+        options += ({'start_date': '2027-10-28'}, {'end_date': '2027-10-30'}, {'location': 'Hamburg'},
+                    {'event_type': 'ONLINE'}, {'past_events': True}, {'concert_tags': ['Jazz']})
+    for option in options:
+        assert first_key != search_request_key(app_id, original, {**requests[0], **option})
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_event_search_reuse_does_not_cross_explicit_user_turns(monkeypatch):
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    arguments = {"requests": [{"query": "synthetic conference", "location": "Berlin", "count": 10}]}
+    tool = {"type": "function", "function": {"name": "events-search", "description": "Search events."}}
+    metadata = {"events": SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[])}
+    first_history = [{"role": "user", "content": "Find conference events."}]
+    followup_history = [*first_history, {"role": "assistant", "content": "Previous conference events."},
+                        {"role": "user", "content": "Search again for more results."}]
+    for message_id, history in (("first-turn", first_history), ("followup-turn", followup_history)):
+        await _run_mocked_protocol_guard_main_processor(
+            monkeypatch,
+            [[{"fake_google_tool_call": "events-search", "arguments": arguments}], ["Conference events found."]],
+            generated_tools=[tool], discovered_apps_metadata=metadata,
+            request_overrides={"message_id": message_id, "message_history": history,
+                               "current_user_content": history[-1]["content"]},
+            preprocessing_overrides={"selected_app_ids": ["events"], "relevant_app_skills": ["events-search"], "complexity": "simple"},
+        )
+    assert dispatched.await_count == 2
+    assert all(call.kwargs["arguments"]["requests"] == arguments["requests"]
+               for call in dispatched.await_args_list)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypatch, caplog):
+    private_fixture = 'synthetic-private-client-detail-and-search-query'
+    await _run_mocked_protocol_guard_main_processor(monkeypatch, [
+        ['```tool_code:private-file-name\n' + private_fixture + '\n```'],
+        ['A safe authored answer.'],
+    ])
+    diagnostics = [record.getMessage() for record in caplog.records if '[TOOL_PROTOCOL_GUARD]' in record.getMessage()]
+    assert diagnostics
+    assert any('tool_code_fence' in message and 'body_chars' in message for message in diagnostics)
+    assert all(private_fixture not in message and 'private-file-name' not in message for message in diagnostics)

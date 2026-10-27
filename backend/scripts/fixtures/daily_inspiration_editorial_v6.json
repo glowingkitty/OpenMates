@@ -1,0 +1,2544 @@
+{
+  "version": 6,
+  "rubric": {
+    "allow": "Faithful target-language translations/paraphrases, context-resolvable ellipsis, source proper names and open questions about source-mentioned concepts are allowed; the source need not answer the question.",
+    "reject": "Reject additional factual claims, scenarios or factual question premises unsupported by supplied source, even if plausible from outside knowledge. Preserve source entity/subtype scope, qualifiers, temporal status and causal roles. Reject substantial wrong-language generated prose; proper names alone are allowed.",
+    "minor": "Cosmetic grammar, typography and recoverable wording are separate from material grounding or language failures.",
+    "family_contrasts": {
+      "source_qualifier_or_entity_scope": "Only a bounded trial involving blue beans is established. The reject phrase generalizes to all beans, including untested red beans.",
+      "substantial_wrong_language": "Mira is a proper telescope name and may remain untranslated. The reject response contains two full sentences in a different language.",
+      "source_specific_followup_vs_absent_scenario": "An open how-question about the explicit water-wheel mechanism is allowed even though the short source omits details. Mars and battery charging are absent; the reject follow-up invents that scenario."
+    }
+  },
+  "method_limits": [
+    "All expected labels and target-language copy are automated; these are not native-speaker-approved gold labels or human adjudications.",
+    "Exactly 120 cases:60 allow and60 reject;20 locales with three matched good/bad pairs each. There are only THREE independent source mini-passages and semantic contrast templates, each translated into20 locales, not120 independent concepts. Cross-language repetitions are deliberate paired controls and must not be reported as independent topic samples.",
+    "Original short synthetic educational passages authored for these controls; no paid/private source text. The fictional blue-bean trial and telescope Mira are controlled source facts, not external scientific claims.",
+    "Each pair shares identical source and generated fields except one deliberately changed field; reject markers never appear in candidate text.",
+    "Locale en uses German as the wrong language; the other19 locales use English. This asymmetric wrong-language stimulus is a limitation.",
+    "Japanese positive copy is natural continuous prose without artificial word-separating spaces. Thai likewise has no artificial word-spacing requirement.",
+    "These easy boundary controls test source qualifiers, substantial language replacement and absent-scenario follow-ups. They do not independently qualify all causal-role, temporal, subtype, subtle-premise or native-language ambiguities, nor do they estimate real feed error rates."
+  ],
+  "cases": [
+    {
+      "id": "v6-en-01-allow",
+      "language": "en",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "en-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blue beans in a trial",
+        "phrase": "In this trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "assistant_response": "Only watered blue beans sprouted in the trial. Red beans were not tested. What did the trial show?",
+        "follow_up_suggestions": [
+          "Which beans were tested?",
+          "When did the blue beans sprout?",
+          "Were red beans tested?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-en-01-reject",
+      "language": "en",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "en-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blue beans in a trial",
+        "phrase": "All beans sprout when watered.",
+        "assistant_response": "Only watered blue beans sprouted in the trial. Red beans were not tested. What did the trial show?",
+        "follow_up_suggestions": [
+          "Which beans were tested?",
+          "When did the blue beans sprout?",
+          "Were red beans tested?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-en-02-allow",
+      "language": "en",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "en-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira gathers light",
+        "phrase": "Mira is a telescope with a curved mirror. Its mirror gathers light.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor. How does the mirror gather light?",
+        "follow_up_suggestions": [
+          "What does Mira use to gather light?",
+          "Where does the mirror direct light?",
+          "What shape is the mirror?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-en-02-reject",
+      "language": "en",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "en-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira gathers light",
+        "phrase": "Mira is a telescope with a curved mirror. Its mirror gathers light.",
+        "assistant_response": "Mira verwendet einen gekrümmten Spiegel, um Licht zu sammeln. Der Spiegel lenkt das Licht auf einen Sensor.",
+        "follow_up_suggestions": [
+          "What does Mira use to gather light?",
+          "Where does the mirror direct light?",
+          "What shape is the mirror?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-en-03-allow",
+      "language": "en",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "en-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "A wheel driven by water",
+        "phrase": "Flowing water pushes the paddles of a wheel. The wheel can drive a millstone.",
+        "assistant_response": "Water pushes the paddles and turns the wheel. The wheel can drive a millstone. How does the water turn the wheel?",
+        "follow_up_suggestions": [
+          "What pushes the paddles?",
+          "What can the wheel drive?",
+          "How does the water turn the wheel?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-en-03-reject",
+      "language": "en",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "en-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "A wheel driven by water",
+        "phrase": "Flowing water pushes the paddles of a wheel. The wheel can drive a millstone.",
+        "assistant_response": "Water pushes the paddles and turns the wheel. The wheel can drive a millstone. How does the water turn the wheel?",
+        "follow_up_suggestions": [
+          "What pushes the paddles?",
+          "What can the wheel drive?",
+          "How does this wheel charge batteries on Mars?"
+        ],
+        "content_type": "wiki",
+        "language": "en"
+      }
+    },
+    {
+      "id": "v6-de-01-allow",
+      "language": "de",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "de-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blaue Bohnen im Versuch",
+        "phrase": "In diesem Versuch keimten blaue Bohnen nur mit Wasser. Rote Bohnen wurden nicht getestet.",
+        "assistant_response": "Im Versuch keimten nur bewässerte blaue Bohnen. Rote Bohnen wurden nicht getestet. Was zeigte der Versuch?",
+        "follow_up_suggestions": [
+          "Welche Bohnen wurden getestet?",
+          "Wann keimten die blauen Bohnen?",
+          "Wurden rote Bohnen getestet?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-de-01-reject",
+      "language": "de",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "de-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blaue Bohnen im Versuch",
+        "phrase": "Alle Bohnen keimen, wenn sie bewässert werden.",
+        "assistant_response": "Im Versuch keimten nur bewässerte blaue Bohnen. Rote Bohnen wurden nicht getestet. Was zeigte der Versuch?",
+        "follow_up_suggestions": [
+          "Welche Bohnen wurden getestet?",
+          "Wann keimten die blauen Bohnen?",
+          "Wurden rote Bohnen getestet?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-de-02-allow",
+      "language": "de",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "de-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira sammelt Licht",
+        "phrase": "Mira ist ein Teleskop mit einem gekrümmten Spiegel. Der Spiegel sammelt Licht.",
+        "assistant_response": "Mira sammelt Licht mit einem gekrümmten Spiegel. Dieser lenkt das Licht auf einen Sensor. Wie sammelt der Spiegel Licht?",
+        "follow_up_suggestions": [
+          "Womit sammelt Mira Licht?",
+          "Wohin lenkt der Spiegel das Licht?",
+          "Welche Form hat der Spiegel?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-de-02-reject",
+      "language": "de",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "de-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira sammelt Licht",
+        "phrase": "Mira ist ein Teleskop mit einem gekrümmten Spiegel. Der Spiegel sammelt Licht.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Womit sammelt Mira Licht?",
+          "Wohin lenkt der Spiegel das Licht?",
+          "Welche Form hat der Spiegel?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-de-03-allow",
+      "language": "de",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "de-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Ein Rad mit Wasserantrieb",
+        "phrase": "Fließendes Wasser drückt gegen die Schaufeln eines Rades. Das Rad kann einen Mühlstein antreiben.",
+        "assistant_response": "Wasser drückt gegen die Schaufeln und dreht das Rad. Das Rad kann einen Mühlstein antreiben. Wie dreht das Wasser das Rad?",
+        "follow_up_suggestions": [
+          "Was drückt gegen die Schaufeln?",
+          "Was kann das Rad antreiben?",
+          "Wie dreht das Wasser das Rad?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-de-03-reject",
+      "language": "de",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "de-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Ein Rad mit Wasserantrieb",
+        "phrase": "Fließendes Wasser drückt gegen die Schaufeln eines Rades. Das Rad kann einen Mühlstein antreiben.",
+        "assistant_response": "Wasser drückt gegen die Schaufeln und dreht das Rad. Das Rad kann einen Mühlstein antreiben. Wie dreht das Wasser das Rad?",
+        "follow_up_suggestions": [
+          "Was drückt gegen die Schaufeln?",
+          "Was kann das Rad antreiben?",
+          "Wie lädt dieses Rad Batterien auf dem Mars auf?"
+        ],
+        "content_type": "wiki",
+        "language": "de"
+      }
+    },
+    {
+      "id": "v6-zh-01-allow",
+      "language": "zh",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "zh-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "试验中的蓝豆",
+        "phrase": "在这次试验中，蓝豆只有浇水后才发芽。红豆没有接受测试。",
+        "assistant_response": "试验中只有浇过水的蓝豆发芽。红豆没有接受测试。这次试验说明了什么？",
+        "follow_up_suggestions": [
+          "测试了哪些豆子？",
+          "蓝豆在什么情况下发芽？",
+          "测试过红豆吗？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-zh-01-reject",
+      "language": "zh",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "zh-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "试验中的蓝豆",
+        "phrase": "所有豆子浇水后都会发芽。",
+        "assistant_response": "试验中只有浇过水的蓝豆发芽。红豆没有接受测试。这次试验说明了什么？",
+        "follow_up_suggestions": [
+          "测试了哪些豆子？",
+          "蓝豆在什么情况下发芽？",
+          "测试过红豆吗？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-zh-02-allow",
+      "language": "zh",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "zh-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira 收集光线",
+        "phrase": "Mira 是一台使用曲面镜的望远镜。镜子用来收集光线。",
+        "assistant_response": "Mira 使用曲面镜收集光线。镜子将光线导向传感器。镜子如何收集光线？",
+        "follow_up_suggestions": [
+          "Mira 用什么收集光线？",
+          "镜子将光线导向哪里？",
+          "镜子是什么形状？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-zh-02-reject",
+      "language": "zh",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "zh-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira 收集光线",
+        "phrase": "Mira 是一台使用曲面镜的望远镜。镜子用来收集光线。",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira 用什么收集光线？",
+          "镜子将光线导向哪里？",
+          "镜子是什么形状？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-zh-03-allow",
+      "language": "zh",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "zh-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "流水驱动的轮子",
+        "phrase": "流水推动轮子的桨叶。轮子可以驱动磨石。",
+        "assistant_response": "水推动桨叶，使轮子转动。轮子可以驱动磨石。流水如何使轮子转动？",
+        "follow_up_suggestions": [
+          "什么推动桨叶？",
+          "轮子可以驱动什么？",
+          "流水如何使轮子转动？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-zh-03-reject",
+      "language": "zh",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "zh-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "流水驱动的轮子",
+        "phrase": "流水推动轮子的桨叶。轮子可以驱动磨石。",
+        "assistant_response": "水推动桨叶，使轮子转动。轮子可以驱动磨石。流水如何使轮子转动？",
+        "follow_up_suggestions": [
+          "什么推动桨叶？",
+          "轮子可以驱动什么？",
+          "这个轮子如何在火星上给电池充电？"
+        ],
+        "content_type": "wiki",
+        "language": "zh"
+      }
+    },
+    {
+      "id": "v6-es-01-allow",
+      "language": "es",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "es-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Judías azules en un ensayo",
+        "phrase": "En este ensayo, las judías azules solo germinaron al recibir agua. No se probaron judías rojas.",
+        "assistant_response": "Solo germinaron las judías azules regadas en el ensayo. No se probaron judías rojas. ¿Qué mostró el ensayo?",
+        "follow_up_suggestions": [
+          "¿Qué judías se probaron?",
+          "¿Cuándo germinaron las judías azules?",
+          "¿Se probaron judías rojas?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-es-01-reject",
+      "language": "es",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "es-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Judías azules en un ensayo",
+        "phrase": "Todas las judías germinan cuando se riegan.",
+        "assistant_response": "Solo germinaron las judías azules regadas en el ensayo. No se probaron judías rojas. ¿Qué mostró el ensayo?",
+        "follow_up_suggestions": [
+          "¿Qué judías se probaron?",
+          "¿Cuándo germinaron las judías azules?",
+          "¿Se probaron judías rojas?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-es-02-allow",
+      "language": "es",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "es-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recoge luz",
+        "phrase": "Mira es un telescopio con un espejo curvo. Su espejo recoge luz.",
+        "assistant_response": "Mira utiliza un espejo curvo para recoger luz. El espejo dirige la luz hacia un sensor. ¿Cómo recoge luz el espejo?",
+        "follow_up_suggestions": [
+          "¿Qué utiliza Mira para recoger luz?",
+          "¿Hacia dónde dirige la luz el espejo?",
+          "¿Qué forma tiene el espejo?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-es-02-reject",
+      "language": "es",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "es-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recoge luz",
+        "phrase": "Mira es un telescopio con un espejo curvo. Su espejo recoge luz.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "¿Qué utiliza Mira para recoger luz?",
+          "¿Hacia dónde dirige la luz el espejo?",
+          "¿Qué forma tiene el espejo?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-es-03-allow",
+      "language": "es",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "es-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Una rueda movida por agua",
+        "phrase": "El agua que fluye empuja las palas de una rueda. La rueda puede mover una piedra de molino.",
+        "assistant_response": "El agua empuja las palas y hace girar la rueda. La rueda puede mover una piedra de molino. ¿Cómo hace girar el agua la rueda?",
+        "follow_up_suggestions": [
+          "¿Qué empuja las palas?",
+          "¿Qué puede mover la rueda?",
+          "¿Cómo hace girar el agua la rueda?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-es-03-reject",
+      "language": "es",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "es-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Una rueda movida por agua",
+        "phrase": "El agua que fluye empuja las palas de una rueda. La rueda puede mover una piedra de molino.",
+        "assistant_response": "El agua empuja las palas y hace girar la rueda. La rueda puede mover una piedra de molino. ¿Cómo hace girar el agua la rueda?",
+        "follow_up_suggestions": [
+          "¿Qué empuja las palas?",
+          "¿Qué puede mover la rueda?",
+          "¿Cómo carga esta rueda baterías en Marte?"
+        ],
+        "content_type": "wiki",
+        "language": "es"
+      }
+    },
+    {
+      "id": "v6-fr-01-allow",
+      "language": "fr",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "fr-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Des haricots bleus dans un essai",
+        "phrase": "Dans cet essai, les haricots bleus n’ont germé que s’ils étaient arrosés. Les haricots rouges n’ont pas été testés.",
+        "assistant_response": "Seuls les haricots bleus arrosés ont germé dans l’essai. Les haricots rouges n’ont pas été testés. Qu’a montré cet essai ?",
+        "follow_up_suggestions": [
+          "Quels haricots ont été testés ?",
+          "Quand les haricots bleus ont-ils germé ?",
+          "Les haricots rouges ont-ils été testés ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-fr-01-reject",
+      "language": "fr",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "fr-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Des haricots bleus dans un essai",
+        "phrase": "Tous les haricots germent lorsqu’on les arrose.",
+        "assistant_response": "Seuls les haricots bleus arrosés ont germé dans l’essai. Les haricots rouges n’ont pas été testés. Qu’a montré cet essai ?",
+        "follow_up_suggestions": [
+          "Quels haricots ont été testés ?",
+          "Quand les haricots bleus ont-ils germé ?",
+          "Les haricots rouges ont-ils été testés ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-fr-02-allow",
+      "language": "fr",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "fr-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recueille la lumière",
+        "phrase": "Mira est un télescope doté d’un miroir courbe. Ce miroir recueille la lumière.",
+        "assistant_response": "Mira utilise un miroir courbe pour recueillir la lumière. Le miroir dirige la lumière vers un capteur. Comment le miroir recueille-t-il la lumière ?",
+        "follow_up_suggestions": [
+          "Qu’utilise Mira pour recueillir la lumière ?",
+          "Vers quoi le miroir dirige-t-il la lumière ?",
+          "Quelle est la forme du miroir ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-fr-02-reject",
+      "language": "fr",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "fr-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recueille la lumière",
+        "phrase": "Mira est un télescope doté d’un miroir courbe. Ce miroir recueille la lumière.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Qu’utilise Mira pour recueillir la lumière ?",
+          "Vers quoi le miroir dirige-t-il la lumière ?",
+          "Quelle est la forme du miroir ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-fr-03-allow",
+      "language": "fr",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "fr-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Une roue entraînée par l’eau",
+        "phrase": "L’eau qui coule pousse les pales d’une roue. La roue peut entraîner une meule.",
+        "assistant_response": "L’eau pousse les pales et fait tourner la roue. La roue peut entraîner une meule. Comment l’eau fait-elle tourner la roue ?",
+        "follow_up_suggestions": [
+          "Qu’est-ce qui pousse les pales ?",
+          "Que peut entraîner la roue ?",
+          "Comment l’eau fait-elle tourner la roue ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-fr-03-reject",
+      "language": "fr",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "fr-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Une roue entraînée par l’eau",
+        "phrase": "L’eau qui coule pousse les pales d’une roue. La roue peut entraîner une meule.",
+        "assistant_response": "L’eau pousse les pales et fait tourner la roue. La roue peut entraîner une meule. Comment l’eau fait-elle tourner la roue ?",
+        "follow_up_suggestions": [
+          "Qu’est-ce qui pousse les pales ?",
+          "Que peut entraîner la roue ?",
+          "Comment cette roue recharge-t-elle des batteries sur Mars ?"
+        ],
+        "content_type": "wiki",
+        "language": "fr"
+      }
+    },
+    {
+      "id": "v6-pt-01-allow",
+      "language": "pt",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "pt-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Feijões azuis num ensaio",
+        "phrase": "Neste ensaio, os feijões azuis só germinaram quando foram regados. Os feijões vermelhos não foram testados.",
+        "assistant_response": "Só os feijões azuis regados germinaram no ensaio. Os feijões vermelhos não foram testados. O que mostrou o ensaio?",
+        "follow_up_suggestions": [
+          "Que feijões foram testados?",
+          "Quando germinaram os feijões azuis?",
+          "Os feijões vermelhos foram testados?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-pt-01-reject",
+      "language": "pt",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "pt-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Feijões azuis num ensaio",
+        "phrase": "Todos os feijões germinam quando são regados.",
+        "assistant_response": "Só os feijões azuis regados germinaram no ensaio. Os feijões vermelhos não foram testados. O que mostrou o ensaio?",
+        "follow_up_suggestions": [
+          "Que feijões foram testados?",
+          "Quando germinaram os feijões azuis?",
+          "Os feijões vermelhos foram testados?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-pt-02-allow",
+      "language": "pt",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "pt-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recolhe luz",
+        "phrase": "Mira é um telescópio com um espelho curvo. O espelho recolhe luz.",
+        "assistant_response": "Mira usa um espelho curvo para recolher luz. O espelho dirige a luz para um sensor. Como recolhe luz o espelho?",
+        "follow_up_suggestions": [
+          "O que usa Mira para recolher luz?",
+          "Para onde dirige o espelho a luz?",
+          "Qual é a forma do espelho?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-pt-02-reject",
+      "language": "pt",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "pt-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira recolhe luz",
+        "phrase": "Mira é um telescópio com um espelho curvo. O espelho recolhe luz.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "O que usa Mira para recolher luz?",
+          "Para onde dirige o espelho a luz?",
+          "Qual é a forma do espelho?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-pt-03-allow",
+      "language": "pt",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "pt-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Uma roda movida pela água",
+        "phrase": "A água corrente empurra as pás de uma roda. A roda pode mover uma mó.",
+        "assistant_response": "A água empurra as pás e faz girar a roda. A roda pode mover uma mó. Como faz a água girar a roda?",
+        "follow_up_suggestions": [
+          "O que empurra as pás?",
+          "O que pode a roda mover?",
+          "Como faz a água girar a roda?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-pt-03-reject",
+      "language": "pt",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "pt-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Uma roda movida pela água",
+        "phrase": "A água corrente empurra as pás de uma roda. A roda pode mover uma mó.",
+        "assistant_response": "A água empurra as pás e faz girar a roda. A roda pode mover uma mó. Como faz a água girar a roda?",
+        "follow_up_suggestions": [
+          "O que empurra as pás?",
+          "O que pode a roda mover?",
+          "Como carrega esta roda baterias em Marte?"
+        ],
+        "content_type": "wiki",
+        "language": "pt"
+      }
+    },
+    {
+      "id": "v6-ru-01-allow",
+      "language": "ru",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ru-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Синие бобы в опыте",
+        "phrase": "В этом опыте синие бобы проросли только при поливе. Красные бобы не испытывали.",
+        "assistant_response": "В опыте проросли только политые синие бобы. Красные бобы не испытывали. Что показал опыт?",
+        "follow_up_suggestions": [
+          "Какие бобы испытывали?",
+          "Когда проросли синие бобы?",
+          "Испытывали ли красные бобы?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ru-01-reject",
+      "language": "ru",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ru-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Синие бобы в опыте",
+        "phrase": "Все бобы прорастают при поливе.",
+        "assistant_response": "В опыте проросли только политые синие бобы. Красные бобы не испытывали. Что показал опыт?",
+        "follow_up_suggestions": [
+          "Какие бобы испытывали?",
+          "Когда проросли синие бобы?",
+          "Испытывали ли красные бобы?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ru-02-allow",
+      "language": "ru",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "ru-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira собирает свет",
+        "phrase": "Mira — телескоп с изогнутым зеркалом. Зеркало собирает свет.",
+        "assistant_response": "Mira использует изогнутое зеркало для сбора света. Зеркало направляет свет к датчику. Как зеркало собирает свет?",
+        "follow_up_suggestions": [
+          "Что использует Mira для сбора света?",
+          "Куда зеркало направляет свет?",
+          "Какую форму имеет зеркало?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ru-02-reject",
+      "language": "ru",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "ru-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira собирает свет",
+        "phrase": "Mira — телескоп с изогнутым зеркалом. Зеркало собирает свет.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Что использует Mira для сбора света?",
+          "Куда зеркало направляет свет?",
+          "Какую форму имеет зеркало?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ru-03-allow",
+      "language": "ru",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ru-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Колесо, приводимое в движение водой",
+        "phrase": "Текущая вода толкает лопасти колеса. Колесо может приводить в движение мельничный жернов.",
+        "assistant_response": "Вода толкает лопасти и вращает колесо. Колесо может приводить в движение жернов. Как вода вращает колесо?",
+        "follow_up_suggestions": [
+          "Что толкает лопасти?",
+          "Что может приводить в движение колесо?",
+          "Как вода вращает колесо?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ru-03-reject",
+      "language": "ru",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ru-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Колесо, приводимое в движение водой",
+        "phrase": "Текущая вода толкает лопасти колеса. Колесо может приводить в движение мельничный жернов.",
+        "assistant_response": "Вода толкает лопасти и вращает колесо. Колесо может приводить в движение жернов. Как вода вращает колесо?",
+        "follow_up_suggestions": [
+          "Что толкает лопасти?",
+          "Что может приводить в движение колесо?",
+          "Как это колесо заряжает батареи на Марсе?"
+        ],
+        "content_type": "wiki",
+        "language": "ru"
+      }
+    },
+    {
+      "id": "v6-ja-01-allow",
+      "language": "ja",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ja-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "実験で使った青い豆",
+        "phrase": "この実験では、水を与えた青い豆だけが発芽しました。赤い豆は調べていません。",
+        "assistant_response": "実験で発芽したのは、水を与えた青い豆だけでした。赤い豆は調べていません。この実験で何が分かったのでしょうか？",
+        "follow_up_suggestions": [
+          "どの豆を調べましたか？",
+          "青い豆はどんなときに発芽しましたか？",
+          "赤い豆も調べましたか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ja-01-reject",
+      "language": "ja",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ja-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "実験で使った青い豆",
+        "phrase": "すべての豆は水を与えると発芽します。",
+        "assistant_response": "実験で発芽したのは、水を与えた青い豆だけでした。赤い豆は調べていません。この実験で何が分かったのでしょうか？",
+        "follow_up_suggestions": [
+          "どの豆を調べましたか？",
+          "青い豆はどんなときに発芽しましたか？",
+          "赤い豆も調べましたか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ja-02-allow",
+      "language": "ja",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "ja-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "光を集めるMira",
+        "phrase": "Miraは曲面鏡を使う望遠鏡です。鏡が光を集めます。",
+        "assistant_response": "Miraは曲面鏡で光を集めます。その鏡は光をセンサーに導きます。鏡はどのように光を集めるのでしょうか？",
+        "follow_up_suggestions": [
+          "Miraは何を使って光を集めますか？",
+          "鏡は光をどこに導きますか？",
+          "鏡はどんな形ですか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ja-02-reject",
+      "language": "ja",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "ja-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "光を集めるMira",
+        "phrase": "Miraは曲面鏡を使う望遠鏡です。鏡が光を集めます。",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Miraは何を使って光を集めますか？",
+          "鏡は光をどこに導きますか？",
+          "鏡はどんな形ですか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ja-03-allow",
+      "language": "ja",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ja-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "水の流れで回る水車",
+        "phrase": "流れる水が水車の羽根を押します。水車は石臼を動かすことができます。",
+        "assistant_response": "水が羽根を押すと水車が回ります。水車は石臼を動かすことができます。水はどのように水車を回すのでしょうか？",
+        "follow_up_suggestions": [
+          "何が羽根を押しますか？",
+          "水車は何を動かせますか？",
+          "水はどのように水車を回しますか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ja-03-reject",
+      "language": "ja",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ja-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "水の流れで回る水車",
+        "phrase": "流れる水が水車の羽根を押します。水車は石臼を動かすことができます。",
+        "assistant_response": "水が羽根を押すと水車が回ります。水車は石臼を動かすことができます。水はどのように水車を回すのでしょうか？",
+        "follow_up_suggestions": [
+          "何が羽根を押しますか？",
+          "水車は何を動かせますか？",
+          "この水車は火星でどのように電池を充電しますか？"
+        ],
+        "content_type": "wiki",
+        "language": "ja"
+      }
+    },
+    {
+      "id": "v6-ko-01-allow",
+      "language": "ko",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ko-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "실험 속 파란 콩",
+        "phrase": "이 실험에서 파란 콩은 물을 주었을 때만 싹이 났습니다. 빨간 콩은 시험하지 않았습니다.",
+        "assistant_response": "실험에서 물을 준 파란 콩만 싹이 났습니다. 빨간 콩은 시험하지 않았습니다. 이 실험은 무엇을 보여 주었을까요?",
+        "follow_up_suggestions": [
+          "어떤 콩을 시험했나요?",
+          "파란 콩은 언제 싹이 났나요?",
+          "빨간 콩도 시험했나요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-ko-01-reject",
+      "language": "ko",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ko-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "실험 속 파란 콩",
+        "phrase": "모든 콩은 물을 주면 싹이 납니다.",
+        "assistant_response": "실험에서 물을 준 파란 콩만 싹이 났습니다. 빨간 콩은 시험하지 않았습니다. 이 실험은 무엇을 보여 주었을까요?",
+        "follow_up_suggestions": [
+          "어떤 콩을 시험했나요?",
+          "파란 콩은 언제 싹이 났나요?",
+          "빨간 콩도 시험했나요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-ko-02-allow",
+      "language": "ko",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "ko-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "빛을 모으는 Mira",
+        "phrase": "Mira는 곡면 거울을 사용하는 망원경입니다. 거울이 빛을 모읍니다.",
+        "assistant_response": "Mira는 곡면 거울로 빛을 모읍니다. 거울은 빛을 센서 쪽으로 보냅니다. 거울은 어떻게 빛을 모을까요?",
+        "follow_up_suggestions": [
+          "Mira는 무엇으로 빛을 모으나요?",
+          "거울은 빛을 어디로 보내나요?",
+          "거울은 어떤 모양인가요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-ko-02-reject",
+      "language": "ko",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "ko-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "빛을 모으는 Mira",
+        "phrase": "Mira는 곡면 거울을 사용하는 망원경입니다. 거울이 빛을 모읍니다.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira는 무엇으로 빛을 모으나요?",
+          "거울은 빛을 어디로 보내나요?",
+          "거울은 어떤 모양인가요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-ko-03-allow",
+      "language": "ko",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ko-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "물로 움직이는 바퀴",
+        "phrase": "흐르는 물이 바퀴의 날개를 밉니다. 바퀴는 맷돌을 움직일 수 있습니다.",
+        "assistant_response": "물이 날개를 밀어 바퀴를 돌립니다. 바퀴는 맷돌을 움직일 수 있습니다. 물은 어떻게 바퀴를 돌릴까요?",
+        "follow_up_suggestions": [
+          "무엇이 날개를 미나요?",
+          "바퀴는 무엇을 움직일 수 있나요?",
+          "물은 어떻게 바퀴를 돌리나요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-ko-03-reject",
+      "language": "ko",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ko-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "물로 움직이는 바퀴",
+        "phrase": "흐르는 물이 바퀴의 날개를 밉니다. 바퀴는 맷돌을 움직일 수 있습니다.",
+        "assistant_response": "물이 날개를 밀어 바퀴를 돌립니다. 바퀴는 맷돌을 움직일 수 있습니다. 물은 어떻게 바퀴를 돌릴까요?",
+        "follow_up_suggestions": [
+          "무엇이 날개를 미나요?",
+          "바퀴는 무엇을 움직일 수 있나요?",
+          "이 바퀴는 화성에서 어떻게 배터리를 충전하나요?"
+        ],
+        "content_type": "wiki",
+        "language": "ko"
+      }
+    },
+    {
+      "id": "v6-it-01-allow",
+      "language": "it",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "it-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Fagioli blu in una prova",
+        "phrase": "In questa prova, i fagioli blu sono germogliati solo se annaffiati. I fagioli rossi non sono stati testati.",
+        "assistant_response": "Nella prova sono germogliati solo i fagioli blu annaffiati. I fagioli rossi non sono stati testati. Che cosa ha mostrato la prova?",
+        "follow_up_suggestions": [
+          "Quali fagioli sono stati testati?",
+          "Quando sono germogliati i fagioli blu?",
+          "Sono stati testati i fagioli rossi?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-it-01-reject",
+      "language": "it",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "it-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Fagioli blu in una prova",
+        "phrase": "Tutti i fagioli germogliano quando vengono annaffiati.",
+        "assistant_response": "Nella prova sono germogliati solo i fagioli blu annaffiati. I fagioli rossi non sono stati testati. Che cosa ha mostrato la prova?",
+        "follow_up_suggestions": [
+          "Quali fagioli sono stati testati?",
+          "Quando sono germogliati i fagioli blu?",
+          "Sono stati testati i fagioli rossi?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-it-02-allow",
+      "language": "it",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "it-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira raccoglie la luce",
+        "phrase": "Mira è un telescopio con uno specchio curvo. Lo specchio raccoglie la luce.",
+        "assistant_response": "Mira usa uno specchio curvo per raccogliere la luce. Lo specchio dirige la luce verso un sensore. Come raccoglie la luce lo specchio?",
+        "follow_up_suggestions": [
+          "Che cosa usa Mira per raccogliere la luce?",
+          "Dove dirige la luce lo specchio?",
+          "Che forma ha lo specchio?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-it-02-reject",
+      "language": "it",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "it-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira raccoglie la luce",
+        "phrase": "Mira è un telescopio con uno specchio curvo. Lo specchio raccoglie la luce.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Che cosa usa Mira per raccogliere la luce?",
+          "Dove dirige la luce lo specchio?",
+          "Che forma ha lo specchio?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-it-03-allow",
+      "language": "it",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "it-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Una ruota mossa dall’acqua",
+        "phrase": "L’acqua che scorre spinge le pale di una ruota. La ruota può azionare una macina.",
+        "assistant_response": "L’acqua spinge le pale e fa girare la ruota. La ruota può azionare una macina. Come fa l’acqua a girare la ruota?",
+        "follow_up_suggestions": [
+          "Che cosa spinge le pale?",
+          "Che cosa può azionare la ruota?",
+          "Come fa l’acqua a girare la ruota?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-it-03-reject",
+      "language": "it",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "it-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Una ruota mossa dall’acqua",
+        "phrase": "L’acqua che scorre spinge le pale di una ruota. La ruota può azionare una macina.",
+        "assistant_response": "L’acqua spinge le pale e fa girare la ruota. La ruota può azionare una macina. Come fa l’acqua a girare la ruota?",
+        "follow_up_suggestions": [
+          "Che cosa spinge le pale?",
+          "Che cosa può azionare la ruota?",
+          "Come ricarica questa ruota le batterie su Marte?"
+        ],
+        "content_type": "wiki",
+        "language": "it"
+      }
+    },
+    {
+      "id": "v6-tr-01-allow",
+      "language": "tr",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "tr-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Deneydeki mavi fasulyeler",
+        "phrase": "Bu deneyde mavi fasulyeler yalnızca sulandıklarında filizlendi. Kırmızı fasulyeler denenmedi.",
+        "assistant_response": "Deneyde yalnızca sulanan mavi fasulyeler filizlendi. Kırmızı fasulyeler denenmedi. Deney ne gösterdi?",
+        "follow_up_suggestions": [
+          "Hangi fasulyeler denendi?",
+          "Mavi fasulyeler ne zaman filizlendi?",
+          "Kırmızı fasulyeler denendi mi?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-tr-01-reject",
+      "language": "tr",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "tr-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Deneydeki mavi fasulyeler",
+        "phrase": "Bütün fasulyeler sulandıklarında filizlenir.",
+        "assistant_response": "Deneyde yalnızca sulanan mavi fasulyeler filizlendi. Kırmızı fasulyeler denenmedi. Deney ne gösterdi?",
+        "follow_up_suggestions": [
+          "Hangi fasulyeler denendi?",
+          "Mavi fasulyeler ne zaman filizlendi?",
+          "Kırmızı fasulyeler denendi mi?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-tr-02-allow",
+      "language": "tr",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "tr-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira ışığı topluyor",
+        "phrase": "Mira, kavisli aynası olan bir teleskoptur. Ayna ışığı toplar.",
+        "assistant_response": "Mira, ışığı toplamak için kavisli bir ayna kullanır. Ayna ışığı bir sensöre yönlendirir. Ayna ışığı nasıl toplar?",
+        "follow_up_suggestions": [
+          "Mira ışığı toplamak için ne kullanır?",
+          "Ayna ışığı nereye yönlendirir?",
+          "Aynanın şekli nasıldır?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-tr-02-reject",
+      "language": "tr",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "tr-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira ışığı topluyor",
+        "phrase": "Mira, kavisli aynası olan bir teleskoptur. Ayna ışığı toplar.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira ışığı toplamak için ne kullanır?",
+          "Ayna ışığı nereye yönlendirir?",
+          "Aynanın şekli nasıldır?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-tr-03-allow",
+      "language": "tr",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "tr-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Suyla dönen çark",
+        "phrase": "Akan su bir çarkın kanatlarını iter. Çark bir değirmen taşını döndürebilir.",
+        "assistant_response": "Su kanatları iterek çarkı döndürür. Çark bir değirmen taşını döndürebilir. Su çarkı nasıl döndürür?",
+        "follow_up_suggestions": [
+          "Kanatları ne iter?",
+          "Çark neyi döndürebilir?",
+          "Su çarkı nasıl döndürür?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-tr-03-reject",
+      "language": "tr",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "tr-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Suyla dönen çark",
+        "phrase": "Akan su bir çarkın kanatlarını iter. Çark bir değirmen taşını döndürebilir.",
+        "assistant_response": "Su kanatları iterek çarkı döndürür. Çark bir değirmen taşını döndürebilir. Su çarkı nasıl döndürür?",
+        "follow_up_suggestions": [
+          "Kanatları ne iter?",
+          "Çark neyi döndürebilir?",
+          "Bu çark Mars’ta pilleri nasıl şarj eder?"
+        ],
+        "content_type": "wiki",
+        "language": "tr"
+      }
+    },
+    {
+      "id": "v6-vi-01-allow",
+      "language": "vi",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "vi-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Hạt đậu xanh lam trong thử nghiệm",
+        "phrase": "Trong thử nghiệm này, hạt đậu xanh lam chỉ nảy mầm khi được tưới nước. Hạt đậu đỏ không được thử nghiệm.",
+        "assistant_response": "Chỉ những hạt đậu xanh lam được tưới mới nảy mầm trong thử nghiệm. Hạt đậu đỏ không được thử nghiệm. Thử nghiệm cho thấy điều gì?",
+        "follow_up_suggestions": [
+          "Những hạt đậu nào được thử nghiệm?",
+          "Khi nào hạt đậu xanh lam nảy mầm?",
+          "Hạt đậu đỏ có được thử nghiệm không?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-vi-01-reject",
+      "language": "vi",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "vi-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Hạt đậu xanh lam trong thử nghiệm",
+        "phrase": "Mọi hạt đậu đều nảy mầm khi được tưới nước.",
+        "assistant_response": "Chỉ những hạt đậu xanh lam được tưới mới nảy mầm trong thử nghiệm. Hạt đậu đỏ không được thử nghiệm. Thử nghiệm cho thấy điều gì?",
+        "follow_up_suggestions": [
+          "Những hạt đậu nào được thử nghiệm?",
+          "Khi nào hạt đậu xanh lam nảy mầm?",
+          "Hạt đậu đỏ có được thử nghiệm không?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-vi-02-allow",
+      "language": "vi",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "vi-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira thu ánh sáng",
+        "phrase": "Mira là kính thiên văn có gương cong. Gương thu ánh sáng.",
+        "assistant_response": "Mira dùng gương cong để thu ánh sáng. Gương hướng ánh sáng tới cảm biến. Gương thu ánh sáng như thế nào?",
+        "follow_up_suggestions": [
+          "Mira dùng gì để thu ánh sáng?",
+          "Gương hướng ánh sáng tới đâu?",
+          "Gương có hình dạng gì?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-vi-02-reject",
+      "language": "vi",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "vi-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira thu ánh sáng",
+        "phrase": "Mira là kính thiên văn có gương cong. Gương thu ánh sáng.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira dùng gì để thu ánh sáng?",
+          "Gương hướng ánh sáng tới đâu?",
+          "Gương có hình dạng gì?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-vi-03-allow",
+      "language": "vi",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "vi-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Bánh xe chạy bằng nước",
+        "phrase": "Nước chảy đẩy các cánh của bánh xe. Bánh xe có thể làm quay cối đá.",
+        "assistant_response": "Nước đẩy các cánh và làm bánh xe quay. Bánh xe có thể làm quay cối đá. Nước làm bánh xe quay như thế nào?",
+        "follow_up_suggestions": [
+          "Điều gì đẩy các cánh?",
+          "Bánh xe có thể làm quay vật gì?",
+          "Nước làm bánh xe quay như thế nào?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-vi-03-reject",
+      "language": "vi",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "vi-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Bánh xe chạy bằng nước",
+        "phrase": "Nước chảy đẩy các cánh của bánh xe. Bánh xe có thể làm quay cối đá.",
+        "assistant_response": "Nước đẩy các cánh và làm bánh xe quay. Bánh xe có thể làm quay cối đá. Nước làm bánh xe quay như thế nào?",
+        "follow_up_suggestions": [
+          "Điều gì đẩy các cánh?",
+          "Bánh xe có thể làm quay vật gì?",
+          "Bánh xe này sạc pin trên sao Hỏa như thế nào?"
+        ],
+        "content_type": "wiki",
+        "language": "vi"
+      }
+    },
+    {
+      "id": "v6-id-01-allow",
+      "language": "id",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "id-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Kacang biru dalam percobaan",
+        "phrase": "Dalam percobaan ini, kacang biru hanya bertunas jika disiram. Kacang merah tidak diuji.",
+        "assistant_response": "Hanya kacang biru yang disiram yang bertunas dalam percobaan. Kacang merah tidak diuji. Apa yang ditunjukkan percobaan ini?",
+        "follow_up_suggestions": [
+          "Kacang mana yang diuji?",
+          "Kapan kacang biru bertunas?",
+          "Apakah kacang merah diuji?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-id-01-reject",
+      "language": "id",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "id-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Kacang biru dalam percobaan",
+        "phrase": "Semua kacang bertunas jika disiram.",
+        "assistant_response": "Hanya kacang biru yang disiram yang bertunas dalam percobaan. Kacang merah tidak diuji. Apa yang ditunjukkan percobaan ini?",
+        "follow_up_suggestions": [
+          "Kacang mana yang diuji?",
+          "Kapan kacang biru bertunas?",
+          "Apakah kacang merah diuji?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-id-02-allow",
+      "language": "id",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "id-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira mengumpulkan cahaya",
+        "phrase": "Mira adalah teleskop dengan cermin melengkung. Cerminnya mengumpulkan cahaya.",
+        "assistant_response": "Mira menggunakan cermin melengkung untuk mengumpulkan cahaya. Cermin mengarahkan cahaya ke sensor. Bagaimana cermin mengumpulkan cahaya?",
+        "follow_up_suggestions": [
+          "Apa yang digunakan Mira untuk mengumpulkan cahaya?",
+          "Ke mana cermin mengarahkan cahaya?",
+          "Bagaimana bentuk cerminnya?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-id-02-reject",
+      "language": "id",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "id-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira mengumpulkan cahaya",
+        "phrase": "Mira adalah teleskop dengan cermin melengkung. Cerminnya mengumpulkan cahaya.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Apa yang digunakan Mira untuk mengumpulkan cahaya?",
+          "Ke mana cermin mengarahkan cahaya?",
+          "Bagaimana bentuk cerminnya?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-id-03-allow",
+      "language": "id",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "id-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Roda yang digerakkan air",
+        "phrase": "Air mengalir mendorong bilah roda. Roda dapat menggerakkan batu giling.",
+        "assistant_response": "Air mendorong bilah dan memutar roda. Roda dapat menggerakkan batu giling. Bagaimana air memutar roda?",
+        "follow_up_suggestions": [
+          "Apa yang mendorong bilah?",
+          "Apa yang dapat digerakkan roda?",
+          "Bagaimana air memutar roda?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-id-03-reject",
+      "language": "id",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "id-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Roda yang digerakkan air",
+        "phrase": "Air mengalir mendorong bilah roda. Roda dapat menggerakkan batu giling.",
+        "assistant_response": "Air mendorong bilah dan memutar roda. Roda dapat menggerakkan batu giling. Bagaimana air memutar roda?",
+        "follow_up_suggestions": [
+          "Apa yang mendorong bilah?",
+          "Apa yang dapat digerakkan roda?",
+          "Bagaimana roda ini mengisi baterai di Mars?"
+        ],
+        "content_type": "wiki",
+        "language": "id"
+      }
+    },
+    {
+      "id": "v6-pl-01-allow",
+      "language": "pl",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "pl-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Niebieskie fasole w doświadczeniu",
+        "phrase": "W tym doświadczeniu niebieskie fasole wykiełkowały tylko po podlaniu. Czerwonych fasoli nie badano.",
+        "assistant_response": "W doświadczeniu wykiełkowały tylko podlane niebieskie fasole. Czerwonych fasoli nie badano. Co pokazało doświadczenie?",
+        "follow_up_suggestions": [
+          "Które fasole badano?",
+          "Kiedy wykiełkowały niebieskie fasole?",
+          "Czy badano czerwone fasole?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-pl-01-reject",
+      "language": "pl",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "pl-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Niebieskie fasole w doświadczeniu",
+        "phrase": "Wszystkie fasole kiełkują po podlaniu.",
+        "assistant_response": "W doświadczeniu wykiełkowały tylko podlane niebieskie fasole. Czerwonych fasoli nie badano. Co pokazało doświadczenie?",
+        "follow_up_suggestions": [
+          "Które fasole badano?",
+          "Kiedy wykiełkowały niebieskie fasole?",
+          "Czy badano czerwone fasole?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-pl-02-allow",
+      "language": "pl",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "pl-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira zbiera światło",
+        "phrase": "Mira to teleskop z zakrzywionym lustrem. Lustro zbiera światło.",
+        "assistant_response": "Mira używa zakrzywionego lustra do zbierania światła. Lustro kieruje światło do czujnika. Jak lustro zbiera światło?",
+        "follow_up_suggestions": [
+          "Czego Mira używa do zbierania światła?",
+          "Dokąd lustro kieruje światło?",
+          "Jaki kształt ma lustro?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-pl-02-reject",
+      "language": "pl",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "pl-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira zbiera światło",
+        "phrase": "Mira to teleskop z zakrzywionym lustrem. Lustro zbiera światło.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Czego Mira używa do zbierania światła?",
+          "Dokąd lustro kieruje światło?",
+          "Jaki kształt ma lustro?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-pl-03-allow",
+      "language": "pl",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "pl-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Koło napędzane wodą",
+        "phrase": "Płynąca woda popycha łopatki koła. Koło może napędzać kamień młyński.",
+        "assistant_response": "Woda popycha łopatki i obraca koło. Koło może napędzać kamień młyński. Jak woda obraca koło?",
+        "follow_up_suggestions": [
+          "Co popycha łopatki?",
+          "Co może napędzać koło?",
+          "Jak woda obraca koło?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-pl-03-reject",
+      "language": "pl",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "pl-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Koło napędzane wodą",
+        "phrase": "Płynąca woda popycha łopatki koła. Koło może napędzać kamień młyński.",
+        "assistant_response": "Woda popycha łopatki i obraca koło. Koło może napędzać kamień młyński. Jak woda obraca koło?",
+        "follow_up_suggestions": [
+          "Co popycha łopatki?",
+          "Co może napędzać koło?",
+          "Jak to koło ładuje baterie na Marsie?"
+        ],
+        "content_type": "wiki",
+        "language": "pl"
+      }
+    },
+    {
+      "id": "v6-nl-01-allow",
+      "language": "nl",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "nl-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blauwe bonen in een proef",
+        "phrase": "In deze proef ontkiemden blauwe bonen alleen als ze water kregen. Rode bonen zijn niet getest.",
+        "assistant_response": "Alleen de blauwe bonen die water kregen, ontkiemden in de proef. Rode bonen zijn niet getest. Wat liet de proef zien?",
+        "follow_up_suggestions": [
+          "Welke bonen zijn getest?",
+          "Wanneer ontkiemden de blauwe bonen?",
+          "Zijn rode bonen getest?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-nl-01-reject",
+      "language": "nl",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "nl-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blauwe bonen in een proef",
+        "phrase": "Alle bonen ontkiemen als ze water krijgen.",
+        "assistant_response": "Alleen de blauwe bonen die water kregen, ontkiemden in de proef. Rode bonen zijn niet getest. Wat liet de proef zien?",
+        "follow_up_suggestions": [
+          "Welke bonen zijn getest?",
+          "Wanneer ontkiemden de blauwe bonen?",
+          "Zijn rode bonen getest?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-nl-02-allow",
+      "language": "nl",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "nl-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira verzamelt licht",
+        "phrase": "Mira is een telescoop met een gebogen spiegel. De spiegel verzamelt licht.",
+        "assistant_response": "Mira gebruikt een gebogen spiegel om licht te verzamelen. De spiegel richt het licht op een sensor. Hoe verzamelt de spiegel licht?",
+        "follow_up_suggestions": [
+          "Wat gebruikt Mira om licht te verzamelen?",
+          "Waar richt de spiegel het licht op?",
+          "Welke vorm heeft de spiegel?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-nl-02-reject",
+      "language": "nl",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "nl-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira verzamelt licht",
+        "phrase": "Mira is een telescoop met een gebogen spiegel. De spiegel verzamelt licht.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Wat gebruikt Mira om licht te verzamelen?",
+          "Waar richt de spiegel het licht op?",
+          "Welke vorm heeft de spiegel?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-nl-03-allow",
+      "language": "nl",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "nl-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Een wiel op waterkracht",
+        "phrase": "Stromend water duwt tegen de schoepen van een wiel. Het wiel kan een molensteen aandrijven.",
+        "assistant_response": "Water duwt tegen de schoepen en draait het wiel. Het wiel kan een molensteen aandrijven. Hoe draait het water het wiel?",
+        "follow_up_suggestions": [
+          "Wat duwt tegen de schoepen?",
+          "Wat kan het wiel aandrijven?",
+          "Hoe draait het water het wiel?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-nl-03-reject",
+      "language": "nl",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "nl-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Een wiel op waterkracht",
+        "phrase": "Stromend water duwt tegen de schoepen van een wiel. Het wiel kan een molensteen aandrijven.",
+        "assistant_response": "Water duwt tegen de schoepen en draait het wiel. Het wiel kan een molensteen aandrijven. Hoe draait het water het wiel?",
+        "follow_up_suggestions": [
+          "Wat duwt tegen de schoepen?",
+          "Wat kan het wiel aandrijven?",
+          "Hoe laadt dit wiel batterijen op Mars op?"
+        ],
+        "content_type": "wiki",
+        "language": "nl"
+      }
+    },
+    {
+      "id": "v6-ar-01-allow",
+      "language": "ar",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ar-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "فاصولياء زرقاء في تجربة",
+        "phrase": "في هذه التجربة، لم تنبت الفاصولياء الزرقاء إلا عند ريها. لم تُختبر الفاصولياء الحمراء.",
+        "assistant_response": "لم تنبت في التجربة إلا الفاصولياء الزرقاء التي رُويت. لم تُختبر الفاصولياء الحمراء. ماذا أظهرت التجربة؟",
+        "follow_up_suggestions": [
+          "أي فاصولياء اختُبرت؟",
+          "متى نبتت الفاصولياء الزرقاء؟",
+          "هل اختُبرت الفاصولياء الحمراء؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-ar-01-reject",
+      "language": "ar",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "ar-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "فاصولياء زرقاء في تجربة",
+        "phrase": "كل أنواع الفاصولياء تنبت عند ريها.",
+        "assistant_response": "لم تنبت في التجربة إلا الفاصولياء الزرقاء التي رُويت. لم تُختبر الفاصولياء الحمراء. ماذا أظهرت التجربة؟",
+        "follow_up_suggestions": [
+          "أي فاصولياء اختُبرت؟",
+          "متى نبتت الفاصولياء الزرقاء؟",
+          "هل اختُبرت الفاصولياء الحمراء؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-ar-02-allow",
+      "language": "ar",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "ar-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira يجمع الضوء",
+        "phrase": "Mira تلسكوب ذو مرآة منحنية. تجمع المرآة الضوء.",
+        "assistant_response": "يستخدم Mira مرآة منحنية لجمع الضوء. توجّه المرآة الضوء نحو مستشعر. كيف تجمع المرآة الضوء؟",
+        "follow_up_suggestions": [
+          "ماذا يستخدم Mira لجمع الضوء؟",
+          "إلى أين توجّه المرآة الضوء؟",
+          "ما شكل المرآة؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-ar-02-reject",
+      "language": "ar",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "ar-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira يجمع الضوء",
+        "phrase": "Mira تلسكوب ذو مرآة منحنية. تجمع المرآة الضوء.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "ماذا يستخدم Mira لجمع الضوء؟",
+          "إلى أين توجّه المرآة الضوء؟",
+          "ما شكل المرآة؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-ar-03-allow",
+      "language": "ar",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ar-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "عجلة تديرها المياه",
+        "phrase": "تدفع المياه الجارية ريش عجلة. يمكن للعجلة أن تدير حجر رحى.",
+        "assistant_response": "تدفع المياه الريش فتدور العجلة. يمكن للعجلة أن تدير حجر رحى. كيف تدير المياه العجلة؟",
+        "follow_up_suggestions": [
+          "ما الذي يدفع الريش؟",
+          "ماذا يمكن للعجلة أن تدير؟",
+          "كيف تدير المياه العجلة؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-ar-03-reject",
+      "language": "ar",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "ar-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "عجلة تديرها المياه",
+        "phrase": "تدفع المياه الجارية ريش عجلة. يمكن للعجلة أن تدير حجر رحى.",
+        "assistant_response": "تدفع المياه الريش فتدور العجلة. يمكن للعجلة أن تدير حجر رحى. كيف تدير المياه العجلة؟",
+        "follow_up_suggestions": [
+          "ما الذي يدفع الريش؟",
+          "ماذا يمكن للعجلة أن تدير؟",
+          "كيف تشحن هذه العجلة البطاريات على المريخ؟"
+        ],
+        "content_type": "wiki",
+        "language": "ar"
+      }
+    },
+    {
+      "id": "v6-hi-01-allow",
+      "language": "hi",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "hi-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "प्रयोग में नीले सेम के बीज",
+        "phrase": "इस प्रयोग में नीले सेम के बीज केवल पानी देने पर अंकुरित हुए। लाल सेम के बीजों की जाँच नहीं की गई।",
+        "assistant_response": "प्रयोग में केवल पानी दिए गए नीले सेम के बीज अंकुरित हुए। लाल सेम के बीजों की जाँच नहीं की गई। प्रयोग से क्या पता चला?",
+        "follow_up_suggestions": [
+          "किन सेम के बीजों की जाँच की गई?",
+          "नीले सेम के बीज कब अंकुरित हुए?",
+          "क्या लाल सेम के बीजों की जाँच हुई?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-hi-01-reject",
+      "language": "hi",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "hi-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "प्रयोग में नीले सेम के बीज",
+        "phrase": "सभी सेम के बीज पानी देने पर अंकुरित होते हैं।",
+        "assistant_response": "प्रयोग में केवल पानी दिए गए नीले सेम के बीज अंकुरित हुए। लाल सेम के बीजों की जाँच नहीं की गई। प्रयोग से क्या पता चला?",
+        "follow_up_suggestions": [
+          "किन सेम के बीजों की जाँच की गई?",
+          "नीले सेम के बीज कब अंकुरित हुए?",
+          "क्या लाल सेम के बीजों की जाँच हुई?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-hi-02-allow",
+      "language": "hi",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "hi-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "प्रकाश एकत्र करता Mira",
+        "phrase": "Mira एक दूरबीन है जिसमें घुमावदार दर्पण है। दर्पण प्रकाश एकत्र करता है।",
+        "assistant_response": "Mira में प्रकाश एकत्र करने के लिए घुमावदार दर्पण का उपयोग होता है। दर्पण प्रकाश को सेंसर की ओर भेजता है। दर्पण प्रकाश कैसे एकत्र करता है?",
+        "follow_up_suggestions": [
+          "Mira में प्रकाश एकत्र करने के लिए किसका उपयोग होता है?",
+          "दर्पण प्रकाश को कहाँ भेजता है?",
+          "दर्पण का आकार कैसा है?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-hi-02-reject",
+      "language": "hi",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "hi-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "प्रकाश एकत्र करता Mira",
+        "phrase": "Mira एक दूरबीन है जिसमें घुमावदार दर्पण है। दर्पण प्रकाश एकत्र करता है।",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira में प्रकाश एकत्र करने के लिए किसका उपयोग होता है?",
+          "दर्पण प्रकाश को कहाँ भेजता है?",
+          "दर्पण का आकार कैसा है?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-hi-03-allow",
+      "language": "hi",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "hi-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "पानी से घूमता पहिया",
+        "phrase": "बहता पानी पहिए की पत्तियों को धक्का देता है। पहिया चक्की का पाट चला सकता है।",
+        "assistant_response": "पानी पत्तियों को धक्का देकर पहिया घुमाता है। पहिया चक्की का पाट चला सकता है। पानी पहिया कैसे घुमाता है?",
+        "follow_up_suggestions": [
+          "पत्तियों को क्या धक्का देता है?",
+          "पहिया क्या चला सकता है?",
+          "पानी पहिया कैसे घुमाता है?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-hi-03-reject",
+      "language": "hi",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "hi-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "पानी से घूमता पहिया",
+        "phrase": "बहता पानी पहिए की पत्तियों को धक्का देता है। पहिया चक्की का पाट चला सकता है।",
+        "assistant_response": "पानी पत्तियों को धक्का देकर पहिया घुमाता है। पहिया चक्की का पाट चला सकता है। पानी पहिया कैसे घुमाता है?",
+        "follow_up_suggestions": [
+          "पत्तियों को क्या धक्का देता है?",
+          "पहिया क्या चला सकता है?",
+          "यह पहिया मंगल ग्रह पर बैटरियाँ कैसे चार्ज करता है?"
+        ],
+        "content_type": "wiki",
+        "language": "hi"
+      }
+    },
+    {
+      "id": "v6-th-01-allow",
+      "language": "th",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "th-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "ถั่วสีน้ำเงินในการทดลอง",
+        "phrase": "ในการทดลองนี้ ถั่วสีน้ำเงินงอกเฉพาะเมื่อได้รับน้ำ ไม่ได้ทดสอบถั่วสีแดง",
+        "assistant_response": "ในการทดลอง มีเพียงถั่วสีน้ำเงินที่ได้รับน้ำเท่านั้นที่งอก ไม่ได้ทดสอบถั่วสีแดง การทดลองแสดงให้เห็นอะไรบ้าง",
+        "follow_up_suggestions": [
+          "ทดสอบถั่วสีใดบ้าง",
+          "ถั่วสีน้ำเงินงอกเมื่อใด",
+          "ได้ทดสอบถั่วสีแดงหรือไม่"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-th-01-reject",
+      "language": "th",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "th-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "ถั่วสีน้ำเงินในการทดลอง",
+        "phrase": "ถั่วทุกชนิดงอกเมื่อได้รับน้ำ",
+        "assistant_response": "ในการทดลอง มีเพียงถั่วสีน้ำเงินที่ได้รับน้ำเท่านั้นที่งอก ไม่ได้ทดสอบถั่วสีแดง การทดลองแสดงให้เห็นอะไรบ้าง",
+        "follow_up_suggestions": [
+          "ทดสอบถั่วสีใดบ้าง",
+          "ถั่วสีน้ำเงินงอกเมื่อใด",
+          "ได้ทดสอบถั่วสีแดงหรือไม่"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-th-02-allow",
+      "language": "th",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "th-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira รวบรวมแสง",
+        "phrase": "Mira เป็นกล้องโทรทรรศน์ที่ใช้กระจกโค้ง กระจกช่วยรวบรวมแสง",
+        "assistant_response": "Mira ใช้กระจกโค้งรวบรวมแสง กระจกส่งแสงไปยังเซนเซอร์ กระจกรวบรวมแสงอย่างไร",
+        "follow_up_suggestions": [
+          "Mira ใช้อะไรรวบรวมแสง",
+          "กระจกส่งแสงไปที่ใด",
+          "กระจกมีรูปร่างอย่างไร"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-th-02-reject",
+      "language": "th",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "th-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira รวบรวมแสง",
+        "phrase": "Mira เป็นกล้องโทรทรรศน์ที่ใช้กระจกโค้ง กระจกช่วยรวบรวมแสง",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Mira ใช้อะไรรวบรวมแสง",
+          "กระจกส่งแสงไปที่ใด",
+          "กระจกมีรูปร่างอย่างไร"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-th-03-allow",
+      "language": "th",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "th-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "ล้อที่หมุนด้วยน้ำ",
+        "phrase": "น้ำไหลผลักใบพัดของล้อ ล้อสามารถขับหินโม่ได้",
+        "assistant_response": "น้ำผลักใบพัดและทำให้ล้อหมุน ล้อสามารถขับหินโม่ได้ น้ำทำให้ล้อหมุนอย่างไร",
+        "follow_up_suggestions": [
+          "อะไรผลักใบพัด",
+          "ล้อสามารถขับอะไรได้",
+          "น้ำทำให้ล้อหมุนอย่างไร"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-th-03-reject",
+      "language": "th",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "th-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "ล้อที่หมุนด้วยน้ำ",
+        "phrase": "น้ำไหลผลักใบพัดของล้อ ล้อสามารถขับหินโม่ได้",
+        "assistant_response": "น้ำผลักใบพัดและทำให้ล้อหมุน ล้อสามารถขับหินโม่ได้ น้ำทำให้ล้อหมุนอย่างไร",
+        "follow_up_suggestions": [
+          "อะไรผลักใบพัด",
+          "ล้อสามารถขับอะไรได้",
+          "ล้อนี้ชาร์จแบตเตอรี่บนดาวอังคารอย่างไร"
+        ],
+        "content_type": "wiki",
+        "language": "th"
+      }
+    },
+    {
+      "id": "v6-cs-01-allow",
+      "language": "cs",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "cs-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Modré fazole v pokusu",
+        "phrase": "V tomto pokusu vyklíčily modré fazole jen při zalévání. Červené fazole nebyly testovány.",
+        "assistant_response": "V pokusu vyklíčily pouze zalévané modré fazole. Červené fazole nebyly testovány. Co pokus ukázal?",
+        "follow_up_suggestions": [
+          "Které fazole byly testovány?",
+          "Kdy vyklíčily modré fazole?",
+          "Byly testovány červené fazole?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-cs-01-reject",
+      "language": "cs",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "cs-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Modré fazole v pokusu",
+        "phrase": "Všechny fazole klíčí při zalévání.",
+        "assistant_response": "V pokusu vyklíčily pouze zalévané modré fazole. Červené fazole nebyly testovány. Co pokus ukázal?",
+        "follow_up_suggestions": [
+          "Které fazole byly testovány?",
+          "Kdy vyklíčily modré fazole?",
+          "Byly testovány červené fazole?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-cs-02-allow",
+      "language": "cs",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "cs-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira sbírá světlo",
+        "phrase": "Mira je dalekohled se zakřiveným zrcadlem. Zrcadlo sbírá světlo.",
+        "assistant_response": "Mira používá ke sběru světla zakřivené zrcadlo. Zrcadlo směřuje světlo k senzoru. Jak zrcadlo sbírá světlo?",
+        "follow_up_suggestions": [
+          "Co Mira používá ke sběru světla?",
+          "Kam zrcadlo směřuje světlo?",
+          "Jaký tvar má zrcadlo?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-cs-02-reject",
+      "language": "cs",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "cs-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira sbírá světlo",
+        "phrase": "Mira je dalekohled se zakřiveným zrcadlem. Zrcadlo sbírá světlo.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Co Mira používá ke sběru světla?",
+          "Kam zrcadlo směřuje světlo?",
+          "Jaký tvar má zrcadlo?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-cs-03-allow",
+      "language": "cs",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "cs-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Kolo poháněné vodou",
+        "phrase": "Tekoucí voda tlačí na lopatky kola. Kolo může pohánět mlýnský kámen.",
+        "assistant_response": "Voda tlačí na lopatky a otáčí kolem. Kolo může pohánět mlýnský kámen. Jak voda otáčí kolem?",
+        "follow_up_suggestions": [
+          "Co tlačí na lopatky?",
+          "Co může kolo pohánět?",
+          "Jak voda otáčí kolem?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-cs-03-reject",
+      "language": "cs",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "cs-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Kolo poháněné vodou",
+        "phrase": "Tekoucí voda tlačí na lopatky kola. Kolo může pohánět mlýnský kámen.",
+        "assistant_response": "Voda tlačí na lopatky a otáčí kolem. Kolo může pohánět mlýnský kámen. Jak voda otáčí kolem?",
+        "follow_up_suggestions": [
+          "Co tlačí na lopatky?",
+          "Co může kolo pohánět?",
+          "Jak toto kolo nabíjí baterie na Marsu?"
+        ],
+        "content_type": "wiki",
+        "language": "cs"
+      }
+    },
+    {
+      "id": "v6-sv-01-allow",
+      "language": "sv",
+      "expected": "allow",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "sv-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blå bönor i ett försök",
+        "phrase": "I det här försöket grodde blå bönor bara när de vattnades. Röda bönor testades inte.",
+        "assistant_response": "Bara de vattnade blå bönorna grodde i försöket. Röda bönor testades inte. Vad visade försöket?",
+        "follow_up_suggestions": [
+          "Vilka bönor testades?",
+          "När grodde de blå bönorna?",
+          "Testades röda bönor?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    },
+    {
+      "id": "v6-sv-01-reject",
+      "language": "sv",
+      "expected": "reject",
+      "family": "source_qualifier_or_entity_scope",
+      "pair_id": "sv-01",
+      "candidate": {
+        "title": "Blue beans in a trial",
+        "extract": "In a trial, blue beans sprouted only when watered. Red beans were not tested.",
+        "card_title": "Blå bönor i ett försök",
+        "phrase": "Alla bönor gror när de vattnas.",
+        "assistant_response": "Bara de vattnade blå bönorna grodde i försöket. Röda bönor testades inte. Vad visade försöket?",
+        "follow_up_suggestions": [
+          "Vilka bönor testades?",
+          "När grodde de blå bönorna?",
+          "Testades röda bönor?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    },
+    {
+      "id": "v6-sv-02-allow",
+      "language": "sv",
+      "expected": "allow",
+      "family": "substantial_wrong_language",
+      "pair_id": "sv-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira samlar ljus",
+        "phrase": "Mira är ett teleskop med en böjd spegel. Spegeln samlar ljus.",
+        "assistant_response": "Mira använder en böjd spegel för att samla ljus. Spegeln riktar ljuset mot en sensor. Hur samlar spegeln ljus?",
+        "follow_up_suggestions": [
+          "Vad använder Mira för att samla ljus?",
+          "Vart riktar spegeln ljuset?",
+          "Vilken form har spegeln?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    },
+    {
+      "id": "v6-sv-02-reject",
+      "language": "sv",
+      "expected": "reject",
+      "family": "substantial_wrong_language",
+      "pair_id": "sv-02",
+      "candidate": {
+        "title": "The telescope Mira",
+        "extract": "The telescope Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "card_title": "Mira samlar ljus",
+        "phrase": "Mira är ett teleskop med en böjd spegel. Spegeln samlar ljus.",
+        "assistant_response": "Mira uses a curved mirror to gather light. The mirror directs light toward a sensor.",
+        "follow_up_suggestions": [
+          "Vad använder Mira för att samla ljus?",
+          "Vart riktar spegeln ljuset?",
+          "Vilken form har spegeln?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    },
+    {
+      "id": "v6-sv-03-allow",
+      "language": "sv",
+      "expected": "allow",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "sv-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Ett hjul som drivs av vatten",
+        "phrase": "Rinnande vatten trycker på ett hjuls skovlar. Hjulet kan driva en kvarnsten.",
+        "assistant_response": "Vatten trycker på skovlarna och vrider hjulet. Hjulet kan driva en kvarnsten. Hur vrider vattnet hjulet?",
+        "follow_up_suggestions": [
+          "Vad trycker på skovlarna?",
+          "Vad kan hjulet driva?",
+          "Hur vrider vattnet hjulet?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    },
+    {
+      "id": "v6-sv-03-reject",
+      "language": "sv",
+      "expected": "reject",
+      "family": "source_specific_followup_vs_absent_scenario",
+      "pair_id": "sv-03",
+      "candidate": {
+        "title": "A wheel driven by flowing water",
+        "extract": "A water wheel turns when flowing water pushes its paddles. The wheel can drive a millstone.",
+        "card_title": "Ett hjul som drivs av vatten",
+        "phrase": "Rinnande vatten trycker på ett hjuls skovlar. Hjulet kan driva en kvarnsten.",
+        "assistant_response": "Vatten trycker på skovlarna och vrider hjulet. Hjulet kan driva en kvarnsten. Hur vrider vattnet hjulet?",
+        "follow_up_suggestions": [
+          "Vad trycker på skovlarna?",
+          "Vad kan hjulet driva?",
+          "Hur laddar det här hjulet batterier på Mars?"
+        ],
+        "content_type": "wiki",
+        "language": "sv"
+      }
+    }
+  ]
+}

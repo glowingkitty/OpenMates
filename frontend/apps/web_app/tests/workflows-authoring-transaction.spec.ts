@@ -23,4 +23,18 @@ test.describe('Workflow authoring transaction on disposable Directus', () => {
     ], { cwd: root, encoding: 'utf8', timeout: 150_000 });
     expect(output.trim()).toBe('real-db workflow authoring transaction passed');
   });
+
+  // contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update,billing.credits.idempotent-charge
+  test('persists bounded Mercury/Gemini recovery and disabled accepted prefixes without duplicates', () => {
+    test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+      || process.env.CI_TEST_MODE !== 'e2e',
+      'Requires the runner-local isolated product stack');
+    expect(existsSync(composeFile)).toBe(true);
+    const output = execFileSync('docker', [
+      'compose', '-f', composeFile, 'exec', '-T', '-e', 'CI=true',
+      '-e', 'OPENMATES_CI_ISOLATED=1', 'api', 'python',
+      '/app/backend/scripts/probe_workflow_authoring_recovery.py',
+    ], { cwd: root, encoding: 'utf8', timeout: 150_000 });
+    expect(output.trim()).toBe('real-db workflow authoring recovery passed');
+  });
 });

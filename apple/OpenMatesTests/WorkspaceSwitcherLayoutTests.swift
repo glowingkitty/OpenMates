@@ -4,6 +4,37 @@ import XCTest
 @testable import OpenMates
 
 final class WorkspaceSwitcherLayoutTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
+    func testBrandingYieldsInOrderBeforeCompactNavigationAtNarrowWidths() {
+        for (width, logo, gift) in [(CGFloat(390), true, true), (350, false, true),
+                                    (320, false, false), (390, true, true)] {
+            let result = NativeHeaderControlsLayoutPolicy.presentation(headerWidth: width,
+                leadingRequiredWidth: 44, logoWidth: 38, trailingRequiredWidth: 38, giftWidth: 38)
+            XCTAssertEqual(result.showsLogo, logo)
+            XCTAssertEqual(result.showsGift, gift)
+            XCTAssertGreaterThanOrEqual(result.centerWidth, WorkspaceSwitcherLayoutPolicy.compactWidth)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible,sync.surface.semantic-parity
+    func testConnectionAndDownloadSlotRemainReservedBeforeOptionalHeaderControls() {
+        for width in [CGFloat(320), 350, 390] {
+            let result = NativeHeaderControlsLayoutPolicy.presentation(headerWidth: width,
+                leadingRequiredWidth: 44, logoWidth: 38, trailingRequiredWidth: 76, giftWidth: 38)
+            XCTAssertFalse(result.showsLogo)
+            XCTAssertFalse(result.showsGift)
+            XCTAssertGreaterThanOrEqual(result.centerWidth, 120)
+            let start = (width - 120) / 2 + result.centerOffset
+            XCTAssertGreaterThanOrEqual(start, 44 + .spacing10 + .spacing4)
+            XCTAssertLessThanOrEqual(start + 120, width - 76 - .spacing10 - .spacing4)
+        }
+        let wide = NativeHeaderControlsLayoutPolicy.presentation(headerWidth: 1194,
+            leadingRequiredWidth: 44, logoWidth: 160, trailingRequiredWidth: 76, giftWidth: 180)
+        XCTAssertTrue(wide.showsLogo)
+        XCTAssertTrue(wide.showsGift)
+        XCTAssertGreaterThanOrEqual(wide.centerWidth, WorkspaceSwitcherLayoutPolicy.tabsWidth)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,workflows-ui.responsive-accessible-reachable,projects.surface.semantic-parity,apps.presentation.shared-detail-and-recency
     func testCardHoverOnlyScalesEnabledCardAndReducedMotionDisablesAnimation() {
         XCTAssertEqual(OMCardHoverPolicy.scale(hovered: false, enabled: true), 1)

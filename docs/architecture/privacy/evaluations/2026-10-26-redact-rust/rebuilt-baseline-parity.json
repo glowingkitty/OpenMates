@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "purpose": "Isolate private rebuild from changed chunking parameters",
+  "cases": 92,
+  "all_case_label_offset_fingerprints_equal": true,
+  "sdk": "4.1.0",
+  "model": "v0.4.0",
+  "variant_default": "maxChars150/carry1",
+  "cores": 8,
+  "dal_litert_threads": 8,
+  "files": [
+    {
+      "file": "rust-published-8cpu-threads8-full.json",
+      "sha256": "64e5227312cbc694345ca441f0c34e1adfacdfd0ccfd251dbb48530c2eb75516"
+    },
+    {
+      "file": "rust-rebuilt150-carry1-8cpu.json",
+      "sha256": "f4dee8a5e06b171e2654c4f87daae27d0bff59dd1dee1635b9ba586f356220db"
+    }
+  ]
+}

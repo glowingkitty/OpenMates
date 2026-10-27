@@ -11,9 +11,9 @@ from pathlib import Path
 import yaml
 
 from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
-from backend.apps.travel.skills.search_stays import SearchStaysSkill
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable
 def test_search_connections_filters_max_stops_and_price() -> None:
     skill = SearchConnectionsSkill(
         app=None,
@@ -33,6 +33,7 @@ def test_search_connections_filters_max_stops_and_price() -> None:
     assert filtered == [{"origin": "Berlin", "destination": "Barcelona", "stops": 0, "total_price": "164", "duration": "2h 45m"}]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable
 def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
     app_yml = Path(__file__).resolve().parents[1] / "apps" / "travel" / "app.yml"
     with app_yml.open("r", encoding="utf-8") as handle:
@@ -59,12 +60,11 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
         "destination",
         "date",
         "transport_method",
-        "provider",
     ]:
         assert field in request_props
 
     assert "legs" not in request_item_schema.get("required", [])
-    assert "transitous" in request_props["providers"]["items"]["enum"]
+    assert "providers" not in request_props
     assert request_props["rail_products"]["items"]["enum"] == [
         "high_speed",
         "intercity",
@@ -78,6 +78,7 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable
 def test_search_connections_empty_group_metadata_explains_filtered_out() -> None:
     group = {"id": 1, "results": []}
     request = {"id": 1, "non_stop_only": True, "max_stops": 0, "max_price": 50}
@@ -86,47 +87,3 @@ def test_search_connections_empty_group_metadata_explains_filtered_out() -> None
 
     assert group["no_result_reason"] == "filtered_out"
     assert "Increase the price limit" in group["suggestions"]
-
-
-def test_search_stays_filters_over_budget_strict_results() -> None:
-    results = [
-        {"name": "Budget Pool Hotel", "extracted_rate_per_night": 172, "amenities": ["Pool", "Free Wi-Fi"]},
-        {"name": "Luxury Beach Hotel", "extracted_rate_per_night": 407, "amenities": ["Pools", "Beach access"]},
-        {"name": "Unknown Price Hotel", "amenities": ["Pool"]},
-    ]
-
-    filtered, metadata = SearchStaysSkill._apply_quality_filters(
-        results,
-        max_price=180,
-        query="Barcelona beach hotels with pool",
-    )
-
-    assert [result["name"] for result in filtered] == ["Budget Pool Hotel"]
-    assert metadata["filtered_out_count"] == 2
-    assert metadata["no_result_reason"] is None
-
-
-def test_search_stays_no_result_metadata_explains_filtered_out() -> None:
-    results = [
-        {"name": "Luxury Beach Hotel", "extracted_rate_per_night": 407, "amenities": ["Pools", "Beach access"]},
-    ]
-
-    filtered, metadata = SearchStaysSkill._apply_quality_filters(
-        results,
-        max_price=180,
-        query="Barcelona beach hotels with pool",
-    )
-
-    assert filtered == []
-    assert metadata["no_result_reason"] == "filtered_out"
-    assert metadata["suggestions"]
-
-
-def test_search_stays_empty_group_metadata_explains_no_matches() -> None:
-    grouped_results = [{"id": 1, "results": []}]
-    requests = [{"id": 1, "query": "Barcelona beach hotels with pool", "max_price": 180}]
-
-    SearchStaysSkill._annotate_empty_result_groups(grouped_results, requests)
-
-    assert grouped_results[0]["no_result_reason"] == "filtered_out"
-    assert "Increase the nightly budget" in grouped_results[0]["suggestions"]

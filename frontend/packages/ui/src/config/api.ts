@@ -41,6 +41,12 @@ export const apiUrls = {
 // has installed a real Project file executor. The WebSocket is reconnected by
 // ChatSynchronizationService when the value changes.
 let projectFileJobsCapabilityEnabled = false;
+let chatMetadataRecoveryCapabilityEnabled = false;
+
+/** Enable only after the sealed metadata handler has been installed. */
+export function setChatMetadataRecoveryCapabilityEnabled(enabled: boolean): void {
+  chatMetadataRecoveryCapabilityEnabled = enabled;
+}
 let remoteCommandJobsCapabilityEnabled = false;
 
 export function setProjectFileJobsCapabilityEnabled(enabled: boolean): void {
@@ -126,6 +132,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
   const clientCapabilities = [
     "canonical_embed_receipts_v1",
     "typed_recovery_outputs_v2",
+    ...(chatMetadataRecoveryCapabilityEnabled ? ["chat_metadata_recovery"] : []),
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
     "agentic-storage-v2",

@@ -9,7 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { formatEmbedPreviewLines, formatEmbedFullscreenLines, renderEmbedPreview, renderEmbedFullscreen } from "../src/embedRenderers.ts";
-import type { DecryptedEmbed } from "../src/client.ts";
+import type { DecryptedEmbed, OpenMatesClient } from "../src/client.ts";
 
 function captureStdout(run: () => Promise<void>): Promise<string> {
   let output = "";
@@ -53,6 +53,32 @@ function remotionEmbed(): DecryptedEmbed {
     },
   };
 }
+
+// contract-test: supporting surface=cli assertions=calendar-event.fullscreen.details,calendar-event.content.validated
+it("renders primary calendar details without exposing JSON or inventing a timed end", async () => {
+  const embed: DecryptedEmbed = {
+    id: "calendar-1", embedId: "42345678-1234-4234-9234-123456789abc", type: "calendar_event",
+    textPreview: "FOSDEM 2027", appId: "calendar", skillId: "event", createdAt: 1_700_000_000,
+    content: { status: "finished", primary_event: {
+      title: "FOSDEM 2027", start: "2027-01-30", end: "2027-02-01", description: "Open source conference",
+      location: "Brussels", source_url: "https://fosdem.org/2027/",
+    }, context_events: [{ title: "Travel", start: "2027-01-29" }] },
+  };
+  const preview = formatEmbedPreviewLines(embed).join("\n");
+  assert.match(preview, /FOSDEM 2027/);
+  assert.match(preview, /2027-01-30 – 2027-01-31/);
+  assert.doesNotMatch(preview, /2027-02-01|primary_event/);
+  const client = {} as OpenMatesClient;
+  const full = (await formatEmbedFullscreenLines(embed, client)).join("\n");
+  assert.match(full, /Open source conference/);
+  assert.match(full, /Context: Travel/);
+  embed.content = { status: "finished", primary_event: { title: "Meeting", start: "2027-03-15T10:00:00+01:00" } };
+  const timed = (await formatEmbedFullscreenLines(embed, client)).join("\n");
+  assert.match(timed, /2027-03-15T10:00:00\+01:00/);
+  assert.doesNotMatch(timed, /11:00|12:00/);
+  embed.content.status = "error";
+  assert.match(formatEmbedPreviewLines(embed).join("\n"), /unavailable/);
+});
 
 function mindMapEmbed(): DecryptedEmbed {
   return {

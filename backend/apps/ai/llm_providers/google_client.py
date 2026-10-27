@@ -424,7 +424,7 @@ def _parse_streamed_google_tool_call(
         or candidate_thought_signature
     )
     return ParsedGoogleToolCall(
-        tool_call_id=f"{function_call.name}-{uuid.uuid4().hex[:8]}",
+        tool_call_id=getattr(function_call, "id", None) or f"{function_call.name}-{uuid.uuid4().hex[:8]}",
         function_name=function_call.name,
         function_arguments_parsed=args_dict,
         function_arguments_raw=json.dumps(args_dict),
@@ -435,6 +435,39 @@ def _parse_streamed_google_tool_call(
             else None
         ),
     )
+
+
+def _parse_non_streamed_google_tool_calls(
+    response: types.GenerateContentResponse,
+    signature_provider_id: str,
+) -> List[ParsedGoogleToolCall]:
+    """Retain the same call identifiers and signatures as the streaming path."""
+    candidates = getattr(response, "candidates", None) or []
+    if candidates:
+        candidate = candidates[0]
+        content = getattr(candidate, "content", None)
+        calls = [
+            _parse_streamed_google_tool_call(
+                part.function_call,
+                function_call_thought_signature=getattr(part, "thought_signature", None),
+                candidate_thought_signature=serialize_thought_signature(
+                    getattr(candidate, "thought_signature", None)
+                ),
+                signature_provider_id=signature_provider_id,
+            )
+            for part in (getattr(content, "parts", None) or [])
+            if getattr(part, "function_call", None)
+        ]
+        if calls:
+            return calls
+    return [
+        _parse_streamed_google_tool_call(
+            call,
+            candidate_thought_signature=None,
+            signature_provider_id=signature_provider_id,
+        )
+        for call in (response.function_calls or [])
+    ]
 
 
 class UnifiedGoogleResponse(BaseModel):
@@ -649,7 +682,45 @@ def _parts_from_message_content(content: Any) -> List[types.Part]:
     return parts
 
 
-def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Optional[str], List[types.Content]):
+def _multimodal_function_response(
+    name: str,
+    call_id: Optional[str],
+    content: List[Dict[str, Any]],
+) -> types.Part:
+    """Keep ordered tool text and image bytes inside their function result.
+
+    Gemini 3+ expects assets in FunctionResponse.parts. Use positional image
+    metadata rather than optional $ref/displayName indirection to avoid the
+    reference-name mismatch observed with SDK 1.58 on AI Studio.
+    """
+    response_content = []
+    response_parts = []
+    for part in _parts_from_message_content(content):
+        if part.text:
+            response_content.append({"type": "text", "text": part.text})
+        elif part.inline_data:
+            response_parts.append(types.FunctionResponsePart(
+                inline_data=types.FunctionResponseBlob(
+                    mime_type=part.inline_data.mime_type,
+                    data=part.inline_data.data,
+                ),
+            ))
+            response_content.append({"type": "image", "image_index": len(response_parts)})
+    return types.Part(function_response=types.FunctionResponse(
+        id=call_id,
+        name=name,
+        response={
+            "status": "ok", "type": "multimodal", "content": response_content,
+            "image_order": "Nested images follow the image entries in content; image_index starts at 1.",
+        },
+        parts=response_parts or None,
+    ))
+
+
+def _prepare_messages_and_system_prompt(
+    messages: List[Dict[str, Any]],
+    model_id: Optional[str] = None,
+) -> (Optional[str], List[types.Content]):
     """
     Convert OpenAI-compatible message format to Google Gemini format.
     
@@ -669,7 +740,14 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
     """
     system_prompt = None
     history = []
-    
+    function_names_by_id = {}
+    # Nested multimodal function results are supported starting with Gemini 3.
+    # Keep the existing wire format for older Gemini and other Vertex models.
+    model_generation = re.search(r"gemini-(\d+)", model_id or "", re.IGNORECASE)
+    nested_multimodal = model_id is None or (
+        model_generation is not None and int(model_generation.group(1)) >= 3
+    )
+
     processed_messages = list(messages)
     
     # Extract system prompt if present
@@ -716,6 +794,10 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
                                 name=func_name,
                                 args=func_args
                             )
+                            call_id = tc.get("id")
+                            if call_id:
+                                fc_part.function_call.id = call_id
+                                function_names_by_id[call_id] = func_name
                             # CRITICAL: Add thought_signature for Gemini 3 thinking models
                             # Without this, multi-turn function calling fails with validation error
                             # The thought_sig is stored as base64 string, convert back to bytes for API
@@ -745,7 +827,7 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
             while i < len(processed_messages) and processed_messages[i].get("role") == "tool":
                 tool_msg = processed_messages[i]
                 tool_call_id = tool_msg.get("tool_call_id", "")
-                func_name = tool_msg.get("name", "")
+                func_name = function_names_by_id.get(tool_call_id) or tool_msg.get("name", "")
                 tool_content = tool_msg.get("content", "")
                 
                 # If we don't have the function name, try to extract it from tool_call_id
@@ -756,57 +838,22 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
                 # Parse tool result content — can be a string (TOON/JSON) or a list
                 # of multimodal content blocks (from image/PDF view skills).
                 if isinstance(tool_content, list):
-                    # Multimodal tool result: convert each block to a Gemini Part.
-                    # We send these as inline Parts alongside a FunctionResponse wrapper
-                    # so Gemini sees both the function acknowledgment and the image data.
                     if func_name:
-                        # Send a FunctionResponse with an empty body first to satisfy
-                        # Gemini's requirement that every function call has a response.
-                        # The actual image data comes as separate inlineData Parts.
-                        function_response_part = types.Part.from_function_response(
-                            name=func_name,
-                            response={"status": "ok", "type": "multimodal"}
-                        )
-                        tool_response_parts.append(function_response_part)
-                        
-                        # Convert each content block to a Gemini Part
-                        for block in tool_content:
-                            block_type = block.get("type", "")
-                            if block_type == "text":
-                                text_val = block.get("text", "")
-                                if text_val:
-                                    tool_response_parts.append(types.Part.from_text(text=text_val))
-                            elif block_type == "image_url":
-                                image_url_data = block.get("image_url", {})
-                                url = image_url_data.get("url", "")
-                                # Expect data URI: "data:<mime>;base64,<data>"
-                                if url.startswith("data:") and ";base64," in url:
-                                    header, b64_data = url.split(";base64,", 1)
-                                    mime_type = header[len("data:"):]  # e.g. "image/webp"
-                                    image_bytes = base64.b64decode(b64_data)
-                                    media_resolution = _media_resolution_from_image_url(image_url_data)
-                                    part_kwargs = {"data": image_bytes, "mime_type": mime_type}
-                                    if media_resolution is not None:
-                                        part_kwargs["media_resolution"] = media_resolution
-                                    try:
-                                        image_part = types.Part.from_bytes(**part_kwargs)
-                                    except TypeError:
-                                        part_kwargs.pop("media_resolution", None)
-                                        image_part = types.Part.from_bytes(**part_kwargs)
-                                    tool_response_parts.append(
-                                        image_part
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"[google_client] image_url block has non-data URL: {url[:60]}"
-                                    )
-                            else:
-                                logger.warning(
-                                    f"[google_client] Unknown block type in multimodal tool result: {block_type}"
-                                )
+                        if nested_multimodal:
+                            tool_response_parts.append(_multimodal_function_response(
+                                func_name, tool_call_id or None, tool_content,
+                            ))
+                        else:
+                            # Gemini 2.x does not accept FunctionResponse.parts.
+                            tool_response_parts.append(types.Part(function_response=types.FunctionResponse(
+                                id=tool_call_id or None,
+                                name=func_name,
+                                response={"status": "ok", "type": "multimodal"},
+                            )))
+                            tool_response_parts.extend(_parts_from_message_content(tool_content))
                         logger.debug(
-                            f"Prepared multimodal tool response for func={func_name}: "
-                            f"{len(tool_content)} blocks"
+                            "Prepared multimodal tool response for func=%s: %s blocks",
+                            func_name, len(tool_content),
                         )
                     else:
                         logger.warning(f"Multimodal tool message without function name, skipping. tool_call_id={tool_call_id}")
@@ -821,10 +868,11 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
                         tool_response = {"result": tool_content}
                     
                     if func_name:
-                        function_response_part = types.Part.from_function_response(
+                        function_response_part = types.Part(function_response=types.FunctionResponse(
+                            id=tool_call_id or None,
                             name=func_name,
-                            response=tool_response
-                        )
+                            response=tool_response,
+                        ))
                         tool_response_parts.append(function_response_part)
                         logger.debug(f"Prepared tool response part: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
                     else:
@@ -879,11 +927,14 @@ async def invoke_google_ai_studio_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     thinking_level: Optional[str] = None,
+    request_attempts: Optional[int] = None,
+    request_timeout_seconds: Optional[int] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata]]]:
     """
     Google AI Studio (Gemini API) client using `google-genai` API-key auth.
 
     Note: This is separate from `invoke_google_chat_completions`, which uses Vertex AI service-account auth.
+    Optional per-request transport bounds leave shared clients and ordinary chat defaults unchanged.
     """
     api_key = await _get_google_ai_studio_api_key(secrets_manager)
     if not api_key:
@@ -910,7 +961,7 @@ async def invoke_google_ai_studio_chat_completions(
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
 
     try:
-        system_prompt, contents = _prepare_messages_and_system_prompt(messages)
+        system_prompt, contents = _prepare_messages_and_system_prompt(messages, normalized_model_id)
         if not contents:
             err_msg = "Message history is empty after processing."
             if stream:
@@ -944,6 +995,12 @@ async def invoke_google_ai_studio_chat_completions(
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
         ) if normalized_model_id == "gemini-4-argon" else max_tokens
+        transport_options = {}
+        if request_attempts is not None or request_timeout_seconds is not None:
+            transport_options["http_options"] = types.HttpOptions(
+                timeout=request_timeout_seconds * 1000 if request_timeout_seconds is not None else None,
+                retry_options=types.HttpRetryOptions(attempts=request_attempts) if request_attempts is not None else None,
+            )
         generation_config = types.GenerateContentConfig(
             thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
             **sampling_config,
@@ -951,6 +1008,7 @@ async def invoke_google_ai_studio_chat_completions(
             system_instruction=system_prompt,
             tools=google_tools,
             tool_config=tool_config_dict if tool_config_dict else None,
+            **transport_options,
         )
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
@@ -1001,17 +1059,9 @@ async def invoke_google_ai_studio_chat_completions(
         )
 
         if response.function_calls:
-            unified_resp.tool_calls_made = []
-            for fc in response.function_calls:
-                args_dict = dict(fc.args)
-                unified_resp.tool_calls_made.append(
-                    ParsedGoogleToolCall(
-                        tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                        function_name=fc.name,
-                        function_arguments_parsed=args_dict,
-                        function_arguments_raw=json.dumps(args_dict),
-                    )
-                )
+            unified_resp.tool_calls_made = _parse_non_streamed_google_tool_calls(
+                response, "google_ai_studio",
+            )
             logger.info(f"{log_prefix} Call resulted in {len(unified_resp.tool_calls_made)} tool call(s).")
 
         elif response.text:
@@ -1310,7 +1360,7 @@ async def invoke_google_chat_completions(
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
 
     try:
-        system_prompt, contents = _prepare_messages_and_system_prompt(messages)
+        system_prompt, contents = _prepare_messages_and_system_prompt(messages, normalized_model_id)
         
         if not contents:
             err_msg = "Message history is empty after processing."
@@ -1402,15 +1452,9 @@ async def invoke_google_chat_completions(
         )
         
         if response.function_calls:
-            unified_resp.tool_calls_made = []
-            for fc in response.function_calls:
-                args_dict = dict(fc.args)
-                unified_resp.tool_calls_made.append(ParsedGoogleToolCall(
-                    tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                    function_name=fc.name,
-                    function_arguments_parsed=args_dict,
-                    function_arguments_raw=json.dumps(args_dict)
-                ))
+            unified_resp.tool_calls_made = _parse_non_streamed_google_tool_calls(
+                response, "google",
+            )
             logger.info(f"{log_prefix} Call resulted in {len(unified_resp.tool_calls_made)} tool call(s).")
         
         elif response.text:

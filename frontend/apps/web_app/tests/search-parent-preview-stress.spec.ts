@@ -15,13 +15,14 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const STRESS_CHAT_ID = 'example-search-parent-preview-stress-test';
 
 test.describe('Search parent preview stress fixture', () => {
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable,chats.rendering.preview-info-top
 	test('opens dense synthetic chat with useful parent previews', async ({ page }: { page: any }) => {
 		test.setTimeout(90_000);
 
 		const providerRequests: string[] = [];
 		page.on('request', (request: any) => {
 			const url = request.url();
-			if (url.includes('api.search.brave.com') || url.includes('serpapi.com')) {
+			if (url.includes('api.search.brave.com') || url.includes('ExampleSearch.com')) {
 				providerRequests.push(url);
 			}
 		});

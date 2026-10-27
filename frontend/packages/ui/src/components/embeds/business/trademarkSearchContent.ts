@@ -48,7 +48,7 @@ export function trademarkSourceUrl(value: unknown): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return null;
-    if (!['tsdr.uspto.gov', 'tmsearch.uspto.gov', 'www.tmdn.org', 'register.dpma.de', 'www.wipo.int'].includes(url.hostname)) return null;
+    if (!['www.tmdn.org', 'register.dpma.de', 'www.wipo.int'].includes(url.hostname)) return null;
     return url.href;
   } catch { return null; }
 }

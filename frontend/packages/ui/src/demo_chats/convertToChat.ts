@@ -1,7 +1,6 @@
 import type { Chat, Message } from '../types/chat';
 import type { DemoChat, DemoMessage } from './types';
 import { translateDemoChat } from './translateDemoChat';
-import { LEGAL_CHATS } from '../legal';
 import { getExampleChatMessages, isExampleChat } from './exampleChatStore';
 import { ALL_NEWSLETTER_CHATS } from './newsletterChatStore';
 
@@ -63,27 +62,10 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
 	}));
 }
 
-/**
- * Helper function to get messages for a public chat (demo, example, or legal) by chat_id
- * Searches in order:
- * 1. Static demo chats (DEMO_CHATS array - in-memory)
- * 2. Legal chats (LEGAL_CHATS array - in-memory)
- * 3. Example chats (exampleChatStore - static hardcoded data)
- *
- * @param chatId - The chat ID to search for (e.g., 'demo-who-develops-openmates', 'legal-privacy', 'example-*')
- * @param demoChats - Array of static demo chats (from DEMO_CHATS)
- * @param legalChats - Array of legal chats (from LEGAL_CHATS) - optional, will import if not provided
- * @returns Array of messages for the chat, or empty array if not found
- */
-export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChats?: DemoChat[]): Message[] {
+/** Get bundled intro/newsletter messages or hardcoded example messages. */
+export function getDemoMessages(chatId: string, demoChats: DemoChat[]): Message[] {
 	// 1. Search in static demo chats first (these are hardcoded in TypeScript)
 	let foundChat = demoChats.find(chat => chat.chat_id === chatId);
-
-	// 2. If not found, search in legal chats (use provided array or fallback to imported LEGAL_CHATS)
-	if (!foundChat) {
-		const legalChatsToSearch = legalChats || LEGAL_CHATS;
-		foundChat = legalChatsToSearch.find(chat => chat.chat_id === chatId);
-	}
 
 	// 2b. If not found, search in newsletter chats (announcements, tips & tricks)
 	if (!foundChat) {
@@ -136,5 +118,5 @@ export function isNewsletterChat(chatId: string): boolean {
  * Check if a chat is a public chat (demo, example, legal, or newsletter) - loaded from static bundle
  */
 export function isPublicChat(chatId: string): boolean {
-	return isDemoChat(chatId) || isLegalChat(chatId) || isExampleChat(chatId) || isNewsletterChat(chatId);
+	return isDemoChat(chatId) || isExampleChat(chatId) || isNewsletterChat(chatId);
 }

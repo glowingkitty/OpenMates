@@ -6,6 +6,8 @@ Based on Figma design: settings/privacy (node 1895:20576)
 -->
 
 <script lang="ts">
+    import { locale } from 'svelte-i18n';
+    import { getPublicLegalUrl } from '../../config/links';
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
@@ -174,7 +176,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <!-- Privacy Policy Link (description text is shown in the gradient banner header above) -->
 <div class="settings-description">
     <a
-        href="/legal/privacy"
+        href={getPublicLegalUrl(`/legal/privacy?lang=${encodeURIComponent($locale || 'en')}`)}
         target="_blank"
         rel="noopener noreferrer"
         class="settings-gradient-link"

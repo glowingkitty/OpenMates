@@ -176,6 +176,9 @@ class ConnectionManager:
         self.storage_archive_dispatch_guard_installed = False
         self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
         self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
+        self.empty_call_cleanup_capability: Dict[Tuple[str, str], bool] = {}
+        self.empty_call_cleanup_gates: Dict[str, asyncio.Lock] = {}
+        self.empty_call_cleanup_unsafe_owners: set[str] = set()
         # Nonces are bound to one concrete WebSocket object. Reconnection never
         # inherits the old socket's volatile execution authority.
         self.volatile_session_nonce_by_ws: Dict[int, str] = {}
@@ -185,6 +188,17 @@ class ConnectionManager:
         ] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
+
+    def empty_call_cleanup_gate(self, user_id: str) -> asyncio.Lock:
+        # Keep lock identity stable even when the final socket disconnects.
+        return self.empty_call_cleanup_gates.setdefault(user_id, asyncio.Lock())
+
+    def all_user_connections_support_empty_call_cleanup(self, user_id: str) -> bool:
+        connections = self.active_connections.get(user_id, {})
+        return bool(connections) and user_id not in self.empty_call_cleanup_unsafe_owners and all(
+            self.empty_call_cleanup_capability.get((user_id, device_hash)) is True
+            for device_hash in connections
+        )
 
     async def connect(
         self,
@@ -200,6 +214,7 @@ class ConnectionManager:
         supports_storage_archive: bool = False,
         supports_canonical_embed_receipts: bool = False,
         supports_typed_recovery_outputs: bool = False,
+        supports_empty_call_cleanup: bool = False,
         volatile_session_revoker: Callable[[str], Awaitable[None]] | None = None,
     ):
         await websocket.accept()
@@ -231,11 +246,12 @@ class ConnectionManager:
                 del self.reverse_lookup[old_ws_id]
                 logger.debug(f"Cleaned up reverse_lookup for old ws_id {old_ws_id} during connect.")
         
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = {}
-        
-        self.active_connections[user_id][device_fingerprint_hash] = websocket
-        self.reverse_lookup[new_ws_id] = connection_key
+        async with self.empty_call_cleanup_gate(user_id):
+            if user_id not in self.active_connections:
+                self.active_connections[user_id] = {}
+            self.empty_call_cleanup_capability[connection_key] = supports_empty_call_cleanup
+            self.active_connections[user_id][device_fingerprint_hash] = websocket
+            self.reverse_lookup[new_ws_id] = connection_key
         if logical_session_id:
             self.logical_session_per_connection[connection_key] = logical_session_id
         else:
@@ -405,6 +421,7 @@ class ConnectionManager:
                 self.storage_archive_capability.pop(connection_key, None)
                 self.canonical_embed_receipt_capability.pop(connection_key, None)
                 self.typed_recovery_output_capability.pop(connection_key, None)
+                self.empty_call_cleanup_capability.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -429,8 +446,15 @@ class ConnectionManager:
                 self.remote_command_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
 
-    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
+    async def send_personal_message(
+        self, message: dict, user_id: str, device_fingerprint_hash: str,
+        *, expected_websocket: WebSocket | None = None,
+    ) -> bool:
+        # Snapshot once. A bound producer may write only its original live
+        # connection, never whatever replacement now occupies the same route.
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        if expected_websocket is not None and websocket is not expected_websocket:
+            return False
         if websocket:
             # Skip silently if the server-side socket has already transitioned
             # to DISCONNECTED (30s grace period remnant). Trying to send_json
@@ -444,13 +468,22 @@ class ConnectionManager:
                 return False
             try:
                 await websocket.send_json(message)
+                if (expected_websocket is not None
+                        and self.active_connections.get(user_id, {}).get(device_fingerprint_hash) is not websocket):
+                    return False
                 logger.debug(
                     f"Sent message to User {user_id}, Device {device_fingerprint_hash} "
                     f"(message_summary={_safe_message_summary(message)})"
                 )
                 return True
             except Exception as e: # Catch any exception during send
-                if _is_closed_ws_error(e):
+                if isinstance(message, dict) and message.get("type") == "assistant_speech_audio":
+                    log_send_failure = logger.debug if _is_closed_ws_error(e) else logger.error
+                    log_send_failure(
+                        "WebSocket send failed category=transient_speech_audio exception_type=%s",
+                        type(e).__name__, extra=_ws_error_metadata(e),
+                    )
+                elif _is_closed_ws_error(e):
                     logger.debug(
                         f"Send raced with close for {user_id}/{device_fingerprint_hash} "
                         f"(ws_id: {id(websocket)}): {e}. Disconnecting.",
@@ -458,7 +491,10 @@ class ConnectionManager:
                     )
                 else:
                     logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.", extra=_ws_error_metadata(e))
-                self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
+                # The awaited write may have raced with reconnect. Never let
+                # an old transport failure clean up the replacement connection.
+                if self.active_connections.get(user_id, {}).get(device_fingerprint_hash) is websocket:
+                    self.disconnect(websocket, reason=f"Send error: {type(e).__name__}")
                 return False
         else:
             logger.warning(f"Attempted to send personal message to {user_id}/{device_fingerprint_hash}, but no active WebSocket found (possibly in grace period or fully disconnected).")
@@ -475,6 +511,10 @@ class ConnectionManager:
             # Iterate safely over a copy of items in case disconnect modifies the dict
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
+                    continue
+                if (message.get("type") == "chat_deleted"
+                    and isinstance(message.get("payload", {}).get("empty_call_cleanup"), dict)
+                    and self.empty_call_cleanup_capability.get((user_id, device_hash)) is not True):
                     continue
                 # Skip sockets whose server-side transport is already closed
                 # (grace-period remnants). Sending would raise RuntimeError

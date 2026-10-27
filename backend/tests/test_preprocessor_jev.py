@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,19 +21,65 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.shared.providers.typesafe.models import DecisionResponse
 
 
+def test_routing_catalogue_keeps_providers_from_every_skill_before_hint_truncation():
+    skills = []
+    for skill_id, provider in (("locations", "Venue Network"), ("trainers", "Trainer Network"),
+                               ("search_classes", "Activity Network")):
+        skill = SimpleNamespace(id=skill_id, preprocessor_hint="Find matching public activities. " + "x" * 500,
+                                providers=[SimpleNamespace(name="internal", display_name=provider)])
+        skills.append(preprocessor._skill_routing_candidate("fitness", skill))
+    catalogue = jev_preprocessing._app_catalogue(["fitness"], skills)
+    assert len(catalogue) == 1
+    assert all(provider in catalogue[0] for provider in ("Venue Network", "Trainer Network", "Activity Network"))
+    assert "search classes" in catalogue[0]
+    assert len(catalogue[0]) <= 500
+    assert "internal" not in catalogue[0]
+
+
+def test_provider_correction_keeps_preceding_activity_and_provider_brand():
+    history = [
+        {"role": "user", "content": "Show me capoeira classes on OpenSports in Berlin."},
+        {"role": "assistant", "content": "Here are some general web pages."},
+        {"role": "user", "content": "activity network"},
+        {"role": "assistant", "content": "A response being drafted must not influence routing."},
+    ]
+    assert jev_preprocessing._messages(history) == history[:3]
+    candidate = preprocessor._skill_routing_candidate("fitness", SimpleNamespace(
+        id="search_classes", preprocessor_hint="Find dated fitness classes.",
+        providers=[SimpleNamespace(name="Activity Network", display_name=None)],
+    ))
+    assert "Activity Network" in candidate
+    assert "Find dated fitness classes" in candidate
+    assert "Activity Network" in jev_preprocessing._app_catalogue(["fitness"], [candidate])[0]
+
+
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.asyncio
+@pytest.mark.parametrize("explicit_model", [False, True])
 @pytest.mark.parametrize("tier,model,level", [
-    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("low", "inception/mercury-3", "MEDIUM"),
     ("medium", "google/gemini-3.8-flash", "MEDIUM"),
     ("high", "google/gemini-3.8-flash", "HIGH"),
     ("max", "google/gemini-4-argon", "HIGH"),
 ])
-async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypatch, tier, model, level):
+async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypatch, tier, model, level, explicit_model):
+    import yaml
+    providers = Path(__file__).resolve().parents[1] / "providers"
+    catalog = {provider: yaml.safe_load((providers / f"{provider}.yml").read_text()) for provider in ("inception", "google")}
+    def model_config(provider, model_id):
+        return next((entry for entry in catalog[provider]["models"] if entry["id"] == model_id), None)
+    monkeypatch.setattr(preprocessor, "config_manager", SimpleNamespace(
+        get_provider_config=lambda provider: catalog.get(provider),
+        get_model_pricing=model_config,
+        get_model_display_name=lambda model, _: model,
+    ))
+    monkeypatch.setattr(preprocessor, "is_provider_healthy", AsyncMock(return_value=True))
     questions = jev_preprocessing._early_routing_questions(["general_misc: General"], False)
     questions.update(jev_preprocessing._public_decision_questions(False))
     assert set(questions["complexity"]["criteria"]) == {"low", "medium", "high", "max"}
     response = _routing_answer(questions)
+    # Independent effort must not change tier selection or its profile provenance.
+    response.answers["reasoning_level"].choice = "extra_high"
     response.answers["complexity"].choice = tier
     response.answers["complexity"].probabilities = {
         value: float(value == tier) for value in questions["complexity"]["criteria"]
@@ -41,10 +88,10 @@ async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypat
         response, ["general_misc: General"], False, False,
     )
     assert decisions is not None
-    monkeypatch.setattr(
-        "backend.core.api.app.tasks.leaderboard_tasks.get_leaderboard_data",
-        AsyncMock(return_value=None),
-    )
+    assert decisions["reasoning_level"] == "extra_high"
+    leaderboard_tasks = ModuleType("backend.core.api.app.tasks.leaderboard_tasks")
+    leaderboard_tasks.get_leaderboard_data = AsyncMock(return_value=None)
+    monkeypatch.setitem(sys.modules, leaderboard_tasks.__name__, leaderboard_tasks)
     request = AskSkillRequest(
         chat_id="routing-test", message_id="routing-message", user_id="routing-user",
         user_id_hash="routing-user-hash", message_history=[
@@ -52,13 +99,15 @@ async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypat
         ], user_preferences={},
     )
     selected = await preprocessor._select_main_model(
-        decisions, request, SimpleNamespace(enable_auto_model_selection=True), None, "routing-test",
+        decisions, request, SimpleNamespace(enable_auto_model_selection=True),
+        preprocessor.UserOverrides(model_id="google/gemini-4-argon") if explicit_model else None,
+        "routing-test",
     )
     assert selected["complexity_val"] == tier
-    assert selected["selected_llm_for_main_id"] == model
-    assert selected["selected_llm_thinking_level"] == level
-    assert selected["model_override_applied"] is False
-    assert "Selected configured" in selected["model_selection_reason"]
+    assert selected["selected_llm_for_main_id"] == ("google/gemini-4-argon" if explicit_model else model)
+    assert selected["selected_llm_thinking_level"] == (None if explicit_model else level)
+    assert selected["model_override_applied"] is explicit_model
+    assert ("User override" if explicit_model else "Selected configured") in selected["model_selection_reason"]
 
 
 def test_current_app_catalogue_and_public_questions_fit_one_jev_batch():
@@ -76,6 +125,69 @@ def test_current_app_catalogue_and_public_questions_fit_one_jev_batch():
     assert len(batches) == 1
     assert len(batches[0]) <= 160
     assert len(json.dumps({"state": state, "questions": batches[0]}, ensure_ascii=False)) <= 120_000
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.asyncio
+@pytest.mark.parametrize("detailed", [False, True])
+@pytest.mark.parametrize("effort", ["low", "medium", "high", "extra_high", None, "invalid"])
+async def test_optional_effort_survives_staged_routing_without_extra_calls(monkeypatch, detailed, effort):
+    calls = []
+
+    async def evaluate(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 2:
+            assert "reasoning_level" not in kwargs["questions"]
+        response = _routing_answer(kwargs["questions"])
+        if detailed:
+            for key, answer in response.answers.items():
+                if key.startswith("app_"):
+                    answer.noul = .95
+        if effort is None:
+            response.answers.pop("reasoning_level", None)
+        elif "reasoning_level" in response.answers:
+            response.answers["reasoning_level"].choice = effort
+        return response
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "content": "Help me"}],
+        topic_areas=["general_misc: General"], available_apps=["web"] if detailed else [],
+        available_skills=["web-search: Search"] if detailed else [], available_focus_modes=[],
+        available_settings_and_memories={}, recent_skill_activity=[], conversation_summary=None,
+        previous_category=None, is_first_message=False, candidate_discovery_complete=True,
+    )
+    expected = None if effort in {None, "invalid"} else effort
+    assert result["reasoning_level"] == expected
+    assert result["complexity"] == "low"
+    assert len(calls) == (2 if detailed else 1)
+    assert await preprocessor._recover_jev_preprocessing(
+        preprocessor.LLMPreprocessingCallResult(arguments=result), task_id="valid-optional-effort",
+    ) is not None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize("raw,expected", [
+    ("low", "LOW"), ("medium", "MEDIUM"), ("high", "HIGH"), ("extra_high", "EXTRA_HIGH"),
+    (None, None), ("max", None), ([], None), ({}, None), (42, None),
+])
+def test_recommendation_is_optional_canonical_and_survives_serialized_continuation(raw, expected):
+    recommendation = preprocessor._canonical_requested_reasoning_level(raw)
+    assert recommendation == expected
+    result = PreprocessingResult(requested_reasoning_level=recommendation,
+                                 selected_main_llm_thinking_level="MEDIUM")
+    resumed = PreprocessingResult.model_validate_json(result.model_dump_json())
+    assert resumed.requested_reasoning_level == expected
+    assert resumed.selected_main_llm_thinking_level == "MEDIUM"
+
+
+def test_generative_recovery_effort_schema_remains_optional():
+    import yaml
+    schema = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/ai/base_instructions.yml").read_text())
+    parameters = schema["preprocess_request_tool"]["function"]["parameters"]
+    assert parameters["properties"]["reasoning_level"]["enum"] == ["low", "medium", "high", "extra_high"]
+    assert "reasoning_level" not in parameters["required"]
 
 
 def _routing_answer(questions, *, missing=(), public_harm=.05):
@@ -342,7 +454,7 @@ async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemet
     assert len(calls) == 2
     assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
     assert set(calls[0]["questions"]) == {
-        "app_0", "complexity", "task_area", "user_unhappy", "china_sensitive",
+        "app_0", "reasoning_level", "complexity", "task_area", "user_unhappy", "china_sensitive",
         "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(True))
     stage_two_questions = set(calls[1]["questions"])
@@ -408,7 +520,7 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     assert result["relevant_rules"] == [{"id": "news-guide", "revision": "v1"}]
     assert result["relevant_app_skills"] == ["news-search", "web-search", "images-search"]
     assert set(calls[0]["questions"]) == {
-        "app_0", "app_1", "app_2", "app_3", "complexity", "task_area",
+        "app_0", "app_1", "app_2", "app_3", "reasoning_level", "complexity", "task_area",
         "user_unhappy", "china_sensitive", "topic_area", "topic_shift",
         "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(False))
@@ -677,3 +789,82 @@ async def test_reserved_stage_one_stops_before_project_specialist_and_reuses_sna
         **{**kwargs, "project_candidates": [{"project_id": "p2", "name": "Other"}]},
         precomputed_stage_one=snapshot)
     assert "pending_project_focus_id" not in revoked
+
+
+@pytest.mark.asyncio
+async def test_healthy_jev_result_skips_all_generative_recovery(monkeypatch):
+    result = preprocessor.LLMPreprocessingCallResult(arguments={"complexity": "medium", "task_area": "general"})
+    forbidden = AsyncMock(side_effect=AssertionError("Healthy Jev must not start inference"))
+    monkeypatch.setattr(preprocessor, "call_preprocessing_llm", forbidden)
+    assert await preprocessor._recover_jev_preprocessing(result, task_id="healthy-jev") is result
+    forbidden.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mercury_failure", ["outage", "missing_tool", "timeout"])
+async def test_jev_generative_recovery_uses_only_mercury_then_configured_lite(monkeypatch, mercury_failure):
+    import asyncio
+    from backend.apps.ai.utils import llm_utils
+    from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, UnifiedOpenAIResponse
+    calls = []
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TIMEOUT_SECONDS", .025)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TOTAL_TIMEOUT_SECONDS", .1)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda model:
+        ("inception", "inception/mercury-3") if model == "inception/mercury-3"
+        else ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    async def mercury(**arguments):
+        calls.append(("inception", arguments))
+        assert arguments["reasoning_effort"] == "low"
+        assert arguments["tool_choice"] == "required"
+        if mercury_failure == "timeout":
+            await asyncio.sleep(1)
+        return UnifiedOpenAIResponse(task_id="recovery", model_id="mercury-3",
+            success=mercury_failure == "missing_tool",
+            error_message="503 Service Unavailable" if mercury_failure == "outage" else None)
+    async def lite(**arguments):
+        calls.append(("google_ai_studio", arguments))
+        assert "reasoning_effort" not in arguments
+        return UnifiedOpenAIResponse(task_id="recovery", model_id="gemini-3.5-flash-lite", success=True,
+            tool_calls_made=[ParsedOpenAIToolCall(tool_call_id="decision", function_name="analyze_request_properties",
+                function_arguments_raw='{"complexity":"medium"}', function_arguments_parsed={"complexity": "medium"})])
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda prefix: {"inception": mercury, "google_ai_studio": lite}[prefix])
+    # Registry membership must not make a logical Google fallback bypass its configured host.
+    monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "google", lite)
+    result = await preprocessor._recover_jev_preprocessing(None, task_id="recovery",
+        message_history=[{"role": "user", "content": "Classify this request"}],
+        tool_definition={"type": "function", "function": {"name": "analyze_request_properties", "description": "Classify",
+            "parameters": {"type": "object", "properties": {"complexity": {"type": "string"}}}}})
+    assert result.arguments == {"complexity": "medium"} and result.error_message is None
+    assert [provider for provider, _ in calls] == ["inception", "google_ai_studio"]
+    assert [arguments["model_id"] for _, arguments in calls] == ["mercury-3", "gemini-3.5-flash-lite"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allow_retries", [True, False])
+async def test_exhausted_jev_generative_recovery_never_fabricates_routing(monkeypatch, allow_retries):
+    from backend.apps.ai.utils import llm_utils
+    from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse
+    calls = []
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda model:
+        ("inception", "inception/mercury-3") if model == "inception/mercury-3"
+        else ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"))
+    async def missing_tool(**arguments):
+        calls.append(arguments["model_id"])
+        return UnifiedOpenAIResponse(task_id="recovery", model_id=arguments["model_id"], success=True)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: missing_tool)
+    result = await preprocessor._recover_jev_preprocessing(None, task_id="recovery", allow_retries=allow_retries,
+        message_history=[{"role": "user", "content": "Classify"}],
+        tool_definition={"type": "function", "function": {"name": "analyze_request_properties", "description": "Classify", "parameters": {"type": "object", "properties": {}}}})
+    assert calls == (["mercury-3", "gemini-3.5-flash-lite"] if allow_retries else ["mercury-3"])
+    assert result.arguments is None and result.error_message

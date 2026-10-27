@@ -193,8 +193,9 @@ final class ActiveChatsCoordinator {
         case .messageReady(_, let messageID): finished(chatID: chatID, turnID: messageID, scope: scope)
         case .typingEnded(_, let messageID):
             if let messageID { finished(chatID: chatID, turnID: messageID, scope: scope) }
-        case .postProcessingCompleted(_, let taskID, _, _, _, _, _, _, _):
-            finished(chatID: chatID, turnID: taskID, scope: scope)
+        case .postProcessingCompleted, .messageFinality:
+            // Optional metadata is independent of authoritative answer terminal.
+            break
         case .preprocessingStep, .messageQueued, .cancelRequested, .error:
             // These events lack an exact terminal assistant ID. A cancellation
             // request/transport failure does not prove inference has stopped.

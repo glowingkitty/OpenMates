@@ -14,6 +14,7 @@ import hashlib
 import html
 import io
 import json
+import math
 import os
 import re
 import secrets
@@ -184,8 +185,8 @@ DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
-WORKTREE_CLEANUP_IDLE_HOURS = 48
-WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
+WORKTREE_CLEANUP_IDLE_HOURS = 4 * 24
+WORKTREE_HARD_MAX_AGE_HOURS = 4 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
@@ -1586,7 +1587,44 @@ def _prepared_workspace_manifests(root: Path) -> list[Path]:
     return sorted(manifests)
 
 
-def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list[Path]:
+def _manifest_differs_only_in_exports(candidate: Path, installed: Path) -> bool:
+    """Compare valid manifest objects without relaxing any install-affecting field."""
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate manifest key")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError(f"Invalid JSON constant: {value}")
+
+    def finite_float(value):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError("Non-finite manifest number")
+        return parsed
+
+    try:
+        manifests = [
+            json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_pairs,
+                       parse_constant=invalid_constant, parse_float=finite_float)
+            for path in (candidate, installed)
+        ]
+        if not all(isinstance(manifest, dict) for manifest in manifests):
+            return False
+        for manifest in manifests:
+            manifest.pop("exports", None)
+        # JSON serialization preserves primitive types (True must not equal 1).
+        return json.dumps(manifests[0], sort_keys=True) == json.dumps(manifests[1], sort_keys=True)
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return False
+
+
+def _validate_prepared_dependency_source(
+    checkout: Path, prepared: Path, *, exports_only_manifests: frozenset[Path] = frozenset(),
+) -> list[Path]:
     """Refuse stale or incomplete installed dependencies before touching checkout."""
     if checkout == prepared or (checkout / "node_modules").exists() or (checkout / "node_modules").is_symlink():
         raise RuntimeError("Prepared dependencies require a fresh integration checkout")
@@ -1602,8 +1640,13 @@ def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list
     installed_manifests = _prepared_workspace_manifests(prepared)
     if candidate_manifests != installed_manifests:
         raise RuntimeError("Prepared dependencies are stale: workspace package set differs")
+    if not exports_only_manifests.issubset(candidate_manifests):
+        raise RuntimeError("Prepared dependencies require selected workspace manifests")
     for relative in candidate_manifests:
-        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative):
+        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative) and (
+            relative not in exports_only_manifests
+            or not _manifest_differs_only_in_exports(checkout / relative, prepared / relative)
+        ):
             raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
     for relative in ("pnpm-lock.yaml", "pnpm-workspace.yaml"):
         if not (checkout / relative).is_file():
@@ -1677,11 +1720,15 @@ def _copy_prepared_dependency_entry(source: Path, target: Path, prepared: Path, 
         raise RuntimeError(f"Prepared dependency layout contains an unsupported entry: {source}")
 
 
-def _reuse_prepared_dependencies(checkout: Path, prepared: Path) -> None:
+def _reuse_prepared_dependencies(
+    checkout: Path, prepared: Path, *, exports_only_manifests: frozenset[Path] = frozenset(),
+) -> None:
     """Mirror pnpm links into integration while resolving workspace packages locally."""
     checkout = checkout.resolve()
     prepared = prepared.resolve()
-    manifests = _validate_prepared_dependency_source(checkout, prepared)
+    manifests = _validate_prepared_dependency_source(
+        checkout, prepared, exports_only_manifests=exports_only_manifests,
+    )
     source_modules = prepared / "node_modules"
     target_modules = checkout / "node_modules"
     target_modules.mkdir()
@@ -1927,7 +1974,7 @@ def ensure_session_worktree(session_id: str) -> dict:
         from scripts.resource_budget import reserve
     except ModuleNotFoundError:
         from resource_budget import reserve
-    with reserve(CONTROL_PLANE_ROOT, 1024**3,
+    with reserve(CONTROL_PLANE_ROOT, 1024**3, operation=f"workspace:{session_id}",
                  min_free=WORKTREE_MIN_FREE_BYTES,
                  max_used_percent=WORKTREE_MAX_DISK_PERCENT):
         return _ensure_session_worktree_impl(session_id)
@@ -4225,6 +4272,18 @@ def _prune_deletion_manifests(data: dict) -> None:
     data["worktree_deletion_manifests"] = retained
 
 
+def _queue_coordinated_worktree_cleanup() -> bool:
+    try:
+        from scripts.disk_coordinator import configured, owner_check
+    except ModuleNotFoundError:
+        from disk_coordinator import configured, owner_check
+    disk_owner = configured(CONTROL_PLANE_ROOT)
+    if disk_owner is None or owner_check(disk_owner):
+        return False
+    disk_owner.enqueue_maintenance(CONTROL_PLANE_ROOT, "worktrees")
+    return True
+
+
 def reconcile_session_worktrees(
     *,
     target_ref: str = "origin/dev",
@@ -4234,6 +4293,9 @@ def reconcile_session_worktrees(
     only_session_ids: set[str] | None = None,
 ) -> dict:
     """Report or safely apply reconciliation for all known agent worktrees."""
+    if apply_safe and _queue_coordinated_worktree_cleanup():
+        return {"target_ref": target_ref, "target_commit": "", "apply_safe": True,
+                "items": [], "deleted": [], "unresolved": [], "queued": True}
     approved = set(approved_obsolete or set())
     rc, target_commit, stderr = _run_cmd(["git", "rev-parse", target_ref])
     if rc != 0:
@@ -4611,16 +4673,16 @@ def _hard_expiry_record_is_live(
     if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
         return True
     worktree = session.get("worktree") or {}
-    if worktree.get("status") in {"merged", "ended"}:
-        return False
-    last_active = session.get("last_active") or worktree.get("last_active")
-    if not isinstance(last_active, str) or not last_active.strip():
-        return False
-    try:
-        last_active_timestamp = _parse_iso(last_active).timestamp()
-    except (TypeError, ValueError):
-        return False
-    return now_timestamp - last_active_timestamp < idle_hours * 3600
+    for last_active in (session.get("last_active"), worktree.get("last_active")):
+        if not isinstance(last_active, str) or not last_active.strip():
+            continue
+        try:
+            last_active_timestamp = _parse_iso(last_active).timestamp()
+        except (TypeError, ValueError):
+            continue
+        if now_timestamp - last_active_timestamp < idle_hours * 3600:
+            return True
+    return False
 
 
 WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({
@@ -4772,7 +4834,18 @@ def _archive_expired_worktree(record: dict) -> str:
                     info.mode = 0o600
                     output.addfile(info, io.BytesIO(payload))
                 for entry in entries:
-                    output.add(path / entry["path"], arcname=f"untracked/{entry['path']}", recursive=False)
+                    source = path / entry["path"]
+                    info = output.gettarinfo(source, arcname=f"untracked/{entry['path']}")
+                    if info.islnk():
+                        # Each manifest file must have its own verifiable payload.
+                        info.type = tarfile.REGTYPE
+                        info.linkname = ""
+                        info.size = entry["size"]
+                    if info.isfile():
+                        with source.open("rb") as payload:
+                            output.addfile(info, payload)
+                    else:
+                        output.addfile(info)
             raw.flush()
             os.fsync(raw.fileno())
         with tarfile.open(temporary, mode="r:gz") as verified:
@@ -4902,6 +4975,10 @@ def expire_managed_worktrees(
     now_timestamp: float | None = None,
 ) -> dict:
     """Delete aged, idle worktrees only when their changes are recoverable."""
+    if _queue_coordinated_worktree_cleanup():
+        return {"max_age_hours": max_age_hours, "inspected": 0, "deleted": [],
+                "retained": [], "failures": [], "queued": True}
+
     if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
         raise ValueError(
             f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
@@ -5060,7 +5137,13 @@ def expire_managed_worktrees(
 
 def _enforce_worktree_creation_capacity() -> None:
     """Clean expired worktrees, then refuse creation before disk or count exhaustion."""
-    expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
+    # Expiry is scheduled by the disk owner after cutover, never by every chat.
+    try:
+        from scripts.disk_coordinator import configured
+    except ModuleNotFoundError:
+        from disk_coordinator import configured
+    if configured(CONTROL_PLANE_ROOT) is None:
+        expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
     # free excludes reserved blocks, while used does not include them. Using
@@ -11591,16 +11674,28 @@ def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, fi
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
     """Provide cached dependencies and generated prerequisites when selected files need them."""
+    exports_only_manifests = frozenset(
+        Path(file) for file in files
+        if (file == "package.json" or file.endswith("/package.json"))
+        and _manifest_differs_only_in_exports(checkout_root / file, CONTROL_PLANE_ROOT / file)
+    )
     dependency_inputs_changed = any(
-        file in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
-        or file.endswith("/package.json")
+        file in {"pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
+        or ((file == "package.json" or file.endswith("/package.json"))
+            and Path(file) not in exports_only_manifests)
         or file.startswith("patches/")
         for file in files
     )
-    if not (_has_frontend_files(files) or _should_validate_embed_registry(files) or dependency_inputs_changed):
+    if not (_has_frontend_files(files) or _should_validate_embed_registry(files)
+            or dependency_inputs_changed or exports_only_manifests):
         return
     if not dependency_inputs_changed:
-        _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
+        if exports_only_manifests:
+            _reuse_prepared_dependencies(
+                checkout_root, CONTROL_PLANE_ROOT, exports_only_manifests=exports_only_manifests,
+            )
+        else:
+            _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
     result = bootstrap_session_worktree(
         checkout_root,
         dependencies_prepared=not dependency_inputs_changed,
@@ -12743,6 +12838,8 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"Inspected: {report['inspected']}")
             print(f"Deleted: {len(report['deleted'])}")
             print(f"Retained: {len(report['retained'])}")
+            if report.get("queued"):
+                print("Cleanup queued for the elected disk coordinator.")
             for failure in report["failures"]:
                 print(f"  ! {failure['path']}: {failure['error']}")
         if report["failures"]:
@@ -12847,6 +12944,42 @@ def cmd_worktree(args: argparse.Namespace) -> None:
 
 def cmd_specification(args: argparse.Namespace) -> None:
     """Run current Specification workflow tooling against one routed worktree."""
+    if args.specification_action in {"export-prompt-waiver", "import-prompt-waiver"}:
+        try:
+            try:
+                from scripts import specification_prompt_waiver as waiver
+            except ModuleNotFoundError:
+                import specification_prompt_waiver as waiver
+            data = _load_sessions()
+            session_id = _resolve_session_id(data, session_id=args.session)
+            session = data["sessions"][session_id]
+            root = _session_checkout_root(session).resolve()
+            if args.specification_action == "export-prompt-waiver":
+                output = Path(args.output).resolve()
+                if not (output.is_relative_to(root / ".runtime") or output.is_relative_to(CONTROL_PLANE_ROOT / "logs")):
+                    raise ValueError("Human evidence export must stay in private runtime/log storage")
+                value = waiver.build_export(root, session_id, session, plan=args.plan,
+                    specifications=args.specification, source={"provider": "codex",
+                        "session_id": args.source_session, "message_id": args.message_id}, quote=args.quote)
+                encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+                waiver.write_private(output, encoded)
+                print(json.dumps({"waiver_export": str(output), "sha256": hashlib.sha256(encoded).hexdigest(),
+                    "task_id": value["scope"]["task_id"], "approval_recorded": False}))
+            else:
+                binding = waiver.import_export(CONTROL_PLANE_ROOT, Path(args.evidence), args.sha256, session_id, session)
+                def record(current: dict) -> dict:
+                    owner = current["sessions"][session_id]
+                    if waiver.task_id(owner) != binding["task_id"]:
+                        raise ValueError("Owning Task changed before waiver import")
+                    receipts = owner.setdefault(waiver.STATE_KEY, [])
+                    if not any(row.get("binding_id") == binding["binding_id"] for row in receipts):
+                        receipts.append(binding)
+                    return binding
+                print(json.dumps({"prompt_waiver": _mutate_sessions(record), "approval_recorded": False}))
+        except (OSError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        return
     if args.specification_action != "approval-pdf":
         print(f"Unknown Specification action: {args.specification_action}", file=sys.stderr)
         sys.exit(2)
@@ -14767,6 +14900,19 @@ def main() -> None:
     p_specification_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
     p_specification_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
     p_specification_approval.add_argument("--json", action="store_true", help="Print structured output")
+
+    p_waiver_export = p_specification_sub.add_parser("export-prompt-waiver", help="Privately export an existing scoped human instruction; never approve fingerprints")
+    p_waiver_export.add_argument("--session", required=True)
+    p_waiver_export.add_argument("--plan", required=True)
+    p_waiver_export.add_argument("--specification", action="append", required=True, help="Exact referenced Specification id; repeat to scope")
+    p_waiver_export.add_argument("--source-session", required=True, help="Original bound human Codex thread")
+    p_waiver_export.add_argument("--message-id", required=True, help="Existing original user-message identity")
+    p_waiver_export.add_argument("--quote", required=True, help="Exact existing instruction; retained only in private evidence")
+    p_waiver_export.add_argument("--output", required=True, help="Private runtime/log evidence artifact")
+    p_waiver_import = p_specification_sub.add_parser("import-prompt-waiver", help="Carry verified private evidence into the same Task's explicit session")
+    p_waiver_import.add_argument("--session", required=True)
+    p_waiver_import.add_argument("--evidence", required=True)
+    p_waiver_import.add_argument("--sha256", required=True, help="Exact digest of the verified source export")
 
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")

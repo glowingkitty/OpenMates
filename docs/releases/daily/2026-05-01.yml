@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -126,26 +106,6 @@ sections:
     authored_at: '2026-05-01T13:08:17+00:00'
     changed_paths:
     - backend/apps/travel/providers/db_provider.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    section: features
-    commits:
-    - 1ff0f4ac3
-    authored_at: '2026-05-01T12:28:51+00:00'
-    changed_paths:
-    - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
-    - docs/architecture/apps/travel-train-api-research.md
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -188,15 +148,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -238,15 +194,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -275,15 +227,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -646,23 +594,7 @@ sections:
     - commit is reachable from main
   improvements: []
   docs: []
-  tests:
-  - title: 'test: add E2E spec for train connections via Deutsche Bahn'
-    section: tests
-    commits:
-    - 4ca692aee
-    authored_at: '2026-05-01T16:34:17+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is reachable from main
+  tests: []
   infrastructure: []
   internal: []
   other: []
@@ -802,13 +734,6 @@ marketing_candidates:
     commits:
     - 06ebb3293
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    commits:
-    - 1ff0f4ac3
-    section: features
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
@@ -971,14 +896,6 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
     newsletter_ready: true
-  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    commits:
-    - 1ff0f4ac3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
     commits:
     - 47c32dd9c
@@ -990,15 +907,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
@@ -1012,15 +925,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
@@ -1034,15 +943,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: retry TOON content recovery for finished embeds with missing content'
@@ -1233,15 +1138,6 @@ sources:
     changed_paths:
     - backend/apps/travel/app.yml
     related_feature_ids: []
-  - sha: 4ca692aeeb13623138b82b8008481bf11be6540c
-    short_sha: 4ca692aee
-    authored_at: '2026-05-01T16:34:17+00:00'
-    subject: 'test: add E2E spec for train connections via Deutsche Bahn'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
-    related_feature_ids: []
   - sha: 25a1efd4f12e8ca5dd24159f8001457af776136b
     short_sha: 25a1efd4f
     authored_at: '2026-05-01T13:24:34+00:00'
@@ -1268,18 +1164,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/travel/skills/search_connections.py
-    related_feature_ids: []
-  - sha: 1ff0f4ac3aa4051a99b6d77ed094f1eae1313d6d
-    short_sha: 1ff0f4ac3
-    authored_at: '2026-05-01T12:28:51+00:00'
-    subject: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
-    - docs/architecture/apps/travel-train-api-research.md
     related_feature_ids: []
   - sha: 47c32dd9cb5d6dd69843bbfd3c487aa23fbd065f
     short_sha: 47c32dd9c
@@ -1372,19 +1256,9 @@ sources:
     - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates introduced train connection search capabilities via Deutsche Bahn and implemented significant refinements
-    to PDF deduplication and OCR processing. The update also includes various stability fixes for the web application and
-    continued development of the unreleased iOS platform.
+  overview: The update also includes various stability fixes for the web application and continued development of the unreleased
+    iOS platform.
   released_changes:
-  - text: The travel application now supports train connection searches through Deutsche Bahn, including direct booking deeplinks
-      and improved provider attribution.
-    evidence:
-      commits:
-      - 1ff0f4ac3
-      - d909babd4
-      - 66cc3ba7e
-      - 06ebb3293
-    release_status: released_main
   - text: OpenMates added safe PDF deduplication to reuse S3 objects while maintaining unique embed identifiers.
     evidence:
       commits:
@@ -1431,26 +1305,9 @@ llm_summary:
       - 1f34b4480
       - a04023356
     release_status: released_main
-  internal_progress:
-  - text: The test suite was expanded with E2E specs for Deutsche Bahn connections and improved reliability for PDF-related
-      testing flows.
-    evidence:
-      commits:
-      - 4ca692aee
-      - 7fb12f82d
-      - 7060fb91d
-      - 25a1efd4f
-    release_status: released_main
+  internal_progress: []
   newsletter_recommendation:
     include:
-    - text: Train connection search via Deutsche Bahn with integrated booking links.
-      evidence:
-        commits:
-        - 1ff0f4ac3
-        - d909babd4
-        - 66cc3ba7e
-        - 06ebb3293
-      reason: This is a significant new user-facing capability for the travel skill.
     - text: Optimized PDF handling through safe deduplication and S3 object reuse.
       evidence:
         commits:
@@ -1477,5 +1334,4 @@ llm_summary:
       - d909babd4
   quality_notes:
   - Extensive focus on PDF edge cases suggests a push for higher reliability in document processing.
-  - The addition of Deutsche Bahn marks a significant expansion of the travel application's utility.
   validation_warnings: []

@@ -17,8 +17,8 @@ const CARRIER_LABELS: Record<string, string> = {
   ice: "ICE",
   ic: "IC",
   ec: "EC",
-  flixtrain: "FlixTrain",
-  flixzug: "FlixTrain",
+  ExampleCoach: "ExampleCoach",
+  ExampleCoachzug: "ExampleCoach",
 };
 
 function formatCarrierLabel(raw: string): string {

@@ -25,6 +25,9 @@
     import { Plugin, PluginKey } from '@tiptap/pm/state';
     import { piiVisibilityStore } from '../stores/piiVisibilityStore';
     import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
+    import { createPIIDisplayAliases } from '../services/piiDisplayAliases';
+    import { personalDataStore } from '../stores/personalDataStore';
+    import { get } from 'svelte/store';
     import type { PIIMapping } from '../types/chat';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { panelState } from '../stores/panelStateStore';
@@ -33,7 +36,7 @@
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v6-openmates-mentions';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v8-voice-delivery-cues';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -742,6 +745,14 @@
                 content: processedContent,
                 editable: false, // Make it read-only
                 injectCSS: false, // Don't inject default styles
+                onCreate: ({ editor: createdEditor }) => {
+                    // The immediate pass below masks source tokens before paint.
+                    // Once mounted, measure the real inherited typography again.
+                    void tick().then(() => {
+                        if (editor !== createdEditor || createdEditor.isDestroyed || !createdEditor.view.dom.isConnected) return;
+                        applyPIIDecorations(createdEditor);
+                    });
+                },
             });
         } catch (error) {
             // If TipTap editor creation fails (e.g., an embed NodeView throws),
@@ -993,12 +1004,45 @@
             
             const cssClass = piiRevealed ? 'pii-restored pii-revealed' : 'pii-restored pii-hidden';
             const titleSuffix = piiRevealed ? '(sensitive data)' : '(hidden for privacy)';
+            // Derive labels from immutable source, never from an already decorated
+            // document. Canonical tokens stay in the doc/selection/copy/send paths.
+            const displayAliases = createPIIDisplayAliases(
+                content,
+                piiMappings,
+                get(personalDataStore).map(entry => entry.replaceWith),
+            );
             
             const decorations = updatedPositions.map(pos => {
+                const canonicalText = updatedDoc.textBetween(pos.from, pos.to, '', '');
+                const displayLabel = !piiRevealed ? displayAliases.get(canonicalText) : undefined;
+                let fontSize = '';
+                let letterSpacing = '';
+                if (displayLabel) {
+                    // Prefer the text-side DOM at mark boundaries, so a token
+                    // starting inside inline code inherits code typography.
+                    const dom = view.domAtPos(pos.from, 1).node;
+                    let element = dom.nodeType === Node.ELEMENT_NODE ? dom as HTMLElement : dom.parentElement;
+                    // On a repeated decoration pass the token already has zero
+                    // font size; measure its surrounding text to keep heading,
+                    // code and body labels at the exact inherited size.
+                    element = element?.closest('[data-pii-display-label]')?.parentElement ?? element;
+                    if (element) {
+                        const inheritedStyle = getComputedStyle(element);
+                        fontSize = inheritedStyle.fontSize;
+                        letterSpacing = inheritedStyle.letterSpacing;
+                    }
+                }
+                const actionLabel = $text(piiRevealed ? 'chat.pii_hide' : 'chat.pii_show');
                 return Decoration.inline(pos.from, pos.to, {
-                    class: cssClass,
+                    class: `${cssClass}${displayLabel ? ' pii-compact-placeholder' : ''}`,
                     'data-pii-type': pos.type,
-                    ...(chatId ? { role: 'button', tabindex: '0', 'aria-label': $text(piiRevealed ? 'chat.pii_hide' : 'chat.pii_show') } : {}),
+                    ...(displayLabel ? {
+                        'data-testid': 'pii-placeholder-label',
+                        'data-pii-display-label': displayLabel,
+                        'aria-label': `${displayLabel} ${actionLabel}`,
+                        ...(fontSize ? { style: `--pii-display-font-size: ${fontSize}; --pii-display-letter-spacing: ${letterSpacing}` } : {}),
+                    } : {}),
+                    ...(chatId ? { role: 'button', tabindex: '0', 'aria-label': displayLabel ? `${displayLabel} ${actionLabel}` : actionLabel } : {}),
                     title: `${pos.label} ${titleSuffix}`
                 });
             });
@@ -1141,6 +1185,8 @@
     }
 
     $effect(() => {
+        // Track content even before the lazily initialized editor exists.
+        const currentContent = content;
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
@@ -1158,9 +1204,9 @@
             previousLocale = currentLocale;
         }
         
-        if (editor && content) {
+        if (editor && currentContent) {
             // ChatHistory owns stream coalescing; apply each canonical document immediately.
-            const newProcessedContent = processContent(content);
+            const newProcessedContent = processContent(currentContent);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
@@ -1171,7 +1217,7 @@
 
                 applyContentUpdate(newProcessedContent, isStreaming);
             }
-        } else if (editor && !content) {
+        } else if (editor && !currentContent) {
             // Handle case where content becomes null/undefined after editor initialization
             editor.commands.clearContent(false);
         }
@@ -1182,14 +1228,20 @@
     // This allows instant switching between showing placeholders and original values
     // without re-processing the entire message content.
     let previousPiiRevealed = $state<boolean | null>(null);
+    let previousConfiguredPIILabels = $state<string | null>(null);
     $effect(() => {
+        // Owner settings can arrive after message rendering or update through
+        // sync. Recompute display reservations without reloading source content.
+        const configuredPIILabels = JSON.stringify($personalDataStore.map(entry => entry.replaceWith));
         if (previousPiiRevealed === null) {
             previousPiiRevealed = piiRevealed;
+            previousConfiguredPIILabels = configuredPIILabels;
             return;
         }
 
-        if (piiRevealed !== previousPiiRevealed) {
+        if (piiRevealed !== previousPiiRevealed || configuredPIILabels !== previousConfiguredPIILabels) {
             previousPiiRevealed = piiRevealed;
+            previousConfiguredPIILabels = configuredPIILabels;
             if (editor && !editor.isDestroyed) {
                 applyPIIDecorations(editor);
             }
@@ -1695,6 +1747,18 @@
     }
 
     :global(.read-only-message .pii-restored[role="button"]) { cursor: pointer; }
+    /* Keep source text canonical for native selection/copy. Generated visual text
+       carries only the readable label and is never serialized as message data. */
+    :global(.read-only-message .pii-restored.pii-compact-placeholder) {
+        display: inline-block;
+        font-size: 0;
+        letter-spacing: 0;
+    }
+    :global(.read-only-message .pii-restored.pii-compact-placeholder::after) {
+        content: attr(data-pii-display-label);
+        font-size: var(--pii-display-font-size, var(--font-size-p));
+        letter-spacing: var(--pii-display-letter-spacing, normal);
+    }
     :global(.read-only-message .pii-restored[role="button"]:focus-visible) {
         outline: 2px solid currentColor;
         outline-offset: 2px;

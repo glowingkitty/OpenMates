@@ -1,46 +1,16 @@
 #!/usr/bin/env python3
-"""
-Fetches AI model rankings from OpenRouter.ai using Firecrawl for JavaScript rendering.
-
-This script:
-1. Uses Firecrawl API (via Vault) to scrape the dynamically-rendered rankings page
-2. Supports category-specific leaderboards (programming, roleplay, marketing, legal, etc.)
-3. Validates the output to detect when the scraper breaks
-
-Usage:
-    # General leaderboard
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py
-    
-    # Category-specific leaderboard
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --category programming
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --category roleplay
-    
-    # All categories
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --all-categories
-
-Options:
-    --category CAT    Fetch leaderboard for specific category
-    --all-categories  Fetch leaderboards for all known categories
-    --json            Output as JSON instead of formatted text
-    -o, --output FILE Save output to file
-    --basic           Use basic HTML parsing (no Firecrawl API)
-"""
+"""Offline parsing utilities for saved leaderboard data. Live collection is unavailable."""
 
 import asyncio
-import argparse
-import json
 import logging
 import re
 import sys
-import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 # Add the backend directory to the Python path for imports
 sys.path.insert(0, '/app/backend')
 
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 
 # Configure logging - suppress verbose library logs
 logging.basicConfig(
@@ -59,7 +29,6 @@ logging.getLogger('backend').setLevel(logging.WARNING)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-BASE_URL = "https://openrouter.ai/rankings"
 
 # Available categories (based on OpenRouter's categories dropdown)
 # URL format: https://openrouter.ai/rankings/{category}
@@ -84,8 +53,6 @@ KNOWN_PROVIDERS = {"anthropic", "google", "openai", "meta", "mistralai", "deepse
 # Expected models in leaderboard (should find at least one)
 EXPECTED_MODEL_KEYWORDS = {"claude", "gpt", "gemini", "llama", "mistral", "deepseek", "grok"}
 
-# Firecrawl wait time (ms) to allow JavaScript to render category-specific data
-FIRECRAWL_WAIT_TIME = 5000
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -94,7 +61,7 @@ FIRECRAWL_WAIT_TIME = 5000
 
 def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     """
-    Parse the LLM Leaderboard section from Firecrawl markdown.
+    Parse the LLM Leaderboard section from saved markdown.
     
     Format (multi-line entries, may include favicon images):
     ```
@@ -107,7 +74,7 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     ```
     
     Args:
-        markdown_content: Full markdown from Firecrawl
+        markdown_content: Saved markdown content
         
     Returns:
         List of parsed leaderboard entries
@@ -189,10 +156,10 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
 
 def parse_top_apps(markdown_content: str) -> List[Dict[str, Any]]:
     """
-    Parse the Top Apps section from Firecrawl markdown.
+    Parse the Top Apps section from saved markdown.
     
     Args:
-        markdown_content: Full markdown from Firecrawl
+        markdown_content: Saved markdown content
         
     Returns:
         List of parsed top apps
@@ -271,7 +238,7 @@ def parse_category_leaderboard(markdown_content: str, category: str) -> List[Dic
     ```
     
     Args:
-        markdown_content: Full markdown from Firecrawl (with waitFor=5000)
+        markdown_content: Saved markdown content
         category: The category being fetched (e.g., "programming")
         
     Returns:
@@ -361,7 +328,7 @@ def parse_category_leaderboard(markdown_content: str, category: str) -> List[Dic
 
 def parse_basic_html(html_content: str) -> List[Dict[str, Any]]:
     """
-    Parse basic HTML for the leaderboard (fallback mode without Firecrawl).
+    Parse basic HTML for the leaderboard (offline input only).
     
     Args:
         html_content: Raw HTML from the page
@@ -478,135 +445,8 @@ def validate_results(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def fetch_rankings(basic_mode: bool = False, category: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Fetch rankings from OpenRouter.
-    
-    Args:
-        basic_mode: If True, use basic HTML parsing (no Firecrawl)
-        category: Optional category to fetch (e.g., "programming", "roleplay")
-                  When specified, returns the category-specific leaderboard
-        
-    Returns:
-        Dict with timestamp, leaderboard/category_leaderboard, top_apps, and validation
-    """
-    # Build URL with category if specified
-    if category:
-        url = f"{BASE_URL}/{category.lower()}"
-    else:
-        url = BASE_URL
-    
-    if basic_mode:
-        script_logger.info(f"Fetching {url} (basic HTML mode)...")
-        
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=30) as response:
-                html = response.read().decode('utf-8')
-        except Exception as e:
-            script_logger.error(f"Failed to fetch URL: {e}")
-            return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": url,
-                "method": "basic",
-                "category": category,
-                "leaderboard": [],
-                "top_apps": [],
-                "validation": {"valid": False, "warnings": [f"FETCH_ERROR: {e}"]}
-            }
-        
-        leaderboard = parse_basic_html(html)
-        top_apps = []
-        category_leaderboard = []
-        
-    else:
-        script_logger.info(f"Fetching {url} via Firecrawl{' (category: ' + category + ')' if category else ''}...")
-        
-        # Initialize SecretsManager for Vault access
-        secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-        
-        try:
-            # When fetching category-specific data, we need a longer wait time
-            # for JavaScript to render the filtered leaderboard
-            wait_time = FIRECRAWL_WAIT_TIME if category else 0
-            
-            result = await scrape_url(
-                url=url,
-                secrets_manager=secrets_manager,
-                formats=["markdown"],
-                only_main_content=True,
-                max_age=3600000,  # 1 hour cache
-                sanitize_output=False,
-                wait_for=wait_time  # Wait for JS to render category data
-            )
-            
-            if result.get("error"):
-                script_logger.error(f"Firecrawl error: {result['error']}")
-                return {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": url,
-                    "method": "firecrawl",
-                    "category": category,
-                    "leaderboard": [],
-                    "top_apps": [],
-                    "validation": {"valid": False, "warnings": [f"FIRECRAWL_ERROR: {result['error']}"]}
-                }
-            
-            markdown = result.get("data", {}).get("markdown", "")
-            if not markdown:
-                return {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": url,
-                    "method": "firecrawl",
-                    "category": category,
-                    "leaderboard": [],
-                    "top_apps": [],
-                    "validation": {"valid": False, "warnings": ["EMPTY_RESPONSE: Firecrawl returned empty content"]}
-                }
-            
-            # Parse general leaderboard and top apps (always available)
-            leaderboard = parse_leaderboard(markdown)
-            top_apps = parse_top_apps(markdown)
-            
-            # Parse category-specific leaderboard if category specified
-            if category:
-                category_leaderboard = parse_category_leaderboard(markdown, category)
-            else:
-                category_leaderboard = []
-            
-        except Exception as e:
-            script_logger.error(f"Firecrawl failed: {e}")
-            return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": url,
-                "method": "firecrawl",
-                "category": category,
-                "leaderboard": [],
-                "top_apps": [],
-                "validation": {"valid": False, "warnings": [f"EXCEPTION: {e}"]}
-            }
-    
-    # Validate based on what we're fetching
-    if category:
-        validation = validate_results(leaderboard, top_apps, category_leaderboard, category)
-    else:
-        validation = validate_results(leaderboard, top_apps)
-    
-    result = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "source": url,
-        "method": "basic" if basic_mode else "firecrawl",
-        "leaderboard": leaderboard,
-        "top_apps": top_apps,
-        "validation": validation
-    }
-    
-    # Add category-specific data if fetching a category
-    if category:
-        result["category"] = category
-        result["category_leaderboard"] = category_leaderboard
-    
-    return result
+    """Report unavailable collection without credentials or outbound requests."""
+    raise RuntimeError("No supported leaderboard data source is configured.")
 
 
 async def fetch_all_categories(basic_mode: bool = False) -> Dict[str, Any]:
@@ -614,7 +454,7 @@ async def fetch_all_categories(basic_mode: bool = False) -> Dict[str, Any]:
     Fetch rankings for all available categories.
     
     Args:
-        basic_mode: If True, use basic HTML parsing (no Firecrawl)
+        basic_mode: Legacy argument; live collection remains unavailable.
         
     Returns:
         Dict with all category leaderboards
@@ -782,69 +622,7 @@ def format_all_categories_output(data: Dict[str, Any]) -> str:
 
 
 async def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Fetch AI model rankings from OpenRouter.ai",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-    # Fetch general LLM leaderboard and Top Apps
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py
-    
-    # Fetch with Programming category leaderboard (the only reliably available category)
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --category programming
-    
-    # Output as JSON
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --json
-    
-    # Save to file
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --json -o /app/rankings.json
-    
-    # Basic mode (no Firecrawl API required, limited data)
-    docker exec -it api python /app/backend/scripts/fetch_openrouter_rankings.py --basic
-
-IMPORTANT: OpenRouter's rankings page is a Single Page Application (SPA).
-The script captures:
-  - General LLM Leaderboard (top models by overall token usage)
-  - Top Apps (largest public apps using OpenRouter)
-  - Programming Category Leaderboard (when --category programming is used)
-
-NOTE: Other categories (roleplay, legal, marketing, etc.) are NOT reliably available
-because OpenRouter's SPA doesn't auto-select categories from the URL path.
-The Categories section always defaults to showing "Programming" data.
-"""
-    )
-    
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument("--output", "-o", help="Save output to file")
-    parser.add_argument("--basic", action="store_true", help="Use basic HTML parsing (no Firecrawl)")
-    parser.add_argument(
-        "--category", "-c",
-        choices=AVAILABLE_CATEGORIES,
-        help="Fetch category-specific leaderboard. NOTE: Due to OpenRouter's SPA limitations, "
-             "only 'programming' category data is reliably available."
-    )
-    
-    args = parser.parse_args()
-    
-    # Fetch rankings
-    data = await fetch_rankings(basic_mode=args.basic, category=args.category)
-    if args.json:
-        output = json.dumps(data, indent=2)
-    else:
-        output = format_output(data)
-    
-    # Output
-    if args.output:
-        with open(args.output, 'w') as f:
-            f.write(output)
-        print(f"✅ Output saved to {args.output}")
-    else:
-        print(output)
-    
-    # Exit with error code if validation failed
-    if not data.get("validation", {}).get("valid", True):
-        sys.exit(1)
+    raise SystemExit("No supported leaderboard data source is configured.")
 
 
 if __name__ == "__main__":

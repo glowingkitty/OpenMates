@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@6
+specification: feature.ai-model-routing@9
 
 required_instructions:
   - id: incomplete-cache-does-not-start-inference
@@ -39,9 +39,10 @@ contextual_compact_assembly:
 
 tier_classification:
   - id: minimum-reasoning-depth
-    given: Alice asks for today's Berlin weather, a comparison of two short proposals, a proof involving several interacting constraints, and a zero-downtime encrypted-data migration across incompatible clients.
+    assertion_ids: [ai-model-routing.tiers.conservative-three-way]
+    given: Alice asks for today's Berlin weather, a comparison of two short proposals, a proof involving several interacting constraints, and a zero-downtime encrypted-data migration across incompatible clients. Separately she asks for beige striped lemon fabric matching three photos, with Shopping performing the forty-candidate visual comparison.
     when: Automatic routing evaluates the reasoning each request needs.
-    then: It selects low, medium, high and max respectively; the migration qualifies for max because of sustained cross-system reasoning and exceptional correctness constraints.
+    then: It selects low, medium, high and max respectively; the migration qualifies for max because of sustained cross-system reasoning and exceptional correctness constraints. The delegated known-query Shopping request qualifies for low because the assistant forwards references and summarizes grounded results; substantive cross-product synthesis can qualify for medium. Exact chat and saved tier preferences retain precedence.
   - id: avoid-unnecessary-max
     given: Alice says a short summary is extremely important, or asks a difficult debugging question for which the classifier is uncertain between high and max.
     when: Automatic routing classifies her request, or receives a malformed classification.
@@ -63,7 +64,24 @@ default_profiles:
       - ai-model-routing.defaults.google-tier-profiles
     given: An authenticated user leaves all three saved model preference buckets on Auto and has not selected an exact model for this chat.
     when: The preprocessor classifies requests as low, medium, high and max.
-    then: Low, medium and high use Gemini 3.8 Flash with LOW, MEDIUM and HIGH thinking respectively; max uses Gemini 4 Argon with HIGH thinking. An exact chat or matching bucket choice overrides the default without receiving its automatic thinking level.
+    then: Without a separate reasoning recommendation, low text requests use direct Mercury 3 with medium reasoning; medium and high use Gemini 3.8 Flash with MEDIUM and HIGH thinking, and max uses Gemini 4 Argon HIGH. An exact chat or matching bucket choice overrides the default without receiving its automatic tier profile.
+  - id: mercury-low-unavailable-or-ineligible
+    assertion_ids: [ai-model-routing.defaults.google-tier-profiles]
+    given: Alice leaves Simple requests on Auto, and a low-complexity request either contains an image or encounters an unavailable Mercury service.
+    when: Routing checks the actual input and model restrictions, or Mercury provides no substantive answer or tool output within its effort-specific deadline.
+    then: An eligible Gemini 3.8 Flash LOW route serves the request with its actual model attribution. Metadata-only events do not keep Mercury waiting, and a response already shown to Alice is never silently restarted with duplicate text.
+
+answer_recovery:
+  - id: gemini-protocol-retry-stays-on-gemini
+    assertion_ids: [ai-model-routing.recovery.affordable-current-models]
+    given: Alice uses Auto for a medium request, Gemini 3.8 Flash has completed web research, and its answer contains an internal tool-result envelope.
+    when: The guard suppresses that envelope and the first answer-only retry runs.
+    then: Gemini 3.8 receives the verified research and already published text with tools and tool-selection instructions removed. Its successful continuation completes the same answer without repeating text or calling Mercury, Gemini 3.7 or Sonnet.
+  - id: affordable-recovery-or-explicit-exhaustion
+    assertion_ids: [ai-model-routing.recovery.affordable-current-models]
+    given: Gemini 3.8 cannot complete its clean retry and Alice has not explicitly selected another model.
+    when: Recovery checks the remaining permitted routes.
+    then: Eligible text requests may use Mercury 3 MEDIUM by default as the inexpensive last resort, or HIGH when Jev separately recommends HIGH or EXTRA_HIGH. If Mercury is disabled or the request requires an image or document, the response preserves published text and reports failure; it never removes media, retries an exhausted model, or escalates to Sonnet or Gemini 3.7. A max request may first recover from Argon through current Gemini 3.8.
 
 catalog:
   - id: public-read-only-model-discovery
@@ -167,6 +185,18 @@ composer_layout:
     when: {open_attachment_menu: true}
     expect: {options: [Drawing, Location, Files], keyboard_operable: true, camera_still_direct: true, audio_still_direct: true}
 
+preprocessing_recovery_policy:
+  - id: jev-unavailable-mercury-output-recovery
+    assertion_ids: [ai-model-routing.preprocessing.missing-output-recovery]
+    given: Alice sends a request whose answer model is already selected, but Jev cannot complete the preprocessing decisions.
+    when: Direct Mercury 3 low returns no required tool output, and Gemini 3.5 Flash-Lite returns valid routing properties within the remaining deadline.
+    then: Preprocessing succeeds through Flash-Lite without retrying Mercury, inventing properties or changing Alice's selected answer model. A healthy Jev result would have skipped both generative providers.
+  - id: recovery-disabled-does-not-call-lite
+    assertion_ids: [ai-model-routing.preprocessing.missing-output-recovery]
+    given: An output-safety scan explicitly disables retries and its Mercury attempt cannot produce the required result.
+    when: The attempt fails or its deadline expires.
+    then: The operation fails without calling Flash-Lite or fabricating a successful classification.
+
 preprocessing_recovery:
   - id: missing-required-output-uses-configured-fallback
     given: {answer_model: anthropic/claude-sonnet-5, preprocessing_retries: true, deadline_remaining: true, configured_fallback: available}
@@ -213,3 +243,15 @@ warm_catalogues:
     given: Alice focuses the empty web composer, starts the TUI or begins a microphone transcript in her current account and Team.
     when: Preparation warms discovery and she sends before it completes, or changes account before the next send.
     then: No inference or draft text is sent by preparation; send reaches admission immediately, missing context loads safely, and another account cannot reuse her discovery or keys.
+
+reasoning_recommendation:
+  - id: effort-independent-of-model-tier
+    assertion_ids: [ai-model-routing.reasoning.preprocessor-recommendation]
+    given: Alice sends two low-complexity text requests on Auto; one is a trivial lookup and the other needs careful bounded analysis.
+    when: Jev separately recommends LOW for the lookup and HIGH for the analysis in the same preprocessing pass.
+    then: Both requests retain Mercury 3 routing. The lookup has a five-second substantive-output deadline and an 8192-token completion cap, while analysis has sixty seconds and 32768 tokens; a missing recommendation instead uses MEDIUM with fifteen seconds and 16384 tokens. Any smaller credit allowance still wins before dispatch.
+  - id: effort-clamped-and-preserved-on-recovery
+    assertion_ids: [ai-model-routing.reasoning.preprocessor-recommendation]
+    given: Alice's medium-complexity request separately receives an EXTRA_HIGH recommendation, and its Gemini answer needs bounded recovery after a clean retry.
+    when: The request reaches Gemini 3.8 and later an eligible text-only Mercury fallback.
+    then: Each model receives its own highest supported HIGH level and the verified evidence is retained. The recommendation survives continuation; it cannot replace Alice's explicit model selection or override a fixed-effort variant. Missing or invalid effort preserves valid routing and the tier default without another preprocessing call.

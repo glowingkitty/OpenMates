@@ -1,0 +1,56 @@
+// playwright-account: not_required reason=isolated_component_preview
+import { expect, test } from '../helpers/cookie-audit';
+import { waitForComponentPreview } from '../helpers/component-preview';
+import { focusComposer } from '../helpers/composer-focus';
+
+test.setTimeout(120_000);
+
+for (const fixture of [
+  { embedId: '710a4efd-2208-41fb-a14c-e4ba7e530b5e', chatId: 'example-gigantic-airplanes', title: 'Rocket-powered aircraft - Wikipedia', type: 'web-website' },
+  { embedId: '0dd5bef4-2dd6-4374-96ed-e8130bc7270d', chatId: 'example-habit-garden-web-application', title: 'main.js', type: 'code' },
+  { embedId: 'e2e-legacy-saved-event', chatId: null, title: 'Freelance Barcamp Berlin', type: 'events-event',
+    decodedContent: { title: 'Freelance Barcamp Berlin', app_id: 'events', skill_id: 'event',
+      date_start: '2026-11-14T09:00:00+01:00', venue_address: 'Fixture coworking Berlin',
+      url: 'https://example.com/barcamp', description: 'My saved event notes' } },
+]) {
+  // contract-test: direct surface=gui.web assertions=message-input.suggestions.contextual,public-example-chats.transcript.safe-rendering
+  test(`opens public ${fixture.type} content without replacing the draft`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/dev/preview/ActiveChat?chrome=0&width=1200&theme=dark');
+    await waitForComponentPreview(page);
+    const chat = page.getByTestId('active-chat-container');
+    const editor = page.getByTestId('message-editor').getByRole('textbox', { includeHidden: true });
+    const field = page.getByTestId('message-field');
+    await focusComposer(page);
+    await expect(editor).toBeVisible();
+    await editor.fill('Keep my draft while I inspect this public result');
+    // Dismiss through the real draft flush before capturing the new local chat.
+    await page.getByTestId('input-dismiss-button').click();
+    await expect(field).toHaveAttribute('data-focused', 'false');
+    await focusComposer(page);
+    await expect(editor).toHaveText('Keep my draft while I inspect this public result');
+    const currentChatId = await chat.getAttribute('data-current-chat-id');
+
+    await page.evaluate(({ embedId, chatId, type, decodedContent }) => {
+      document.dispatchEvent(new CustomEvent('embedfullscreen', { detail: {
+        embedId, embedType: type, exampleChatId: chatId, decodedContent,
+        hasChatContext: false, sourceChatId: null,
+      } }));
+    }, { ...fixture, decodedContent: 'decodedContent' in fixture ? fixture.decodedContent : undefined });
+    const fullscreen = page.getByTestId('embed-fullscreen-container');
+    await expect(fullscreen).toBeVisible({ timeout: 30000 });
+    await expect(fullscreen).toContainText(fixture.title, { timeout: 30000 });
+    if (fixture.type === 'code') await expect(fullscreen.getByTestId('code-fullscreen-code')).toContainText("import { mount } from 'svelte';");
+    if (fixture.type === 'events-event') {
+      await expect(fullscreen.getByTestId('event-venue-card')).toContainText('Fixture coworking Berlin');
+      await expect(fullscreen.getByTestId('event-description')).toContainText('My saved event notes');
+    }
+    if (fixture.chatId) await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
+    if (currentChatId) await expect(chat).toHaveAttribute('data-current-chat-id', currentChatId);
+    await fullscreen.getByTestId('embed-minimize').click();
+    await expect(fullscreen).toHaveCount(0);
+    await expect(editor).toHaveText('Keep my draft while I inspect this public result');
+    if (fixture.chatId) await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
+    if (currentChatId) await expect(chat).toHaveAttribute('data-current-chat-id', currentChatId);
+  });
+}

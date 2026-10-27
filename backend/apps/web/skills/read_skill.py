@@ -1,37 +1,30 @@
-# backend/apps/web/skills/read_skill.py
-#
-# Web read skill implementation.
-# Provides web page reading functionality using the Firecrawl API.
-#
-# This skill supports multiple URLs in a single request,
-# processing them in parallel (up to 5 parallel requests).
+"""Read public pages through the direct, crawler-aware reader boundary."""
 
-import logging
-import os
-import yaml
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+import logging
+from typing import Dict, Any, List, Literal, Optional
+
+from pydantic import ValidationError
 from pydantic import BaseModel, Field
-from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.app_skill_helpers import check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.public_web_reader import PublicWebReadError, read_public_web_page
+from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
 from backend.shared.python_utils.app_skill_output_safety import (
     APP_SKILL_SURFACE_REST,
     AppSkillOutputSafetyContext,
     is_central_app_skill_dispatch,
     sanitize_app_skill_output,
 )
-# RateLimitScheduledException is no longer caught here - it bubbles up to route handler
-from backend.core.api.app.services.cache import CacheService
-from backend.shared.python_utils.url_normalizer import extract_domain_from_url, normalize_url_for_content_id, sanitize_url_remove_fragment
-from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
+READ_CREDITS_PER_PAGE = 20
+MAX_READ_REQUESTS = 5
+DEFAULT_READ_TIMEOUT_MS = 20_000
+MAX_READ_TIMEOUT_MS = 30_000
+READ_BATCH_TIMEOUT_SECONDS = 30.0
+
 
 
 class WebReadRequestItem(BaseModel):
@@ -44,21 +37,21 @@ class WebReadRequestItem(BaseModel):
     )
 
     url: str = Field(description="URL of the web page to read and extract content from.")
-    formats: Optional[List[str]] = Field(
-        default=None,
-        description="Output formats to return (e.g. ['markdown', 'html']). Defaults to ['markdown'].",
+    formats: Optional[List[Literal["markdown"]]] = Field(
+        default=None, min_length=1, max_length=1,
+        description="Only markdown is supported; omitted formats default to markdown.",
     )
     only_main_content: Optional[bool] = Field(
         default=None,
         description="If true, extract only the main article content (no nav/footer/ads). Default: true.",
     )
     max_age: Optional[int] = Field(
-        default=None,
-        description="Max cache age in seconds. Uses cached version if available within this age.",
+        default=None, ge=0,
+        description="Legacy compatibility field; ignored. Every source read is fresh. Saved full-text embeds are unaffected.",
     )
     timeout: Optional[int] = Field(
-        default=None,
-        description="Request timeout in milliseconds.",
+        default=None, ge=1000, le=MAX_READ_TIMEOUT_MS,
+        description="Complete source read timeout in milliseconds (1000-30000; default 20000).",
     )
 
 
@@ -69,8 +62,8 @@ class ReadRequest(BaseModel):
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
     requests: List[WebReadRequestItem] = Field(
-        ...,
-        description="Array of web read request objects. Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout)."
+        ..., min_length=1, max_length=MAX_READ_REQUESTS,
+        description="Array of up to five web read request objects. Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout)."
     )
 
 
@@ -106,14 +99,15 @@ class ReadResponse(BaseModel):
         description="List of request results. Each entry contains 'id' (matching request id) and 'results' array with actual read results for that request."
     )
     provider: str = Field(
-        default="Firecrawl",
-        description="The provider used (e.g., 'Firecrawl')"
+        default="",
+        description="Reader implementation; no external content-reader provider is involved."
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
         None,
         description="Suggested follow-up actions based on read results"
     )
-    error: Optional[str] = Field(None, description="Error message if read failed")
+    error: Optional[str] = Field(None, description="Error message when no page could be read")
+    warnings: List[str] = Field(default_factory=list, description="Visible errors for unsuccessful sibling page reads.")
     ignore_fields_for_inference: Optional[List[str]] = Field(
         default_factory=lambda: [
             "type",
@@ -132,536 +126,118 @@ class ReadResponse(BaseModel):
 
 
 class ReadSkill(BaseSkill):
-    """
-    Web read skill that uses Firecrawl API to read/scrape web pages.
-    
-    Supports multiple URLs in a single request, processing them in parallel.
-    Each URL is scraped independently and results are combined.
-    
-    ARCHITECTURE DECISION: Direct Async Execution vs Celery Tasks
-    ==============================================================
-    
-    This skill executes directly in the FastAPI route handler (app-web container) using
-    async/await, rather than dispatching to a Celery task in app-web-worker. This is an
-    intentional architectural decision for the following reasons:
-    
-    1. **Performance & Latency**
-       - Web scraping is a quick operation (typically 1-5 seconds)
-       - Direct async execution has ~0ms overhead vs Celery's ~50-200ms overhead
-         (task dispatch + queue wait + result retrieval)
-       - Users expect immediate results for read requests
-    
-    2. **Non-Blocking Concurrency**
-       - The execute() method uses async/await, making it non-blocking
-       - FastAPI's event loop can handle thousands of concurrent requests efficiently
-       - During I/O operations (HTTP calls to Firecrawl API, content sanitization), the
-         event loop yields control, allowing other requests to be processed
-       - This is NOT blocking - multiple requests are processed concurrently
-    
-    3. **I/O-Bound Nature**
-       - Web scraping is primarily I/O-bound (network calls, not CPU-intensive)
-       - Async I/O is perfectly suited for this use case
-       - No CPU-bound work that would benefit from separate worker processes
-    
-    4. **Simplicity**
-       - Direct execution is simpler: no task queue, no polling, no result storage
-       - Easier to debug and monitor (logs appear directly in app-web)
-       - Fewer moving parts = fewer failure points
-    
-    When to Use Celery Instead:
-    ---------------------------
-    Celery tasks are appropriate for:
-    - Long-running operations (>5 seconds)
-    - CPU-intensive work that would block the event loop
-    - Operations requiring retry mechanisms and task queuing
-    - Operations that need to be processed in background (fire-and-forget)
-    - Operations requiring independent worker scaling
-    
-    Examples of skills that SHOULD use Celery:
-    - AI chat processing (long-running, complex)
-    - Image generation (CPU-intensive, long-running)
-    - Large data processing tasks
-    
-    Examples of skills that should use direct async (like this one):
-    - Web read/scraping (quick, I/O-bound)
-    - Quick API lookups
-    - Simple data transformations
-    - Fast external service calls
-    
-    Current Implementation:
-    ----------------------
-    - Executes in: app-web (FastAPI container)
-    - Execution model: Direct async execution via async/await
-    - Concurrency: Handled by FastAPI's async event loop
-    - Blocking: NO - async I/O operations yield control to event loop
-    - Scalability: Excellent - FastAPI handles thousands of concurrent requests
-    """
-    
-    def __init__(self,
-                 app,  # BaseApp instance - required by BaseSkill
-                 app_id: str,
-                 skill_id: str,
-                 skill_name: str,  # Changed from 'name' to match BaseSkill
-                 skill_description: str,  # Changed from 'description' to match BaseSkill
-                 full_model_reference: Optional[str] = None,  # From skill's app.yml definition
-                 pricing_config: Optional[Dict[str, Any]] = None,  # From skill's app.yml definition
-                 celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
-                 # This is for ReadSkill's specific operational defaults from its 'default_config' block in app.yml
-                 skill_operational_defaults: Optional[Dict[str, Any]] = None
-                 ):
-        """
-        Initialize ReadSkill.
-        
-        Args:
-            app: BaseApp instance - required by BaseSkill
-            app_id: The ID of the app this skill belongs to
-            skill_id: Unique identifier for this skill
-            skill_name: Display name for the skill
-            skill_description: Description of what the skill does
-            full_model_reference: Optional model reference if skill uses a specific model
-            pricing_config: Optional pricing configuration for this skill
-            celery_producer: Optional Celery instance for async task processing
-            skill_operational_defaults: Optional skill-specific operational defaults from app.yml
-        """
-        # Call BaseSkill constructor with all required parameters (excluding skill_operational_defaults)
-        super().__init__(
-            app=app,
-            app_id=app_id,
-            skill_id=skill_id,
-            skill_name=skill_name,
-            skill_description=skill_description,
-            full_model_reference=full_model_reference,
-            pricing_config=pricing_config,
-            celery_producer=celery_producer
-        )
-        
-        # Store skill_operational_defaults if provided (for future use if needed)
-        # Currently ReadSkill doesn't use operational defaults, but we accept it for consistency
-        if skill_operational_defaults:
-            logger.debug(f"ReadSkill '{self.skill_name}' received operational_defaults: {skill_operational_defaults}")
-            # Future: Parse and use skill_operational_defaults if ReadSkill needs specific config
-        
-        # Load follow-up suggestions from app.yml
-        # The app.yml file is located in the same directory as this skill's parent app
-        self.suggestions_follow_up_requests: List[str] = []
-        self._load_suggestions_from_app_yml()
-        
-        self.secrets_manager: Optional[SecretsManager] = None
-    
-    def _load_suggestions_from_app_yml(self) -> None:
-        """
-        Load follow-up suggestions from app.yml file.
-        
-        The suggestions are defined in app.yml under:
-        skills[].suggestions_follow_up_requests
-        
-        If the suggestions cannot be loaded from YAML, the list will remain empty.
-        """
-        try:
-            # Get the app directory (parent of skills directory)
-            current_file_dir = os.path.dirname(os.path.abspath(__file__))
-            app_dir = os.path.dirname(current_file_dir)  # Go up from skills/ to app/
-            app_yml_path = os.path.join(app_dir, "app.yml")
-            
-            if not os.path.exists(app_yml_path):
-                logger.error(f"app.yml not found at {app_yml_path}, suggestions_follow_up_requests will be empty")
-                self.suggestions_follow_up_requests = []
-                return
-            
-            with open(app_yml_path, 'r', encoding='utf-8') as f:
-                app_config = yaml.safe_load(f)
-            
-            if not app_config:
-                logger.error(f"app.yml is empty at {app_yml_path}, suggestions_follow_up_requests will be empty")
-                self.suggestions_follow_up_requests = []
-                return
-            
-            # Find the read skill in the skills list
-            skills = app_config.get("skills", [])
-            for skill in skills:
-                if skill.get("id", "").strip() == "read":
-                    suggestions = skill.get("suggestions_follow_up_requests", [])
-                    if suggestions and isinstance(suggestions, list):
-                        self.suggestions_follow_up_requests = [str(s) for s in suggestions]
-                        logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
-                        return
-                    else:
-                        logger.warning("Follow-up suggestions not found or invalid in app.yml for read skill, suggestions_follow_up_requests will be empty")
-                        self.suggestions_follow_up_requests = []
-                        return
-            
-            # If read skill not found
-            logger.error("Read skill not found in app.yml, suggestions_follow_up_requests will be empty")
-            self.suggestions_follow_up_requests = []
-            
-        except Exception as e:
-            logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
-            self.suggestions_follow_up_requests = []
-    
+    """Read allowed public pages directly, preserving complete extracted markdown."""
+
     async def _process_single_read_request(
-        self,
-        req: Dict[str, Any],
-        request_id: Any,
-        secrets_manager: SecretsManager,
-        cache_service: CacheService
-    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
-        """
-        Process a single web read request.
-        
-        This method handles all the logic for processing one web read request:
-        - Parameter extraction and validation
-        - Rate limit checking
-        - API call to Firecrawl
-        - Content sanitization
-        - Result formatting
-        
-        Args:
-            req: Request dictionary with url and optional parameters
-            request_id: The id of this request (for matching in response)
-            secrets_manager: SecretsManager instance
-            cache_service: CacheService instance for rate limiting
-        
-        Returns:
-            Tuple of (request_id, results_list, error_string_or_none)
-            - request_id: The id of the request (for grouping in response)
-            - results_list: List containing single read result (empty if error)
-            - error_string_or_none: Error message if processing failed, None if successful
-        """
-        # Extract URL and parameters from request
-        read_url = req.get("url")
-        if not read_url:
-            return (request_id, [], "Missing 'url' parameter")
-        
-        # Sanitize URL by removing fragment parameters (#{text}) as a security measure
-        # Fragments can contain malicious content and are not needed for web scraping
-        sanitized_url = sanitize_url_remove_fragment(read_url)
-        if not sanitized_url:
-            return (request_id, [], f"Invalid URL: '{read_url}' - could not sanitize")
-        
-        # Log if fragment was removed (for debugging)
-        if '#' in read_url and '#' not in sanitized_url:
-            logger.debug(f"[{request_id}] Removed fragment from URL: '{read_url}' -> '{sanitized_url}'")
-        
-        # Use sanitized URL for processing
-        read_url = sanitized_url
-        
-        # Extract request-specific parameters (with defaults from schema).
-        # NOTE: Pydantic model_dump() serialises Optional fields as None (not absent), so
-        # req.get(key, default) returns None when the key is present with value None.
-        # Use "or default" to treat both None and missing as "not provided".
-        req_formats = req.get("formats") or ["markdown"]
-        req_only_main_content = req.get("only_main_content")
-        if req_only_main_content is None:
-            req_only_main_content = True
-        req_max_age = req.get("max_age")
-        req_timeout = req.get("timeout")
-        
-        logger.debug(f"Executing web read (id: {request_id}): url='{read_url}', formats={req_formats}")
-        
+        self, req: Dict[str, Any], request_id: Any,
+    ) -> tuple[Any, List[Dict[str, Any]], Optional[str], Optional[str], Optional[int]]:
+        """Validate one request and return normalized content or a typed safe error."""
         try:
-            # Check and enforce rate limits before calling external API
-            provider_id = "firecrawl"
-            skill_id = "read"
-            
-            # Check rate limit
-            is_allowed, retry_after = await check_rate_limit(
-                provider_id=provider_id,
-                skill_id=skill_id,
-                cache_service=cache_service
+            item = WebReadRequestItem.model_validate(req)
+        except ValidationError as exc:
+            fields = ", ".join(dict.fromkeys(str(error["loc"][0]) for error in exc.errors()))
+            return request_id, [], f"Invalid read request fields: {fields}", "invalid_request", None
+        read_url = sanitize_url_remove_fragment(item.url)
+        try:
+            page = await read_public_web_page(
+                read_url,
+                only_main_content=True if item.only_main_content is None else item.only_main_content,
+                timeout_ms=item.timeout or DEFAULT_READ_TIMEOUT_MS,
             )
-            
-            # If rate limited, wait for the limit to reset
-            if not is_allowed:
-                logger.info(f"Rate limit hit for web read '{read_url}' (id: {request_id}), waiting for reset...")
-                try:
-                    celery_producer = None
-                    celery_task_context = None
-                    if hasattr(self.app, 'celery_producer') and self.app.celery_producer:
-                        celery_producer = self.app.celery_producer
-                        celery_task_context = {
-                            "app_id": self.app_id,
-                            "skill_id": self.skill_id,
-                            "arguments": {
-                                "url": read_url,
-                                "formats": req_formats,
-                                "only_main_content": req_only_main_content,
-                                "max_age": req_max_age,
-                                "timeout": req_timeout
-                            },
-                            # Include chat context for followup message generation
-                            "chat_id": self._current_chat_id,
-                            "message_id": self._current_message_id
-                        }
-                    
-                    # Wait for rate limit - if rate limit requires long wait, this will raise
-                    # RateLimitScheduledException which should bubble up to route handler
-                    await wait_for_rate_limit(
-                        provider_id=provider_id,
-                        skill_id=skill_id,
-                        cache_service=cache_service,
-                        celery_producer=celery_producer,
-                        celery_task_context=celery_task_context
-                    )
-                except Exception:
-                    # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
-                    # These should bubble up to the route handler
-                    raise
-            
-            # Call Firecrawl API
-            scrape_result = await scrape_url(
-                url=read_url,
-                secrets_manager=secrets_manager,
-                formats=req_formats,
-                only_main_content=req_only_main_content,
-                max_age=req_max_age,
-                timeout=req_timeout,
-            )
-            
-            if scrape_result.get("error"):
-                return (request_id, [], f"URL '{read_url}': {scrape_result['error']}")
-            
-            # Extract data from scrape result
-            data = scrape_result.get("data", {})
-            metadata = data.get("metadata", {})
-            title = metadata.get("title", "") if isinstance(metadata, dict) else ""
-            markdown = data.get("markdown", "")
-            
-            # Extract specific fields from metadata
-            language = None
-            favicon = None
-            og_image = None
-            og_sitename = None
-            
-            if isinstance(metadata, dict):
-                language = metadata.get("language")
-                favicon = metadata.get("favicon")
-                og_image = metadata.get("ogImage") or metadata.get("og:image")
-                og_sitename = metadata.get("ogSiteName") or metadata.get("og:site_name")
-            
-            result = {
-                "type": "read_result",
+            markdown = page.get("markdown")
+            if not isinstance(markdown, str) or not markdown.strip():
+                return request_id, [], "The page has no readable text.", "empty", page.get("http_status")
+            result = ReadResult.model_validate({
+                **{key: page.get(key) for key in (
+                    "title", "language", "favicon", "og_image", "og_sitename",
+                    "http_status", "read_status",
+                )},
                 "url": read_url,
-                "title": title,
+                "source_url": page.get("source_url") or page.get("url") or read_url,
                 "markdown": markdown,
-                "http_status": metadata.get("statusCode") if isinstance(metadata, dict) else None,
-                "source_url": metadata.get("sourceURL", read_url) if isinstance(metadata, dict) else read_url,
-                "warnings": data.get("warnings") or ([data["warning"]] if data.get("warning") else []),
-                "language": language,
-                "favicon": favicon,
-                "og_image": og_image,
-                "og_sitename": og_sitename,
-                "hash": self._generate_result_hash(read_url),
-            }
+                "warnings": page.get("warnings") or [],
+            }).model_dump(exclude_none=True)
+            result.update(type="read_result", hash=self._generate_result_hash(read_url))
+            return request_id, [result], None, None, None
+        except PublicWebReadError as exc:
+            return request_id, [], exc.message, exc.code, exc.http_status
+        except asyncio.TimeoutError:
+            return request_id, [], "The public page read timed out.", "timeout", None
+        except Exception:
+            logger.exception("Public page reader failed unexpectedly")
+            return request_id, [], "The public page could not be read.", "read_failed", None
 
-            from backend.shared.python_utils.website_text import website_read_status
-            result["read_status"] = website_read_status(result)
-
-            logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
-
-            # Create creator income entry asynchronously (fire-and-forget).
-            # Skip revenue sharing if payment is disabled (self-hosted mode).
-            from backend.core.api.app.utils.server_mode import is_payment_enabled
-            if is_payment_enabled():
-                try:
-                    asyncio.create_task(
-                        self._create_creator_income_for_url(
-                            url=read_url,
-                            app_id=self.app_id,
-                            skill_id=self.skill_id,
-                        )
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
-            else:
-                logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for URL '{read_url}'")
-
-            return (request_id, [result], None)
-            
-        except Exception as e:
-            error_msg = f"URL '{read_url}' (id: {request_id}): {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return (request_id, [], error_msg)
-    
-    async def _create_creator_income_for_url(
-        self,
-        url: str,
-        app_id: str,
-        skill_id: str
-    ) -> None:
-        """
-        Create creator income entry for a website URL.
-        
-        This method is called asynchronously (fire-and-forget) after successful web read.
-        It extracts the domain (owner ID) and normalized URL (content ID), then creates
-        a creator_income entry with 10 credits reserved for the creator (50% of 20 credits total).
-        
-        Args:
-            url: The URL that was read
-            app_id: The app ID (e.g., 'web')
-            skill_id: The skill ID (e.g., 'read')
-        """
-        try:
-            # Extract domain (owner ID) and normalize URL (content ID)
-            domain = extract_domain_from_url(url)
-            normalized_url = normalize_url_for_content_id(url)
-            
-            if not domain or not normalized_url:
-                logger.warning(f"Cannot create creator income: failed to extract domain or normalize URL from '{url}'")
-                return
-            
-            # Create services for creator revenue service
-            # These are created fresh for each async task (fire-and-forget)
-            cache_service = CacheService()
-            encryption_service = EncryptionService(cache_service=cache_service)
-            directus_service = DirectusService(
-                cache_service=cache_service,
-                encryption_service=encryption_service
-            )
-            
-            revenue_service = CreatorRevenueService(
-                directus_service=directus_service,
-                encryption_service=encryption_service
-            )
-            
-            # Revenue split: 10 credits to creator, 10 to OpenMates (50/50 split)
-            # Total cost is 20 credits per request
-            creator_credits = 10
-            
-            # Create income entry
-            success = await revenue_service.create_income_entry(
-                owner_id=domain,
-                content_id=normalized_url,
-                content_type="website",
-                app_id=app_id,
-                skill_id=skill_id,
-                credits=creator_credits,
-                income_source="skill_usage"
-            )
-            
-            if success:
-                logger.debug(f"Created creator income entry for website: domain={domain}, credits={creator_credits}")
-            else:
-                logger.warning(f"Failed to create creator income entry for website: domain={domain}")
-                
-        except Exception as e:
-            # Log but don't raise - income tracking failure shouldn't break skill execution
-            logger.error(f"Error creating creator income entry for URL '{url}': {e}", exc_info=True)
-    
     async def execute(
         self,
         requests: List[Dict[str, Any]],
         secrets_manager: Optional[SecretsManager] = None,
-        **kwargs
+        **kwargs: Any,
     ) -> ReadResponse:
-        """
-        Execute web read skill.
-        
-        Always uses 'requests' array format for consistency and parallel processing support.
-        Each request in the array specifies its own parameters with defaults defined in the schema.
-        
-        NOTE: This method executes directly in the FastAPI route handler (not via Celery).
-        This is intentional - see class docstring for architecture decision rationale.
-        The async/await pattern ensures non-blocking execution and excellent concurrency.
-        
-        Args:
-            requests: Array of read request objects. Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout).
-            secrets_manager: SecretsManager instance (injected by app)
-        
-        Returns:
-            ReadResponse with results and optional follow-up suggestions
-        
-        Execution Flow:
-        --------------
-        1. Request received in FastAPI route handler (app-web container)
-        2. This async method is called directly (no Celery dispatch)
-        3. I/O operations (Firecrawl API calls, content sanitization) use await
-        4. During await, FastAPI event loop processes other requests (non-blocking)
-        5. Results returned directly to client (no task polling needed)
-        
-        This approach provides:
-        - Lowest latency (no queue overhead)
-        - Excellent concurrency (async event loop)
-        - Simple architecture (direct execution)
-        - Immediate results (no polling required)
-        """
-        # Get or create SecretsManager using BaseSkill helper
-        secrets_manager, error_response = await self._get_or_create_secrets_manager(
-            secrets_manager=secrets_manager,
-            skill_name="ReadSkill",
-            error_response_factory=lambda msg: ReadResponse(results=[], error=msg),
-            logger=logger
-        )
-        if error_response:
-            return error_response
-        
-        validated_requests, invalid_grouped_results, validation_errors, error = self._partition_requests_by_required_fields(
-            requests=requests,
-            required_fields=["url"],
-            field_display_names={"url": "url"},
-            empty_error_message="No read requests provided. 'requests' array must contain at least one request with a 'url' field.",
-            logger=logger
-        )
-        if error:
-            return ReadResponse(results=[], error=error)
-        if not validated_requests:
-            return self._build_response_with_errors(
-                response_class=ReadResponse,
-                grouped_results=invalid_grouped_results,
-                errors=validation_errors,
-                provider="Firecrawl",
-                suggestions=self.suggestions_follow_up_requests,
-                logger=logger
+        """Read at most five pages within a shared thirty-second source deadline."""
+        if not isinstance(requests, list) or not 1 <= len(requests) <= MAX_READ_REQUESTS:
+            return ReadResponse(error="Provide between one and five page read requests.")
+        validated = []
+        request_ids: set[Any] = set()
+        for index, request in enumerate(requests):
+            if hasattr(request, "model_dump"):
+                req = request.model_dump()
+            elif isinstance(request, dict):
+                req = dict(request)
+            else:
+                return ReadResponse(error="Each page read request must be an object.")
+            _, error = self._validate_and_normalize_request_id(
+                req=req, request_index=index, total_requests=len(requests),
+                request_ids=request_ids, logger=logger,
             )
-        
-        # Initialize cache service for rate limiting (shared across all requests)
-        cache_service = CacheService()
-        
-        # Process all read requests in parallel using BaseSkill helper
-        results = await self._process_requests_in_parallel(
-            requests=validated_requests,
-            process_single_request_func=self._process_single_read_request,
-            logger=logger,
-            secrets_manager=secrets_manager,
-            cache_service=cache_service
-        )
-        
-        # Group results by request ID using BaseSkill helper
-        grouped_results, errors = self._group_results_by_request_id(
-            results=results,
-            requests=requests,
-            logger=logger
-        )
-        grouped_results = self._merge_grouped_results_preserving_request_order(
-            grouped_results,
-            invalid_grouped_results,
-            requests,
-        )
-        
-        # Build response with errors using BaseSkill helper
+            if error:
+                return ReadResponse(error=error)
+            validated.append(req)
+        tasks = [asyncio.create_task(self._process_single_read_request(req, req["id"]))
+                 for req in validated]
+        try:
+            done, pending = await asyncio.wait(tasks, timeout=READ_BATCH_TIMEOUT_SECONDS)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            groups = []
+            errors = []
+            for req, task in zip(validated, tasks):
+                if task in done:
+                    identity, results, message, code, status = task.result()
+                else:
+                    identity, results, message, code, status = (
+                        req["id"], [], "The public page read deadline was exceeded.", "timeout", None,
+                    )
+                group = {"id": identity, "results": results,
+                         "usage": {"credits_charged": READ_CREDITS_PER_PAGE if results and not message else 0}}
+                if message:
+                    group.update(error=message, read_status=code, error_code=code)
+                    if status is not None:
+                        group["http_status"] = status
+                    errors.append(message)
+                groups.append(group)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
         response = self._build_response_with_errors(
-            response_class=ReadResponse,
-            grouped_results=grouped_results,
-            errors=errors,
-            provider="Firecrawl",
-            suggestions=self.suggestions_follow_up_requests,
-            logger=logger
+            response_class=ReadResponse, grouped_results=groups,
+            errors=errors if len(errors) == len(groups) else [], warnings=errors,
+            provider="OpenMates public web reader",
+            suggestions=["Summarize this page", "Extract key points", "Read related pages"],
+            logger=logger,
         )
-        
         if is_central_app_skill_dispatch():
             return response
         sanitized = await sanitize_app_skill_output(
             response.model_dump(mode="json"),
             AppSkillOutputSafetyContext(
-                app_id=self.app_id,
-                skill_id=self.skill_id,
-                surface=APP_SKILL_SURFACE_REST,
-                request_body=kwargs,
-                external_data=True,
-                secrets_manager=secrets_manager,
-                cache_service=cache_service,
+                app_id=self.app_id, skill_id=self.skill_id, surface=APP_SKILL_SURFACE_REST,
+                request_body=kwargs, external_data=True, secrets_manager=secrets_manager,
+                cache_service=kwargs.get("cache_service"),
                 log_prefix="[WebRead direct execute] ",
             ),
         )
         return ReadResponse.model_validate(sanitized)
-    
-    # _generate_result_hash is now provided by BaseSkill

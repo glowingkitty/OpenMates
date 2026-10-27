@@ -11,6 +11,220 @@ import CryptoKit
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,pii.composer.detect-redact-exclude
+    func testFreshPersonalSnapshotCompilesAllEncryptedRowsAndFailsClosed() async throws {
+        let bodies = [
+            "settings-cipher": "{\"memory_documents\":[{\"id\":\"guide\"}]}",
+            "preferences-cipher": "{\"masterEnabled\":true,\"categories\":{\"phone_numbers\":false}}",
+            "personal-cipher": "{\"enabled\":true,\"textToHide\":\"Synthetic Name\",\"replaceWith\":\"[PERSON]\",\"addressLines\":{\"city\":\"Synthetic City\"}}"
+        ]
+        let snapshot: [String: Any] = ["encrypted_settings": "settings-cipher", "memories": [
+            ["id": "preferences", "app_id": "privacy", "item_type": "pii_detection_settings", "encrypted_item_json": "preferences-cipher"],
+            ["id": "entry", "app_id": "privacy", "item_type": "personal_data_entry", "encrypted_item_json": "personal-cipher"]]]
+        let compiled = try await NativeCompiledPersonalPrivacy.compile(snapshot) { cipher in
+            guard let value = bodies[cipher] else { throw NativePersonalPrivacyError.invalidSnapshot }; return value
+        }
+        XCTAssertTrue(compiled.settings.masterEnabled)
+        XCTAssertEqual(compiled.settings.disabledCategories, ["phone_numbers"])
+        XCTAssertEqual(compiled.settings.personalDataEntries.first?.textToHide, "Synthetic Name")
+        XCTAssertTrue(compiled.metadataKeys.contains("privacy-personal_data_entry"))
+        XCTAssertTrue(compiled.metadataKeys.contains("openmates-memories"), "Legacy account documents use the existing discovery key")
+        var malformed = snapshot
+        malformed["memories"] = [["id": "missing", "app_id": "privacy", "item_type": "personal_data_entry"]]
+        do {
+            _ = try await NativeCompiledPersonalPrivacy.compile(malformed) { _ in "{}" }
+            XCTFail("Incomplete encrypted snapshots must never become an empty policy")
+        } catch { XCTAssertEqual(error as? NativePersonalPrivacyError, .invalidSnapshot) }
+        malformed = snapshot; malformed.removeValue(forKey: "encrypted_settings")
+        do {
+            _ = try await NativeCompiledPersonalPrivacy.compile(malformed) { _ in "{}" }
+            XCTFail("Absent settings is not an authoritative null settings snapshot")
+        } catch { XCTAssertEqual(error as? NativePersonalPrivacyError, .invalidSnapshot) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership,chat-queued-followups.editing.stable-revision
+    func testSavedAdmissionLeaseSurvivesWaiterCancellationAndSeparatesScopes() async throws {
+        let gate = ChatSavedSendAdmissionGate()
+        let owner = UUID(), keys = UUID()
+        let scope = ChatPreparationScope(account: owner, server: "https://example.invalid", keyGeneration: keys,
+            teamID: nil, teamEpoch: 1, socketGeneration: 4)
+        let key = ChatSavedSendAdmissionGate.Key(scope: scope, chatID: "chat")
+        let reconnected = ChatPreparationScope(account: owner, server: scope.server, keyGeneration: keys,
+            teamID: nil, teamEpoch: 1, socketGeneration: 5)
+        XCTAssertEqual(key, .init(scope: reconnected, chatID: "chat"), "Reconnect cannot run two optimistic versions of the same saved chat concurrently")
+        let first = try await gate.acquire(key)
+        let waiting = expectation(description: "second admission starts waiting")
+        let second = Task { @MainActor in
+            waiting.fulfill()
+            return try await gate.acquire(key)
+        }
+        await fulfillment(of: [waiting], timeout: 1)
+        second.cancel()
+        do { let lease = try await second.value; lease.release(); XCTFail("Cancelled preparation must not enter admission") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        // Another chat can admit while the first chat remains leased.
+        let other = try await gate.acquire(.init(scope: scope, chatID: "other-chat")); other.release()
+        first.release(); first.release()
+        let next = try await gate.acquire(key); next.release()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,message-input.send.ownership
+    func testPrivacyExclusionIntentSurvivesReconnectOnlyWithinItsOriginalOwner() {
+        let owner = UUID(), key = UUID(), now = Date(timeIntervalSince1970: 1_800_000_000)
+        let scope = ChatPreparationScope(account: owner, server: "https://example.invalid", keyGeneration: key,
+            teamID: nil, teamEpoch: 1, socketGeneration: 4)
+        let intent = NativePersonalPrivacyExclusionIntent(scope: scope, originals: ["visible@example.invalid"], recordedAt: now)
+        let reconnected = ChatPreparationScope(account: owner, server: scope.server, keyGeneration: key,
+            teamID: nil, teamEpoch: 1, socketGeneration: 5)
+        XCTAssertEqual(intent.values(for: reconnected, now: now.addingTimeInterval(30)), ["visible@example.invalid"])
+        let otherOwner = ChatPreparationScope(account: UUID(), server: scope.server, keyGeneration: key,
+            teamID: nil, teamEpoch: 1, socketGeneration: 5)
+        XCTAssertTrue(intent.values(for: otherOwner, now: now).isEmpty)
+        let otherTeam = ChatPreparationScope(account: owner, server: scope.server, keyGeneration: key,
+            teamID: "team", teamEpoch: 2, socketGeneration: 5)
+        XCTAssertTrue(intent.values(for: otherTeam, now: now).isEmpty)
+        XCTAssertTrue(intent.values(for: reconnected, now: now.addingTimeInterval(7_200)).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision
+    func testQueuedHistoryFieldsDecodeWithRawAndNetworkKeyStrategies() throws {
+        let bytes = Data("{\"id\":\"queued\",\"chat_id\":\"chat\",\"role\":\"user\",\"created_at\":1800000000,\"queue_revision\":3,\"queue_mode\":\"steer\",\"queue_dispatch_status\":\"queued\",\"queue_dispatch_mode\":\"steer\",\"status\":\"queued\"}".utf8)
+        for converted in [false, true] {
+            let decoder = JSONDecoder()
+            if converted { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+            let row = try decoder.decode(Message.self, from: bytes)
+            XCTAssertEqual(ChatQueuedFollowupState.from(row)?.revision, 3)
+            XCTAssertEqual(row.queueMode, "steer")
+            XCTAssertEqual(row.queueDispatchMode, "steer")
+            XCTAssertEqual(row.deliveryStatus, "queued")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,pii.composer.detect-redact-exclude
+    func testFreshPrivacyFilteringPreservesReferencesExclusionsAndPlaceholderOwnership() throws {
+        let identity = "12345678-1234-4123-8123-123456789012"
+        let text = "```json\n{\"type\":\"image\",\"embed_id\":\"\(identity)\",\"note\":\"new@example.invalid\"}\n```\nKeep visible@example.invalid"
+        let first = PIIDetector.detect(in: "old@example.invalid").first!
+        let settings = PIIPrivacySettings.enabled
+        let result = try NativePersonalPrivacyFilter.apply(text, settings: settings,
+            existingMappings: [PIIMapping(placeholder: first.placeholder, original: "old@example.invalid", type: first.type.rawValue)],
+            excludedOriginals: ["visible@example.invalid"])
+        XCTAssertTrue(result.content.contains(identity), "Only validated reference values are protected")
+        XCTAssertFalse(result.content.contains("new@example.invalid"), "A note next to a reference remains subject to privacy")
+        XCTAssertTrue(result.content.contains("visible@example.invalid"), "Explicit exclusions remain current-turn choices")
+        let occupied = Dictionary(grouping: result.mappings, by: \.placeholder)
+        XCTAssertTrue(occupied.values.allSatisfy { Set($0.map(\.original)).count == 1 })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,message-input.send.ownership
+    func testUncertainPrivacyWriteRequiresMatchingFreshPersistedPolicy() async throws {
+        let store = PIIPrivacySettingsStore()
+        let desired = PIIPrivacySettings(masterEnabled: true, disabledCategories: ["phone_numbers"], personalDataEntries: [])
+        let token = store.beginPrivacyMutation(intended: desired)
+        store.endPrivacyMutation(token, succeeded: false)
+        try await store.waitForPrivacyMutations()
+        XCTAssertThrowsError(try store.reconcilePrivacyPersistence(with: .enabled, expectedRevision: store.privacyMutationRevision))
+        XCTAssertNoThrow(try store.reconcilePrivacyPersistence(with: desired, expectedRevision: store.privacyMutationRevision))
+        let stale = store.privacyMutationRevision
+        let next = store.beginPrivacyMutation(intended: .enabled)
+        store.endPrivacyMutation(next, succeeded: true)
+        XCTAssertThrowsError(try store.reconcilePrivacyPersistence(with: .enabled, expectedRevision: stale))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.editing.cancel,chat-queued-followups.editing.stable-revision
+    func testQueuedEditRestoresOnlyItsOwnedDraftAndDetectsUnchangedText() throws {
+        let previous = try ComposerMarkdownAdapter.parse("Previous unsent draft")
+        let edit = try ComposerMarkdownAdapter.parse("Queued source")
+        let newer = try ComposerMarkdownAdapter.parse("New typing while the request settles")
+        let state = ChatQueuedFollowupState(chatID: "chat", messageID: "queued", revision: 2, mode: .followUp, phase: .queued)
+        let session = ChatQueuedEditSession(state: state, scope: UUID(), teamEpoch: 1, originalContent: "Queued source",
+            previousDraft: previous, ownedDraft: edit, ownedRevision: 5)
+        XCTAssertEqual(session.draftOnCancel(current: edit, revision: 5), previous)
+        XCTAssertEqual(session.draftOnCancel(current: newer, revision: 6), newer)
+        XCTAssertEqual(session.draftOnCancel(current: edit, revision: 7), edit, "Same-text ABA does not give the old edit draft ownership")
+        XCTAssertTrue(session.isUnchanged("Queued source"))
+        XCTAssertFalse(session.isUnchanged("Queued source changed"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision
+    func testQueuedRevisionMetadataAndSourceIdentitySurvivePersistedMessageRoundTrip() throws {
+        let message = Message(id: "queued", chatId: "chat", role: .user, content: "Filtered request", encryptedContent: "synthetic-cipher",
+            createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil,
+            userMessageId: "source", queueRevision: 3, queueMode: "steer", queueDispatchStatus: "queued", queueDispatchMode: "steer", deliveryStatus: "queued")
+        let restored = PersistedMessage(from: message).toMessage()
+        XCTAssertEqual(restored.userMessageId, "source")
+        XCTAssertEqual(ChatQueuedFollowupState.from(restored)?.revision, 3)
+        XCTAssertEqual(ChatQueuedFollowupState.from(restored)?.mode, .steer)
+        XCTAssertEqual(restored.encryptedContent, message.encryptedContent)
+        XCTAssertNil(ChatQueuedFollowupState.from(restored.afterQueuedDispatch(.processing)))
+        let current = ChatQueuedFollowupState.from(restored)!
+        XCTAssertFalse(current.mayAccept(.init(chatID: "chat", messageID: "queued", revision: 5, mode: .steer, phase: .queued), hasCiphertext: false))
+        XCTAssertFalse(current.mayAccept(.init(chatID: "other-chat", messageID: "queued", revision: 4, mode: .steer, phase: .queued), hasCiphertext: true))
+        XCTAssertFalse(current.mayAccept(.init(chatID: "chat", messageID: "queued", revision: 3, mode: .followUp, phase: .queued), hasCiphertext: true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.access.scoped
+    func testQueueEditAuthorityRequiresTheExactProtectedRevision() {
+        let row = Message(id: "queued", chatId: "chat", role: .user, content: "Protected revision three",
+            encryptedContent: "cipher-three", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil, queueRevision: 3, queueMode: "follow_up", deliveryStatus: "queued")
+        let current = ChatQueuedFollowupState(chatID: "chat", messageID: "queued", revision: 3, mode: .followUp, phase: .queued)
+        XCTAssertTrue(current.acceptsProtectedRow(row, incomingCiphertext: nil))
+        XCTAssertTrue(current.acceptsProtectedRow(row, incomingCiphertext: "cipher-three"))
+        XCTAssertFalse(current.acceptsProtectedRow(row, incomingCiphertext: "different-cipher"))
+        let newer = ChatQueuedFollowupState(chatID: "chat", messageID: "queued", revision: 4, mode: .steer, phase: .queued)
+        XCTAssertFalse(newer.acceptsProtectedRow(row, incomingCiphertext: nil), "Content-free newer snapshots must fetch their protected history")
+        XCTAssertTrue(newer.acceptsProtectedRow(row, incomingCiphertext: "cipher-four"))
+        let older = ChatQueuedFollowupState(chatID: "chat", messageID: "queued", revision: 2, mode: .followUp, phase: .queued)
+        XCTAssertFalse(older.acceptsProtectedRow(row, incomingCiphertext: "cipher-two"))
+        let foreign = ChatQueuedFollowupState(chatID: "foreign", messageID: "queued", revision: 4, mode: .followUp, phase: .queued)
+        XCTAssertFalse(foreign.acceptsProtectedRow(row, incomingCiphertext: "cipher-four"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,message-input.send.ownership
+    func testPreparedPrivacyReuseRequiresFreshGenerationAndExactScope() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let owner = UUID(), keys = UUID()
+        let scope = ChatPreparationScope(account: owner, server: "https://example.invalid", keyGeneration: keys,
+            teamID: nil, teamEpoch: 1, socketGeneration: 4)
+        var prepared = ChatPreparedPrivacyGeneration(scope: scope, generation: "generation-a", mutationRevision: 2, touchedAt: now)
+        XCTAssertFalse(prepared.validateReuse(scope: scope, freshGeneration: nil, mutationRevision: 2, now: now))
+        XCTAssertFalse(prepared.validateReuse(scope: scope, freshGeneration: "generation-b", mutationRevision: 2, now: now))
+        XCTAssertFalse(prepared.validateReuse(scope: scope, freshGeneration: "generation-a", mutationRevision: 3, now: now))
+        let replacement = ChatPreparationScope(account: owner, server: scope.server, keyGeneration: keys,
+            teamID: nil, teamEpoch: 1, socketGeneration: 5)
+        XCTAssertFalse(prepared.validateReuse(scope: replacement, freshGeneration: "generation-a", mutationRevision: 2, now: now))
+        XCTAssertFalse(prepared.validateReuse(scope: scope, freshGeneration: "generation-a", mutationRevision: 2, now: now.addingTimeInterval(7_200)))
+        XCTAssertTrue(prepared.validateReuse(scope: scope, freshGeneration: "generation-a", mutationRevision: 2, now: now.addingTimeInterval(30)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+    func testQueuedRevisionUsesStableIdentityImmutableEncryptionAndExactReceipt() throws {
+        let request = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
+            clientRequestID: "request", mode: .followUp, teamID: nil, content: "Filtered text",
+            encryptedContent: "synthetic-cipher", encryptedPIIMappings: "synthetic-mappings")
+        let first = try request.payload(), retry = try request.payload()
+        XCTAssertTrue(NSDictionary(dictionary: first).isEqual(to: retry))
+        XCTAssertEqual(first["message_id"] as? String, "queued")
+        var accepted: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
+            "queue_revision": 4, "queue_mode": "follow_up", "encrypted_content": "synthetic-cipher",
+            "encrypted_pii_mappings": "synthetic-mappings"]
+        XCTAssertEqual(try request.validateReceipt(accepted, type: "queued_message_updated"), 4)
+        accepted["encrypted_content"] = "different-cipher"
+        XCTAssertThrowsError(try request.validateReceipt(accepted, type: "queued_message_updated"))
+        let conflict: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
+            "reason_code": "conflict", "current_revision": 4, "retryable": true]
+        XCTAssertThrowsError(try request.validateReceipt(conflict, type: "queued_message_revision_rejected")) {
+            XCTAssertEqual($0 as? ChatQueuedRevisionError, .rejected(reason: "conflict", currentRevision: 4, retryable: true))
+        }
+        XCTAssertThrowsError(try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
+            mode: .followUp, teamID: nil, content: "Changed text"))
+        let steer = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3, mode: .steer, teamID: "team")
+        XCTAssertNil(try steer.payload()["content"])
+        XCTAssertNil(try steer.payload()["encrypted_content"])
+        XCTAssertEqual(try steer.payload()["queue_mode"] as? String, "steer")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testAcceptedSendClearsOnlyUneditedSnapshotAndRejectedPreparationKeepsDraft() async {
         let composer = NativeComposerSession(canonicalMarkdown: "Synthetic pending draft")
@@ -744,18 +958,25 @@ final class ChatSendPipelineParityTests: XCTestCase {
     func testNotificationReplyDoesNotCommitAfterItsSessionChangesDuringPreflight() async throws {
         let payloads = Self.notificationTurnPayloads()
         let transport = NotificationReceiptTransport(state: "PREPARED")
-        var validationCount = 0
+        var validatedBeforePreflight = false
+        var rejectedAfterPreflight = false
         do {
             try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
                 preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
                 transport: transport, waitForInferenceReceipt: true,
                 validateRemoteSend: {
-                    validationCount += 1
-                    if validationCount == 2 { throw NotificationReplyError.accountChanged }
+                    // Replace the session after the actual preflight exchange;
+                    // earlier owner/key guards may legitimately validate often.
+                    if transport.waitedTypes.contains("chat_turn_preflight_ack") {
+                        rejectedAfterPreflight = true
+                        throw NotificationReplyError.accountChanged
+                    }
+                    validatedBeforePreflight = true
                 })
             XCTFail("The old account's message/history must not be sent through the replacement session")
         } catch NotificationReplyError.accountChanged {
-            XCTAssertEqual(validationCount, 2)
+            XCTAssertTrue(validatedBeforePreflight, "The original session must authorize preflight")
+            XCTAssertTrue(rejectedAfterPreflight, "Replacement must reject the turn after its preflight exchange")
             XCTAssertEqual(transport.waitedTypes, ["chat_turn_preflight_ack"])
             XCTAssertTrue(transport.bareSentTypes.isEmpty)
         }
@@ -1390,6 +1611,87 @@ final class ChatSendPipelineParityTests: XCTestCase {
 
         XCTAssertEqual(result.content, "Keep alice@example.com visible but redact +49 170 1234567.")
         XCTAssertEqual(result.piiMappings, [currentMapping])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testSendTimingRejectsHistoricalIdentityAndTracksTransientSavedHandoff() {
+        let timing = NativeChatSendTiming()
+        let token = timing.beginAction(chatID: "synthetic-chat")
+        defer { timing.cancel(chatID: "synthetic-chat", token: token) }
+        timing.bind(chatID: "synthetic-chat", messageID: "current-user")
+        var lifecycle = ChatStreamingLifecycleState()
+        let initiated = StreamingClient.StreamEvent.taskInitiated(chatId: "synthetic-chat", taskId: "current-task", userMessageId: "current-user")
+        timing.serverEventReceived(initiated, chatID: "synthetic-chat")
+        lifecycle.apply(initiated)
+        let selected = StreamingClient.StreamEvent.preprocessingStep(chatId: "synthetic-chat", step: "mate_selected", data: ["mate_category": "science"])
+        timing.serverEventReceived(selected, chatID: "synthetic-chat")
+        lifecycle.apply(selected)
+        let transient = NativeChatSendTimingBinding(chatID: "synthetic-chat", userMessageID: "current-user",
+            responseID: "current-task", category: "science")
+        XCTAssertNil(timing.matchingToken(transient), "Rendering cannot infer a Mate before an accepted authoritative event")
+        timing.acceptedMate(lifecycle: lifecycle, receivedAt: NativeSyncPerfLog.now())
+        XCTAssertEqual(timing.matchingToken(transient), token)
+        XCTAssertNil(timing.matchingToken(.init(chatID: "synthetic-chat", userMessageID: "old-user", responseID: "old-response", category: "science")))
+        XCTAssertNil(timing.matchingToken(.init(chatID: "synthetic-chat", userMessageID: "current-user", responseID: "old-response", category: "science")))
+        lifecycle.apply(.typingStarted(chatId: "synthetic-chat", messageId: "new-assistant", metadata: nil))
+        timing.acceptedMate(lifecycle: lifecycle, receivedAt: NativeSyncPerfLog.now())
+        XCTAssertNil(timing.matchingToken(transient), "A retired transient cannot satisfy the saved response's frame")
+        let saved = NativeChatSendTimingBinding(chatID: "synthetic-chat", userMessageID: "current-user",
+            responseID: "new-assistant", category: "science")
+        XCTAssertEqual(timing.matchingToken(saved), token)
+        XCTAssertTrue(timing.awaitingFrame(saved))
+        timing.frameOpportunity(transient, token: token)
+        XCTAssertTrue(timing.awaitingFrame(saved), "A stale scheduled callback must not finish the new identity")
+        timing.frameOpportunity(saved, token: token)
+        XCTAssertFalse(timing.awaitingFrame(saved))
+        let replacement = timing.beginAction(chatID: "synthetic-chat")
+        timing.cancel(chatID: "synthetic-chat", token: token)
+        timing.bind(chatID: "synthetic-chat", messageID: "replacement-user")
+        var replacementLifecycle = ChatStreamingLifecycleState()
+        replacementLifecycle.apply(.taskInitiated(chatId: "synthetic-chat", taskId: "replacement-task", userMessageId: "replacement-user"))
+        replacementLifecycle.apply(.preprocessingStep(chatId: "synthetic-chat", step: "mate_selected", data: ["mate_category": "science"]))
+        timing.acceptedMate(lifecycle: replacementLifecycle, receivedAt: NativeSyncPerfLog.now())
+        XCTAssertEqual(timing.matchingToken(.init(chatID: "synthetic-chat", userMessageID: "replacement-user",
+            responseID: "replacement-task", category: "science")), replacement, "Cancelling an old action must preserve its replacement")
+        timing.cancel(chatID: "synthetic-chat", token: replacement)
+        XCTAssertNil(timing.matchingToken(saved))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
+    func testHistoricalPIISnapshotPreservesBothPreparationPassesAndRetryDigest() throws {
+        let pipeline = ChatSendPipeline()
+        let older = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        let edited = PIIMapping(placeholder: "[EMAIL_2_com]", original: "bob@example.com", type: "EMAIL")
+        let history = [Self.userMessage(id: "older", mappings: [older]),
+                       Self.userMessage(id: "edited", mappings: [older, edited])]
+        let snapshot = pipeline.historicalPIIMappingSnapshot(in: history, excludingDigestMessageID: "edited")
+        XCTAssertEqual(snapshot.preparation, [older, edited])
+        XCTAssertEqual(snapshot.digest, [older], "Retry digests must exclude mappings introduced only by the original message")
+        let newSnapshot = pipeline.historicalPIIMappingSnapshot(in: history, excludingDigestMessageID: nil)
+        XCTAssertEqual(newSnapshot.preparation, newSnapshot.digest)
+        let unknownRetry = pipeline.historicalPIIMappingSnapshot(in: history, excludingDigestMessageID: "new-id")
+        XCTAssertEqual(unknownRetry.preparation, unknownRetry.digest)
+        for content in ["Email alice@example.com and bob@example.com.", "[EMAIL_1_com] and bob@example.com."] {
+            let before = pipeline.contentAndMappingsForSend(content: content, existingMessages: history,
+                excludedPIIOriginals: ["bob@example.com"])
+            let cached = pipeline.contentAndMappingsForSend(content: content, knownMappings: snapshot.preparation,
+                excludedPIIOriginals: ["bob@example.com"])
+            XCTAssertEqual(cached.content, before.content)
+            XCTAssertEqual(cached.piiMappings, before.piiMappings)
+            let secondBefore = pipeline.contentAndMappingsForSend(content: before.content, existingMessages: history,
+                piiMappings: before.piiMappings, excludedPIIPlaceholders: ["[EMAIL_2_com]"])
+            let secondCached = pipeline.contentAndMappingsForSend(content: cached.content, knownMappings: snapshot.preparation,
+                piiMappings: cached.piiMappings, excludedPIIPlaceholders: ["[EMAIL_2_com]"])
+            XCTAssertEqual(secondCached.content, secondBefore.content)
+            XCTAssertEqual(secondCached.piiMappings, secondBefore.piiMappings)
+        }
+        let digestArguments: ([PIIMapping]) throws -> String = { mappings in
+            try ChatSendPipeline.sendInputDigest(content: "alice@example.com", composerEmbeds: [], piiMappings: [],
+                excludedPIIOriginals: [], excludedPIIPlaceholders: [], broadcastToSiblings: false,
+                createdAtOverride: nil, isEdit: false, knownMappings: mappings)
+        }
+        XCTAssertEqual(try digestArguments(snapshot.digest), try digestArguments(pipeline.knownPIIMappings(in: [history[0]])))
+        XCTAssertNotEqual(try digestArguments(snapshot.digest), try digestArguments(snapshot.preparation))
     }
 
     // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
@@ -2043,6 +2345,13 @@ private final class NotificationReceiptTransport: ChatWebSocketTransport {
             receiptPredicate = predicate
             receiptContinuation = continuation
         }
+    }
+
+    func sendAndWait(_ message: WSOutboundMessage, responseType: String, timeout: Duration,
+                     matching predicate: @escaping ([String: Any]) -> Bool,
+                     beforeSend: @escaping @MainActor () throws -> Void) async throws -> WebSocketResponse {
+        try beforeSend()
+        return try await sendAndWait(message, responseType: responseType, timeout: timeout, matching: predicate)
     }
 
     func waitForMessage(_ type: String, timeout: Duration,

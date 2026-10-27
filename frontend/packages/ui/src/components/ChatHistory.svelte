@@ -9,13 +9,18 @@ import { storageArchiveFetch } from "../config/api";
   import { flip } from 'svelte/animate';
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
+  import ChatMessageTimeline from './ChatMessageTimeline.svelte';
+  import { messageBookmarksStore, getMessageBookmarkIds, loadMessageBookmarks, toggleMessageBookmark, clearTransientMessageBookmarks, type BookmarkMode } from '../services/messageBookmarks';
+  import { fetchTimelinePage, fetchTimelineSection, type TimelineCursor } from '../services/chatTimeline';
+  import { mergeTimelineEntries, pairTimelineExchange, timelineResponseId, buildTimelineExchangeIndex, type TimelineEntry, type TimelinePreview } from '../utils/chatTimeline';
+  import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
   import AgentContextMessage from './AgentContextMessage.svelte';
   import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
   import { associateLoadedMemories } from '../utils/associateLoadedMemories';
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
-  import { fade } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
   import type { QuickTipDefinition } from '../data/quickTips';
 
@@ -39,7 +44,7 @@ import { storageArchiveFetch } from "../config/api";
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -801,6 +806,220 @@ import { storageArchiveFetch } from "../config/api";
    * Response system messages are displayed as part of the user's message (included/rejected badge).
    */
   // --- Compression / forgotten messages ---
+  let timelineCatalogue = $state<TimelineEntry[]>([]);
+  let timelineSection = $state<GlobalMessage[] | null>(null);
+  let timelineCatalogueLoading = $state(false);
+  let timelineCatalogueIncomplete = $state(false);
+  let timelineVisibleMessageId = $state<string | null>(null);
+  let timelineHostEl = $state<HTMLDivElement | null>(null);
+  let timelineContentEl = $state<HTMLDivElement | null>(null);
+  let timelineLeft = $state(0);
+  let timelineSafeTop = $state(8);
+  let timelineNarrow = $state(true);
+  let timelinePinnedId: string | null = null;
+  let timelineNavigating = $state(false);
+  let timelineCursor: TimelineCursor | null = null;
+  let timelineGeneration = 0;
+  let timelineNavigationGeneration = 0;
+  let timelineController: AbortController | null = null;
+  const timelineSections = new Map<string, Promise<GlobalMessage[]>>();
+  $effect(() => {
+    const scope = timelineScopeKey;
+    const remote = timelineRemoteEnabled;
+    timelineController?.abort();
+    timelineController = new AbortController();
+    timelineGeneration++;
+    timelineNavigationGeneration++;
+    timelineCatalogue = [];
+    timelineCursor = null;
+    timelineSection = null;
+    timelineVisibleMessageId = null;
+    timelinePinnedId = null;
+    timelineNavigating = false;
+    timelineCatalogueIncomplete = remote;
+    timelineCatalogueLoading = false;
+    timelineSections.clear();
+    if (remote) untrack(() => void readTimelineCatalogue());
+    return () => { void scope; timelineController?.abort(); };
+  });
+
+  async function readTimelineCatalogue(): Promise<void> {
+    if (!currentChatId || timelineCatalogueLoading || !timelineController) return;
+    const generation = timelineGeneration;
+    const chatId = currentChatId;
+    const shared = isSharedChat;
+    const signal = timelineController.signal;
+    timelineCatalogueLoading = true;
+    try {
+      do {
+        const page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        if (generation !== timelineGeneration || signal.aborted) return;
+        timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        timelineCursor = page.before;
+        timelineCatalogueIncomplete = page.has_more;
+      } while (timelineCatalogueIncomplete);
+    } catch (error) {
+      if (generation === timelineGeneration && !signal.aborted) {
+        // Diagnostics contain only fixed read/validation errors, never message bodies.
+        console.warn('[ChatHistory] Timeline catalogue unavailable', error instanceof Error ? error.message : 'Unknown read error');
+        timelineCatalogueIncomplete = true;
+      }
+    } finally {
+      if (generation === timelineGeneration) timelineCatalogueLoading = false;
+    }
+  }
+
+  async function readTimelineSection(entry: TimelineEntry): Promise<GlobalMessage[]> {
+    if (!currentChatId) throw new Error('No active timeline');
+    const responseId = timelineResponseId(timelineAllEntries, entry.message_id);
+    for (const rows of [sourceMessages, oldCompressedMessages]) {
+      if (rows.some(message => message.message_id === entry.message_id)) {
+        const pair = pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
+        if (pair.assistant || (!responseId && entry.message_id === timelineUserEntries[timelineUserEntries.length - 1]?.message_id)) return rows;
+      }
+    }
+    const cached = timelineSections.get(entry.message_id);
+    if (cached) return cached;
+    const chatId = currentChatId;
+    const scope = timelineScopeKey;
+    const epoch = getWorkspaceCacheEpoch();
+    const generation = timelineGeneration;
+    const operation = fetchTimelineSection(chatId, entry.message_id, isSharedChat, responseId).then(rows => {
+      if (scope !== timelineScopeKey || epoch !== getWorkspaceCacheEpoch() || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+      pairTimelineExchange(rows, entry.message_id);
+      return rows;
+    });
+    timelineSections.set(entry.message_id, operation);
+    while (timelineSections.size > 6) timelineSections.delete(timelineSections.keys().next().value!);
+    try { return await operation; }
+    catch (error) { if (timelineSections.get(entry.message_id) === operation) timelineSections.delete(entry.message_id); throw error; }
+  }
+
+  async function previewTimelineExchange(entry: TimelineEntry): Promise<TimelinePreview> {
+    return pairTimelineExchange(await readTimelineSection(entry), entry.message_id, pendingAssistantResponse?.userMessageId);
+  }
+
+  function timelineTarget(id: string): HTMLElement | undefined {
+    return [...container.querySelectorAll<HTMLElement>('.message-wrapper[data-message-id]')]
+      .find(node => node.dataset.messageId === id);
+  }
+
+  async function positionTimelineTarget(id: string, scope: string, generation: number): Promise<void> {
+    if (!container) throw new Error('Timeline viewport unavailable');
+    const navigation = timelineNavigationGeneration;
+    timelineNavigating = true;
+    ensureVirtualMessageRendered(id);
+    await tick();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const deadline = performance.now() + 2400;
+        let stableSince = performance.now(), previousHeight = -1;
+        const align = () => {
+          if (scope !== timelineScopeKey || generation !== timelineGeneration || navigation !== timelineNavigationGeneration) return reject(new Error('Timeline scope changed'));
+          const target = timelineTarget(id);
+          if (target) {
+            const viewport = container.getBoundingClientRect(), row = target.getBoundingClientRect();
+            const desired = Math.max(0, Math.min(container.scrollHeight - container.clientHeight,
+              container.scrollTop + row.top - viewport.top - 70));
+            const aligned = Math.abs(container.scrollTop - desired) < 2;
+            if (!aligned || previousHeight !== container.scrollHeight) stableSince = performance.now();
+            previousHeight = container.scrollHeight;
+            container.scrollTo({ top: desired, behavior: 'instant' });
+            if (aligned && performance.now() - stableSince >= 120 && row.top < viewport.bottom && row.bottom > viewport.top) return resolve();
+          }
+          if (performance.now() >= deadline) return reject(new Error('Timeline target could not be positioned'));
+          requestAnimationFrame(align);
+        };
+        requestAnimationFrame(align);
+      });
+    } finally {
+      if (scope === timelineScopeKey && generation === timelineGeneration && navigation === timelineNavigationGeneration) {
+        timelineNavigating = false;
+        checkIfAtBottomForUI();
+      }
+    }
+  }
+
+  async function activateTimelineExchange(entry: TimelineEntry): Promise<void> {
+    const scope = timelineScopeKey, generation = timelineGeneration;
+    const navigation = timelineNavigationGeneration;
+    const rows = await readTimelineSection(entry);
+    if (scope !== timelineScopeKey || generation !== timelineGeneration || navigation !== timelineNavigationGeneration) return;
+    const previous = { section: timelineSection, visible: timelineVisibleMessageId, top: container?.scrollTop ?? 0, pin: timelinePinnedId, start: virtualStartIndex, end: virtualEndIndex };
+    cancelPendingNewUserMessageScroll();
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+    shouldScrollToNewUserMessage = false;
+    isSpacerActive = false;
+    spacerHeight = 0;
+    userHasScrolledAway = true;
+    timelinePinnedId = null;
+    timelineSection = rows;
+    timelineVisibleMessageId = entry.message_id;
+    await tick();
+    try {
+      await positionTimelineTarget(entry.message_id, scope, generation);
+      timelinePinnedId = entry.message_id;
+    } catch (error) {
+      if (navigation !== timelineNavigationGeneration) return;
+      if (scope === timelineScopeKey && generation === timelineGeneration) {
+        timelineSection = previous.section; timelineVisibleMessageId = previous.visible;
+        clampVirtualRange(previous.start, previous.end);
+        await tick(); container.scrollTop = previous.top; timelinePinnedId = previous.pin;
+      }
+      throw error;
+    }
+  }
+
+  async function leaveTimelineSection(): Promise<void> {
+    const scope = timelineScopeKey, generation = timelineGeneration;
+    timelinePinnedId = null;
+    timelineSection = null;
+    await tick();
+    const latest = displayMessages[displayMessages.length - 1];
+    if (latest) {
+      timelineVisibleMessageId = latest.id;
+      await positionTimelineTarget(latest.id, scope, generation);
+    } else scrollToBottom();
+  }
+
+  // Measure the pane itself so phones and narrow split panes share disclosure.
+  // The wide rail remains beside the message lane; narrow rails overlay it.
+  $effect(() => {
+    const host = timelineHostEl, content = timelineContentEl, header = headerWrapperEl;
+    if (!host || !content) return;
+    let frame = 0;
+    const measure = (resize = false) => {
+      const hostRect = host.getBoundingClientRect(), lane = content.getBoundingClientRect();
+      timelineNarrow = host.clientWidth <= 730;
+      timelineLeft = Math.max(0, lane.left - hostRect.left + parseFloat(getComputedStyle(content).paddingLeft) - 52);
+      const banner = header?.getBoundingClientRect();
+      timelineSafeTop = banner && banner.bottom > hostRect.top && banner.top < hostRect.bottom
+        ? Math.max(8, banner.bottom - hostRect.top + 8) : 8;
+      if (resize && timelinePinnedId && !timelineNavigating) {
+        const target = timelineTarget(timelinePinnedId);
+        if (target) container.scrollTop += target.getBoundingClientRect().top - container.getBoundingClientRect().top - 70;
+      }
+    };
+    const onScroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => measure()); };
+    const observer = new ResizeObserver(() => measure(true));
+    observer.observe(host); observer.observe(content); if (header) observer.observe(header);
+    const release = () => releaseTimelinePin();
+    container.addEventListener('scroll', onScroll, { passive: true });
+    container.addEventListener('wheel', release, { passive: true });
+    container.addEventListener('pointerdown', release, { passive: true });
+    container.addEventListener('keydown', releaseTimelinePin);
+    measure();
+    return () => {
+      observer.disconnect(); container.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame);
+      container.removeEventListener('wheel', release); container.removeEventListener('pointerdown', release);
+      container.removeEventListener('keydown', releaseTimelinePin);
+    };
+  });
+
+  function releaseTimelinePin(event?: KeyboardEvent): void {
+    if (!event || ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) timelinePinnedId = null;
+  }
+
   // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
   let showForgottenMessages = $state(false);
   let oldCompressedMessages = $state<GlobalMessage[]>([]);
@@ -880,6 +1099,10 @@ import { storageArchiveFetch } from "../config/api";
   });
 
   let candidateDisplayMessages = $derived.by(() => {
+    if (timelineSection) {
+      const mappings = buildCumulativePIIMappings(timelineSection);
+      return timelineSection.map(message => G_mapToInternalMessage(message, mappings));
+    }
     if (latestCompressionCheckpoint) {
       const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
       const recentMessages = messages.filter(
@@ -1081,6 +1304,7 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   function requestOlderMessages(): void {
+    if (timelineSection) return;
     const cursorMessage = getOlderMessagesCursor();
     if (!hasOlderMessages || olderMessagesLoading || !cursorMessage?.original_message) return;
     dispatch('loadOlderMessages', {
@@ -1200,6 +1424,38 @@ import { storageArchiveFetch } from "../config/api";
   function observeCallHeaderEnd(node: HTMLElement) {
     const scrollRoot = node.closest<HTMLElement>('.chat-history-container');
     if (!scrollRoot) return;
+    let disposed = false;
+    let strip: HTMLElement | null = null;
+    const stageHeightProperty = '--voice-call-stage-max-height';
+    function measureCallStage() {
+      if (disposed) return;
+      // Actions can mount before their following sibling. Keep observing the
+      // stable strip so media insertion/replacement also updates the allowance.
+      const sibling = node.nextElementSibling;
+      if (sibling instanceof HTMLElement && sibling.classList.contains('voice-call-strip') && sibling !== strip) {
+        if (strip) {
+          resizeObserver.unobserve(strip);
+          strip.style.removeProperty(stageHeightProperty);
+        }
+        strip = sibling;
+        resizeObserver.observe(strip);
+      }
+      if (!strip) return;
+      const bar = strip.querySelector<HTMLElement>('.voice-call-bar');
+      if (!bar) return;
+      const media = bar.querySelector<HTMLElement>('.call-media');
+      const toolbarHeight = bar.offsetHeight - (media?.offsetHeight ?? 0);
+      const rootStyle = getComputedStyle(scrollRoot);
+      const padding = Number.parseFloat(rootStyle.paddingTop) + Number.parseFloat(rootStyle.paddingBottom);
+      // The composer shrinks this scrollport independently of the window. The
+      // whole sticky strip must fit here, including its toolbar and padding.
+      const availableHeight = Math.max(0, Math.floor(scrollRoot.clientHeight - padding - toolbarHeight));
+      const value = `${availableHeight}px`;
+      if (strip.style.getPropertyValue(stageHeightProperty) !== value) strip.style.setProperty(stageHeightProperty, value);
+    }
+    const resizeObserver = new ResizeObserver(measureCallStage);
+    resizeObserver.observe(scrollRoot);
+    void tick().then(measureCallStage);
     const observer = new IntersectionObserver(([entry]) => {
       const stuck = !entry.isIntersecting && !!entry.rootBounds &&
         entry.boundingClientRect.bottom <= entry.rootBounds.top;
@@ -1207,7 +1463,15 @@ import { storageArchiveFetch } from "../config/api";
       voiceCallBridge?.onStickyChange(stuck);
     }, { root: scrollRoot, threshold: 0 });
     observer.observe(node);
-    return { destroy() { observer.disconnect(); voiceCallBridge?.onStickyChange(false); } };
+    return { destroy() {
+      disposed = true;
+      observer.disconnect();
+      resizeObserver.disconnect();
+      // The property belongs to this strip, never the shared scroll root, so an
+      // outgoing chat cannot remove a newer chat's measured allowance.
+      strip?.style.removeProperty(stageHeightProperty);
+      voiceCallBridge?.onStickyChange(false);
+    } };
   }
 
   // The intro video now uses the full banner as a media hero. Keep auth CTAs in
@@ -1284,8 +1548,12 @@ import { storageArchiveFetch } from "../config/api";
     queuedActionErrors = {},
     canAnnotate = true,
     voiceCallBridge = undefined,
+    timelineOverlayOpen = $bindable(false),
+    timelinePanelId = undefined,
   }: {
     disablePointerEvents?: boolean;
+    timelineOverlayOpen?: boolean;
+    timelinePanelId?: string;
     voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
@@ -1376,7 +1644,49 @@ import { storageArchiveFetch } from "../config/api";
     olderMessagesLoading?: boolean;
   } = $props();
 
-  const showPendingAssistantResponse = $derived(!!pendingAssistantResponse
+  let timelineScopeKey = $derived(`${currentChatId ?? ''}:${$activeTeamId ?? ''}:${$userProfile.user_id ?? ''}`);
+  let timelineRemoteEnabled = $derived(!!currentChatId && !isExampleChat && !isIncognito && (isSharedChat || $authStore.isAuthenticated));
+  let timelineAllEntries = $derived(mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
+  const bookmarkMode = $derived<BookmarkMode>(isIncognito ? 'transient' : $authStore.isAuthenticated ? 'account' : 'device');
+  const bookmarkedIds = $derived.by(() => {
+    void $messageBookmarksStore; void $userProfile.encrypted_settings;
+    return currentChatId ? getMessageBookmarkIds(currentChatId, bookmarkMode) : new Set<string>();
+  });
+  const timelineIndex = $derived(buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
+  const timelineUserEntries = $derived(timelineIndex.entries);
+  const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
+  $effect(() => {
+    void timelineScopeKey; void timelineNarrow; void timelineEnabled; void disablePointerEvents;
+    timelineOverlayOpen = false;
+  });
+  $effect(() => {
+    void timelineScopeKey;
+    dispatch('timelineStateChange', { available: timelineEnabled && !disablePointerEvents, narrow: timelineNarrow });
+  });
+  $effect(() => {
+    const chatId = currentChatId, mode = bookmarkMode;
+    void timelineScopeKey; void $userProfile.encrypted_settings; void $messageBookmarksStore.localRevision;
+    if (chatId) void loadMessageBookmarks(chatId, mode).catch(() => { /* A toggle exposes a retryable save failure. */ });
+  });
+  $effect(() => {
+    const chatId = currentChatId, mode = bookmarkMode;
+    return () => { if (chatId && mode === 'transient') clearTransientMessageBookmarks(chatId); };
+  });
+  function toggleBookmark(messageId: string): Promise<void> {
+    if (!currentChatId) return Promise.reject(new Error('Bookmark chat unavailable'));
+    return toggleMessageBookmark(currentChatId, messageId, bookmarkMode, timelineIndex.legacyAliases.get(messageId) ?? []);
+  }
+  let timelineCurrentId = $derived.by(() => {
+    const index = timelineAllEntries.findIndex(entry => entry.message_id === timelineVisibleMessageId);
+    if (index < 0) return timelineUserEntries[timelineUserEntries.length - 1]?.message_id ?? null;
+    const current = timelineAllEntries[index];
+    if (current.role === 'user') return current.message_id;
+    if (current.user_message_id) return current.user_message_id;
+    for (let i = index; i >= 0; i--) if (timelineAllEntries[i].role === 'user') return timelineAllEntries[i].message_id;
+    return null;
+  });
+
+  const showPendingAssistantResponse = $derived(!timelineSection && !!pendingAssistantResponse
     && !displayMessages.some((message) => message.role === 'assistant'
       && (message.id === pendingAssistantResponse.taskId
         || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
@@ -1592,6 +1902,14 @@ import { storageArchiveFetch } from "../config/api";
   let lastUserMessageId = $state<string | null>(null);
   let shouldScrollToNewUserMessage = $state(false);
   let isScrolling = $state(false);
+  let newUserMessageScrollEpoch = 0;
+  let pendingNewUserMessageScrollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function cancelPendingNewUserMessageScroll(): void {
+    newUserMessageScrollEpoch += 1;
+    if (pendingNewUserMessageScrollTimer) clearTimeout(pendingNewUserMessageScrollTimer);
+    pendingNewUserMessageScrollTimer = null;
+  }
 
   // Track whether the scroll container is at the very top.
   // Used to conditionally suppress the top gradient fade on .chat-history-container
@@ -1669,6 +1987,9 @@ import { storageArchiveFetch } from "../config/api";
   });
 
   onDestroy(() => {
+    timelineGeneration++;
+    timelineController?.abort();
+    timelineSections.clear();
     clearAssistantFeedbackThanksTimers();
   });
 
@@ -1762,8 +2083,24 @@ import { storageArchiveFetch } from "../config/api";
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
+    !isDraftOnly &&
+    // An active call already owns its initial header surface. Reveal the chat
+    // banner only after real decrypted metadata replaces the empty title shell.
+    // Category/icon remain optional for existing partial-metadata chats.
+    (!voiceCallBridge || (!!chatTitle?.trim() && !isNewChatGeneratingTitle)) &&
+    (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
   );
+
+  function revealVoiceCallHeader(node: HTMLElement) {
+    if (!voiceCallBridge || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return { duration: 0 };
+    }
+    const token = getComputedStyle(node).getPropertyValue('--duration-normal').trim();
+    const duration = Number.parseFloat(token) * (token.endsWith('ms') ? 1 : 1000);
+    // slide measures the actual banner height, including responsive metadata,
+    // so the following call strip moves with the expansion in normal flow.
+    return slide(node, { duration: Number.isFinite(duration) ? duration : 200 });
+  }
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
     if (!currentChatId || !chatHeaderWritable) throw new Error('Chat title is read-only');
@@ -1909,13 +2246,6 @@ import { storageArchiveFetch } from "../config/api";
     });
   });
   
-  // Message ID waiting to be scrolled into view after the new-chat title arrives.
-  // When a message is sent to a brand-new chat we activate the spacer immediately
-  // (so there is room to scroll) but suppress the normal post-send scroll.  Instead
-  // we store the message ID here so triggerNewChatUserMessageScroll() can execute
-  // the scroll 2 s after the title/category/icon have been received.
-  let pendingNewChatScrollMessageId = $state<string | null>(null);
-
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
@@ -1960,6 +2290,34 @@ import { storageArchiveFetch } from "../config/api";
     messages = [...messages, messageForHistory];
   }
 
+  /** A local submission returns from a historical exchange to the live chat.
+   * Reveal its row now; response alignment still waits for authored content. */
+  export async function revealSubmittedMessage(messageId: string): Promise<void> {
+    const chatId = currentChatId;
+    const navigation = ++timelineNavigationGeneration;
+    timelineSection = null;
+    timelinePinnedId = null;
+    timelineNavigating = false;
+    timelineOverlayOpen = false;
+    cancelPendingNewUserMessageScroll();
+    lastUserMessageId = messageId;
+    shouldScrollToNewUserMessage = true;
+    isScrolling = false;
+    userHasScrolledAway = false;
+    ensureVirtualMessageRendered(messageId);
+    await tick();
+    if (currentChatId !== chatId || lastUserMessageId !== messageId || !container) return;
+    try {
+      // Reuse the stable-layout positioning used by timeline navigation. A
+      // lazy message editor can gain height after its wrapper first appears.
+      await positionTimelineTarget(messageId, timelineScopeKey, timelineGeneration);
+    } catch (error) {
+      if (currentChatId === chatId && navigation === timelineNavigationGeneration) {
+        console.warn('[ChatHistory] Could not reveal submitted message:', error);
+      }
+    }
+  }
+
   /**
    * Exposed function to clear chat messages.
    * It triggers a fade-out animation and returns a promise that resolves
@@ -1967,6 +2325,8 @@ import { storageArchiveFetch } from "../config/api";
    */
   export async function clearMessages(): Promise<void> {
     cancelAllStreamingRenders();
+    cancelPendingNewUserMessageScroll();
+    isScrolling = false;
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
@@ -1987,6 +2347,8 @@ import { storageArchiveFetch } from "../config/api";
   function handleOutroEnd() {
     if (!showMessages) {
       console.debug("[ChatHistory] Fade out complete, clearing messages");
+      cancelPendingNewUserMessageScroll();
+      isScrolling = false;
       messages = []; // Clear messages after fade out completes
       lastUserMessageId = null;
       shouldScrollToNewUserMessage = false;
@@ -2006,9 +2368,18 @@ import { storageArchiveFetch } from "../config/api";
   let previousLocale = $state($locale || 'en');
 
   // Add method to update messages
-  // isNewChat: when true, the post-send scroll is delayed by 2 s so the user can
-  // first see the "Creating new chat..." header transition into the generated title.
+  // isNewChat keeps optimistic rows out of the saved-history entrance animation.
   export function updateMessages(newMessagesArray: GlobalMessage[], isNewChat = false) {
+    if (newMessagesArray.length === 0) {
+      cancelPendingNewUserMessageScroll();
+      lastUserMessageId = null;
+      shouldScrollToNewUserMessage = false;
+      isScrolling = false;
+      isSpacerActive = false;
+      spacerHeight = 0;
+      userHasScrolledAway = false;
+      if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
+    }
     // Check if locale has changed - if so, force re-processing of all messages
     // Use previousLocale to detect changes since currentLocale is $derived
     const newLocale = $locale || 'en';
@@ -2179,27 +2550,7 @@ import { storageArchiveFetch } from "../config/api";
       const newMessage = newInternalMessages[newInternalMessages.length - 1];
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
-        if (isNewChat) {
-          // New chat: activate the spacer immediately so there is room to scroll,
-          // but suppress the post-send scroll entirely.  The scroll will fire 2 s
-          // after the title/category/icon arrive via triggerNewChatUserMessageScroll().
-          pendingNewChatScrollMessageId = newMessage.id;
-          isSpacerActive = true;
-          spacerHeight = container?.clientHeight ?? window.innerHeight;
-          if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
-          spacerSafetyTimeout = setTimeout(() => {
-            if (isSpacerActive) {
-              console.warn('[ChatHistory] Spacer safety timeout (new-chat) — force-deactivating stuck spacer');
-              isSpacerActive = false;
-              spacerHeight = 0;
-              userHasScrolledAway = false;
-              pendingNewChatScrollMessageId = null;
-            }
-            spacerSafetyTimeout = null;
-          }, 60_000);
-        } else {
-          shouldScrollToNewUserMessage = true;
-        }
+        shouldScrollToNewUserMessage = true;
       }
     }
 
@@ -2249,13 +2600,31 @@ import { storageArchiveFetch } from "../config/api";
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // ChatGPT-like scroll behavior: when user sends a message, scroll so that only
-  // the LAST LINE of the user message is visible at the top of the viewport.
-  // This leaves maximum space below for the assistant's response to render.
-  // The scroll target is computed dynamically from the actual rendered line height
-  // so it works correctly regardless of viewport width or message length.
+  // Make room for the response once its first content and the generated header
+  // are rendered. Later chunks never restart this one-time scroll.
   $effect(() => {
+    if (isNewChatGeneratingTitle || timelineSection || timelineNavigating) return;
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      const userIndex = messages.findIndex(message => message.id === lastUserMessageId);
+      const responseStarted = userIndex >= 0 && messages.slice(userIndex + 1).some(message =>
+        message.role === 'assistant' && message.original_message?.content?.trim()
+      );
+      if (!responseStarted) return;
+      const scrollContainer = container;
+      const scrollMessageId = lastUserMessageId;
+      cancelPendingNewUserMessageScroll();
+      const scrollEpoch = newUserMessageScrollEpoch;
+      const isCurrentScroll = () => scrollEpoch === newUserMessageScrollEpoch
+        && container === scrollContainer && scrollContainer.isConnected
+        && lastUserMessageId === scrollMessageId && shouldScrollToNewUserMessage;
+      const abandonStaleScroll = () => {
+        if (scrollEpoch !== newUserMessageScrollEpoch) return;
+        shouldScrollToNewUserMessage = false;
+        isScrolling = false;
+        isSpacerActive = false;
+        spacerHeight = 0;
+        if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
+      };
       isScrolling = true;
       
       // CRITICAL: Activate the spacer FIRST, before scrolling.
@@ -2282,41 +2651,37 @@ import { storageArchiveFetch } from "../config/api";
 
       // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
-        setTimeout(() => {
-          const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+        if (!isCurrentScroll()) { abandonStaleScroll(); return; }
+        pendingNewUserMessageScrollTimer = setTimeout(() => {
+          pendingNewUserMessageScrollTimer = null;
+          if (!isCurrentScroll()) { abandonStaleScroll(); return; }
+          const userMessageElement = scrollContainer.querySelector(`[data-message-id="${scrollMessageId}"]`);
           if (userMessageElement) {
-            const containerRect = container.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Measure the actual rendered line height from a text paragraph inside the
-            // message bubble. This adapts to any font-size / line-height / viewport width.
-            // Falls back to 24px (16px * 1.5 line-height) if the element can't be found.
-            let lineHeight = 24;
-            const paragraph = userMessageElement.querySelector('.ProseMirror p');
-            if (paragraph) {
-              const computed = window.getComputedStyle(paragraph);
-              const parsed = parseFloat(computed.lineHeight);
-              if (!isNaN(parsed) && parsed > 0) {
-                lineHeight = parsed;
+            // Use actual text-line rectangles: paragraph margins and editor
+            // padding are not text and must not consume either visible line.
+            const textElement = userMessageElement.querySelector('.ProseMirror');
+            const lineTops: number[] = [];
+            if (textElement) {
+              const walker = document.createTreeWalker(textElement, NodeFilter.SHOW_TEXT);
+              const range = document.createRange();
+              while (walker.nextNode()) {
+                if (!walker.currentNode.textContent?.trim()) continue;
+                range.selectNodeContents(walker.currentNode);
+                for (const rect of range.getClientRects()) {
+                  if (rect.width > 0 && rect.height > 0) lineTops.push(rect.top);
+                }
               }
             }
+            const distinctLines = lineTops.sort((a, b) => a - b)
+              .filter((top, index, tops) => index === 0 || top - tops[index - 1] > 2);
+            const visibleTextTop = distinctLines.at(-2) ?? distinctLines.at(-1) ?? messageRect.top;
+            // Keep both lines beneath the container's 30px top fade.
+            const scrollTarget = Math.floor(visibleTextTop - containerRect.top + scrollContainer.scrollTop - 30);
 
-            // We want the scroll position such that only the last line of text
-            // (plus the bubble's bottom padding/chrome) peeks above the viewport top.
-            // "visiblePortion" = one line of text + bubble bottom padding (12px) + 
-            //   bubble tail/shadow clearance (8px)
-            const visiblePortion = lineHeight + 20;
-
-            // topOfMessage in scroll coordinates (relative to container's scroll origin)
-            const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
-            // Total rendered height of the message wrapper element
-            const messageHeight = messageRect.height;
-
-            // Scroll so that the message is pushed up, leaving only visiblePortion showing.
-            // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
-            const scrollTarget = topOfMessage + messageHeight - visiblePortion;
-
-            container.scrollTo({
+            scrollContainer.scrollTo({
               top: Math.max(0, scrollTarget),
               behavior: 'smooth'
             });
@@ -2324,7 +2689,7 @@ import { storageArchiveFetch } from "../config/api";
             shouldScrollToNewUserMessage = false;
 
             setTimeout(() => {
-              isScrolling = false;
+              if (scrollEpoch === newUserMessageScrollEpoch) isScrolling = false;
             }, 800);
           } else {
             shouldScrollToNewUserMessage = false;
@@ -2481,6 +2846,7 @@ import { storageArchiveFetch } from "../config/api";
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
+    timelinePinnedId = null;
     if (container) {
       container.scrollTo({
         top: 0,
@@ -2492,6 +2858,8 @@ import { storageArchiveFetch } from "../config/api";
   }
   
   export function scrollToBottom(smooth = false) {
+    if (timelineSection !== null) { void leaveTimelineSection(); return; }
+    timelinePinnedId = null;
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
@@ -2500,60 +2868,6 @@ import { storageArchiveFetch } from "../config/api";
     } else {
       console.warn("[ChatHistory] Container not found");
     }
-  }
-
-  /**
-   * Called by ActiveChat 3 s after the new-chat title/category/icon have been
-   * received and rendered.  Executes the ChatGPT-style scroll so the user
-   * message sits at the top of the viewport with space below for the AI response.
-   *
-   * Uses tick() to ensure the layout is fully settled (chat header fully rendered)
-   * before measuring positions, which prevents the scroll target being miscalculated.
-   *
-   * If no pending message ID exists (e.g. the scroll was already cancelled) this
-   * is a safe no-op.
-   */
-  export function triggerNewChatUserMessageScroll() {
-    const msgId = pendingNewChatScrollMessageId;
-    if (!msgId || !container) return;
-    pendingNewChatScrollMessageId = null;
-
-    isScrolling = true;
-
-    // Wait for Svelte to flush any pending DOM updates (e.g. the chat header card
-    // finishing its transition) before measuring scroll positions.
-    tick().then(() => {
-      if (!container) { isScrolling = false; return; }
-
-      const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
-      if (!userMessageElement) {
-        console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
-        isScrolling = false;
-        return;
-      }
-
-      const containerRect = container.getBoundingClientRect();
-      const messageRect = userMessageElement.getBoundingClientRect();
-
-      let lineHeight = 24;
-      const paragraph = userMessageElement.querySelector('.ProseMirror p');
-      if (paragraph) {
-        const computed = window.getComputedStyle(paragraph);
-        const parsed = parseFloat(computed.lineHeight);
-        if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
-      }
-
-      const visiblePortion = lineHeight + 20;
-      const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
-      const messageHeight = messageRect.height;
-      const scrollTarget = topOfMessage + messageHeight - visiblePortion;
-
-      container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-
-      // Allow extra time for the smooth scroll animation to complete (it can span
-      // a large distance from the top of the chat to the user message).
-      setTimeout(() => { isScrolling = false; }, 1200);
-    });
   }
 
   /**
@@ -2604,7 +2918,7 @@ import { storageArchiveFetch } from "../config/api";
   // This ensures smooth scrolling without blocking the main thread
   function handleScroll() {
     // Don't track scroll position during restoration
-    if (isRestoringScroll) return;
+    if (isRestoringScroll || timelineNavigating || timelinePinnedId) return;
 
     updateVirtualRangeAroundScroll();
 
@@ -2655,7 +2969,7 @@ import { storageArchiveFetch } from "../config/api";
   function checkIfAtBottomForUI() {
     if (!container) return;
     
-    const isAtBottomLocal = 
+    const isAtBottomLocal = timelineSection === null &&
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
     // Check if scrolled to the very top (within 50px threshold)
@@ -2691,6 +3005,7 @@ import { storageArchiveFetch } from "../config/api";
     });
     
     if (lastVisibleMessageId) {
+      timelineVisibleMessageId = lastVisibleMessageId;
       dispatch('scrollPositionChanged', {
         message_id: lastVisibleMessageId
       });
@@ -2699,7 +3014,7 @@ import { storageArchiveFetch } from "../config/api";
 
   // Check if user has scrolled to bottom (mark as read)
   function checkIfScrolledToBottom() {
-    if (!container) return;
+    if (!container || timelineSection !== null) return;
     
     const isAtBottom = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
@@ -2724,6 +3039,13 @@ import { storageArchiveFetch } from "../config/api";
 
   // Restore scroll position to a specific message with 70px offset
   export function restoreScrollPosition(messageId: string) {
+    // Background repair/restoration of the live window must not move a reader
+    // who deliberately opened a historical timeline section.
+    if (timelineSection) return;
+    restoreHistoryPosition(messageId);
+  }
+
+  function restoreHistoryPosition(messageId: string) {
     if (!container) {
       console.warn('[ChatHistory] Cannot restore scroll: container not ready');
       return;
@@ -2787,7 +3109,7 @@ import { storageArchiveFetch } from "../config/api";
         if (isPublicChat(chatId)) {
           try {
             // Re-fetch messages with new translations
-            const newMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+            const newMessages = getDemoMessages(chatId, DEMO_CHATS);
             if (newMessages.length > 0) {
               // Call updateMessages to process the new messages
               // This will detect locale change and force re-processing
@@ -2859,6 +3181,7 @@ import { storageArchiveFetch } from "../config/api";
       return;
     }
 
+    if (timelineNavigating || timelinePinnedId) return;
     updateVirtualRangeAroundScroll();
     if (virtualEndIndex <= virtualStartIndex) {
       clampVirtualRange(0, VIRTUALIZATION_MIN_RENDERED_MESSAGES);
@@ -2868,6 +3191,7 @@ import { storageArchiveFetch } from "../config/api";
   // Cleanup on component destroy
   onDestroy(() => {
     cancelAllStreamingRenders();
+    cancelPendingNewUserMessageScroll();
     if (historyRevealTimer) clearTimeout(historyRevealTimer);
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
@@ -2886,12 +3210,22 @@ import { storageArchiveFetch } from "../config/api";
     - Messages are aligned to the top for ChatGPT-style behavior.
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
-<div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
+<div class="chat-history-wrapper" bind:this={timelineHostEl} class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
+{#if !disablePointerEvents && timelineEnabled}
+  <ChatMessageTimeline entries={timelineUserEntries} contextKey={timelineScopeKey}
+    answeredCount={timelineIndex.answeredCount} railLeft={timelineNarrow ? 8 : timelineLeft} safeTop={timelineSafeTop}
+    id={timelinePanelId} pill={timelineNarrow} open={!timelineNarrow || timelineOverlayOpen}
+    bookmarkedIds={timelineIndex.assistantBookmarks} onToggleBookmark={toggleBookmark}
+    compressionBoundary={latestCompressionCheckpoint?.compressed_up_to_timestamp ?? null}
+    currentId={timelineCurrentId} catalogueLoading={timelineCatalogueLoading} catalogueIncomplete={timelineCatalogueIncomplete}
+    onPreview={previewTimelineExchange} onActivate={activateTimelineExchange}
+    onLoadEarlier={() => void readTimelineCatalogue()} />
+{/if}
 <div 
     class="chat-history-container"
     class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
-    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage || pendingNewChatScrollMessageId ? 'busy' : 'ready'}
+    data-scroll-state={timelineNavigating || isRestoringScroll || isScrolling || shouldScrollToNewUserMessage ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}
@@ -2901,7 +3235,7 @@ import { storageArchiveFetch } from "../config/api";
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
-        <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
+        <div class="chat-header-wrapper" data-testid="chat-header-wrapper" bind:this={headerWrapperEl} in:revealVoiceCallHeader>
             {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
@@ -2939,7 +3273,7 @@ import { storageArchiveFetch } from "../config/api";
 
     {#if voiceCallBridge}
       <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>
-      <div class="voice-call-strip" class:stuck={callStripStuck} data-testid="voice-call-strip">
+      <div class="voice-call-strip" class:stuck={callStripStuck} class:without-header={!showChatHeader} data-testid="voice-call-strip">
         {@render voiceCallBridge.controls(callStripStuck)}
       </div>
     {/if}
@@ -2954,7 +3288,7 @@ import { storageArchiveFetch } from "../config/api";
     <WebhookPendingBanner />
 
     {#if showMessages}
-        <div class="chat-history-content" 
+        <div class="chat-history-content" bind:this={timelineContentEl} class:has-timeline={timelineEnabled}
              data-testid="chat-history-content"
               class:has-messages={displayMessages.length > 0}
               class:has-header={showChatHeader}
@@ -2984,7 +3318,7 @@ import { storageArchiveFetch } from "../config/api";
 
             <!-- "Show earlier messages" toggle: appears when compression summary exists.
                  When collapsed, messages before the summary are hidden. -->
-            {#if hasCompressionSummary}
+            {#if hasCompressionSummary && !timelineSection}
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
@@ -3014,6 +3348,10 @@ import { storageArchiveFetch } from "../config/api";
                   </p>
                 {/if}
               </div>
+            {/if}
+
+            {#if timelineSection && timelineSection.some(message => latestCompressionCheckpoint && message.created_at <= latestCompressionCheckpoint.compressed_up_to_timestamp)}
+              <p class="forgotten-messages-note" id="forgotten-messages-note">{$text('chat.compression.forgotten_note')}</p>
             {/if}
 
             {#if virtualTopSpacerHeight > 0}
@@ -3096,6 +3434,9 @@ import { storageArchiveFetch } from "../config/api";
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
+                        bookmarkAction={msg.role === 'assistant' ? {
+                          active: timelineIndex.assistantBookmarks.has(msg.id), onToggle: () => toggleBookmark(msg.id)
+                        } : undefined}
                         onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
@@ -3196,7 +3537,7 @@ import { storageArchiveFetch } from "../config/api";
             
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
-            {#if showQuickTipsInHistory}
+            {#if showQuickTipsInHistory && !timelineSection}
                 <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
                     <QuickTipsCard
                         slugs={effectiveQuickTipSlugs}
@@ -3206,7 +3547,7 @@ import { storageArchiveFetch } from "../config/api";
                 </div>
             {/if}
 
-            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick && !timelineSection}
                 <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
@@ -3405,6 +3746,10 @@ import { storageArchiveFetch } from "../config/api";
     width: calc(100% + 2 * var(--spacing-5));
   }
   .voice-call-strip.stuck { top: calc(-1 * var(--spacing-5)); }
+  .voice-call-strip.without-header {
+    margin-top: calc(-1 * var(--spacing-5));
+    top: calc(-1 * var(--spacing-5));
+  }
 
   /* Hide scrollbar and prevent any content height when chat is empty */
   .chat-history-container.empty {
@@ -3452,6 +3797,10 @@ import { storageArchiveFetch } from "../config/api";
     min-height: 100%;
   }
 
+  .chat-history-content.has-messages.has-timeline {
+    padding-inline-start: max(52px, clamp(0px, calc((100cqw - 730px) / 3), 90px));
+  }
+
   /* When the header banner is showing, push messages below the banner.
      Banner height: 240px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
      12px gap between banner bottom and first message.
@@ -3463,7 +3812,8 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   @container chat-history (max-width: 730px) {
-    .chat-history-content.has-messages {
+    .chat-history-content.has-messages,
+    .chat-history-content.has-messages.has-timeline {
       padding-top: calc(70px + var(--assistant-speech-overlay-reserve, 0px));
       padding-inline: 0;
     }

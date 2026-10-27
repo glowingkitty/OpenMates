@@ -189,9 +189,8 @@ for (const width of [320, 390, 1180]) {
     await expect(page.getByTestId('voice-call-more-actions')).toBeVisible();
     await page.getByTestId('voice-call-video').click();
     await expect(page.getByTestId('voice-call-more-actions')).toHaveCount(0);
-    await expect(page.getByText('Video calls are coming soon.')).toBeVisible();
-    await page.getByTestId('notification-dismiss').click();
-    await expect(page.getByTestId('notification')).toHaveCount(0);
+    await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('voice-call-camera-preview')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`call-sticky-${width}.png`) });
     await page.getByTestId('voice-call-close-chat').click();
     await expect(page.getByTestId('voice-call-start')).toHaveCount(0);
@@ -245,29 +244,62 @@ test('keeps call and chat-header controls clickable while the composer is focuse
   await expect(page.getByTestId('voice-call-pill')).toBeVisible();
 });
 
-// contract-test: direct surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.chat.launch-and-provider
-test('restores Start and allows a new call after hanging up in a private chat', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/dev/preview/voicecall/ActiveChatCallHeaderPreview?chrome=0&width=390&variant=privateCall');
+for (const { width, theme } of [{ width: 390, theme: 'dark' }, { width: 1180, theme: 'light' }]) {
+// contract-test: direct surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.chat.launch-and-provider,video-call.chat.call-strip-layout,video-call.chat.typed-input
+test(`keeps an untitled call above chat actions and restores Start after hangup at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await page.goto(`/dev/preview/voicecall/ActiveChatCallHeaderPreview?${new URLSearchParams({
+    chrome: '0', width: String(width), theme, variant: 'privateCall', props: JSON.stringify({ viewportAligned: true }),
+  })}`);
   await waitForComponentPreview(page);
   const bar = page.getByTestId('voice-call-bar');
   const start = page.getByTestId('voice-call-start');
   await expect(page.locator('[data-action="message-input"][data-current-chat-id="preview-private-voice-call"]')).toBeVisible();
   await expect(bar).toBeVisible();
+  await expect(bar).toHaveClass(/fixed/);
+  await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
+  await expect(page.getByTestId('chat-top-actions')).toBeHidden();
+  await expect(page.getByTestId('chat-top-actions')).toHaveAttribute('inert', '');
+  await expect(page.getByTestId('voice-call-composer-hint')).toHaveCount(0);
+  await expect.poll(async () => {
+    const [call, chat] = await Promise.all([bar.boundingBox(), page.getByTestId('chat-side').boundingBox()]);
+    return call && chat ? Math.abs(call.y - chat.y) : Infinity;
+  }, { message: 'An untitled live call must sit flush with the chat top' }).toBeLessThanOrEqual(1);
+  for (const testId of ['voice-call-more', 'voice-call-video', 'voice-call-mute', 'voice-call-hangup', 'voice-call-close-chat']) {
+    const control = page.getByTestId(testId);
+    await expect(control).toBeVisible();
+    await expect.poll(() => control.evaluate(button => {
+      const bounds = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      return hit === button || (hit !== null && button.contains(hit));
+    }), { message: `${testId} must receive input above the chat actions` }).toBe(true);
+  }
+  await page.getByTestId('voice-call-mute').click();
+  await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('voice-call-more').click();
+  await expect(page.getByTestId('voice-call-more-actions')).toBeVisible();
+  await page.getByTestId('voice-call-more').click();
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
   await expect(start).toHaveCount(0);
   await page.getByTestId('voice-call-hangup').click();
   await expect(bar).toHaveCount(0);
   await expect(page.getByTestId('chat-top-actions')).toBeVisible();
   await expect(start).toBeVisible();
   await expect(start).toHaveAccessibleName('Start voice call');
-  await page.getByTestId('message-editor').click();
-  await expect(page.getByTestId('chat-side')).toHaveAttribute('inert');
+  await editor.click();
+  await expect(editor).toBeFocused();
+  await expect(page.getByTestId('chat-side')).not.toHaveAttribute('inert');
   await page.getByTestId('input-dismiss-button').click();
   await expect(page.getByTestId('chat-side')).not.toHaveAttribute('inert');
   await start.click();
   await expect(bar).toBeVisible();
   await expect(start).toHaveCount(0);
+  await editor.click();
+  await page.keyboard.insertText('Typed call input without helper text');
+  await expect(editor).toContainText('Typed call input without helper text');
+  await expect(page.getByTestId('voice-call-composer-hint')).toHaveCount(0);
 });
+}
 
 // contract-test: direct surface=gui.web assertions=video-call.chat.fixed-binding
 test('keeps demo-mode Report suppression in the shared call More overlay', async ({ page }, testInfo) => {

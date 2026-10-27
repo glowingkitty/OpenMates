@@ -33,6 +33,41 @@ from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 logger = logging.getLogger(__name__)
 
 
+async def _handle_call_lifecycle(
+    *, manager, cache_service, directus_service, user_id, device_hash,
+    owner_hash, chat_id, message_id, content, created_at, message_status, encrypted_chat_key,
+):
+    """Durable lifecycle commit before ACK; never queue a recreating chat job."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    from backend.core.api.app.routes.handlers.websocket_handlers.call_message_completed_handler import _invalidate_message_caches
+    service = ChatRecoveryService(directus_service)
+    async with manager.empty_call_cleanup_gate(user_id):
+        if not manager.all_user_connections_support_empty_call_cleanup(user_id):
+            await service.execute("update_call_cleanup_candidate", {
+                "protocol_version": 1, "hashed_user_id": owner_hash,
+                "chat_id": chat_id, "mode": "disqualify",
+            })
+        stored = await service.execute("persist_call_lifecycle", {
+            "protocol_version": 1, "hashed_user_id": owner_hash, "chat_id": chat_id,
+            "message_id": message_id, "encrypted_content": content, "created_at": created_at,
+        })
+        version = stored["messages_v"]
+        # Reuse transcript invalidation: no second version increment or stale
+        # Redis overwrite; cache misses read the committed durable version.
+        await _invalidate_message_caches(cache_service, user_id, chat_id)
+        confirmation = {"chat_id": chat_id, "message_id": message_id, "messages_v": version}
+        await cache_service.set(system_message_confirmation_cache_key(user_id, chat_id, message_id),
+            confirmation, ttl=SYSTEM_MESSAGE_CONFIRMATION_TTL_SECONDS)
+        await manager.send_personal_message({"type": "system_message_confirmed", "payload": confirmation}, user_id, device_hash)
+        data = {"message_id": message_id, "role": "system", "encrypted_content": content,
+            "created_at": created_at, "status": message_status or "synced"}
+        if encrypted_chat_key:
+            data["encrypted_chat_key"] = encrypted_chat_key
+        await manager.broadcast_to_user({"type": "new_system_message", "event": "new_system_message",
+            "chat_id": chat_id, "data": data, "versions": {"messages_v": version}},
+            user_id, exclude_device_hash=device_hash)
+
+
 async def handle_chat_system_message_added(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -165,6 +200,25 @@ async def handle_chat_system_message_added(
                     )
                     return
         
+            # Only exact call lifecycle identities may retain empty-call
+            # eligibility. Every other system event is ordinary user data.
+            import re
+            if re.fullmatch(r"(?:00000000-voice-call-[a-f0-9]{32}-started|ffffffff-voice-call-[a-f0-9]{32}-ended)", message_id):
+                if user_message_id is not None or task_update_job_id is not None:
+                    raise ValueError("Invalid call lifecycle linkage")
+                await _handle_call_lifecycle(manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, user_id=user_id, device_hash=device_fingerprint_hash,
+                    owner_hash=hashed_user_id, chat_id=chat_id, message_id=message_id, content=encrypted_content,
+                    created_at=created_at, message_status=message_status, encrypted_chat_key=encrypted_chat_key)
+                return
+            if not re.fullmatch(r"(?:00000000-voice-call-[a-f0-9]{32}-started|ffffffff-voice-call-[a-f0-9]{32}-ended)", message_id):
+                if not chat_metadata or not chat_metadata.get("hashed_team_id"):
+                    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                    await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                        "protocol_version": 1, "hashed_user_id": hashed_user_id,
+                        "chat_id": chat_id, "mode": "disqualify",
+                    })
+
             # ZERO-KNOWLEDGE ARCHITECTURE: System messages are encrypted client-side with the chat key
             # The server stores the encrypted content directly in Directus without re-encryption.
             # This ensures the server can never read system message content.
@@ -269,9 +323,8 @@ async def handle_chat_system_message_added(
                 "versions": {"messages_v": new_messages_v}
             }
             await manager.broadcast_to_user(
-                message=broadcast_payload,
-                user_id=user_id,
-                exclude_device_hash=device_fingerprint_hash  # Don't send back to sender
+                message=broadcast_payload, user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash,
             )
             logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices (encrypted)")
         

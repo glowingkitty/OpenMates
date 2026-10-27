@@ -23,12 +23,6 @@ decodes `city` as Berlin followed by the entire preview_results list. Child
 `speciality` includes a literal `languages[0]:` suffix. These are decoded CLI
 observations; browser impact has not been established.
 
-Read-only lead for shared fix owner:
-`backend/apps/health/skills/search_appointments_skill.py`,
-`_select_jameda_services_for_request` falls back from general motives to all
-non-noise motives. Check actual deployed runtime before attributing cause.
-No shared product code was changed by this worker.
-
 ## Evidence and next action
 
 Use the assigned current CLI entry point with `--api-url https://api.dev.openmates.org`:
@@ -61,19 +55,6 @@ The saved chat was reread through the real CLI. Its server assistant message ID 
 
 Selection trace in the current source:
 
-1. `AppointmentSearchRequest.visit_motive_category` defaults to `None`.
-2. Jameda `_select_jameda_services_for_request` first tries general motives when
-   no category/procedure was supplied. If none match, it returns all non-noise
-   motives. The observed PRP service is not excluded by that fallback.
-3. The selected calendar service ID is used when fetching its specific slots.
-   Result `service_name` and `visit_motive` preserve the PRP label; the observed
-   result has service ID `620472`, practice `236873`, and a corresponding booking URL.
-4. Provider results are sorted by slot time, grouped by practice and service ID,
-   and then capped within insurance buckets. There is no later purpose check.
-5. The assistant calls the result an option for hand trauma without disclosing
-   that its bookable service is PRP treatment. The response schema does not hide
-   `service_name` or `visit_motive` from inference.
-
 A local diagnostic with the observed service ID/name selects `[620472]` with
 category `None` and `[]` with category `general`. This isolates a viable code
 path; it is not a replay of the complete historical provider response and does
@@ -98,7 +79,6 @@ small provider filter and schema-hint change, and verify green. Before any live
 runtime change obtain the coordinator lease and explicit target. Real API,
 CLI, SDK and browser verification must honor current isolation migration holds.
 Sonnet's task has been notified that no shared inference files were touched.
-
 
 ## Full APP-SKILL revision requested by user
 
@@ -129,17 +109,9 @@ explicitly excluded. The original synthetic injury example retains the invariant
 that a PRP treatment appointment cannot substitute for initial consultation.
 The coordinator retains the separate agent-instructions decision.
 
-Review evidence: the existing implementation admits PRP through the omitted-category
-fallback, lacks language/telehealth evidence for Jameda, and can clear one provider's
-failure when the other returns results. These are review findings, not claims that
-all new guarantees currently pass. Schema validation lists city as required while
-the skill's own required-field partition only checks speciality. The broader draft
-makes these observable guarantees explicit; it does not silently authorize fixes.
-
 Validation passed for the revised bundle; existing 12 unchanged filter tests passed
 in the prior investigation. No product code or tests have been changed, no candidate
 has been regenerated, no runtime has been mutated, and no approval is inferred.
-
 
 Current exact review fingerprint:
 `29b18dd32ac9fb1019f93a32584c9f7427bf988c8db2fea338374096e8fb440a`.

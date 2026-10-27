@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { compilePublicLocales } from './compile-public-locales.mjs';
 import { compilePublicApps } from './compile-public-apps.mjs';
-import { validateLandingAppExamples } from './validate-landing-app-examples.mjs';
+import { validateLandingAppExamples, validatePublishedExampleSkills } from './validate-landing-app-examples.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const output = resolve(root, 'frontend/packages/public-site/src/generated');
@@ -18,6 +18,7 @@ const landingSource = parse(readFileSync(resolve(root, 'frontend/packages/public
 writeFileSync(resolve(output, 'landingLocale.generated.json'), `${JSON.stringify(landingSource.copy, null, 2)}\n`);
 const eligible = compilePublicApps(root);
 if (eligible.length === 0 || new Set(eligible.map((app) => app.id)).size !== eligible.length) throw new Error('Public app metadata must contain unique available apps');
+validatePublishedExampleSkills(root);
 validateLandingAppExamples(root, eligible);
 // The app carousel uses the same canonical landing order without importing
 // website components or the full public-site metadata graph into @repo/ui.
@@ -67,7 +68,7 @@ const releases = importFiles.map((name) => {
   return { id: `news-${slug}`, slug, kind: 'release', publishedAt, updatedAt: publishedAt, author: 'OpenMates', locales: localized, media: video };
 }).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 writeFileSync(resolve(output, 'newsReleases.generated.json'), `${JSON.stringify(releases, null, 2)}\n`);
-const sharedIcons = ['search', 'task', 'coding', 'chat', 'app', 'workflow', 'github', 'language', 'settings', 'ai', 'recordaudio', 'bluesky', 'mastodon', 'discord', 'instagram', 'pixelfed', 'meetup', 'signal', 'openmates'];
+const sharedIcons = ['search', 'task', 'coding', 'chat', 'app', 'workflow', 'github', 'language', 'settings', 'ai', 'recordaudio', 'bluesky', 'mastodon', 'discord', 'instagram', 'pixelfed', 'event', 'signal', 'openmates'];
 const aliases = { security: 'lock', devices: 'desktop' };
 for (const icon of [...sharedIcons, ...Object.keys(aliases)]) {
   const source = resolve(root, 'frontend/packages/ui/static/icons', `${aliases[icon] ?? icon}.svg`);

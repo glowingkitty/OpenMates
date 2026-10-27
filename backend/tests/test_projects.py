@@ -1251,3 +1251,18 @@ def test_project_owner_context_schema_and_setup_wiring_are_complete() -> None:
     assert "apply_and_verify_project_owner_context()" in setup
     assert "migrate_project_owner_context.sql" in compose
     assert "migrate_project_owner_context.sql" in selfhost
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_store_fixtures(monkeypatch):
+    """Model the separate successful exclusion RPC in these CRUD fixtures."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] == "disqualify"
+            return {"disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)

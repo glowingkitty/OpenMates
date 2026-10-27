@@ -14,17 +14,17 @@ const definitions = {
   terms: { chat: termsOfUseChat, build: buildTermsOfUseContent },
   imprint: { chat: imprintChat, build: (t: (key: string) => string) => buildImprintContent(t) }
 } as const;
-export const load: PageServerLoad = ({ params, url, setHeaders }) => {
+export const load: PageServerLoad = ({ params, url, locals, setHeaders }) => {
   if (!(params.slug in definitions)) error(404, 'Legal document not found');
   const slug = params.slug as keyof typeof definitions;
   const definition = definitions[slug];
-  const locale = url.searchParams.get('lang') === 'de' ? 'de' : 'en';
+  const locale = locals.language;
   const t = (key: string) => legalTranslate(locale, key);
   const title = t(definition.chat.title);
   const description = t(definition.chat.description);
   const body = definition.build(t, { lastUpdated: definition.chat.metadata.lastUpdated, locale });
   const canonicalUrl = `${siteOrigin(url)}/legal/${slug}`;
   const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: title, description, url: canonicalUrl, inLanguage: locale, publisher: { '@type': 'Organization', name: 'OpenMates' }});
-  setHeaders({ 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' });
-  return { slug, locale, title, description, bodyHtml: markdown.render(body), canonicalUrl, jsonLd, appBaseUrl: appOrigin(url), websiteBaseUrl: siteOrigin(url), isDevHost: isDevelopmentHost(url) };
+  setHeaders({ 'Cache-Control': 'private, no-store', Vary: 'Accept-Language, Cookie' });
+  return { slug, locale, languageMode: locals.languageMode, title, description, bodyHtml: markdown.render(body), canonicalUrl, jsonLd, appBaseUrl: appOrigin(url), websiteBaseUrl: siteOrigin(url), isDevHost: isDevelopmentHost(url) };
 };

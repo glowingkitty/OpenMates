@@ -1,0 +1,550 @@
+{
+  "version": 6,
+  "frozen_benchmark_date": "2026-10-20",
+  "rubric": {
+    "allow": "Faithful translation/paraphrase, context-resolvable ellipsis and open questions about actual source concepts are allowed. Minor wording/grammar issues are separate from material source/language failures.",
+    "reject": "Reject unsupported extra facts, scenarios or question premises even if true from background knowledge. Preserve entity scope, qualifiers, temporal status and causal roles. Reject substantial wrong-language prose.",
+    "uncertain": "Unresolved Vietnamese shadow/Moon causal-agent ambiguity; exclude from pass/fail counts. This label is not an approval."
+  },
+  "method_limits": [
+    "These are23 previously reviewed, known public regression cards:18reject,4allow-with-minor-advisory,1uncertain. They are not unseen holdout samples or independent new evidence of model quality.",
+    "Expected labels come from automated rubric alignment in docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md; no human/native-speaker approval or native inference is claimed.",
+    "Source and copy strings are loaded directly from retained final-group snapshot JSON without normalization, translation, trimming or rewriting. JSON serialization escapes may differ, but decoded field contents are unchanged. Source field absence and null are preserved.",
+    "Frozen snapshot date2026-10-20 governs temporal comparisons, including the eclipse sequence ending2459-05-03. Do not reinterpret completed/future wording using a later execution date.",
+    "All candidates deliberately use content_type=wiki for text-only semantic tests, including original video cards. Source title/channel/description/extract and authored copy retain their original contents; no media or thumbnail qualification is implied.",
+    "An allow label can retain a minor advisory. Reject denotes source/language mismatch under this rubric, not necessarily scientific falsehood. Uncertain must be reported separately and excluded from pass/fail rates.",
+    "These23card cases contain correlated, selected historical findings and cannot estimate multilingual population error rates."
+  ],
+  "snapshot_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-multilingual-30s-final-20261020/blind-review",
+  "snapshot_files": {
+    "card-2bd6e6548764": "final-group-3.json",
+    "card-488912680f00": "final-group-1.json",
+    "card-49c44dda776f": "final-group-4.json",
+    "card-4d557a74cab1": "final-group-3.json",
+    "card-685a499fe03e": "final-group-3.json",
+    "card-6bc707660ed2": "final-group-1.json",
+    "card-7e3a34a64363": "final-group-3.json",
+    "card-84ad3dd2abc6": "final-group-4.json",
+    "card-a46a2c71be72": "final-group-3.json",
+    "card-a489d9928f1c": "final-group-1.json",
+    "card-be1183b9b61c": "final-group-1-extra.json",
+    "card-bf6017073c52": "final-group-4.json",
+    "card-c368bca8fa09": "final-group-4.json",
+    "card-c7d6efa69f2d": "final-group-4.json",
+    "card-d1189852804e": "final-group-3.json",
+    "card-d399e32936fc": "final-group-4.json",
+    "card-d60db9fceb69": "final-group-3.json",
+    "card-e4ee2203f046": "final-group-2.json",
+    "card-ec3144f2a351": "final-group-4.json",
+    "card-eeef1d0d6f7d": "final-group-4.json",
+    "card-f431a11cb6b3": "final-group-4.json",
+    "card-f639b90d64a2": "final-group-4.json",
+    "card-fe2a22dcaa0a": "final-group-4.json"
+  },
+  "cases": [
+    {
+      "id": "card-2bd6e6548764",
+      "language": "nl",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Autodesk Inventor 2018 : 12 : Simple Gears",
+        "channel_name": "Education Public",
+        "description": "This video is part of a basic course in Autodesk Inventor 2018. This video focuses on making simple gears.",
+        "card_title": "Tandwielen maken in Inventor",
+        "phrase": "Hoe ontwerp je een tandwiel in 3D? In deze cursus leer je de basis van tandwielen maken.",
+        "assistant_response": "Deze video maakt deel uit van een basiscursus Autodesk Inventor 2018. De focus ligt op het maken van eenvoudige tandwielen. Welke stap in het ontwerp zou jij willen zien?",
+        "follow_up_suggestions": [
+          "Hoe start ik met het modelleren van een tandwiel?",
+          "Welke gereedschappen gebruik je voor tandwielen?",
+          "Kun je de basisstappen uitleggen?"
+        ],
+        "language": "nl",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-488912680f00",
+      "language": "fr",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Récif corallien",
+        "description": "structure naturelle bioconstruite dont les coraux sont essentiellement à l'origine",
+        "extract": "Un récif corallien ou une barrière de corail est une structure naturelle bioconstruite à l'origine de laquelle sont essentiellement les coraux. La plus grande de ces formations, la Grande Barrière de corail, au large des côtes australiennes, s'étend sur quelque 2 000 km et est visible depuis l'espace. La Nouvelle-Calédonie, quant à elle, abrite dans ses lagons le deuxième ensemble corallien de la planète et la plus longue barrière récifale continue avec ses 1 600 km. La barrière de corail du Belize est la plus longue de l'hémisphère nord.",
+        "card_title": "Les grands récifs coralliens",
+        "phrase": "Une structure bioconstruite trouve son origine dans les coraux. La plus grande formation s'étend sur des milliers de kilomètres.",
+        "assistant_response": "Découvrez comment les coraux forment ces impressionnantes structures naturelles visibles depuis l'espace. La Nouvelle-Calédonie abrite le deuxième ensemble corallien de la planète. Quelle est la longueur de la barrière du Belize?",
+        "follow_up_suggestions": [
+          "Où se trouve la Grande Barrière?",
+          "Quelle est la longueur calédonienne?",
+          "Où est la barrière du Belize?"
+        ],
+        "language": "fr",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-49c44dda776f",
+      "language": "cs",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Opylení",
+        "description": null,
+        "extract": "Opylení je děj, při kterém se samčí rostlinné buňky (pyl) přenášejí na samičí orgány květu (blizna). Opylení je nutný předpoklad k tomu, aby mohlo dojít k oplození a později vzniknout semeno. U krytosemenných rostlin je pyl přenášen na bliznu a nikoliv přímo na vajíčko jako u nahosemenných rostlin. Zralé pylové zrno je tvořeno větší buňkou vegetativní a menší generativní. Ta se později rozdělí na dvě buňky spermatické.",
+        "card_title": "Opylení rostlin",
+        "phrase": "Opylení přenáší pyl ze samčích buněk na bliznu květu. Je nutným předpokladem pro oplození a vznik semene.",
+        "assistant_response": "Opylení je děj, při kterém se pyl přenáší na samičí orgány květu, tedy na bliznu. Je nutným předpokladem pro oplození a pozdější vznik semene. Jak se liší opylení u krytosemenných a nahosemenných rostlin?",
+        "follow_up_suggestions": [
+          "Z čeho se skládá zralé pylové zrno?",
+          "Na co se rozdělí generativní buňka?",
+          "Proč je opylení nutné pro vznik semene?"
+        ],
+        "language": "cs",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-4d557a74cab1",
+      "language": "tr",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Kızıldeniz'in renkli su altı dünyası ve mercan resifleri",
+        "channel_name": "Tahsin Ceylan",
+        "description": "Kızıldeniz'in renkli su altı dünyası ve mercan resifleri.\nAfrika ve Asya kıtaları arasında yer alan Kızıldeniz, stratejik ve tarihi öneminin yanı sıra eşsiz canlı çeşitliliğiyle hem bilim dünyası hem de dalış turizmi için eşi benzeri olmayan bir yer olarak dikkati çekiyor. Deniz habitatının yüzde 25'ini destekleyen mercan resifleri, koloniler halinde yaşayan organizmaların varlığı ile anlam kazanıyor. Deniz suyundaki kireci önce ayrıştıran (kalsiyum iyonları biçiminde) daha sonra da katı olarak (kalsiyumkarbonat) salgılayan bu organizmalar, oluşturdukları çeperlerin sıkıca birleşmesi sonucu sert ve sağlam özelliklere sahip bir koloni ortaya çıkarıyor. Görünümleri kendilerini oluşturan mercan organizmalarına bağlı olarak değişebilen bu kolonilerin bir araya gelmesiyle de mercan kayalığı meydana geliyor. Kayalık oluşturan tüm taşlı mercanlar, dokularındaki küçük ve tek hücreli su yosunlarıyla ortak bir yaşam (simbiyotik) sürdürüyor. Ayrıca su yosunları taşlı mercanlara oksijen ve besin sağlıyor. Kayalık oluşturan taşlı mercanlar, deniz suyu sıcaklığının 20 santigrat derecenin altında olmadığı, 40-50 metre aralığındaki derinliklerde, oksijen seviyesi yüksek ve belli bir tuzluluk derecesindeki özel koşullara ihtiyacı olduğundan sadece tropikal kuşaktaki denizlerin sığ kesimlerinde oluşabiliyor.\n@anadoluajansi nın haber videosu",
+        "card_title": "Kızıldeniz Mercan Resifleri",
+        "phrase": "Kızıldeniz canlı çeşitliliği ve mercan resifleriyle dikkat çekiyor. Bu resifler sert kolonileri nasıl oluşturuyor?",
+        "assistant_response": "Kızıldeniz'in renkli su altı dünyası mercan resifleri ile dikkat çekiyor. Deniz habitatını destekleyen bu resifler, organizmaların kalsiyumkarbonat salgılamasıyla sert koloniler oluşturuyor. Mercan resiflerinin oluştuğu özel koşulları merak ediyor musunuz?",
+        "follow_up_suggestions": [
+          "Mercan resifleri nasıl oluşur?",
+          "Su yosunları mercanlara ne sağlar?",
+          "Taşlı mercanların derinlik şartları nelerdir?"
+        ],
+        "language": "tr",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-685a499fe03e",
+      "language": "pl",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Zapylenie",
+        "description": null,
+        "extract": "Zapylenie – proces dokonujący się w kwiatach roślin nasiennych, polegający na przeniesieniu pyłku i jego rozwoju zakończonym zapłodnieniem komórki jajowej. W przypadku nagonasiennych pyłek przenoszony jest bezpośrednio na zalążek, u okrytonasiennych – na znamię słupka. Zapłodnienie poprzedzone jest rozluźnieniem kontaktu między komórkami tkanki stygmatoidalnej budującej znamię kwiatu oraz rozwojem pyłku, z którego wyrasta łagiewka pyłkowa przenosząca komórki plemnikowe do woreczka zalążkowego.",
+        "card_title": "Proces zapylenia u roślin",
+        "phrase": "Zapylenie to proces w kwiatach roślin nasiennych polegający na przeniesieniu pyłku. Zjawisko to kończy się zapłodnieniem komórki jajowej.",
+        "assistant_response": "Zapylenie to proces w kwiatach roślin nasiennych polegający na przeniesieniu pyłku i rozwoju zakończonym zapłodnieniem. U nagonasiennych pyłek trafia bezpośrednio na zalążek, a u okrytonasiennych na znamię słupka. Jak pyłek dociera do woreczka zalążkowego?",
+        "follow_up_suggestions": [
+          "Jak przebiega zapylenie roślin?",
+          "Gdzie trafia pyłek nagonasiennych?",
+          "Co robi łagiewka pyłkowa?"
+        ],
+        "language": "pl",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-6bc707660ed2",
+      "language": "de",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Zahnrad",
+        "description": "Rad mit über den Umfang gleichmäßig verteilten Zähnen",
+        "extract": "Das Maschinenelement Zahnrad ist ein Rad mit über den Umfang gleichmäßig verteilten Zähnen. Zwei oder mehr miteinander gepaarte Zahnräder bilden ein Zahnradgetriebe. Es wird vorwiegend zur Übertragung zwischen zwei Drehungen oder einer Drehung und einer linearen Bewegung gebraucht. Zahnradgetriebe bilden unter den Getrieben die größte Gruppe. Sie sind formschlüssig, und somit schlupffrei.",
+        "card_title": "Zahnräder und Getriebe",
+        "phrase": "Das Zahnrad ist ein Rad mit über den Umfang verteilten Zähnen. Zwei gepaarte Zahnräder bilden ein Zahnradgetriebe.",
+        "assistant_response": "Das Zahnrad ist ein Maschinenelement mit gleichmäßig über den Umfang verteilten Zähnen. Zwei oder mehr gepaarte Zahnräder bilden ein Zahnradgetriebe, das vorwiegend Drehungen oder eine Drehung in eine lineare Bewegung umwandelt. Warum sind Zahnradgetriebe formschlüssig und schlupffrei?",
+        "follow_up_suggestions": [
+          "Welche Bewegungen lassen sich mit Zahnrädern übertragen?",
+          "Warum bilden Zahnräder die größte Gruppe der Getriebe?",
+          "Was bedeutet formschlüssig bei Zahnradgetrieben?"
+        ],
+        "language": "de",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-7e3a34a64363",
+      "language": "id",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Terumbu karang",
+        "description": "punggung bukit karang di laut yang terbentuk akibat pertumbuhan dan pengendapan karang; terumbu yang terbuat dari karang",
+        "extract": "Terumbu karang adalah sebuah ekosistem bawah laut yang dicirikan dengan hadirnya koral-koral pembangun karang. Koral sendiri adalah hewan karang yang bersimbiosis dengan sejenis tumbuhan alga yang disebut zooxanthellae. Terumbu karang termasuk dalam jenis filum Cnidaria kelas Anthozoa yang memiliki tentakel. Kelas Anthozoa tersebut terdiri dari dua Subkelas yaitu Hexacorallia dan Octocorallia, yang keduanya dibedakan secara asal-usul morfologi dan fisiologi.",
+        "card_title": "Mengenal Ekosistem Terumbu Karang",
+        "phrase": "Terumbu karang merupakan ekosistem bawah laut yang dibentuk oleh koral. Hewan karang ini bersimbiosis dengan tumbuhan alga bernama zooxanthellae.",
+        "assistant_response": "Terumbu karang adalah ekosistem bawah laut yang dibentuk oleh koral pembangun karang dan alga zooxanthellae. Hewan karang tersebut termasuk dalam filum Cnidaria dan kelas Anthozoa yang mempunyai tentakel. Apa saja subkelas yang menyusun kelas Anthozoa tersebut?",
+        "follow_up_suggestions": [
+          "Apa itu zooxanthellae?",
+          "Apa fungsi tentakel?",
+          "Jelaskan filum Cnidaria"
+        ],
+        "language": "id",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-84ad3dd2abc6",
+      "language": "th",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "ترس از موفقیت ",
+        "channel_name": "Sound of Philosophy آوای فلسفه",
+        "description": "Fear of Success - by Dr. Leon Tec - An Introduction to a Psychological Paradox\n\nThis video was created in my personal studio. Please do not make any copies from this content.",
+        "card_title": "ความกลัวความสำเร็จทางจิตวิทยา",
+        "phrase": "Fear of Success - by Dr. Leon Tec. What is this psychological paradox?",
+        "assistant_response": "การศึกษาเรื่องนี้เป็นการนำเสนอเนื้อหาเกี่ยวกับความกลัวความสำเร็จตามมุมมองทางจิตวิทยาโดย Dr. Leon Tec วิดีโอนี้ถูกสร้างขึ้นมาเพื่ออธิบายพาราด็อกซ์ทางจิตวิทยาชิ้นนี้ให้เข้าใจได้ง่ายขึ้น คุณต้องการทราบแนวคิดเพิ่มเติมเกี่ยวกับประเด็นนี้อย่างไรบ้าง",
+        "follow_up_suggestions": [
+          "ความกลัวความสำเร็จคืออะไร",
+          "ใครเป็นผู้ศึกษาเรื่องนี้",
+          "แนวคิดนี้อธิบายอย่างไร"
+        ],
+        "language": "th",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-a46a2c71be72",
+      "language": "nl",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Pollination Explained",
+        "channel_name": "Science Sauce",
+        "description": "FREE NOTES SHEETS\nigcsebio.sciencesauceonline.com\n\nRELATED VIDEOS\nFlower Structures and Functions: https://youtu.be/GkzFimUJdD8\nFertilisation in Flowering Plants: Fertilisation and Seed Formation\nhttps://youtu.be/8Y5BRMCo-00\nHow to Draw a Flower: https://youtu.be/4XgSAUNGoYA\nSexual and Asexual Reproduction Explained: https://youtu.be/co5jZId0F-g\nAdvantages of Sexual and Asexual Reproduction: https://youtu.be/gAgyw72JiVA\n\n===============================\n\nPollination is the movement of pollen from the anther to the stigma. It can occur from the anther of a flower to the stigma of the same flower, or to a stigma of a different flower on the same plant, or to the stigma of a flower on different plant. Pollination involving the same plant is referred to as self-pollination, regardless of which flowers are involved. Pollination involving two flowers of separate plants is called cross pollination.\n\nTwo types of pollination are insect pollination and wind pollination. Insect and wind pollinated flower each have different adaptations to ensure pollination happens.",
+        "card_title": "Pollination Explained begrijpen",
+        "phrase": "Pollination is the movement of pollen from the anther to the stigma. Ontdek hoe dit proces werkt.",
+        "assistant_response": "Pollination is the movement of pollen from the anther to the stigma. Dit kan plaatsvinden binnen dezelfde plant of tussen verschillende planten. Wat wil je nog meer weten over de verschillende typen bestuiving?",
+        "follow_up_suggestions": [
+          "Wat is zelf-pollination precies?",
+          "Wat is cross pollination?",
+          "Welke typen pollination zijn er?"
+        ],
+        "language": "nl",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-a489d9928f1c",
+      "language": "es",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Arrecife de coral",
+        "description": "estructura subacuática hecha del carbonato de calcio secretado por corales",
+        "extract": "Un arrecife de coral, escollo coralino o arrecife coralino es una estructura subacuática hecha del carbonato de calcio secretado por corales. Es un tipo de arrecife biótico formado por colonias de corales pétreos, que generalmente viven en aguas marinas que contienen pocos nutrientes. Los corales pétreos son animales marinos que constan de pólipos, agrupados en varias formas según la especie, y que se parecen a las anémonas de mar, con las que están emparentados. A diferencia de las anémonas de mar, los pólipos coralinos del orden Scleractinia secretan exoesqueletos de carbonato que apoyan y protegen a sus cuerpos. Los arrecifes de coral crecen mejor en aguas cálidas, poco profundas, claras, soleadas y agitadas.",
+        "card_title": "Arrecife de coral",
+        "phrase": "Un arrecife de coral es una estructura de carbonato de calcio. Crece en aguas cálidas, claras y soleadas.",
+        "assistant_response": "Un arrecife de coral es una estructura subacuática hecha de carbonato de calcio secretado por corales. Está formado por colonias de corales pétreos que viven en aguas marinas con pocos nutrientes. ¿Qué papel juegan los pólipos en el arrecife?",
+        "follow_up_suggestions": [
+          "¿Qué son los pólipos de los corales?",
+          "¿Por qué prefieren aguas con pocos nutrientes?",
+          "¿En qué se diferencian de las anémonas de mar?"
+        ],
+        "language": "es",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-be1183b9b61c",
+      "language": "zh",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "日食沙羅序列126",
+        "description": null,
+        "extract": "日食沙羅序列126包含72次間隔18年11天的日食。始於1179年3月10日發生在南半球的日偏食，終於2459年5月3日發生在北半球的日偏食，歷經1280.14年。依序為1179年3月10日至1305年5月24日的8次日偏食、1323年6月4日至1810年4月4日的28次日環食、1828年4月14日至1864年5月6日的3次日環食、1882年5月17日至2044年8月23日的10次日全食、以及2062年9月3日至2459年5月3日的日偏食。\n",
+        "card_title": "探索日食沙羅序列",
+        "phrase": "日食沙羅序列包含多次間隔特定時間的日食。它歷經了一千多年的時間。",
+        "assistant_response": "日食沙羅序列包含多次間隔特定時間的日食。這個序列歷經了一千多年才結束。你想探索日食序列嗎？",
+        "follow_up_suggestions": [
+          "日食沙羅序列是什麼？",
+          "序列包含幾次日食？",
+          "日偏食何時發生？"
+        ],
+        "language": "zh",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-bf6017073c52",
+      "language": "th",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "ترس از موفقیت ",
+        "channel_name": "Sound of Philosophy آوای فلسفه",
+        "description": "Fear of Success - by Dr. Leon Tec - An Introduction to a Psychological Paradox\n\nThis video was created in my personal studio. Please do not make any copies from this content.",
+        "card_title": "ความกลัวความสำเร็จ",
+        "phrase": "หลายคนกลัวความล้มเหลว แต่บางคนกลับกลัวความสำเร็จ ทำไมสิ่งนี้จึงเป็นความขัดแย้งทางจิตวิทยา?",
+        "assistant_response": "วิดีโอนี้แนะนำหัวข้อ 'ความกลัวความสำเร็จ' ซึ่งเป็นความขัดแย้งทางจิตวิทยาที่น่าสนใจ โดยนำเสนอโดย ดร. ลีออน เทค คุณเคยสงสัยไหมว่าทำไมบางคนจึงรู้สึกกลัวเมื่อใกล้จะประสบความสำเร็จ?",
+        "follow_up_suggestions": [
+          "ความกลัวความสำเร็จคืออะไร?",
+          "ดร. เทค อธิบายความขัดแย้งนี้อย่างไร?",
+          "ทำไมคนจึงกลัวความสำเร็จ?"
+        ],
+        "language": "th",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-c368bca8fa09",
+      "language": "ar",
+      "expected": "allow",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Kunst und Klimaschutz: Tausende Menschen häkeln riesiges Korallenriff",
+        "channel_name": "faz",
+        "description": "Das bunte Riff ist im Museum Frieder Burda im süddeutschen Baden-Baden entstanden. Was steckt hinter der Kunstaktion?  © 2022 DW.COM, DEUTSCHE WELLE, REUTERS\n\nLink zum Video: https://www.faz.net/-gsa-al556\nLink zur Homepage: https://www.faz.net",
+        "card_title": "فن حياكة الشعاب المرجانية",
+        "phrase": "كيف يساهم الفن في التوعية بقضايا حماية المناخ؟ آلاف الأشخاص يشاركون في حياكة شعاب مرجانية.",
+        "assistant_response": "تحدث المصادر عن عمل فني يضم آلاف الأشخاص الذين يحاكون حياكة شعاب مرجانية. يوضح هذا العمل كيف تتمازج الفنون مع الاهتمام بحماية المناخ. هل ترغب في معرفة المزيد عن هذا المشروع؟",
+        "follow_up_suggestions": [
+          "أين تم إنشاء هذا الشعب المرجاني؟",
+          "كم عدد الأشخاص المشاركين في العمل؟",
+          "ما علاقة الفن بحماية المناخ؟"
+        ],
+        "language": "ar",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-c7d6efa69f2d",
+      "language": "th",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "DIY Volcano Model Making | School Project Ideas | Volcano Eruption | School Craft @craftthebest1",
+        "channel_name": "Craft the Best",
+        "description": "How To Make Volcano Model For Science Experiment/Volcano Eruption Science Project \n\nMaterials Needed.\n\n1. Thin & Thick Cardboard \n2. Pencil \n3. Scissor \n4. Fevicol \n5. Glue gun \n6. Plastic bottle \n7. Paint \n8. Stones, Artificial grass\n9. Pril\n10. Baking soda \n11. Food colour \n12. Vinegar\n13. Eno\n\n#volcanomodel #schoolproject #craftthebest #diycrafts #diypapercraft #diy #howtomake #scienceproject #schoolcraft #volcano #volcanoworkingmodel #volcanoeruption \n\nYoutube Channel Link: @craftthebest1  \n\nhttps://www.youtube.com/c/craftthebest1\n\nFacebook: https://www.facebook.com/Craft-the-Best-103974922126040\n\nInstagram: https://www.instagram.com/craft.the.best/",
+        "card_title": "DIY ภูเขาไฟจำลอง",
+        "phrase": "อยากสร้างภูเขาไฟจำลองเองไหม? แค่ขวดพลาสติกกับเบกกิ้งโซดาก็ทำให้มันปะทุได้",
+        "assistant_response": "วิดีโอนี้สอนวิธีทำภูเขาไฟจำลองสำหรับโครงงานวิทยาศาสตร์ โดยใช้วัสดุใกล้ตัว เช่น กระดาษแข็ง ขวดพลาสติก สี และหญ้าเทียม การปะทุของภูเขาไฟจำลองเกิดจากปฏิกิริยาระหว่างเบกกิ้งโซดากับน้ำส้มสายชู อยากลองทำตามไหมว่าภูเขาไฟของคุณจะปะทุแรงแค่ไหน?",
+        "follow_up_suggestions": [
+          "ต้องเตรียมวัสดุอะไรบ้างในการทำ?",
+          "เบกกิ้งโซดากับน้ำส้มสายชูทำปฏิกิริยากันอย่างไร?",
+          "ทำไมภูเขาไฟจำลองถึงปะทุได้?"
+        ],
+        "language": "th",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-d1189852804e",
+      "language": "vi",
+      "expected": "uncertain",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Nhật thực",
+        "description": "hiện tượng mặt trời bị mặt trăng che khuất",
+        "extract": "Nhật thực xảy ra khi Mặt Trăng đi qua giữa Trái Đất và Mặt Trời trên cùng một đường thẳng và quan sát từ Trái Đất, lúc đó Mặt Trăng che khuất hoàn toàn hay một phần Mặt Trời. Điều này chỉ có thể xảy ra tại thời điểm trăng non khi nhìn từ Trái Đất, lúc Mặt Trời bị Mặt Trăng che khuất và bóng của Mặt Trăng phủ lên Trái Đất. Trong lúc nhật thực toàn phần, đĩa Mặt Trời bị che khuất hoàn toàn. Với nhật thực một phần hoặc hình khuyên, đĩa Mặt Trời chỉ bị che khuất một phần.",
+        "card_title": "Hiện tượng nhật thực",
+        "phrase": "Nhật thực xảy ra khi Mặt Trăng đi qua giữa Trái Đất và Mặt Trời. Hiện tượng này khiến Mặt Trăng che khuất một phần hay toàn bộ Mặt Trời.",
+        "assistant_response": "Nhật thực xảy ra khi Mặt Trăng di chuyển vào giữa Trái Đất và Mặt Trời trên cùng một đường thẳng. Lúc này bóng của Mặt Trăng phủ lên Trái Đất và che khuất hoàn toàn hoặc một phần đĩa Mặt Trời. Bạn có muốn tìm hiểu về nhật thực toàn phần không?",
+        "follow_up_suggestions": [
+          "Vị trí của Mặt Trăng",
+          "Bóng phủ trên Trái Đất",
+          "Che khuất đĩa Mặt Trời"
+        ],
+        "language": "vi",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-d399e32936fc",
+      "language": "ar",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "تلقيح طبي",
+        "description": "استخدام مواد تثير الاستجابة المناعية (اللقاح) لتحفيز مناعة الشخص لتكوين مناعة متخصصة",
+        "extract": "التلقيح أو التطعيم هو استخدام مواد تثير الاستجابة المناعية (اللقاح) لتحفيز مناعة الشخص لتكوين مناعة متخصصة تجاه مُمرِض ما، مثلا فيروس. وتعد اللقاحات هي أكثر الطرق فعالية لمنع الأمراض المعدية، حيث تمنع أو تقلل نسبة انتشار الأمراض المعدية. تلقيح نسبة كبيرة من الناس بشكل كافٍ يؤدي لما يسمى بمناعة القطيع، أما من حيث فعالية اللقاحات فقد تمت دراستها بشكل واسع والتحقق منها –فعلى سبيل المثال: لقاح الإنفلونزا –لقاح الورم الحليمي[2][2] –لقاح جدري الماء( العنقز). المناعة واسعة النطاق التي أحدثتها اللقاحات، مسؤولة لحد كبير عنالقضاء في جميع أنحاء العالم على الجدري وكذلك محاصرة بعض الأمراض مثل شلل الأطفال – الحصبة –الكزاز. وفي تقرير لمنظمة الصحة العالمية أشارت فيه إلى أن اللقاحات المصرح بها حاليًّا تقوم بمنع أو المساعدة في منع أو التحكم ب 25 عدوى يمكن الوقاية منها.",
+        "card_title": "أهمية التلقيح الطبي لمناعة الجسم",
+        "phrase": "التلقيح هو استخدام مواد تثير الاستجابة المناعية للشخص. تعد اللقاحات أكثر الطرق فعالية لمنع الأمراض.",
+        "assistant_response": "التلقيح هو استخدام مواد لتحفيز مناعة الشخص تجاه مُمرِض. وتعد اللقاحات أكثر الطرق فعالية لمنع الأمراض المعدية. كيف تؤدي اللقاحات لمناعة القطيع؟",
+        "follow_up_suggestions": [
+          "الاستجابة المناعية",
+          "مناعة القطيع",
+          "الأمراض المعدية"
+        ],
+        "language": "ar",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-d60db9fceb69",
+      "language": "vi",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Pollination Explained",
+        "channel_name": "Science Sauce",
+        "description": "FREE NOTES SHEETS\nigcsebio.sciencesauceonline.com\n\nRELATED VIDEOS\nFlower Structures and Functions: https://youtu.be/GkzFimUJdD8\nFertilisation in Flowering Plants: Fertilisation and Seed Formation\nhttps://youtu.be/8Y5BRMCo-00\nHow to Draw a Flower: https://youtu.be/4XgSAUNGoYA\nSexual and Asexual Reproduction Explained: https://youtu.be/co5jZId0F-g\nAdvantages of Sexual and Asexual Reproduction: https://youtu.be/gAgyw72JiVA\n\n===============================\n\nPollination is the movement of pollen from the anther to the stigma. It can occur from the anther of a flower to the stigma of the same flower, or to a stigma of a different flower on the same plant, or to the stigma of a flower on different plant. Pollination involving the same plant is referred to as self-pollination, regardless of which flowers are involved. Pollination involving two flowers of separate plants is called cross pollination.\n\nTwo types of pollination are insect pollination and wind pollination. Insect and wind pollinated flower each have different adaptations to ensure pollination happens.",
+        "card_title": "Giải thích quá trình thụ phấn",
+        "phrase": "Hạt phấn di chuyển từ bao phấn đến đầu nhụy trong quá trình thụ phấn. Quá trình này diễn ra như thế nào giữa các loài thực vật?",
+        "assistant_response": "Sự thụ phấn là quá trình di chuyển của hạt phấn từ bao phấn đến đầu nhụy. Quá trình này có thể diễn ra trong cùng một thực vật hoặc giữa các thực vật khác nhau. Bạn có muốn tìm hiểu về sự khác biệt giữa thụ phấn nhờ côn trùng và thụ phấn nhờ gió không?",
+        "follow_up_suggestions": [
+          "Sự thụ phấn là gì?",
+          "Phân biệt tự thụ phấn và thụ phấn chéo",
+          "Đặc điểm của hoa thụ phấn nhờ gió"
+        ],
+        "language": "vi",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-e4ee2203f046",
+      "language": "it",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Volcanoes Explained: Crash Course Geology #13",
+        "channel_name": "CrashCourse",
+        "description": "From Krakatoa to Pompeii to Mount Saint Helens, volcanoes can do some major damage. But they’re not just killing machines! In this video we’ll explore one of geology’s hottest creations — how they work, where they come from, and just how dangerous they really are.\n\nIntroduction: Lake Taupo 00:00\nWhat is a volcano? 1:11\nHow volcanoes form 3:07\nYellowstone Volcano 5:42\nRisk of Eruptions 8:01\nReview & Credits 9:57\n\nSources: https://docs.google.com/document/d/1RpwM8ZQPFk_DkzMJjMdtRrNGrJSNJ7FbgmQybSZ2Cqo/edit?tab=t.0\n\nCheck out our CC Geology Extracurricular Playlist here: https://www.youtube.com/playlist?list=PL8dPuuaLjXtOmqnkvEtNVOrm0eaIjFjJ7\n\n***\nSupport us for $5/month on Patreon to keep Crash Course free for everyone forever! https://www.patreon.com/crashcourse\nOr support us directly: https://complexly.com/support\nJoin our Crash Course email list to get the latest news and highlights: https://mailchi.mp/crashcourse/email\nGet our special Crash Course Educators newsletter: http://eepurl.com/iBgMhY\n\nThanks to the following patrons for their generous monthly contributions that help keep Crash Course free for everyone forever:\nMike Cumings, Jr., NassauLinda, Chuck Smith, DexcilaDou, Martin G. Diller, Johnathan Williams, Allison Wood, Katrix , Jason Terpstra, Evan Nelson, Jennifer Wiggins-Lyndall, Dalton Williams, Chelsea S, Matthew Fredericksen, AThirstyPhilosopher ., Michael Maher, Mitch Gresko, Gina Mancuso, Roger Harms, Shruti S, Quinn Harden, Reed Spilmann, Brandon Thomas, Emily Beazley, Rie Ohta, oranjeez, UwU, Elizabeth LaBelle, Leah H., David Fanska, Andrew Woods, Kevin Knupp, Barbara Pettersen, Ken Davidian, Stephen Akuffo, Toni Miles, Steve Segreto, Kyle & Katherine Callahan, Laurel Stevens, Tanner Hedrick, Kristina D Knight, Samantha, Krystle Young, Perry Joyce, Scott Harrison, Alan Bridgeman, Breanna Bosso, Matt Curls, Jennifer Killen, Duncan W Moore IV, Sarah & Nathan Catchings, team dorsey, Bernardo Garza, Trevin Beattie, Pietro Gagliardi, John Lee, Eric Koslow, Indija-ka Siriwardena, Jason Rostoker, Siobhán, Ken Penttinen, Nathan Taylor, Barrett, Les Aker, ClareG, Rizwan Kassim, Constance Urist, Alex Hackman, Triad Terrace, Katie Dean, Jason Buster, Emily T, Stephen McCandless, Thomas, Joseph Ruf, Wai Jack Sin, Ian Dundore, Erminio Di Lodovico, Evol Hong, Tandy Ratliff, Caleb Weeks, Luke Sluder\n__\n\nWant to find Crash Course elsewhere on the internet?\nInstagram - https://www.instagram.com/thecrashcourse/\nFacebook - http://www.facebook.com/YouTubeCrashCourse\nBluesky - https://bsky.app/profile/thecrashcourse.bsky.social\n\nCC Kids: http://www.youtube.com/crashcoursekids",
+        "card_title": "Vulcani spiegati",
+        "phrase": "I vulcani possono distruggere città intere. Ma sono solo macchine di morte?",
+        "assistant_response": "I vulcani possono causare danni enormi, come a Pompei o a Sant'Elena. Ma non sono solo distruttori: il video spiega come si formano e da dove vengono. Cosa ti incuriosisce di più del loro funzionamento?",
+        "follow_up_suggestions": [
+          "Come si forma un vulcano?",
+          "Perché lo Yellowstone è pericoloso?",
+          "Qual è il rischio di un'eruzione?"
+        ],
+        "language": "it",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-ec3144f2a351",
+      "language": "sv",
+      "expected": "allow",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Pollination Explained",
+        "channel_name": "Science Sauce",
+        "description": "FREE NOTES SHEETS\nigcsebio.sciencesauceonline.com\n\nRELATED VIDEOS\nFlower Structures and Functions: https://youtu.be/GkzFimUJdD8\nFertilisation in Flowering Plants: Fertilisation and Seed Formation\nhttps://youtu.be/8Y5BRMCo-00\nHow to Draw a Flower: https://youtu.be/4XgSAUNGoYA\nSexual and Asexual Reproduction Explained: https://youtu.be/co5jZId0F-g\nAdvantages of Sexual and Asexual Reproduction: https://youtu.be/gAgyw72JiVA\n\n===============================\n\nPollination is the movement of pollen from the anther to the stigma. It can occur from the anther of a flower to the stigma of the same flower, or to a stigma of a different flower on the same plant, or to the stigma of a flower on different plant. Pollination involving the same plant is referred to as self-pollination, regardless of which flowers are involved. Pollination involving two flowers of separate plants is called cross pollination.\n\nTwo types of pollination are insect pollination and wind pollination. Insect and wind pollinated flower each have different adaptations to ensure pollination happens.",
+        "card_title": "Pollinering förklarad",
+        "phrase": "Hur rör sig egentligen pollen från antern till märket under pollinering? Upptäck hur olika former av pollinering fungerar hos växter.",
+        "assistant_response": "Den här videon förklarar pollinering genom att beskriva hur pollen förflyttas från ståndare till märke. Lär dig skillnaderna mellan självpollinering och korspollinering hos växter. Vilka frågor har du om insektspollinering och vindpollinering?",
+        "follow_up_suggestions": [
+          "Vad är självpollinering?",
+          "Hur fungerar korspollinering?",
+          "Vilka typer av pollinering finns?"
+        ],
+        "language": "sv",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-eeef1d0d6f7d",
+      "language": "th",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "พืดหินปะการัง",
+        "description": null,
+        "extract": "แนวปะการัง หรือ พืดหินปะการัง เป็นระบบนิเวศที่ซับซ้อน และมีความหลากหลายมากที่สุดในทะเล แนวปะการังจัดเป็นสิ่งก่อสร้างของสิ่งมีชีวิตที่ใหญ่ที่สุดในโลก เป็นหินปูนที่มีความแข็ง โดยสัตว์ทะเลขนาดเล็กคือ ปะการัง รวมถึงซากของสิ่งมีชีวิตต่าง ๆ ในทะเลอย่างอื่นร่วมด้วย เช่น สาหร่ายหินปูน, หอยที่มีเปลือกแข็ง เป็นต้น ทั้งปะการังเองและสิ่งมีชีวิตที่สร้างหินปูนได้ เมื่อตายไปแล้วจะยังคงเหลือซากหินปูนทับถมพอกพูน ซึ่งถือว่าเป็นขบวนการสร้างแนวปะการัง ซากหินปูนเหล่านั้นค่อย ๆ ผุกร่อนเป็นผงตะกอน ซึ่งส่วนหนึ่งก็ยังคงสะสมพอกพูนในแนวปะการัง แต่อีกส่วนหนึ่งอาจถูกพัดพาล่องลอยไปตามกระแสน้ำไปทับถมพอกพูนเป็นชายหาด",
+        "card_title": "การก่อตัวของพืดหินปะการัง",
+        "phrase": "พืดหินปะการังคือระบบนิเวศที่ซับซ้อนที่สุดในทะเล ซากหินปูนจากสัตว์และสาหร่ายได้ทับถมพอกพูนกลายเป็นสิ่งก่อสร้างที่ใหญ่ที่สุด",
+        "assistant_response": "พืดหินปะการังถือเป็นระบบนิเวศในทะเลที่มีความซับซ้อนและมีความหลากหลายมากที่สุดในโลก ซากสิ่งมีชีวิตที่ตายไปจะทับถมพอกพูนกลายเป็นหินปูนแสนแข็งแกร่ง คุณอยากรู้เรื่องราวของสิ่งมีชีวิตเหล่านี้เพิ่มเติมไหม",
+        "follow_up_suggestions": [
+          "ซากหินปูนผุกร่อนอย่างไร",
+          "อะไรสร้างแนวปะการัง",
+          "ตะกอนไปไหนบ้าง"
+        ],
+        "language": "th",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-f431a11cb6b3",
+      "language": "sv",
+      "expected": "allow",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Teacher Resources: Engaging With Eclipses",
+        "channel_name": "Smithsonian National Air and Space Museum",
+        "description": "Have you ever seen a total solar eclipse? Whether you saw the 2017 or 2024 solar eclipses in person or want to prep your students for an upcoming lunar eclipse, you can engage students with phenomena, models, and tools for viewing. Explore physical and virtual models with educators from the National Air and Space Museum and leave with resources for teaching about eclipses and viewing them safely. This video is a recording of a live teacher professional development session hosted in January 2024, but the content can be used for years to come when exploring the Earth, moon, sun system with students of all ages. \n\nLinks:\nhttps://airandspace.si.edu/explore/stories/eclipse\nhttps://science.nasa.gov/eclipses/\nhttps://www.nsta.org/eclipse\nhttps://www.exploratorium.edu/eclipse\nhttps://www.astc.org/total-eclipse/resources/\nhttps://stellarium-web.org/",
+        "card_title": "Undervisa om eklipser",
+        "phrase": "Har du någonsin sett en total solföljd eller en måneklips i verkligheten? Upptäck modeller och verktyg för att utforska rymdsystemet.",
+        "assistant_response": "Det här materialet utforskar sol- och måneklipser med fysiska och virtuella modeller. Pedagoger från National Air and Space Museum delar med sig av resurser för att studera sol- och måneklipser säkert. Hur vill du lära dig mer om jorden, månen och solen?",
+        "follow_up_suggestions": [
+          "Vilka resurser finns för eklipser?",
+          "Hur visar man virtuella modeller?",
+          "Vad handlar eklipser om?"
+        ],
+        "language": "sv",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-f639b90d64a2",
+      "language": "th",
+      "expected": "allow",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "Pollination Explained",
+        "channel_name": "Science Sauce",
+        "description": "FREE NOTES SHEETS\nigcsebio.sciencesauceonline.com\n\nRELATED VIDEOS\nFlower Structures and Functions: https://youtu.be/GkzFimUJdD8\nFertilisation in Flowering Plants: Fertilisation and Seed Formation\nhttps://youtu.be/8Y5BRMCo-00\nHow to Draw a Flower: https://youtu.be/4XgSAUNGoYA\nSexual and Asexual Reproduction Explained: https://youtu.be/co5jZId0F-g\nAdvantages of Sexual and Asexual Reproduction: https://youtu.be/gAgyw72JiVA\n\n===============================\n\nPollination is the movement of pollen from the anther to the stigma. It can occur from the anther of a flower to the stigma of the same flower, or to a stigma of a different flower on the same plant, or to the stigma of a flower on different plant. Pollination involving the same plant is referred to as self-pollination, regardless of which flowers are involved. Pollination involving two flowers of separate plants is called cross pollination.\n\nTwo types of pollination are insect pollination and wind pollination. Insect and wind pollinated flower each have different adaptations to ensure pollination happens.",
+        "card_title": "การถ่ายละอองเรณูของพืช",
+        "phrase": "การถ่ายละอองเรณูคือการเคลื่อนที่ของละอองเรณูจากอับเรณูไปยังยอดเกสรตัวเมีย กระบวนการนี้เกิดขึ้นได้อย่างไรระหว่างพืชแต่ละต้น",
+        "assistant_response": "วิดีโอนี้อธิบายการถ่ายละอองเรณูซึ่งเป็นการเคลื่อนที่ของละอองเรณูจากอับเรณูไปยังยอดเกสรตัวเมีย การถ่ายละอองเรณูมีทั้งแบบผสมข้ามและแบบผสมตัวเองซึ่งเกี่ยวข้องกับพืชชนิดต่างๆ คุณต้องการสำรวจรายละเอียดเกี่ยวกับการถ่ายละอองเรณูประเภทใดเพิ่มเติมนอกเหนือจากนี้หรือไม่",
+        "follow_up_suggestions": [
+          "การถ่ายละอองเรณูคืออะไร",
+          "ความแตกต่างของพืชแต่ละประเภท",
+          "กระบวนการผสมเกสรพืช"
+        ],
+        "language": "th",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "card-fe2a22dcaa0a",
+      "language": "cs",
+      "expected": "reject",
+      "family": "retained_regression",
+      "candidate": {
+        "title": "ترس از موفقیت ",
+        "channel_name": "Sound of Philosophy آوای فلسفه",
+        "description": "Fear of Success - by Dr. Leon Tec - An Introduction to a Psychological Paradox\n\nThis video was created in my personal studio. Please do not make any copies from this content.",
+        "card_title": "Psychologický paradox strachu z úspěchu",
+        "phrase": "Mnozí lidé se obávají neúspěchu. Co ale způsobuje strach z úspěchu a jaké má psychologické pozadí?",
+        "assistant_response": "Tento zdroj představuje psychologický paradox známý jako strach z úspěchu. Popisuje úvod do této problematiky podle Dr. Leona Teca. Jaké aspekty tohoto tématu vás nejvíce zajímají?",
+        "follow_up_suggestions": [
+          "Co je to strach z úspěchu?",
+          "Kdo je autor Dr. Leon Tec?",
+          "O čem je tento psychologický paradox?"
+        ],
+        "language": "cs",
+        "content_type": "wiki"
+      }
+    },
+    {
+      "id": "original-japanese-paraphrase",
+      "language": "ja",
+      "expected": "allow",
+      "family": "original_positive_regression",
+      "candidate": {
+        "title": "雪の結晶ができる仕組み",
+        "description": "雲の中の水蒸気が氷になります。氷の結晶構造が六角形を生みます。温度によって形が変わります。",
+        "card_title": "空から届く小さな六角形",
+        "phrase": "空に浮かぶ水分が氷になります。その姿には規則があります。",
+        "assistant_response": "雲の中で水蒸気が氷の結晶へと変わります。氷の構造が六角形の形を生みます。温度は形にどう関わるのでしょうか？",
+        "follow_up_suggestions": [
+          "六角形になる理由は？",
+          "水蒸気はどう氷になる？",
+          "温度と形の関係は？"
+        ],
+        "language": "ja",
+        "content_type": "wiki"
+      }
+    }
+  ],
+  "original_positive_control": "Original valid Japanese snow-crystal paraphrase retained byte-exact in source/copy; explicit ja requested language added for all-field assessment."
+}

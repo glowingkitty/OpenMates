@@ -5,7 +5,6 @@ generated_at: '2026-09-14T00:45:40+00:00'
 range:
   since: '2026-09-08T00:00:00+00:00'
   until: '2026-09-09T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,139 +29,116 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -258,7 +234,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -363,21 +338,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     feature_metadata_changed: false
@@ -414,14 +385,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -474,8 +442,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -517,21 +483,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     feature_metadata_changed: false
@@ -558,21 +520,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     feature_metadata_changed: false
@@ -606,21 +564,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     feature_metadata_changed: true
@@ -712,8 +666,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -772,8 +724,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -804,8 +754,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -831,7 +779,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
     feature_metadata_changed: false
@@ -865,8 +812,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -893,8 +838,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -979,8 +922,6 @@ sections:
     - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-search-encryption.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
     - frontend/packages/ui/src/demo_chats/exampleChatData.ts
     - frontend/packages/ui/src/demo_chats/interestTags.ts
     - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
@@ -989,8 +930,6 @@ sections:
     - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_product_launch_mind_map.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
     - specifications/generated/assertion-index.yml
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1001,8 +940,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/openmates/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1067,7 +1004,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
     feature_metadata_changed: false
@@ -1113,21 +1049,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     feature_metadata_changed: true
@@ -1264,15 +1196,12 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1315,7 +1244,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1961,7 +1889,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2185,21 +2112,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - title: 'fix: remove rejected public examples and disable get-docs'
@@ -2213,8 +2136,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/openmates/app.yml
   - title: 'fix: use supported Astra reasoning effort'
     commits:
@@ -2234,21 +2155,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
 marketing_candidates:
@@ -2278,21 +2195,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - title: 'fix: preserve completion recovery across consent and embed saving'
@@ -2306,14 +2219,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'fix: contain composer microphone permission warnings'
@@ -2334,8 +2244,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: accept health tool enum values and exclude preventive visits'
     commits:
@@ -2348,21 +2256,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - title: 'fix: exclude condition treatments from general consultations'
@@ -2376,21 +2280,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - title: 'fix: preserve appointment purpose and provider eligibility'
@@ -2404,21 +2304,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - title: 'fix: initialize fork title versions and tolerate legacy nulls'
@@ -2439,8 +2335,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: converge memory consent requests across clients'
     commits:
@@ -2460,8 +2354,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: route Astra reasoning tools through stateless Responses'
     commits:
@@ -2474,8 +2366,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: preserve compact mindmap zoom controls without source panel'
     commits:
@@ -2488,7 +2378,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
   - title: 'fix: recover missing preprocessing output and seal error responses'
@@ -2502,8 +2391,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: accept provider supported xhigh reasoning'
     commits:
@@ -2516,8 +2403,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: remove rejected public examples and disable get-docs'
     commits:
@@ -2530,8 +2415,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/openmates/app.yml
   - title: 'fix: hide source JSON in normal mindmap fullscreen'
     commits:
@@ -2544,7 +2427,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
   - title: 'fix: preserve events date bounds with timezone annotations'
@@ -2558,21 +2440,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
   - title: 'fix: make CLI account output readable and actionable'
@@ -2645,21 +2523,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     newsletter_ready: true
@@ -2674,14 +2548,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: true
@@ -2704,8 +2575,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: accept health tool enum values and exclude preventive visits'
@@ -2719,21 +2588,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     newsletter_ready: true
@@ -2748,21 +2613,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     newsletter_ready: true
@@ -2777,21 +2638,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     newsletter_ready: true
@@ -2814,8 +2671,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: converge memory consent requests across clients'
@@ -2837,8 +2692,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: route Astra reasoning tools through stateless Responses'
@@ -2852,8 +2705,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: preserve compact mindmap zoom controls without source panel'
@@ -2867,7 +2718,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
     newsletter_ready: true
@@ -2882,8 +2732,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: accept provider supported xhigh reasoning'
@@ -2897,8 +2745,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: remove rejected public examples and disable get-docs'
@@ -2912,8 +2758,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/openmates/app.yml
     newsletter_ready: true
   - title: 'fix: hide source JSON in normal mindmap fullscreen'
@@ -2927,7 +2771,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
     newsletter_ready: true
@@ -2942,21 +2785,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     newsletter_ready: true
@@ -3011,15 +2850,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep Task Activity attachment controls inside composer'
@@ -3034,7 +2870,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: align SDK Task lookup with the server list bound'
@@ -3057,7 +2892,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
 risks:
@@ -3627,8 +3461,6 @@ sources:
     - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-search-encryption.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
     - frontend/packages/ui/src/demo_chats/exampleChatData.ts
     - frontend/packages/ui/src/demo_chats/interestTags.ts
     - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
@@ -3637,8 +3469,6 @@ sources:
     - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_product_launch_mind_map.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
     - specifications/generated/assertion-index.yml
     related_feature_ids:
     - app:openmates

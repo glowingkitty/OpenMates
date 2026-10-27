@@ -1,7 +1,7 @@
 """Message input workspace-focus contract guards.
 
 The approved composer behavior fades new-chat welcome content without changing
-its layout measurements. Existing transcripts remain at full opacity, with
+its layout measurements. Existing transcripts remain scrollable at full opacity, with
 queued controls reachable. Isolated Playwright coverage verifies rendered
 focus and dismissal transitions.
 """
@@ -35,13 +35,14 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
         "Special overlay suppression must remain independent of ordinary welcome focus"
     )
     inert = re.search(r"\binert=\{([^}]*)\}", workspace.group(1))
-    assert inert, "The focused workspace must retain an inert predicate"
+    assert inert, "The focused welcome must retain an inert predicate"
     assert re.sub(r"\s+", "", inert.group(1)) == (
-        "messageInputFocused&&!hasQueuedFollowUpActions"
+        "showWelcome&&messageInputFocused&&!hasQueuedFollowUpActions"
         "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
+        "&&!(showWelcome&&hideWelcomeForKeyboard&&voiceCallLaunchEligible)"
     ), (
-        "Ordinary focus must disable the workspace unless queued controls, voice consent, "
-        "or bound-call controls must remain reachable"
+        "Ordinary focus must disable only welcome content, keeping chat history scrollable "
+        "and queued controls, voice consent, focused call launch and bound-call controls reachable"
     )
     assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
         "Ordinary focus must hide new-chat welcome content without affecting established chats"
@@ -55,15 +56,16 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert "display:none;" not in welcome
     for region in ("daily-inspiration-area", "center-content", "guest-interest-tags-overlay", "top-buttons"):
         assert f".{region}.welcome-hiding" in source
-    assert 'class:welcome-hiding={hideWelcomeForKeyboard}' in source
-    assert 'inert={hideWelcomeForKeyboard}' in source
+    assert 'const hideWelcomeContent = $derived(hideWelcomeForKeyboard || (showWelcome && showVoiceCallBarHere));' in source
+    assert 'class:welcome-hiding={hideWelcomeContent}' in source
+    assert 'inert={hideWelcomeContent}' in source
 
 
 # contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
 def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
     source = _active_chat_source()
     helper = re.search(
-        r"function\s+resetComposerWelcomeState\(clearLiveInput = true\)\s*\{(.*?)\n\s*// Cache the last measured welcome content height",
+        r"function\s+resetComposerWelcomeState\(clearLiveInput = true, preserveFocus = false\)\s*\{(.*?)\n\s*// Cache the last measured welcome content height",
         source,
         re.S,
     )
@@ -101,7 +103,7 @@ def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
         "The unauthenticated fallback must reset composer state before restoring welcome"
     )
 
-    new_chat_reset = source.index("resetComposerWelcomeState(false);", source.index("New chat creation initiated"))
+    new_chat_reset = source.index("resetComposerWelcomeState(false, preserveComposerFocus);", source.index("New chat creation initiated"))
     new_chat_clear = source.index("currentChat = null;", new_chat_reset)
     assert new_chat_reset < new_chat_clear, (
         "New chat creation must reset visual state without deleting the previous chat draft"

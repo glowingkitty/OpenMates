@@ -12,7 +12,7 @@ vi.mock('../preparedPrivacyForSend', () => ({
  */
 
 import { webcrypto } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const canonicalWireListener = vi.hoisted(() => ({ current: null as EventListener | null }));
 vi.mock("../websocketService", () => ({
@@ -30,8 +30,13 @@ vi.mock("../websocketService", () => ({
 // Imported preview/speech services register listeners on this singleton at
 // module load. The protocol helper tests do not start the sync service.
 vi.mock("../chatSyncService", () => ({ chatSyncService: new EventTarget() }));
+// Protocol helper tests do not enroll a real account identity during auth bootstrap.
+vi.mock("../directChatService", () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
+// Consent UI imports the application barrel and its SvelteKit environment.
+// These sender protocol cases exercise no consent dialog or app bootstrap.
+vi.mock("../chatErrorReportConsent", () => ({ promptChatErrorReportConsent: vi.fn() }));
 import { webSocketService } from "../websocketService";
-import { chatDB } from "../db";
+import { chatDB, cryptoReady } from "../db";
 import { EmbedStore } from "../embedStore";
 import * as cryptoService from "../cryptoService";
 import { computeSHA256 } from "../../message_parsing/utils";
@@ -49,6 +54,7 @@ import {
 	verifyRetainedMessageEmbedHeads,
 	retainOrReuseDurableTurnPreflight,
 	watchDurableTurnPreflightConfirmation,
+	watchFastAdmissionCompletion,
 	watchMessageEmbedBundleConfirmation,
 	selectRequiredMessageEmbedEntries,
 	isPreflightAcknowledgementTimeout,
@@ -57,8 +63,52 @@ import {
   shouldIncludePreflightChatMetadata,
 	shouldSkipClientCodeBlockExtraction,
 	isSendContextCurrent,
+	sendNewMessageImpl,
 } from "../sendersChatMessages";
 import { shouldUpdateMessage } from "../db/messageOperations";
+import { modelRoutingRestrictionsForTurn } from "../modelRoutingRestrictions";
+
+beforeAll(async () => {
+  // Complete the eager real database/key bootstrap while the test environment
+  // still owns its async imports. Assertions keep the real encryption helpers.
+  await cryptoReady;
+  await vi.dynamicImportSettled();
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy,chats.persistence.client-encrypted
+it('identifies a blocked and failed canonical predecessor before any voice preflight without leaking its error', async () => {
+  const barrier = await import('../personalChatTurnBarrier');
+  const events: Array<Record<string, unknown>> = [];
+  const observe = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener('voiceCallTurnDelivery', observe);
+  const getChat = vi.spyOn(chatDB, 'getChat').mockResolvedValue({ chat_id: 'voice-diagnostics' } as Awaited<ReturnType<typeof chatDB.getChat>>);
+  const updateStatus = vi.spyOn(chatDB, 'updateMessageStatus').mockResolvedValue(undefined);
+  const dispatchEvent = vi.fn();
+  const prior = barrier.reservePersonalChatTurn('voice-diagnostics', 'prior');
+  const next = barrier.reservePersonalChatTurn('voice-diagnostics', 'next');
+  const send = vi.mocked(webSocketService.sendMessage);
+  send.mockClear();
+  try {
+    const pending = sendNewMessageImpl({ webSocketConnected_FOR_SENDERS_ONLY: true, dispatchEvent } as unknown as
+      import('../chatSyncService').ChatSynchronizationService, {
+      chat_id: 'voice-diagnostics', message_id: 'next', role: 'user', content: 'PRIVATE transcript', created_at: 200,
+      voice_mode: true, voice_call_id: 'call', voice_turn_id: 'next',
+    }, undefined, undefined, undefined, undefined, next);
+    const rejection = expect(pending).rejects.toThrow('previous encrypted reply');
+    await vi.waitFor(() => expect(events.at(-1)?.reason).toBe('predecessor'));
+    expect(events.at(-1)?.phase).toBe('canonical_prerequisite');
+    expect(send).not.toHaveBeenCalled();
+    barrier.failPersonalChatTurn(prior, new Error('PRIVATE key and server error'));
+    await rejection;
+    expect(events.at(-1)).toEqual({ callId: 'call', chatId: 'voice-diagnostics', turnId: 'next',
+      phase: 'canonical_prerequisite_failed', reason: 'predecessor' });
+    expect(send).not.toHaveBeenCalled();
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE|transcript|stack/);
+  } finally {
+    window.removeEventListener('voiceCallTurnDelivery', observe);
+    getChat.mockRestore(); updateStatus.mockRestore(); barrier.clearPersonalChatTurnBarriers();
+  }
+});
 
 const TEAM_MESSAGE = {
 	message_id: "message-2",
@@ -229,13 +279,15 @@ describe("sendersChatMessages protocol fences", () => {
 			pending_encrypted_turn_preflight_v1: "sealed-turn" });
 	});
 
-	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted
-	it("replays the exact sealed turn, user ciphertext, and commitment after a lost ACK", async () => {
+	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted,ai-model-routing.defaults.google-tier-profiles
+	it("replays the exact sealed turn, routing restrictions, user ciphertext, and commitment after a lost ACK", async () => {
 		const identity = {
 			accountId: "owner", chatId: "chat", messageId: "message", createdAt: 12,
 			finalContent: "sealed ref", chatKey: new Uint8Array(32).fill(9),
 			encryptedChatKey: "wrapped-chat-key", recoveryPublicKey: "recovery-public-key",
 		};
+		const routingProfile = { disabled_ai_models: ["mercury-3"],
+			disabled_ai_servers: { "mercury-3": ["inception"] } };
 		const original = {
 			chat_id: "chat", message_id: "message", turn_id: "original-turn",
 			expected_messages_v: 6,
@@ -244,6 +296,7 @@ describe("sendersChatMessages protocol fences", () => {
 			encrypted_user_message: { chat_id: "chat", client_message_id: "message", role: "user",
 				encrypted_content: "original-user-cipher" },
 			inference_request: { chat_id: "chat", turn_id: "original-turn",
+				model_routing_restrictions: modelRoutingRestrictionsForTurn(routingProfile),
 				message: { message_id: "message", content: "sealed ref" } },
 		};
 		let raw: string | null = null;
@@ -255,13 +308,20 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(first.payload).toEqual(original);
 		expect(raw).not.toContain("sealed ref");
 		expect(raw).not.toContain("original-user-cipher");
+		expect(raw).not.toContain("mercury-3");
+		routingProfile.disabled_ai_models.length = 0;
+		routingProfile.disabled_ai_servers["mercury-3"].length = 0;
 		const retryCandidate = { ...original, turn_id: "fresh-turn",
 			inference_commitment: "fresh-commitment",
+			inference_request: { ...original.inference_request,
+				model_routing_restrictions: modelRoutingRestrictionsForTurn(routingProfile) },
 			encrypted_user_message: { ...original.encrypted_user_message,
 				encrypted_content: "fresh-user-cipher" } };
 		const retry = await retainOrReuseDurableTurnPreflight(identity, retryCandidate, storage);
 		expect(retry.sealed).toBe(first.sealed);
 		expect(retry.payload).toEqual(original);
+		expect((retry.payload.inference_request as typeof original.inference_request).model_routing_restrictions)
+			.toEqual({ disabled_ai_models: ["mercury-3"], disabled_ai_servers: { "mercury-3": ["inception"] } });
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, finalContent: "changed ref" }, retryCandidate, storage))
 			.rejects.toThrow("changed account, key, scope, content, or ciphertext");
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, accountId: "another-owner" }, retryCandidate, storage))
@@ -270,8 +330,12 @@ describe("sendersChatMessages protocol fences", () => {
 
 	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted
 	it("retains the sealed preflight across legacy and stale ACKs, clearing only admitted turn confirmation", async () => {
-		const clear = vi.fn(async () => undefined);
-		watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear);
+		let release!: () => void;
+		const clear = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
+		const completed = watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear);
+		let settled = false;
+		void completed.then(() => { settled = true; });
+		expect(watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear)).toBe(completed);
 		const registrations = vi.mocked(webSocketService.on).mock.calls;
 		const callback = [...registrations].reverse().find(([event]) => event === "chat_message_confirmed")?.[1];
 		expect(callback).toBeTypeOf("function");
@@ -282,6 +346,11 @@ describe("sendersChatMessages protocol fences", () => {
 		(callback as (payload: unknown) => void)({ chat_id: "ack-chat", message_id: "ack-message", new_messages_v: 7 });
 		expect(clear).toHaveBeenCalledOnce();
 		expect(webSocketService.off).toHaveBeenCalledWith("chat_message_confirmed", callback);
+		await Promise.resolve();
+		expect(settled).toBe(false); // A recovery scan still sees the retained journal.
+		release();
+		await completed;
+		expect(settled).toBe(true);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send
@@ -637,4 +706,50 @@ it('advances ordinary admission from server-issued call versions, never per-mess
   expect(shouldIncludePreflightChatMetadata(1, undefined, predecessor)).toBe(false);
   expect(predecessor ?? preflightExpectedMessagesVersion(1)).toBe(8);
   barrier.clearPersonalChatTurnBarriers();
+});
+
+
+describe('admission completion reservation', () => {
+  const identity = { chatId: 'held-admission-chat', messageId: 'held-message',
+    turnId: 'held-turn', requestId: 'held-context', committedMessagesVersion: 1 };
+  function acceptAll() {
+    const on = vi.mocked(webSocketService.on);
+    const confirmed = on.mock.calls.filter(([type]) => type === 'chat_message_confirmed').at(-1)![1];
+    const context = on.mock.calls.filter(([type]) => type === 'chat_turn_context_ack').at(-1)![1];
+    confirmed({ chat_id: identity.chatId, message_id: identity.messageId, new_messages_v: 1 });
+    for (const phase of ['routing', 'details']) context({ chat_id: identity.chatId,
+      message_id: identity.messageId, turn_id: identity.turnId, request_id: identity.requestId,
+      phase, status: 'accepted' });
+  }
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('holds through actual matching ACKs until the durable journals have cleared', async () => {
+    let finish!: () => void;
+    const clearing = new Promise<void>(resolve => { finish = resolve; });
+    const clearJournals = vi.fn(() => clearing);
+    const attempt = watchFastAdmissionCompletion({ ...identity, clearJournals });
+    const settled = vi.fn();
+    void attempt.settled.then(settled);
+    acceptAll();
+    await Promise.resolve();
+    expect(clearJournals).toHaveBeenCalledOnce();
+    expect(settled).not.toHaveBeenCalled();
+    finish();
+    await attempt.settled;
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('releases a failed journal-clear attempt and invokes scoped recovery instead of suppressing retries forever', async () => {
+    const onJournalFailure = vi.fn();
+    const attempt = watchFastAdmissionCompletion({ ...identity, onJournalFailure,
+      clearJournals: vi.fn(async () => { throw new Error('IndexedDB unavailable'); }) });
+    acceptAll();
+    await attempt.settled;
+    expect(onJournalFailure).toHaveBeenCalledOnce();
+    const replay = watchFastAdmissionCompletion({ ...identity, clearJournals: vi.fn(async () => undefined) });
+    expect(replay.isCurrentAttempt()).toBe(true);
+    replay.cancel();
+    await replay.settled;
+  });
 });

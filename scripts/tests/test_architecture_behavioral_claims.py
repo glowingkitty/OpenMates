@@ -50,7 +50,7 @@ CLAIM_SOURCES = {
     'arch-frontend-design-tokens-behavior': ['frontend/packages/ui/src/tokens/sources/', 'frontend/packages/ui/src/tokens/generated/', 'frontend/packages/ui/scripts/build-tokens.js', 'frontend/packages/ui/scripts/audit-tokens.js', 'frontend/packages/ui/scripts/validate-token-usage.js'],
     'arch-frontend-docs-web-app-behavior': ['frontend/apps/web_app/scripts/process-docs.js', 'frontend/apps/web_app/scripts/vite-plugin-docs.js', 'frontend/apps/web_app/src/routes/docs/+layout.svelte', 'frontend/apps/web_app/src/routes/docs/+page.ts', 'frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte'],
     'arch-frontend-native-apps-behavior': ['apple/project.yml', 'apple/OpenMates/Sources/App/OpenMatesApp.swift', 'apple/OpenMates/Sources/Core/Networking/APIClient.swift', 'apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift', 'apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift'],
-    'arch-frontend-web-app-behavior': ['frontend/apps/web_app/src/routes/+layout.svelte', 'frontend/apps/web_app/src/routes/+page.svelte', 'frontend/packages/ui/src/legal/documents/privacy-policy.ts', 'frontend/packages/ui/src/legal/documents/terms-of-use.ts', 'frontend/packages/ui/src/legal/documents/imprint.ts'],
+    'arch-frontend-web-app-behavior': ['frontend/apps/web_app/src/routes/+layout.svelte', 'frontend/apps/web_app/src/routes/+page.svelte', 'frontend/packages/public-site/src/legal/documents/privacy-policy.ts', 'frontend/packages/public-site/src/legal/documents/terms-of-use.ts', 'frontend/packages/public-site/src/legal/documents/imprint.ts'],
     'arch-infrastructure-admin-console-log-forwarding-behavior': ['frontend/packages/ui/src/services/clientLogForwarder.ts', 'frontend/packages/ui/src/services/logCollector.ts', 'backend/core/api/app/routes/admin_client_logs.py', 'backend/core/api/app/services/openobserve_push_service.py'],
     'arch-infrastructure-analytics-behavior': ['backend/core/api/app/services/web_analytics_service.py', 'backend/core/api/app/routes/analytics_beacon.py', 'backend/core/api/app/tasks/celery_config.py'],
     'arch-infrastructure-cronjobs-behavior': ['.github/dependabot.yml', 'pnpm-workspace.yaml', 'scripts/_dependabot_helper.py', 'scripts/run_tests.py'],
@@ -61,7 +61,6 @@ CLAIM_SOURCES = {
     'arch-infrastructure-logging-behavior': ['backend/core/api/app/utils/setup_logging.py', 'backend/core/api/app/utils/setup_compliance_logging.py', 'backend/core/api/app/utils/log_filters.py'],
     'arch-infrastructure-status-page-behavior': ['backend/status/main.py', 'backend/core/api/app/routes/status_routes.py', 'backend/core/api/app/services/status_aggregator.py', 'backend/core/api/app/services/test_results_service.py'],
     'arch-infrastructure-video-hosting-behavior': ['frontend/packages/ui/src/demo_chats/data/for_everyone.ts', 'frontend/packages/ui/src/components/ChatHeader.svelte'],
-    'arch-integrations-luma-behavior': ['backend/apps/events/providers/luma.py', 'scripts/api_tests/test_luma_api.py'],
     'arch-integrations-media-generation-behavior': ['frontend/apps/web_app/src/routes/dev/media/+page.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/MediaCanvas.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DeviceIframe.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DevicePhone.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DeviceLaptop.svelte'],
     'arch-messaging-embed-diff-editing-behavior': ['backend/apps/ai/instructions/base_diff_editing_instruction.md', 'backend/apps/ai/tasks/stream_consumer.py', 'backend/core/api/app/services/embed_service.py', 'backend/core/api/app/services/embed_diff_service.py', 'backend/core/directus/schemas/embed_diffs.yml'],
     'arch-messaging-embeds-behavior': ['backend/core/api/app/services/embed_service.py', 'frontend/packages/ui/src/components/embeds/**/*.svelte', 'frontend/packages/ui/src/components/embeds/**/*.ts', 'frontend/packages/ui/src/services/embedResolver.ts', 'frontend/packages/ui/src/services/embedStore.ts'],
@@ -299,9 +298,6 @@ def test_arch_infrastructure_video_hosting_behavior():
     doc_assert('arch-infrastructure-video-hosting-behavior')
     _assert_claim_sources('arch-infrastructure-video-hosting-behavior')
 
-def test_arch_integrations_luma_behavior():
-    doc_assert('arch-integrations-luma-behavior')
-    _assert_claim_sources('arch-integrations-luma-behavior')
 
 def test_arch_integrations_media_generation_behavior():
     doc_assert('arch-integrations-media-generation-behavior')

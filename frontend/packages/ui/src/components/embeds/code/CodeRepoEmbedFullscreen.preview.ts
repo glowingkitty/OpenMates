@@ -1,6 +1,6 @@
 /** Preview mock data for CodeRepoEmbedFullscreen. */
 
-export default {
+const defaultProps = {
   data: {
     decodedContent: {
       url: 'https://github.com/lemmingDev/ESP32-BLE-Gamepad',
@@ -33,3 +33,6 @@ export default {
   embedId: 'preview-code-repo-1',
   onClose: () => console.log('[Preview] close')
 };
+
+export default defaultProps;
+export const variants = { missingData: { ...defaultProps, data: { decodedContent: { full_name: "example/minimal", html_url: "https://github.com/example/minimal" }, attrs: {} } } };

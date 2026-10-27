@@ -98,6 +98,7 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
     )
 
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
+    delete_chat_handler.invalidate_recovery_jobs_for_chat_deletion.assert_awaited_once()
     cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
     assert cache_service.delete.await_count == 2
 
@@ -130,3 +131,210 @@ async def test_delete_chat_stops_before_cache_removal_when_durable_fence_fails(m
     queue_delete_chat_task.assert_not_called()
     manager.broadcast_to_user.assert_not_awaited()
     assert manager.send_personal_message.await_args.kwargs["message"]["type"] == "error"
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+@pytest.mark.anyio
+@pytest.mark.parametrize("ownership_lookup_fails", [False, True])
+async def test_delete_unpersisted_draft_shell_cleans_cache_when_no_saved_chat_fence_exists(
+    monkeypatch, ownership_lookup_fails: bool,
+) -> None:
+    queue_delete_chat_task = Mock()
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    invalidation = AsyncMock(side_effect=ChatRecoveryProtocolError(404, "chat_not_found"))
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion", invalidation)
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=AsyncMock(
+                return_value=False,
+                side_effect=RuntimeError("ownership unavailable") if ownership_lookup_fails else None,
+            ),
+            get_chat_metadata=AsyncMock(return_value=None),
+        ),
+        get_items=AsyncMock(return_value=[]),
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "draft-1"},
+    )
+
+    directus_service.get_items.assert_awaited_once_with(
+        "chats", params={"filter[id][_eq]": "draft-1", "fields": "id", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    invalidation.assert_awaited_once()
+    queue_delete_chat_task.assert_not_called()
+    cache_service.mark_chat_deleted.assert_awaited_once_with("draft-1")
+    cache_service.remove_chat_from_ids_versions.assert_awaited_once_with("user-1", "draft-1")
+    manager.send_personal_message.assert_not_awaited()
+    assert manager.broadcast_to_user.await_args.args == (
+        {"type": "chat_deleted", "payload": {"chat_id": "draft-1", "tombstone": True}}, "user-1",
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("authoritative_result", [None, [{"id": "chat-1"}], RuntimeError("Directus unavailable")])
+async def test_draft_shell_cleanup_fails_closed_without_confirmed_absence(
+    monkeypatch, authoritative_result,
+) -> None:
+    queue_delete_chat_task = Mock()
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    invalidation = AsyncMock(side_effect=ChatRecoveryProtocolError(404, "chat_not_found"))
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion", invalidation)
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=AsyncMock(return_value=False),
+            get_chat_metadata=AsyncMock(return_value=None),
+        ),
+        get_items=AsyncMock(
+            return_value=authoritative_result,
+            side_effect=authoritative_result if isinstance(authoritative_result, Exception) else None,
+        ),
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "chat-1"},
+    )
+
+    invalidation.assert_awaited_once()
+    queue_delete_chat_task.assert_not_called()
+    cache_service.mark_chat_deleted.assert_not_awaited()
+    cache_service.remove_chat_from_ids_versions.assert_not_awaited()
+    manager.broadcast_to_user.assert_not_awaited()
+    assert manager.send_personal_message.await_args.kwargs["message"]["type"] == "error"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_delete_chat_rejects_another_users_saved_chat(monkeypatch) -> None:
+    queue_delete_chat_task = Mock()
+    invalidation = AsyncMock()
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion", invalidation)
+    directus_service = SimpleNamespace(chat=SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=False),
+        get_chat_metadata=AsyncMock(return_value={"id": "chat-1"}),
+    ))
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "chat-1"},
+    )
+
+    invalidation.assert_not_awaited()
+    queue_delete_chat_task.assert_not_called()
+    cache_service.mark_chat_deleted.assert_not_awaited()
+    manager.broadcast_to_user.assert_not_awaited()
+    assert "permission" in manager.send_personal_message.await_args.kwargs["message"]["payload"]["message"]
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_delete_chat_retry_uses_existing_fence_after_chat_row_is_removed(monkeypatch) -> None:
+    queue_delete_chat_task = Mock()
+    invalidation = AsyncMock(return_value={"chat_deletion_fenced": True, "chat_id": "chat-1"})
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion", invalidation)
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=AsyncMock(return_value=False),
+            get_chat_metadata=AsyncMock(return_value=None),
+        ),
+        get_items=AsyncMock(),
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "chat-1"},
+    )
+
+    invalidation.assert_awaited_once()
+    directus_service.get_items.assert_not_awaited()
+    queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", False)
+    cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
+    manager.send_personal_message.assert_not_awaited()
+    manager.broadcast_to_user.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_conditional_cleanup_fans_out_only_canonical_transaction_guard(monkeypatch):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    payload = {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
+        "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
+        "lifecycle_message_ids": [], "expected_messages_v": 0}
+    guard = {key: payload[key] for key in ("cleanup_attempt_id", "call_id", "lifecycle_message_ids", "expected_messages_v")}
+    execute = AsyncMock(return_value={"empty_call_cleanup": guard})
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    delete = AsyncMock()
+    monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
+    from contextlib import nullcontext
+    manager = SimpleNamespace(send_personal_message=AsyncMock(),
+        empty_call_cleanup_gate=lambda _user: nullcontext(),
+        all_user_connections_support_empty_call_cleanup=lambda _user: True)
+    await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
+        "owner", "device", payload)
+    assert execute.await_args.args[0] == "invalidate_deletion"
+    assert manager.send_personal_message.await_args.args[0]["payload"]["accepted"] is True
+    assert delete.await_args.kwargs == {"empty_call_cleanup_guard": guard}
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_conditional_cleanup_rejection_never_falls_back_to_generic_delete(monkeypatch):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = AsyncMock(side_effect=RuntimeError("authority unavailable"))
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    delete = AsyncMock()
+    monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
+    from contextlib import nullcontext
+    manager = SimpleNamespace(send_personal_message=AsyncMock(),
+        empty_call_cleanup_gate=lambda _user: nullcontext(),
+        all_user_connections_support_empty_call_cleanup=lambda _user: True)
+    await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
+        "owner", "device", {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
+            "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
+            "lifecycle_message_ids": [], "expected_messages_v": 0})
+    assert manager.send_personal_message.await_args.args[0]["payload"]["accepted"] is False
+    delete.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_legacy_recipient_durably_disqualifies_instead_of_deleting(monkeypatch):
+    from contextlib import nullcontext
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = AsyncMock(return_value={"disqualified": True})
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    delete = AsyncMock()
+    monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
+    manager = SimpleNamespace(send_personal_message=AsyncMock(),
+        empty_call_cleanup_gate=lambda _user: nullcontext(),
+        all_user_connections_support_empty_call_cleanup=lambda _user: False)
+    await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
+        "owner", "device", {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
+            "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
+            "lifecycle_message_ids": [], "expected_messages_v": 0})
+    assert execute.await_args.args[0] == "update_call_cleanup_candidate"
+    assert execute.await_args.args[1]["mode"] == "disqualify"
+    assert manager.send_personal_message.await_args.args[0]["payload"]["accepted"] is False
+    delete.assert_not_awaited()

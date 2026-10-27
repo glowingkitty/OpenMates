@@ -1,7 +1,7 @@
 /**
  * App-store examples for the web skill.
  *
- * Captured from real Firecrawl responses on public, non-technical Wikipedia articles (food, travel, space mission). Markdown trimmed to ~6000 chars.
+ * Captured from real ExampleReader responses on public, non-technical Wikipedia articles (food, travel, space mission). Markdown trimmed to ~6000 chars.
  */
 
 export interface WebReadStoreExample {

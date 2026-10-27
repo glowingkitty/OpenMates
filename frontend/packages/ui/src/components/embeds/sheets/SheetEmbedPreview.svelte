@@ -17,11 +17,13 @@
 -->
 
 <script lang="ts">
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
+  import { parseSheetEmbedContent, formatTableDimensions, tableToTSV } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks } from '../../../utils/embedLinkUtils';
+  import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks, stripWikiLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { requestEmbedFromServerOnce } from '../../../services/embedResolver';
@@ -174,7 +176,7 @@
    */
   let colWidths = $derived.by(() => {
     return parsedTable.headers.map((header, i) => {
-      const headerLen = header.content.length;
+      const headerLen = stripEmbedLinks(header.content).length;
       const maxDataLen = previewRows.reduce((max, row) => {
         const len = row[i]?.content?.length ?? 0;
         return len > max ? len : max;
@@ -268,9 +270,22 @@
     const cleanup = hydrateWikiLinks(tableContainerEl, { clickable: false });
     return cleanup;
   });
+  async function copyPreviewContent() {
+    try {
+      const clean = (content: string) => stripWikiLinks(stripEmbedLinks(content));
+      const headers = parsedTable.headers.map(cell => ({ ...cell, content: clean(cell.content) }));
+      const rows = parsedTable.rows.map(row => row.map(cell => ({ ...cell, content: clean(cell.content) })));
+      const result = await copyToClipboard(tableToTSV(headers, rows));
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      notificationStore.success($text('embeds.copied_to_clipboard'));
+    } catch {
+      notificationStore.error($text('embeds.copy_failed'));
+    }
+  }
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   appId="sheets"
   skillId="sheet"
@@ -285,6 +300,10 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished' && parsedTable.headers.length > 0}<button type="button" aria-label={$text('common.copy')} title={$text('common.copy')} data-testid="preview-copy" onclick={(event) => { event.stopPropagation(); void copyPreviewContent(); }}><span class="clickable-icon icon_copy" aria-hidden="true"></span></button>{/if}
+  {/snippet}
+
   {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
     {(isLargePreview = isLargeSnippet, undefined)}
     <div class="sheet-preview" class:mobile={isMobileSnippet} bind:clientWidth={measuredContainerWidth}>
@@ -311,7 +330,7 @@
             <thead>
               <tr>
                 {#each visibleHeaders as header}
-                  <th>{header.content}</th>
+                  <th>{stripEmbedLinks(header.content)}</th>
                 {/each}
                 {#if hiddenColCount > 0}
                   <th class="more-cols-header">+{hiddenColCount}</th>
@@ -364,7 +383,7 @@
   
   .sheet-preview {
     width: 100%;
-    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -411,7 +430,7 @@
   
   .table-scroll {
     width: 100%;
-    flex: 1;
+    flex: 0 1 auto;
     overflow: hidden;
   }
   

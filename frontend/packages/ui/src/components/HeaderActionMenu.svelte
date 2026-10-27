@@ -19,6 +19,7 @@
     hasPriorityAction = false,
     actions,
     restoreChat,
+    navigationAction,
     close,
     resetKey,
     hasShare,
@@ -34,6 +35,7 @@
     hasPriorityAction?: boolean;
     actions: Snippet;
     restoreChat?: Snippet;
+    navigationAction?: Snippet;
     close?: Snippet;
     resetKey?: string;
     hasShare: boolean;
@@ -224,6 +226,7 @@
       {/if}
     </div>
     {/if}
+    {@render navigationAction?.()}
   </div>
   {#if !compactMoreOnly}<div class="close-action">{@render close?.()}</div>{/if}
 </div>

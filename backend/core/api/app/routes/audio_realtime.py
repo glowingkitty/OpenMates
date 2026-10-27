@@ -12,7 +12,6 @@ import base64
 import hashlib
 import json
 import logging
-import math
 import os
 import struct
 import uuid
@@ -22,12 +21,15 @@ import aiohttp
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 
 from backend.apps.audio.pricing import (
-    REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
+    REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE,
+    REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
     REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
     REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
+    calculate_realtime_transcription_credits,
 )
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+from backend.core.api.app.services.streaming_transcript_correction import StreamingTranscriptCorrection
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.core.api.app.utils.ws_token import verify_ws_token
@@ -42,18 +44,26 @@ from backend.shared.providers.workflow_transcript_correction import (
     correct_workflow_transcript_with_cerebras,
     correct_workflow_transcript_with_groq,
 )
+from backend.shared.providers.transcript_correction import (
+    MERCURY_CORRECTION_MODEL,
+    correct_transcript,
+    mercury_correction_enabled,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps/audio")
 
 MISTRAL_REALTIME_URL = "wss://api.mistral.ai/v1/audio/transcriptions/realtime"
-MISTRAL_REALTIME_MODEL = "voxtral-mini-transcribe-realtime-2602"
+MISTRAL_REALTIME_MODEL = "voxtral-mini-transcribe-realtime-3-0"
+# Dictation favors accuracy over aggressive endpointing. Keep the existing
+# one-second preview delay; turn detection is for calls, not manually ended input.
+REALTIME_STREAMING_DELAY_MS = 1000
 PCM_SAMPLE_RATE = 16_000
 PCM_BYTES_PER_SECOND = PCM_SAMPLE_RATE * 2
 MAX_CHUNK_BYTES = 256 * 1024
 MAX_AUDIO_SECONDS = 20 * 60
 LOCK_TTL_SECONDS = MAX_AUDIO_SECONDS + 120
-REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
+REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE
 REALTIME_USAGE_TYPE = "realtime_transcription"
 INTERRUPTED_REALTIME_USAGE_TYPE = "realtime_transcription_interrupted"
 
@@ -146,12 +156,14 @@ async def _bill_realtime_usage(
     chat_id: Optional[str],
     interrupted: bool = False,
 ) -> None:
-    if audio_seconds <= 0:
+    credits_to_charge = calculate_realtime_transcription_credits(
+        duration_seconds=audio_seconds
+    )
+    if credits_to_charge == 0:
         return
-    billed_minutes = max(1, math.ceil(audio_seconds / 60))
     usage_details: dict[str, Any] = {
         "duration_seconds": audio_seconds,
-        "billed_minutes": billed_minutes,
+        "billing_unit": "second",
         "requests_transcribed": 1,
         "model": MISTRAL_REALTIME_MODEL,
         "provider_cost_usd_per_minute": float(
@@ -160,7 +172,8 @@ async def _bill_realtime_usage(
         "price_markup_percent": int(
             (REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER - 1) * 100
         ),
-        "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
+        "credits_per_minute": REALTIME_CREDITS_PER_MINUTE,
+        "minimum_credits": REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
         "usage_type": (
             INTERRUPTED_REALTIME_USAGE_TYPE if interrupted else REALTIME_USAGE_TYPE
         ),
@@ -171,7 +184,7 @@ async def _bill_realtime_usage(
     await billing.charge_user_credits(
         user_id=user_id,
         user_id_hash=user_id_hash,
-        credits_to_deduct=billed_minutes * REALTIME_CREDITS_PER_MINUTE,
+        credits_to_deduct=credits_to_charge,
         app_id="audio",
         skill_id="transcribe",
         idempotency_key=f"audio-realtime:{request_id}",
@@ -179,102 +192,122 @@ async def _bill_realtime_usage(
     )
 
 
+def _correction_enabled(context: Optional[str]) -> bool:
+    """Preserve the workflow rollout switch for both streaming and finalization."""
+    return context != "workflow" or os.getenv(
+        "WORKFLOW_TRANSCRIPT_CORRECTION_ENABLED", ""
+    ).strip().lower() in {"1", "true", "yes"}
+
+
+def _initial_correction_model(language: Optional[str], context: Optional[str]) -> str:
+    if context == "workflow":
+        return (
+            GROQ_WORKFLOW_CORRECTION_MODEL
+            if (language or "").lower().startswith("en")
+            else CEREBRAS_WORKFLOW_CORRECTION_MODEL
+        )
+    return MERCURY_CORRECTION_MODEL if mercury_correction_enabled() else GEMINI_CORRECTION_MODEL
+
+
+async def _correct_segment(
+    websocket: WebSocket,
+    raw_transcript: str,
+    language: Optional[str],
+    context: Optional[str] = None,
+) -> dict[str, str]:
+    """Correct one bounded batch through the established provider policy."""
+    workflow_context = context == "workflow"
+    first_workflow_model = _initial_correction_model(language, context)
+    result: dict[str, str] | None = None
+    correction_model = GEMINI_CORRECTION_MODEL
+    if not workflow_context:
+        result = await correct_transcript(
+            raw_transcript, websocket.app.state.secrets_manager, language
+        )
+        correction_model = result["model"]
+    if workflow_context:
+        workflow_providers = (
+            (
+                (
+                    GROQ_WORKFLOW_CORRECTION_MODEL,
+                    "kv/data/providers/groq",
+                    correct_workflow_transcript_with_groq,
+                ),
+                (
+                    CEREBRAS_WORKFLOW_CORRECTION_MODEL,
+                    "kv/data/providers/cerebras",
+                    correct_workflow_transcript_with_cerebras,
+                ),
+            )
+            if first_workflow_model == GROQ_WORKFLOW_CORRECTION_MODEL
+            else (
+                (
+                    CEREBRAS_WORKFLOW_CORRECTION_MODEL,
+                    "kv/data/providers/cerebras",
+                    correct_workflow_transcript_with_cerebras,
+                ),
+            )
+        )
+        for model, secret_path, correct in workflow_providers:
+            try:
+                key = await websocket.app.state.secrets_manager.get_secret(
+                    secret_path, "api_key"
+                )
+                if not key:
+                    continue
+                result = await correct(raw_transcript, key, language)
+                correction_model = model
+                break
+            except Exception as exc:
+                logger.warning(
+                    "Workflow transcript %s correction failed: %s",
+                    model,
+                    type(exc).__name__,
+                )
+    if result is None:
+        google_key = await websocket.app.state.secrets_manager.get_secret(
+            "kv/data/providers/google_ai_studio", "api_key"
+        )
+        if not google_key:
+            raise RuntimeError("Transcript correction is unavailable")
+        result = await correct_transcript_with_gemini(
+            raw_transcript, google_key, language
+        )
+    corrected = sanitize_text_simple(
+        result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] "
+    )
+    if not corrected.strip():
+        raise RuntimeError("Transcript correction returned empty text")
+    title = clean_transcript_title(
+        sanitize_text_simple(
+            result.get("title", ""), log_prefix="[AudioRealtime][Correction title] "
+        )
+    )
+    return {"title": title, "transcript": corrected, "correction_model": correction_model}
+
+
 async def _correct_and_send(
     websocket: WebSocket,
     raw_transcript: str,
     language: Optional[str],
     context: Optional[str] = None,
+    streaming_correction: Optional[StreamingTranscriptCorrection] = None,
 ) -> None:
-    workflow_context = context == "workflow"
-    # Natural-language workflow planning can interpret spoken self-corrections.
-    # Keep a rollout switch for restoring the prior provider correction path.
-    if workflow_context and os.getenv(
-        "WORKFLOW_TRANSCRIPT_CORRECTION_ENABLED", ""
-    ).strip().lower() not in {"1", "true", "yes"}:
+    if not _correction_enabled(context):
         await websocket.send_json(
             {"type": "correction.skipped", "transcript": raw_transcript}
         )
         return
-    first_workflow_model = (
-        GROQ_WORKFLOW_CORRECTION_MODEL
-        if (language or "").lower().startswith("en")
-        else CEREBRAS_WORKFLOW_CORRECTION_MODEL
-    )
     await websocket.send_json(
-        {
-            "type": "correction.started",
-            "model": (
-                first_workflow_model if workflow_context else GEMINI_CORRECTION_MODEL
-            ),
-        }
+        {"type": "correction.started", "model": _initial_correction_model(language, context)}
     )
     try:
-        result: dict[str, str] | None = None
-        correction_model = GEMINI_CORRECTION_MODEL
-        if workflow_context:
-            workflow_providers = (
-                (
-                    (
-                        GROQ_WORKFLOW_CORRECTION_MODEL,
-                        "kv/data/providers/groq",
-                        correct_workflow_transcript_with_groq,
-                    ),
-                    (
-                        CEREBRAS_WORKFLOW_CORRECTION_MODEL,
-                        "kv/data/providers/cerebras",
-                        correct_workflow_transcript_with_cerebras,
-                    ),
-                )
-                if first_workflow_model == GROQ_WORKFLOW_CORRECTION_MODEL
-                else (
-                    (
-                        CEREBRAS_WORKFLOW_CORRECTION_MODEL,
-                        "kv/data/providers/cerebras",
-                        correct_workflow_transcript_with_cerebras,
-                    ),
-                )
-            )
-            for model, secret_path, correct in workflow_providers:
-                try:
-                    key = await websocket.app.state.secrets_manager.get_secret(
-                        secret_path, "api_key"
-                    )
-                    if not key:
-                        continue
-                    result = await correct(raw_transcript, key, language)
-                    correction_model = model
-                    break
-                except Exception as exc:
-                    logger.warning(
-                        "Workflow transcript %s correction failed: %s",
-                        model,
-                        type(exc).__name__,
-                    )
-        if result is None:
-            google_key = await websocket.app.state.secrets_manager.get_secret(
-                "kv/data/providers/google_ai_studio", "api_key"
-            )
-            if not google_key:
-                raise RuntimeError("Transcript correction is unavailable")
-            result = await correct_transcript_with_gemini(
-                raw_transcript, google_key, language
-            )
-        corrected = sanitize_text_simple(
-            result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] "
+        result = (
+            await streaming_correction.finish(raw_transcript, language)
+            if streaming_correction is not None
+            else await _correct_segment(websocket, raw_transcript, language, context)
         )
-        title = clean_transcript_title(
-            sanitize_text_simple(
-                result.get("title", ""), log_prefix="[AudioRealtime][Correction title] "
-            )
-        )
-        await websocket.send_json(
-            {
-                "type": "correction.done",
-                "title": title,
-                "transcript": corrected,
-                "correction_model": correction_model,
-            }
-        )
+        await websocket.send_json({"type": "correction.done", **result})
     except Exception as exc:
         logger.warning("Realtime transcript correction failed: %s", type(exc).__name__)
         await websocket.send_json({"type": "correction.failed"})
@@ -304,7 +337,7 @@ async def realtime_transcription(
     if (
         is_payment_enabled()
         and isinstance(credits, (int, float))
-        and credits < REALTIME_CREDITS_PER_MINUTE
+        and credits < REALTIME_TRANSCRIPTION_MINIMUM_CREDITS
     ):
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION, reason="Not enough credits"
@@ -323,6 +356,7 @@ async def realtime_transcription(
     await websocket.accept()
     bytes_received = 0
     peak_pcm = 0
+    transcript_deltas: list[str] = []
     provider_request_id = uuid.uuid4().hex
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
@@ -330,6 +364,24 @@ async def realtime_transcription(
     correction_context = (
         "workflow"
         if websocket.query_params.get("correction_context") == "workflow"
+        else None
+    )
+    # First-party authenticated stream: existing user-bound admission lock,
+    # credit checks, duration cap and billing apply to all background batches.
+    # Audio, raw text and corrected batches stay ephemeral in this connection.
+    async def correct_batch(text: str, language: Optional[str]) -> dict[str, str]:
+        return await _correct_segment(websocket, text, language, correction_context)
+
+    async def correction_progress(processed_chars: int) -> None:
+        # Progress is additive protocol metadata. Existing clients retain their
+        # live raw preview and wait for the single final correction result.
+        await websocket.send_json(
+            {"type": "correction.progress", "processed_chars": processed_chars}
+        )
+
+    streaming_correction = (
+        StreamingTranscriptCorrection(correct_batch, correction_progress)
+        if _correction_enabled(correction_context)
         else None
     )
     try:
@@ -365,7 +417,7 @@ async def realtime_transcription(
                                 "encoding": "pcm_s16le",
                                 "sample_rate": PCM_SAMPLE_RATE,
                             },
-                            "target_streaming_delay_ms": 1000,
+                            "target_streaming_delay_ms": REALTIME_STREAMING_DELAY_MS,
                         },
                     }
                 )
@@ -411,7 +463,6 @@ async def realtime_transcription(
                                     {"type": event_type, "audio": encoded}
                                 )
                             elif event_type == "input_audio.end":
-                                await provider.send_json({"type": "input_audio.flush"})
                                 await provider.send_json({"type": "input_audio.end"})
                             elif event_type == "session.metadata":
                                 candidate_chat_id = message.get("chat_id")
@@ -440,13 +491,25 @@ async def realtime_transcription(
                                     log_prefix="[AudioRealtime][Mistral delta] ",
                                 )
                                 if delta:
+                                    transcript_deltas.append(delta)
+                                    if streaming_correction is not None:
+                                        streaming_correction.append(delta, event.get("language"))
                                     await websocket.send_json(
                                         {"type": event_type, "text": delta}
                                     )
                             elif event_type == "transcription.done":
-                                raw_transcript = sanitize_text_simple(
+                                provider_final_text = sanitize_text_simple(
                                     str(event.get("text") or "").strip(),
                                     log_prefix="[AudioRealtime][Mistral] ",
+                                )
+                                # Realtime text is delivered through deltas. The
+                                # done payload can contain only the final window;
+                                # never let it replace earlier streamed speech.
+                                streamed_transcript = "".join(transcript_deltas).strip()
+                                raw_transcript = (
+                                    provider_final_text
+                                    if provider_final_text.startswith(streamed_transcript)
+                                    else streamed_transcript
                                 )
                                 language = event.get("language")
                                 usage = (
@@ -460,8 +523,10 @@ async def realtime_transcription(
                                 )
                                 logger.info(
                                     "Realtime transcription completed: audio_bytes=%d peak_pcm=%d "
-                                    "provider_seconds=%.3f transcript_chars=%d",
+                                    "provider_seconds=%.3f transcript_chars=%d "
+                                    "streamed_chars=%d provider_final_chars=%d",
                                     bytes_received, peak_pcm, audio_seconds, len(raw_transcript),
+                                    len(streamed_transcript), len(provider_final_text),
                                 )
                                 await websocket.send_json(
                                     {
@@ -488,6 +553,7 @@ async def realtime_transcription(
                                         raw_transcript,
                                         language,
                                         correction_context,
+                                        streaming_correction,
                                     )
                                 else:
                                     await websocket.send_json(
@@ -521,6 +587,8 @@ async def realtime_transcription(
         except Exception:
             pass
     finally:
+        if streaming_correction is not None:
+            await streaming_correction.cancel()
         # A client may close after receiving the raw transcript while correction
         # is still being sent. Billing was already started at transcription.done;
         # always observe and settle that task before releasing admission control.

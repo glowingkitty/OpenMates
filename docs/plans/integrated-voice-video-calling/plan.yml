@@ -1,9 +1,7 @@
 schema_version: 2
 id: integrated-voice-video-calling
 title: Integrated voice and video calling in three phases
-goal: 'First we implement phase 1: the foundation - voice call only, where we ensure the user voice input also shows
-  up (and is saved client side encrypted as usual) as text, the same for assistant response, and user can also provide
-  text input for voice model to pickup.'
+goal: 'Add support for video call in our existing voice call implementation, and testing. No record call option for now.'
 authorization: The user explicitly requested the three-phase Specification and immediate phase-1 implementation/testing
   on 2026-10-13, without further clarification. This overrides an additional Specification approval question; no
   permission is inferred from attached PDFs or historical Task content.
@@ -28,7 +26,7 @@ current_authorization: On 2026-10-14 the user explicitly requested updating the 
   voice-created transcripts while retaining Sending for pending typed submissions.
 specification_refs:
 - id: feature.video-call
-  version: 7
+  version: 9
   role: primary
 phases:
 - phase: 1
@@ -73,8 +71,14 @@ phases:
   task_id: 18b14a5f-8096-435a-bc12-aefaff29e083
   depends_on_phase: 2
   scope:
-  - Explicit camera/screen sharing and independent visual controls.
-  - Generated videos run as normal skills, play during calls and remain embeds.
+  - Explicit web camera sharing, rear/front switching and independent microphone/camera controls.
+  - Two-second expanded preview becomes smaller while remaining visible; screen sharing and Apple follow later.
+  - Exact selected source frames persist as encrypted user image attachments and skill input thumbnails after reload.
+  - Normal early skill progress cards retain the same identity through completion and minimized horizontal display.
+  - Generated images/videos expand the plain-media stage with AI badge, bottom-right upward collapse arrow and output navigation.
+  - Camera sharing continues while AI media is shown; videos play muted once with normal controls.
+  - H3 Max Turbo defaults for call videos through ordinary skill/storage/billing; ordinary video defaults stay unchanged.
+  - Neither call recording nor a Record call option is included.
 phase_1_excludes:
 - Skills, file interpretation, camera/screen sharing, generated video, permanent audio recording, non-web and team
   calling.
@@ -124,7 +128,108 @@ design_reference:
   access: Outline, node and export probes returned 403; cached index generated 2026-10-06. Use supplied PNGs.
   evidence_bundle: test-results/figma/voice-call-2026-10-15
   scope: Match call controls and their chat/Header placement using existing design tokens; unrelated workspace UI is unchanged.
+camera_increment:
+  authorization: User confirmed the reviewed camera, saved-source, normal skill-progress, generated-media and H3 scope on 2026-10-19 and requested implementation and testing; explicitly excluded all call-recording options.
+  task_id: 18b14a5f-8096-435a-bc12-aefaff29e083
+  endpoint_access: Existing first-party authenticated owner-bound voice WebSocket; no public or developer-key live-session access.
+  design:
+    figma_node: PzgE78TVxG0eWuEeO6o8ve/6208:85257
+    reference_png: test-results/figma/call-camera-2026-10-19/figma-reference.png
+    scope: Directional mobile/desktop camera-stage hierarchy with existing blue strip and implementation tokens; user's smaller persistent preview, AI badge and collapse-arrow decisions override older concept details.
+    reuse: Existing call bar, encrypted image attachments, shared embed previews, generated-media graph and provider adapters.
+    accepted_differences: Existing workspace chrome and tokens stay current; no screen sharing, reminders, recording, human/team calls or Apple work.
+  required_checks:
+  - Specification/examples and Plan validation.
+  - Focused backend camera protocol, source ownership/hash, sealed progress and H3 generation/billing checks.
+  - Focused frontend capture lifecycle/races, source-frame preservation, controller media and resolver checks.
+  - Isolated bare media-stage and skill-input-thumbnail component proof before call-flow coverage.
+  - Isolated call flow proves same-call camera toggling, saved exact input image, progress/result cards, reload and cleanup.
+  - Retrieve and deliver latest selected successful component and call-flow recordings.
+  - Scoped dev deployment after candidate verification and required exact-specification approval, then reviewed phone/laptop visual smoke.
 evidence:
+  camera_increment:
+    session: 919e
+    status: implemented_deploying_for_user_manual_acceptance
+    specification_fingerprint: 1707a6509b60ebcf8c2900ac1a5dd66f450c2a6485ceced2b7ae084678433914
+    specification_approval: Explicit user approval recorded on 2026-10-20 for the presented exact-fingerprint PDF.
+    execution_waiver: User requested immediate dev deployment on 2026-10-20 and will test manually. Remaining full camera-call E2E and deployed visual-smoke execution are waived for this rollout; regression coverage and known failure evidence are retained. This does not authorize mutation of the shared production upload service.
+    focused_checks:
+      backend_tests: 223
+      completion_receipt_and_cancellation_regression_tests: 183
+      exact_jpeg_original_and_upload_regression_tests: 46
+      decrypted_image_format_and_shared_caller_regression_tests: 57
+      frontend_camera_controller_media_and_source_tests: 94
+      broker_short_poll_regression_tests: 58
+      h3_input_http_contract_tests: 4
+      monotonic_message_revision_and_history_window_tests: 54
+      hot_message_window_extension_tests: 44
+      terminal_error_origin_privacy_tests: 3
+      isolated_ci_environment_tests: 84
+      isolated_ci_coverage_manifest_tests: 10
+      scoped_lint_and_compilation: passed
+      specification_validation: passed
+      generated_contract_artifacts: current
+      guarded_web_fixture_tests: 9
+    isolated_components:
+      source_thumbnails:
+        result: passed
+        source: ef961b4e29acbf5268f9bb77ceda0b7ff2da77ff
+        request: cd579a88fd8a553113750272a738984a8d5542230981b29afb11d4bc4bb856a8
+        run: 39389549974
+      call_bar:
+        result: passed
+        source: f5755721436120f0e732578017b0169a895fff6c
+        request: 374960413b127fd6707f23dc74884a3e0f3963ef0878afeb23dd8031a31d07b2
+        run: 39433696418
+      generated_media_stage:
+        result: passed
+        source: 61be29c5706c2e90d03d0414d6214c98126a338c
+        request: 4c90b929362cef07d64eb9f9472e8deb509bcefe19157bf7acb4a325e9e11177
+        run: 39447680307
+      durable_skill_progress:
+        result: passed
+        source: 1dc8a0a2267a269932b4471252943d07acfd6f6d
+        request: 025dbd2ae7ad6faf35efcc7ad6f626f8a4650ef85031d75169bd33560f42522c
+        run: 39401577627
+        coverage: Durable voice artifacts auto-expand while the skill runs; exact source images open using native hover/click in processing and completed cards; completion collapse and manual expansion remain intact.
+      visual_review: Reviewed bounded phone/laptop recording frames and thumbnail screenshot. Scoped button resets fix inherited minimum widths; controls and result counter fit without overlap.
+    isolated_call_flow:
+      latest_candidate: f50869f284cedc5b2027144078ca0be463ac0541
+      latest_request: 1e3460c83437b075080f23e77d4882ee436ef4bf2b5da87a6e85d5fe8bf9690b
+      latest_run: 39453243685
+      latest_result: Cancelled at user request before a full verdict; user subsequently authorized dev deployment for manual testing.
+      result: failed_pending_activation_transport_and_cold_history_reverification
+      source: 57f44ff999aa67b07ace85c87c6d48b49c61cbe7
+      request: a598b8a38db7847a6bfa4f5b9ec7569bfd67d00da24bfc3d2739cbb93ac2afed
+      preparation_run: 39439750527
+      run: 39442362507
+      passed: 8
+      failed: 2
+      flaky: 0
+      diagnosis: Eight baseline cases pass. Both phone attempts fail to expand completed Web activity after one native click; no call error occurs. Laptop initial reports an active call error after generated video appears. Laptop retry passes source, generated stage, viewport, hangup and pre-eviction durability, then two of eight local ciphertexts differ from canonical rows after cold reload. A proven stale single/batch sync overwrite is fixed and history hydration now preserves revision metadata; exact attribution remains pending. Bounded activation, terminal code-origin and per-row equality diagnostics retain no private text, media, ciphertext or keys.
+      fixture_boundary: External speech, search and video generation are deterministic guarded providers; real call admission, camera capture, encrypted upload/storage, skill execution, media resolution and reload remain active.
+    reviewed_fixes:
+    - Sanitize camera JPEG before provider transmission so ordinary upload privacy cleanup preserves exact source bytes.
+    - Fence source uploads on account changes and preserve one canonical encrypted image across concurrent turn attachments.
+    - Ignore acknowledgements that finish upload lookup after the source wait timed out; keep audio connected.
+    - Keep camera flips and generated-media updates owned by the originating live call.
+    - Drop excess camera samples caused by arrival jitter without changing the one-frame-per-second provider limit or saved source.
+    - Keep camera controls usable when a noninteractive camera error is visible in the collapsed phone preview.
+    - Give voice result children stable IDs accepted by ordinary storage while retaining sealed owner receipts and Project/ordinary-AI namespace fences.
+    - Track actual skill completion for durable voice messages, and retain focus artifacts after incremental delivery.
+    - Keep saved input-image actions accessible and clickable within processing and finished preview cards.
+    - Apply the approved H3 five-second 480p policy to camera-off call videos as well as camera-source requests.
+    - Separate sealed progress publication authority from genuine completion receipts so progress cannot announce or recover an unfinished action.
+    - Drop dead live-progress delivery after execution while retaining encrypted artifacts and completion recovery; cancellation before execution still blocks the skill.
+    - Preserve validated metadata-free camera JPEG bytes as the encrypted original while continuing normal derived previews and metadata-safe fallback for other profiles.
+    - Reuse camera duplicates only when authoritative stored-original hash proof matches; preserve old references by creating fresh uploads for unproven legacy records.
+    - Derive provider image MIME from the decrypted JPEG/PNG/WEBP container so legacy upload format labels cannot misdeclare camera inputs.
+    - Fence stale sync writes against newer committed revisions inside the actual IndexedDB transaction, and preserve validated canonical revisions during cold-history normalization.
+    - Return the existing revision column from the hot SQL message-window projection used by both phased sync and REST history.
+    - Keep an unchanged native camera stream attached across call state updates, and isolate stage icon styles from global delayed app-card animations.
+    remaining:
+    - Finish the authenticated phone/laptop camera flow verification after the successful bare component proof.
+    - Retrieve selected browser recordings, perform scoped dev deployment and review phone/laptop visual smoke.
   phase_1:
     status: implemented_and_verified_pending_startup_proxy_persistence
     dev_commit: 4a088fd84dd28dc000099b71feef79410b2c2518

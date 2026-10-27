@@ -1,16 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Writable } from 'svelte/store';
+import type { PersonalDataEntry, PIIDetectionSettings } from '../../stores/personalDataStore';
 const mocks = vi.hoisted(() => ({
   connection: {} as object, scope: 'account-a|key-1', session: 'session-a', handlers: new Map<string, (data: any) => void>(),
   listeners: new Map<string, () => void>(), invalidators: [] as Array<() => void>,
   send: vi.fn(), checkAuth: vi.fn(async () => false), serializeRead: vi.fn((read: () => Promise<unknown>) => read()), waitMutations: vi.fn(async () => true), decrypt: vi.fn(async (value: string) => value),
   store: { subscribe(callback: (value: any) => void) { callback({ user_id: 'account-a', isAuthenticated: true }); return () => {}; } },
+  entries: null as unknown as Writable<PersonalDataEntry[]>,
+  settings: null as unknown as Writable<PIIDetectionSettings>, pending: false,
 }));
 vi.mock('../workspaceQueryCache', () => ({ getWorkspaceCacheIdentity: () => mocks.scope }));
 vi.mock('../workspaceCacheLifecycle', () => ({ registerWorkspaceCacheClear: (fn: () => void) => mocks.invalidators.push(fn) }));
 vi.mock('../../stores/authState', () => ({ authStore: mocks.store }));
 vi.mock('../../stores/authStore', () => ({ checkAuth: mocks.checkAuth, serializeAuthSessionRead: mocks.serializeRead }));
 vi.mock('../../stores/userProfile', () => ({ userProfile: mocks.store }));
-vi.mock('../../stores/personalDataStore', () => ({ personalDataStore: { ...mocks.store, settings: mocks.store, hasPendingPrivacyMutations: () => false, waitForPrivacyMutations: mocks.waitMutations, acknowledgePrivacyPersistence: vi.fn() } }));
+vi.mock('../../stores/personalDataStore', async () => {
+  const { writable } = await import('svelte/store');
+  mocks.entries = writable<PersonalDataEntry[]>([]);
+  mocks.settings = writable<PIIDetectionSettings>({ masterEnabled: true, categories: { email: true, phone: true } });
+  return { personalDataStore: { subscribe: mocks.entries.subscribe, settings: mocks.settings,
+    hasPendingPrivacyMutations: () => mocks.pending, waitForPrivacyMutations: mocks.waitMutations,
+    acknowledgePrivacyPersistence: vi.fn() } };
+});
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => mocks.session }));
 vi.mock('../../utils/websocketRoutingId', () => ({ getWebSocketRoutingId: () => 'document-a' }));
 vi.mock('../cryptoService', () => ({ decryptWithMasterKey: mocks.decrypt }));
@@ -32,7 +43,80 @@ function full(purpose: string, request: any, generation: string | null = 'genera
 describe('prepared Personal privacy', () => {
   afterEach(() => { mocks.invalidators.forEach(fn => fn()); vi.useRealTimers(); vi.unstubAllGlobals(); });
   beforeEach(() => { vi.resetModules(); mocks.handlers.clear(); mocks.listeners.clear(); mocks.invalidators.length = 0;
+    mocks.pending = false;
     mocks.scope = 'account-a|key-1'; mocks.session = 'session-a'; mocks.send.mockReset(); mocks.decrypt.mockImplementation(async (value: string) => value); mocks.decrypt.mockClear(); mocks.waitMutations.mockReset().mockResolvedValue(true); mocks.checkAuth.mockReset().mockResolvedValue(false); mocks.serializeRead.mockClear(); });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it('retains a fresh receipt across equivalent writable policy reloads during snapshot compilation', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    const entry: PersonalDataEntry = { id: 'local', type: 'custom', title: 'Label', textToHide: 'Hidden',
+      replaceWith: 'PRIVATE', enabled: true, createdAt: 1, updatedAt: 1 };
+    mocks.send.mockImplementation(async (_type: string, request: any) =>
+      mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+    await service.freshPersonalPrivacyForSend('initial');
+    mocks.entries.set([entry]);
+    mocks.decrypt.mockImplementation(async (value: string) => {
+      mocks.entries.set([{ ...entry, title: 'Renamed label', updatedAt: 2 }]);
+      mocks.settings.set({ categories: { phone: true, email: true }, masterEnabled: true });
+      return value;
+    });
+    const receipt = await service.freshPersonalPrivacyForSend('equivalent-reload');
+    expect(service.filterWithFreshPersonalPrivacy('Secret Orchard', receipt).content).not.toContain('Secret Orchard');
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each(['text', 'replacement', 'enabled', 'address', 'removal', 'category', 'master', 'pending'])(
+    'rejects a real %s policy change during snapshot compilation', async change => {
+      const service = await import('../preparedPrivacyForSend');
+      mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+      const entry: PersonalDataEntry = { id: 'local', type: 'custom', title: 'Label', textToHide: 'Hidden',
+        replaceWith: 'PRIVATE', enabled: true, createdAt: 1, updatedAt: 1 };
+      mocks.send.mockImplementation(async (_type: string, request: any) =>
+        mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+      await service.freshPersonalPrivacyForSend('initial');
+      mocks.entries.set([entry]);
+      mocks.decrypt.mockImplementation(async (value: string) => {
+        if (change === 'text') mocks.entries.set([{ ...entry, textToHide: 'Other' }]);
+        if (change === 'replacement') mocks.entries.set([{ ...entry, replaceWith: 'OTHER' }]);
+        if (change === 'enabled') mocks.entries.set([{ ...entry, enabled: false }]);
+        if (change === 'address') mocks.entries.set([{ ...entry, addressLines: { street: 'Other', city: '', state: '', zip: '', country: '' } }]);
+        if (change === 'removal') mocks.entries.set([]);
+        if (change === 'category') mocks.settings.set({ masterEnabled: true, categories: { email: false, phone: true } });
+        if (change === 'master') mocks.settings.set({ masterEnabled: false, categories: { email: true, phone: true } });
+        if (change === 'pending') mocks.pending = true;
+        return value;
+      });
+      await expect(service.freshPersonalPrivacyForSend('changed-policy')).rejects.toThrow('scope changed');
+    });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each([undefined, false, true, 'true'])('trusts only a producer-proven no-op sync flag (%s)', async unchanged => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.send.mockImplementation(async (_type: string, request: any) =>
+      mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+    const receipt = await service.freshPersonalPrivacyForSend('sync-event');
+    window.dispatchEvent(new CustomEvent('appSettingsMemoriesSyncReady', {
+      detail: unchanged === undefined ? undefined : { privacy_snapshot_unchanged: unchanged },
+    }));
+    if (unchanged === true) expect(service.filterWithFreshPersonalPrivacy('Secret Orchard', receipt).content).not.toContain('Secret Orchard');
+    else expect(() => service.filterWithFreshPersonalPrivacy('Secret Orchard', receipt)).toThrow('preferences');
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each(['owner', 'socket'])('rejects a %s change while compiling fresh authority', async change => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.send.mockImplementation(async (_type: string, request: any) =>
+      mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+    mocks.decrypt.mockImplementation(async (value: string) => {
+      if (change === 'owner') mocks.scope = 'account-b';
+      else mocks.listeners.get('open')!();
+      return value;
+    });
+    await expect(service.freshPersonalPrivacyForSend('scope-fence')).rejects.toThrow('scope changed');
+  });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
   it('decrypts on focus once, checks authority at Send and reuses RAM only on an unchanged generation', async () => {
@@ -93,6 +177,25 @@ describe('prepared Personal privacy', () => {
     service.invalidatePreparedPrivacy();
     expect(() => service.filterWithFreshPersonalPrivacy('Secret Orchard', receipt)).toThrow('preferences');
   });
+  // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance,ai-model-routing.preprocessing.prepared-privacy
+  it('preserves closed camera provenance while redacting prose and arbitrary JSON notes', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.send.mockImplementation(async (_type: string, request: any) => mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+    const receipt = await service.freshPersonalPrivacyForSend('turn-camera');
+    const reference = { type: 'image', embed_id: '05143690-1234-4abc-8123-0123456789ab',
+      source_frame_id: 'fb138791-7451-4cc9-a037-645944986181', source_call_id: '673f1d7523a5487e868e7769ec91804a',
+      source: 'camera', captured_at: 1792698555.81 };
+    const fence = (value: object) => '```json\n' + JSON.stringify(value) + '\n```';
+    const filtered = service.filterWithFreshPersonalPrivacy('Secret Orchard\n\n' + fence(reference), receipt);
+    expect(filtered.content).toContain(fence(reference));
+    expect(filtered.content).not.toContain('Secret Orchard');
+    const untrusted = service.filterWithFreshPersonalPrivacy(fence({ ...reference, note: 'Secret Orchard' }), receipt);
+    expect(untrusted.content).not.toContain('Secret Orchard');
+    const malformed = service.filterWithFreshPersonalPrivacy(fence({ ...reference, source_call_id: 'Secret Orchard' }), receipt);
+    expect(malformed.content).not.toContain('Secret Orchard');
+  });
+
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
   it('discards a slower focus compile after a newer Send has prepared another generation', async () => {
     const service = await import('../preparedPrivacyForSend');

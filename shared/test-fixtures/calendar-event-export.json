@@ -1,0 +1,259 @@
+{
+  "embed_id": "12345678-1234-4234-9234-123456789abc",
+  "valid": [
+    {
+      "id": "fosdem-two-days",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "FOSDEM 2027",
+          "start": "2027-01-30",
+          "end": "2027-02-01",
+          "location": "Brussels",
+          "source_url": "https://fosdem.org/2027/"
+        }
+      },
+      "start_line": "DTSTART;VALUE=DATE:20270130",
+      "end_line": "DTEND;VALUE=DATE:20270201"
+    },
+    {
+      "id": "single-all-day",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Release day",
+          "start": "2027-03-20"
+        }
+      },
+      "start_line": "DTSTART;VALUE=DATE:20270320",
+      "end_line": "DTEND;VALUE=DATE:20270321"
+    },
+    {
+      "id": "unknown-timed-end",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Meeting",
+          "start": "2027-03-15T10:00:00+01:00"
+        }
+      },
+      "start_line": "DTSTART:20270315T090000Z",
+      "end_line": null
+    },
+    {
+      "id": "overnight-offset",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Overnight",
+          "start": "2027-06-15T23:30:00+02:00",
+          "end": "2027-06-16T01:00:00+02:00"
+        }
+      },
+      "start_line": "DTSTART:20270615T213000Z",
+      "end_line": "DTEND:20270615T230000Z"
+    },
+    {
+      "id": "dst-fallback",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "DST meeting",
+          "start": "2027-10-31T02:30:00+02:00",
+          "end": "2027-10-31T02:30:00+01:00",
+          "timezone": "Europe/Brussels"
+        }
+      },
+      "start_line": "DTSTART:20271031T003000Z",
+      "end_line": "DTEND:20271031T013000Z"
+    },
+    {
+      "id": "unicode-and-injection",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Réunion; café, 東京 🚀",
+          "start": "2027-03-15T10:00:00Z",
+          "description": "Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 Café 🚀 東京 \rBEGIN:VEVENT\rATTENDEE:mailto:nobody@example.invalid",
+          "source_url": "https://example.org/event?tags=a,b"
+        }
+      },
+      "start_line": "DTSTART:20270315T100000Z",
+      "end_line": null
+    }
+  ],
+  "invalid": [
+    {
+      "id": "invalid-0",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Impossible",
+          "start": "2027-02-30"
+        }
+      }
+    },
+    {
+      "id": "invalid-1",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Ambiguous",
+          "start": "2027-03-15T10:00:00"
+        }
+      }
+    },
+    {
+      "id": "invalid-2",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Mixed",
+          "start": "2027-03-15",
+          "end": "2027-03-16T10:00:00Z"
+        }
+      }
+    },
+    {
+      "id": "invalid-3",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Backwards",
+          "start": "2027-03-15T10:00:00Z",
+          "end": "2027-03-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "id": "invalid-4",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Zone mismatch",
+          "start": "2027-03-15T10:00:00+02:00",
+          "timezone": "Europe/Brussels"
+        }
+      }
+    },
+    {
+      "id": "invalid-5",
+      "content": {
+        "type": "calendar_event",
+        "status": "finished",
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "context_events": [
+          {
+            "title": "Context only: private meeting",
+            "start": "2027-01-30"
+          }
+        ],
+        "primary_event": {
+          "title": "Unsafe source",
+          "start": "2027-03-15",
+          "source_url": "javascript:alert(1)"
+        }
+      }
+    }
+  ]
+}

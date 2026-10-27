@@ -68,7 +68,8 @@ def test_live_mock_marker_context_is_server_validated_and_required_by_the_speech
     assert 'LIVE_MOCK_CANDIDATE_ROOT' in ask_source
     assert "request_data.live_mock_mode = live_mode" in ask_source
     assert "request_data.live_mock_group = live_group" in ask_source
-    assert "live_mock_mode=request_data.live_mock_mode" in stream_source
+    assert 'voice_speech_fixture = speech_fixture_context(request_data)' in stream_source
+    assert 'live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode)' in stream_source
     assert '"live_mock_required": "true"' in stream_source
 
 
@@ -129,17 +130,17 @@ async def test_generates_one_encrypted_asset_and_records_exact_submitted_charact
 def test_assistant_response_speech_uses_one_message_level_character_rounding_step() -> None:
     assert calculate_assistant_response_speech_credits(submitted_characters=0) == 0
     assert calculate_assistant_response_speech_credits(submitted_characters=1) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=25) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=26) == 2
-    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 40
-    assert calculate_assistant_response_speech_credits(submitted_characters=1_001) == 41
+    assert calculate_assistant_response_speech_credits(submitted_characters=76) == 1
+    assert calculate_assistant_response_speech_credits(submitted_characters=77) == 2
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 13
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_001) == 14
     assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 1
-    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v4_turbo"
+    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "voxtral-mini-tts-3-0"
     assert DEFAULT_SPEECH_MODEL == "eleven_v3"
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
-@pytest.mark.parametrize("model", [ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL, "eleven_v4"])
+@pytest.mark.parametrize("model", [ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL, "eleven_v4_turbo", "eleven_v4"])
 def test_billing_worker_settles_at_cost_with_model_attribution_and_no_duplicate_charge(
     monkeypatch: pytest.MonkeyPatch, model: str,
 ) -> None:
@@ -201,16 +202,18 @@ def test_billing_worker_settles_at_cost_with_model_attribution_and_no_duplicate_
         assert cleanup_calls == [True]
         return
 
-    assert task.run({"manifest_id": "manifest-1"}) == {"status": "settled", "segments": 3, "credits": 40}
-    assert [call["credits"] for call in charges] == [1, 39]
-    assert [call["request_id"] for call in charges] == ["segment-0", "segment-2"]
-    assert all(call["model_ref"] == f"elevenlabs/{model}" for call in charges)
+    total = {ASSISTANT_RESPONSE_SPEECH_MODEL: 13, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL: 72, "eleven_v4_turbo": 40}[model]
+    assert task.run({"manifest_id": "manifest-1"}) == {"status": "settled", "segments": 3, "credits": total}
+    legacy_v3 = model == ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL
+    assert [call["credits"] for call in charges] == ([1, 1, 70] if legacy_v3 else [1, total - 1])
+    assert [call["request_id"] for call in charges] == (["segment-0", "segment-1", "segment-2"] if legacy_v3 else ["segment-0", "segment-2"])
+    assert all(call["model_ref"] == f"{'mistral' if model == ASSISTANT_RESPONSE_SPEECH_MODEL else 'elevenlabs'}/{model}" for call in charges)
     assert all(call["chat_id"] == "chat-1" and call["message_id"] == "message-1" for call in charges)
     assert manifest["billing_settled_characters"] == 1_000
     assert manifest["billing_settled_segment_ids"] == ["segment-0", "segment-1", "segment-2"]
-    assert segments[1]["billing_usage_id"] == "settled-no-credit"
+    assert segments[1]["billing_usage_id"] == ("usage-2" if legacy_v3 else "settled-no-credit")
     assert task.run({"manifest_id": "manifest-1"}) == {"status": "pending", "segments": 0, "credits": 0}
-    assert len(charges) == 2
+    assert len(charges) == (3 if legacy_v3 else 2)
     assert cleanup_calls == [True, True]
 
 
@@ -355,7 +358,8 @@ async def test_provider_failure_records_no_billable_characters() -> None:
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once,assistant-speech.access.first-party-owner-scoped,assistant-speech.privacy.transient-plaintext-encrypted-audio
 @pytest.mark.asyncio
-async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptable_asset(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("provider_name", ["mistral", "elevenlabs"])
+async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptable_asset(monkeypatch: pytest.MonkeyPatch, provider_name: str) -> None:
     pytest.importorskip("celery", reason="real Celery task wiring requires the worker dependency")
     from backend.apps.audio.assistant_speech import segment_task
 
@@ -423,8 +427,11 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v4_turbo"
-        provider = "provider"
+        model = ASSISTANT_RESPONSE_SPEECH_MODEL if provider_name == "mistral" else "eleven_v4_turbo"
+        provider = provider_name
+
+        def mistral_request(self):
+            return {"voice_id": "voice_3150", "model": self.model}
 
         def elevenlabs_request(self):
             return {"voice_id": "voice-id", "model": self.model, "output_format": "mp3_44100_128", "voice_settings": {"speed": 1.0}}
@@ -433,6 +440,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     monkeypatch.setattr(segment_task, "require_storage_available", lambda _storage: __import__("asyncio").sleep(0))
     monkeypatch.setattr(segment_task, "store_generated_audio_asset", fake_store)
     monkeypatch.setattr(segment_task, "ElevenLabsClient", Provider)
+    monkeypatch.setattr(segment_task, "MistralSpeechClient", Provider)
     monkeypatch.setattr(segment_task, "resolve_assistant_voice_profile", lambda *_args, **_kwargs: Profile())
     monkeypatch.setattr("backend.apps.audio.skills.speak_skill.classify_audio_speech_safety", fake_safety)
 
@@ -442,6 +450,8 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
 
     assert first["status"] == second["status"] == "ready"
     assert len(calls) == 1
+    assert first["generated_asset_id"] == second["generated_asset_id"] == calls[0]["embed_id"]
+    assert calls[0]["embed_id"] != arguments["segment_id"]
     assert calls[0]["chat_id"] == "chat-1"
     assert calls[0]["message_id"] == "message-1"
     assert calls[0]["external_request"] is False
@@ -456,12 +466,14 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
                 "payload": {
                     "segment_id": "segment-3",
                     "status": "ready",
-                    "generated_asset_id": "segment-3",
+                    "generated_asset_id": calls[0]["embed_id"],
                     "duration_seconds": 1.0,
                     "kind": "prose_paragraph",
                     "sequence": 0,
                     "chat_id": "chat-1",
                     "message_id": "message-1",
+                    "source_version": 1,
+                    "execution_version": 1,
                 },
             },
         ),
@@ -585,7 +597,7 @@ async def test_delete_tombstones_records_before_asset_cleanup() -> None:
     events: list[str] = []
 
     class Directus:
-        async def get_items(self, collection: str, *, params: dict[str, object], no_cache: bool):
+        async def get_items(self, collection: str, *, params: dict[str, object], no_cache: bool, raise_on_error: bool = False):
             if collection == "assistant_speech_segments":
                 return records
             return []
@@ -593,6 +605,7 @@ async def test_delete_tombstones_records_before_asset_cleanup() -> None:
         async def update_item(self, _collection: str, _row_id: str, data: dict[str, object]):
             events.append(str(data["status"]))
             records[0].update(data)
+            return {"success": True}
 
         async def delete_item(self, _collection: str, _row_id: str):
             events.append("delete")
@@ -649,7 +662,6 @@ def test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_wit
     assert "aes_key" not in schema
     assert "aes_nonce" not in schema
     assert "vault_wrapped_aes_key" not in schema
-    assert "embed_id=segment_id" in segment_task
     assert '"assistant_speech_segment"' in segment_task
     assert "cleanup_generated_speech_asset" in delete_task
 
@@ -706,7 +718,7 @@ async def test_cancellation_storage_compensation_deletes_upload_before_tombstone
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, _collection, *, params, no_cache):
+        async def get_items(self, _collection, *, params, no_cache, raise_on_error=False):
             assert params["filter[embed_id][_eq]"] == "segment-1"
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
 
@@ -812,13 +824,21 @@ async def test_cancellation_after_storage_deletes_the_new_upload_before_worker_e
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache):
+        async def get_items(self, collection, *, params, no_cache, raise_on_error=False):
             if collection == "assistant_speech_segments":
                 return [record]
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
 
+        async def update_item_if_version(self, _collection, _row_id, patch, expected_version, **kwargs):
+            assert expected_version == int(record.get("execution_version") or 0)
+            if any(record.get(key) != value for key, value in kwargs.get("extra_filters", {}).items()):
+                return None
+            record.update(patch)
+            return dict(record)
+
         async def update_item(self, _collection, _row_id, patch):
             record.update(patch)
+            return {"success": True}
 
         async def delete_item(self, collection, row_id):
             deleted.append(f"{collection}:{row_id}")
@@ -853,7 +873,7 @@ async def test_cancellation_after_storage_deletes_the_new_upload_before_worker_e
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3"
+        model = "eleven_v4_turbo"
         provider = "provider"
 
         def elevenlabs_request(self):
@@ -872,7 +892,8 @@ async def test_cancellation_after_storage_deletes_the_new_upload_before_worker_e
     )
 
     assert result == {"segment_id": "segment-1", "status": "cancelled"}
-    assert deleted == ["chatfiles:private/audio", "upload_files:upload-1"]
+    assert deleted[0].startswith("chatfiles:owner-1/assistant_speech/") and deleted[0].endswith("/original.mp3")
+    assert deleted[1:] == ["chatfiles:private/audio", "upload_files:upload-1"]
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate
@@ -914,7 +935,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache):
+        async def get_items(self, collection, *, params, no_cache, raise_on_error=False):
             if collection == "assistant_speech_segments":
                 return [record]
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
@@ -924,7 +945,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
                 assert kwargs["extra_filters"] == {"status": "generating", "lease_id": record["lease_id"]}
                 record["status"] = "cancelled"
                 return None
-            assert expected_version == 0
+            assert expected_version == int(record.get("execution_version") or 0)
             record.update(patch)
             return record
 
@@ -933,6 +954,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
 
         async def update_item(self, _collection, _row_id, patch):
             record.update(patch)
+            return {"success": True}
 
     class Storage:
         async def delete_file(self, *, bucket_key, file_key):
@@ -982,7 +1004,8 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     )
 
     assert result == {"segment_id": "segment-1", "status": "cancelled"}
-    assert deleted == ["chatfiles:private/audio", "upload_files:upload-1"]
+    assert deleted[0].startswith("chatfiles:owner-1/assistant_speech/") and deleted[0].endswith("/original.mp3")
+    assert deleted[1:] == ["chatfiles:private/audio", "upload_files:upload-1"]
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate,assistant-speech.billing.segment-success-once

@@ -7,6 +7,8 @@ import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleCh
 import type { ExampleChat, ExampleChatEmbed } from '../../../packages/ui/src/demo_chats/types';
 import englishMessages from '../../../packages/ui/src/i18n/locales/en.json';
 import { getModelDisplayName } from '../../../packages/ui/src/utils/modelDisplayName';
+import { parseMarkdownTable } from '../../../packages/ui/src/components/embeds/sheets/sheetEmbedContent';
+import { waitForComponentMotion } from './helpers/component-preview';
 import { dismissComposerFocus } from './helpers/composer-focus';
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -105,6 +107,13 @@ function embedField(embed: ExampleChatEmbed, field: string): string | undefined 
   return value?.replace(/^"|"$/g, '');
 }
 
+/** Current persisted TOON flattens primitive galleries to a pipe-separated scalar. */
+function savedHomeGallery(embed: ExampleChatEmbed): string[] {
+  const gallery = embedField(embed, 'image_urls')?.split('|').map(url => url.trim()).filter(Boolean) ?? [];
+  const primary = embedField(embed, 'image_url');
+  return [...new Set([...(primary ? [primary] : []), ...gallery])];
+}
+
 export type FixtureImageProxyObservation = {
   url: string;
   resourceType: string;
@@ -123,6 +132,9 @@ export async function configureFixtureImageProxy(
       'cover_url', 'cover_image_url', 'thumbnail', 'channel_thumbnail', 'avatar_url']) {
       const url = embedField(embed, field);
       if (url?.startsWith('https://')) imageUrls.add(url);
+    }
+    if (embed.type === 'listing' && embedField(embed, 'app_id') === 'home') {
+      for (const url of savedHomeGallery(embed)) if (url.startsWith('https://')) imageUrls.add(url);
     }
     const videoId = embedField(embed, 'video_id');
     if (videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId)) {
@@ -342,44 +354,176 @@ async function inspectReportedHeaderRegressions(page: Page, history: Locator, ch
       'pcbdesign', `${chat.slug}: component result preview`);
   } else {
     const appointment = chat.embeds.find(embed => embed.type === 'appointment'
-      && embedField(embed, 'insurance') === 'unknown' && embedField(embed, 'provider_platform') === 'Doctolib')!;
-    expect(appointment, `${chat.slug}: source unknown-insurance Doctolib appointment`).toBeDefined();
+      && embedField(embed, 'insurance') === 'unknown' && embedField(embed, 'provider_platform') === 'ExampleClinicA')!;
+    expect(appointment, `${chat.slug}: source unknown-insurance ExampleClinicA appointment`).toBeDefined();
     const card = fullscreen.locator(`[data-testid="embed-preview"][data-embed-id="${appointment.embed_id}"]`);
-    const verifiedLabel = sourceMessage('embeds.health.insurance_verify_on_provider').replace('{provider}', 'Doctolib');
+    const verifiedLabel = sourceMessage('embeds.health.insurance_verify_on_provider').replace('{provider}', 'ExampleClinicA');
     await expect(card.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
-    await expect(card).not.toContainText(/verify on Jameda/i);
+    await expect(card).not.toContainText(/verify on ExampleClinicB/i);
     await card.click();
     const child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
     await expect(child).toBeVisible();
     await expect(child.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
-    await expect(child).not.toContainText(/verify on Jameda/i);
+    await expect(child).not.toContainText(/verify on ExampleClinicB/i);
     await closeFullscreen(page, child);
   }
   await closeFullscreen(page, fullscreen);
 }
 
 async function inspectSavedResultGraph(page: Page, history: Locator, chat: ExampleChat, appId: string): Promise<void> {
-  if (appId === 'shopping' && chat.slug === 'air-fryers-amazon-germany') {
+  if (appId === 'home' && chat.slug === 'furnished-apartments-berlin') {
+    const parents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
+      && embedField(embed, 'app_id') === 'home' && embedField(embed, 'skill_id') === 'search'
+      && embedField(embed, 'status') === 'finished');
+    expect(parents.length, `${chat.slug}: genuine finished home search output`).toBeGreaterThan(0);
+    const parent = parents.find(candidate => chat.embeds.some(embed => embed.type === 'listing'
+      && embed.parent_embed_id === candidate.embed_id && savedHomeGallery(embed).length > 1));
+    expect(parent, `${chat.slug}: real search must include a multi-photo apartment`).toBeDefined();
+    const listings = chat.embeds.filter(embed => embed.type === 'listing' && embed.parent_embed_id === parent!.embed_id);
+    expect(parent!.embed_ids, `${chat.slug}: saved parent retains listing references`).toEqual(expect.arrayContaining(listings.map(listing => listing.embed_id)));
+    const hasCoordinates = (listing: ExampleChatEmbed): boolean => {
+      const lat = embedField(listing, 'latitude'); const lon = embedField(listing, 'longitude');
+      return lat !== undefined && lon !== undefined && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180;
+    };
+    const located = listings.filter(hasCoordinates);
+    expect(located.length, `${chat.slug}: actual listings supply overview map pins`).toBeGreaterThan(0);
+    await expandCompletedActivity(history, `${chat.slug}: home results`);
+    const searchPreview = await selectInlineEmbedPreview(history, parent!, `${chat.slug}: activate home search result slide`);
+    await expect(searchPreview.getByTestId('search-no-results-message')).toHaveCount(0);
+    await expect(searchPreview.getByTestId('home-search-result-count')).toHaveAttribute('data-count', String(listings.length));
+    await expect(searchPreview.locator('img.listing-thumbnail')).toHaveCount(Math.min(3, listings.filter(listing => embedField(listing, 'image_url')).length));
+    const search = await openFullscreen(page, searchPreview);
+    await waitForComponentMotion(search);
+    const cards = search.getByTestId('search-template-grid').getByTestId('embed-preview');
+    const markers = search.locator('.leaflet-marker-icon[data-marker-ref]');
+    await expect(cards).toHaveCount(listings.length);
+    await expect(markers).toHaveCount(located.length);
+    for (const listing of located) await expect(search.locator(`.leaflet-marker-icon[data-marker-ref="${listing.embed_id}"]`)).toHaveCount(1);
+    const launcher = search.getByTestId('search-template-filter-button');
+    const panel = search.getByTestId('search-template-filter-menu');
+    await expect(launcher).toHaveAttribute('aria-expanded', 'false');
+    await expect(search.getByTestId('home-filter-max-price')).toHaveCount(0);
+    await launcher.click();
+    await expect(panel).toBeVisible();
+    await expect(launcher).toHaveAttribute('data-icon', 'close');
+    // Compute the advertised-price boundary from source data, never from DOM or mocked output.
+    const priced = listings.filter(listing => embedField(listing, 'price') !== undefined && Number.isFinite(Number(embedField(listing, 'price'))));
+    expect(priced.length, `${chat.slug}: actual advertised numeric prices`).toBeGreaterThan(0);
+    const minimum = Math.min(...priced.map(listing => Number(embedField(listing, 'price'))));
+    const affordable = priced.filter(listing => Number(embedField(listing, 'price')) <= minimum);
+    await search.getByTestId('home-filter-max-price').fill(String(minimum));
+    await expect(cards).toHaveCount(affordable.length);
+    await expect(markers).toHaveCount(affordable.filter(hasCoordinates).length);
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(search).toBeVisible();
+    await expect(launcher).toHaveAttribute('aria-expanded', 'false');
+    await launcher.click();
+    await search.getByTestId('search-template-clear-filters').click();
+    await launcher.click();
+    await expect(cards).toHaveCount(listings.length);
+    await expect(markers).toHaveCount(located.length);
+    // City fallbacks may share coordinates; the topmost rendered pin remains selectable.
+    const selectedMarker = markers.last();
+    const markerRef = await selectedMarker.getAttribute('data-marker-ref');
+    const markerListing = located.find(listing => listing.embed_id === markerRef)!;
+    expect(markerListing, `${chat.slug}: clicked pin references a saved apartment`).toBeDefined();
+    await selectedMarker.click();
+    let child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
+    await expect(child.getByTestId('home-location-evidence')).toBeVisible();
+    await expect(child).toContainText(embedField(markerListing, 'title')!);
+    await closeFullscreen(page, child);
+    const listing = listings.find(item => savedHomeGallery(item).length > 1)!;
+    const photos = savedHomeGallery(listing);
+    const title = embedField(listing, 'title')!;
+    await search.getByTestId('search-template-filter').fill(title);
+    const titleMatches = listings.filter(item => embedField(item, 'title')?.includes(title));
+    await expect(cards).toHaveCount(titleMatches.length);
+    await expect(markers).toHaveCount(titleMatches.filter(hasCoordinates).length);
+    await search.locator(`[data-testid="embed-preview"][data-embed-id="${listing.embed_id}"]`).click();
+    child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
+    const gallery = child.getByTestId('home-gallery');
+    const counter = child.getByTestId('home-gallery-counter');
+    const image = child.getByTestId('home-gallery-image');
+    await expect(counter).toHaveText(`1 / ${photos.length}`);
+    await expect(gallery.getByRole('group').getByRole('button')).toHaveCount(photos.length);
+    const thumbnailSources = await gallery.getByRole('group').locator('img').evaluateAll((images: HTMLImageElement[]) => images.map(image => new URL(image.src).searchParams.get('url')));
+    expect(thumbnailSources, `${chat.slug}: every supplied gallery URL remains in source order`).toEqual(photos);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    await gallery.getByRole('button', {name: 'Next photo', exact: true}).click();
+    await expect(counter).toHaveText(`2 / ${photos.length}`);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    expect(new URL((await image.getAttribute('src'))!, page.url()).searchParams.get('url')).toBe(photos[1]);
+    await gallery.getByRole('button', {name: 'Previous photo', exact: true}).click();
+    await expect(counter).toHaveText(`1 / ${photos.length}`);
+    await gallery.getByRole('group').getByRole('button').last().click();
+    await expect(counter).toHaveText(`${photos.length} / ${photos.length}`);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    const description = embedField(listing, 'description');
+    expect(description?.trim().length, `${chat.slug}: source apartment description`).toBeGreaterThan(0);
+    await expect(child.locator('.description')).toHaveText(description!);
+    for (const id of ['home-listing-facts', 'home-amenities', 'home-match-evidence', 'home-visual-evidence', 'home-location-evidence', 'home-neighborhood-evidence']) {
+      await child.getByTestId(id).scrollIntoViewIfNeeded();
+      await expect(child.getByTestId(id), `${chat.slug}: rich listing section ${id}`).not.toBeEmpty();
+    }
+    expect(embedField(listing, 'match_evidence_status'), `${chat.slug}: persisted match evidence`).toBeDefined();
+    expect(embedField(listing, 'visual_assessment_status'), `${chat.slug}: persisted visual assessment`).toBeDefined();
+    expect(embedField(listing, 'neighborhood_source'), `${chat.slug}: sourced neighborhood evidence`).toBeDefined();
+    await expect(child.getByTestId('home-match-evidence')).toContainText(sourceMessage(`home_listing.status_${embedField(listing, 'match_evidence_status')}`));
+    await expect(child.getByTestId('home-visual-evidence')).toContainText(`${embedField(listing, 'visual_assessment_photo_count') ?? 0} / ${embedField(listing, 'visual_assessment_total_photo_count') ?? photos.length}`);
+    await expect(child.getByTestId('home-neighborhood-evidence')).toContainText(embedField(listing, 'neighborhood_source')!);
+    await closeFullscreen(page, child);
+    await search.getByTestId('search-template-filter').fill('');
+    await closeFullscreen(page, search);
+    // Compare bounded real summary Sheets as well as the housing result graph.
+    for (const sheet of chat.embeds.filter(embed => embed.type === 'sheet').slice(0, 2)) {
+      const markdown = embedField(sheet, 'table') ?? embedField(sheet, 'code');
+      expect(markdown?.trim().length, `${chat.slug}: saved Sheet contains its actual table`).toBeGreaterThan(0);
+      const expectedTable = parseMarkdownTable(markdown!);
+      expect(expectedTable.rowCount, `${chat.slug}: saved Sheet data rows`).toBeGreaterThan(0);
+      expect(expectedTable.colCount, `${chat.slug}: saved Sheet columns`).toBeGreaterThan(0);
+      const sheetPreview = await selectInlineEmbedPreview(history, sheet, `${chat.slug}: activate apartment summary Sheet`);
+      const sheetFullscreen = await openFullscreen(page, sheetPreview);
+      await waitForComponentMotion(sheetFullscreen);
+      const table = sheetFullscreen.locator('table.spreadsheet');
+      await expect(table).toBeVisible();
+      const visibleLabel = (content: string): string => content.replace(/\[([^\]]*)\]\((?:embed|wiki):[^)]+\)/g, '$1');
+      await expect(table.locator('thead .col-header-text')).toHaveText(expectedTable.headers.map(header => visibleLabel(header.content)));
+      const rows = table.locator('tbody tr');
+      await expect(rows).toHaveCount(expectedTable.rowCount);
+      await expect(rows.first().locator('td:not(.row-num)')).toHaveCount(expectedTable.colCount);
+      // Up to 48 real source cells per Sheet; counts above still cover the full table.
+      for (let row = 0; row < Math.min(expectedTable.rowCount, 6); row++) {
+        const cells = rows.nth(row).locator('td:not(.row-num)');
+        for (let column = 0; column < Math.min(expectedTable.colCount, 8); column++) {
+          await expect(cells.nth(column), `${chat.slug}: saved Sheet row ${row + 1}, column ${column + 1}`)
+            .toHaveText(visibleLabel(expectedTable.rows[row][column].content));
+        }
+      }
+      await closeFullscreen(page, sheetFullscreen);
+    }
+  }
+  if (appId === 'shopping' && chat.slug === 'air-fryers-retail-germany') {
     const parents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
       && embedField(embed, 'app_id') === 'shopping'
       && embedField(embed, 'skill_id') === 'search_products'
       && embedField(embed, 'status') === 'finished');
-    expect(parents, `${chat.slug}: finished Amazon product search`).toHaveLength(1);
+    expect(parents, `${chat.slug}: finished ExampleRetail product search`).toHaveLength(1);
     const parent = parents[0];
-    expect(embedField(parent, 'provider'), `${chat.slug}: Amazon search provider`).toMatch(/^Amazon$/i);
+    expect(embedField(parent, 'provider'), `${chat.slug}: ExampleRetail search provider`).toMatch(/^ExampleRetail$/i);
     expect(embedField(parent, 'country'), `${chat.slug}: German search market`).toBe('de');
     const products = chat.embeds.filter(embed => embed.type === 'product' && embed.parent_embed_id === parent.embed_id);
-    expect(products.length, `${chat.slug}: saved Amazon product results`).toBeGreaterThanOrEqual(3);
+    expect(products.length, `${chat.slug}: saved ExampleRetail product results`).toBeGreaterThanOrEqual(3);
     expect(parent.embed_ids, `${chat.slug}: search parent lists every product`).toEqual(
       expect.arrayContaining(products.map(product => product.embed_id))
     );
     for (const product of products) {
-      expect(embedField(product, 'provider'), `${chat.slug}: ${product.embed_id} provider`).toMatch(/^Amazon$/i);
+      expect(embedField(product, 'provider'), `${chat.slug}: ${product.embed_id} provider`).toMatch(/^ExampleRetail$/i);
       expect(embedField(product, 'country'), `${chat.slug}: ${product.embed_id} market`).toBe('de');
       expect(embedField(product, 'purchase_url'), `${chat.slug}: ${product.embed_id} purchase destination`)
-        .toMatch(/^https:\/\/www\.amazon\.de\//);
+        .toMatch(/^https:\/\/www\.ExampleRetail\.de\//);
       expect(embedField(product, 'image_url'), `${chat.slug}: ${product.embed_id} source image`)
-        .toMatch(/^https:\/\/m\.media-amazon\.com\//);
+        .toMatch(/^https:\/\/m\.media-ExampleRetail\.com\//);
     }
 
     const selectedRefs = ['philips-airfryer-2000-fay', 'cosori-airfryer-turboblaze-3zH', 'philips-airfryer-dual-pjD'];
@@ -622,6 +766,9 @@ type SavedWebChat = Pick<ExampleChat, 'chat_id' | 'messages' | 'embeds'>;
 
 async function expectWebActivityCollapsed(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
   for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+    const content = sourceMessage(message.content);
+    const webCalls = chat.embeds.filter(embed => embedField(embed, 'app_id') === 'web' && embed.type === 'app_skill_use');
+    if (!webCalls.some(embed => content.includes(embed.embed_id))) continue;
     const rendered = history.locator(`[data-message-id="${message.id}"]`);
     const groups = rendered.getByTestId('assistant-activity-group');
     await expect(groups, `${context}: ${message.id} saved activity groups`).not.toHaveCount(0);
@@ -644,7 +791,7 @@ async function expectWebActivityCollapsed(history: Locator, chat: SavedWebChat, 
 async function inspectSavedWebThinking(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
   const normalize = (text: string): string => text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
-  for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+  for (const message of chat.messages.filter(message => message.role === 'assistant' && message.has_thinking)) {
     expect(message.has_thinking, `${context}: ${message.id} actual saved thinking`).toBe(true);
     expect(message.thinking_content?.trim(), `${context}: ${message.id} saved thinking key`).toBeTruthy();
     const saved = sourceMessage(message.thinking_content!);
@@ -753,47 +900,6 @@ async function inspectSavedWebSkills(page: Page, history: Locator, chat: SavedWe
   }
 }
 
-async function inspectWebSubChats(page: Page, chat: ExampleChat, checkpoint: string): Promise<void> {
-  const children = chat.sub_chats ?? [];
-  expect(children.length, `${chat.slug}: three saved research sub-chats`).toBe(3);
-  const savedTools = [chat, ...children].flatMap(item => item.embeds).filter(embed => embed.type === 'app_skill_use'
-    && embedField(embed, 'app_id') === 'web' && ['search', 'read'].includes(embedField(embed, 'skill_id') ?? ''));
-  expect(savedTools, `${chat.slug}: all17 actual tool parents preserved`).toHaveLength(17);
-  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'search')).toHaveLength(12);
-  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'read')).toHaveLength(5);
-  const carousel = page.getByTestId('sub-chats-carousel');
-  await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
-  for (let index = 0; index < children.length; index++) {
-    const child = children[index];
-    await carousel.getByTestId('sub-chat-card').nth(index).click();
-    await expect(page).toHaveURL(new RegExp(`chat-id=${encodeURIComponent(child.chat_id)}(?:&|$)`));
-    await expect(page.getByTestId('return-to-parent-button'),
-      `${child.chat_id}: child header has no duplicate parent-return control`).toHaveCount(0);
-    const childHistory = page.getByTestId('chat-history-content');
-    await expect(childHistory).toHaveAttribute('data-source-message-count', String(child.messages.length));
-    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: initial`);
-    await expandCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
-    await inspectSavedWebThinking(childHistory, child, `${checkpoint}: ${child.chat_id}`);
-    expect(child.messages.some(message => message.role === 'assistant' && message.content.trim()),
-      `${child.chat_id}: saved research answer`).toBe(true);
-    await inspectSavedWebSkills(page, childHistory, child, true, checkpoint === 'direct');
-    await collapseCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
-    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: closed`);
-    await page.getByTestId('chat-close-button').click();
-    await expect(page).toHaveURL(new RegExp(`chat-id=${encodeURIComponent(chat.chat_id)}(?:&|$)`));
-    const parentHistory = page.getByTestId('chat-history-content');
-    await expect(parentHistory).toHaveAttribute('data-source-message-count', String(chat.messages.length));
-    const parentAnswer = chat.messages.find(message => message.role === 'assistant');
-    expect(parentAnswer, `${chat.chat_id}: saved parent answer identity`).toBeDefined();
-    const parentMessage = parentHistory.locator(`[data-message-id="${parentAnswer!.id}"]`);
-    await expect(parentMessage, `${chat.chat_id}: parent history replaces the child`).toBeVisible();
-    await expect(parentMessage.getByTestId('assistant-activity-group')).not.toHaveCount(0);
-    // Parent remounts in its completed/collapsed state after every child Close.
-    await expandCompletedActivity(parentHistory, `${checkpoint}: ${chat.slug}: returned from ${child.chat_id}`);
-    await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
-  }
-}
-
 async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpoint: string, exerciseFollowUps = false): Promise<{ messages: number; embeds: number; suggestions: number }> {
   await closeSidebar(page);
   const history = page.getByTestId('chat-history-content');
@@ -804,7 +910,10 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
     const rendered = history.locator(`[data-message-id="${message.id}"]`);
     await expect(rendered, `${checkpoint}: ${chat.slug} message ${message.id}`).toHaveCount(1);
     await expect(rendered).not.toHaveAttribute('data-status', /^(streaming|processing|sending)$/);
-    await expect(rendered.getByTestId('message-content').first()).not.toBeEmpty();
+    // ReadOnlyMessage initializes its editor when this message enters the viewport.
+    await rendered.scrollIntoViewIfNeeded();
+    await expect(rendered.getByTestId('message-content').first(),
+      `${checkpoint}: ${chat.slug} message ${message.id} renders after scrolling into view`).not.toBeEmpty();
     if (message.role === 'assistant') {
       await expect(rendered.getByTestId('chat-mate-name')).not.toHaveText('Assistant');
       const category = message.category || chat.category;
@@ -829,9 +938,8 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
   await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}`);
   if (appId === 'web') {
     await inspectSavedWebThinking(history, chat, `${checkpoint}: ${chat.slug}`);
-    await inspectSavedWebSkills(page, history, chat, false, checkpoint === 'direct');
-    await inspectWebSubChats(page, chat, checkpoint);
-    await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}: returned from children`);
+    await inspectSavedWebSkills(page, history, chat, true, checkpoint === 'direct');
+    await test.info().attach(`web-search-results-${checkpoint}.png`, { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' });
   }
   const text = await history.innerText();
   for (const marker of forbidden) expect(text, `${checkpoint}: ${chat.slug}: ${marker}`).not.toContain(marker);
@@ -1064,8 +1172,13 @@ export async function admitLandingExample(
         await rail.press('ArrowRight');
       }
       await expect(prompt).toHaveAttribute('data-active-app', appId);
+      if (appId === 'web') await expect(prompt).toHaveText('Search the web');
       if (appId === 'models3d') await expect(prompt).toHaveText('Find 3D models');
-      await expect(prompt).toHaveAttribute('href', `${new URL(page.url()).origin}/#chat-id=${encodeURIComponent(chat.chat_id)}`);
+      const expectedExampleUrl = new URL(`/#chat-id=${encodeURIComponent(chat.chat_id)}`, page.url());
+      const displayedLanguage = await page.getByTestId('landing-page').getAttribute('lang');
+      expect(displayedLanguage).toMatch(/^(en|de)$/);
+      expectedExampleUrl.searchParams.set('lang', displayedLanguage!);
+      await expect(prompt).toHaveAttribute('href', expectedExampleUrl.href);
       await expect(prompt).toHaveAttribute('target', '_blank');
       await expect(prompt).toHaveCSS('opacity', '1');
       const popupPromise = page.waitForEvent('popup');

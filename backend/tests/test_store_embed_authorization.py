@@ -631,4 +631,123 @@ async def test_metadata_enrichment_transaction_conflict_has_no_confirmation_or_b
     assert manager.broadcasts == []
     assert directus.embed.updated == []
     assert manager.personal_messages[0][0]["payload"]["request_id"] == "conflict-1"
-    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_revision_conflict"
+    assert manager.personal_messages[0][0]["payload"]["reason"] == "canonical_metadata_version_conflict"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_recovery_initial_root_routes_head_and_wrappers_to_one_transaction():
+    manager, directus = FakeConnectionManager(), FakeDirectusService()
+    message_id = "recovery-message"
+    wrappers = [{"key_type": kind, "encrypted_embed_key": "sealed-wrapper"}
+                for kind in ("master", "chat")]
+    payload = store_payload(request_id="recovery-request", recovery_record_id="output-record",
+        recovery_message_id=message_id, recovery_key_wrappers=wrappers,
+        hashed_message_id=hashlib.sha256(message_id.encode()).hexdigest(), version_number=1)
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    call = directus.write_calls[0]
+    assert call["bundle_context"] == {
+        "chat_id": "legacy-chat", "message_id": message_id, "hashed_team_id": None,
+        "allow_new_personal_chat": False, "key_wrappers": wrappers,
+        "recovery_record_id": "output-record",
+    }
+    assert not any(field.startswith("recovery_") for field in call["payload"])
+    assert manager.personal_messages[0][0]["type"] == "store_embed_confirmed"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mutation", ["record", "message", "parent", "version", "wrappers"])
+async def test_recovery_bundle_rejects_uncorrelated_or_noninitial_payload_before_writing(mutation):
+    manager, directus = FakeConnectionManager(), FakeDirectusService()
+    payload = store_payload(recovery_record_id="output-record", recovery_message_id="message",
+        recovery_key_wrappers=[{}, {}], hashed_message_id=hashlib.sha256(b"message").hexdigest(),
+        version_number=1)
+    if mutation == "record":
+        payload.pop("recovery_record_id")
+    if mutation == "message":
+        payload["recovery_message_id"] = "different-message"
+    if mutation == "parent":
+        payload["parent_embed_id"] = "parent"
+    if mutation == "version":
+        payload["version_number"] = 2
+    if mutation == "wrappers":
+        payload["recovery_key_wrappers"] = [{}]
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("condition", [
+    {"version": None, "ciphertext_sha256": None},
+    {"version": 1, "ciphertext_sha256": "a" * 64},
+])
+async def test_store_embed_forwards_typed_precondition_without_persisting_protocol_field(condition):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(canonical_precondition=condition))
+    assert directus.write_calls[0]["canonical_precondition"] == condition
+    assert "canonical_precondition" not in directus.write_calls[0]["payload"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("condition", [None, {}, {"version": True, "ciphertext_sha256": "a" * 64},
+    {"version": 0, "ciphertext_sha256": "a" * 64}, {"version": "1", "ciphertext_sha256": "a" * 64},
+    {"version": None, "ciphertext_sha256": "a" * 64}, {"version": 1, "ciphertext_sha256": None}])
+async def test_store_embed_rejects_malformed_precondition_before_transaction(condition):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(canonical_precondition=condition))
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_store_embed_operation_identity_is_protocol_correlation_not_a_head_column():
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(request_id="attempt-1", operation_id="stable-offline-operation-1"))
+    assert "operation_id" not in directus.write_calls[0]["payload"]
+    assert "operation_id" not in directus.embed.existing_embed
+    assert manager.personal_messages[0][0]["payload"]["operation_id"] == "stable-offline-operation-1"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation_id", [None, "", "x" * 129, "not an opaque id", 42])
+async def test_store_embed_rejects_invalid_operation_identity_before_writes(operation_id):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(operation_id=operation_id))
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
+    """Existing fixtures model a successful separate cleanup exclusion RPC.
+
+    Atomic eligibility/failure behavior is exercised by cleanup admission and
+    Directus transaction tests; these cases retain their original boundaries.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] in {"disqualify", "start", "finish"}
+            return {"eligible": False, "disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)

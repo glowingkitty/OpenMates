@@ -98,6 +98,8 @@ function summarizeIncomingMessageForLogging(rawMessage: unknown): WebSocketLogSu
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
   // === Client to Server ===
+  | "voice_metadata_request" | "voice_metadata_pending" | "voice_metadata_commit"
+  | "voice_metadata_completed" | "voice_metadata_accepted" | "voice_metadata_stored" | "voice_metadata_error"
   | "update_title" // Section 6.2: Client sends new title
   | "update_draft" // Section 7.2: Client sends new draft (Tiptap JSON or null)
   | "delete_chat" // Client requests to delete a chat
@@ -203,6 +205,7 @@ class WebSocketService extends EventTarget {
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private readonly ownedEmbedProtocolRequests = new Map<string, MessageHandler>();
   private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
@@ -499,8 +502,21 @@ class WebSocketService extends EventTarget {
     }
   }
 
+  /** Only an active correlated embed receipt listener may own its protocol errors. */
+  public ownEmbedProtocolRequest(requestId: string, onError: MessageHandler): () => void {
+    this.on("error", onError);
+    this.ownedEmbedProtocolRequests.set(requestId, onError);
+    return () => {
+      this.off("error", onError);
+      if (this.ownedEmbedProtocolRequests.get(requestId) === onError) this.ownedEmbedProtocolRequests.delete(requestId);
+    };
+  }
+
   private registerDefaultErrorHandlers(): void {
     this.on("error", (payload: unknown) => {
+      if (isRecord(payload) && typeof payload.request_id === "string"
+        && typeof payload.code === "string" && payload.code.startsWith("embed_")
+        && this.messageHandlers.get("error")?.includes(this.ownedEmbedProtocolRequests.get(payload.request_id)!)) return;
       if (isRetryableRecoveryProtocolError(payload)) {
         console.debug(
           "[WebSocketService] Received retryable recovery protocol error:",
@@ -684,7 +700,11 @@ class WebSocketService extends EventTarget {
       );
     }
 
-    this.url = getWebSocketUrl(sessionId, authToken || undefined);
+    const connectionUrl = new URL(getWebSocketUrl(sessionId, authToken || undefined));
+    // Advertise only with the matching guarded chat_deleted handler. The server
+    // preserves empty-call shells while any connected recipient lacks this guard.
+    connectionUrl.searchParams.set('empty_call_cleanup_guard', '1');
+    this.url = connectionUrl.toString();
     console.info(
       `[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ""}`,
     );
@@ -1462,10 +1482,10 @@ class WebSocketService extends EventTarget {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
-  public requestForegroundRecoveryDiscovery(): void {
+  public requestForegroundRecoveryDiscovery(requestId?: string): void {
     if (typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()) {
       this.sendClientLifecycle(true, "recovery_requires_foreground");
-      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: {} }));
+      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: requestId ? { request_id: requestId } : {} }));
     }
   }
 
@@ -1506,6 +1526,12 @@ class WebSocketService extends EventTarget {
     // Receipt-bound frames never follow auto-connect onto a replacement socket.
     assertExpectedConnection();
     const message: WebSocketMessage = { type, payload };
+    const voiceCallBootstrap = type === "voice_call_chat_prepare" && payload !== null && typeof payload === "object"
+      && (payload as Record<string, unknown>).voice_call_bootstrap === true;
+    // Optional metadata contains the call transcript before client encryption.
+    // Admin/debug console forwarding must never retain that payload.
+    const logMessage = voiceCallBootstrap ? { type } : type.startsWith("voice_metadata_")
+      ? summarizeIncomingMessageForLogging(message) : message;
     if (!this.isConnected()) {
       if (type !== "ping") {
         console.warn(
@@ -1526,7 +1552,7 @@ class WebSocketService extends EventTarget {
           const logFn = isAuthExpected ? console.warn : console.error;
           logFn(
             "[WebSocketService] Connection failed, cannot send message:",
-            message,
+            logMessage,
           );
         }
         throw new Error("WebSocket not connected");
@@ -1537,7 +1563,7 @@ class WebSocketService extends EventTarget {
     if (this.isConnected()) {
       try {
         if (type !== "ping") {
-          console.debug("[WebSocketService] Sending message:", message);
+          console.debug("[WebSocketService] Sending message:", logMessage);
         }
         // Inject W3C traceparent into the message payload for distributed tracing.
         // The backend's ws_trace_context.py extracts it to create correlated spans.
@@ -1545,11 +1571,12 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              // These sealed turn frames and personal snapshot requests have a
+              // These sealed turn, voice metadata and personal snapshot requests have a
               // strict payload schema. Keep the local span without decorating
               // their data with an unbound _traceparent field.
-              if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
-                "chat_turn_context_failed", "personal_send_context_snapshot"].includes(type)) {
+              if (!voiceCallBootstrap && !["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
+                "chat_turn_context_failed", "personal_send_context_snapshot",
+                "voice_metadata_request", "voice_metadata_commit", "delete_empty_call_chat"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -1577,7 +1604,7 @@ class WebSocketService extends EventTarget {
       if (type !== "ping") {
         console.error(
           "[WebSocketService] Still not connected after attempt, cannot send message:",
-          message,
+          logMessage,
         );
       }
       throw new Error("WebSocket not connected after reconnect attempt");

@@ -5,7 +5,7 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { requireSignedRecoveryProfile, observeRecoveryFrames, availableOutputs, requireActiveRecoveryDiscovery, focusRecoveryPage, requireForegroundRecoveryLifecycle, disconnectCanonicalWrites, installLegacyRecoverySocket } = require('./storage-recovery-fixtures');
 import type { RecoveryFrame } from './storage-recovery-fixtures';
 const { createHash } = require('node:crypto');
@@ -13,7 +13,7 @@ const { randomUUID } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair, runWorkflowCli, runWorkflowCliJson, parseCliJson, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
+const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair, runWorkflowCli, runWorkflowCliJson, parseCliJson, workflowApiUrl, workflowCliEnv } = require('./helpers/workflow-cli-e2e-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 
 async function recordedContext(browser: any, baseURL: string | undefined, label: string): Promise<any> {
@@ -255,6 +255,11 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 			return { encryptedContent: body.embed.encrypted_content, version: body.embed.version_number };
 		}, { apiOrigin, chatId, embedId: recoveredEmbedId });
 		const beforeReplay = await readCanonicalHead();
+		const deniedWrites = () => capableFrames.filter((frame) => frame.type === 'error'
+			&& frame.payload.code === 'embed_write_denied').length;
+		const storeWrites = () => capableFrames.filter((frame) => frame.direction === 'sent' && frame.type === 'store_embed').length;
+		const deniedBeforeReplay = deniedWrites();
+		const storesBeforeReplay = storeWrites();
 		const replay = (changeContent: boolean) => capable.evaluate(async ({ chatId, embedId, changeContent }) => {
 			const hook = (window as any).__openmatesE2EReplayCanonicalEmbedWrite;
 			if (typeof hook !== 'function') throw new Error('Canonical embed sender E2E hook is unavailable');
@@ -264,8 +269,8 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		expect(await readCanonicalHead()).toEqual(beforeReplay);
 		expect(await replay(true)).toEqual({ pending: true, connected: true });
 		expect(await readCanonicalHead()).toEqual(beforeReplay);
-		expect(capableFrames.filter((frame) => frame.type === 'error'
-			&& frame.payload.code === 'embed_write_denied').length).toBeGreaterThanOrEqual(2);
+		expect(deniedWrites()).toBe(deniedBeforeReplay);
+		expect(storeWrites()).toBe(storesBeforeReplay);
 	} finally {
 		await producerContext.close().catch(() => undefined);
 		await legacyContext.close().catch(() => undefined);
@@ -283,10 +288,36 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 	const first = await recordedContext(browser, baseURL, 'origin');
 	const firstPage = await first.newPage();
 	const firstFrames: RecoveryFrame[] = [];
+	const updateFrames: RecoveryFrame[] = [];
 	const restored = await recordedContext(browser, baseURL, 'restored');
 	const restoredPage = await restored.newPage();
 	const frames: Array<{ direction: string; type: string; payload: Record<string, any> }> = [];
 	const recoveryErrors: string[] = [];
+	let duplicateDiscovery: string | null = null;
+	let duplicateInjected = false;
+	let duplicateChatId: string | null = null;
+	const duplicateRecordIds = new Set<string>();
+	await restoredPage.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket: any) => {
+		const server = socket.connectToServer();
+		socket.onMessage((raw: string) => server.send(raw));
+		server.onMessage((raw: string) => {
+			let frame: { type?: string; payload?: Record<string, any> } | null = null;
+			try { frame = JSON.parse(String(raw)); } catch { /* Forward non-JSON frames. */ }
+			if (frame?.type === 'recovery_outputs_available' && duplicateChatId && !duplicateDiscovery) {
+				const records = (frame.payload?.outputs ?? []).filter((row: any) => row.root_chat_id === duplicateChatId);
+				if (records.length) {
+					duplicateDiscovery = String(raw);
+					for (const row of records) duplicateRecordIds.add(String(row.record_id));
+				}
+			}
+			socket.send(raw);
+			if (!duplicateInjected && duplicateDiscovery && frame?.type === 'recovery_output_embed_acknowledged'
+				&& duplicateRecordIds.has(String(frame.payload?.record_id)) && frame.payload?.state === 'ACKNOWLEDGED') {
+				duplicateInjected = true;
+				socket.send(duplicateDiscovery);
+			}
+		});
+	});
 	restoredPage.on('console', (entry: any) => {
 		if (entry.type() === 'error' && entry.text().includes('[ChatSyncService:Recovery]')) {
 			const message = entry.text();
@@ -309,7 +340,9 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 		await disconnectCanonicalWrites(firstPage, firstFrames);
 		const firstSentFrames = observeRecoveryFrames(firstPage, true);
 		await installE2EServerContentOverrideGate(firstPage, 'storage-recovery-replay');
+		await focusRecoveryPage(firstPage);
 		await loginToTestAccount(firstPage, log, screenshot);
+		await requireForegroundRecoveryLifecycle(firstFrames);
 		await requireActiveRecoveryDiscovery(firstFrames);
 		await startNewChat(firstPage, log);
 		await requireSignedReplayGate(firstPage);
@@ -319,13 +352,16 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 		await requireSignedReplayHandoff(firstSentFrames);
 		const chatId = firstPage.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
+		duplicateChatId = chatId!;
 		await withBillingFailureDiagnostic(firstFrames, 'saved-first-turn', () =>
 			expect.poll(() => availableOutputs(firstFrames, chatId!).map((output) => output.output_kind),
 				{ timeout: 120_000, message: 'Origin must publish sealed code embed and diff before disconnect' })
 				.toEqual(expect.arrayContaining(['embed', 'diff'])));
 		isolatedBillingSnapshot('saved-first-turn-complete');
 		await first.close();
+		await focusRecoveryPage(restoredPage);
 		await loginToTestAccount(restoredPage, log, screenshot);
+		await requireForegroundRecoveryLifecycle(frames);
 		await restoredPage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
 		await expect.poll(() => frames.filter((frame) => frame.direction === 'received'
 			&& frame.type === 'recovery_outputs_available')
@@ -365,19 +401,43 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 				.toBe(true);
 		}
 		await expect(restoredPage.getByTestId('message-assistant').first()).toBeVisible();
+		await expect.poll(() => duplicateInjected, { timeout: 15_000 }).toBe(true);
+		// The repeated pre-ACK snapshot arrives after the first durable ACK. Its
+		// stale IDs must not trigger another get now that the server has retired them.
+		await restoredPage.waitForTimeout(1_000);
+		for (const recordId of duplicateRecordIds) {
+			expect(frames.filter((frame) => frame.direction === 'sent'
+				&& frame.type === 'recovery_output_get' && frame.payload.record_id === recordId)).toHaveLength(1);
+			expect(frames.some((frame) => frame.type === 'error'
+				&& frame.payload.code === 'recovery_output_not_found'
+				&& frame.payload.job_id === recordId)).toBe(false);
+		}
 		const update = await recordedContext(browser, baseURL, 'update');
 		try {
 			const updatePage = await update.newPage();
-			const updateFrames: RecoveryFrame[] = [];
+			const updateWireFrames = observeRecoveryFrames(updatePage, true);
 			await disconnectCanonicalWrites(updatePage, updateFrames);
 			await installE2EServerContentOverrideGate(updatePage, 'storage-recovery-replay');
+			await focusRecoveryPage(updatePage);
 			await loginToTestAccount(updatePage, log, screenshot);
+			await requireForegroundRecoveryLifecycle(updateFrames);
 			await requireActiveRecoveryDiscovery(updateFrames);
 			await updatePage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+			await waitForChatReady(updatePage, log);
+			// The existing reply must finish hydrating before sendMessage snapshots
+			// assistant counts; loading that old row is not acceptance of a new turn.
+			const originalReplyId = recoveredJobs()[0]?.assistant_message_id;
+			expect(typeof originalReplyId).toBe('string');
+			await expect(updatePage.locator(`[data-testid="message-assistant"][data-message-id="${originalReplyId}"]`)).toBeVisible();
+			await expect(updatePage.locator('[data-action="message-input"]'))
+				.toHaveAttribute('data-current-chat-id', chatId);
 			await requireSignedReplayGate(updatePage);
 			await sendMessage(updatePage,
 				'Apply the scripted patch to recovery_demo.py. STORAGE_CAPACITY_SCENARIO:recovery_diff <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 				log, screenshot, 'storage-recovery-diff');
+			// Prove this connection submitted the signed durable turn, independently
+			// of historical transcript rows appearing during navigation.
+			await requireSignedReplayHandoff(updateWireFrames);
 			await withBillingFailureDiagnostic(updateFrames, 'saved-diff-turn', () =>
 				expect.poll(() => availableOutputs(updateFrames, chatId!).some((output) =>
 					output.output_kind === 'diff' && output.output_version > 1),
@@ -386,7 +446,10 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 		} finally {
 			await update.close();
 		}
+		await focusRecoveryPage(restoredPage);
 		await restoredPage.reload();
+		await focusRecoveryPage(restoredPage);
+		await requireForegroundRecoveryLifecycle(frames);
 		await expect.poll(() => frames.filter((frame) => frame.type === 'recovery_outputs_available')
 			.flatMap((frame) => frame.payload.outputs ?? [])
 			.some((output: any) => output.root_chat_id === chatId
@@ -400,8 +463,74 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 			&& frame.type === 'recovery_output_embed_acknowledged'
 			&& frame.payload.record_id === patch.record_id && frame.payload.state === 'ACKNOWLEDGED'),
 		{ timeout: 120_000 }).toBe(true);
+		await focusRecoveryPage(restoredPage);
 		await restoredPage.reload();
+		await focusRecoveryPage(restoredPage);
+		await requireForegroundRecoveryLifecycle(frames);
 		await expect(restoredPage.getByTestId('message-assistant').first()).toBeVisible();
+		// A terminal reply and a stored head are not typed artifact ACK proof.
+		// Require the root's exact v2 receipt, then verify fresh durable status
+		// survives the reload without relying on the client's in-memory index.
+		const advancedRoot = () => frames.filter((frame) => frame.type === 'recovery_outputs_available')
+			.flatMap((frame) => frame.payload.outputs ?? [])
+			.find((output: any) => output.root_chat_id === chatId
+				&& output.output_kind === 'embed' && output.output_version === 2);
+		await expect.poll(() => Boolean(advancedRoot()), { timeout: 120_000 }).toBe(true);
+		const root = advancedRoot();
+		const rootAck = () => frames.find((frame) => frame.direction === 'received'
+			&& frame.type === 'recovery_output_embed_acknowledged'
+			&& frame.payload.record_id === root.record_id && frame.payload.state === 'ACKNOWLEDGED');
+		await expect.poll(() => Boolean(rootAck()), { timeout: 120_000 }).toBe(true);
+		const rootAckWrite = frames.find((frame) => frame.direction === 'sent'
+			&& frame.type === 'recovery_output_ack_embed' && frame.payload.record_id === root.record_id);
+		expect(rootAckWrite?.payload.canonical_digest).toMatch(/^[0-9a-f]{64}$/);
+		const readProof = (version: number) => restoredPage.evaluate(async ({ apiOrigin, chatId, embedId, version }: any) => {
+			const response = await fetch(`${apiOrigin}/v1/embeds/chats/${encodeURIComponent(chatId)}/references/availability`, {
+				method: 'POST', credentials: 'include',
+				headers: { 'content-type': 'application/json', 'x-openmates-client-capabilities': 'agentic-storage-v2' },
+				body: JSON.stringify({ embed_ids: [embedId], required_recovery_versions: { [embedId]: version } }),
+			});
+			return { status: response.status, body: await response.json() };
+		}, { apiOrigin: workflowApiUrl(), chatId, embedId: root.subject_id, version });
+		const currentProof = await readProof(2);
+		expect(currentProof.status).toBe(200);
+		expect(currentProof.body.results).toEqual([{
+			embed_id: root.subject_id, state: 'ready',
+			recovery_ack: { state: 'ACKNOWLEDGED', version: 2, canonical_digest: rootAckWrite!.payload.canonical_digest },
+		}]);
+		for (const version of [1, 3]) {
+			const unavailableProof = await readProof(version);
+			expect(unavailableProof.status).toBe(200);
+			expect(unavailableProof.body.results).toEqual([{ embed_id: root.subject_id, state: 'ready' }]);
+		}
+	} catch (error) {
+		// Structural failure evidence only: no plaintext, ciphertext, tokens or raw IDs.
+		const hash = (value: unknown) => typeof value === 'string'
+			? createHash('sha256').update(value).digest('hex').slice(0, 16) : null;
+		const summarize = (source: RecoveryFrame[]) => source.slice(-100).map((frame) => ({
+			direction: frame.direction ?? 'received', type: frame.type,
+			record_hash: hash(frame.payload.record_id), job_hash: hash(frame.payload.job_id),
+			turn_hash: hash(frame.payload.turn_id), message_hash: hash(frame.payload.message_id ?? frame.payload.user_message_id),
+			task_hash: hash(frame.payload.task_id ?? frame.payload.active_task_id),
+			reason_code: typeof frame.payload.reason_code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(frame.payload.reason_code)
+				? frame.payload.reason_code : null, is_foreground: frame.payload.is_foreground,
+			status: frame.payload.status, state: frame.payload.state,
+			code: typeof frame.payload.code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(frame.payload.code)
+				? frame.payload.code : null,
+			outputs: (frame.payload.outputs ?? []).slice(0, 20).map((row: any) => ({
+				record_hash: hash(row.record_id), turn_hash: hash(row.turn_id),
+				kind: row.output_kind, version: row.output_version,
+			})),
+		}));
+		const visibility = await restoredPage.evaluate(() => ({
+			visibility: document.visibilityState, focused: document.hasFocus(),
+		})).catch(() => ({ visibility: 'unavailable', focused: false }));
+		await test.info().attach('saved-canonical-recovery-structural-failure', {
+			body: JSON.stringify({ visibility, duplicateInjected, recoveryErrors: recoveryErrors.slice(-10),
+				origin: summarize(firstFrames), update: summarize(updateFrames), restored: summarize(frames) }),
+			contentType: 'application/json',
+		});
+		throw error;
 	} finally {
 		await first.close().catch(() => undefined);
 		await restored.close();
@@ -411,7 +540,8 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 // contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery,chats.completion.recovery-takeover,chats.persistence.client-encrypted
 test('CLI bootstraps root wrappers before protected canonical reads and replay stays idempotent', async ({ browser }: { browser: any }) => {
 	requireSignedRecoveryProfile();
-	test.setTimeout(360_000);
+	// Two owned producer turns and two SDK recovery/idempotency cycles.
+	test.setTimeout(480_000);
 	installRecorderDeps();
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL;
 	const apiUrl = workflowApiUrl();
@@ -452,7 +582,7 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 			return { status: response.status, body: response.ok ? await response.json() : null };
 		}, { apiUrl, chatId, embedId: output.subject_id });
 		expect((await readHead()).status).toBe(404);
-		const replay = await runWorkflowCli(apiUrl, home, ['chats', 'show', chatId, '--json'], 180_000,
+		const replay = await runWorkflowCli(apiUrl, home, ['chats', 'show', chatId, '--all', '--json'], 180_000,
 			{ OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'storage-recovery-canonical-receipts.spec.ts' });
 		if (!replay.recording || !fs.existsSync(replay.recording.videoPath) || !fs.existsSync(replay.recording.manifestPath)) {
 			let reason = `exit ${replay.code}`;
@@ -490,7 +620,8 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 			message: 'The completed personal-chat turn must debit its disposable wallet without an unresolved hold' })
 			.toEqual({ status: 'ok', held: 0, unmatched: 0, charged: true });
 		expect(Number.isSafeInteger(chargedBalance)).toBe(true);
-		await runWorkflowCliJson(apiUrl, home, ['chats', 'show', chatId], 'Repeat root read', 180_000);
+		// Explicit replay must bypass the normal paged-reader cache freshness window.
+		await runWorkflowCliJson(apiUrl, home, ['chats', 'show', chatId, '--all'], 'Repeat root read', 180_000);
 		const repeated = await readHead();
 		expect(repeated.body.embed.encrypted_content).toBe(first.body.embed.encrypted_content);
 		expect(repeated.body.embed.version_number).toBe(first.body.embed.version_number);
@@ -511,11 +642,215 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 		}, { timeout: 30_000, intervals: [1000, 1500, 3000],
 			message: 'Repeated CLI recovery must not debit the same personal-chat turn again' })
 			.toEqual({ status: 'ok', held: 0, unmatched: 0, balance: chargedBalance });
+		// Artifact ACKs and settled billing do not seal the original assistant.
+		// Keep the producer blocked for the CLI-owned v2 replay; a separate
+		// ordinary browser connection must finish the original reply first.
+		let originalAssistantId = '';
+		const completionPage = await context.newPage();
+		const completionFrames = observeRecoveryFrames(completionPage, true);
+		let historyDiagnostic: Record<string, unknown> = { phase: 'opening_completion_client' };
+		try {
+			await focusRecoveryPage(completionPage);
+			await completionPage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+			await requireActiveRecoveryDiscovery(completionFrames);
+			await expect.poll(async () => {
+				const result = await completionPage.evaluate(async ({ apiUrl, chatId }) => {
+					const response = await fetch(`${apiUrl}/v1/chats/${chatId}/messages/window?limit=10`, {
+						credentials: 'include', cache: 'no-store',
+						headers: { 'X-OpenMates-Client-Capabilities': 'agentic-storage-v2' },
+					});
+					return { status: response.status, body: response.ok ? await response.json() : null };
+				}, { apiUrl, chatId });
+				const canonical = result.body;
+				const assistants = (canonical?.messages ?? []).filter((message: any) => message.role === 'assistant'
+					&& typeof message.encrypted_content === 'string' && message.encrypted_content.length > 0);
+				const discoveredJobs = completionFrames.filter((frame) => frame.direction === 'received'
+					&& frame.type === 'recovery_jobs_available')
+					.flatMap((frame) => frame.payload.jobs ?? [])
+					.filter((job: any) => job.chat_id === chatId);
+				const terminalFor = (job: any) => completionFrames.some((frame) => frame.direction === 'received'
+					&& frame.type === 'recovery_job_persisted' && frame.payload.job_id === job.job_id
+					&& frame.payload.state === 'TERMINAL');
+				historyDiagnostic = {
+					phase: 'waiting_original_reply', http_status: result.status,
+					messages_v: canonical?.messages_v ?? null,
+					server_message_count: canonical?.server_message_count ?? null,
+					encrypted_assistant_count: assistants.length,
+					discovered_job_count: discoveredJobs.length,
+					sent_claim_count: completionFrames.filter((frame) => frame.direction === 'sent'
+						&& frame.type === 'recovery_job_claim').length,
+					sent_persist_count: completionFrames.filter((frame) => frame.direction === 'sent'
+						&& frame.type === 'recovery_job_persist').length,
+					received_job_states: completionFrames.filter((frame) => frame.direction === 'received'
+						&& ['recovery_job_claimed', 'recovery_job_persisted', 'error'].includes(frame.type))
+						.slice(-8).map((frame) => ({
+							type: frame.type,
+							state: typeof frame.payload.state === 'string' && /^[A-Z_]{1,32}$/.test(frame.payload.state)
+								? frame.payload.state : null,
+							code: typeof frame.payload.code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(frame.payload.code)
+								? frame.payload.code : null,
+						})),
+					jobs: discoveredJobs.slice(-8).map((job: any) => ({
+						job_hash: createHash('sha256').update(String(job.job_id)).digest('hex').slice(0, 12),
+						terminal: terminalFor(job),
+					})),
+				};
+				if (!Number.isSafeInteger(canonical?.messages_v) || canonical.messages_v < 2
+					|| canonical?.server_message_count !== 2 || !assistants[0]?.message_id
+					|| discoveredJobs.length === 0 || !discoveredJobs.every(terminalFor)) return false;
+				originalAssistantId = assistants[0].message_id;
+				return true;
+			}, { timeout: 120_000, message: 'The original assistant must have canonical encrypted history and a received terminal receipt before its dependent edit' }).toBe(true);
+		} catch (error) {
+			throw new Error(`Original assistant completion barrier failed: ${String(error)}; `
+				+ `metadata=${JSON.stringify(historyDiagnostic)}`);
+		} finally {
+			// No unblocked browser may race the CLI to persist the next artifact.
+			await completionPage.close();
+		}
+		// Hydrate the authoritative terminal version on the still-blocked
+		// producer before constructing the dependent v2 preflight.
+		await focusRecoveryPage(page);
+		frames.length = 0;
+		await page.reload();
+		await requireActiveRecoveryDiscovery(frames);
+		await waitForChatReady(page, log);
+		await expect(page.locator(`[data-testid="message-assistant"][data-message-id="${originalAssistantId}"]`)).toBeVisible();
+		// Reuse this paired account and prepared producer for a real SDK v1→v2
+		// recovery, including the server's canonical ACK proof after reconnect.
+		await focusRecoveryPage(page);
+		await requireSignedReplayGate(page);
+		const versionTwoFrameStart = sentFrames.length;
+		await sendMessage(page,
+			'Apply the scripted patch to recovery_demo.py. STORAGE_CAPACITY_SCENARIO:recovery_diff <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+			log, screenshot, 'storage-cli-version-two-producer');
+		const versionTwoRequest = sentFrames.slice(versionTwoFrameStart).find((frame) => frame.direction === 'sent'
+			&& ['chat_turn_preflight', 'chat_turn_admit'].includes(frame.type)
+			&& frame.payload.chat_id === chatId)?.payload;
+		expect(typeof versionTwoRequest?.message_id).toBe('string');
+		expect(typeof versionTwoRequest?.turn_id).toBe('string');
+		const assertVersionTwoStreamSucceeded = () => expect(sentFrames.slice(versionTwoFrameStart)
+			.filter((frame) => frame.direction === 'received' && frame.type === 'ai_message_update'
+				&& frame.payload.chat_id === chatId && frame.payload.is_final_chunk === true
+				&& (frame.payload.user_message_id === versionTwoRequest!.message_id
+					|| frame.payload.recovery_turn_id === versionTwoRequest!.turn_id)
+				&& (frame.payload.error === true || frame.payload.failure_reason === 'stream_error'))
+			.map((frame) => ({ error: frame.payload.error === true,
+				stream_error: frame.payload.failure_reason === 'stream_error' })),
+		'Version-two producer must not fail after publishing its sealed artifact').toEqual([]);
+		await withBillingFailureDiagnostic(frames, 'cli-version-two-producer', () =>
+			expect.poll(() => availableOutputs(frames, chatId!).some((row) =>
+				row.output_kind === 'embed' && row.output_version === 2 && row.subject_id === output.subject_id),
+			{ timeout: 120_000 }).toBe(true));
+		expect((await readHead()).body.embed.version_number).toBe(1);
+		const advancedReplay = await runWorkflowCli(apiUrl, home, ['chats', 'show', chatId, '--all', '--json'], 180_000);
+		// Retain the synthetic disposable-chat response before parsing/asserting,
+		// so a pending recovery or command failure remains actionable in CI.
+		await test.info().attach('cli-root-version-two-stdout', {
+			body: Buffer.from(advancedReplay.stdout), contentType: 'text/plain',
+		});
+		await test.info().attach('cli-root-version-two-stderr', {
+			body: Buffer.from(advancedReplay.stderr), contentType: 'text/plain',
+		});
+		const advanced = parseCliJson(advancedReplay, 'Recover root version two');
+		expect(advanced.error).toBeUndefined();
+		const second = await readHead();
+		expect(second.status).toBe(200);
+		if (second.body.embed.version_number !== 2) {
+			const diagnostic = diagnosePendingCliRevision(apiUrl, home, chatId!);
+			await test.info().attach('cli-root-version-two-pending-diagnostic', {
+				body: Buffer.from(JSON.stringify(diagnostic)), contentType: 'application/json',
+			});
+		}
+		// Keep the original read: a diagnostic replay must never turn this failure green.
+		expect(second.body.embed.version_number).toBe(2);
+		expect(second.body.embed.encrypted_type).toBe(first.body.embed.encrypted_type);
+		expect(second.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort())
+			.toEqual(first.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort());
+		const proof = await page.evaluate(async ({ apiUrl, chatId, embedId }) => {
+			const response = await fetch(`${apiUrl}/v1/embeds/chats/${chatId}/references/availability`, {
+				method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json',
+					'x-openmates-client-capabilities': 'agentic-storage-v2' },
+				body: JSON.stringify({ embed_ids: [embedId], required_recovery_versions: { [embedId]: 2 } }),
+			});
+			return { status: response.status, body: await response.json() };
+		}, { apiUrl, chatId, embedId: output.subject_id });
+		expect(proof.status).toBe(200);
+		expect(proof.body.results[0].recovery_ack).toEqual({
+			state: 'ACKNOWLEDGED', version: 2, canonical_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+		});
+		assertVersionTwoStreamSucceeded();
+		await runWorkflowCliJson(apiUrl, home, ['chats', 'show', chatId, '--all'], 'Repeat version two root read', 180_000);
+		const stable = await readHead();
+		expect(stable.body.embed.encrypted_content).toBe(second.body.embed.encrypted_content);
+		expect(stable.body.embed.encrypted_type).toBe(second.body.embed.encrypted_type);
+		expect(stable.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort())
+			.toEqual(second.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort());
+		assertVersionTwoStreamSucceeded();
 	} finally {
 		await context.close();
 		removeWorkflowCliHome(home);
 	}
 });
+
+/** Capture a swallowed browsing-recovery error without exposing sealed payloads. */
+function diagnosePendingCliRevision(apiUrl: string, home: string, chatId: string): Record<string, unknown> {
+	const cli = path.resolve(__dirname, '../../../packages/openmates-cli/dist/index.js');
+	const program = `
+		const {pathToFileURL}=require('node:url');
+		const {createHash}=require('node:crypto');
+		console.log=console.warn=console.debug=()=>{};
+		const input=JSON.parse(process.argv[2]);
+		const outputs=[];
+		const known=new Map([
+			['Canonical recovery revision root identity was invalid.','root_identity'],
+			['Canonical recovery revision catalog identity was invalid.','catalog_identity'],
+			['Canonical recovery revision key wrapper identity was invalid.','wrapper_identity'],
+			['Canonical recovery revision key wrapper does not match.','wrapper_key_mismatch'],
+			['Canonical recovery revision type or wrappers do not match.','type_or_wrapper_set'],
+			['Recovery embed version mismatch.','embed_version'],
+			['Existing canonical recovery embed identity was invalid.','existing_identity'],
+			['Existing canonical recovery embed does not match sealed output.','existing_content'],
+		]);
+		const codes=new Set(['canonical_output_mismatch','recovery_output_not_found','embed_write_denied',
+			'embed_storage_failed','not_authenticated','recovery_requires_foreground','version_conflict']);
+		const safeError=error=>{
+			const message=typeof error?.message==='string'?error.message:'';
+			return {classification:known.get(message)||'unclassified_recovery_error',
+				code:codes.has(error?.code)?error.code:null,
+				error_hash:createHash('sha256').update(message).digest('hex').slice(0,16)};
+		};
+		(async()=>{
+			const {OpenMatesClient}=await import(pathToFileURL(process.argv[1]).href);
+			const client=OpenMatesClient.load({apiUrl:process.env.OPENMATES_API_URL});
+			const replay=client.replayRecoveryOutputPages;
+			client.replayRecoveryOutputPages=async function(...args){
+				args[2]=args[2].map(page=>page.filter(output=>output.root_chat_id===input.chatId));
+				args[5]=undefined;
+				return replay.apply(this,args);
+			};
+			const available=client.replayAvailableRecoveryOutputs;
+			client.replayAvailableRecoveryOutputs=async function(...args){
+				for(const output of args[2])if(outputs.length<12)outputs.push({
+					kind:['message','embed','diff','summary','checkpoint'].includes(output.output_kind)?output.output_kind:null,
+					version:Number.isSafeInteger(output.output_version)?output.output_version:null});
+				return available.apply(this,args);
+			};
+			try{
+				await client.ensureSynced(true,[input.chatId],{personal:true});
+				process.stdout.write(JSON.stringify({outcome:'replay_completed',outputs}));
+			}catch(error){process.stdout.write(JSON.stringify({outcome:'replay_rejected',...safeError(error),outputs}));}
+		})().catch(error=>process.stdout.write(JSON.stringify({outcome:'probe_rejected',...safeError(error),outputs})));
+	`;
+	try {
+		return JSON.parse(execFileSync('node', ['-e', program, cli, JSON.stringify({ chatId })], {
+			cwd: path.resolve(__dirname, '../../../..'), env: workflowCliEnv(apiUrl, home),
+			encoding: 'utf8', timeout: 90_000, maxBuffer: 64 * 1024,
+		}).trim());
+	} catch {
+		return { outcome: 'probe_transport_failed', outputs: [] };
+	}
+}
 
 function batchAuthorityFixture(ownerId: string, ids: Record<string, string>, operation: 'seed' | 'verify' | 'cleanup'): void {
 	const root = path.resolve(__dirname, '../../../..');

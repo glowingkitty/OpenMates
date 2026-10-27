@@ -7,29 +7,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import TravelConnectionEmbedPreview from '../../../../embeds/travel/TravelConnectionEmbedPreview.svelte';
+import EventEmbedPreview from '../../../../embeds/events/EventEmbedPreview.svelte';
 import WebsiteEmbedPreview from "../../../../embeds/web/WebsiteEmbedPreview.svelte";
+import HomeSearchEmbedPreview from '../../../../embeds/home/HomeSearchEmbedPreview.svelte';
 import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import EmbedsMapView from '../../../../embeds/EmbedsMapView.svelte';
 import { GroupRenderer } from '../GroupRenderer';
+import { AppSkillUseRenderer } from '../AppSkillUseRenderer';
 import { disposeEmbedTree } from '../mountedEmbedLifecycle';
 
 type MountCall = [unknown, { props: Record<string, unknown> }];
 
 const svelteMountMocks = vi.hoisted(() => ({
   mount: vi.fn(() => ({ destroy: vi.fn() })),
-  unmount: vi.fn(),
+  unmount: vi.fn(async () => {}),
 }));
 
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
   decodeToonContent: vi.fn(),
+  isEmbedKnownError: vi.fn(() => false),
 }));
 
 const fullscreenControllerMocks = vi.hoisted(() => ({
   dispatchEmbedFullscreen: vi.fn(),
   resolveEmbedFullscreenTarget: vi.fn(),
 }));
+
+vi.mock('@repo/ui', async () => {
+  const { readable } = await import('svelte/store');
+  return { text: readable((key: string) => key) };
+});
 
 vi.mock('svelte', async (importOriginal) => {
   const actual = await importOriginal<typeof import('svelte')>();
@@ -42,6 +52,10 @@ vi.mock('svelte', async (importOriginal) => {
 });
 
 vi.mock('../../../../../services/embedResolver', () => embedResolverMocks);
+vi.mock('../../../../../services/chatSyncService', () => ({ chatSyncService: { addEventListener: vi.fn(), removeEventListener: vi.fn() } }));
+vi.mock('../../../../../services/chatSyncServiceHandlersAI', () => ({ unmarkEmbedAsProcessed: vi.fn() }));
+vi.mock('../../../../../services/db', () => ({ chatDB: { getChat: vi.fn(async () => null) } }));
+vi.mock('../../../../../services/directChatService', () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 
 vi.mock('../../../../../services/embedFullscreenController', () => fullscreenControllerMocks);
 
@@ -51,6 +65,100 @@ vi.mock('../../../../../services/embedFullscreenResolver', () => ({
 }));
 
 describe('GroupRenderer', () => {
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity,travel-search.realtime.source-faithful
+  it('preserves connection route, fare and realtime data in actual assistant result cards', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    document.body.append(container);
+    const connection = {
+      type: 'connection', app_id: 'travel', skill_id: 'search_connections',
+      total_price: '49', currency: 'EUR', fare_is_partial: true,
+      fare: { status: 'available', amount: '49', currency: 'EUR' },
+      legs: [{ origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z', arrival_delay_minutes: 12,
+        segments: [{ departure_latitude: 52.52, departure_longitude: 13.4, arrival_latitude: 53.55, arrival_longitude: 10.0 }] }],
+      optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
+    };
+    try {
+      await renderer.render({ attrs: { id: 'rail-child', type: 'travel-connection', contentRef: 'embed:rail-child', status: 'finished' },
+        container, content, embedData: { embed_id: 'rail-child', type: 'connection', status: 'finished' }, decodedContent: connection });
+      expect(svelteMountMocks.mount).toHaveBeenCalledWith(TravelConnectionEmbedPreview, expect.objectContaining({ props: expect.objectContaining({
+        id: 'rail-child', connection, fare: connection.fare, fareIsPartial: true, arrivalDelayMinutes: 12,
+        origin: 'Berlin', destination: 'Hamburg', optimization: connection.optimization,
+      }) }));
+    } finally { disposeEmbedTree(container); container.remove(); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+  it('normalizes flattened persisted event children before mounting their group/reference preview', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    document.body.append(container);
+    try {
+      await renderer.render({ attrs: { id: 'event-child', type: 'events-event', contentRef: 'embed:event-child', status: 'finished' },
+        container, content, embedData: { embed_id: 'event-child', type: 'event', status: 'finished' },
+        decodedContent: { title: 'Language exchange', organizer_name: 'Berlin Lingua Hub', organizer_id: 'org-1',
+          venue_name: 'Community space', venue_lat: '52.5', venue_lon: '13.4', fee_amount: '0', fee_currency: 'EUR',
+          rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'Gathering' },
+      });
+      expect(svelteMountMocks.mount).toHaveBeenCalledWith(EventEmbedPreview, expect.objectContaining({ props: expect.objectContaining({
+        id: 'event-child', event: expect.objectContaining({ embed_id: 'event-child', organizer: expect.objectContaining({name: 'Berlin Lingua Hub'}),
+          venue: expect.objectContaining({name: 'Community space', lat: 52.5, lon: 13.4}), fee: expect.objectContaining({amount: 0, currency: 'EUR'}),
+          rsvp_count: 80, timezone: 'Europe/Berlin', provider: 'Gathering' }),
+      }) }));
+    } finally { disposeEmbedTree(container); container.remove(); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+  it('keeps a single failed execution visible when encrypted content has no children', async () => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ embed_id: 'failed-skill', type: 'app_skill_use', status: 'finished', content: 'failed-content' });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ app_id: 'code', skill_id: 'unknown_action', status: 'error', error: 'Request timed out', embed_ids: [], result_count: 0 });
+    const renderer = new AppSkillUseRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    await renderer.render({
+      attrs: { id: 'failed-skill', contentRef: 'embed:failed-skill', type: 'app-skill-use', status: 'finished', app_id: 'code', skill_id: 'unknown_action' },
+      container, content,
+      embedData: { embed_id: 'failed-skill', type: 'app_skill_use', status: 'finished' },
+      decodedContent: { app_id: 'code', skill_id: 'unknown_action', status: 'error', error: 'Request timed out', embed_ids: [], result_count: 0 },
+    });
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(GenericAppSkillEmbedPreview, expect.objectContaining({
+      props: expect.objectContaining({ status: 'error', resultCount: undefined, provider: '' }),
+    }));
+    expect(svelteMountMocks.mount).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+  it('keeps failed grouped items and their successful siblings in stable display order', async () => {
+    embedResolverMocks.resolveEmbed.mockImplementation(async (id: string) => ({
+      embed_id: id, type: 'app_skill_use', status: 'finished', content: id,
+    }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (id: string) => ({
+      app_id: 'code', skill_id: 'unknown_action', status: id === 'failed' ? 'error' : 'finished', embed_ids: [], result_count: 0,
+    }));
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    await renderer.render({
+      attrs: { id: 'stable-group', type: 'app-skill-use-group', status: 'finished', groupCount: 2,
+        groupedItems: ['failed', 'successful'].map(id => ({
+          id, type: 'app-skill-use', contentRef: `embed:${id}`, status: 'finished', app_id: 'code', skill_id: 'unknown_action',
+        })),
+      }, container, content,
+    });
+    const calls = (svelteMountMocks.mount.mock.calls as unknown as MountCall[])
+      .filter(([component]) => component === GenericAppSkillEmbedPreview);
+    expect(calls.map(([, { props }]) => [props.id, props.status])).toEqual([
+      ['successful', 'finished'], ['failed', 'error'],
+    ]);
+    expect(content.querySelectorAll('.embed-group-item')).toHaveLength(2);
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('routes a saved results-view code embed through eligibility instead of a code card', async () => {
     const renderer = new GroupRenderer();
@@ -76,6 +184,7 @@ describe('GroupRenderer', () => {
     fullscreenControllerMocks.resolveEmbedFullscreenTarget.mockClear();
     embedResolverMocks.resolveEmbed.mockReset();
     embedResolverMocks.decodeToonContent.mockReset();
+    embedResolverMocks.isEmbedKnownError.mockReset().mockReturnValue(false);
     embedResolverMocks.resolveEmbed.mockResolvedValue(null);
     embedResolverMocks.decodeToonContent.mockResolvedValue(null);
 
@@ -484,4 +593,24 @@ describe('GroupRenderer', () => {
       }),
     );
   });
+  // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.output.safe-and-truthful
+  it.each(['single', 'grouped'] as const)('passes bounded saved Home metadata through the %s mount', async path => {
+    const previewResults = [{title: 'Canal flat', image_url: '/store-examples/home-1.webp'}];
+    const decodedContent = {app_id: 'home', skill_id: 'search', status: 'finished', query: 'Berlin',
+      result_count: 6, embed_ids: 'a|b|c|d|e|f', preview_results: previewResults};
+    const embedData = {embed_id: 'home-parent', type: 'app_skill_use', status: 'finished', content: 'home-parent-content', embed_ids: ['a', 'b', 'c', 'd', 'e', 'f']};
+    embedResolverMocks.resolveEmbed.mockResolvedValue(embedData);
+    embedResolverMocks.decodeToonContent.mockResolvedValue(decodedContent);
+    const container = document.createElement('div');
+    const content = document.createElement('div');container.append(content);
+    if (path === 'single') {
+      await new AppSkillUseRenderer().render({attrs: {id: 'home-parent', type: 'app-skill-use', contentRef: 'embed:home-parent', status: 'finished', app_id: 'home', skill_id: 'search'}, container, content, embedData, decodedContent});
+    } else {
+      await new GroupRenderer().render({attrs: {id: 'home-group', type: 'app-skill-use-group', status: 'finished', contentRef: '', groupCount: 1, groupedItems: [{id: 'home-parent', type: 'app-skill-use', contentRef: 'embed:home-parent', status: 'finished', app_id: 'home', skill_id: 'search'}]}, container, content});
+    }
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(HomeSearchEmbedPreview, expect.objectContaining({props: expect.objectContaining({
+      results: previewResults, resultCount: 6, childEmbedIds: ['a', 'b', 'c', 'd', 'e', 'f'],
+    })}));
+  });
+
 });

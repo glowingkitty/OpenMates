@@ -63,6 +63,101 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
         XCTAssertEqual(ChatSidebarDisplayPolicy.initialLimit, 11)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,drafts.sync.version-authoritative,drafts.established-chat.presentation-unchanged,chat-navigation.empty-new-chat.excluded
+    @MainActor
+    func testDisplaySuppressesUnreadableDraftsWithoutInventingContentFromVersions() {
+        func row(presence: Bool?, messages: Int = 0, visible: String? = nil) -> Chat {
+            Chat(id: "synthetic-draft", title: nil, lastMessageAt: nil,
+                createdAt: "2026-10-14T12:00:00Z", updatedAt: nil,
+                isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil,
+                encryptedChatKey: "retained-wrapped-key", messagesV: messages, draftV: 19,
+                lastVisibleMessageId: visible, hasNonEmptyDraft: presence)
+        }
+        let unknown = row(presence: nil)
+        XCTAssertTrue(WelcomeScreenState.isEmptyShell(unknown))
+        XCTAssertFalse(WelcomeScreenState.isDraftOnly(unknown))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isPresentationReady(unknown, preview: nil))
+        let pending = row(presence: true)
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isPresentationReady(pending, preview: ""))
+        XCTAssertFalse(WelcomeScreenState.isContinuationPreviewReady(pending, draftPreview: nil))
+        let embedOnly = ChatDraftPreviewFormatter.format("```json\n{\"type\":\"image\",\"embed_id\":\"synthetic-image\"}\n```")
+        XCTAssertFalse(embedOnly.isEmpty)
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isPresentationReady(pending, preview: embedOnly))
+        XCTAssertTrue(WelcomeScreenState.isContinuationPreviewReady(pending, draftPreview: embedOnly))
+        XCTAssertTrue(WelcomeScreenState.cardData(for: pending, draftPreview: embedOnly).isDraftOnly)
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isPresentationReady(row(presence: false), preview: embedOnly))
+        XCTAssertNil(WelcomeScreenState.cardData(for: row(presence: false), draftPreview: embedOnly).draftPreview)
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isPresentationReady(row(presence: false, messages: 1), preview: nil),
+            "The retained encrypted send commits optimistic messagesV before transport")
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isPresentationReady(row(presence: false, visible: "pending-message"), preview: nil))
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isPresentationReady(unknown, preview: nil, processing: true))
+        let generated = Chat(id: "pending-generated-identity", title: nil, lastMessageAt: nil,
+            createdAt: "2026-10-14T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: "pending-title", encryptedChatKey: nil, messagesV: 0,
+            titleV: 2, draftV: 19, hasNonEmptyDraft: true)
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(generated, preview: embedOnly))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isPresentationReady(generated, preview: embedOnly))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,drafts.sync.version-authoritative,chat-navigation.draft-only.addressable
+    @MainActor
+    func testUnknownDraftPresenceUsesReadableCacheAcrossContinuationPaths() {
+        let unknown = Chat(id: "legacy-preview", title: nil, lastMessageAt: nil,
+            createdAt: "2026-10-14T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 0, draftV: 0)
+        for preview in ["Saved legacy text", AppStrings.draftEmbedPreviewLabel(type: "image")] {
+            let cached: (String) -> String? = { $0 == unknown.id ? preview : nil }
+            XCTAssertFalse(WelcomeScreenState.isEmptyShell(unknown, draftPreview: preview))
+            XCTAssertTrue(WelcomeScreenState.isContinuationEligible(unknown, draftPreview: preview))
+            XCTAssertTrue(WelcomeScreenState.isContinuationPreviewReady(unknown, draftPreview: preview))
+            XCTAssertTrue(WelcomeScreenState.isDraftOnly(unknown, draftPreview: preview))
+            XCTAssertTrue(WelcomeScreenState.cardData(for: unknown, draftPreview: preview, previewIsFormatted: true).isDraftOnly)
+            XCTAssertEqual(WelcomeScreenState.recentChats(from: [unknown], excluding: nil, draftPreview: cached).map(\.id), [unknown.id])
+            let item = WelcomeContinueItem(id: "chat:" + unknown.id, chatID: unknown.id, memory: nil,
+                priority: .init(reason: .reminderSoon, timestamp: Date()))
+            XCTAssertEqual(WelcomeScreenState.priorityCards(items: [item], chats: [unknown], teamID: nil,
+                now: Date(), draftPreview: cached, previewIsFormatted: true).map(\.id), [unknown.id])
+            XCTAssertNil(WelcomeScreenState.resumeChat(from: [unknown], lastOpened: unknown.id, draftPreview: cached),
+                "An unknown-presence saved draft uses the dedicated draft card, not a gradient resume card")
+            var cleared = unknown
+            cleared.hasNonEmptyDraft = false
+            XCTAssertTrue(WelcomeScreenState.isEmptyShell(cleared, draftPreview: preview))
+            XCTAssertFalse(WelcomeScreenState.isContinuationEligible(cleared, draftPreview: preview))
+            XCTAssertFalse(WelcomeScreenState.isContinuationPreviewReady(cleared, draftPreview: preview))
+            XCTAssertTrue(WelcomeScreenState.recentChats(from: [cleared], excluding: nil, draftPreview: cached).isEmpty)
+            XCTAssertTrue(WelcomeScreenState.priorityCards(items: [item], chats: [cleared], teamID: nil,
+                now: Date(), draftPreview: cached, previewIsFormatted: true).isEmpty)
+            XCTAssertFalse(WelcomeScreenState.isDraftOnly(cleared, draftPreview: preview))
+            XCTAssertNil(WelcomeScreenState.cardData(for: cleared, draftPreview: preview, previewIsFormatted: true).draftPreview)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,chat-navigation.draft-only.addressable
+    @MainActor
+    func testReadableUnknownDraftStaysAheadOfNewerEstablishedChatsAtRecentCap() {
+        let unknown = Chat(id: "older-readable-draft", title: nil, lastMessageAt: nil,
+            createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 0)
+        let cleared = Chat(id: "cleared-readable-preview", title: "Older established chat", lastMessageAt: nil,
+            createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 1, hasNonEmptyDraft: false)
+        let newer = (0..<10).map { index in
+            Chat(id: "newer-\(index)", title: "Established chat \(index)", lastMessageAt: "2026-10-14T12:00:00Z",
+                createdAt: "2026-10-14T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+                appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 1, hasNonEmptyDraft: false)
+        }
+        for preview in ["Saved legacy text", AppStrings.draftEmbedPreviewLabel(type: "image")] {
+            let cached: (String) -> String? = { $0 == unknown.id || $0 == cleared.id ? preview : nil }
+            let input = newer + [cleared, unknown]
+            let capped = WelcomeScreenState.recentChats(from: input, excluding: nil, draftPreview: cached)
+            XCTAssertEqual(capped.count, 10)
+            XCTAssertEqual(capped.first?.id, unknown.id)
+            XCTAssertFalse(capped.contains { $0.id == cleared.id })
+            let all = WelcomeScreenState.recentChats(from: input, excluding: nil, limit: 12, draftPreview: cached)
+            XCTAssertEqual(all.map(\.id), [unknown.id] + newer.map(\.id) + [cleared.id])
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize
     func testSidebarStationaryHoldRejectsShortAndReturnedDragsAndResets() {
         var hold = SidebarStationaryHoldTracking()

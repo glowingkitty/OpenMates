@@ -1,0 +1,259 @@
+{
+  "simulations": [
+    {
+      "ram_gib": 2,
+      "available_gib": 1.0,
+      "cpu_count": 16,
+      "mode_arguments": [],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 0,
+        "workers": 0,
+        "threads": 0,
+        "reason": "effective_ram_at_most_2gib_regex_only"
+      }
+    },
+    {
+      "ram_gib": 2,
+      "available_gib": 1.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "2000"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 0,
+        "workers": 0,
+        "threads": 0,
+        "reason": "effective_ram_at_most_2gib_regex_only"
+      }
+    },
+    {
+      "ram_gib": 2,
+      "available_gib": 1.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 0,
+        "workers": 0,
+        "threads": 0,
+        "reason": "effective_ram_at_most_2gib_regex_only"
+      }
+    },
+    {
+      "ram_gib": 2,
+      "available_gib": 1.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000",
+        "--full-scan"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 0,
+        "workers": 0,
+        "threads": 0,
+        "reason": "effective_ram_at_most_2gib_regex_only"
+      }
+    },
+    {
+      "ram_gib": 4,
+      "available_gib": 2.0,
+      "cpu_count": 16,
+      "mode_arguments": [],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 314572800,
+        "workers": 4,
+        "threads": 2,
+        "reason": "resource_eligible_latency_not_validated"
+      }
+    },
+    {
+      "ram_gib": 4,
+      "available_gib": 2.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "2000"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 314572800,
+        "workers": 4,
+        "threads": 2,
+        "reason": "calibrated_full_scan_prediction_within_2500ms"
+      }
+    },
+    {
+      "ram_gib": 4,
+      "available_gib": 2.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 314572800,
+        "workers": 0,
+        "threads": 0,
+        "reason": "prediction_exceeds_2500ms_regex_only"
+      }
+    },
+    {
+      "ram_gib": 4,
+      "available_gib": 2.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000",
+        "--full-scan"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 314572800,
+        "workers": 4,
+        "threads": 2,
+        "reason": "explicit_full_scan_latency_override"
+      }
+    },
+    {
+      "ram_gib": 8,
+      "available_gib": 4.0,
+      "cpu_count": 16,
+      "mode_arguments": [],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 838860800,
+        "workers": 8,
+        "threads": 2,
+        "reason": "resource_eligible_latency_not_validated"
+      }
+    },
+    {
+      "ram_gib": 8,
+      "available_gib": 4.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "2000"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 838860800,
+        "workers": 8,
+        "threads": 2,
+        "reason": "calibrated_full_scan_prediction_within_2500ms"
+      }
+    },
+    {
+      "ram_gib": 8,
+      "available_gib": 4.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 838860800,
+        "workers": 0,
+        "threads": 0,
+        "reason": "prediction_exceeds_2500ms_regex_only"
+      }
+    },
+    {
+      "ram_gib": 8,
+      "available_gib": 4.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000",
+        "--full-scan"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 838860800,
+        "workers": 8,
+        "threads": 2,
+        "reason": "explicit_full_scan_latency_override"
+      }
+    },
+    {
+      "ram_gib": 16,
+      "available_gib": 8.0,
+      "cpu_count": 16,
+      "mode_arguments": [],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 1610612736,
+        "workers": 8,
+        "threads": 2,
+        "reason": "resource_eligible_latency_not_validated"
+      }
+    },
+    {
+      "ram_gib": 16,
+      "available_gib": 8.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "2000"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 1610612736,
+        "workers": 8,
+        "threads": 2,
+        "reason": "calibrated_full_scan_prediction_within_2500ms"
+      }
+    },
+    {
+      "ram_gib": 16,
+      "available_gib": 8.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000"
+      ],
+      "decision": {
+        "enabled": false,
+        "budget_bytes": 1610612736,
+        "workers": 0,
+        "threads": 0,
+        "reason": "prediction_exceeds_2500ms_regex_only"
+      }
+    },
+    {
+      "ram_gib": 16,
+      "available_gib": 8.0,
+      "cpu_count": 16,
+      "mode_arguments": [
+        "--predicted-ms",
+        "14000",
+        "--full-scan"
+      ],
+      "decision": {
+        "enabled": true,
+        "budget_bytes": 1610612736,
+        "workers": 8,
+        "threads": 2,
+        "reason": "explicit_full_scan_latency_override"
+      }
+    }
+  ],
+  "resource_source_sha256": "61b3465a54804184b1c8a62125c4d714c444c22ee44e74df5b9938034f20218d",
+  "resource_binary_sha256": "78e595453169bb0f46d27dbc3a7a87875c23486fe160a77fa9ad79b7c2516862",
+  "tests_stdout": "\nrunning 5 tests\ntest tests::busy_memory_cgroup_and_cpu_caps ... ok\ntest tests::checked_inputs_and_extreme_values ... ok\ntest tests::full_file_latency_gate_requires_calibration_or_explicit_override ... ok\ntest tests::kernel_reservations_and_intermediate_tiers_are_conservative ... ok\ntest tests::nominal_tiers_and_worker_estimates_respect_memory_and_cpu ... ok\n\ntest result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n",
+  "tests_passed": 5,
+  "python_tests_passed": 10,
+  "rust_compilation": "edition2021, -Dwarnings; optimized binary and separate test binary",
+  "model_inference_in_policy": false
+}

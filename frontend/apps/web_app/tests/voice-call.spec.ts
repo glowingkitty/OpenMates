@@ -1,40 +1,106 @@
-/**
- * Real first-party call transport and encrypted chat persistence in isolated CI.
- * Only the external voice provider is synthetic, gated inside the disposable
- * backend; browser sockets, session admission and message storage stay real.
+/** Real authenticated STT and ordinary encrypted chat transport in isolated CI.
+ * Only external providers use deterministic fixtures; browser sockets, routing,
+ * encrypted messages, speech assets and source uploads use their normal owners.
  */
-import type { Locator, Page } from '@playwright/test';
-import { scrollChatHistoryToStart, waitForStickyCallControlsReady } from './helpers/chat-scroll';
-/* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
+import type { Locator, Page, TestInfo } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
+/* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, waitForChatReady, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
-const { withMockMarker } = require('./signup-flow-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
-const STAGE_TWO_TEXT = 'Voice stage two fixture: apply memory and search the web';
-const STAGE_TWO_REPLY = 'Your approved memory is loaded and the search results are ready.';
-const CHECKPOINT_FACT = 'The recipe must remain vegetarian and use ginger.';
-const UNCOVERED_CONTEXT_FACT = 'The oldest uncovered turn requires sesame-free toppings.';
-const ACTIVITY_REQUEST = 'Hold this voice activity reply until I speak again.';
-const ACTIVITY_REPLY = 'Your voice activity fixture reply is ready.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
+
+/** Substitute only the external image bytes; ordinary proxy URLs and embeds stay real. */
+async function installVoiceFixtureImageProxy(page: Page): Promise<{ servedRequests: number }> {
+  const asset = await page.request.get('/store-examples/generate-1.webp');
+  expect(asset.ok()).toBeTruthy();
+  const imageBytes = await asset.body();
+  expect(imageBytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
+  const proxyUrl = new URL('https://preview.openmates.org/api/v1/image');
+  proxyUrl.searchParams.set('url', 'https://app.dev.openmates.org/store-examples/generate-1.webp');
+  // Chat renderers proxy before mounting the image component, without a size.
+  // Its double-proxy guard preserves that exact URL when the component asks
+  // for a 520px preview; the component-preview route uses a different URL.
+  const observed = { servedRequests: 0 };
+  await page.route(url => url.href === proxyUrl.href, async route => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'image/webp', body: imageBytes });
+    observed.servedRequests++;
+  });
+  return observed;
+}
 
 interface SocketObservation {
   path: string;
   code?: string;
   stage?: string;
+  errorOrigin?: { category: string; function: string; line: number };
   socketId?: number;
   type: string;
+  voiceMode?: boolean;
+  autoSpeak?: boolean;
+  forcedModel?: boolean;
+  speaking?: boolean;
+  kind?: string;
+  speechStatus?: string;
+  speechErrorCode?: string;
+  speechAction?: 'request'|'generate'|'retry'|'cancel'|'delete';
+  recoveryOperation?: string;
+  jobId?: string;
+  recordId?: string;
+  expectedMessagesV?: number;
+  committedMessagesV?: number;
+  recoveryMessagesV?: number;
+  persistenceState?: 'LEASED'|'TERMINAL'|'ACKNOWLEDGED';
+  windowStatus?: number;
+  windowOutcome?: 'response'|'failed'|'invalid';
+  windowPurpose?: 'version'|'assistant_row';
+  requestedAt?: number;
+  segmentId?: string;
+  streamPhase?: 'start'|'chunk'|'end'|'error'|'alignment';
+  turnTrackId?: string;
+  attemptId?: string;
+  chunkIndex?: number;
+  sequence?: number;
+  sourceVersion?: number;
+  executionVersion?: number;
+  generatedAssetPresent?: boolean;
+  generatedAssetId?: string;
+  tombstone?: boolean;
+  voiceCallBootstrap?: boolean;
+  snapshotPurpose?: 'prepare'|'send';
+  snapshotSuccess?: boolean;
+  snapshotHasCode?: boolean;
+  recoveryStatus?: 'completed'|'disabled'|'failed';
+  recoveryJobCount?: number;
+  recoveryPendingCount?: number;
+  heardBoundary?: {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number};
+  language?: string;
   observedAt?: number;
   audioSamples?: number;
   audioBatch?: number;
   audioNonzero?: boolean;
   startupAllowanceMs?: number;
   messageId?: string;
+  requestId?: string;
+  turnId?: string;
+  preflightId?: string;
   chatId?: string;
   callId?: string;
   role?: string;
   assistantMessageId?: string;
+  userMessageId?: string;
+  taskId?: string;
+  taskStatus?: string;
+  finalChunk?: boolean;
+  awaitingContinuation?: boolean;
+  interruptedByRevocation?: boolean;
+  interruptedBySoftLimit?: boolean;
   embedId?: string;
   summary?: string;
   ciphertextLength?: number;
@@ -52,26 +118,63 @@ interface SocketObservation {
   boundaryTimestamp?: number;
   createdAt?: number;
   final?: boolean;
+  pendingReason?: 'incomplete'|'uncertain';
   textLength?: number;
   expectedReply?: boolean;
   context?: Array<{ role: string; text: string; message_id?: string; created_at?: number }>;
 }
+interface TurnDeliveryObservation {
+  callId?: string; chatId?: string; turnId?: string; phase: string; reason?: string; observedAt: number;
+  foreground?: { visible: boolean; focused: boolean };
+  failure?: {errorClass?:string;errorCode?:string;httpStatus?:number;module?:string;line?:number};
+}
+interface HeldSpeechEvidence {
+  audio:HTMLAudioElement|null; segmentId:string|null; source:string|null; offset:number;
+  firstProgressAt:number|null; playCallsAtHold:number; playCalls:number;
+  sourceMse:boolean; beforeProviderEnd:boolean; sequence:number|null;
+  nativeErrors:Array<{code:number;observedAt:number}>;
+  handoffProgress?:{messageId:string;segmentId:string;audioId:number;observedAt:number;currentTime:number};
+}
 interface CallEvidence {
+  turnDelivery?: TurnDeliveryObservation[];
+  inspectDraftAtBootstrap?: (chatId: string) => void;
+  inspectDraftAfterReady?: () => Promise<{exists:boolean;wrappedKeyPresent:boolean;wrappedKeyUnchanged:boolean;
+    encryptedDraftPresent:boolean;messagesVersion:number|null}>;
+  draftDeletionEvents?: Array<{type:string;chatId:string;observedAt:number}>;
+  draftAtBootstrap?: { chatId: string; requestedAt: number; completedAt?: number; readFailed?: boolean;
+    exists?: boolean; personal?: boolean; ownerCompatible?: boolean; wrappedKeyPresent?: boolean;
+    encryptedDraftPresent?: boolean; messagesVersion?: unknown };
   sent: SocketObservation[];
   received: SocketObservation[];
   tracks: MediaStreamTrack[];
   decryptChatContent?: (value: string, rawKey: ArrayBuffer) => Promise<string>;
   boundCaptureTracks?:MediaStreamTrack[];
+  memoryBatch?: {socketId:number;entryCount:number;observedAt:number};
+  replayMemoryBatch?: () => void;
+  holdPrivacySnapshot?: boolean;
+  privacySnapshotHeld?: {socketId:number;requestId:string;success:boolean;heldAt:number;releasedAt?:number};
+  releasePrivacySnapshot?: () => void;
+  privacyNoopReplay?: {socketId:number;entryCount:number;replayedAt:number;producerAt?:number;producerUnchanged?:boolean};
+  holdSpeechResponse?: {chatId:string;previousMessageId:string};
+  heldSpeechAudio?: {count:number;messageId:string;phases:string[];releasedAt?:number};
+  releaseSpeechAudio?: () => void;
   readyHeld?: boolean;
   releaseReady?: () => void;
+  bootstrapHeld?: boolean;
+  releaseBootstrap?: () => void;
+  rejectNextBootstrap?: boolean;
+  bootstrapRejectionInjected?: boolean;
   mainSocket?: WebSocket;
   mainSocketId?: number;
+  voiceSocketCount?: number;
   reconnectOnText?: boolean;
   reconnectInjected?: boolean;
   hangupOnCommittedAction?: { callId: string; socketId: number };
   committedHangupInjected?: boolean;
   committedHangupReceipt?: SocketObservation;
   heldChatLookupCount?: number;
+  holdMetadataCommits?: boolean;
+  heldMetadataCommits?: number;
   chatLookupDiagnostics?: {
     selectedConstructors: number;
     omittedConstructors: number;
@@ -79,6 +182,9 @@ interface CallEvidence {
       matchedBoundRow: boolean; held: boolean }>;
   };
   releaseChatLookup?: () => void;
+  historyDurability?: Array<{ ordinal: number; role: string; localExists: boolean; remoteExists: boolean;
+    localRevision: number; remoteRevision: number; pendingOutboxCount: number;
+    ciphertextMatches: boolean; plaintextMatches: boolean }>;
 }
 
 test.use({
@@ -87,123 +193,114 @@ test.use({
   permissions: ['microphone'],
 });
 
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status === testInfo.expectedStatus) return;
-  try {
-    const runtime = await page.evaluate(() => {
-      const browser = window as unknown as { __voiceCallEvidence?: CallEvidence;
-        __nativeVoiceInput?: NativeVoiceInputEvidence; __voicePrivacyEvents?: string[] };
-      const transport = browser.__voiceCallEvidence;
-      const native = browser.__nativeVoiceInput;
-      const privacy = browser.__voicePrivacyEvents ?? [];
-      const sent = transport?.sent.filter(frame => frame.path === '/v1/voice-call') ?? [];
-      const received = transport?.received.filter(frame => frame.path === '/v1/voice-call') ?? [];
-      return {
-        transportObserved: !!transport,
-        nativeCaptureObserved: !!native,
-        privacyBoundaryObserved: Array.isArray(browser.__voicePrivacyEvents),
-        voiceSocketRequests: privacy.filter(event => event === 'voice_socket').length,
-        voiceStartFrames: sent.filter(frame => frame.type === 'start').length,
-        voiceReadyFrames: received.filter(frame => frame.type === 'ready').length,
-        voiceMicFrames: sent.filter(frame => frame.type === 'mic_audio').length,
-        voiceEndFrames: sent.filter(frame => frame.type === 'audio_stream_end').length,
-        mainSocketOpen: transport?.mainSocket?.readyState === WebSocket.OPEN,
-        microphoneRequests: privacy.filter(event => event === 'microphone_requested').length,
-        capturesResolved: native?.captureRequests ?? 0,
-        nativeLiveTracks: native?.nativeTracks.filter(track => track.readyState === 'live').length ?? 0,
-        outputLiveTracks: native?.outputTracks.filter(track => track.readyState === 'live').length ?? 0,
-        contextsRunning: native?.contexts.filter(context => context.state === 'running').length ?? 0,
-        contextsSuspended: native?.contexts.filter(context => context.state === 'suspended').length ?? 0,
-        contextsClosed: native?.contexts.filter(context => context.state === 'closed').length ?? 0,
-        workersCreated: native?.workersCreated ?? 0,
-        workersReady: native?.detectorReady ?? 0,
-        workersTerminated: native?.workersTerminated ?? 0,
-        acknowledgementReads: privacy.filter(event => event === 'ack_get').length,
-        acknowledgementWrites: privacy.filter(event => event === 'ack_post').length,
-        acknowledgementsSaved: privacy.filter(event => event === 'ack_saved').length,
-      };
-    });
-    await testInfo.attach('voice-runtime-diagnostic', { body: JSON.stringify(runtime), contentType: 'application/json' });
-  } catch {
-    await testInfo.attach('voice-runtime-diagnostic', { body: JSON.stringify({ captureFailed: true }), contentType: 'application/json' });
-  }
-  try {
-    // Failure evidence contains only counts/booleans/lengths. Browser keys,
-    // transcript text, source IDs and ciphertext never leave this evaluation.
-    const diagnostic = await page.evaluate(async (expectedReply) => {
-      const state = (window as unknown as { __voiceCallEvidence?: CallEvidence }).__voiceCallEvidence;
-      if (!state) return { transportObserved: false };
-      const callId = state.received.filter((event) => event.type === 'ready').at(-1)?.callId;
-      const compression = state.received.filter((event) => event.type === 'voice_compression' && event.callId === callId).at(-1);
-      const targetIds = [...new Set(state.received.filter((event) => event.type === 'voice_embed' && event.callId === callId)
-        .map((event) => event.assistantMessageId).filter((id): id is string => !!id))];
-      const phaseCounts = Object.fromEntries(['voice_compression_started', 'voice_compression', 'chat_compression_checkpoint_stored',
-        'voice_context_pause', 'voice_context_resumed'].map((type) => [type, state.received.filter((event) => event.type === type).length]));
-      const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open(name); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => {
-        const request = db.transaction(store, 'readonly').objectStore(store).get(id);
-        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      const database = await open('chats_db');
-      const cryptoDatabase = await open('openmates_crypto');
-      try {
-        const masterKey = await read<CryptoKey>(cryptoDatabase, 'keys', 'master_key');
-        const rows = [];
-        for (const id of targetIds) {
-          const row = await read<{ chat_id: string; created_at: number; queue_revision?: number; encrypted_content?: string;
-            content?: string; call_persistence_v1?: { call_id: string; entries: unknown[] } } | undefined>(database, 'messages', id);
-          const frames = state.received.filter((event) => event.type === 'transcript' && event.messageId === id);
-          let decryptable = false;
-          let expectedTextStored = false;
-          let storedTextLength = 0;
-          if (row?.encrypted_content && masterKey) {
-            try {
-              const chat = await read<{ encrypted_chat_key: string }>(database, 'chats', row.chat_id);
-              const bytes = (value: string) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
-              const wrapped = bytes(chat.encrypted_chat_key);
-              const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, masterKey, wrapped.slice(12));
-              const text = await state.decryptChatContent!(row.encrypted_content, rawKey);
-              decryptable = true; expectedTextStored = text.includes(expectedReply); storedTextLength = text.length;
-            } catch { /* Record a boolean, never private decryption error data. */ }
-          }
-          rows.push({ localRowExists: !!row, decryptable, expectedTextStored, storedTextLength,
-            revision: row?.queue_revision ?? 0, pendingCiphertexts: row?.call_persistence_v1?.entries.length ?? 0,
-            plaintextStored: typeof row?.content === 'string', originMatchesCall: row?.call_persistence_v1?.call_id === callId,
-            coveredByLatestCheckpoint: compression?.coveredMessageIds?.includes(id) ?? false,
-            atOrBeforeLatestBoundary: !!row && !!compression?.boundaryTimestamp && row.created_at <= compression.boundaryTimestamp,
-            transcriptFrames: frames.length, expectedTextFrames: frames.filter((event) => event.expectedReply).length,
-            finalExpectedTextFrames: frames.filter((event) => event.final && event.expectedReply).length,
-            maxTranscriptLength: Math.max(0, ...frames.map((event) => event.textLength ?? 0)) });
-        }
-        return { transportObserved: true, phaseCounts, targetRowCount: targetIds.length, rows,
-          errors: state.received.filter(event => event.type === 'error').map(({code, stage}) => ({code, stage})),
-          contextShape: state.sent.find(event => event.type === 'start')?.context?.map(row => ({
-            role: row.role === 'user' || row.role === 'assistant' ? row.role : 'other',
-            textLength: typeof row.text === 'string' ? row.text.length : null,
-            identityFormat: typeof row.message_id !== 'string' ? 'absent' : /^[0-9a-f]{64}$/.test(row.message_id) ? 'sha256' : /^[0-9a-f-]{36}$/i.test(row.message_id) ? 'uuid' : 'other',
-            identityLength: typeof row.message_id === 'string' ? row.message_id.length : null,
-            timestampType: typeof row.created_at, timestampFinite: typeof row.created_at === 'number' && Number.isFinite(row.created_at),
-          })),
-          sourceCount: state.received.filter((event) => event.type === 'voice_compression_started' && event.callId === callId).at(-1)?.sourceMessageIds?.length ?? 0,
-          coveredCount: compression?.coveredMessageIds?.length ?? 0 };
-      } finally { database.close(); cryptoDatabase.close(); }
-    }, STAGE_TWO_REPLY);
-    await testInfo.attach('voice-history-diagnostic', { body: JSON.stringify(diagnostic), contentType: 'application/json' });
-  } catch {
-    await testInfo.attach('voice-history-diagnostic', { body: JSON.stringify({ captureFailed: true }), contentType: 'application/json' });
-  }
+// Failure evidence keeps bounded transport categories, never message/audio bodies.
+test.afterEach(async ({page},testInfo)=>{
+  if(testInfo.status===testInfo.expectedStatus)return;
+  const diagnostic=await page.evaluate(()=>{
+    const browser=window as unknown as {__voiceCallEvidence?:CallEvidence;__nativeVoiceInput?:NativeVoiceInputEvidence};
+    const state=browser.__voiceCallEvidence;const native=browser.__nativeVoiceInput;
+    const count=(frames:SocketObservation[]|undefined,type:string)=>frames?.filter(frame=>frame.type===type).length??0;
+    const id=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
+    const speechErrorCodes=new Set(['authentication_required','invalid_segments','too_many_segments','forbidden',
+      'assistant_message_required','speech_source_no_longer_current','segment_text_too_long',
+      'canonical_segment_required','rate_limited','insufficient_budget','invalid_action']);
+    const speechActions=new Set(['request','generate','retry','cancel','delete']);
+    const recoveryOperations=new Set(['recovery_job_claim','recovery_job_persist','recovery_output_get',
+      'recovery_output_persist_message','recovery_output_persist_summary','recovery_output_ack_embed','recovery_output_ack_checkpoint']);
+    const safeVersion=(value:unknown)=>Number.isSafeInteger(value)&&(value as number)>=0?value as number:undefined;
+    const ids=(frame:SocketObservation)=>({type:frame.type,callId:id(frame.callId),chatId:id(frame.chatId),
+      messageId:id(frame.messageId),userMessageId:id(frame.userMessageId),assistantMessageId:id(frame.assistantMessageId),
+      taskId:id(frame.taskId),turnId:id(frame.turnId),preflightId:id(frame.preflightId),requestId:id(frame.requestId),observedAt:frame.observedAt,
+      speechAction:frame.speechAction&&speechActions.has(frame.speechAction)?frame.speechAction:undefined,
+      speechErrorCode:frame.speechErrorCode?(speechErrorCodes.has(frame.speechErrorCode)?frame.speechErrorCode:'unknown'):undefined,
+      recoveryOperation:frame.recoveryOperation&&recoveryOperations.has(frame.recoveryOperation)?frame.recoveryOperation:undefined,
+      jobId:id(frame.jobId),recordId:id(frame.recordId),expectedMessagesV:safeVersion(frame.expectedMessagesV),
+      committedMessagesV:safeVersion(frame.committedMessagesV),recoveryMessagesV:safeVersion(frame.recoveryMessagesV),
+      persistenceState:['LEASED','TERMINAL','ACKNOWLEDGED'].includes(frame.persistenceState??'')?frame.persistenceState:undefined});
+    const serverCodes=new Set(['client_update_required','durable_preflight_failed','immutable_chat_key_mismatch',
+      'preflight_expired','preflight_mismatch','preflight_required','recovery_key_mismatch','message_identity_mismatch',
+      'team_chat_scope_mismatch','version_conflict','existing_chat_metadata_forbidden','invalid_chat_turn_admission',
+      'inference_commitment_mismatch','privacy_receipt_required','privacy_receipt_invalid','privacy_context_changed',
+      'inference_temporarily_paused','insufficient_credits','unauthorized','forbidden','websocket_receipt_connection_changed',
+      'invalid_request','already_used','receipt_capacity','unavailable','rate_limited','voice_call_bootstrap_failed']);
+    const status=document.querySelector('[data-testid="voice-call-status"]');
+    const statusText=document.querySelector('[data-testid="voice-call-status-text"]')?.textContent;
+    const transcriptFailure=statusText==='The transcript could not be saved. The call was stopped.'||
+      statusText==='Das Transkript konnte nicht gespeichert werden. Der Anruf wurde beendet.';
+    const callUIstatus=transcriptFailure?'transcript_save_failed':status?.getAttribute('role')==='alert'?'error':
+      document.querySelector('[data-testid="voice-call-bar"]')?.getAttribute('aria-busy')==='true'?'connecting':status?'active':'inactive';
+    return {observed:!!state,starts:count(state?.sent,'start'),ready:count(state?.received,'ready'),
+      microphoneFrames:count(state?.sent,'mic_audio'),canonicalSends:count(state?.sent,'chat_message_added'),
+      finalUserTranscripts:state?.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final).length??0,
+      errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
+      speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({
+        ...ids(frame),kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
+      speechEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['assistant_speech','assistant_speech_status','ai_response_storage_confirmed','ai_response_storage_failed','hangup','ended'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({
+          ...ids(frame),direction:frame.direction,status:frame.speechStatus,segmentId:id(frame.segmentId)})),
+      persistenceEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>frame.recoveryOperation||['ai_response_completed','ai_response_storage_confirmed',
+          'ai_response_storage_failed','assistant_speech','assistant_speech_status','hangup','ended','recovery_version_refresh'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-96).map(frame=>({
+          ...ids(frame),direction:frame.direction,status:frame.speechStatus,
+          code:frame.code?(serverCodes.has(frame.code)?frame.code:'unknown'):undefined,
+          windowStatus:Number.isInteger(frame.windowStatus)&&frame.windowStatus!>=100&&frame.windowStatus!<=599?frame.windowStatus:undefined,
+          windowOutcome:['response','failed','invalid'].includes(frame.windowOutcome??'')?frame.windowOutcome:undefined,
+          windowPurpose:frame.windowPurpose==='version'||frame.windowPurpose==='assistant_row'?frame.windowPurpose:undefined,
+          requestedAt:typeof frame.requestedAt==='number'&&Number.isFinite(frame.requestedAt)?frame.requestedAt:undefined})),
+      historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
+      speechMediaProof:(window as unknown as {__voiceSpeechMediaProof?:Record<string,number>}).__voiceSpeechMediaProof,
+      manualSpeechNative:(window as unknown as {__voiceManualSpeechPlayback?:{native:unknown[]}}).__voiceManualSpeechPlayback?.native.slice(-64),
+      draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,
+      memoryBatch:state?.memoryBatch,privacySnapshotHeld:state?.privacySnapshotHeld,privacyNoopReplay:state?.privacyNoopReplay,callUIstatus,
+      turnDelivery:state?.turnDelivery?.slice(-48)??[],
+      finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
+      textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
+      canonicalTurns:state?.sent.filter(frame=>frame.type==='chat_message_added').slice(-24).map(frame=>({...ids(frame),voiceMode:frame.voiceMode,heardBoundary:!!frame.heardBoundary}))??[],
+      interruptionTargets:state?.received.filter(frame=>frame.type==='audio.interrupted').slice(-24).map(ids)??[],
+      admissionEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['chat_turn_admit','chat_turn_preflight','chat_turn_preflight_ack','chat_turn_context','chat_turn_context_ack',
+          'chat_message_confirmed','personal_send_context_snapshot','personal_send_context_snapshot_result','error'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({...ids(frame),direction:frame.direction,
+          status:frame.taskStatus,purpose:frame.snapshotPurpose,success:frame.snapshotSuccess,hasCode:frame.snapshotHasCode,
+          code:frame.code?(serverCodes.has(frame.code)?frame.code:'other'):undefined})),
+      recoveryEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['native_client_lifecycle','native_client_lifecycle_ack','recovery_jobs_available','recovery_outputs_discovery_complete'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),direction:frame.direction,
+          status:frame.recoveryStatus,jobCount:frame.recoveryJobCount,pendingCount:frame.recoveryPendingCount})),
+      bootstrapEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['voice_call_chat_prepare','encrypted_chat_metadata','encrypted_metadata_stored','start','ready'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),direction:frame.direction,
+          path:frame.path,voiceCallBootstrap:frame.voiceCallBootstrap,keyCiphertextPresent:(frame.ciphertextLength??0)>0})),
+      taskEvents:[...(state?.sent??[]),...(state?.received??[])].filter(frame=>['cancel_ai_task','ai_task_initiated','ai_task_cancel_requested','ai_task_ended','ai_task_completed','ai_task_failed','ai_message_ready','ai_response_storage_confirmed','ai_response_storage_failed'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),status:frame.taskStatus})),
+      finalAssistantEvents:state?.received.filter(frame=>frame.type==='ai_message_update'&&frame.finalChunk).slice(-24).map(frame=>({...ids(frame),final:frame.final,awaitingContinuation:frame.awaitingContinuation,
+        interruptedByRevocation:frame.interruptedByRevocation,interruptedBySoftLimit:frame.interruptedBySoftLimit}))??[],
+      captureRequests:native?.captureRequests??0,detectorReady:native?.detectorReady??0,
+      bootstrapControl:{held:state?.bootstrapHeld,rejectionInjected:state?.bootstrapRejectionInjected,voiceSockets:state?.voiceSocketCount??0},
+      speechPrimes:native?.speechPrimes??[],
+      workersCreated:native?.workersCreated??0,workersTerminated:native?.workersTerminated??0};
+  }).catch(()=>({captureFailed:true}));
+  // Persist independently of the reporter so completed failures retain their
+  // sanitized sender evidence even if the full runner later reaches its limit.
+  const diagnosticPath=testInfo.outputPath('voice-call-transport-state.json');
+  await writeFile(diagnosticPath,JSON.stringify(diagnostic),'utf8');
+  await testInfo.attach('voice-call-transport-state',{path:diagnosticPath,contentType:'application/json'});
 });
 
-async function observeRealTransport(page: Page, deferReady = false): Promise<void> {
-  await page.addInitScript(({ expectedReply, deferReady }) => {
-    let holdReady = deferReady;
-    let audioBatch = 0;
-    let nextAudioBatch = 0;
-    const evidence = { sent: [], received: [], tracks: [] } as CallEvidence;
-    // Browser-only shared decoder for the independent canonical durability fence
-    // and failure diagnostics. No decrypted content or keys leave the browser.
+async function observeRealTransport(page: Page, deferReady = false, bootstrapControls = false): Promise<void> {
+  await page.addInitScript(({deferReady,bootstrapControls}) => {
+    let holdReady=deferReady;
+    let holdBootstrap=bootstrapControls;
+    let audioBatch=0;
+    let nextAudioBatch=0;
+    const evidence={sent:[],received:[],tracks:[]} as CallEvidence;
     evidence.decryptChatContent = async (value, rawKey) => {
       const encrypted = Uint8Array.from(atob(value), char => char.charCodeAt(0));
       // Chat ciphertext uses OM + FNV-1a key fingerprint + IV; legacy starts at IV.
@@ -218,140 +315,357 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
       return new TextDecoder().decode(await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: encrypted.slice(header, header + 12) }, key, encrypted.slice(header + 12)));
     };
-    Object.assign(window, { __voiceCallEvidence: evidence });
-    const NativeWebSocket = window.WebSocket;
-    let nextSocketId = 0;
-    window.WebSocket = new Proxy(NativeWebSocket, {
-      construct(Target, args) {
-        const socket: WebSocket = Reflect.construct(Target, args);
-        const socketId = ++nextSocketId;
-        const path = new URL(String(args[0]), window.location.href).pathname;
-        if (path === '/v1/ws') {
-          evidence.mainSocket = socket;
-          evidence.mainSocketId = socketId;
+    Object.assign(window,{__voiceCallEvidence:evidence});
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(...args:Parameters<typeof fetch>)=>{
+      let observation:SocketObservation|undefined;
+      try {
+        const input=args[0];
+        const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);
+        const match=/^\/v1\/chats\/([A-Za-z0-9_-]{1,128})\/messages\/window$/.exec(url.pathname);
+        if(match&&url.searchParams.get('limit')==='1'&&url.searchParams.get('respect_compression_boundary')==='false'){
+          observation={type:'recovery_version_refresh',path:'/v1/chats/messages/window',chatId:match[1],
+            requestedAt:performance.now(),observedAt:performance.now(),
+            windowPurpose:url.searchParams.has('anchor_message_id')?'assistant_row':'version'};
         }
-        const originalSend = socket.send.bind(socket);
-        socket.send = (data) => {
-          if (typeof data === 'string') {
-            try {
-              const event = JSON.parse(data);
-              const payload = event.payload ?? event;
-              if (event.type === 'mic_audio' && !audioBatch) {
-                audioBatch = ++nextAudioBatch;
-                queueMicrotask(() => { audioBatch = 0; });
-              }
-              if (['start', 'text_input', 'call_message_completed', 'encrypted_chat_metadata', 'store_chat_compression_checkpoint', 'chat_system_message_added', 'voice_compression_confirmed', 'voice_context_paused', 'chat_message_added', 'mic_audio', 'audio_stream_end', 'hangup', 'voice_memory_response', 'app_settings_memories_confirmed', 'voice_action_completed_confirmed'].includes(event.type)) {
-                evidence.sent.push({
-                  path, socketId, type: event.type, observedAt: performance.now(),
-                  ...(event.type === 'mic_audio' ? { audioSamples: atob(payload.data).length / 2, audioBatch, audioNonzero: /[^\0]/.test(atob(payload.data)) } : {}),
-                  messageId: payload.message_id ?? payload.message?.message_id ?? payload.assistant_message_id,
-                  chatId: payload.chat_id, role: payload.role,
-                  ...(['call_message_completed', 'encrypted_chat_metadata', 'chat_system_message_added'].includes(event.type) ? {
-                    ciphertextLength: typeof (payload.message ?? payload).encrypted_content === 'string' ? (payload.message ?? payload).encrypted_content.length : 0,
-                    plaintext: 'content' in (payload.message ?? payload) || 'text' in (payload.message ?? payload),
-                    revision: payload.revision,
-                  } : {}),
-                  ...(event.type === 'start' ? { context: payload.context?.messages, summary: payload.context?.summary,
-                    startupAllowanceMs: payload.startup_audio_allowance_ms } : {}),
-                  ...(event.type === 'store_chat_compression_checkpoint' ? {
-                    checkpointId: payload.checkpoint_id, coveredCount: payload.covered_message_ids?.length,
-                    ciphertextLength: typeof payload.encrypted_summary === 'string' ? payload.encrypted_summary.length : 0,
-                    plaintext: 'summary' in payload || 'summary_content' in payload,
-                  } : {}),
-                  ...(['voice_compression_confirmed', 'voice_context_paused'].includes(event.type) ? { checkpointId: payload.checkpoint_id } : {}),
-                });
-              }
-            } catch { /* Observe without changing transport behavior. */ }
-          }
-          originalSend(data);
-          if (path === '/v1/voice-call' && evidence.reconnectOnText && typeof data === 'string') {
-            try {
-              if (JSON.parse(data).type === 'text_input') {
-                evidence.reconnectOnText = false;
-                evidence.reconnectInjected = true;
-                evidence.mainSocket?.close();
-              }
-            } catch { /* Preserve native transport if an unrelated frame arrives. */ }
-          }
-        };
-        socket.addEventListener('message', (message) => {
-          if (typeof message.data !== 'string') return;
+      } catch { /* Unrelated or unparsable requests remain entirely native. */ }
+      try {
+        const response=await nativeFetch(...args);
+        if(observation){
+          observation.observedAt=performance.now();observation.windowStatus=response.status;observation.windowOutcome='response';
+          evidence.received.push(observation);
+          // Read a clone asynchronously: expose only the bounded revision, never
+          // the response body, message content, headers, or complete URL.
+          const recorded=observation;
           try {
-            const event = JSON.parse(message.data);
-            if (path === '/v1/voice-call' && event.type === 'ready' && holdReady) {
-              // Delay delivery of the genuine ready bytes, preserving the real
-              // authenticated socket/server. No microphone frame can pass yet.
-              message.stopImmediatePropagation();
-              evidence.readyHeld = true;
-              evidence.releaseReady = () => {
-                holdReady = false;
-                evidence.readyHeld = false;
-                socket.dispatchEvent(new MessageEvent('message', { data: message.data }));
-              };
-              return;
-            }
-            const payload = event.payload ?? event;
-            if (['error', 'server_capabilities', 'usage', 'billing_activity', 'ready', 'transcript', 'call_message_confirmed', 'system_message_confirmed', 'call_message_rejected', 'chat_compression_checkpoint_stored', 'ended', 'voice_memory', 'voice_focus', 'voice_embed', 'voice_context', 'voice_compression_started', 'voice_compression', 'voice_context_pause', 'voice_context_resumed', 'voice_action_completed'].includes(event.type)) {
-              evidence.received.push({ path, socketId, type: event.type, messageId: payload.message_id,
-                ...(event.type === 'error' ? {
-                  code: ['call_unavailable', 'context_too_large', 'transcript_limit'].includes(payload.code) ? payload.code : 'other',
-                  stage: ['start_validation','context_options','personal_chat','session','credits','lock','registry','provider_selection','broker_creation','broker_prepare','prompt_configuration','provider_open','active'].includes(payload.stage) ? payload.stage : 'other',
-                } : {}),
-                chatId: payload.chat_id, role: payload.role, revision: payload.revision,
-                assistantMessageId: event.assistant_message_id ?? payload.assistant_message_id,
-                callId: event.call_id ?? payload.call_id, embedId: payload.embed_id ?? payload.embed_refs?.[0],
-                ...(event.type === 'billing_activity' ? { inputListening: payload.input_listening, processing: payload.processing } : {}),
-                ...(event.type === 'usage' ? {creditsCharged:payload.credits_charged} : {}),
-                ...(event.type === 'transcript' ? { createdAt: payload.created_at, final: payload.final === true,
-                  textLength: typeof payload.text === 'string' ? payload.text.length : 0,
-                  expectedReply: typeof payload.text === 'string' && payload.text.includes(expectedReply) } : {}),
-                ...(event.type === 'voice_compression_started' ? { snapshotId: payload.snapshot_id, sourceMessageIds: payload.message_ids } : {}) });
-              if (['voice_compression', 'chat_compression_checkpoint_stored', 'voice_context_pause', 'voice_context_resumed'].includes(event.type)) {
-                const observed = evidence.received.at(-1)!;
-                observed.checkpointId = payload.summary_message_id ?? payload.checkpoint?.id ?? payload.checkpoint_id;
-                observed.coveredCount = payload.covered_message_ids?.length ?? payload.checkpoint?.covered_message_ids?.length;
-                if (event.type === 'voice_compression') {
-                  observed.coveredMessageIds = payload.covered_message_ids;
-                  observed.compressedMessageCount = payload.compressed_message_count;
-                  observed.snapshotId = payload.voice_snapshot_id;
-                  observed.boundaryTimestamp = payload.compressed_up_to_timestamp;
-                }
-              }
-            }
-            const target = evidence.hangupOnCommittedAction;
-            const currentReady = evidence.received.filter(observed => observed.type === 'ready').at(-1);
-            if (event.type === 'voice_action_completed' && target && payload.call_id === target.callId &&
-                currentReady?.callId === target.callId && currentReady.socketId === target.socketId) {
-              const hangup = document.querySelector<HTMLButtonElement>('[data-testid="voice-call-hangup"]');
-              if (hangup) {
-                evidence.hangupOnCommittedAction = undefined;
-                evidence.committedHangupReceipt = evidence.received.at(-1);
-                evidence.committedHangupInjected = true;
-                hangup.click();
-              }
-            }
-          } catch { /* Binary/provider audio is irrelevant to ciphertext proof. */ }
-        });
-        return socket;
-      },
-    });
-    const originalCapture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      const stream = await originalCapture(constraints);
-      evidence.tracks.push(...stream.getTracks());
-      return stream;
+            void response.clone().json().then(body=>{
+              recorded.recoveryMessagesV=Number.isSafeInteger(body?.messages_v)&&body.messages_v>=0?body.messages_v:undefined;
+              if(recorded.recoveryMessagesV===undefined)recorded.windowOutcome='invalid';
+            }).catch(()=>{recorded.windowOutcome='invalid';});
+          } catch { recorded.windowOutcome='invalid'; }
+        }
+        return response;
+      } catch(error){
+        if(observation){observation.observedAt=performance.now();observation.windowOutcome='failed';evidence.received.push(observation);}
+        throw error;
+      }
     };
-  }, { expectedReply: STAGE_TWO_REPLY, deferReady });
+
+    window.addEventListener('appSettingsMemoriesSyncReady',event=>{
+      const replay=evidence.privacyNoopReplay;
+      const detail=(event as CustomEvent).detail;
+      if(!replay||replay.producerAt!==undefined||replay.socketId!==evidence.mainSocketId||detail?.entry_count!==replay.entryCount)return;
+      // This is the production producer's event, never a test-generated flag.
+      replay.producerAt=performance.now();replay.producerUnchanged=detail.privacy_snapshot_unchanged===true;
+    });
+    const phases=new Set(['queued','started','validating','sender_loading','chat_loading','message_saving','chat_refreshing',
+      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed','canonical_prerequisite','canonical_prerequisite_failed']);
+    const reasons=new Set(['invalid_turn','scope_changed','disconnected','personal_chat_unavailable','message_row_unavailable',
+      'message_failed','message_waiting_for_connection','predecessor_not_saved','message_identity_conflict','turn_already_settled',
+      'immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch','version_conflict',
+      'inference_commitment_mismatch','client_update_required','operation_failed']);
+    for(const stage of ['sender','predecessor','predecessor_wait','journal_read','reply_discovery','optimistic_timestamp','model_admission','personal_privacy','fast_admission',
+      'connected_accounts','embed_preparation','saved_history','metadata_and_keys','private_context','history_projection',
+      'embed_storage','preflight_key','preflight_ciphertext','preflight_journal','preflight_serialization','preflight_receipt',
+      'preflight_dispatch','preflight_ack','canonical_dispatch'])reasons.add(stage);
+    const errorClasses=new Set(['Error','TypeError','RangeError','SyntaxError','ReferenceError','DOMException','AbortError',
+      'OperationError','InvalidStateError','InvalidAccessError','DataError','QuotaExceededError','ConstraintError',
+      'TransactionInactiveError','NotFoundError','DataCloneError','NetworkError','PreflightRejectionError','PendingAdmissionCompatibilityError']);
+    const errorCodes=new Set(['immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch',
+      'version_conflict','inference_commitment_mismatch','client_update_required','durable_preflight_failed','preflight_expired',
+      'preflight_required','team_chat_scope_mismatch','existing_chat_metadata_forbidden','websocket_receipt_connection_changed',
+      'privacy_snapshot_invalid','privacy_decryption_failed','privacy_entry_invalid','privacy_entry_missing',
+      'privacy_snapshot_rejected','privacy_connection_changed','privacy_snapshot_timeout','privacy_snapshot_unsent',
+      'privacy_full_owner_changed','privacy_session_expired','privacy_full_unavailable','privacy_full_owner_unavailable',
+      'privacy_owner_unavailable','privacy_owner_changed','privacy_receipt_mismatch','privacy_cache_mismatch',
+      'privacy_policy_unconfirmed','privacy_freshness_changed','privacy_filter_changed',
+      'pending_message_row_unavailable','pending_message_journal_invalid','reply_recovery_foreground_required',
+      'reply_recovery_discovery_timeout','reply_recovery_not_completed']);
+    for(const code of errorCodes)reasons.add(code);
+    const httpStatuses=new Set([400,401,403,404,408,409,413,422,429,500,502,503,504]);
+    const errorModules=new Set(['services/voiceCallTurns.ts','services/chatSyncService.ts','services/sendersChatMessages.ts',
+      'services/preparedPrivacyForSend.ts','services/preflightAcknowledgement.ts','services/serverCapabilityGate.ts',
+      'services/outboundMessageSends.ts','services/personalChatTurnBarrier.ts','services/fastAdmissionJournal.ts',
+      'services/fastAdmissionPhaseJournal.ts','services/savedPersonalAdmissionHistory.ts','services/websocketService.ts',
+      'services/chatKeyWriteGuard.ts','services/chatKeyConsistency.ts','services/encryption/ChatKeyManager.ts','services/db.ts',
+      'services/db/messageOperations.ts','services/db/chatCrudOperations.ts','services/db/messageJournalOperations.ts',
+      'utils/chatCompletionRecovery.ts']);
+    const safeId=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
+    const taskStatuses=new Set(['queued','initiated','processing','running','streaming','completed','failed','timed_out',
+      'cancelled','revocation_sent','revocation_failed','already_completed','already_cancelled','not_found','synced','stored',
+      'accepted','rejected','ready','ok','success','error']);
+    window.addEventListener('voiceCallTurnDelivery',event=>{
+      const detail=(event as CustomEvent).detail;
+      if(!detail||!phases.has(detail.phase))return;
+      const parts=typeof detail.reason==='string'?detail.reason.split(':'):[];
+      const reason=parts.length===1&&reasons.has(parts[0])?parts[0]:parts.length===2&&phases.has(parts[0])&&reasons.has(parts[1])?parts.join(':'):undefined;
+      const failure: NonNullable<TurnDeliveryObservation['failure']>={};
+      if(detail.phase==='failed'&&detail.failure&&typeof detail.failure==='object') {
+        const value=detail.failure;
+        if(errorClasses.has(value.errorClass))failure.errorClass=value.errorClass;
+        if(errorCodes.has(value.errorCode))failure.errorCode=value.errorCode;
+        if(httpStatuses.has(value.httpStatus))failure.httpStatus=value.httpStatus;
+        if(errorModules.has(value.module)) {
+          failure.module=value.module;
+          if(Number.isInteger(value.line)&&value.line>=1&&value.line<=999999)failure.line=value.line;
+        }
+      }
+      const events=evidence.turnDelivery??(evidence.turnDelivery=[]);
+      events.push({callId:safeId(detail.callId),chatId:safeId(detail.chatId),turnId:safeId(detail.turnId),
+        phase:detail.phase,reason,observedAt:performance.now(),
+        foreground:{visible:document.visibilityState==='visible',focused:document.hasFocus()},
+        ...(Object.keys(failure).length?{failure}:{})});
+      if(events.length>48)events.splice(0,events.length-48);
+    });
+    const NativeWebSocket=window.WebSocket;
+    const snapshotPurposes=new Map<string,'prepare'|'send'>();
+    const snapshotCodes=new Set(['invalid_request','already_used','receipt_capacity','unauthorized','unavailable','rate_limited']);
+    const speechErrorCodes=new Set(['authentication_required','invalid_segments','too_many_segments','forbidden',
+      'assistant_message_required','speech_source_no_longer_current','segment_text_too_long',
+      'canonical_segment_required','rate_limited','insufficient_budget','invalid_action']);
+    const speechActions=new Set(['request','generate','retry','cancel','delete']);
+    const recoveryOperations=new Set(['recovery_job_claim','recovery_job_persist','recovery_output_get',
+      'recovery_output_persist_message','recovery_output_persist_summary','recovery_output_ack_embed','recovery_output_ack_checkpoint']);
+    const safeVersion=(value:unknown)=>Number.isSafeInteger(value)&&(value as number)>=0?value as number:undefined;
+    let nextSocketId=0;
+    window.WebSocket=new Proxy(NativeWebSocket,{construct(Target,args){
+      const socket:WebSocket=Reflect.construct(Target,args);
+      const socketId=++nextSocketId;
+      const path=new URL(String(args[0]),location.href).pathname;
+      if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
+      if(path==='/v1/voice-call')evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;
+      let privacyHoldRequestId:string|null=null;
+      const recoveryRequests=new Map<string,{operation:string;jobId?:string;recordId?:string}>();
+      const observe=(data:unknown,sent:boolean)=>{
+        if(typeof data!=='string')return;
+        let event;try{event=JSON.parse(data);}catch{return;}
+        const payload=event.payload??event;
+        const message=payload.message??payload;
+        if(!sent&&path==='/v1/voice-call'&&event.type==='ready'&&holdReady)return;
+        if(sent&&event.type==='mic_audio'&&!audioBatch){audioBatch=++nextAudioBatch;queueMicrotask(()=>{audioBatch=0;});}
+        // Keep identity, bounded counts and booleans only. No PCM, message text,
+        // tokens, encryption keys, presigned URLs or decrypted embeds leave here.
+        const frame:SocketObservation={path,socketId,type:event.type,observedAt:performance.now(),
+          messageId:payload.message_id??message.message_id,chatId:payload.chat_id,callId:payload.call_id,
+          turnId:safeId(payload.turn_id),preflightId:safeId(payload.preflight_id),requestId:safeId(payload.request_id),
+          role:message.role,assistantMessageId:payload.assistant_message_id,
+          userMessageId:payload.user_message_id,taskId:payload.task_id??payload.assistant_task_id,
+          taskStatus:taskStatuses.has(payload.status)?payload.status:undefined,
+          ...(event.type==='start'?{startupAllowanceMs:payload.startup_audio_allowance_ms}:{}),
+          ...(event.type==='error'?{code:typeof payload.code==='string'&&/^[a-z_]{1,64}$/.test(payload.code)?payload.code:'unknown',stage:typeof payload.stage==='string'&&/^[a-z_]{1,64}$/.test(payload.stage)?payload.stage:'unknown'}:{}),
+          ...(event.type==='mic_audio'?{audioSamples:atob(payload.data).length/2,audioBatch,audioNonzero:/[^\0]/.test(atob(payload.data))}:{}),
+          ...(['encrypted_chat_metadata','voice_call_chat_prepare'].includes(event.type)?{ciphertextLength:typeof payload.encrypted_chat_key==='string'?payload.encrypted_chat_key.length:0,
+            plaintext:'content' in payload||'text' in payload}:{}),
+          ...(['encrypted_metadata_stored','error'].includes(event.type)?{voiceCallBootstrap:payload.voice_call_bootstrap===true}:{}),
+          ...(['chat_message_added','chat_system_message_added','call_message_completed'].includes(event.type)?{
+            ciphertextLength:typeof message.encrypted_content==='string'?message.encrypted_content.length:0,
+            plaintext:'content' in message||'text' in message,voiceMode:message.voice_mode===true,
+            autoSpeak:message.auto_speak_response===true,forcedModel:!!(message.model||message.provider||message.model_id),
+            ...(message.voice_heard_boundary?{heardBoundary:message.voice_heard_boundary}:{})}:{}),
+          ...(event.type==='billing_activity'?{inputListening:payload.input_listening,processing:payload.processing}:{}),
+          ...(event.type==='usage'?{creditsCharged:payload.credits_charged}:{}),
+          ...(event.type==='transcript'?{final:payload.final===true,createdAt:payload.created_at}:{}),
+          ...(event.type==='transcript.pending'?{pendingReason:payload.reason==='incomplete'||payload.reason==='uncertain'?payload.reason:undefined}:{}),
+          ...(event.type==='ai_message_update'?{userMessageId:payload.user_message_id,
+            final:payload.is_final_chunk===true&&!payload.awaiting_async_skill_continuation,
+            finalChunk:payload.is_final_chunk===true,awaitingContinuation:payload.awaiting_async_skill_continuation===true,
+            interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
+          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
+          ...(sent&&event.type==='assistant_speech'?{
+            speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
+          ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
+            speechErrorCode:payload.error!==undefined||payload.status==='error'
+              ?speechErrorCodes.has(payload.error)?payload.error:'unknown':undefined,
+            segmentId:payload.segment_id,turnTrackId:safeId(payload.turn_track_id),generatedAssetPresent:!!payload.generated_asset_id,
+            generatedAssetId:safeId(payload.generated_asset_id)}:{}),
+          ...(['native_client_lifecycle_ack','recovery_jobs_available','recovery_outputs_discovery_complete'].includes(event.type)?{
+            recoveryStatus:['completed','disabled','failed'].includes(payload.status)?payload.status:undefined,
+            recoveryJobCount:Array.isArray(payload.jobs)?Math.min(payload.jobs.length,50_000):undefined,
+            recoveryPendingCount:Number.isSafeInteger(payload.pending_count)&&payload.pending_count>=0&&payload.pending_count<=50_000?payload.pending_count:undefined}:{}),
+          ...(event.type==='chat_deleted'?{tombstone:payload.tombstone===true}:{}),
+          ...(event.type==='assistant_speech_audio'?{kind:payload.kind,segmentId:safeId(payload.segment_id),
+            callId:safeId(payload.voice_call_id),attemptId:safeId(payload.attempt_id),
+            streamPhase:['start','chunk','end','error','alignment'].includes(payload.phase)?payload.phase:undefined,
+            chunkIndex:Number.isSafeInteger(payload.chunk_index)?payload.chunk_index:undefined,
+            sequence:Number.isSafeInteger(payload.sequence)?payload.sequence:undefined,
+            sourceVersion:Number.isSafeInteger(payload.source_version)?payload.source_version:undefined,
+            executionVersion:Number.isSafeInteger(payload.execution_version)?payload.execution_version:undefined}:{}),
+        };
+        if(sent&&frame.requestId&&recoveryOperations.has(event.type)){
+          recoveryRequests.set(frame.requestId,{operation:event.type,jobId:safeId(payload.job_id),recordId:safeId(payload.record_id)});
+          if(recoveryRequests.size>256)recoveryRequests.delete(recoveryRequests.keys().next().value!);
+        }
+        const recoveryRequest=frame.requestId?recoveryRequests.get(frame.requestId):undefined;
+        if(recoveryRequest){
+          frame.recoveryOperation=recoveryRequest.operation;
+          frame.jobId=safeId(payload.job_id)??recoveryRequest.jobId;
+          frame.recordId=safeId(payload.record_id)??recoveryRequest.recordId;
+          frame.expectedMessagesV=safeVersion(payload.expected_messages_v);
+          frame.committedMessagesV=safeVersion(payload.committed_messages_v);
+          frame.recoveryMessagesV=safeVersion(payload.messages_v);
+          frame.persistenceState=['LEASED','TERMINAL','ACKNOWLEDGED'].includes(payload.state)?payload.state:undefined;
+        }
+        if(['personal_send_context_snapshot','personal_send_context_snapshot_result'].includes(event.type)){
+          const purpose=payload.purpose==='prepare'||payload.purpose==='send'?payload.purpose:undefined;
+          if(sent&&frame.requestId&&purpose){
+            snapshotPurposes.set(frame.requestId,purpose);
+            if(purpose==='send'&&evidence.holdPrivacySnapshot&&privacyHoldRequestId===null)privacyHoldRequestId=frame.requestId;
+          }
+          frame.snapshotPurpose=purpose??(frame.requestId?snapshotPurposes.get(frame.requestId):undefined);
+          if(typeof payload.success==='boolean')frame.snapshotSuccess=payload.success;
+          frame.snapshotHasCode=typeof payload.error?.code==='string';
+          if(frame.snapshotHasCode)frame.code=snapshotCodes.has(payload.error.code)?payload.error.code:'other';
+        }
+        if(event.type==='assistant_speech_status'&&Array.isArray(payload.segments)){
+          for(const segment of payload.segments)(sent?evidence.sent:evidence.received).push({...frame,
+            segmentId:safeId(segment.segment_id),
+            speechErrorCode:segment.error!==undefined||segment.status==='error'
+              ?speechErrorCodes.has(segment.error)?segment.error:'unknown':frame.speechErrorCode,
+            speechStatus:frame.speechStatus==='sealed'?'sealed':taskStatuses.has(segment.status)?segment.status:
+              ['registered','generating','cancelled','deleted','invalidated'].includes(segment.status)?segment.status:undefined,
+            kind:typeof segment.kind==='string'&&/^[a-z_]{1,64}$/.test(segment.kind)?segment.kind:undefined,
+            sequence:Number.isSafeInteger(segment.sequence)?segment.sequence:undefined,
+            sourceVersion:Number.isSafeInteger(segment.source_version)?segment.source_version:undefined,
+            generatedAssetPresent:!!segment.generated_asset_id,generatedAssetId:safeId(segment.generated_asset_id)});
+          return;
+        }
+        if(sent&&path==='/v1/ws'&&event.type==='voice_call_chat_prepare'&&typeof frame.chatId==='string')
+          evidence.inspectDraftAtBootstrap?.(frame.chatId);
+        (sent?evidence.sent:evidence.received).push(frame);
+      };
+      const originalSend=socket.send.bind(socket);
+      socket.send=data=>{
+        let outgoing=data;
+        if(bootstrapControls&&path==='/v1/ws'&&evidence.rejectNextBootstrap&&typeof data==='string'){
+          let event;try{event=JSON.parse(data);}catch{event=null;}
+          if(event?.type==='voice_call_chat_prepare'){
+            evidence.rejectNextBootstrap=false;evidence.bootstrapRejectionInjected=true;
+            // One malformed real request, rejected by the production schema.
+            // The owner/chat/key remain untouched; no server response is faked.
+            outgoing=JSON.stringify({...event,payload:{...event.payload,invalid_bootstrap_field:true}});
+          }
+        }
+        observe(outgoing,true);originalSend(outgoing);
+      };
+      const heldSpeechEvents:MessageEvent[]=[];
+      socket.addEventListener('message',event=>{
+        if(typeof event.data!=='string')return;
+        if(path==='/v1/ws'){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          const payload=frame?.payload;
+          if(frame?.type==='app_settings_memories_sync_ready'&&Array.isArray(payload?.entries)
+            &&Number.isSafeInteger(payload.entry_count)&&payload.entry_count===payload.entries.length){
+            // Ciphertext and versions remain only in this actual socket closure.
+            // Replaying the exact authenticated batch exercises the real DB apply
+            // outcome and producer; no server authority or no-op flag is invented.
+            const original=event;
+            evidence.memoryBatch={socketId,entryCount:payload.entry_count,observedAt:performance.now()};
+            evidence.replayMemoryBatch=()=>{
+              if(evidence.mainSocket!==socket)throw new Error('Memory replay connection changed');
+              evidence.privacyNoopReplay={socketId,entryCount:payload.entry_count,replayedAt:performance.now()};
+              socket.dispatchEvent(new MessageEvent('message',{data:original.data}));
+            };
+          }
+          if(frame?.type==='personal_send_context_snapshot_result'&&evidence.holdPrivacySnapshot
+            &&privacyHoldRequestId!==null&&payload?.request_id===privacyHoldRequestId){
+            event.stopImmediatePropagation();
+            const held={socketId,requestId:privacyHoldRequestId,success:payload.success===true,heldAt:performance.now()};
+            evidence.privacySnapshotHeld=held;
+            evidence.releasePrivacySnapshot=()=>{
+              delete evidence.holdPrivacySnapshot;privacyHoldRequestId=null;
+              if(evidence.privacySnapshotHeld?.releasedAt!==undefined)return;
+              evidence.privacySnapshotHeld!.releasedAt=performance.now();
+              socket.dispatchEvent(new MessageEvent('message',{data:event.data}));
+            };
+            return;
+          }
+        }
+        if(path==='/v1/ws'&&evidence.holdSpeechResponse){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          const payload=frame?.payload;
+          const gate=evidence.holdSpeechResponse;
+          if(frame?.type==='assistant_speech_audio'&&payload?.chat_id===gate.chatId&&
+            typeof payload.message_id==='string'&&payload.message_id!==gate.previousMessageId){
+            // Retain only genuine provider frames in this browser closure.
+            // Status/canonical frames pass through. Release replays identical
+            // native message events FIFO, without exposing bytes to evidence.
+            event.stopImmediatePropagation();heldSpeechEvents.push(event);
+            const held:NonNullable<CallEvidence['heldSpeechAudio']>=evidence.heldSpeechAudio??{count:0,messageId:payload.message_id,phases:[]};
+            held.count++;
+            if(['start','chunk','end','error'].includes(payload.phase)&&!held.phases.includes(payload.phase))held.phases.push(payload.phase);
+            evidence.heldSpeechAudio=held;
+            evidence.releaseSpeechAudio=()=>{
+              delete evidence.holdSpeechResponse;
+              if(held.releasedAt===undefined)held.releasedAt=performance.now();
+              for(const original of heldSpeechEvents.splice(0))socket.dispatchEvent(new MessageEvent('message',{data:original.data}));
+            };
+            return;
+          }
+        }
+        try{if(path==='/v1/voice-call'&&JSON.parse(event.data).type==='ready'&&holdReady){
+          event.stopImmediatePropagation();evidence.readyHeld=true;evidence.releaseReady=()=>{holdReady=false;evidence.readyHeld=false;socket.dispatchEvent(new MessageEvent('message',{data:event.data}));};return;
+        }}catch{return;}
+        if(holdBootstrap&&path==='/v1/ws'){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          if(frame?.type==='encrypted_metadata_stored'&&frame.payload?.voice_call_bootstrap===true){
+            // The server has really committed. Delay only its delivery to the
+            // app so the rendered pending-start Cancel remains testable.
+            observe(event.data,false);event.stopImmediatePropagation();evidence.bootstrapHeld=true;
+            evidence.releaseBootstrap=()=>{
+              if(!evidence.bootstrapHeld)return;
+              holdBootstrap=false;evidence.bootstrapHeld=false;
+              socket.dispatchEvent(new MessageEvent('message',{data:event.data}));
+            };
+            return;
+          }
+        }
+        observe(event.data,false);
+      });
+      return socket;
+    }});
+    const capture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia=async constraints=>{const stream=await capture(constraints);evidence.tracks.push(...stream.getTracks());return stream;};
+  },{deferReady,bootstrapControls});
 }
 
 async function evidence(page: Page): Promise<Omit<CallEvidence, 'tracks'>> {
   return page.evaluate(() => {
     const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
-    return { sent: state.sent, received: state.received };
+    return { sent: state.sent, received: state.received, draftAtBootstrap: state.draftAtBootstrap,
+      draftDeletionEvents: state.draftDeletionEvents };
   });
 }
 
+/** Wait for this ordinary turn's completed stream, including any app invocation. */
+async function waitForCanonicalAssistant(page: Page, userMessageId: string): Promise<void> {
+  await expect.poll(async () => (await evidence(page)).received.some(frame =>
+    frame.type === 'ai_message_update' && frame.userMessageId === userMessageId && frame.final),
+  { timeout: 45_000, message: 'The admitted ordinary turn must finish its canonical assistant response' }).toBe(true);
+}
+
+/** Resolve the STT-admitted identity before waiting on its ordinary reply. */
+async function waitForSpokenAssistant(page: Page): Promise<void> {
+  let userMessageId: string | undefined;
+  await expect.poll(async () => {
+    userMessageId=(await evidence(page)).received.find(frame => frame.path === '/v1/voice-call' &&
+      frame.type === 'transcript' && frame.role === 'user' && frame.final)?.messageId;
+    return !!userMessageId;
+  }, { timeout: 30_000, message: 'Real speech must produce a final admitted user turn' }).toBe(true);
+  await waitForCanonicalAssistant(page,userMessageId!);
+}
+
+interface SpeechPrimeObservation {
+  audioId: number;
+  observedAt: number;
+  userActivationActive: boolean;
+  gestureDispatchActive: boolean;
+  gesture: 'start'|'consent'|null;
+  gestureAt: number|null;
+}
 interface NativeVoiceInputEvidence {
+  speechPrimes: SpeechPrimeObservation[];
+  speechAcknowledgementPosts: number[];
+  speechAudioId: (audio: HTMLMediaElement) => number;
   nativeTracks: MediaStreamTrack[];
   outputTracks: MediaStreamTrack[];
   contexts: AudioContext[];
@@ -361,6 +675,8 @@ interface NativeVoiceInputEvidence {
   capturedSpeech: boolean;
   capturedQuietSamples: number;
   captureRequests: number;
+  interruptOnPermission: boolean;
+  permissionInterruptions: number;
   speechReady: boolean;
   playing: boolean;
   workersCreated: number;
@@ -375,12 +691,41 @@ interface NativeVoiceInputEvidence {
 async function installNativeVoiceInput(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const state: NativeVoiceInputEvidence = {
+      speechPrimes: [], speechAcknowledgementPosts: [], speechAudioId: () => 0,
       nativeTracks: [], outputTracks: [], contexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
-      captureRequests: 0, speechReady: false, playing: false, workersCreated: 0,
+      captureRequests: 0, interruptOnPermission: false, permissionInterruptions: 0, speechReady: false, playing: false, workersCreated: 0,
       workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
     };
     Object.assign(window, { __nativeVoiceInput: state });
+    // Observe only the queue's exact public silent grant. Native play and its
+    // promise remain unchanged; actual response playback is proved separately.
+    const silentPrime = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+    const audioIds = new WeakMap<HTMLMediaElement, number>();
+    let nextAudioId = 0;
+    state.speechAudioId = audio => {
+      let id = audioIds.get(audio);
+      if (!id) { id = ++nextAudioId; audioIds.set(audio, id); }
+      return id;
+    };
+    let gesture: { kind: 'start'|'consent'; at: number; event: MouseEvent }|null = null;
+    document.addEventListener('click', event => {
+      if (!event.isTrusted || !(event.target instanceof Element)) return;
+      const start = event.target.closest('[data-testid="voice-call-start"]');
+      const button = event.target.closest('button');
+      const consent = button?.closest('[data-testid="notification"]') && button.textContent?.trim() === 'Continue';
+      if (start || consent) gesture = { kind: start ? 'start' : 'consent', at: performance.now(), event };
+    }, true);
+    const nativePlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function(...args: Parameters<HTMLMediaElement['play']>) {
+      if (this instanceof HTMLAudioElement && this.src === silentPrime) {
+        state.speechPrimes.push({ audioId: state.speechAudioId(this), observedAt: performance.now(),
+          userActivationActive: navigator.userActivation.isActive,
+          gestureDispatchActive: gesture !== null && gesture.event.eventPhase !== Event.NONE,
+          gesture: gesture?.kind ?? null, gestureAt: gesture?.at ?? null });
+      }
+      return nativePlay.apply(this, args);
+    };
     const NativeAudioContext = window.AudioContext;
     window.AudioContext = new Proxy(NativeAudioContext, {
       construct(Target, args) {
@@ -440,7 +785,17 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
     });
     const nativeCapture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (constraints) => {
+      // Camera capture remains the genuine video-only device stream.
+      if (!constraints?.audio) return nativeCapture(constraints);
       const microphone = await nativeCapture(constraints);
+      if (state.interruptOnPermission) {
+        state.interruptOnPermission = false;
+        // Reproduce a permission sheet suspending the real, gesture-created
+        // contexts. Native resume/processing remain production-owned.
+        const contexts = state.contexts.filter(context => context.state !== 'closed');
+        await Promise.all(contexts.map(context => context.suspend()));
+        state.permissionInterruptions += contexts.length;
+      }
       state.captureRequests++;
       state.nativeTracks.push(...microphone.getTracks());
       // Keep the fixture meter separate from production capture observations.
@@ -474,7 +829,11 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
         player.connect(output);
         state.playing = true;
         player.onended = () => { player?.disconnect(); player = null; state.playing = false; };
-        player.start(0, short ? 0.75 : 0, short ? 0.35 : speech.duration);
+        // Both excerpts contain genuine voiced input. The ordinary two-second
+        // slice exceeds the split-STT continuation threshold while completing
+        // within existing five-second playback assertions; the short slice
+        // deliberately remains below that threshold for the pending-pause case.
+        player.start(0, 0.75, short ? 0.35 : 2);
       };
       void fetch('/store-examples/transcription-demo-voice-note.wav')
         .then((response) => { if (!response.ok) throw new Error('Fixture unavailable'); return response.arrayBuffer(); })
@@ -503,10 +862,139 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
   });
 }
 
+/** Bind actual appended audio objects to their received payload, including pre-seal replay. */
+async function observeSpeechMediaSources(page: Page) {
+  await page.addInitScript(() => {
+    type Binding = { key: string; segmentId: string };
+    const sources = new Map<string, string>();
+    const proof = { starts: 0, taggedChunks: 0, decodedChunks: 0, matchedAppends: 0, invalidAppends: 0 };
+    const starts = new Set<string>();
+    const owners = new WeakMap<SourceBuffer, MediaSource>();
+    const urls = new WeakMap<MediaSource, Set<string>>();
+    const mediaBindings = new WeakMap<MediaSource, Binding | null>();
+    const bytesBindings = new WeakMap<object, { binding: Binding; fingerprint: Promise<string> }>();
+    const parse = JSON.parse;
+    const digest = async (bytes: Uint8Array<ArrayBuffer>) => Array.from(
+      new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
+    const validId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+    const version = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
+    const bindingFor = (payload: Record<string, unknown>, socketId: number): Binding | null => {
+      const identity = [payload.chat_id, payload.voice_call_id, payload.message_id, payload.segment_id, payload.attempt_id];
+      if (!identity.every(validId) || ![payload.source_version, payload.execution_version, payload.sequence].every(version)
+        || !['voice_prose_clause','voice_prose_turn'].includes(String(payload.kind))
+        || payload.kind === 'voice_prose_turn' && payload.sequence !== 0) return null;
+      return { key: JSON.stringify([socketId, ...identity, payload.source_version, payload.execution_version, payload.sequence, payload.kind]),
+        segmentId: payload.segment_id as string };
+    };
+    // The application retains parsed early payload objects until their owner seal.
+    // Tag that exact object's audio_data reads, rather than the latest arrival,
+    // so two identical fixture chunks still have distinct segment provenance.
+    let dispatch: { data: string; socketId: number } | undefined;
+    let read: { encoded: string; binding: Binding } | undefined;
+    let decoded: { raw: string; binding: Binding } | undefined;
+    JSON.parse = (text, reviver) => {
+      const result = parse(text, reviver);
+      if (!reviver && dispatch?.data === text && result?.type === 'assistant_speech_audio') {
+        const payload = result.payload;
+        if (payload && typeof payload === 'object' && payload.phase === 'chunk' && typeof payload.audio_data === 'string') {
+          const binding = bindingFor(payload, dispatch.socketId), encoded = payload.audio_data;
+          if (binding && starts.has(binding.key)) { proof.taggedChunks++; Object.defineProperty(payload, 'audio_data', {
+            enumerable: true, configurable: true,
+            get() {
+              const candidate = { encoded, binding }; read = candidate;
+              queueMicrotask(() => { if (read === candidate) read = undefined; });
+              return encoded;
+            },
+          }); }
+        }
+      }
+      return result;
+    };
+    const NativeSocket = window.WebSocket;
+    let nextSocket = 0;
+    window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
+      const socket: WebSocket = Reflect.construct(Target, args), socketId = ++nextSocket;
+      if (new URL(String(args[0]), location.href).pathname === '/v1/ws') socket.addEventListener('message', event => {
+        if (typeof event.data !== 'string') return;
+        const current = { data: event.data, socketId }; dispatch = current;
+        // Native event callbacks can checkpoint microtasks between listeners.
+        // Keep this exact wire frame through the whole message dispatch task.
+        setTimeout(() => { if (dispatch === current) dispatch = undefined; }, 0);
+        try {
+          const frame = parse(event.data), payload = frame?.payload;
+          if (frame?.type === 'assistant_speech_audio' && payload?.phase === 'start' && payload.chunk_index === 0) {
+            const binding = bindingFor(payload, socketId);
+            if (binding && starts.size < 2048) { starts.add(binding.key); proof.starts++; }
+          }
+        } catch { /* Invalid wire input cannot establish a start. */ }
+      });
+      return socket;
+    } });
+    const atob = window.atob.bind(window);
+    window.atob = encoded => {
+      const candidate = read; read = undefined;
+      const raw = atob(encoded);
+      if (candidate?.encoded === encoded) {
+        const current = { raw, binding: candidate.binding }; decoded = current;
+        queueMicrotask(() => { if (decoded === current) decoded = undefined; });
+      } else decoded = undefined;
+      return raw;
+    };
+    const from = Uint8Array.from;
+    Object.defineProperty(Uint8Array, 'from', { configurable: true, writable: true,
+      value: function (this: unknown, ...args: unknown[]) {
+        const candidate = decoded; decoded = undefined;
+        const bytes: Uint8Array<ArrayBuffer> = Reflect.apply(from, this, args);
+        if (candidate && args[0] === candidate.raw && bytes.length === candidate.raw.length
+          && bytes.every((byte, index) => byte === candidate.raw.charCodeAt(index))) {
+          const fingerprint = digest(bytes);
+          // Handle failures even when a rejected stream never appends this object.
+          void fingerprint.catch(() => {});
+          bytesBindings.set(bytes, { binding: candidate.binding, fingerprint }); proof.decodedChunks++;
+        }
+        return bytes;
+      },
+    });
+    const create = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = object => {
+      const url = create(object);
+      if (object instanceof MediaSource) {
+        const owned = urls.get(object) ?? new Set<string>(); owned.add(url); urls.set(object, owned);
+      }
+      return url;
+    };
+    const add = MediaSource.prototype.addSourceBuffer;
+    MediaSource.prototype.addSourceBuffer = function (...args) {
+      const buffer = add.apply(this, args); owners.set(buffer, this); return buffer;
+    };
+    const append = SourceBuffer.prototype.appendBuffer;
+    SourceBuffer.prototype.appendBuffer = function (bytes) {
+      const result = append.call(this, bytes), media = owners.get(this);
+      if (!media) return result;
+      const provenance = bytesBindings.get(bytes);
+      const actual = ArrayBuffer.isView(bytes)
+        ? new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes as ArrayBuffer);
+      const invalidate = () => { proof.invalidAppends++; mediaBindings.set(media, null); for (const url of urls.get(media) ?? []) sources.delete(url); };
+      if (!provenance) invalidate();
+      else void Promise.all([provenance.fingerprint, digest(actual)]).then(([expected, observed]) => {
+        const previous = mediaBindings.get(media);
+        if (expected !== observed || previous === null || previous && previous.key !== provenance.binding.key) invalidate();
+        else {
+          mediaBindings.set(media, provenance.binding); proof.matchedAppends++;
+          for (const url of urls.get(media) ?? []) sources.set(url, provenance.binding.segmentId);
+        }
+      }).catch(invalidate);
+      return result;
+    };
+    Object.assign(window, { __voiceSpeechMediaSources: sources, __voiceSpeechMediaProof: proof });
+  });
+}
+
 async function nativeVoiceInput(page: Page) {
   return page.evaluate(() => {
     const state = (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput;
-    return { samples: state.samples, sampleRate: state.sampleRate, captureRequests: state.captureRequests,
+    return { speechPrimes: state.speechPrimes, speechAcknowledgementPosts: state.speechAcknowledgementPosts,
+      samples: state.samples, sampleRate: state.sampleRate, captureRequests: state.captureRequests,
       capturedSpeech: state.capturedSpeech, capturedQuietSamples: state.capturedQuietSamples,
       speechReady: state.speechReady, playing: state.playing, error: state.error,
       contexts: state.contexts.map((context) => context.state), localToneStarts: state.localToneStarts,
@@ -516,9 +1004,18 @@ async function nativeVoiceInput(page: Page) {
   });
 }
 
-async function playNativeVoiceFixture(page: Page, short = true): Promise<void> {
+async function playNativeVoiceFixture(page: Page, short = false): Promise<void> {
   await expect.poll(async () => (await nativeVoiceInput(page)).speechReady).toBe(true);
   await page.evaluate((short) => (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.play(short), short);
+}
+
+async function assertSpeechAutoplayPrimed(page: Page, before: number, audioId?: number): Promise<void> {
+  const primes = (await nativeVoiceInput(page)).speechPrimes.filter(prime =>
+    prime.observedAt < before && (audioId === undefined || prime.audioId === audioId));
+  expect(primes.length, 'the shared speech element must play its silent grant before asynchronous call setup').toBeGreaterThan(0);
+  expect(primes.some(prime => prime.userActivationActive && prime.gestureDispatchActive && prime.gesture !== null &&
+    prime.gestureAt !== null && prime.gestureAt <= prime.observedAt),
+  'native speech priming must retain activation from a real Start or consent click').toBe(true);
 }
 
 const voiceFrames = (transport: Awaited<ReturnType<typeof evidence>>, type: string) =>
@@ -534,6 +1031,36 @@ async function assertVoiceInputCleanup(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
     .__voiceCallEvidence.tracks.every((track) => track.readyState === 'ended'))).toBe(true);
   expect((await nativeVoiceInput(page)).error).toBe(false);
+}
+
+/** Cleanup attempts are independent; an inaccessible button must neither strand
+ * a held real ACK nor replace the strict UI assertion that already failed. */
+async function cleanupProjectVoiceDraft(page: Page, testInfo: TestInfo, projectId: string|null,
+  apiOrigin: string|null, primaryFailed: boolean): Promise<void> {
+  const failedStages: string[] = [];
+  try {
+    const hangup = page.locator('[data-testid="voice-call-hangup"]:visible');
+    if (await hangup.count()) await hangup.click({ timeout: 5000 });
+  } catch { failedStages.push('hangup'); }
+  try {
+    await page.evaluate(() => (window as unknown as { __voiceCallEvidence?: CallEvidence })
+      .__voiceCallEvidence?.releaseBootstrap?.());
+  } catch { failedStages.push('bootstrap_release'); }
+  if (projectId && apiOrigin) {
+    try {
+      const status = await page.evaluate(async ({ apiOrigin, projectId }) => (await fetch(
+        `${apiOrigin}/v1/projects/${projectId}?confirmation_project_id=${encodeURIComponent(projectId)}`,
+        { method: 'DELETE', credentials: 'include', signal: AbortSignal.timeout(10_000) })).status,
+      { apiOrigin, projectId });
+      expect(status, 'cleanup retains exact owned Project deletion confirmation').toBeGreaterThanOrEqual(200);
+      expect(status).toBeLessThan(300);
+    } catch { failedStages.push('project_delete'); }
+  }
+  if (failedStages.length) {
+    await testInfo.attach('voice-project-cleanup', { body: JSON.stringify({ failedStages, primaryFailurePreserved: primaryFailed }),
+      contentType: 'application/json' }).catch(() => {});
+    if (!primaryFailed) throw new Error(`Voice Project cleanup failed: ${failedStages.join(', ')}`);
+  }
 }
 
 async function assertSlimCallSurface(page: Page): Promise<void> {
@@ -563,6 +1090,20 @@ async function chooseAppsHome(page: Page): Promise<void> {
   await expect(page.getByTestId('apps-route-header').getByTestId('voice-call-pill')).toHaveAccessibleName('Return to chat');
 }
 
+/** Meaningful drafts and ordinary conversation history must survive call end. */
+async function assertCallChatPreserved(page: Page, chatId: string): Promise<void> {
+  expect((await evidence(page)).sent.filter(frame=>frame.type==='delete_empty_call_chat'&&frame.chatId===chatId)).toHaveLength(0);
+  expect(await page.evaluate(async id=>{
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+      const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+    });
+    try { return await new Promise<boolean>((resolve,reject)=>{
+      const request=db.transaction('chats','readonly').objectStore('chats').get(id);
+      request.onsuccess=()=>resolve(Boolean(request.result));request.onerror=()=>reject(request.error);
+    }); } finally { db.close(); }
+  },chatId)).toBe(true);
+}
+
 /** Canonical owned ciphertext durability, including events, before any local eviction. */
 async function assertCallHistoryDurable(page: Page, chatId: string, callId: string, transcriptIds: string[] = [], expectedTimes?: string[], expectedDuration?:number): Promise<void> {
   const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;
@@ -574,9 +1115,10 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
     const read=<T>(db:IDBDatabase,store:string,id:string)=>new Promise<T>((resolve,reject)=>{const r=db.transaction(store,'readonly').objectStore(store).get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
     const db=await open('chats_db');const keys=await open('openmates_crypto');
     try {
-      const local=await Promise.all(ids.map(id=>read<{encrypted_content?:string;content?:string;role:string;chat_id:string;created_at:number}|undefined>(db,'messages',id)));
+      const local=await Promise.all(ids.map(id=>read<{encrypted_content?:string;content?:string;role:string;chat_id:string;created_at:number;
+        queue_revision?:number;call_persistence_v1?:{entries:unknown[]}}|undefined>(db,'messages',id)));
       if(local.some(row=>!row?.encrypted_content||typeof row.content==='string'||row.chat_id!==chatId)) return {durable:0,decryptedEvents:0,privateRows:false,pair:false,times:false,duration:false};
-      const remote=new Map<string,{message_id:string;encrypted_content:string;role:string;created_at:number}>();
+      const remote=new Map<string,{message_id:string;encrypted_content:string;role:string;created_at:number;queue_revision?:number}>();
       const params=new URLSearchParams({direction:'latest',limit:'20',respect_compression_boundary:'false'});
       for(let window=0;window<8;window++) {
         const response=await fetch(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params}`,{credentials:'include'});
@@ -586,13 +1128,30 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
         if(!history.has_more_before||!history.start_cursor) break;
         params.set('direction','before');params.set('before_timestamp',String(history.start_cursor.created_at));params.set('before_message_id',history.start_cursor.message_id);
       }
-      const durable=ids.filter((id,index)=>remote.get(id)?.encrypted_content===local[index]?.encrypted_content).length;
       const master=await read<CryptoKey>(keys,'keys','master_key');
       const chat=await read<{encrypted_chat_key:string}>(db,'chats',chatId);
       const bytes=(value:string)=>Uint8Array.from(atob(value),char=>char.charCodeAt(0));
       const wrapped=bytes(chat.encrypted_chat_key);
       const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:wrapped.slice(0,12)},master,wrapped.slice(12));
       const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      state.historyDurability=await Promise.all(ids.map(async(id,ordinal)=>{
+        const own=local[ordinal];const canonical=remote.get(id);
+        const ciphertextMatches=!!own?.encrypted_content&&own.encrypted_content===canonical?.encrypted_content;
+        let plaintextMatches=ciphertextMatches;
+        if(!ciphertextMatches&&own?.encrypted_content&&canonical?.encrypted_content) {
+          try { plaintextMatches=await state.decryptChatContent!(own.encrypted_content,raw)===
+            await state.decryptChatContent!(canonical.encrypted_content,raw); } catch { /* Boolean only. */ }
+        }
+        return {ordinal,role:['user','assistant','system'].includes(own?.role??'')?own!.role:'other',
+          localExists:!!own,remoteExists:!!canonical,localRevision:own?.queue_revision??0,
+          remoteRevision:canonical?.queue_revision??0,pendingOutboxCount:own?.call_persistence_v1?.entries.length??0,
+          ciphertextMatches,plaintextMatches};
+      }));
+      // Ordinary optimistic and canonical rows use independent AES-GCM IVs.
+      // Durability requires the same owned row identity and decrypted content,
+      // never coincidental ciphertext equality between those encryptions.
+      const durable=state.historyDurability.filter((proof,index)=>proof.localExists&&proof.remoteExists&&proof.plaintextMatches&&
+        local[index]!.role===remote.get(ids[index])!.role&&local[index]!.created_at===remote.get(ids[index])!.created_at).length;
       const events=[];
       let decryptedEvents=0;
       // Decrypt only inside the browser; diagnostics return counts/booleans.
@@ -628,68 +1187,6 @@ async function evictOwnedCallRows(page:Page,chatId:string,callId:string,transcri
       });
     } finally {db.close();}
   },{chatId,callId,transcriptIds});
-}
-
-async function assertHeaderCallActions(page: Page, active: boolean, hasClose: boolean): Promise<void> {
-  const call = page.locator('[data-testid="voice-call-start"]:visible');
-  if (active) {
-    await expect(call).toHaveCount(0);
-    const bar=page.getByTestId('voice-call-bar');
-    await expect(bar).toBeVisible();
-    await expect(page.getByTestId('voice-call-hangup')).toHaveAccessibleName('Hang up');
-    await expect(page.getByTestId('voice-call-video')).toHaveAccessibleName('Video call');
-    const [video,center,end]=await Promise.all(['voice-call-video','voice-call-mute','voice-call-hangup'].map(id=>page.getByTestId(id).boundingBox()));
-    expect(video!.x+video!.width).toBeLessThanOrEqual(center!.x+1);
-    expect(center!.x+center!.width).toBeLessThanOrEqual(end!.x+1);
-    if(hasClose) await expect(page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible')).toHaveCount(1);
-    await assertSlimCallSurface(page);
-    return;
-  }
-  await expect(call).toHaveCount(1);
-  await expect(call).toHaveAccessibleName('Start voice call');
-  await expect(call).toHaveAccessibleDescription('Voice calls use Google Gemini with usage-based billing.');
-  await expect(call).toHaveAttribute('aria-pressed','false');
-  const handset=call.getByTestId('voice-call-handset');
-  await expect(handset).toHaveAttribute('data-icon','audiocall');
-  await expect(handset).not.toHaveCSS('mask-image','none');
-  await expect(handset).toHaveCSS('transform','matrix(1, 0, 0, 1, 0, 0)');
-  const close=page.locator('[data-testid="chat-close-button"]:visible');
-  await expect(close).toHaveCount(hasClose?1:0);
-  if(hasClose) {
-    const [left,right]=await Promise.all([call.boundingBox(),close.boundingBox()]);
-    expect(right!.x).toBeGreaterThanOrEqual(left!.x+left!.width);
-    expect(Math.abs(left!.y+left!.height/2-right!.y-right!.height/2)).toBeLessThan(1);
-  }
-}
-
-/** Completed skill activity uses the same disclosure as ordinary text replies. */
-async function expandWebActivity(page: Page, assistant: Locator): Promise<void> {
-  const dismissInput = page.getByTestId('input-dismiss-button');
-  if (await dismissInput.isVisible()) await dismissInput.click();
-  const groups = assistant.getByTestId('assistant-activity-group').filter({
-    has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="web"]'),
-  });
-  await expect.poll(() => groups.count()).toBeGreaterThan(0);
-  for (const group of await groups.all()) {
-    const toggle = group.getByTestId('assistant-activity-toggle');
-    await toggle.scrollIntoViewIfNeeded();
-    await expect(toggle).toHaveAttribute('aria-expanded', /^(true|false)$/);
-    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(group.getByTestId('assistant-activity-body')).toBeVisible();
-  }
-}
-
-/** Reloaded compressed chats expose their original rows through native history. */
-async function showForgottenHistory(page: Page): Promise<void> {
-  const dismissInput = page.getByTestId('input-dismiss-button');
-  if (await dismissInput.isVisible()) await dismissInput.click();
-  const toggle = page.getByTestId('show-forgotten-messages');
-  await expect(toggle).toBeVisible({ timeout: 45_000 });
-  await toggle.scrollIntoViewIfNeeded();
-  await expect(toggle).toContainText('Show old forgotten messages');
-  await toggle.click();
-  await expect(toggle).toContainText('Hide old forgotten messages', { timeout: 45_000 });
 }
 
 function installChatLookupHold({ boundChatId }: {
@@ -823,364 +1320,480 @@ async function expectHeaderPointerAccess(page: Page): Promise<void> {
 
 
 /** Persist fictional encrypted history through the account's real first-party transport. */
-async function seedVoiceContext(page: Page, chatId: string, coveredIds: string[], uncoveredCount = 25): Promise<string[]> {
-  const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL;
-  expect(apiUrl, 'isolated CI must supply its private API URL').toBeTruthy();
-  // Reloaded history renders locally before the asynchronous main connection.
-  // server_capabilities is issued after authentication/connection registration;
-  // bind readiness to the current socket, including after a native reconnect.
-  await expect.poll(() => page.evaluate(() => {
-    const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
-    return {
-      path: state.mainSocket ? new URL(state.mainSocket.url).pathname : null,
-      readyState: state.mainSocket?.readyState ?? -1,
-      authenticated: state.received.some((event) => event.type === 'server_capabilities' && event.socketId === state.mainSocketId),
-    };
-  }), { timeout: 30_000, message: 'Existing main transport must be open and authenticated before encrypted history seeding' })
-    .toEqual({ path: '/v1/ws', readyState: 1, authenticated: true });
-  const uncovered = await page.evaluate(async ({ chatId, coveredIds, fact, oldestUncoveredFact, uncoveredCount }) => {
-    const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(name);
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => {
-      const request = db.transaction(store, 'readonly').objectStore(store).get(id);
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    const database = await open('chats_db');
-    const cryptoDatabase = await open('openmates_crypto');
-    try {
-      const masterKey = await read<CryptoKey>(cryptoDatabase, 'keys', 'master_key');
-      if (!masterKey) throw new Error('Fixture requires an authenticated browser master key');
-      const chat = await read<{ encrypted_chat_key: string; messages_v: number }>(database, 'chats', chatId);
-      const wrapped = Uint8Array.from(atob(chat.encrypted_chat_key), (char) => char.charCodeAt(0));
-      const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, masterKey, wrapped.slice(12));
-      const chatKey = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt']);
-      const encrypt = async (text: string, key: CryptoKey) => {
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)));
-        const bytes = new Uint8Array(iv.length + ciphertext.length); bytes.set(iv); bytes.set(ciphertext, iv.length);
-        return btoa(String.fromCharCode(...bytes));
-      };
-      const covered = await Promise.all(coveredIds.map((id) => read<{ message_id: string; created_at: number }>(database, 'messages', id)));
-      const boundary = covered.sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id)).at(-1)!;
-      // Longer than the old 2,000-character overview slice, with the key fact at
-      // the end: the test fails if call admission discards checkpoint meaning.
-      const summary = 'Earlier turns established broth, noodles and timing. '.repeat(70) + fact;
-      const encryptedSummary = await encrypt(summary, chatKey);
-      const encryptedMemory = await encrypt(JSON.stringify({ title: 'Voice fixture preference', technologies: ['TypeScript'], notes: 'Fictional selected private memory' }), masterKey);
-      // The default twenty-five rows force a second native window read; the
-      // final refusal case uses thirty-one to exceed gateway admission safely.
-      // Fresh globally unique IDs prevent cross-account/retry ownership collisions;
-      // sorted UUID ordering puts the unique fact outside the latest24 window.
-      // Keep fictional history after the approved checkpoint. The bounded clock
-      // fence below ensures it predates the next call's protected audio cohort.
-      const uncoveredAt = Math.max(boundary.created_at + 1, Math.floor(Date.now() / 1000) - 1);
-      const uncoveredIds = Array.from({ length: uncoveredCount }, () => crypto.randomUUID()).sort();
-      const encryptedSender = await encrypt('You', chatKey);
-      const encryptedCategory = await encrypt('general_knowledge', chatKey);
-      const uncovered = await Promise.all(uncoveredIds.map(async (messageId, index) => ({
-        message_id: messageId, chat_id: chatId,
-        role: 'user', status: 'synced', created_at: uncoveredAt,
-        encrypted_sender_name: encryptedSender, encrypted_category: encryptedCategory,
-        encrypted_content: await encrypt(index === 0 ? oldestUncoveredFact : `Fictional uncovered recipe detail ${index}.`, chatKey),
-      })));
-      await new Promise<void>((resolve, reject) => {
-        const tx = database.transaction(['chat_compression_checkpoints', 'app_settings_memories'], 'readwrite');
-        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
-        tx.objectStore('chat_compression_checkpoints').put({ id: crypto.randomUUID(), chat_id: chatId,
-          encrypted_summary: encryptedSummary, compressed_up_to_timestamp: boundary.created_at,
-          compressed_up_to_message_id: boundary.message_id, covered_message_ids: coveredIds,
-          compressed_message_count: coveredIds.length, summary_token_estimate: 1000, created_at: Math.floor(Date.now() / 1000) });
-        tx.objectStore('app_settings_memories').put({ id: crypto.randomUUID(), app_id: 'code',
-          item_type: 'preferred_tech', item_key: 'voice-fixture-private-entry', encrypted_item_json: encryptedMemory,
-          encrypted_app_key: '', item_version: 1, created_at: Math.floor(Date.now() / 1000), updated_at: Math.floor(Date.now() / 1000) });
-      });
-      const socket = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.mainSocket;
-      if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error('Encrypted fixture requires the authenticated main socket');
-      // Existing storage-only operation checks the canonical owner and wrapped
-      // chat key, and queues ciphertext persistence without an AI request.
-      for (const [index, row] of uncovered.entries()) socket.send(JSON.stringify({
-        type: 'encrypted_chat_metadata', payload: {
-          chat_id: chatId, message_id: row.message_id, encrypted_content: row.encrypted_content,
-          encrypted_sender_name: row.encrypted_sender_name, encrypted_category: row.encrypted_category,
-          encrypted_chat_key: chat.encrypted_chat_key, created_at: row.created_at,
-          versions: { messages_v: (chat.messages_v ?? 0) + index + 1, last_edited_overall_timestamp: uncoveredAt },
-        },
-      }));
-      return uncovered;
-    } finally { database.close(); cryptoDatabase.close(); }
-  }, { chatId, coveredIds, fact: CHECKPOINT_FACT, oldestUncoveredFact: UNCOVERED_CONTEXT_FACT, uncoveredCount });
-
-  // A chat_message_confirmed receipt only means its message task was queued.
-  // The authenticated canonical reader is the durability fence for compression.
-  // Keep ciphertext comparisons in memory; failures report only a matched count.
-  await expect.poll(async () => {
-    const params = new URLSearchParams({ direction: 'latest', limit: '20', respect_compression_boundary: 'false' });
-    const stored = new Map<string, string>();
-    let matched = 0;
-    // The reader caps each window at20, so follow its native cursor rather than
-    // treating a larger requested limit as a complete durability observation.
-    for (let window = 0; window < 3; window += 1) {
-      const response = await page.request.get(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params}`);
-      expect(response.ok(), 'Authenticated encrypted history reader must accept the owned chat').toBe(true);
-      const history = await response.json();
-      for (const row of history.messages ?? []) stored.set(row.message_id, row.encrypted_content);
-      matched = uncovered.filter((row) => stored.get(row.message_id) === row.encrypted_content).length;
-      if (matched === uncovered.length || !history.has_more_before || !history.start_cursor) break;
-      params.set('direction', 'before');
-      params.set('before_timestamp', String(history.start_cursor.created_at));
-      params.set('before_message_id', history.start_cursor.message_id);
-    }
-    return matched;
-  }, { timeout: 45_000, intervals: [250, 500, 1000], message: 'All fictional encrypted history rows must be durable before voice compression' }).toBe(uncoveredCount);
-
-  await page.evaluate(async (rows) => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('chats_db');
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const tx = database.transaction('messages', 'readwrite');
-        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
-        for (const row of rows) tx.objectStore('messages').put(row);
-      });
-    } finally { database.close(); }
-  }, uncovered);
-  await expect.poll(() => page.evaluate(() => Math.floor(Date.now() / 1000)), {
-    timeout: 5_000, intervals: [100],
-    message: 'Fictional prior history must precede the next voice turn by an integer timestamp second',
-  }).toBeGreaterThan(uncovered[0].created_at);
-  return uncovered.map((row) => row.message_id);
+interface CameraCallObservation {
+  type: string; observedAt: number; callId?: string; frameId?: string; userMessageId?: string;
+  assistantMessageId?: string; embedId?: string; embedType?: string; status?: string;
+  appId?: string; skillId?: string; inputEmbedIds?: string[]; model?: string; resolution?: string;
+}
+interface CameraCallEvidence {
+  sent: CameraCallObservation[]; received: CameraCallObservation[];
+  wire: Map<string, Promise<{ hash: string; bytes: number; width: number; height: number }>>;
+  sources: Map<string, Promise<string>>;
+  uploads: Array<{ filename: string; hash: Promise<string>; embedId?: string; savedHash?: string; clean?: boolean }>;
+  facing: string[]; beforeFlip?: MediaStreamTrack[];
+  openedSource?: { embedId: string; s3Files: Record<string, { s3_key: string; encryption?: string; aes_nonce?: string }>;
+    aesKey: string; aesNonce: string };
 }
 
-test.describe('Integrated voice-call foundation', () => {
-  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering,video-call.chat.call-events
-  test('refuses an unauthenticated call before opening a provider session', async ({ page }) => {
-    const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL;
-    expect(apiUrl, 'isolated CI must supply its private API URL').toBeTruthy();
-    await observeRealTransport(page);
-    await page.goto('/');
-    const result = await page.evaluate((url) => new Promise<{ ready: boolean; closed: boolean }>((resolve) => {
-      const socket = new WebSocket(`${url.replace(/^http/, 'ws')}/v1/voice-call`);
-      let ready = false;
-      const timeout = setTimeout(() => { socket.close(); resolve({ ready, closed: false }); }, 10_000);
-      socket.addEventListener('message', (event) => {
-        try { ready ||= JSON.parse(event.data).type === 'ready'; } catch { /* A refusal has no provider content. */ }
+/** Observe genuine camera, upload and encrypted embed traffic without replacing a response. */
+async function observeCameraCall(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const state: CameraCallEvidence = { sent: [], received: [], wire: new Map(), sources: new Map(), uploads: [], facing: [] };
+    Object.assign(window, { __voiceCameraEvidence: state });
+    const digest = async (bytes: ArrayBuffer) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+      .map(value => value.toString(16).padStart(2, '0')).join('');
+    const decoded = (data: string) => Uint8Array.from(atob(data), value => value.charCodeAt(0));
+    const NativeSocket = window.WebSocket;
+    window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
+      const socket: WebSocket = Reflect.construct(Target, args);
+      const path = new URL(String(args[0]), location.href).pathname;
+      const originalSend = socket.send.bind(socket);
+      socket.send = (data) => {
+        if (path === '/v1/voice-call' && typeof data === 'string') {
+          const event = JSON.parse(data);
+          if (['camera_state', 'camera_frame', 'source_frame_saved', 'source_frame_failed'].includes(event.type)) {
+            state.sent.push({ type: event.type, observedAt: performance.now(), callId: event.call_id,
+              frameId: event.frame_id, userMessageId: event.user_message_id, embedId: event.embed_reference?.embed_id });
+            if (event.type === 'camera_frame') {
+              const bytes = decoded(event.data);
+              state.wire.set(event.frame_id, (async () => {
+                const image = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+                try { return { hash: await digest(bytes.buffer), bytes: bytes.byteLength, width: image.width, height: image.height }; }
+                finally { image.close(); }
+              })());
+            }
+          }
+        }
+        originalSend(data);
+      };
+      socket.addEventListener('message', ({ data }) => {
+        if (typeof data !== 'string') return;
+        const event = JSON.parse(data);
+        const payload = event.payload ?? event;
+        if (event.type === 'voice_source_frame') {
+          state.sources.set(`${event.user_message_id}:${event.frame_id}`, digest(decoded(event.data).buffer));
+        }
+        if (!['voice_source_frame', 'voice_embed', 'send_embed_data', 'camera_error'].includes(event.type)) return;
+        const content = typeof payload.content === 'string' ? payload.content : '';
+        const scalar = (name: string) => content.match(new RegExp(`^${name}:\\s*(.+)$`, 'm'))?.[1]?.replace(/^"|"$/g, '');
+        const inputs = content.match(/^input_embed_ids(?:\[\d+\])?:\s*(.*)$/m)?.[1] ?? '';
+        state.received.push({ type: event.type, observedAt: performance.now(), callId: event.call_id,
+          frameId: event.frame_id, userMessageId: event.user_message_id, assistantMessageId: event.assistant_message_id ?? payload.message_id,
+          embedId: payload.embed_id, embedType: payload.type, status: payload.status,
+          appId: scalar('app_id'), skillId: scalar('skill_id'), inputEmbedIds: inputs.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [],
+          model: scalar('model'), resolution: scalar('resolution') });
       });
-      socket.addEventListener('close', () => { clearTimeout(timeout); resolve({ ready, closed: true }); });
-    }), apiUrl!);
-    expect(result).toEqual({ ready: false, closed: true });
-    expect((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added')).toHaveLength(0);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(0);
+      return socket;
+    } });
+    const capture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      if (constraints?.video) {
+        const video = constraints.video;
+        const mode = typeof video === 'object' ? video.facingMode : undefined;
+        state.facing.push(typeof mode === 'object' && 'ideal' in mode ? String(mode.ideal) : String(mode ?? 'default'));
+      }
+      return capture(constraints);
+    };
+    // XHR is the ordinary upload service's transport. Hash only inside the browser;
+    // neither image bytes nor response AES keys enter Playwright diagnostics.
+    const urls = new WeakMap<XMLHttpRequest, string>();
+    XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, { apply(Target, xhr, args) {
+      urls.set(xhr, String(args[1]));
+      return Reflect.apply(Target, xhr, args);
+    } });
+    XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, { apply(Target, xhr, args) {
+      const body = args[0];
+      const file = body instanceof FormData ? body.get('file') : null;
+      if (new URL(urls.get(xhr) ?? '/', location.href).pathname === '/v1/upload/file' && file instanceof File && file.name.startsWith('call-source-')) {
+        const upload: CameraCallEvidence['uploads'][number] = { filename: file.name, hash: file.arrayBuffer().then(digest) };
+        state.uploads.push(upload);
+        xhr.addEventListener('load', () => {
+          if (xhr.status < 200 || xhr.status >= 300) return;
+          const response = JSON.parse(xhr.responseText);
+          upload.embedId = response.embed_id; upload.savedHash = response.content_hash; upload.clean = response.malware_scan === 'clean';
+        });
+      }
+      return Reflect.apply(Target, xhr, args);
+    } });
+    document.addEventListener('imagefullscreen', (event) => {
+      const detail = (event as CustomEvent).detail;
+      // ImageRenderer emits media metadata from its owning nodeview; its
+      // fullscreen payload does not duplicate the embed identity in the DOM.
+      const target = event.target instanceof Element ? event.target : null;
+      const owner = target?.closest('[data-embed-id]') ?? target?.querySelector('[data-embed-id]');
+      const embedId = detail?.embedId ?? owner?.getAttribute('data-embed-id');
+      if (embedId) state.openedSource = { ...detail, embedId };
+    });
+  });
+}
+
+async function cameraCallEvidence(page: Page) {
+  return page.evaluate(() => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence;
+    return { sent: state.sent, received: state.received, facing: state.facing };
+  });
+}
+
+async function sourceFrameProof(page: Page, userMessageId: string) {
+  return page.evaluate(async (userMessageId) => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence;
+    const source = state.received.find(event => event.type === 'voice_source_frame' && event.userMessageId === userMessageId);
+    const ack = state.sent.find(event => event.type === 'source_frame_saved' && event.userMessageId === userMessageId);
+    if (!source?.frameId || !ack?.embedId || ack.frameId !== source.frameId) return null;
+    const wire = await state.wire.get(source.frameId);
+    const chosen = await state.sources.get(`${userMessageId}:${source.frameId}`);
+    const upload = state.uploads.find(upload => upload.filename === `call-source-${source.frameId}.jpg` && upload.embedId === ack.embedId);
+    return wire && upload ? { frameId: source.frameId, embedId: ack.embedId, hash: wire.hash,
+      exact: wire.hash === chosen && chosen === await upload.hash && upload.savedHash === chosen,
+      clean: upload.clean, bounded: wire.bytes <= 256 * 1024 && wire.width <= 1280 && wire.height <= 720 } : null;
+  }, userMessageId);
+}
+
+async function assertEncryptedSourceAttachment(page: Page, chatId: string, userMessageId: string, sourceId: string, hash: string): Promise<void> {
+  const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL!;
+  await expect.poll(() => page.evaluate(async ({ chatId, userMessageId, sourceId, hash, apiUrl }) => {
+    const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => { const r = indexedDB.open(name); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => { const r = db.transaction(store).objectStore(store).get(id); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const db = await open('chats_db'); const keys = await open('openmates_crypto');
+    try {
+      const row = await read<{ encrypted_content?: string; content?: string }>(db, 'messages', userMessageId);
+      if (!row?.encrypted_content || row.content !== undefined) return false;
+      const chat = await read<{ encrypted_chat_key: string }>(db, 'chats', chatId);
+      const master = await read<CryptoKey>(keys, 'keys', 'master_key');
+      const bytes = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+      const wrapped = bytes(chat.encrypted_chat_key);
+      const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, master, wrapped.slice(12));
+      const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
+      const text = await state.decryptChatContent!(row.encrypted_content, raw);
+      const attached = [...text.matchAll(/```json\s*\n([\s\S]*?)\n```/g)].some(match => {
+        const value = JSON.parse(match[1]); return value.type === 'image' && value.embed_id === sourceId;
+      });
+      const response = await fetch(`${apiUrl}/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(sourceId)}`, { credentials: 'include' });
+      if (!response.ok || !attached) return false;
+      const embed = (await response.json()).embed;
+      if (!embed?.encrypted_content || 'content' in embed) return false;
+      const material = await crypto.subtle.importKey('raw', raw, 'HKDF', false, ['deriveBits']);
+      const derived = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('openmates-embed-key-v1'), info: new TextEncoder().encode(sourceId) }, material, 256);
+      const key = await crypto.subtle.importKey('raw', derived, 'AES-GCM', false, ['decrypt']);
+      const payload = bytes(embed.encrypted_content);
+      const source = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: payload.slice(0, 12) }, key, payload.slice(12)));
+      return new RegExp(`^content_hash:\\s*"?${hash}"?$`, 'm').test(source);
+    } finally { db.close(); keys.close(); }
+  }, { chatId, userMessageId, sourceId, hash, apiUrl }), { timeout: 45_000, message: 'The user attachment and owned source metadata must be encrypted and independently decryptable' }).toBe(true);
+}
+
+async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId: string, expectedHash: string, testInfo: TestInfo): Promise<void> {
+  await expect(thumbnail).toBeEnabled();
+  await expect.poll(() => thumbnail.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  // Chat result cards expose their explicit Details action; the card body is a group.
+  await clickChatTarget(thumbnail.getByTestId('result-preview-expand'), testInfo);
+  await expect(page.getByTestId('image-embed-fullscreen')).toBeVisible();
+  await expect.poll(() => page.getByTestId('image-embed-fullscreen').locator('img:not(.preview-placeholder)').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  // Read the original through the normal owner-authorized presigned URL. Keys,
+  // ciphertext and plaintext remain within this browser evaluation.
+  const originalProof = await page.evaluate(async ({ apiUrl, sourceId, expectedHash }) => {
+    const detail = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence.openedSource;
+    if (!detail) return { status: 'missing_source_event' };
+    if (detail.embedId !== sourceId) return { status: 'wrong_source_identity', embedId: detail.embedId };
+    if (!detail.s3Files?.original) return { status: 'missing_original', embedId: detail.embedId };
+    const original = detail.s3Files.original;
+    const signed = await fetch(`${apiUrl}/v1/embeds/presigned-url?s3_key=${encodeURIComponent(original.s3_key)}`, { credentials: 'include' });
+    if (!signed.ok) return { status: 'presign_failed', httpStatus: signed.status };
+    const downloaded = await fetch((await signed.json()).url);
+    if (!downloaded.ok) return { status: 'download_failed', httpStatus: downloaded.status };
+    const encrypted = await downloaded.arrayBuffer();
+    const bytes = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+    const noncePrefixed = original.encryption === 'aes-gcm-nonce-prefixed-v1';
+    const nonce = noncePrefixed ? new Uint8Array(encrypted.slice(0, 12)) : bytes(original.aes_nonce || detail.aesNonce);
+    const key = await crypto.subtle.importKey('raw', bytes(detail.aesKey), 'AES-GCM', false, ['decrypt']);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, noncePrefixed ? encrypted.slice(12) : encrypted);
+    const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', plaintext))].map(value => value.toString(16).padStart(2, '0')).join('');
+    return { status: digest === expectedHash ? 'matched' : 'hash_mismatch', embedId: detail.embedId,
+      expectedHash, actualHash: digest };
+  }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL!, sourceId, expectedHash });
+  expect(originalProof).toMatchObject({ status: 'matched', embedId: sourceId,
+    expectedHash, actualHash: expectedHash });
+  await page.getByTestId('embed-minimize').click();
+  await expect(page.getByTestId('image-embed-fullscreen')).toHaveCount(0);
+}
+
+async function sendCameraCallText(page: Page, text: string): Promise<string> {
+  const before = voiceFrames(await evidence(page), 'text_input').length;
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+  await editor.click(); await page.keyboard.insertText(text);
+  await page.getByTestId('composer-send-button').click();
+  await expect.poll(async () => voiceFrames(await evidence(page), 'text_input').length).toBe(before + 1);
+  return voiceFrames(await evidence(page), 'text_input').at(-1)!.messageId!;
+}
+
+test.describe('Voice mode through ordinary chat', () => {
+  // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.audio.complete-turn-admission,projects.lifecycle.encrypted-crud
+  test('registers an unsent personal Project chat before opening its voice call',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let projectId:string|null=null;let apiOrigin:string|null=null;let primaryFailed=false;
+    try{
+      await page.goto('/projects',{waitUntil:'domcontentloaded'});
+      await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
+      const created=page.waitForResponse(response=>response.request().method()==='POST'
+        &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
+      await page.getByTestId('project-input-textarea').fill(`Voice draft startup ${Date.now()}`);
+      await page.getByTestId('project-input-submit').click();
+      await page.getByTestId('project-write-policy-always-ask').check();
+      await page.getByTestId('project-write-policy-confirm').click();
+      const response=await created;
+      // This exact authenticated Personal Project is the only cleanup target.
+      expect(new URL(response.url()).searchParams.has('team_id')).toBe(false);
+      expect(response.request().postDataJSON()).toMatchObject({write_mode:'always_ask'});
+      apiOrigin=new URL(response.url()).origin;
+      projectId=(await response.json()).project.project_id;
+      expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+      await expect(page.getByTestId('project-workspace-header')).toBeVisible();
+      await page.getByTestId('project-tab-folders').click();
+      await page.getByTestId('project-folder-create-menu-button').click();
+      await page.evaluate(async projectId=>{
+        const open=(name:string)=>new Promise<IDBDatabase>((resolve,reject)=>{
+          const request=indexedDB.open(name);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+        });
+        const [chats,user]=await Promise.all([open('chats_db'),open('user_db')]);
+        const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        let expectedChatId:string|null=null;
+        state.draftDeletionEvents=[];
+        let focusedBeforeStartPointerDown=false;
+        window.addEventListener('pointerdown',event=>{
+          if(!(event.target instanceof Element)||!event.target.closest('[data-testid="voice-call-start"]'))return;
+          const editable=document.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+          focusedBeforeStartPointerDown=!!editable&&editable===document.activeElement;
+        },{capture:true});
+        window.addEventListener('click',event=>{
+          if(!(event.target instanceof Element)||!event.target.closest('[data-testid="voice-call-start"]'))return;
+          const composer=[...document.querySelectorAll('[data-action="message-input"]')].find(node=>node.getClientRects().length);
+          expectedChatId=composer?.getAttribute('data-current-chat-id')??null;
+          Object.assign(window,{__voiceProjectDraftBeforeStart:{chatId:expectedChatId,
+            focused:focusedBeforeStartPointerDown,
+            projectMentionMatches:document.querySelector('[data-testid="message-editor"] [data-type="generic-mention"].mention-project')?.getAttribute('data-mention-syntax')===`@project:${projectId}:read`,
+            userRows:document.querySelectorAll('[data-testid="message-user"]').length,
+            assistantRows:document.querySelectorAll('[data-testid="message-assistant"]').length,
+            starts:state.sent.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='start').length,
+            canonicalSends:state.sent.filter(frame=>frame.type==='chat_message_added').length}});
+        },{capture:true});
+        for(const type of ['chatDeleted','localChatListChanged'])window.addEventListener(type,event=>{
+          const detail=(event as CustomEvent).detail;
+          if(detail?.chat_id!==expectedChatId||(type==='localChatListChanged'&&detail.draftDeleted!==true))return;
+          state.draftDeletionEvents!.push({type,chatId:expectedChatId!,observedAt:performance.now()});
+          if(state.draftDeletionEvents!.length>16)state.draftDeletionEvents!.shift();
+        });
+        state.inspectDraftAtBootstrap=chatId=>{
+          delete state.inspectDraftAtBootstrap;
+          const proof:NonNullable<CallEvidence['draftAtBootstrap']>={chatId,requestedAt:performance.now()};
+          state.draftAtBootstrap=proof;
+          const read=(db:IDBDatabase,store:string,key:IDBValidKey)=>new Promise<Record<string,unknown>|string|undefined>((resolve,reject)=>{
+            const request=db.transaction(store,'readonly').objectStore(store).get(key);
+            request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+          });
+          // Both readonly requests are submitted synchronously before native
+          // WebSocket.send; only their metadata-only result settles later.
+          void Promise.all([read(chats,'chats',chatId),read(user,'user_data','id')]).then(([raw,owner])=>{
+            const row=raw&&typeof raw==='object'?raw:undefined;
+            // Keep the actual wrapped key inside this browser-only closure.
+            // The post-ready read exports equality/availability booleans only.
+            const bootstrapWrappedKey=row?.encrypted_chat_key;
+            state.inspectDraftAfterReady=async()=>{
+              const db=await open('chats_db');
+              try{
+                const raw=await read(db,'chats',chatId);
+                const after=raw&&typeof raw==='object'?raw:undefined;
+                return {exists:after?.chat_id===chatId,
+                  wrappedKeyPresent:typeof after?.encrypted_chat_key==='string'&&!!after.encrypted_chat_key,
+                  wrappedKeyUnchanged:typeof bootstrapWrappedKey==='string'&&after?.encrypted_chat_key===bootstrapWrappedKey,
+                  encryptedDraftPresent:typeof after?.encrypted_draft_md==='string'&&!!after.encrypted_draft_md&&after.encrypted_draft_md!=='null',
+                  messagesVersion:typeof after?.messages_v==='number'&&Number.isSafeInteger(after.messages_v)?after.messages_v:null};
+              }finally{db.close();}
+            };
+            Object.assign(proof,{exists:row?.chat_id===chatId,
+              personal:!!row&&!row.team_id&&row.chat_visibility!=='direct'&&!row.is_incognito&&!row.is_anonymous,
+              ownerCompatible:typeof owner==='string'&&!!owner&&!!row&&(!row.user_id||row.user_id===owner),
+              wrappedKeyPresent:typeof row?.encrypted_chat_key==='string'&&row.encrypted_chat_key.length>0,
+              encryptedDraftPresent:typeof row?.encrypted_draft_md==='string'&&!!row.encrypted_draft_md&&row.encrypted_draft_md!=='null',
+              messagesVersion:Number.isSafeInteger(row?.messages_v)?row?.messages_v:null});
+          },()=>{proof.readFailed=true;}).finally(()=>{
+            proof.completedAt=performance.now();chats.close();user.close();
+          });
+        };
+      },projectId);
+      await page.getByTestId('project-create-chat').click();
+      await expect(page.getByTestId('message-editor')).toBeVisible();
+      // Only focus the existing Project draft; do not type or inject a turn.
+      await page.getByTestId('message-field').click();
+      // Click immediately after actual editor focus, before slow storage reads
+      // or readiness polling can conceal the prop-to-draft-store handoff.
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
+      const before=await page.evaluate(()=>(window as unknown as {__voiceProjectDraftBeforeStart:{chatId:string;focused:boolean;projectMentionMatches:boolean;
+        userRows:number;assistantRows:number;starts:number;canonicalSends:number}}).__voiceProjectDraftBeforeStart);
+      const chatId=before.chatId;
+      expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(before).toMatchObject({focused:true,projectMentionMatches:true,userRows:0,assistantRows:0,starts:0,canonicalSends:0});
+      await testInfo.attach('voice-project-draft-identity',{body:JSON.stringify({draftChatId:chatId}),contentType:'application/json'});
+      // Same-draft startup must retain its real destination instead of clearing
+      // it as an outgoing navigation draft. No turn has been submitted yet.
+      await expect(page.locator('[data-action="message-input"]:visible')).toHaveAttribute('data-current-chat-id',chatId!);
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      const retainedDraft=await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
+        .__voiceCallEvidence.inspectDraftAfterReady?.());
+      expect(retainedDraft).toEqual({exists:true,wrappedKeyPresent:true,wrappedKeyUnchanged:true,
+        encryptedDraftPresent:true,messagesVersion:0});
+      await testInfo.attach('voice-project-draft-retained-after-ready',{body:JSON.stringify({chatId,...retainedDraft}),contentType:'application/json'});
+      const protocol=await evidence(page);
+      expect([...protocol.sent,...protocol.received].filter(frame=>frame.chatId===chatId&&
+        ['delete_chat','chat_deleted','delete_draft','draft_deleted'].includes(frame.type)),
+      'starting the call must not clear or delete its exact destination draft').toHaveLength(0);
+      expect(protocol.draftDeletionEvents,'no local chat deletion or draft-cleared event for the bound destination').toEqual([]);
+      const localDraft=protocol.draftAtBootstrap;
+      expect(localDraft).toMatchObject({chatId,exists:true,personal:true,ownerCompatible:true,
+        wrappedKeyPresent:true,encryptedDraftPresent:true,messagesVersion:0});
+      expect(localDraft?.readFailed).not.toBe(true);
+      await testInfo.attach('voice-project-local-draft',{body:JSON.stringify({draftChatId:chatId,...localDraft}),contentType:'application/json'});
+      const registration=protocol.sent.find(frame=>frame.path==='/v1/ws'&&frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId);
+      const receipt=protocol.received.find(frame=>frame.path==='/v1/ws'&&frame.type==='encrypted_metadata_stored'
+        &&frame.chatId===chatId&&frame.voiceCallBootstrap===true);
+      const starts=voiceFrames(protocol,'start');
+      const ready=protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='ready');
+      // Preserve exact draft ownership when diagnosing a different header/chat
+      // binding or a transport action change. Never record encrypted wrappers.
+      const bootstrap=protocol.sent.filter(frame=>['voice_call_chat_prepare','encrypted_chat_metadata'].includes(frame.type));
+      const acknowledgements=protocol.received.filter(frame=>frame.type==='encrypted_metadata_stored');
+      await testInfo.attach('voice-project-startup-order',{body:JSON.stringify({draftChatId:chatId,localDraft,
+        speechPrimes:(await nativeVoiceInput(page)).speechPrimes,
+        bootstrap:bootstrap.map(frame=>({type:frame.type,path:frame.path,chatId:frame.chatId,at:frame.observedAt,
+          keyCiphertextPresent:(frame.ciphertextLength??0)>0})),
+        acknowledgements:acknowledgements.map(frame=>({path:frame.path,chatId:frame.chatId,at:frame.observedAt,voiceCallBootstrap:frame.voiceCallBootstrap})),
+        starts:starts.map(frame=>({chatId:frame.chatId,at:frame.observedAt})),
+        ready:ready.map(frame=>({callId:frame.callId,at:frame.observedAt}))}),contentType:'application/json'});
+      expect(starts).toHaveLength(1);expect(ready).toHaveLength(1);
+      expect(starts[0].chatId,'the header must start the exact existing Project draft shown by its composer').toBe(chatId);
+      expect(registration).toBeTruthy();expect(receipt).toBeTruthy();
+      await assertSpeechAutoplayPrimed(page,registration!.observedAt!);
+      expect(registration!.ciphertextLength).toBeGreaterThan(0);expect(registration!.plaintext).toBe(false);
+      expect(registration!.messageId).toBeFalsy();
+      expect(ready[0].callId).toBeTruthy();
+      expect(localDraft!.requestedAt).toBeGreaterThanOrEqual(registration!.observedAt!);
+      expect(localDraft!.completedAt).toBeDefined();
+      expect(localDraft!.completedAt!).toBeLessThan(starts[0].observedAt!);
+      expect(registration!.observedAt!).toBeLessThan(receipt!.observedAt!);
+      expect(receipt!.observedAt!).toBeLessThan(starts[0].observedAt!);
+      expect(receipt!.observedAt!).toBeLessThan(ready[0].observedAt!);
+      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='error'&&frame.path==='/v1/voice-call')).toHaveLength(0);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+      await assertCallHistoryDurable(page,chatId,ready[0].callId!);
+      await assertCallChatPreserved(page,chatId);
+    }catch(error){
+      primaryFailed=true;throw error;
+    }finally{
+      await cleanupProjectVoiceDraft(page,testInfo,projectId,apiOrigin,primaryFailed);
+    }
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
-  test('uses the latest committed call version when ordinary text resumes after hangup', async ({ page }, testInfo) => {
-    test.setTimeout(180_000);
-    expect(process.env.E2E_USE_MOCKS,'Ordinary turns must use the existing deterministic replay fixture').toBeTruthy();
-    expect(process.env.E2E_RECORD_FIXTURES).toBeFalsy();
-    expect(process.env.GITHUB_ACTIONS).toBe('true');
-    expect(process.env.RUNNER_ENVIRONMENT).toBe('github-hosted');
-    expect(process.env.CI_TEST_MODE).toBe('e2e');
-    type VersionFrame = {direction:'sent'|'received';type:string;chatId?:string;messageId?:string;turnId?:string;jobId?:string;
-      version?:number;expectedVersion?:number;state?:string;rejected:boolean;rejectionCode?:string};
-    const protocol:VersionFrame[]=[];
-    const serverStatuses:Array<{ok:boolean;isSelfHosted:boolean|null;isDevelopment:boolean|null;modelsConfiguredBefore:boolean|null;modelsConfiguredAfter:boolean}>=[];
-    const sendCheckpoints:string[]=[];
-    const sendSnapshots:unknown[]=[];
-    let phase='setup';
-    let proofComplete=false;
-    const checkpoint=(message:string)=>{
-      const kind=/did not persist/i.test(message)?'send_not_persisted':/failed|error/i.test(message)?'send_error':/dispatch/i.test(message)?'send_dispatch':/send button/i.test(message)?'send_button':'send_checkpoint';
-      sendCheckpoints.push(`${phase}:${kind}`);if(sendCheckpoints.length>16)sendCheckpoints.shift();
-    };
-    const retainSendDebug=async()=>{
-      const snapshot=await page.evaluate(async()=>{
-        const browser=window as unknown as {__openmatesLastSendDebug?:{step?:unknown;details?:Record<string,unknown>};
-          __openmatesLastPreflightDebug?:{step?:unknown};__openmatesE2EChatConnectionState?:()=>Promise<Record<string,unknown>>};
-        const send=browser.__openmatesLastSendDebug;
-        const details=send?.details??{};
-        const error=details.error as {name?:unknown;message?:unknown;stack?:unknown}|undefined;
-        // Keep only fixed-format step labels, error classes/categories and booleans.
-        // Raw error messages, debug details, editor text and transport bodies stay local.
-        const step=(value:unknown)=>typeof value==='string'&&/^[a-z][a-z0-9_]{0,79}$/.test(value)?value:null;
-        const errorName=typeof error?.name==='string'&&['Error','TypeError','ReferenceError','AbortError','InvalidStateError','NotAllowedError','OperationError','TimeoutError','DataError','NotFoundError','QuotaExceededError'].includes(error.name)?error.name:null;
-        const message=typeof error?.message==='string'?error.message:'';
-        const errorCategory=!error?null:/self.hosted|models.*config|no.*models/i.test(message)?'models_unconfigured':/credit|balance/i.test(message)?'credits':/encrypt|crypt|key/i.test(message)?'crypto':/preflight|version|recovery|admission/i.test(message)?'admission':/auth|token|session/i.test(message)?'auth':/network|websocket|offline/i.test(message)?'transport':'other';
-        // Retain only source-location stack frames; omit the error headline and arbitrary text.
-        const errorStackFrames=typeof error?.stack==='string'?error.stack.split('\n').slice(1).map(frame=>frame.trim())
-          .filter(frame=>/^at (?:[\w.$<>]+ \()?https?:\/\/[^/\s]+\/(?:_app\/immutable\/|node_modules\/|src\/)[\w./@-]+:\d+:\d+\)?$/.test(frame)).slice(0,6):[];
-        const connection=await browser.__openmatesE2EChatConnectionState?.().catch(()=>null);
-        return {sendStep:step(send?.step),failedAfterStep:step(details.failedAfterStep),preflightStep:step(browser.__openmatesLastPreflightDebug?.step),
-          errorName,errorCategory,...(errorStackFrames.length?{errorStackFrames}:{}),hasMessagePayload:details.hasMessagePayload===true,
-          editorHasText:!!document.querySelector('[data-testid="message-editor"] [contenteditable="true"]')?.textContent?.trim(),
-          online:connection?.online===true,websocketConnected:connection?.websocketConnected===true,cachePrimed:connection?.cachePrimed===true,
-          contextSyncCompleted:connection?.contextSyncCompleted===true,teamContextActive:connection?.teamContextActive===true};
-      }).catch(()=>({captureFailed:true}));
-      sendSnapshots.push({phase,snapshot});if(sendSnapshots.length>4)sendSnapshots.shift();
-    };
-    const kinds=new Set(['chat_turn_admit','chat_turn_preflight','chat_message_added','chat_message_confirmed',
-      'ai_response_completed','ai_response_storage_confirmed','call_message_confirmed','call_message_changed','system_message_confirmed']);
-    page.on('websocket',socket=>{
-      if(new URL(socket.url()).pathname!=='/v1/ws')return;
-      const observe=(direction:VersionFrame['direction'])=>(frame:{payload:string|Buffer})=>{
-        try{
-          const message=JSON.parse(String(frame.payload));
-          if(typeof message.type!=='string')return;
-          const p=message.payload??message;
-          const rejected=/rejected|error$/.test(message.type)||p.accepted===false||p.status==='rejected'||
-            [p.code,p.error_code,p.error].some(value=>typeof value==='string'&&/version|stale|conflict/i.test(value));
-          if(!kinds.has(message.type)&&!rejected)return;
-          const rejectionCode=p.code??p.error_code??p.error;
-          // Only authentic canonical fields are observed: never queue revision,
-          // optimistic row counts, plaintext, encrypted payloads or recovery keys.
-          const version=['call_message_confirmed','call_message_changed','system_message_confirmed'].includes(message.type)
-            ? p.messages_v : p.committed_messages_v??p.new_messages_v??p.versions?.messages_v??p.messages_v;
-          protocol.push({direction,type:message.type,chatId:p.chat_id??p.encrypted_assistant_message?.chat_id,
-            messageId:p.message_id??p.encrypted_user_message?.client_message_id??p.encrypted_assistant_message?.client_message_id??p.message?.message_id,
-            turnId:p.turn_id,jobId:p.job_id,version:typeof version==='number'?version:undefined,
-            expectedVersion:typeof p.expected_messages_v==='number'?p.expected_messages_v:undefined,
-            state:p.state==='TERMINAL'?'TERMINAL':undefined,rejected,
-            rejectionCode:rejected&&typeof rejectionCode==='string'&&/^[a-z_]{1,64}$/i.test(rejectionCode)?rejectionCode:undefined});
-        }catch{/* Ignore transport control frames; retain no raw payload. */}
-      };
-      socket.on('framesent',observe('sent'));socket.on('framereceived',observe('received'));
-    });
+  // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,projects.lifecycle.encrypted-crud
+  test('keeps Project draft Cancel available and restores normal chat with a notification after startup failure',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page,false,true);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let projectId:string|null=null;let apiOrigin:string|null=null;let primaryFailed=false;
     try{
-    // Match the established isolated first-chat fixture: fetch the real status
-    // and open only its UI availability gate, without adding provider credentials.
-    await page.route('**/v1/settings/server-status',async route=>{
-      const response=await route.fetch();
-      if(!response.ok()){
-        serverStatuses.push({ok:false,isSelfHosted:null,isDevelopment:null,modelsConfiguredBefore:null,modelsConfiguredAfter:false});
-        if(serverStatuses.length>4)serverStatuses.shift();
-        throw new Error(`Server status failed (${response.status()}).`);
-      }
-      const status=await response.json();
-      serverStatuses.push({ok:true,isSelfHosted:typeof status.is_self_hosted==='boolean'?status.is_self_hosted:null,
-        isDevelopment:typeof status.is_development==='boolean'?status.is_development:null,
-        modelsConfiguredBefore:typeof status.ai_models_configured==='boolean'?status.ai_models_configured:null,modelsConfiguredAfter:true});
-      if(serverStatuses.length>4)serverStatuses.shift();
-      await route.fulfill({response,json:{...status,ai_models_configured:true}});
-    });
-    await installNativeVoiceInput(page);
-    await observeRealTransport(page);
-    await loginToTestAccount(page);
-    await waitForChatReady(page);
-    await startNewChat(page);
-    await waitForChatReady(page);
-    await expect(page.getByTestId('message-user')).toHaveCount(0);
-    const ordinaryText='Capital of Germany?';
-    const testMockMarker=withMockMarker(ordinaryText,'chat_flow_capital','instant');
-    expect(testMockMarker).toBeTruthy();
-    phase='ordinary_seed';
-    await sendMessage(page,withMockMarker(ordinaryText,'chat_flow_capital','instant'),checkpoint,retainSendDebug,'ordinary-seed');
-    await waitForAssistantMessage(page,{which:'last',contains:'The capital of Germany is Berlin.'});
-    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-    const chatId=new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
-    expect(chatId).toBeTruthy();
-    const admissions=(frames:VersionFrame[])=>frames.filter(frame=>frame.direction==='sent'&&frame.chatId===chatId&&['chat_turn_admit','chat_turn_preflight'].includes(frame.type));
-    expect(admissions(protocol)).toHaveLength(1);
-    const seedAdmission=admissions(protocol)[0];
-    expect(seedAdmission.messageId).toBeTruthy();expect(seedAdmission.turnId).toBeTruthy();
-    const seedAssistantId=await page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'}).last().getAttribute('data-message-id');
-    expect(seedAssistantId).toBeTruthy();
-    // Epoch-zero admissions use legacy assistant persistence. Its storage ACK has no version.
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='sent'&&frame.type==='ai_response_completed'&&frame.chatId===chatId&&frame.messageId===seedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='received'&&frame.type==='ai_response_storage_confirmed'&&frame.chatId===chatId&&frame.messageId===seedAssistantId),{timeout:45_000}).toBe(true);
-    const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;expect(apiUrl).toBeTruthy();
-    const canonical=(ids:string[],requireEncrypted=false)=>page.evaluate(async({apiUrl,chatId,ids,requireEncrypted})=>{
-      const response=await fetch(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?direction=latest&limit=20&respect_compression_boundary=false`,{credentials:'include'});
-      const window=await response.json();
-      return {ok:response.ok,version:window.messages_v,counts:ids.map(id=>(window.messages??[]).filter((row:{message_id:string;encrypted_content?:unknown})=>row.message_id===id&&(!requireEncrypted||(typeof row.encrypted_content==='string'&&row.encrypted_content.length>0))).length)};
-    },{apiUrl:apiUrl!,chatId:chatId!,ids,requireEncrypted});
-    await expect.poll(async()=>{const stored=await canonical([seedAdmission.messageId!,seedAssistantId!],true);return stored.ok&&Number.isSafeInteger(stored.version)&&stored.version>0&&stored.counts.every(count=>count===1);},{timeout:45_000}).toBe(true);
-    const seedVersion=(await canonical([seedAdmission.messageId!,seedAssistantId!],true)).version;
-    expect(Number.isSafeInteger(seedVersion)).toBe(true);expect(seedVersion).toBeGreaterThan(0);
-    const localSynced=(assistantId:string,version:number)=>page.evaluate(async({chatId,assistantId,version})=>{
-      const db=await new Promise<IDBDatabase>((resolve,reject)=>{const open=indexedDB.open('chats_db');open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);});
-      const read=(store:string,id:string)=>new Promise<Record<string,unknown>|undefined>((resolve,reject)=>{const request=db.transaction(store,'readonly').objectStore(store).get(id);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
-      try{const [chat,assistant]=await Promise.all([read('chats',chatId),read('messages',assistantId)]);return chat?.messages_v===version&&assistant?.status==='synced';}
-      finally{db.close();}
-    },{chatId:chatId!,assistantId,version});
-    await expect.poll(()=>localSynced(seedAssistantId!,seedVersion),{timeout:45_000}).toBe(true);
-
-    phase='voice_call';
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
-    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
-    expect(voiceFrames(await evidence(page),'start')[0].chatId).toBe(chatId);
-    await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(0);
-    await page.getByTestId('voice-call-mute').click();
-    const editor=page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await editor.click();await page.keyboard.insertText(PASTED_TEXT);await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
-    await expect.poll(()=>new Set(protocol.filter(frame=>frame.direction==='received'&&frame.type==='call_message_confirmed'&&frame.chatId===chatId&&Number.isSafeInteger(frame.version)).map(frame=>frame.messageId)).size,{timeout:45_000}).toBe(4);
-    const callReceipts=protocol.filter(frame=>frame.direction==='received'&&frame.type==='call_message_confirmed'&&frame.chatId===chatId);
-    expect(callReceipts.every(frame=>Number.isSafeInteger(frame.version)&&frame.version!>seedVersion)).toBe(true);
-    const callTranscriptIds=[...new Set(callReceipts.map(frame=>frame.messageId).filter((id):id is string=>!!id))];
-    expect(callTranscriptIds).toHaveLength(4);
-    const callReady=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call');
-    expect(callReady?.callId).toBeTruthy();
-    await page.getByTestId('voice-call-hangup').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await assertVoiceInputCleanup(page);
-    await assertCallHistoryDurable(page,chatId!,callReady!.callId!,callTranscriptIds);
-    const endedId=`ffffffff-voice-call-${callReady!.callId}-ended`;
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='received'&&frame.type==='system_message_confirmed'&&frame.messageId===endedId&&Number.isSafeInteger(frame.version)),{timeout:45_000}).toBe(true);
-    const endVersion=protocol.find(frame=>frame.direction==='received'&&frame.type==='system_message_confirmed'&&frame.messageId===endedId)!.version!;
-    expect(endVersion).toBeGreaterThan(seedVersion);
-    expect(endVersion).toBeGreaterThanOrEqual(Math.max(...callReceipts.map(frame=>frame.version!)));
-    await expect.poll(()=>canonical([endedId,...callTranscriptIds]),{timeout:45_000}).toEqual({ok:true,version:endVersion,counts:[1,1,1,1,1]});
-
-    // No reload, cache reset or barrier manipulation: exercise the normal sender
-    // after the legacy durable ACK and the call's authenticated receipts.
-    const postCallStart=protocol.length;
-    phase='ordinary_post_call';
-    await sendMessage(page,withMockMarker(ordinaryText,'chat_flow_capital','instant'),checkpoint,retainSendDebug,'ordinary-post-call');
-    await waitForAssistantMessage(page,{which:'last',contains:'The capital of Germany is Berlin.'});
-    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-    const postCall=protocol.slice(postCallStart);
-    expect(admissions(postCall)).toHaveLength(1);
-    const resumed=admissions(postCall)[0];
-    expect(resumed.chatId).toBe(chatId);expect(resumed.messageId).toBeTruthy();
-    expect(resumed.messageId).not.toBe(seedAdmission.messageId);
-    expect(resumed.expectedVersion).toBe(endVersion);
-    expect(postCall.filter(frame=>frame.direction==='received'&&frame.rejected)).toHaveLength(0);
-    expect(postCall.filter(frame=>frame.direction==='received'&&frame.type==='chat_message_confirmed'&&frame.messageId===resumed.messageId&&frame.version===endVersion+1)).toHaveLength(1);
-    await expect(page.getByTestId('message-user').filter({hasText:'Capital of Germany?'})).toHaveCount(2);
-    await expect(page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'})).toHaveCount(2);
-    const resumedAssistantId=await page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'}).last().getAttribute('data-message-id');
-    expect(resumedAssistantId).toBeTruthy();expect(resumedAssistantId).not.toBe(seedAssistantId);
-    await expect.poll(()=>protocol.slice(postCallStart).some(frame=>frame.direction==='sent'&&frame.type==='ai_response_completed'&&frame.chatId===chatId&&frame.messageId===resumedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(()=>protocol.slice(postCallStart).some(frame=>frame.direction==='received'&&frame.type==='ai_response_storage_confirmed'&&frame.chatId===chatId&&frame.messageId===resumedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(async()=>{const stored=await canonical([resumed.messageId!,resumedAssistantId!],true);return stored.ok&&Number.isSafeInteger(stored.version)&&stored.version>endVersion&&stored.counts.every(count=>count===1);},{timeout:45_000}).toBe(true);
-    const finalVersion=(await canonical([resumed.messageId!,resumedAssistantId!],true)).version;
-    expect(Number.isSafeInteger(finalVersion)).toBe(true);expect(finalVersion).toBeGreaterThan(endVersion);
-    expect((await canonical([resumed.messageId!,resumedAssistantId!],true)).counts).toEqual([1,1]);
-    await expect.poll(()=>localSynced(resumedAssistantId!,finalVersion),{timeout:45_000}).toBe(true);
-    await testInfo.attach('voice-call-canonical-version-proof',{body:JSON.stringify({ordinarySeedDurable:true,callTranscriptRows:callTranscriptIds.length,
-      callReceiptsAdvanced:true,endReceiptMatchesCanonical:true,postCallAdmissions:1,postCallExpectedMatchesCanonical:true,
-      postCallUserAcceptedOnce:true,staleVersionRejections:0,deterministicAssistantCompletions:2}),contentType:'application/json'});
-    proofComplete=true;
+      await page.goto('/projects',{waitUntil:'domcontentloaded'});
+      await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
+      const created=page.waitForResponse(response=>response.request().method()==='POST'
+        &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
+      await page.getByTestId('project-input-textarea').fill(`Voice startup controls ${Date.now()}`);
+      await page.getByTestId('project-input-submit').click();
+      await page.getByTestId('project-write-policy-always-ask').check();
+      await page.getByTestId('project-write-policy-confirm').click();
+      const response=await created;
+      expect(new URL(response.url()).searchParams.has('team_id')).toBe(false);
+      projectId=(await response.json()).project.project_id;apiOrigin=new URL(response.url()).origin;
+      expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+      await expect(page.getByTestId('project-workspace-header')).toBeVisible();
+      await page.getByTestId('project-tab-folders').click();
+      await page.getByTestId('project-folder-create-menu-button').click();
+      await page.getByTestId('project-create-chat').click();
+      await page.getByTestId('message-field').click();
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      const composer=page.locator('[data-action="message-input"]:visible');
+      await expect(composer).toHaveAttribute('data-current-chat-id',/^[0-9a-f-]{36}$/i);
+      const chatId=await composer.getAttribute('data-current-chat-id');
+      // The actual Project draft exists in the welcome composer; no chat has
+      // been selected or turn submitted to make controls appear artificially.
+      expect(new URL(page.url()).hash).not.toContain('chat-id=');
+      // API-shape regression only: Chromium's native MSE still backs playback.
+      // Exercise an MMS-only window after the transport observer captured MSE;
+      // this proves constructor selection, not real Safari media behavior.
+      expect(await page.evaluate(() => {
+        const browser = window as unknown as {
+          MediaSource?: typeof MediaSource; ManagedMediaSource?: typeof MediaSource;
+        };
+        const nativeMediaSource = browser.MediaSource;
+        if (!nativeMediaSource?.isTypeSupported('audio/mpeg')) return false;
+        Object.defineProperty(window, 'ManagedMediaSource', { configurable: true, writable: true, value: nativeMediaSource });
+        Object.defineProperty(window, 'MediaSource', { configurable: true, writable: true, value: undefined });
+        return !browser.MediaSource && browser.ManagedMediaSource?.isTypeSupported('audio/mpeg') === true;
+      })).toBe(true);
+      // Start the exact live draft without dismissing/parking its composer.
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
+        .__voiceCallEvidence.bootstrapHeld===true),{timeout:30_000}).toBe(true);
+      await expect.poll(async()=>(await nativeVoiceInput(page)).captureRequests).toBe(1);
+      const pending=await evidence(page);
+      expect(pending.received.some(frame=>frame.type==='encrypted_metadata_stored'&&frame.chatId===chatId&&frame.voiceCallBootstrap)).toBe(true);
+      expect(voiceFrames(pending,'start')).toHaveLength(0);
+      const bar=page.getByTestId('voice-call-bar');const cancel=page.getByTestId('voice-call-hangup');
+      await expect(bar).toBeVisible();await expect(bar).toHaveAttribute('aria-busy','true');
+      await expect(cancel).toBeVisible();await expect(cancel).toBeEnabled();await expect(cancel).toHaveAccessibleName('Hang up');
+      await cancel.click();await expect(bar).toHaveCount(0);await assertVoiceInputCleanup(page);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.bootstrapHeld)).toBe(true);
+      await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseBootstrap?.());
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+      // Retry only this bootstrap with one forbidden protocol field. The real
+      // server must reject it; this test never fabricates an error or success.
+      await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.rejectNextBootstrap=true);
+      // Start the exact live draft without dismissing/parking its composer.
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.path==='/v1/ws'&&frame.type==='error'
+        &&frame.chatId===chatId&&frame.voiceCallBootstrap&&frame.code==='voice_call_bootstrap_failed'),{timeout:30_000}).toBe(true);
+      await expect(page.getByTestId('notification').filter({hasText:'Voice calling is unavailable right now.'})).toHaveCount(1);
+      await expect(bar).toHaveCount(0);
+      await expect(cancel).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+      await expect(page.getByTestId('voice-call-error')).toHaveCount(0);await assertVoiceInputCleanup(page);
+      const protocol=await evidence(page);
+      expect(protocol.sent.filter(frame=>frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId)).toHaveLength(2);
+      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input'||frame.type==='chat_turn_admit')).toHaveLength(0);
+      expect(voiceFrames(protocol,'start')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='ready')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.voiceSocketCount??0)).toBe(0);
+      expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
+      expect((await nativeVoiceInput(page)).captureRequests).toBe(2);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.bootstrapRejectionInjected)).toBe(true);
+      await expect(page.getByTestId('message-user')).toHaveCount(0);await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+    }catch(error){
+      primaryFailed=true;throw error;
     }finally{
-      if(!proofComplete){
-        await retainSendDebug();
-        const frames=protocol.slice(-40).map(frame=>({direction:frame.direction,type:kinds.has(frame.type)?frame.type:'other_rejected_event',
-          version:frame.version,expectedVersion:frame.expectedVersion,state:frame.state,rejected:frame.rejected,rejectionCode:frame.rejectionCode}));
-        await testInfo.attach('voice-call-version-send-failure',{body:JSON.stringify({phase,serverStatuses,sendCheckpoints,sendSnapshots,
-          totalProtocolFrames:protocol.length,protocol:frames}),contentType:'application/json'});
-      }
+      await cleanupProjectVoiceDraft(page,testInfo,projectId,apiOrigin,primaryFailed);
     }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
-  test('requires a saved Google processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
+  test('requires a saved voice processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({width:390,height:844});
     await installNativeVoiceInput(page);
@@ -1195,15 +1808,19 @@ test.describe('Integrated voice-call foundation', () => {
         const request=input instanceof Request ? input : null;
         const url=new URL(request?.url??String(input),location.href);
         const method=String(init?.method??request?.method??'GET').toUpperCase();
-        const acknowledgement=url.pathname==='/v1/settings/voice-google-processing-ack';
-        if(acknowledgement)events.push(method==='POST'?'ack_post':'ack_get');
+        const acknowledgement=url.pathname==='/v1/settings/voice-processing-ack';
+        if(acknowledgement){
+          events.push(method==='POST'?'ack_post':'ack_get');
+          if(method==='POST')(window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence})
+            .__nativeVoiceInput.speechAcknowledgementPosts.push(performance.now());
+        }
         const response=await nativeFetch(input,init);
         if(acknowledgement){
           if(method==='POST'){
             const json=response.json.bind(response);
             response.json=async()=>{
               const payload=await json();
-              if(response.ok&&payload.version===1&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
+              if(response.ok&&payload.version===3&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
               return payload;
             };
           }
@@ -1223,7 +1840,7 @@ test.describe('Integrated voice-call foundation', () => {
     expect(apiUrl).toBeTruthy();
     const configure=async(action:'reset'|'fail_next_write')=>{
       const configured=await page.evaluate(async({apiUrl,action})=>{
-        const response=await fetch(`${apiUrl}/v1/settings/voice-google-processing-ack/fixture`,{
+        const response=await fetch(`${apiUrl}/v1/settings/voice-processing-ack/fixture`,{
           method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action}),
         });
         return {status:response.status,configured:(await response.json()).configured===true};
@@ -1231,9 +1848,9 @@ test.describe('Integrated voice-call foundation', () => {
       expect(configured).toEqual({status:200,configured:true});
     };
     const profileAcknowledgement=()=>page.evaluate(async apiUrl=>{
-      const response=await fetch(`${apiUrl}/v1/settings/voice-google-processing-ack`,{credentials:'include'});
+      const response=await fetch(`${apiUrl}/v1/settings/voice-processing-ack`,{credentials:'include'});
       const profile=await response.json();
-      return {ok:response.ok,versionValid:profile.version===1,acknowledged:profile.acknowledged===true,
+      return {ok:response.ok,versionValid:profile.version===3,acknowledged:profile.acknowledged===true,
         timestampValid:Number.isSafeInteger(profile.acknowledged_at)&&profile.acknowledged_at>0};
     },apiUrl!);
     const expectNoCall=async()=>{
@@ -1246,13 +1863,14 @@ test.describe('Integrated voice-call foundation', () => {
     await configure('reset');
     expect(await profileAcknowledgement()).toEqual({ok:true,versionValid:true,acknowledged:false,timestampValid:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    const notice=page.getByRole('dialog',{name:'Before your first voice call'});
+    const notice=page.getByTestId('notification').filter({hasText:'Before your first voice call'});
     await expect(notice).toBeVisible();
-    await expect(notice).toHaveAccessibleDescription('Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models.');
+    await expect(notice).toContainText('Mistral transcribes your microphone audio; ElevenLabs v4 Turbo generates assistant voice from reply text and voice settings. Your conversation uses normal OpenMates AI routing and skills. Providers may retain request data under their policies.');
+    await expect(notice.getByRole('link',{name:'OpenMates privacy policy',exact:true})).toHaveAttribute('href','/legal/privacy');
     await expectNoCall();
     expect((await events()).filter(event=>event==='ack_post')).toHaveLength(0);
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-before-cancel.png')});
-    await page.getByTestId('voice-call-privacy-cancel').click();
+    await notice.getByRole('button',{name:'Cancel',exact:true}).click();
     await expect(notice).toHaveCount(0);
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
     await expectNoCall();
@@ -1263,17 +1881,22 @@ test.describe('Integrated voice-call foundation', () => {
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect(notice).toBeVisible();
     await configure('fail_next_write');
-    await page.getByTestId('voice-call-privacy-continue').click();
-    await expect(page.getByRole('alert')).toHaveText('Your acknowledgement could not be saved. Try again to start the call.');
+    await notice.getByRole('button',{name:'Continue',exact:true}).click();
+    await expect(notice).toContainText('Your acknowledgement could not be saved. Try again to start the call.');
     await expectNoCall();
     expect((await events()).filter(event=>event==='ack_post')).toHaveLength(1);
     expect(await profileAcknowledgement()).toMatchObject({acknowledged:false,timestampValid:false});
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-save-failure.png')});
-    await page.getByTestId('voice-call-privacy-continue').click();
+    await notice.getByRole('button',{name:'Continue',exact:true}).click();
     await expect(notice).toHaveCount(0);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
     await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(0);
     const accepted=await events();
+    const privacyPriming=await nativeVoiceInput(page);
+    expect(privacyPriming.speechAcknowledgementPosts).toHaveLength(2);
+    await assertSpeechAutoplayPrimed(page,privacyPriming.speechAcknowledgementPosts[0]);
+    await testInfo.attach('voice-consent-speech-prime',{body:JSON.stringify({primes:privacyPriming.speechPrimes,
+      acknowledgementPosts:privacyPriming.speechAcknowledgementPosts}),contentType:'application/json'});
     expect(accepted.filter(event=>event==='ack_post')).toHaveLength(2);
     expect(accepted.filter(event=>event==='ack_saved')).toHaveLength(1);
     expect(accepted.filter(event=>event==='microphone_requested')).toHaveLength(1);
@@ -1286,10 +1909,11 @@ test.describe('Integrated voice-call foundation', () => {
     expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
     const firstChatId=voiceFrames(await evidence(page),'start')[0].chatId;
     expect(firstChatId).toBeTruthy();
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
-    await expect.poll(async()=>new Set((await evidence(page)).sent.filter(event=>event.type==='call_message_completed').map(event=>event.messageId).filter((id):id is string=>!!id)).size).toBe(2);
-    const firstTranscriptIds=[...new Set((await evidence(page)).sent.filter(event=>event.type==='call_message_completed').map(event=>event.messageId).filter((id):id is string=>!!id))];
+    const firstTranscriptIds = await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
     expect(firstTranscriptIds).toHaveLength(2);
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
@@ -1316,161 +1940,14 @@ test.describe('Integrated voice-call foundation', () => {
     expect((await events()).filter(event=>event==='ack_post'||event==='ack_saved')).toHaveLength(0);
     const nextReady=(await evidence(page)).received.find(event=>event.type==='ready'&&event.path==='/v1/voice-call');
     expect(nextReady?.callId).toBeTruthy();expect(nextReady?.callId).not.toBe(firstReady!.callId);
+    const reloadRegistration=(await evidence(page)).sent.find(frame=>frame.type==='voice_call_chat_prepare');
+    expect(reloadRegistration).toBeTruthy();
+    await assertSpeechAutoplayPrimed(page,reloadRegistration!.observedAt!);
     expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-post-reload-call.png')});
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
     await assertVoiceInputCleanup(page);
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.audio.background-detection,video-call.audio.automatic-idle,video-call.audio.single-owner,video-call.chat.activity-status,video-call.usage.provider-metering,video-call.lifecycle.recovery-and-billing,video-call.audio.confirmation-sounds
-  test('keeps a cold call billable, idles on verified silence and resumes buffered short speech on the same socket', async ({ page, context }) => {
-    test.setTimeout(150_000);
-    await installNativeVoiceInput(page);
-    await observeRealTransport(page);
-    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-    let modelRequested = false;
-    let releaseModel!: () => void;
-    const heldModel = new Promise<void>((resolve) => { releaseModel = resolve; });
-    await context.route('**/*silero_vad_v5*', async (route) => {
-      if (route.request().resourceType() === 'script') { await route.continue(); return; }
-      modelRequested = true;
-      await heldModel;
-      await route.continue();
-    });
-    expect(modelRequested).toBe(false);
-    try {
-      await page.locator('[data-testid="voice-call-start"]:visible').click();
-      const status = page.getByTestId('voice-call-status-text');
-      await assertSlimCallSurface(page);
-      await expect.poll(() => modelRequested, { timeout: 20_000 }).toBe(true);
-      await expect(status).toHaveText('Listening · You can speak now');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(0);
-      const connectedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText('Gemini 3.8 Live');
-      const started = await evidence(page);
-      const start = voiceFrames(started, 'start')[0];
-      expect(start.startupAllowanceMs).toBe(10_000);
-      expect(started.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(1);
-      const coldCount = voiceFrames(started, 'mic_audio').length;
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(coldCount + 12);
-      const inputSeconds=await activeCallSeconds(page);
-      await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(inputSeconds);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: true, processing: false });
-      await assertActivityCounter(page,true);
-      await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='usage'&&typeof frame.creditsCharged==='number'&&frame.creditsCharged>=0)).toBe(true);
-      const billedChatId = voiceFrames(await evidence(page), 'start')[0].chatId;
-      expect(billedChatId).toBeTruthy();
-      await expect.poll(() => page.evaluate(async ({ apiUrl, chatId }) => {
-        const response = await fetch(`${apiUrl}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId!)}`, { credentials: 'include' });
-        if (!response.ok) return false;
-        const data = await response.json();
-        const charges = (data.entries ?? []).filter((entry: { skill_id: string }) => entry.skill_id === 'voice_call');
-        return charges.length > 0 && charges.every((entry: { source: string; chat_id: string; model_used?: string }) =>
-          entry.source === 'chat' && entry.chat_id === chatId && !!entry.model_used);
-      }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL, chatId: billedChatId }),
-      { timeout: 30_000, intervals: [1000, 2000], message: 'Voice charges must appear under their bound chat with model attribution' }).toBe(true);
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(0);
-      expect((await nativeVoiceInput(page)).detectorReady).toBe(0);
-      releaseModel();
-      await expect.poll(async () => (await nativeVoiceInput(page)).detectorReady, { timeout: 30_000 }).toBe(1);
-      await expect(status).toHaveText('Speak to resume call.', { timeout: 15_000 });
-      const idle = await evidence(page);
-      expect(voiceFrames(idle, 'audio_stream_end')).toHaveLength(1);
-      const verifiedQuietSamples = voiceFrames(idle, 'mic_audio').reduce((total, frame) => total + (frame.audioSamples ?? 0), 0)
-        - (await nativeVoiceInput(page)).readyUploadedSamples;
-      expect(verifiedQuietSamples).toBeGreaterThanOrEqual(16_000 * 5);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: false });
-      await assertActivityCounter(page,false);
-      await assertActivityCounter(page,false);
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(connectedTones);
-      const timerAtIdle = await page.getByTestId('voice-call-timer').textContent();
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      const idleCount = voiceFrames(idle, 'mic_audio').length;
-      const idleSamples = (await nativeVoiceInput(page)).samples;
-      await expect.poll(async () => (await nativeVoiceInput(page)).samples).toBeGreaterThan(idleSamples + 24_000);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(idleCount);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(1);
-      await expect(page.getByTestId('voice-call-timer')).toHaveText(timerAtIdle!);
-
-      // Real typed input keeps provider processing active while the local gate
-      // remains idle. The exact isolated fixture waits for genuine resumed PCM.
-      const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-      await editor.click();
-      await page.keyboard.insertText(ACTIVITY_REQUEST);
-      await page.getByTestId('composer-send-button').click();
-      await expect(page.getByTestId('message-user').filter({ hasText: ACTIVITY_REQUEST })).toHaveCount(1);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: true });
-      await expect(status).toHaveText('OpenMates is working…');
-      await assertActivityCounter(page,true);
-      const workingSeconds=await activeCallSeconds(page);
-      await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(workingSeconds);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(idleCount);
-
-      await playNativeVoiceFixture(page);
-      await expect.poll(()=>page.getByTestId('voice-call-waveform').locator('span').evaluateAll(nodes=>nodes.some(node=>Number(node.getAttribute('data-level'))>0)),{intervals:[25,50,100]}).toBe(true);
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(idleCount);
-      const resumed = await evidence(page);
-      const resumedAudio = voiceFrames(resumed, 'mic_audio').slice(idleCount);
-      const prefix = resumedAudio.filter((frame) => frame.audioBatch === resumedAudio[0].audioBatch);
-      const prefixSamples = prefix.reduce((total, frame) => total + (frame.audioSamples ?? 0), 0);
-      expect(prefixSamples).toBeGreaterThanOrEqual(16 * 300);
-      expect(prefixSamples).toBeLessThanOrEqual(16 * 500);
-      expect(prefix.some((frame) => frame.audioNonzero)).toBe(true);
-      expect(resumed.sent.indexOf(voiceFrames(resumed, 'audio_stream_end')[0])).toBeLessThan(resumed.sent.indexOf(resumedAudio[0]));
-      expect(voiceFrames(resumed, 'start')).toHaveLength(1);
-      expect(voiceFrames(resumed, 'mic_audio').every((frame) => frame.socketId === start.socketId)).toBe(true);
-      expect(resumed.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(1);
-      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
-      await expect(page.getByTestId('message-assistant').filter({ hasText: ACTIVITY_REPLY })).toHaveCount(1);
-      await expect(status).toHaveText('OpenMates is speaking…');
-
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(connectedTones);
-
-      // Already generated playback remains visible when manual mute stops input
-      // and the server reports processing complete. Unmute remains accessible.
-      await page.getByTestId('voice-call-mute').click();
-      await expect(page.getByTestId('voice-call-mute')).toHaveAccessibleName('Unmute');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(connectedTones);
-      const mutedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: false });
-      await expect(status).toHaveText('OpenMates is speaking…');
-      await assertActivityCounter(page,false);
-      const mutedPlaybackTimer=await page.getByTestId('voice-call-timer').textContent();
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      await expect(status).toHaveText('Microphone muted');
-      const mutedCount = voiceFrames(await evidence(page), 'mic_audio').length;
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(2);
-      await expect.poll(async () => (await nativeVoiceInput(page)).playing).toBe(false);
-      await playNativeVoiceFixture(page, false);
-      await expect.poll(async () => (await nativeVoiceInput(page)).playing, { timeout: 10_000 }).toBe(false);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(mutedCount);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(2);
-      await expect(page.getByTestId('voice-call-timer')).toHaveText(mutedPlaybackTimer!);
-      await expect(status).toHaveText('Microphone muted');
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(mutedTones);
-      await page.getByTestId('voice-call-mute').click();
-      await expect(page.getByTestId('voice-call-mute')).toHaveAccessibleName('Mute');
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'false');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(mutedTones);
-      const unmutedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(mutedCount);
-      expect(voiceFrames(await evidence(page), 'start')).toHaveLength(1);
-      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
-      await page.getByTestId('voice-call-hangup').click();
-      await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(unmutedTones);
-      await assertVoiceInputCleanup(page);
-      expect(voiceFrames(await evidence(page), 'hangup').map((frame) => frame.socketId)).toEqual([start.socketId]);
-    } finally { releaseModel(); }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.startup-buffer,video-call.audio.background-detection,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
@@ -1479,11 +1956,15 @@ test.describe('Integrated voice-call foundation', () => {
     await installNativeVoiceInput(page);
     await observeRealTransport(page, true);
     await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    await page.evaluate(() => { (window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.interruptOnPermission = true; });
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.readyHeld),
       { timeout: 30_000 }).toBe(true);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Connecting… Wait to speak.');
+    await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
+    await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
     const waiting = await evidence(page);
+    expect(await page.evaluate(() => (window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.permissionInterruptions)).toBeGreaterThan(0);
     const start = voiceFrames(waiting, 'start')[0];
     expect(start.startupAllowanceMs).toBe(10_000);
     expect(voiceFrames(waiting, 'mic_audio')).toHaveLength(0);
@@ -1505,6 +1986,7 @@ test.describe('Integrated voice-call foundation', () => {
     const beforeRelease = await nativeVoiceInput(page);
     await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.releaseReady!());
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
     const flushed = await evidence(page);
     const audio = voiceFrames(flushed, 'mic_audio');
@@ -1543,6 +2025,8 @@ test.describe('Integrated voice-call foundation', () => {
     await fallback;
     expect(failedModel).toBe(true);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
     const started = await evidence(page);
     const baseline = await nativeVoiceInput(page);
@@ -1567,413 +2051,817 @@ test.describe('Integrated voice-call foundation', () => {
     await assertVoiceInputCleanup(page);
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.fixed-binding,video-call.chat.transcripts,video-call.chat.call-events,video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.chat.typed-input,video-call.chat.compressed-context,video-call.chat.memories-and-focus,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,video-call.privacy,video-call.usage.provider-metering
-  test('saves voice and typed turns encrypted, reloads them and reuses their context', async ({ page }, testInfo) => {
-    test.setTimeout(300_000);
-    await observeRealTransport(page);
-    // A fresh account opens the welcome workspace; the voice button creates
-    // its chat without requiring a text draft or a visible editor first.
-    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-    await assertHeaderCallActions(page, false, false);
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    await expect(page.getByTestId('message-user').filter({ hasText: USER_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await assertHeaderCallActions(page, true, true);
-    await assertSlimCallSurface(page);
-    await assertActivityCounter(page,true);
-    await expect.poll(async () => {
-      const bar = await page.locator('[data-testid="voice-call-bar"]:visible').boundingBox();
-      const history = await page.locator('[data-testid="chat-history-container"]:visible').boundingBox();
-      return !!bar&&!!history&&bar.y>=history.y-1&&bar.y+bar.height<=history.y+history.height+1&&bar.x>=history.x-1&&bar.x+bar.width<=history.x+history.width+1;
-    }).toBe(true);
-    const chatId = await page.locator('[data-action="message-input"]').last().getAttribute('data-current-chat-id');
-    expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
-    // Collapsed recording is hidden; an expanded composer's control is disabled.
-    await expect(page.locator('[data-testid="record-audio-button"]:visible:enabled, [data-testid="guest-cta-mic-button"]:visible:enabled')).toHaveCount(0);
 
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-mute"]:visible')).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(async () => (await evidence(page)).sent.filter((event) => event.type === 'audio_stream_end').length).toBe(1);
-    await expect.poll(async () => (await evidence(page)).received.filter((event) => event.type === 'billing_activity').at(-1))
-      .toMatchObject({ inputListening: false, processing: false });
-    await assertActivityCounter(page,false);
-    await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-    const micCount = (await evidence(page)).sent.filter((event) => event.type === 'mic_audio').length;
-
-
-    const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await expect(editor).toBeVisible();
-    await editor.click();
-    await expect(page.getByTestId('record-audio-button')).toBeDisabled();
-    await page.keyboard.insertText(PASTED_TEXT);
-    await page.evaluate(() => {
-      (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.reconnectOnText = true;
-    });
-    await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-user').filter({ hasText: PASTED_TEXT })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text' })).toHaveCount(1);
-    expect((await evidence(page)).sent.filter(event=>event.type==='mic_audio').length).toBe(micCount);
-    await expect.poll(async () => (await evidence(page)).received.some((event) => event.type === 'billing_activity' &&
-      event.inputListening === false && event.processing === true)).toBe(true);
-    await assertActivityCounter(page,false);
-    await expect.poll(async () => (await evidence(page)).received.filter((event) => event.type === 'call_message_confirmed').length).toBeGreaterThanOrEqual(4);
-    const transport = await evidence(page);
-    const persisted = transport.sent.filter((event) => event.type === 'call_message_completed');
-    expect(persisted.every((event) => (event.ciphertextLength ?? 0) > 30 && event.plaintext === false)).toBe(true);
-    expect(transport.sent.filter((event) => event.type === 'text_input')).toHaveLength(1);
-    expect(transport.sent.filter((event) => event.type === 'chat_message_added')).toHaveLength(0);
-    expect(transport.received.filter((event) => event.type === 'call_message_rejected')).toHaveLength(0);
-    expect(await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.reconnectInjected)).toBe(true);
-
-    const messageIds = [...new Set(persisted.map((event) => event.messageId).filter((id): id is string => !!id))];
-    expect(messageIds).toHaveLength(4);
-    const rows = await page.evaluate(async (ids) => {
-      const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const open = indexedDB.open('chats_db');
-        open.onsuccess = () => resolve(open.result);
-        open.onerror = () => reject(open.error);
-      });
-      try {
-        return await Promise.all(ids.map((id) => new Promise<{ encrypted: boolean; plaintext: boolean }>((resolve, reject) => {
-          const request = database.transaction('messages', 'readonly').objectStore('messages').get(id);
-          request.onsuccess = () => resolve({ encrypted: typeof request.result?.encrypted_content === 'string',
-            plaintext: typeof request.result?.content === 'string' });
-          request.onerror = () => reject(request.error);
-        })));
-      } finally { database.close(); }
-    }, messageIds);
-    expect(rows.every((row) => row.encrypted && !row.plaintext)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('voice-call-laptop.png') });
-
-    // Closing the chat preserves its call; the actual Apps workspace Header
-    // exposes the same bound call through its context-provided return pill.
-    const boundReady=(await evidence(page)).received.find(event=>event.type==='ready'&&event.path==='/v1/voice-call');
-    expect(boundReady?.callId).toBeTruthy();expect(boundReady?.socketId).toBeTruthy();
-    await page.evaluate(()=>{
-      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
-      state.boundCaptureTracks=[...state.tracks];
-    });
-    await scrollChatHistoryToStart(page,testInfo);
-    await page.getByTestId('chat-close-button').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
-    await chooseAppsHome(page);
-    await holdChatLookup(page,chatId!);
-    try {
-      await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
-      await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
-    await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-
-    await page.setViewportSize({width:390,height:844});
-    await page.locator('#settings-menu-toggle').click();
-    await expect(page.getByTestId('settings-menu')).toHaveClass(/visible/);
-    await expect(page.getByTestId('voice-call-pill')).toBeVisible();
-    await holdChatLookup(page,chatId!);
-    try {
-      await page.getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await expect(page.getByTestId('voice-call-pill')).toBeVisible();
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
-    await assertHeaderCallActions(page,true,true);
-    await expectHeaderPointerAccess(page);
-    await page.screenshot({path:testInfo.outputPath('voice-call-phone.png')});
-
-    // A later native workspace selection supersedes a pending pill Return.
-    // Preserve the real held IDB read and prove its stale completion cannot
-    // pull the user out of their newly selected workspace or start another call.
-    await scrollChatHistoryToStart(page,testInfo);
-    await page.getByTestId('chat-close-button').click();
-    await chooseAppsHome(page);
-    await holdChatLookup(page,chatId!);
-    try {
-      await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await chooseAppsHome(page);
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('apps-workspace-home')).toBeVisible();
-    await expect.poll(()=>new URL(page.url()).hash.split('&')[0]).toBe('#apps');
-    const awayTransport=await evidence(page);
-    expect(voiceFrames(awayTransport,'start')).toHaveLength(1);
-    expect(awayTransport.received.filter(event=>event.type==='ready'&&event.path==='/v1/voice-call').map(event=>event.callId)).toEqual([boundReady!.callId]);
-    expect(voiceFrames(awayTransport,'hangup')).toHaveLength(0);
-    await expect.poll(()=>page.evaluate(()=>{
-      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
-      return !!state.boundCaptureTracks?.length&&state.tracks.length===state.boundCaptureTracks.length&&
-        state.tracks.every((track,index)=>track===state.boundCaptureTracks![index]&&track.readyState==='live');
-    })).toBe(true);
-    await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-    await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(1);
-    const startedTime=await page.getByTestId('voice-call-started').locator('time').getAttribute('datetime');
-    await assertActivityCounter(page,false);
-    const firstActiveSeconds=await activeCallSeconds(page);
-    await page.getByTestId('voice-call-hangup').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
-    const endedTime=await page.getByTestId('voice-call-ended').locator('time').getAttribute('datetime');
-    await assertHeaderCallActions(page,false,true);
-    expect(voiceFrames(await evidence(page),'hangup').map(event=>event.socketId)).toEqual([boundReady!.socketId]);
-    await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.tracks.every(track=>track.readyState==='ended'))).toBe(true);
-    await assertCallHistoryDurable(page,chatId!,boundReady!.callId!,messageIds,[startedTime!,endedTime!],firstActiveSeconds);
-    const lifecycleCiphertexts=(await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added');
-    expect(new Set(lifecycleCiphertexts.map(event=>event.messageId)).size).toBe(2);
-    expect(lifecycleCiphertexts.every(event=>event.chatId===chatId&&event.plaintext===false&&(event.ciphertextLength??0)>30)).toBe(true);
-    await evictOwnedCallRows(page,chatId!,boundReady!.callId!,messageIds);
-    await page.reload();
-    await expect(page.getByTestId('message-user').filter({ hasText: USER_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText('Gemini 3.8 Live');
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).not.toContainText('((interrupted))');
-    await expect(page.getByTestId('message-user').filter({ hasText: PASTED_TEXT })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text' })).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started').locator('time')).toHaveAttribute('datetime',startedTime!);
-    await expect(page.getByTestId('voice-call-ended').locator('time')).toHaveAttribute('datetime',endedTime!);
-    await assertCallHistoryDurable(page,chatId!,boundReady!.callId!,messageIds,[startedTime!,endedTime!],firstActiveSeconds);
-    // A reloaded phone uses the collapsed composer's native recording control.
-    await expect(page.getByRole('button', { name: 'Record audio', exact: true })).toBeEnabled();
-
-    const uncoveredIds = await seedVoiceContext(page, chatId!, messageIds.slice(0, 2));
-    const storedSeed = (await evidence(page)).sent.filter((event) => event.type === 'encrypted_chat_metadata' && uncoveredIds.includes(event.messageId ?? ''));
-    expect(storedSeed).toHaveLength(25);
-    expect(storedSeed.every((event) => (event.ciphertextLength ?? 0) > 30 && event.plaintext === false)).toBe(true);
-    await expectHeaderPointerAccess(page);
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    const resumed = (await evidence(page)).sent.find((event) => event.type === 'start');
-    const resumedCallId = (await evidence(page)).received.find((event) => event.type === 'ready' && event.socketId === resumed?.socketId)?.callId;
-    expect(resumedCallId).toBeTruthy();
-    expect(resumed?.chatId).toBe(chatId);
-    expect(resumed?.context?.some((turn) => turn.role === 'user' && turn.text.includes(PASTED_TEXT))).toBe(true);
-    expect(resumed?.context?.filter((turn) => uncoveredIds.includes(turn.message_id ?? ''))).toHaveLength(25);
-    expect(resumed?.context?.some((turn) => turn.text === UNCOVERED_CONTEXT_FACT)).toBe(true);
-    expect(resumed?.summary?.endsWith(CHECKPOINT_FACT)).toBe(true);
-    expect(resumed?.summary?.length).toBeGreaterThan(2_000);
-    expect(resumed?.context?.some((turn) => messageIds.slice(0, 2).includes(turn.message_id ?? ''))).toBe(false);
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    const resumedEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await resumedEditor.click();
-    await page.keyboard.insertText(STAGE_TWO_TEXT);
-    await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('btn-include')).toBeVisible({ timeout: 45_000 });
-    // The ordinary shared consent surface must be interactive after a typed
-    // call request, with usable audio controls and the selection unobstructed.
-    const memoryToggle = page.getByTestId('memory-category-toggle-code-preferred_tech');
-    const memoryCheckbox = memoryToggle.locator('input[type="checkbox"]');
-    await waitForStickyCallControlsReady(page,testInfo);
-    await assertSlimCallSurface(page);
-    await expect(page.getByTestId('voice-call-mute')).toBeEnabled();
-    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
-    await expect(page.getByTestId('voice-call-hangup')).toBeEnabled();
-    for(const id of ['voice-call-mute','voice-call-hangup']) await expect.poll(()=>page.getByTestId(id).evaluate(element=>{
-      const r=element.getBoundingClientRect();const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-      return hit===element||element.contains(hit);
-    })).toBe(true);
-    await expect.poll(() => memoryToggle.evaluate((element) => element.closest('[inert]') === null)).toBe(true);
-    await expect(memoryToggle).toBeVisible();
-    await expect(memoryCheckbox).toBeChecked();
-    await memoryToggle.click();
-    await expect(memoryCheckbox).not.toBeChecked();
-    await expect(page.getByTestId('btn-include')).toBeDisabled();
-    await memoryToggle.click();
-    await expect(memoryCheckbox).toBeChecked();
-    await expect(page.getByTestId('btn-include')).toBeEnabled();
-    await page.screenshot({ path: testInfo.outputPath('voice-call-memory-consent-phone.png') });
-    await page.getByTestId('btn-include').click();
-    await expect(page.getByTestId('btn-include')).not.toBeVisible();
-    await expect.poll(async () => [...new Set((await evidence(page)).received
-      .filter((event) => event.type === 'voice_embed' && event.callId === resumedCallId && event.embedId)
-      .map((event) => event.assistantMessageId).filter(Boolean))].length,
-    { timeout: 60_000, message: 'The call artifacts must bind to exactly one issued assistant response' }).toBe(1);
-    const responseIds = [...new Set((await evidence(page)).received
-      .filter((event) => event.type === 'voice_embed' && event.callId === resumedCallId && event.embedId)
-      .map((event) => event.assistantMessageId))];
-    expect(responseIds).toHaveLength(1);
-    expect(responseIds[0]).toBeTruthy();
-    const stageReply = page.locator(`[data-testid="message-assistant"][data-message-id="${responseIds[0]}"]`);
-    await expect(stageReply).toHaveCount(1, { timeout: 60_000 });
-    await stageReply.scrollIntoViewIfNeeded();
-    await expect(stageReply).toContainText(STAGE_TWO_REPLY, { timeout: 60_000 });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: STAGE_TWO_REPLY })).toHaveCount(1);
-    await expandWebActivity(page, stageReply);
-    await expect(stageReply.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-status="finished"]')).toBeVisible({ timeout: 45_000 });
-    await expect(stageReply.getByTestId('search-preview-metadata-missing-message')).toHaveCount(0);
-    await expect.poll(async () => (await evidence(page)).sent.filter((event) => event.type === 'voice_memory_response').length).toBe(1);
-    const stageTransport = await evidence(page);
-    expect(stageTransport.sent.filter((event) => event.type === 'app_settings_memories_confirmed')).toHaveLength(0);
-    expect(stageTransport.sent.filter((event) => event.type === 'chat_message_added')).toHaveLength(0);
-    const artifacts = stageTransport.received.filter((event) => event.type === 'voice_embed' && event.embedId);
-    expect(artifacts.length).toBeGreaterThanOrEqual(1);
-    expect([...new Set(artifacts.map((event) => event.assistantMessageId))]).toEqual(responseIds);
-    expect(stageTransport.sent.some((event) => event.type === 'call_message_completed' && event.messageId === responseIds[0] && event.plaintext === false)).toBe(true);
-    const durable = await page.evaluate(async ({ chatId, assistantId }) => {
-      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('chats_db'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      const read = (store: string, id: string) => new Promise<Record<string, unknown>>((resolve, reject) => { const request = db.transaction(store, 'readonly').objectStore(store).get(id); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      try { const [chat, response] = await Promise.all([read('chats', chatId), read('messages', assistantId)]);
-        return { encryptedFocus: typeof chat.encrypted_active_focus_id === 'string',
-          encryptedResponse: typeof response.encrypted_content === 'string', plaintext: 'content' in response,
-          linkedUser: typeof response.user_message_id === 'string' }; } finally { db.close(); }
-    }, { chatId: chatId!, assistantId: responseIds[0]! });
-    expect(durable).toEqual({ encryptedFocus: true, encryptedResponse: true, plaintext: false, linkedUser: true });
-    await expect.poll(async () => (await evidence(page)).sent.some((event) =>
-      event.type === 'voice_action_completed_confirmed' && event.messageId === responseIds[0]),
-    { timeout: 45_000, message: 'Committed artifacts must reach durable encrypted storage before their receipt ACK' }).toBe(true);
-    // This call adds enough real completed history to require shared compression.
-    // Verify encrypted storage and provider adoption before ending the session;
-    // a cancelled pending checkpoint must not silently discard those facts.
-    await expect.poll(async () => (await evidence(page)).received.some((event) =>
-      event.type === 'voice_context_resumed' && event.callId === resumedCallId),
-    { timeout: 60_000, message: 'The completed call context must be durably checkpointed and adopted before hangup' }).toBe(true);
-    const compressedTransport = await evidence(page);
-    const adopted = compressedTransport.received.find((event) => event.type === 'voice_context_resumed' && event.callId === resumedCallId)!;
-    const compression = compressedTransport.received.find((event) => event.type === 'voice_compression' && event.checkpointId === adopted.checkpointId);
-    expect(compression?.coveredMessageIds?.length).toBeGreaterThan(0);
-    expect(compression?.compressedMessageCount).toBe(compression?.coveredMessageIds?.length);
-    expect(compression?.coveredMessageIds).toEqual([...new Set(compression!.coveredMessageIds)].sort());
-    const snapshotIndex = compressedTransport.received.findIndex((event) => event.type === 'voice_compression_started' && event.snapshotId === compression?.snapshotId);
-    expect(snapshotIndex).toBeGreaterThanOrEqual(0);
-    const billingBeforeCompression = compressedTransport.received.slice(0, snapshotIndex)
-      .filter((event) => event.type === 'billing_activity' && event.callId === resumedCallId).at(-1);
-    expect(billingBeforeCompression, 'Paid compression must report processing before its snapshot starts').toMatchObject({ processing: true });
-    const snapshot = compressedTransport.received[snapshotIndex];
-    const sourceRecords = new Map((resumed?.context ?? []).map((turn) => [turn.message_id, { role: turn.role, createdAt: turn.created_at }]));
-    for (const event of compressedTransport.received.slice(0, snapshotIndex)) {
-      if (event.type === 'transcript' && event.callId === resumedCallId && event.final && event.messageId) sourceRecords.set(event.messageId,
-        { role: event.role!, createdAt: event.createdAt });
-    }
-    expect(snapshot.sourceMessageIds?.every((id) => sourceRecords.has(id))).toBe(true);
-    const expectedPrefix = snapshot.sourceMessageIds!.filter((id) => sourceRecords.get(id)!.createdAt! <= compression!.boundaryTimestamp!).sort();
-    expect(compression?.coveredMessageIds).toEqual(expectedPrefix);
-    const retained = snapshot.sourceMessageIds!.filter((id) => !expectedPrefix.includes(id));
-    expect(retained.length).toBeGreaterThan(0);
-    expect(retained.every((id) => sourceRecords.get(id)!.createdAt! > compression!.boundaryTimestamp!)).toBe(true);
-    const protectedAssistant = snapshot.sourceMessageIds!.filter((id) => sourceRecords.get(id)!.role === 'assistant').at(-1);
-    expect(protectedAssistant).toBeTruthy();
-    expect(retained).toContain(protectedAssistant);
-    expect(compression?.coveredMessageIds).toContain(uncoveredIds[0]);
-    expect(uncoveredIds.every((id) => expectedPrefix.includes(id) || retained.includes(id))).toBe(true);
-    expect(compression?.coveredMessageIds).not.toContain(responseIds[0]);
-    expect(compressedTransport.sent).toContainEqual(expect.objectContaining({ type: 'store_chat_compression_checkpoint',
-      checkpointId: adopted.checkpointId, plaintext: false }));
-    expect(compressedTransport.received).toContainEqual(expect.objectContaining({ type: 'chat_compression_checkpoint_stored', checkpointId: adopted.checkpointId }));
-    expect(compressedTransport.sent).toContainEqual(expect.objectContaining({ type: 'voice_compression_confirmed', checkpointId: adopted.checkpointId }));
-    const storedCheckpoint = await page.evaluate(async (checkpointId) => {
-      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('chats_db'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      try {
-        return await new Promise<{ encrypted: boolean; plaintext: boolean; coveredManifest: boolean }>((resolve, reject) => {
-          const request = db.transaction('chat_compression_checkpoints', 'readonly').objectStore('chat_compression_checkpoints').get(checkpointId);
-          request.onsuccess = () => resolve({ encrypted: typeof request.result?.encrypted_summary === 'string' && request.result.encrypted_summary.length > 30,
-            plaintext: 'summary' in (request.result ?? {}), coveredManifest: 'covered_message_ids' in (request.result ?? {}) });
-          request.onerror = () => reject(request.error);
-        });
-      } finally { db.close(); }
-    }, adopted.checkpointId!);
-    expect(storedCheckpoint).toEqual({ encrypted: true, plaintext: false, coveredManifest: false });
-    await page.screenshot({ path: testInfo.outputPath('voice-call-stage-two-phone.png') });
-    await page.locator('[data-testid="voice-call-hangup"]:visible').click();
-    await assertCallHistoryDurable(page,chatId!,resumedCallId!);
-    await evictOwnedCallRows(page,chatId!,resumedCallId!);
-    await page.reload();
-    await showForgottenHistory(page);
-    await assertCallHistoryDurable(page,chatId!,resumedCallId!);
-    const reloadedReply = page.locator(`[data-testid="message-assistant"][data-message-id="${responseIds[0]}"]`);
-    await expect(reloadedReply).toHaveCount(1, { timeout: 45_000 });
-    await reloadedReply.scrollIntoViewIfNeeded();
-    await expect(reloadedReply).toContainText(STAGE_TWO_REPLY, { timeout: 45_000 });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: STAGE_TWO_REPLY })).toHaveCount(1);
-    await expect(reloadedReply).toHaveAttribute('data-message-id', responseIds[0]!);
-    await expandWebActivity(page, reloadedReply);
-    await expect(reloadedReply.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-status="finished"]')).toBeVisible({ timeout: 45_000 });
-    await expect(reloadedReply.getByTestId('search-preview-metadata-missing-message')).toHaveCount(0);
-
-    // End the next call on the real committed-action receipt, before the
-    // deliberately delayed external speech. Completion must survive teardown.
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    const coldStart = (await evidence(page)).sent.find((event) => event.type === 'start');
-    const coldReady = (await evidence(page)).received.find((event) => event.type === 'ready' && event.socketId === coldStart?.socketId);
-    expect(coldReady?.callId).toBeTruthy();
-    expect(coldReady?.socketId).toBeTruthy();
-    expect(coldReady?.callId).not.toBe(resumedCallId);
-    expect(coldStart?.summary).toContain(CHECKPOINT_FACT);
-    expect(coldStart?.summary).toContain(UNCOVERED_CONTEXT_FACT);
-    const coldContext = [coldStart?.summary ?? '', ...(coldStart?.context ?? []).map((turn) => turn.text)].join('\n');
-    const seededFacts = resumed!.context!.filter((turn) => uncoveredIds.includes(turn.message_id ?? '')).map((turn) => turn.text);
-    expect(seededFacts.every((fact) => coldContext.includes(fact))).toBe(true);
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    await page.evaluate((owner) => {
-      (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.hangupOnCommittedAction = owner;
-    }, { callId: coldReady!.callId!, socketId: coldReady!.socketId! });
-    const finalEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await finalEditor.click(); await page.keyboard.insertText(STAGE_TWO_TEXT);
-    await page.getByTestId('composer-send-button').click();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.committedHangupInjected ?? false), { timeout: 60_000 }).toBe(true);
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(0);
-    const committed = await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.committedHangupReceipt);
-    expect(committed?.assistantMessageId).toBeTruthy(); expect(committed?.embedId).toBeTruthy();
-    expect(committed?.callId).toBe(coldReady!.callId);
-    expect(committed?.assistantMessageId).not.toBe(responseIds[0]);
-    expect((await evidence(page)).received).toContainEqual(committed);
-    const committedAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${committed!.assistantMessageId}"]`);
-    await expect(committedAssistant).toHaveCount(1);
-    await committedAssistant.scrollIntoViewIfNeeded();
-    await expandWebActivity(page, committedAssistant);
-    const committedCard = page.locator(`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-id$="${committed!.embedId}"]`);
-    await expect(committedCard).toBeVisible({ timeout: 45_000 });
-    await expect(committedCard).toHaveAttribute('data-embed-status', 'finished');
-    await expect(committedAssistant.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')).toHaveCount(1);
-    await expect(committedAssistant).not.toContainText(STAGE_TWO_REPLY);
-    await expect.poll(async () => (await evidence(page)).sent.some((event) =>
-      event.type === 'voice_action_completed_confirmed' && event.messageId === committed!.assistantMessageId),
-    { timeout: 45_000, message: 'Committed artifacts must reach durable encrypted storage before their receipt ACK' }).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('voice-call-committed-result-after-hangup.png') });
-    await assertCallHistoryDurable(page,chatId!,coldReady!.callId!);
-    await evictOwnedCallRows(page,chatId!,coldReady!.callId!);
-    await page.reload();
-    await showForgottenHistory(page);
-    const recoveredAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${committed!.assistantMessageId}"]`);
-    await expect(recoveredAssistant).toHaveCount(1);
-    await recoveredAssistant.scrollIntoViewIfNeeded();
-    await expandWebActivity(page, recoveredAssistant);
-    const recoveredCard = page.locator(`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-id$="${committed!.embedId}"]`);
-    await expect(recoveredCard).toBeVisible({ timeout: 45_000 });
-    await expect(recoveredCard).toHaveAttribute('data-embed-status', 'finished');
-    await expect(page.getByTestId('message-assistant').filter({ has: recoveredCard })).toHaveCount(1);
-
-    // Native call preparation must show one usable error, rather than opening
-    // a provider or silently dropping older facts when context cannot fit.
-    const overLimitIds = await seedVoiceContext(page, chatId!, messageIds.slice(0, 2), 31);
-    expect(overLimitIds).toHaveLength(31);
-    await assertCallHistoryDurable(page,chatId!,coldReady!.callId!);
-    const lifecycleBeforeRefusal=new Set((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added').map(event=>event.messageId)).size;
-    const admittedBeforeRefusal = (await evidence(page)).sent.filter((event) => event.type === 'start').length;
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-error')).toHaveText('This chat has more context than a voice call can load. Continue with text.');
-    expect((await evidence(page)).sent.filter((event) => event.type === 'start')).toHaveLength(admittedBeforeRefusal);
-    expect(new Set((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added').map(event=>event.messageId)).size).toBe(lifecycleBeforeRefusal);
-    await expect(page.locator('[data-testid="voice-call-hangup"]:visible')).toHaveAccessibleName('Close');
-    await page.screenshot({ path: testInfo.outputPath('voice-call-context-too-large-phone.png') });
-    await page.locator('[data-testid="voice-call-hangup"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(0);
-    await assertHeaderCallActions(page, false, true);
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering
+  test('refuses an unauthenticated call before opening speech processing', async ({ page }) => {
+    const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;
+    expect(apiUrl).toBeTruthy();
+    await page.goto('/');
+    const result=await page.evaluate(url=>new Promise<{ready:boolean;closed:boolean}>(resolve=>{
+      const socket=new WebSocket(`${url.replace(/^http/,'ws')}/v1/voice-call`);
+      let ready=false;
+      const timeout=setTimeout(()=>{socket.close();resolve({ready,closed:false});},10_000);
+      socket.addEventListener('message',event=>{try{ready ||= JSON.parse(event.data).type==='ready';}catch{/* refusal contains no content */}});
+      socket.addEventListener('close',()=>{clearTimeout(timeout);resolve({ready,closed:true});});
+    }),apiUrl!);
+    expect(result).toEqual({ready:false,closed:true});
   });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.automatic-idle,video-call.audio.background-detection,video-call.audio.startup-buffer,video-call.chat.activity-status,video-call.usage.provider-metering,video-call.audio.confirmation-sounds,video-call.audio.single-owner
+  test('keeps capture live while detection loads, idles on genuine silence and resumes buffered speech on the same call',async({page,context})=>{
+    test.setTimeout(150_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let requested=false;let release!:()=>void;
+    const held=new Promise<void>(resolve=>{release=resolve;});
+    await context.route('**/*silero_vad_v5*',async route=>{
+      if(route.request().resourceType()==='script'){await route.continue();return;}
+      requested=true;await held;await route.continue();
+    });
+    try {
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(()=>requested).toBe(true);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      const initial=await evidence(page);const start=voiceFrames(initial,'start')[0];
+      const baseline=voiceFrames(initial,'mic_audio').length;
+      await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(baseline+12);
+      expect((await nativeVoiceInput(page)).detectorReady).toBe(0);
+      await assertActivityCounter(page,true);
+      const seconds=await activeCallSeconds(page);await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(seconds);
+      const connectedTones=(await nativeVoiceInput(page)).localToneStarts;expect(connectedTones).toBeGreaterThan(0);
+      release();await expect.poll(async()=>(await nativeVoiceInput(page)).detectorReady,{timeout:30_000}).toBe(1);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.',{timeout:15_000});
+      await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='billing_activity').at(-1)).toMatchObject({inputListening:false,processing:false});
+      const idle=await evidence(page);const idleCount=voiceFrames(idle,'mic_audio').length;
+      expect(voiceFrames(idle,'audio_stream_end')).toHaveLength(1);await assertActivityCounter(page,false);
+      const timer=await page.getByTestId('voice-call-timer').textContent();
+      const sampleCount=(await nativeVoiceInput(page)).samples;
+      await expect.poll(async()=>(await nativeVoiceInput(page)).samples).toBeGreaterThan(sampleCount+24_000);
+      expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(idleCount);
+      await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
+      // Keep the real browser/server call idle beyond the provider's 30-second
+      // application-audio timeout. Provider unit/live checks prove the silent
+      // transport keepalive; this checks that the client stays idle and resumes
+      // the same authenticated call without charging synthetic microphone time.
+      const idleStarted=Date.now();
+      await expect.poll(()=>Date.now()-idleStarted,{timeout:41_000,intervals:[1_000]}).toBeGreaterThan(35_000);
+      const afterLongIdle=await evidence(page);
+      expect(voiceFrames(afterLongIdle,'mic_audio')).toHaveLength(idleCount);
+      expect(voiceFrames(afterLongIdle,'start')).toHaveLength(1);
+      expect(afterLongIdle.received.filter(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')).toHaveLength(1);
+      expect(afterLongIdle.received.filter(frame=>frame.path==='/v1/voice-call'&&(frame.type==='error'||frame.type==='ended'))).toHaveLength(0);
+      await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.');
+      await playNativeVoiceFixture(page);
+      await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(idleCount);
+      const resumed=await evidence(page);const frames=voiceFrames(resumed,'mic_audio').slice(idleCount);
+      const prefix=frames.filter(frame=>frame.audioBatch===frames[0].audioBatch);
+      const samples=prefix.reduce((sum,frame)=>sum+(frame.audioSamples??0),0);
+      expect(samples).toBeGreaterThanOrEqual(16*300);expect(samples).toBeLessThanOrEqual(16*500);
+      expect(prefix.some(frame=>frame.audioNonzero)).toBe(true);
+      await waitForSpokenAssistant(page);
+      await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+      await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
+      expect(voiceFrames(resumed,'start')).toHaveLength(1);
+      expect(frames.every(frame=>frame.socketId===start.socketId)).toBe(true);
+      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+      await page.getByTestId('voice-call-mute').click();
+      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+      const mutedCount=voiceFrames(await evidence(page),'mic_audio').length;
+      await expect.poll(async()=>(await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(connectedTones);
+      await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+      await playNativeVoiceFixture(page);await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+      expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(mutedCount);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    } finally {release();}
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  test('keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await page.addInitScript(()=>{
+      const decisions:Array<Record<string,boolean|number|string>>=[];
+      Object.assign(window,{__voiceCallCleanupDecisions:decisions});
+      window.addEventListener('voiceCallEmptyChatCleanupDecision',event=>{
+        if(decisions.length<16)decisions.push((event as CustomEvent).detail);
+      });
+    });
+    const authority={guardedConnection:false,requested:false,echoed:false,matched:false,startMatched:false};
+    const lifecycleVersions:number[]=[];
+    let cleanupToken:string|undefined;
+    page.on('websocket',socket=>{
+      const connection=new URL(socket.url());
+      if(connection.pathname==='/v1/ws')authority.guardedConnection=connection.searchParams.get('empty_call_cleanup_guard')==='1';
+      socket.on('framesent',frame=>{
+        try {
+          const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+          if(event.type==='voice_call_chat_prepare'){
+            cleanupToken=typeof payload.cleanup_attempt_id==='string'?payload.cleanup_attempt_id:undefined;
+            authority.requested=!!cleanupToken;
+          }
+          if(event.type==='start')authority.startMatched=!!cleanupToken&&payload.cleanup_attempt_id===cleanupToken;
+        } catch { /* Only bounded booleans are retained from these frames. */ }
+      });
+      socket.on('framereceived',frame=>{
+        try {
+          const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+          if(event.type==='encrypted_metadata_stored'&&payload.voice_call_bootstrap===true){
+            authority.echoed=typeof payload.cleanup_attempt_id==='string';
+            authority.matched=!!cleanupToken&&payload.cleanup_attempt_id===cleanupToken;
+          }
+          if(event.type==='system_message_confirmed'&&Number.isSafeInteger(payload.messages_v))lifecycleVersions.push(payload.messages_v);
+        } catch { /* No payload text, token or ciphertext is attached. */ }
+      });
+    });
+    const cleanupResults:Array<{chat_id:string;accepted:boolean}>=[];
+    const deletedByPage=new Map<Page,string[]>([[page,[]]]);
+    const trackDeletion=(target:Page)=>target.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+        if(event.type==='empty_call_chat_cleanup_result') cleanupResults.push(payload);
+        if(event.type==='chat_deleted') deletedByPage.get(target)!.push(payload.chat_id);
+      } catch { /* Other frame kinds do not acknowledge cleanup. */ }
+    }));
+    trackDeletion(page);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    const other=await page.context().newPage();deletedByPage.set(other,[]);trackDeletion(other);
+    const systemEvents:Array<{chat_id:string;data:{message_id:string;status?:string}}>=[];
+    other.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));
+        if(event.type==='new_system_message') systemEvents.push(event.payload??event);
+      } catch { /* Non-JSON transport frames do not carry system messages. */ }
+    }));
+    try {
+      await other.goto(page.url());
+      await expect(other.locator('[data-testid="voice-call-start"]:visible')).toBeVisible();
+      // Opening the observer tab changes the browser's foreground page. Select
+      // the caller for its real activation gesture, just as a user would.
+      await page.bringToFront();
+      await expect.poll(()=>page.evaluate(()=>document.visibilityState==='visible'&&document.hasFocus())).toBe(true);
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+      const startedId=`00000000-voice-call-${ready.callId}-started`;
+      await expect.poll(()=>systemEvents.find(event=>event.data?.message_id===startedId)).toBeTruthy();
+      const started=systemEvents.find(event=>event.data?.message_id===startedId)!;
+      expect(started.data.status).toBe('synced');
+      await other.bringToFront();
+      await other.goto(`/#chat-id=${started.chat_id}`);
+      await expect(other.getByText('Credits needed...', {exact:true})).toHaveCount(0);
+      await expect(other.getByText('Not enough credits', {exact:true})).toHaveCount(0);
+      await expect.poll(()=>other.evaluate(async messageId=>{
+        const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+          const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+        });
+        try { return await new Promise<string|undefined>((resolve,reject)=>{
+          const request=db.transaction('messages','readonly').objectStore('messages').get(messageId);
+          request.onsuccess=()=>resolve(request.result?.status);request.onerror=()=>reject(request.error);
+        }); } finally { db.close(); }
+      },started.data.message_id)).toBe('synced');
+      await page.bringToFront();
+      await expect.poll(()=>page.evaluate(()=>document.visibilityState==='visible'&&document.hasFocus())).toBe(true);
+      await page.getByTestId('voice-call-hangup').click();
+      await assertVoiceInputCleanup(page);
+      // Empty-call retirement waits for durable lifecycle persistence and final
+      // billing settlement. This budget covers completion, not call startup.
+      await expect.poll(()=>cleanupResults.some(result=>result.chat_id===started.chat_id&&result.accepted),
+        {timeout:30_000}).toBe(true);
+      for(const tab of [page,other]) {
+        await expect.poll(()=>deletedByPage.get(tab)!.includes(started.chat_id),{timeout:30_000}).toBe(true);
+        await expect.poll(()=>tab.evaluate(async chatId=>{
+          const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+            const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+          });
+          try { return await new Promise<boolean>((resolve,reject)=>{
+            const request=db.transaction('chats','readonly').objectStore('chats').get(chatId);
+            request.onsuccess=()=>resolve(!request.result);request.onerror=()=>reject(request.error);
+          }); } finally { db.close(); }
+        },started.chat_id),{timeout:30_000}).toBe(true);
+      }
+    } finally {
+      const decisions=await page.evaluate(()=>(window as unknown as {__voiceCallCleanupDecisions?:unknown[]}).__voiceCallCleanupDecisions??[]);
+      await testInfo.attach('empty-call-cleanup-decisions',{body:JSON.stringify({authority,lifecycleVersions,decisions}),contentType:'application/json'});
+      await other.close();
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
+  test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
+    test.setTimeout(240_000);
+    const imageProxyFixture = await installVoiceFixtureImageProxy(page);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
+    // The first genuine microphone slice ends mid-request. Native STT turn.end
+    // must remain provisional through silence and resume under one identity.
+    await playNativeVoiceFixture(page,true);
+    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>
+      frame.path==='/v1/voice-call'&&frame.type==='transcript.pending'),
+    {message:'An incomplete native speech boundary must remain pending'}).toHaveLength(1);
+    await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+    const quietStart=await nativeVoiceInput(page);
+    await expect.poll(async()=>(await nativeVoiceInput(page)).samples,
+      {message:'Real microphone capture must continue through the incomplete pause'})
+      .toBeGreaterThan(quietStart.samples+quietStart.sampleRate);
+    const held=await evidence(page);
+    const pending=held.received.find(frame=>frame.type==='transcript.pending')!;
+    expect(pending.pendingReason).toBe('incomplete');expect(pending.messageId).toBeTruthy();
+    expect(held.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final)).toHaveLength(0);
+    expect(held.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
+    expect(held.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
+    await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
+    await expect(page.getByTestId('message-user')).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    const resumedAt=await page.evaluate(()=>performance.now());
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    const resumedSpeech=await evidence(page);
+    const completed=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final);
+    expect(completed).toHaveLength(1);expect(completed[0].messageId).toBe(pending.messageId);
+    expect(completed[0].observedAt!).toBeGreaterThan(resumedAt);
+    const voiceSends=resumedSpeech.sent.filter(frame=>frame.type==='chat_message_added');
+    expect(voiceSends).toHaveLength(1);expect(voiceSends[0].messageId).toBe(pending.messageId);
+    expect(voiceSends[0].observedAt!).toBeGreaterThan(completed[0].observedAt!);
+    await expect(page.getByTestId('chat-header-wrapper')).toBeVisible();
+    await expect(page.getByTestId('chat-header-title')).not.toBeEmpty();
+    const first=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
+    await expect(first).toHaveCount(1);await expect(first.getByTestId('generated-by')).not.toContainText('Live');
+    await assertSlimCallSurface(page);
+    const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+    const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+    expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);expect(ready.callId).toBeTruthy();
+    await page.getByTestId('voice-call-mute').click();
+    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+    const typedId=await sendCameraCallText(page,PASTED_TEXT);
+    await waitForCanonicalAssistant(page,typedId);
+    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    const richId=await sendCameraCallText(page,'Show voice rich results');
+    await waitForCanonicalAssistant(page,richId);
+    const rich=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
+    await expect(rich).toHaveCount(1);await expect(rich.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+    await expect(rich.getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await expect(rich.locator('[data-testid="embed-preview"]')).not.toHaveCount(0);
+    await expect.poll(() => imageProxyFixture.servedRequests, { message: 'The real chat image URL must use the exact upstream byte fixture' }).toBeGreaterThan(0);
+    await expect(rich.locator('img').first()).toBeVisible();
+    const protocol=await evidence(page);
+    const finals=protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final);
+    const sends=protocol.sent.filter(frame=>frame.type==='chat_message_added');
+    expect(finals.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
+    expect(finals.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.every(frame=>frame.autoSpeak===true&&frame.forcedModel===false)).toBe(true);
+    expect(protocol.sent.filter(frame=>frame.type==='call_message_completed')).toHaveLength(0);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='audio_chunk')).toHaveLength(0);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
+    const messageIds=await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
+    expect(messageIds).toHaveLength(6);
+    await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-laptop.png')});
+    const dismiss=page.getByTestId('input-dismiss-button');if(await dismiss.isVisible())await dismiss.click();
+    await scrollChatHistoryToStart(page,testInfo);
+    const close=page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
+    await expect(close).toHaveCount(1);await close.click();await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
+    await chooseAppsHome(page);await holdChatLookup(page,chatId);
+    try{await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();await expectHeldChatLookup(page,'returnToVoiceCallChat');await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);}
+    finally{await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.());}
+    await expect(page.getByTestId('voice-call-bar')).toBeVisible();await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
+    await page.setViewportSize({width:390,height:844});await expectHeaderPointerAccess(page);
+    await page.locator('#settings-menu-toggle').click();await expect(page.getByTestId('voice-call-pill')).toBeVisible();
+    await page.getByTestId('voice-call-pill').click();await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
+    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+    expect(voiceFrames(await evidence(page),'start')).toHaveLength(1);expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+    await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
+    await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
+    await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
+    await assertCallChatPreserved(page,chatId);
+    await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
+    // Reload restores the compact draft composer. Focus its actual editor to
+    // expose the ordinary recording control before checking audio ownership.
+    await page.getByTestId('message-editor').click();
+    await expect(page.getByTestId('record-audio-button')).toBeEnabled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.audio.single-owner,video-call.audio.spoken-rich-response,assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only,assistant-speech.lifecycle.disable-delete-invalidate
+  test('keeps call audio ephemeral, caches later manual Speak once, and removes its audio access when the chat is deleted',async({page},testInfo)=>{
+    test.setTimeout(240_000);
+    // Isolated CI has trusted speech replay but no paid Mistral credentials.
+    // Model only that available provider capability, as in the existing speech
+    // recording spec; Speak, authorization, storage, replay and deletion stay real.
+    let speechCapabilityResponses=0;
+    await page.route(/\/v1\/apps\/metadata(?:\?.*)?$/,async route=>{
+      const response=await route.fetch();expect(response.ok()).toBe(true);
+      const metadata=await response.json();
+      metadata.assistant_speech_available=true;
+      speechCapabilityResponses++;
+      await route.fulfill({response,json:metadata});
+    });
+    await page.addInitScript(()=>{
+      const state={epoch:0,ended:[] as Array<{trackId:string;observedAt:number}>,
+        progress:[] as Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>,
+        native:[] as Array<{event:string;epoch:number;sourceKind:string;mapped:boolean;currentTime:number;paused:boolean;ended:boolean;errorCode:number|null}>};
+      const mseUrls=new Set<string>();const create=URL.createObjectURL.bind(URL);
+      URL.createObjectURL=object=>{const url=create(object);if(object instanceof MediaSource)mseUrls.add(url);return url;};
+      type Generation={source:string;epoch:number;segmentId:string|null;lastTime:number;reported:boolean;sampled:boolean};
+      const generations=new WeakMap<HTMLMediaElement,Generation>();
+      const storedBindings=new Map<string,string|null>();
+      const observed=new WeakSet<HTMLMediaElement>();
+      const sourceKind=(source:string)=>mseUrls.has(source)?'mse':source.startsWith('blob:')?'stored_blob':'other';
+      const segment=(generation:Generation)=>sourceKind(generation.source)==='mse'
+        ?(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(generation.source)??null
+        :generation.segmentId;
+      const record=(audio:HTMLMediaElement,event:string,generation:Generation)=>{
+        if(state.native.length<64)state.native.push({event,epoch:generation.epoch,sourceKind:sourceKind(generation.source),mapped:!!segment(generation),
+          currentTime:Number.isFinite(audio.currentTime)?audio.currentTime:0,paused:audio.paused,ended:audio.ended,errorCode:audio.error?.code??null});
+      };
+      const play=HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
+        if(!(this instanceof HTMLAudioElement))return play.apply(this,args);
+        let generation=generations.get(this);
+        if(!generation||generation.source!==this.src||generation.epoch!==state.epoch){
+          generation={source:this.src,epoch:state.epoch,segmentId:null,lastTime:0,reported:false,sampled:false};generations.set(this,generation);
+        }
+        if(!observed.has(this)){
+          observed.add(this);
+          this.addEventListener('ended',()=>{
+            const current=generations.get(this);if(!current||current.source!==this.src)return;
+            record(this,'ended',current);const segmentId=segment(current);
+            if(segmentId)state.ended.push({trackId:segmentId,observedAt:performance.now()});
+          },{capture:true});
+          this.addEventListener('timeupdate',()=>{
+            const current=generations.get(this);if(!current||current.source!==this.src)return;
+            if(!current.sampled&&this.currentTime>0){current.sampled=true;record(this,'timeupdate',current);}
+            const segmentId=segment(current);
+            if(!current.reported&&segmentId&&!this.paused&&!this.ended&&this.currentTime>current.lastTime+0.001){
+              state.progress.push({epoch:current.epoch,segmentId,sourceKind:sourceKind(current.source),currentTime:this.currentTime});
+              current.reported=true;record(this,'progress',current);
+            }
+            current.lastTime=this.currentTime;
+          });
+          for(const event of ['error','waiting','stalled','emptied'])this.addEventListener(event,()=>{
+            const current=generations.get(this);if(current)record(this,event,current);
+          });
+        }
+        record(this,'play',generation);
+        const current=generation,result=play.apply(this,args);
+        // Snapshot this native generation after its play promise and Svelte's
+        // pending render flush. Later timeupdates never follow arbitrary labels.
+        void result.then(()=>queueMicrotask(()=>{
+          if(generations.get(this)!==current||this.src!==current.source||current.epoch<1||sourceKind(current.source)!=='stored_blob')return;
+          const candidate=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+          const ready=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence?.received.some(frame=>
+            frame.type==='assistant_speech_status'&&frame.speechStatus==='ready'&&frame.segmentId===candidate&&!!frame.generatedAssetId);
+          if(!candidate||!ready)return;
+          const known=storedBindings.get(current.source);
+          if(known===null||known&&known!==candidate){storedBindings.set(current.source,null);return;}
+          storedBindings.set(current.source,candidate);current.segmentId=candidate;
+        })).catch(()=>{});
+        return result;
+      };
+      Object.assign(window,{__voiceManualSpeechPlayback:state,__voiceManualSpeechDownloads:new Map<string,string>()});
+    });
+    await observeSpeechMediaSources(page);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await playNativeVoiceFixture(page);await waitForSpokenAssistant(page);
+    const assistant=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
+    await expect(assistant).toHaveCount(1);
+    const messageId=(await assistant.getAttribute('data-message-id'))!;
+    const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+    const player=page.getByTestId('assistant-speech-player');
+    await expect(player).toHaveCount(0);
+    await expect(assistant.getByTestId('assistant-message-speak')).toHaveCount(0);
+    await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn'&&frame.streamPhase==='end'),{timeout:60_000}).toBe(true);
+    const callProof=await evidence(page);
+    const callTracks=[...new Set(callProof.received.filter(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn').map(frame=>frame.segmentId!))];
+    expect(callTracks).toHaveLength(1);
+    const callAttempts=callProof.received.filter(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn');
+    expect(new Set(callAttempts.map(frame=>frame.attemptId)).size).toBe(1);
+    expect(callAttempts.every(frame=>frame.sequence===0&&!!frame.attemptId)).toBe(true);
+    expect(callAttempts.filter(frame=>frame.streamPhase==='start')).toHaveLength(1);
+    expect(new Set(callAttempts.map(frame=>frame.sourceVersion)).size).toBe(1);
+    expect(new Set(callAttempts.map(frame=>frame.executionVersion)).size).toBe(1);
+    await expect.poll(()=>page.evaluate(segments=>new Set((window as unknown as {__voiceManualSpeechPlayback:{ended:Array<{trackId:string;observedAt:number}>}})
+      .__voiceManualSpeechPlayback.ended.filter(item=>segments.includes(item.trackId)).map(item=>item.trackId)).size,callTracks),{timeout:60_000}).toBe(callTracks.length);
+    const drainedAt=callAttempts.find(frame=>frame.streamPhase==='end')!.observedAt!;
+    const nativeEndedAt=await page.evaluate(trackId=>(window as unknown as {__voiceManualSpeechPlayback:{ended:Array<{trackId:string;observedAt:number}>}})
+      .__voiceManualSpeechPlayback.ended.find(item=>item.trackId===trackId)?.observedAt,callTracks[0]);
+    expect(nativeEndedAt).toBeGreaterThanOrEqual(drainedAt);
+    await expect(player).toHaveCount(0);
+    await expect(assistant.getByTestId('assistant-message-speak')).toHaveCount(0);
+    expect(callProof.received.filter(frame=>frame.type==='assistant_speech_status'&&frame.messageId===messageId&&frame.generatedAssetPresent)).toHaveLength(0);
+    await expect.poll(()=>page.evaluate(segments=>(window as unknown as {__voiceManualSpeechPlayback:{progress:Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>}})
+      .__voiceManualSpeechPlayback.progress.some(item=>item.epoch===0&&item.sourceKind==='mse'&&item.currentTime>0&&segments.includes(item.segmentId??'')),callTracks)).toBe(true);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    const speak=assistant.getByTestId('assistant-message-speak');
+    expect(speechCapabilityResponses).toBeGreaterThan(0);
+    await expect(speak).toBeVisible();
+    const startManual=(await evidence(page)).received.length;
+    await page.evaluate(()=>(window as unknown as {__voiceManualSpeechPlayback:{epoch:number}}).__voiceManualSpeechPlayback.epoch=1);
+    await clickChatTarget(speak,testInfo);
+    await expect.poll(async()=>(await evidence(page)).received.slice(startManual).some(frame=>frame.type==='assistant_speech_status'
+      &&frame.messageId===messageId&&frame.speechStatus==='ready'&&frame.generatedAssetId),{timeout:60_000}).toBe(true);
+    await expect(player).toHaveAttribute('data-status','completed',{timeout:60_000});
+    const manual=(await evidence(page)).received.slice(startManual).filter(frame=>frame.type==='assistant_speech_status'
+      &&frame.messageId===messageId&&frame.speechStatus==='ready'&&frame.generatedAssetId);
+    const assets=[...new Set(manual.map(frame=>frame.generatedAssetId!))].sort();
+    expect(assets.length).toBeGreaterThan(0);
+    expect(manual.every(frame=>!!frame.segmentId&&!callTracks.includes(frame.segmentId))).toBe(true);
+    const manualSegments=[...new Set(manual.map(frame=>frame.segmentId!))];
+    expect((await evidence(page)).received.slice(startManual).filter(frame=>frame.type==='assistant_speech_audio'&&frame.messageId===messageId)).toHaveLength(0);
+    await expect.poll(()=>page.evaluate(segments=>(window as unknown as {__voiceManualSpeechPlayback:{progress:Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>}})
+      .__voiceManualSpeechPlayback.progress.some(item=>item.epoch===1&&item.sourceKind==='stored_blob'&&item.currentTime>0&&segments.includes(item.segmentId??'')),manualSegments)).toBe(true);
+    const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;expect(apiUrl).toBeTruthy();
+    const access=async(assetId:string,remember:boolean)=>page.evaluate(async({apiUrl,assetId,remember})=>{
+      const saved=(window as unknown as {__voiceManualSpeechDownloads:Map<string,string>}).__voiceManualSpeechDownloads;
+      const metadata=await fetch(`${apiUrl}/v1/generated-assets/${assetId}/files/original/download-url`,{credentials:'include',cache:'no-store'});
+      if(remember&&metadata.ok){
+        const body=await metadata.json();
+        const url=new URL(body.download_url,apiUrl);
+        if(url.origin!==new URL(apiUrl).origin||url.pathname!==`/v1/generated-assets/${assetId}/files/original/download`)throw new Error('Unexpected generated audio route');
+        saved.set(assetId,url.href);
+      }
+      const url=saved.get(assetId);if(!url)throw new Error('Generated audio download was not observed');
+      const audio=await fetch(url,{credentials:'include',cache:'no-store'});
+      await audio.body?.cancel();
+      // Only status codes leave the browser; signed URLs and bytes stay private.
+      return {metadata:metadata.status,audio:audio.status};
+    },{apiUrl:apiUrl!,assetId,remember});
+    for(const assetId of assets)expect(await access(assetId,true)).toEqual({metadata:200,audio:200});
+    await player.getByTestId('assistant-speech-close').click();
+    const startReplay=(await evidence(page)).received.length;
+    await page.evaluate(()=>(window as unknown as {__voiceManualSpeechPlayback:{epoch:number}}).__voiceManualSpeechPlayback.epoch=2);
+    await clickChatTarget(speak,testInfo);
+    await expect.poll(async()=>(await evidence(page)).received.slice(startReplay).some(frame=>frame.type==='assistant_speech_status'
+      &&frame.messageId===messageId&&frame.speechStatus==='ready'&&frame.generatedAssetId),{timeout:30_000}).toBe(true);
+    await expect(player).toHaveAttribute('data-status','completed',{timeout:60_000});
+    const replay=(await evidence(page)).received.slice(startReplay).filter(frame=>frame.type==='assistant_speech_status'&&frame.messageId===messageId);
+    expect([...new Set(replay.filter(frame=>frame.speechStatus==='ready').map(frame=>frame.generatedAssetId!))].sort()).toEqual(assets);
+    expect(replay.filter(frame=>['queued','generating'].includes(frame.speechStatus??''))).toHaveLength(0);
+    await expect.poll(()=>page.evaluate(segments=>(window as unknown as {__voiceManualSpeechPlayback:{progress:Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>}})
+      .__voiceManualSpeechPlayback.progress.some(item=>item.epoch===2&&item.sourceKind==='stored_blob'&&item.currentTime>0&&segments.includes(item.segmentId??'')),manualSegments)).toBe(true);
+    await player.getByTestId('assistant-speech-close').click();
+    const sidebar=page.locator('.sidebar');
+    if(await sidebar.evaluate(element=>element.classList.contains('closed')))await page.getByTestId('sidebar-toggle').click();
+    const row=page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+    await expect(row).toBeVisible();await row.click({button:'right'});
+    const remove=page.getByTestId('chat-context-delete');await remove.click();await remove.click();
+    await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='chat_deleted'&&frame.chatId===chatId&&frame.tombstone),{timeout:30_000}).toBe(true);
+    await expect(row).toHaveCount(0);
+    for(const assetId of assets)await expect.poll(()=>access(assetId,false),{timeout:45_000,intervals:[1000,2000,3000]}).toEqual({metadata:404,audio:404});
+    // Normal owner metadata and the previously minted audio URL are revoked.
+    // Physical S3 object deletion is covered by backend cleanup/fault tests.
+  });
+
+  for(const viewport of [{name:'phone',width:390,height:844},{name:'laptop',width:1440,height:900}]) {
+    // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+    test(`attaches the exact encrypted camera source to the ordinary user request on ${viewport.name}`,async({page,context},testInfo)=>{
+      test.setTimeout(180_000);await page.setViewportSize(viewport);await context.grantPermissions(['microphone','camera']);
+      await installNativeVoiceInput(page);await observeRealTransport(page);await observeCameraCall(page);
+      await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+      await page.locator('[data-testid="voice-call-start"]:visible').click();await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await page.getByTestId('voice-call-mute').click();await page.getByTestId('voice-call-video').click();
+      await expect.poll(async()=>(await cameraCallEvidence(page)).sent.filter(frame=>frame.type==='camera_frame').length).toBeGreaterThan(0);
+      await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','true');
+      const cameraQuestion='So tell me more about this.';
+      const userId=await sendCameraCallText(page,cameraQuestion);
+      // Canonical admission follows this turn's exact source upload/encryption.
+      // Check provenance only after the ordinary response confirms that work.
+      await waitForCanonicalAssistant(page,userId);
+      await expect.poll(()=>sourceFrameProof(page,userId)).toMatchObject({exact:true,clean:true,bounded:true});
+      const source=(await sourceFrameProof(page,userId))!;
+      const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+      const user=page.locator(`[data-testid="message-user"][data-message-id="${userId}"]`);
+      await expect(user).toHaveCount(1);await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
+      const thumbnail=user.locator(`[data-testid="embed-preview"][data-embed-id="${source.embedId}"]`);
+      await assertOpenOriginalSource(page,thumbnail,source.embedId,source.hash,testInfo);
+      await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+cameraQuestion})).toHaveCount(1);
+      await page.getByTestId('voice-call-video').click();await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','false');
+      await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+      expect((await evidence(page)).sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===userId)).toHaveLength(1);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+      await page.reload();await waitForChatReady(page);await expect(user).toHaveCount(1);
+      await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
+      await page.screenshot({path:testInfo.outputPath(`voice-source-${viewport.name}-reloaded.png`)});
+    });
+  }
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.single-owner,video-call.audio.spoken-rich-response
+  test('speaks one localized waiting confirmation for a slow German turn without creating a second assistant message',async({page})=>{
+    test.setTimeout(150_000);await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await page.getByTestId('voice-call-mute').click();
+    const id=await sendCameraCallText(page,'Bitte prüfe das gründlich');
+    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation'&&frame.speechStatus==='queued'&&frame.language==='de').length,{timeout:30_000}).toBe(1);
+    await waitForCanonicalAssistant(page,id);
+    const reply=page.getByTestId('message-assistant').filter({hasText:'Ich habe das geprüft. Hier ist das Ergebnis.'});
+    await expect(reply).toHaveCount(1);await expect(page.getByTestId('message-assistant')).toHaveCount(1);
+    const protocol=await evidence(page);
+    expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===id)).toHaveLength(1);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy,assistant-speech.playback.live-call-streaming,ai-model-routing.preprocessing.prepared-privacy
+  test('keeps continuous playback progress conservative on interruption while retaining the complete rich answer',async({page},testInfo)=>{
+    await installVoiceFixtureImageProxy(page);
+    test.setTimeout(180_000);
+    await page.addInitScript(()=>{
+      const audio=new Set<HTMLMediaElement>();
+      const held:HeldSpeechEvidence={audio:null,segmentId:null,source:null,offset:0,firstProgressAt:null,
+        playCallsAtHold:0,playCalls:0,sourceMse:false,beforeProviderEnd:false,sequence:null,nativeErrors:[]};
+      const mseUrls=new Set<string>();
+      const createObjectURL=URL.createObjectURL.bind(URL);
+      URL.createObjectURL=object=>{
+        const url=createObjectURL(object);
+        if(object instanceof MediaSource)mseUrls.add(url);
+        return url;
+      };
+      const calls=new WeakMap<HTMLMediaElement,Map<string,number>>();
+      Object.assign(window,{__voiceSpeechPlayback:audio,__voiceSpeechHeld:held});
+      const play=HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
+        const perSource=calls.get(this)??new Map<string,number>();calls.set(this,perSource);
+        perSource.set(this.src,(perSource.get(this.src)??0)+1);
+        if(held.audio===this)held.playCalls++;
+        if(!audio.has(this)) {
+          audio.add(this);
+          this.addEventListener('error',()=>{
+            held.nativeErrors.push({code:this.error?.code??0,observedAt:performance.now()});
+          });
+          let lastSource=this.src;let lastTime=0;
+          this.addEventListener('timeupdate',()=>{
+            if(lastSource!==this.src){lastSource=this.src;lastTime=0;}
+            const advancing=this.currentTime>lastTime+0.001;lastTime=this.currentTime;
+            if(held.audio===this&&this.src!==held.source&&mseUrls.has(this.src)&&!this.paused&&!this.ended&&advancing){
+              const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(this.src);
+              const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
+              const next=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='chunk'
+                &&frame.kind==='voice_prose_turn'&&frame.segmentId===active&&frame.messageId===evidence.heldSpeechAudio?.messageId);
+              if(next?.messageId&&active&&!held.handoffProgress)held.handoffProgress={messageId:next.messageId,segmentId:active,
+                audioId:(window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.speechAudioId(this),
+                observedAt:performance.now(),currentTime:this.currentTime};
+            }
+            if(held.audio||!(this instanceof HTMLAudioElement)||!mseUrls.has(this.src)||this.paused||this.ended||this.currentTime<=0)return;
+            const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(this.src);
+            const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
+            const prose=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_turn'
+              &&frame.streamPhase==='chunk'&&frame.segmentId===active);
+            const ended=evidence?.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='end'&&frame.segmentId===active);
+            if(!prose||!active||ended)return;
+            // Preserve a real heard offset and the actual clip. Native pause
+            // prevents playback finishing while canonical finalization runs.
+            held.audio=this;held.segmentId=active;held.offset=this.currentTime;
+            held.source=this.src;held.sourceMse=true;held.beforeProviderEnd=true;held.firstProgressAt=performance.now();
+            held.sequence=prose.sequence??null;
+            held.playCallsAtHold=perSource.get(this.src)??0;held.playCalls=held.playCallsAtHold;
+            this.pause();
+          });
+        }
+        return play.apply(this,args);
+      };
+    });
+    await observeSpeechMediaSources(page);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await page.getByTestId('voice-call-mute').click();
+    const richTurnId=await sendCameraCallText(page,'Show voice rich results');
+    await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
+    await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
+    const editor=page.getByTestId('message-editor').locator('[contenteditable="true"]');
+    await expect(editor).toBeEmpty();await editor.click();
+    const followup='Please continue from the last part I heard.';
+    await page.keyboard.insertText(followup);
+    await page.waitForFunction(()=>{
+      const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
+      return !!held.audio&&held.audio.paused&&!held.audio.ended&&held.offset>0;
+    },undefined,{timeout:60_000,polling:'raf'});
+    // The entire produced rich answer must precede interruption. Keep the same
+    // genuinely advanced prose clip available across canonical finalization.
+    await waitForCanonicalAssistant(page,richTurnId);
+    await page.waitForFunction(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      return browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'
+        &&frame.streamPhase==='end'&&frame.segmentId===browser.__voiceSpeechHeld.segmentId);
+    },undefined,{timeout:45_000});
+    const progressive=await page.evaluate(userTurnId=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence;
+        __nativeVoiceInput:NativeVoiceInputEvidence};
+      const held=browser.__voiceSpeechHeld;
+      const end=browser.__voiceCallEvidence.received.find(frame=>frame.type==='assistant_speech_audio'
+        &&frame.streamPhase==='end'&&frame.segmentId===held.segmentId);
+      return {audioId:held.audio?browser.__nativeVoiceInput.speechAudioId(held.audio):null,
+        mse:held.sourceMse,beforeProviderEnd:held.beforeProviderEnd,firstProgressAt:held.firstProgressAt,
+        providerEndAt:end?.observedAt,canonicalFinalAt:browser.__voiceCallEvidence.received.find(frame=>
+          frame.type==='ai_message_update'&&frame.userMessageId===userTurnId&&frame.final)?.observedAt,sourceUnchanged:held.audio?.src===held.source,
+        offsetPreserved:Math.abs((held.audio?.currentTime??0)-held.offset)<0.01,
+        paused:held.audio?.paused,playCallsAtHold:held.playCallsAtHold,playCalls:held.playCalls,
+        assets:browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_status'
+          &&frame.generatedAssetPresent).length};
+    },richTurnId);
+    expect(progressive).toMatchObject({mse:true,beforeProviderEnd:true,sourceUnchanged:true,offsetPreserved:true,paused:true,
+      playCallsAtHold:1,playCalls:1,assets:0});
+    expect(progressive.firstProgressAt).not.toBeNull();
+    expect(progressive.audioId).not.toBeNull();
+    const speechRegistration=(await evidence(page)).sent.find(frame=>frame.type==='voice_call_chat_prepare');
+    expect(speechRegistration).toBeTruthy();
+    await assertSpeechAutoplayPrimed(page,speechRegistration!.observedAt!,progressive.audioId!);
+    await testInfo.attach('voice-native-speech-prime-and-progress',{body:JSON.stringify({
+      primes:(await nativeVoiceInput(page)).speechPrimes,registrationAt:speechRegistration!.observedAt,progressive,
+    }),contentType:'application/json'});
+    expect(progressive.providerEndAt).toBeGreaterThan(progressive.firstProgressAt!);
+    expect(progressive.canonicalFinalAt).toBeDefined();
+    expect(progressive.canonicalFinalAt!).toBeGreaterThan(progressive.firstProgressAt!);
+    // The rich response has multiple immutable clauses but one encoded MP3
+    // track, one provider attempt and one native source. Never relabel it as
+    // independently ended clause files or use the hidden message player as proof.
+    const continuousProof=await page.evaluate(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence;
+        __voiceSpeechMediaSources:Map<string,string>};
+      const trackId=browser.__voiceSpeechHeld.segmentId!;
+      const frames=browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_audio'
+        &&frame.segmentId===trackId&&frame.kind==='voice_prose_turn');
+      const messageId=frames[0]?.messageId;
+      const members=browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_status'
+        &&frame.messageId===messageId&&frame.kind==='voice_prose_clause'&&frame.speechStatus==='sealed');
+      return {trackId,messageId,frames,members,
+        nativeSourceCount:[...browser.__voiceSpeechMediaSources].filter(([,id])=>id===trackId).length,
+        sourceMatchesHeld:browser.__voiceSpeechMediaSources.get(browser.__voiceSpeechHeld.source??'')===trackId,
+        alignmentEvents:frames.filter(frame=>frame.streamPhase==='alignment').length,
+        finiteProseAudio:browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_audio'
+          &&frame.messageId===messageId&&frame.kind==='voice_prose_clause').length};
+    });
+    expect(continuousProof.frames.filter(frame=>frame.streamPhase==='start')).toHaveLength(1);
+    expect(continuousProof.frames.filter(frame=>frame.streamPhase==='end')).toHaveLength(1);
+    expect(continuousProof.frames.every(frame=>frame.sequence===0&&!!frame.attemptId)).toBe(true);
+    expect(new Set(continuousProof.frames.map(frame=>frame.attemptId)).size).toBe(1);
+    expect(new Set(continuousProof.frames.map(frame=>frame.sourceVersion)).size).toBe(1);
+    expect(new Set(continuousProof.frames.map(frame=>frame.executionVersion)).size).toBe(1);
+    expect(continuousProof.nativeSourceCount).toBe(1);expect(continuousProof.sourceMatchesHeld).toBe(true);
+    expect(continuousProof.members.length).toBeGreaterThanOrEqual(2);
+    expect(continuousProof.members.every(frame=>!!frame.segmentId&&frame.segmentId!==continuousProof.trackId
+      &&frame.turnTrackId===continuousProof.trackId&&frame.sourceVersion===continuousProof.frames[0].sourceVersion)).toBe(true);
+    expect(new Set(continuousProof.members.map(frame=>frame.segmentId)).size).toBe(continuousProof.members.length);
+    expect(continuousProof).toMatchObject({alignmentEvents:0,finiteProseAudio:0});
+    await testInfo.attach('voice-continuous-track-and-immutable-clauses',{body:JSON.stringify(continuousProof),contentType:'application/json'});
+    await page.evaluate(async()=>{
+      const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
+      await held.audio!.play();
+    });
+    await page.waitForFunction(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;
+        __voiceSpeechHeld:HeldSpeechEvidence};
+      const held=browser.__voiceSpeechHeld;
+      const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(held.audio?.src??'');
+      const voice=browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_turn'&&frame.streamPhase==='chunk'&&frame.segmentId===active);
+      return voice&&active===held.segmentId&&held.audio?.src===held.source&&!held.audio.paused&&!held.audio.ended&&held.audio.currentTime>held.offset;
+    },undefined,{timeout:10_000,polling:'raf'});
+    // Phase3 always supplies a genuine authenticated batch, including an empty
+    // batch for an empty account. Require that real source; never fabricate one.
+    await page.waitForFunction(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return !!state.memoryBatch&&state.memoryBatch.socketId===state.mainSocketId&&typeof state.replayMemoryBatch==='function';
+    },undefined,{timeout:10_000});
+    const before=voiceFrames(await evidence(page),'text_input').length;
+    const previousMessageId=await page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getAttribute('data-message-id');
+    expect(previousMessageId).toBeTruthy();
+    const boundChatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+    await page.evaluate(({chatId,previousMessageId})=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      state.holdSpeechResponse={chatId,previousMessageId};state.holdPrivacySnapshot=true;
+    },{chatId:boundChatId,previousMessageId:previousMessageId!});
+    try{
+    await page.getByTestId('composer-send-button').click();
+    await expect.poll(async()=>voiceFrames(await evidence(page),'text_input').length).toBe(before+1);
+    const nextId=voiceFrames(await evidence(page),'text_input').at(-1)!.messageId!;
+    await page.waitForFunction(()=>!!(window as unknown as {__voiceCallEvidence:CallEvidence})
+      .__voiceCallEvidence.privacySnapshotHeld,undefined,{timeout:10_000});
+    const privacyHeld=await page.evaluate(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {held:state.privacySnapshotHeld,sameConnection:state.privacySnapshotHeld?.socketId===state.mainSocketId};
+    });
+    expect(privacyHeld.held?.success).toBe(true);expect(privacyHeld.sameConnection).toBe(true);
+    expect(privacyHeld.held?.releasedAt).toBeUndefined();
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.replayMemoryBatch!());
+    await page.waitForFunction(()=>{
+      const replay=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.privacyNoopReplay;
+      return replay?.producerAt!==undefined;
+    },undefined,{timeout:5000});
+    const privacyNoop=await page.evaluate(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {held:state.privacySnapshotHeld,replay:state.privacyNoopReplay};
+    });
+    expect(privacyNoop.replay?.producerUnchanged,'the genuine unchanged batch must emit the production no-write proof').toBe(true);
+    expect(privacyNoop.held?.releasedAt).toBeUndefined();
+    expect(privacyNoop.replay!.replayedAt).toBeGreaterThanOrEqual(privacyNoop.held!.heldAt);
+    expect(privacyNoop.replay!.producerAt!).toBeGreaterThanOrEqual(privacyNoop.replay!.replayedAt);
+    await testInfo.attach('voice-privacy-noop-during-fresh-send',{body:JSON.stringify(privacyNoop),contentType:'application/json'});
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releasePrivacySnapshot!());
+    await expect.poll(async()=>(await evidence(page)).sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)?.heardBoundary,{timeout:45_000}).toBeTruthy();
+    const protocol=await evidence(page);
+    const privacyOrder=await page.evaluate(() => {
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {producerAt:state.privacyNoopReplay?.producerAt,releasedAt:state.privacySnapshotHeld?.releasedAt};
+    });
+    expect(privacyOrder.releasedAt).toBeDefined();
+    expect(privacyOrder.producerAt!).toBeLessThanOrEqual(privacyOrder.releasedAt!);
+    expect(protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.observedAt!)
+      .toBeGreaterThan(privacyOrder.releasedAt!);
+    const boundary=protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.heardBoundary!;
+    const prior=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
+    await expect(prior).toHaveCount(1);
+    expect(boundary.assistant_message_id).toBe(await prior.getAttribute('data-message-id'));
+    // This provider fixture supplies no verified alignment. Real audible track
+    // progress is proved above, but track sequence zero is never prose clause zero.
+    // Provider completion while native playback is paused grants no heard clauses.
+    expect(boundary).toEqual({assistant_message_id:await prior.getAttribute('data-message-id'),
+      completed_sequences:[],active_sequence:null,active_offset_ms:0});
+    const heldTrack=await page.evaluate(()=>{
+      const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
+      return {trackSequence:held.sequence,offsetMs:Math.floor(held.offset*1000)};
+    });
+    expect(heldTrack.trackSequence).toBe(0);expect(heldTrack.offsetMs).toBeGreaterThan(0);
+    expect(Object.keys(boundary).sort()).toEqual(['active_offset_ms','active_sequence','assistant_message_id','completed_sequences']);
+    expect(protocol.received.some(frame=>frame.type==='audio.interrupted'&&frame.assistantMessageId===boundary.assistant_message_id)).toBe(true);
+    const privateRow=await page.evaluate(async id=>{
+      const db=await new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction('messages','readonly').objectStore('messages').get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
+      finally{db.close();}
+    },nextId);
+    expect(privateRow).toEqual({encrypted:true,plaintext:false,heardMetadata:false});
+    await expect(prior.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+    await expect(prior.getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await expect(prior.locator('[data-testid="embed-preview"]')).not.toHaveCount(0);
+    await page.waitForFunction(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      const next=state.heldSpeechAudio;
+      return !!next&&next.count>0&&state.received.some(frame=>frame.type==='assistant_speech_status'
+        &&frame.messageId===next.messageId&&frame.speechStatus==='queued');
+    },undefined,{timeout:45_000});
+    const handoff=await page.evaluate(async()=>{
+      // Let native load/error tasks settle while genuine next audio stays held.
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      const audio=browser.__voiceSpeechHeld.audio!;
+      return {held:browser.__voiceCallEvidence.heldSpeechAudio,hasSourceAttribute:audio.hasAttribute('src'),
+        networkEmpty:audio.networkState===HTMLMediaElement.NETWORK_EMPTY,errorCode:audio.error?.code??null,
+        nativeErrors:browser.__voiceSpeechHeld.nativeErrors,
+        nextStreamDelivered:browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'
+          &&frame.messageId===browser.__voiceCallEvidence.heldSpeechAudio?.messageId)};
+    });
+    expect(handoff.held!.count).toBeGreaterThan(0);
+    expect(handoff).toMatchObject({hasSourceAttribute:false,networkEmpty:true,errorCode:null,nativeErrors:[],nextStreamDelivered:false});
+    await testInfo.attach('voice-native-response-handoff',{body:JSON.stringify(handoff),contentType:'application/json'});
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseSpeechAudio!());
+    await page.waitForFunction(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      return browser.__voiceSpeechHeld.handoffProgress?.messageId===browser.__voiceCallEvidence.heldSpeechAudio?.messageId
+        &&!!browser.__voiceSpeechHeld.handoffProgress;
+    },undefined,{timeout:30_000,polling:'raf'});
+    const secondPlayback=await page.evaluate(()=>{
+      const browser=window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence;__voiceCallEvidence:CallEvidence};
+      const held=browser.__voiceSpeechHeld;const state=browser.__voiceCallEvidence;
+      return {progress:held.handoffProgress,nativeErrors:held.nativeErrors,releasedAt:state.heldSpeechAudio?.releasedAt,
+        streamStartAt:state.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='start'
+          &&frame.segmentId===held.handoffProgress?.segmentId&&frame.messageId===held.handoffProgress?.messageId)?.observedAt};
+    });
+    expect(secondPlayback.progress!.audioId).toBe(progressive.audioId);
+    expect(secondPlayback.progress!.currentTime).toBeGreaterThan(0);expect(secondPlayback.nativeErrors).toEqual([]);
+    expect(secondPlayback.releasedAt).toBeDefined();expect(secondPlayback.streamStartAt).toBeDefined();
+    expect(secondPlayback.streamStartAt!).toBeGreaterThanOrEqual(secondPlayback.releasedAt!);
+    expect(secondPlayback.progress!.observedAt).toBeGreaterThan(secondPlayback.streamStartAt!);
+    await testInfo.attach('voice-native-second-response-progress',{body:JSON.stringify(secondPlayback),contentType:'application/json'});
+    await waitForCanonicalAssistant(page,nextId);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+followup})).toHaveCount(1);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    expect(await page.evaluate(()=>(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld.nativeErrors)).toEqual([]);
+    }finally{
+      await page.evaluate(()=>{
+        const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        delete state.holdPrivacySnapshot;state.releasePrivacySnapshot?.();
+        delete state.holdSpeechResponse;state.releaseSpeechAudio?.();
+      }).catch(()=>{});
+    }
+  });
+
 });

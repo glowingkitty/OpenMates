@@ -1,0 +1,65 @@
+{
+  "task": "TASK-1233 / existing d1c4 migration outcome",
+  "workspace": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4",
+  "session": "d1c4",
+  "createdUtc": "2026-10-23T08:25:47.298017+00:00",
+  "state": "local_checks_and_independent_read_only_review_passed; isolated_product_execution_required",
+  "ownedSources": {
+    "backend/core/api/app/routes/auth_routes/auth_pair_v2.py": {
+      "sha256": "01eaf3875e3deba477273bf49fdc216dc70adad745a147a168d90978d9dbc71e",
+      "bytes": 30732
+    },
+    "backend/tests/test_auth_pair_v2.py": {
+      "sha256": "ac9d8cca8b4d8ec3bb0df2edbc8e6738a1eb325ef520cb4839fec4a4eeb6a6c0",
+      "bytes": 18723
+    },
+    "frontend/apps/web_app/tests/helpers/native-pair-login-flow.ts": {
+      "sha256": "adefc4de865cfaed0d549612a0446d7ba8e12cae5964eda9033b16353531fb8e",
+      "bytes": 16458
+    },
+    "frontend/apps/web_app/tests/helpers/native-pair-login-flow.test.cjs": {
+      "sha256": "ee85e111d76052123526b169541a3b76b0674683bf7a260c0fb43b237b8a1966",
+      "bytes": 5086
+    }
+  },
+  "logs": {
+    "/tmp/d1c4-pair-diagnostic-python-tests.log": {
+      "sha256": "22117c618aa7cb074a590773d310d58f9e9278e2c26a751fa1f6ad57ecbf0e90",
+      "bytes": 798
+    },
+    "/tmp/d1c4-pair-diagnostic-node-tests.log": {
+      "sha256": "b67b250b5808867325f66a3f41256e14c12c9f1506d46799b3fcada7ee5a6149",
+      "bytes": 1728
+    },
+    "/tmp/d1c4-pair-diagnostic-ts-check.log": {
+      "sha256": "76f221679e7f00605f68216357188b5efba2069473e570d565b8503b50003f6f",
+      "bytes": 25
+    },
+    "/tmp/d1c4-pair-diagnostic-eslint.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "checks": {
+    "backendMockModule": {
+      "passed": 16,
+      "command": "PYTHON_DOTENV_DISABLED=1 /home/superdev/projects/OpenMates/.venv/bin/python -m pytest -q backend/tests/test_auth_pair_v2.py"
+    },
+    "nodeMockHelpers": {
+      "passed": 7,
+      "command": "node --test frontend/apps/web_app/tests/helpers/native-pair-login-flow.test.cjs frontend/apps/web_app/tests/helpers/cli-pair-terminal-helpers.test.cjs"
+    },
+    "strictFocusedTypeScript": "0 syntactic/semantic diagnostics for native-pair-login-flow.ts using TypeScript5.9.2 +Playwright/Node types",
+    "eslint": "both owned frontend helper files passed",
+    "ruff": "both owned backend files passed",
+    "specificationMetadata": "backend tests +new CJS helper tests passed check-test"
+  },
+  "observability": {
+    "backend": "Fixed ACK stage/closed relay-state/closed error/HTTP status categories; original4operation order, response and original exception identity preserved; no retry, TTL or authorization changes. Error-state snapshot is a bounded250ms read AFTER rejection, not atomic rejection-state evidence. Unknown and private exception text/metadata never logged.",
+    "browser": "Monotonic256-event cap,32pending response-body cap, exact origin/route allowlist; closed phases/stages/states/errors +exit categories only. No URL/token/PIN/cookie/capability/session/account fields/raw body or raw output attached. Response arrival ordering retained while body parsing may finish later. Attachment attempted in finally before cleanup and cannot replace the primary assertion.",
+    "runtime": "packages/openmates-rust/src/client/pair.rs unchanged; no claimed root-cause protocol fix."
+  },
+  "knownFailure": "Retained da67 attempt0 native child exit1 with conflict after vault prompt; narrowed to pairing ACK. Browser snapshot binding-required error ordering and exact rejected transition remain unproved until new isolated CI diagnostics.",
+  "nextStep": "Root independent review and isolated CI source capture/submission; no local reproduction. Preserve existing positive, wrong-PIN, pre-persist cancellation, identity restart, secret-mask and encrypted vault assertions.",
+  "independentReview": "CLEAR against all four exact source hashes; no product root-cause or repair claim."
+}

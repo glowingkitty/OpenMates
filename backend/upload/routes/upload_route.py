@@ -69,6 +69,7 @@
 # simultaneous requests. Blocking operations (ClamAV, Pillow, pymupdf) run in
 # thread pools via asyncio.to_thread().
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -88,6 +89,7 @@ from backend.shared.python_utils.media_encryption import (
 )
 from backend.upload.billing_payloads import build_pdf_billing_payload
 from backend.upload.s3_keys import upload_s3_prefix
+from backend.upload.services.preview_generator import camera_jpeg_original_hash
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,8 @@ class FileVariantMetadata(BaseModel):
     format: str = Field(..., description="Image format (webp)")
     encryption: Optional[str] = Field(None, description="Explicit media encryption format")
     active_region: Optional[str] = Field(None, description="S3 region that accepted this immutable variant")
+    preserved_original_sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$",
+        description="Server-computed SHA-256 of actual stored original bytes; matching input hash proves exact preservation")
 
 
 class AIDetectionMetadata(BaseModel):
@@ -164,6 +168,20 @@ class AIDetectionMetadata(BaseModel):
     provider: str = Field(default="sightengine", description="Detection provider name")
     status: str = Field(default="success", description="Detection status: success or failed")
     error: Optional[str] = Field(None, description="Non-sensitive failure reason when detection failed")
+
+
+def _duplicate_preserves_camera_original(record: Dict[str, Any], file_bytes: bytes) -> bool:
+    """Keep ordinary dedup, but require exact stored-byte proof for camera JPEGs.
+
+    Only authoritative upload records reach this check. Client embed metadata,
+    filenames and form fields cannot mint this proof or promote legacy objects.
+    """
+    expected = camera_jpeg_original_hash(file_bytes)
+    if expected is None:
+        return True
+    files = record.get("files_metadata")
+    original = files.get("original") if isinstance(files, dict) else None
+    return isinstance(original, dict) and original.get("preserved_original_sha256") == expected
 
 
 def _duplicate_ai_detection_needs_refresh(ai_detection: Any) -> bool:
@@ -825,6 +843,14 @@ async def upload_file(
     existing_record = await _check_duplicate_via_api(
         core_api_url, internal_token, user_id, content_hash
     )
+    if existing_record and is_image and not await asyncio.to_thread(
+        _duplicate_preserves_camera_original, existing_record, file_bytes,
+    ):
+        # Old records hash incoming bytes, but their original may have been
+        # re-encoded. Preserve those immutable references and create a fresh
+        # upload instead. This check precedes every image/region/S3 reuse path.
+        logger.info(f"{log_prefix} [5/13] Camera original lacks exact stored-byte proof — creating fresh upload")
+        existing_record = None
     if existing_record:
         # Validate that the referenced S3 objects actually exist before returning
         # the cached record. Records can be stale if a previous upload failed
@@ -1249,6 +1275,9 @@ async def upload_file(
             format="webp",
             encryption=encrypted_variants.metadata["original"].get("encryption"),
             active_region=active_region,
+            # Mint proof from the bytes actually encrypted, never from an input
+            # hash, legacy dedup response or client-supplied metadata.
+            preserved_original_sha256=hashlib.sha256(preview_result.original_bytes).hexdigest(),
         ),
         "full": FileVariantMetadata(
             s3_key=full_s3_key,

@@ -91,12 +91,10 @@ describe("loadDefaultInspirations", () => {
     const immediateState = get(dailyInspirationStore);
     expect(immediateState.source).toBe("guest-onboarding");
     expect(immediateState.inspirations).toHaveLength(10);
-    expect(immediateState.inspirations.some((inspiration) =>
-      inspiration.inspiration_id === "guest-fallback-events",
+    expect(immediateState.inspirations.every((inspiration) =>
+      inspiration.inspiration_id.startsWith("authenticated-fallback-"),
     )).toBe(true);
-    expect(immediateState.inspirations.filter((inspiration) =>
-      inspiration.inspiration_id !== "guest-fallback-events",
-    ).every((inspiration) => inspiration.inspiration_id.startsWith("authenticated-fallback-"))).toBe(true);
+    expect(immediateState.inspirations[6].feature?.feature_id).toBe("export-data");
 
     resolveFetch();
     await loading;
@@ -144,10 +142,10 @@ describe("loadDefaultInspirations", () => {
     expect(wiki.wiki?.description).toContain("griechisches");
     expect(wiki.assistant_response).toContain("Bronzezahnräder");
     const feature = state.inspirations[6];
-    expect(feature.phrase).toContain("Veranstaltungen in deiner Nähe");
-    expect(feature.feature?.title).toBe("Lokale Veranstaltungen finden");
-    expect(feature.feature?.description).toContain("Kursen");
-    expect(feature.assistant_response).toContain("Events-Suche");
+    expect(feature.phrase).toContain("Exportiere deine OpenMates-Daten");
+    expect(feature.feature?.title).toBe("Exportiere deine OpenMates-Daten");
+    expect(feature.feature?.settings_path).toBe("account/export");
+    expect(feature.assistant_response).toContain("Kontoeinstellungen");
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
@@ -159,16 +157,8 @@ describe("loadDefaultInspirations", () => {
       "video", "video", "video", "wiki", "wiki", "wiki",
       "feature", "feature", "feature", "feature",
     ]);
-    expect(guest.every((card) => card.feature?.requires_authentication !== true)).toBe(true);
-    expect(guest[6].inspiration_id).toBe("guest-fallback-events");
-    expect(guest[6].feature).toMatchObject({
-      feature_id: "events-search",
-      settings_path: "apps/events/skill/search",
-      requires_authentication: false,
-    });
-    expect(guest.filter((card) => card.inspiration_id !== "guest-fallback-events").map((card) => card.inspiration_id))
-      .toEqual(authenticated.filter((card) => card.inspiration_id !== "authenticated-fallback-export")
-        .map((card) => card.inspiration_id));
+    expect(guest.map((card) => card.inspiration_id)).toEqual(authenticated.map((card) => card.inspiration_id));
+    expect(guest[6].feature).toMatchObject({ feature_id: "export-data", settings_path: "account/export", requires_authentication: true });
     expect(authenticated[6].feature).toMatchObject({
       feature_id: "export-data",
       requires_authentication: true,
@@ -184,6 +174,8 @@ describe("loadDefaultInspirations", () => {
         english.map((card) => card.inspiration_id),
       );
       expect(cards).toHaveLength(10);
+      expect(cards[6].feature?.feature_id, lang).toBe("export-data");
+      expect(cards.some(card => card.feature?.settings_path?.startsWith("apps/events") || card.feature?.feature_id === "events-search" || card.inspiration_id === "guest-fallback-events"), lang).toBe(false);
       if (lang !== "en") {
         for (let index = 3; index < 10; index += 1) {
           expect(cards[index].phrase, `${lang} card ${index}`).not.toBe(english[index].phrase);
@@ -236,5 +228,38 @@ describe("loadDefaultInspirations", () => {
     resolveFetch();
     await loading;
     unsubscribe();
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=language-preferences.content-language
+describe("inspiration language consistency", () => {
+  afterEach(() => { vi.unstubAllGlobals(); dailyInspirationStore.reset(); locale.set("en"); authStore.set({ ...authInitialState }); });
+
+  it("replaces an English personalized display with German fallback after locale restore", async () => {
+    authenticate();
+    dailyInspirationStore.setInspirations(getAuthenticatedFallbackInspirations("en"), { personalized: true });
+    locale.set("de");
+    const resolveFetch = stubDelayedDefaultFetch({ inspirations: getAuthenticatedFallbackInspirations("en") });
+    const loading = loadDefaultInspirations({ allowIndexedDB: false });
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
+    resolveFetch();
+    await loading;
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
+    expect(get(dailyInspirationStore).source).toBe("authenticated-fallback");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=language-preferences.content-language
+  it("ignores an English response that finishes after switching to German", async () => {
+    authenticate();
+    const resolveFetch = stubDelayedDefaultFetch({ inspirations: getAuthenticatedFallbackInspirations("en") });
+    const loading = loadDefaultInspirations({ allowIndexedDB: false });
+    // Let the request capture the original English locale before it is changed.
+    await Promise.resolve();
+    locale.set("de");
+    dailyInspirationStore.reset();
+    dailyInspirationStore.setInspirations(getAuthenticatedFallbackInspirations("de"), { source: "authenticated-fallback" });
+    resolveFetch();
+    await loading;
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
   });
 });

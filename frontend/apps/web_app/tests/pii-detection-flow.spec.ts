@@ -723,7 +723,12 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// STEP 6: Open the mail embed in fullscreen while reveal is ON — the
 	// fullscreen must open already showing originals.
 	// ======================================================================
-	await mailEmbedPreview.click();
+	const fullscreenContainer = page.getByTestId('embed-fullscreen-container');
+	async function openMailFullscreen() {
+		await mailEmbedPreview.getByTestId('result-preview-expand').click();
+		await expect(fullscreenContainer).toBeVisible();
+	}
+	await openMailFullscreen();
 	logCheckpoint('Opened mail embed fullscreen with reveal=true.');
 
 	const embedPiiToggle = page.getByTestId('embed-pii-toggle');
@@ -731,7 +736,6 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const fullscreenInitialAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
 	expect(fullscreenInitialAttr).toBe('true');
 
-	const fullscreenContainer = page.locator('.fullscreen-embed-container');
 	await expect(fullscreenContainer).toBeVisible();
 	const fsRevealedText = (await fullscreenContainer.textContent()) || '';
 	logCheckpoint(`Fullscreen (opened with reveal=true) first 200: "${fsRevealedText.substring(0, 200)}"`);
@@ -773,7 +777,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// STEP 8: Toggle from the EMBED FULLSCREEN to reveal — then confirm
 	// that opening it, toggling, and closing keeps preview + message in sync.
 	// ======================================================================
-	await mailEmbedPreview.click();
+	await openMailFullscreen();
 	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
 	const reopenAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
 	expect(reopenAttr).toBe('false');
@@ -866,7 +870,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await takeStepScreenshot(page, 'state-08-reopen-header-reveal');
 
 	// Open the fullscreen on the reopened chat — must already show original.
-	await mailEmbedPreview.click();
+	await openMailFullscreen();
 	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
 	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('true');
 	const reopenFsText = (await fullscreenContainer.textContent()) || '';

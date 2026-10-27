@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userProfile } from '../../stores/userProfile';
 import type { Chat, Message } from '../../types/chat';
 import { invalidateWorkspaceCaches, getWorkspaceCacheEpoch } from '../workspaceCacheLifecycle';
 import {
+  recordRecentReplayDiagnostic,
   clearRecentChatWindows,
   getRecentChatRevision,
   getRecentChatSelection,
@@ -188,5 +189,91 @@ describe('recent decrypted chat windows', () => {
     guard.complete();
     expect(guard.active).toBe(false);
     unsubscribe();
+  });
+});
+
+
+describe('closed recent replay invalidation observations', () => {
+  const receipt = () => JSON.parse((window as unknown as Record<string, string>).__openmatesRecentReplayDiagnostics ?? '[]') as string[];
+  beforeEach(() => vi.stubGlobal('window', { __openmatesRecentReplayDiagnosticsEnabled: true }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('distinguishes an absent entry from an admitted entry without source metadata', () => {
+    expect(getRecentChatSelection('absent')).toBeNull();
+    expect(receipt().at(-1)).toBe('selection-entry-absent');
+    expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+    expect(getRecentChatSelection('a')).toBeNull();
+    expect(receipt().at(-1)).toBe('selection-source-absent');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('records each closed invalidation category only for an existing entry', () => {
+    for (const category of ['metadata', 'metadata-local-list', 'metadata-chat-updated', 'metadata-draft-save', 'metadata-chat-row', 'metadata-draft-websocket', 'metadata-draft-delete-sender', 'metadata-sync-draft', 'metadata-sync-header', 'metadata-phase-sync', 'message', 'key', 'delete', 'unknown'] as const) {
+      expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+      const revision = getRecentChatRevision('a');
+      invalidateRecentChatWindow('a', category);
+      expect(receipt().at(-1)).toBe(`invalidation-${category}`);
+      expect(getRecentChatRevision('a')).not.toBe(revision);
+      const observed = receipt();
+      invalidateRecentChatWindow('a', category);
+      expect(receipt()).toEqual(observed);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('does not inspect an unexpected category proxy and preserves invalidation', () => {
+    let traps = 0;
+    const unexpected = new Proxy({}, { get() { traps++; throw Error('external get'); }, getPrototypeOf() { traps++; throw Error('external prototype'); } });
+    expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+    invalidateRecentChatWindow('a', unexpected as never);
+    expect(receipt().at(-1)).toBe('invalidation-unknown');
+    expect(getRecentChatWindowStats().count).toBe(0);
+    expect(traps).toBe(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('observes message lookup, global clear and eviction without touching LRU order', () => {
+    expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+    invalidateRecentChatWindowForMessage('message');
+    expect(receipt().at(-1)).toBe('invalidation-message');
+    for (let i = 0; i < 9; i++) expect(putRecentChatWindow(String(i), windowFor(String(i)))).toBe(true);
+    expect(receipt().slice(-2)).toEqual(['invalidation-eviction', 'admission-accepted']);
+    expect(getRecentChatWindow(chat('0'))).toBeNull();
+    expect(getRecentChatWindow(chat('1'))).not.toBeNull();
+    clearRecentChatWindows();
+    expect(receipt().at(-1)).toBe('invalidation-workspace-clear');
+    const observed = receipt();
+    clearRecentChatWindows();
+    expect(receipt()).toEqual(observed);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('keeps disabled and throwing publication inert while invalidation still signals', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeRecentChatWindowInvalidation(listener);
+    try {
+      vi.stubGlobal('window', { __openmatesRecentReplayDiagnosticsEnabled: false });
+      expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+      invalidateRecentChatWindow('a', 'metadata');
+      expect(receipt()).toEqual([]);
+      vi.stubGlobal('window', new Proxy({ __openmatesRecentReplayDiagnosticsEnabled: true }, {
+        defineProperty() { throw Error('publication denied'); },
+      }));
+      expect(putRecentChatWindow('a', windowFor('a'))).toBe(true);
+      expect(() => invalidateRecentChatWindow('a', 'metadata')).not.toThrow();
+      expect(getRecentChatWindowStats().count).toBe(0);
+      expect(listener).toHaveBeenCalledTimes(2);
+    } finally { unsubscribe(); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('keeps the module-owned ring bounded when the publication property is replaced', () => {
+    (window as unknown as Record<string, unknown>).__openmatesRecentReplayDiagnostics = new Proxy([], {
+      get() { throw Error('external ring read'); },
+    });
+    for (let i = 0; i < 70; i++) recordRecentReplayDiagnostic('invalidation-unknown');
+    expect(receipt()).toHaveLength(64);
+    expect(receipt().every((reason) => reason === 'invalidation-unknown')).toBe(true);
   });
 });

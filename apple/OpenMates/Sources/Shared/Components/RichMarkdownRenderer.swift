@@ -766,7 +766,13 @@ enum MarkdownParser {
                     i += 1
                 }
                 let code = codeLines.joined(separator: "\n")
-                if isStreaming && ChatMessageStreamingRenderPolicy.isInternalProtocolFence(
+                // Closed, validated activity anchors are semantic content while
+                // streaming too. Incomplete/unknown internal protocol stays hidden.
+                if isStreaming && isClosed,
+                   let embed = parseFencedEmbedReference(language: language, code: code),
+                   ["app_skill_use", "app-skill-use", "focus-mode-activation"].contains(embed.type ?? "") {
+                    blocks.append(.embedGroup([embed]))
+                } else if isStreaming && ChatMessageStreamingRenderPolicy.isInternalProtocolFence(
                     language: language ?? "", body: code, isClosed: isClosed
                 ) {
                     blocks.append(.hiddenProtocol)
@@ -950,7 +956,7 @@ enum MarkdownParser {
     private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        if let language, !language.isEmpty, language.lowercased() != "json" {
+        if let language, !language.isEmpty, !["json", "json_embed"].contains(language.lowercased()) {
             return nil
         }
         guard let data = trimmed.data(using: .utf8),
@@ -977,6 +983,7 @@ struct RichMarkdownView: View {
     let content: String
     let renderDocument: ChatHistoryRenderDocument?
     let progressiveRequest: ProgressiveMarkdownRequest?
+    let assistantActivity: AssistantActivityConfiguration?
     let isUserMessage: Bool
     let onOpenPublicChat: ((String) -> Void)?
     let parentChatID: String?
@@ -1014,11 +1021,13 @@ struct RichMarkdownView: View {
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
         onInteractiveQuestionSubmit: ((String) -> Void)? = nil,
         interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:],
-        searchHighlightQuery: String? = nil
+        searchHighlightQuery: String? = nil,
+        assistantActivity: AssistantActivityConfiguration? = nil
     ) {
         self.content = content
         self.renderDocument = renderDocument
         self.progressiveRequest = progressiveRequest
+        self.assistantActivity = assistantActivity
         self.isUserMessage = isUserMessage
         self.onOpenPublicChat = onOpenPublicChat
         self.parentChatID = parentChatID
@@ -1041,7 +1050,7 @@ struct RichMarkdownView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if let progressiveRequest {
-                ProgressiveMarkdownBlocksView(request: progressiveRequest) { block in
+                ProgressiveMarkdownBlocksView(request: progressiveRequest, assistantActivity: assistantActivity) { block in
                     if let markdown = block.markdown,
                        block.document.kind == .interactiveQuestion || block.document.kind == .demoGroup {
                         blockView(for: markdown)
@@ -1123,7 +1132,8 @@ struct RichMarkdownView: View {
                     messageCreatedAt: messageCreatedAt,
                     viewportWidth: viewportWidth,
                     store: subChatStore, progress: subChatProgress, completedSubChatIDs: completedSubChatIDs,
-                    onOpenChat: onOpenSubChat)
+                    onOpenChat: onOpenSubChat,
+                    parentMessageID: progressiveRequest?.identity.messageID ?? renderDocument?.messageId)
             }
         case .interactiveQuestionFallback:
             interactiveQuestionFallback

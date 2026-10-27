@@ -1,3 +1,4 @@
+vi.mock('../personalChatTurnBarrier',()=>({hasPendingPersonalChatTurn:()=>emptyCleanup.pending}));
 // frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
 // Regression coverage for cross-device chat update handlers.
 // New-chat shells created from websocket broadcasts must carry the local user
@@ -24,14 +25,24 @@ import {
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
 
+const emptyCleanup = vi.hoisted(()=>({safe:true,eligible:true,pending:false}));
+vi.mock('../workspaceQueryCache',()=>({getWorkspaceCacheIdentity:()=> 'owner'}));
+vi.mock('../workspaceCacheLifecycle',()=>({getWorkspaceCacheEpoch:()=> 1}));
+vi.mock('../voiceCallEmptyChatCleanup',()=>({
+  prepareEmptyVoiceCallLocalDraftGuard:async()=>()=>emptyCleanup.safe,
+  readEmptyVoiceCallCleanupSnapshot:async(_input:unknown,signals:{hasPendingTurn:boolean})=>({chat:{chat_id:'remote-deleted'},hasPendingTurn:signals.hasPendingTurn}),
+  isEmptyVoiceCallCleanupEligible:(_input:unknown,snapshot:{hasPendingTurn:boolean})=>emptyCleanup.eligible&&!snapshot.hasPendingTurn,
+}));
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
     getRawChat: vi.fn(),
     upsertRawChat: vi.fn(),
+    saveChatDraftFields: vi.fn(),
     addChat: vi.fn(),
     updateChat: vi.fn(),
     deleteChat: vi.fn(),
+    deleteEmptyVoiceCallChat: vi.fn(),
     saveMessage: vi.fn(),
     getMessage: vi.fn(),
     getMessageWindowForChat: vi.fn(),
@@ -42,7 +53,7 @@ const mocks = vi.hoisted(() => ({
     getUserProfile: vi.fn(),
   },
   chatMetadataCache: {
-    invalidateChat: vi.fn(),
+    invalidateChat: vi.fn(), invalidateDraftProjection: vi.fn(),
   },
   chatListCache: {
     upsertChat: vi.fn(),
@@ -373,7 +384,7 @@ describe("handleEncryptedChatMetadataImpl", () => {
     );
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.markDirty).toHaveBeenCalled();
-    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("chat-metadata-only");
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("chat-metadata-only", "metadata-sync-header");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         detail: expect.objectContaining({
@@ -557,6 +568,33 @@ describe("handleEncryptedChatMetadataImpl", () => {
   });
 });
 
+/** Minimal IndexedDB request lifecycle: reads and writes share the draft transaction. */
+function draftTransactionDb(initial: Record<string, unknown> | undefined) {
+  let row = initial;
+  const db = {
+    db: {} as IDBDatabase, CHATS_STORE_NAME: "chats", init: vi.fn(async () => {}),
+    getChat: vi.fn(),
+    getTransaction: vi.fn(async () => {
+      const transaction = {
+        oncomplete: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        onabort: null as (() => void) | null,
+        abort: vi.fn(),
+        objectStore: () => ({
+          get: () => {
+            const request = { result: row, onsuccess: null as (() => void) | null, onerror: null };
+            queueMicrotask(() => { request.onsuccess?.(); queueMicrotask(() => transaction.oncomplete?.()); });
+            return request;
+          },
+          put: (value: Record<string, unknown>) => { row = structuredClone(value); },
+        }),
+      };
+      return transaction;
+    }),
+  };
+  return { db, read: () => row, commit: (value: Record<string, unknown>) => { row = value; } };
+}
+
 describe("handleChatDraftUpdatedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -564,9 +602,59 @@ describe("handleChatDraftUpdatedImpl", () => {
     draftEditorUIState.set({ ...initialDraftEditorState });
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
-    mocks.chatDB.upsertRawChat.mockResolvedValue(undefined);
+    mocks.chatDB.saveChatDraftFields.mockImplementation(async (chatId, fields, seed) => ({ ...seed, chat_id: chatId, ...fields }));
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,chats.persistence.client-encrypted
+  it.each([undefined, "older-wrapped-key"])("retains the first-send header when an earlier draft snapshot resumes (%s)", async (oldKey) => {
+    const { saveChatDraftFields } = await import("../db/chatCrudOperations");
+    const stale = { chat_id: "apps-first-chat", team_id: null, messages_v: 0,
+      draft_v: 1, encrypted_chat_key: oldKey, encrypted_title: null, metadata_v: 0 };
+    const memory = draftTransactionDb(stale);
+    mocks.chatDB.getRawChat.mockResolvedValueOnce(structuredClone(stale));
+    let resume!: () => void;
+    const blocked = new Promise<void>((resolve) => { resume = resolve; });
+    // Both entry points use the real DB operation, so a whole-row put in the
+    // old handler also runs against this same committed header and fails below.
+    mocks.chatDB.upsertRawChat = vi.fn(async (snapshot) => { await blocked; memory.commit(snapshot); });
+    mocks.chatDB.saveChatDraftFields.mockImplementationOnce(async (id, fields, seed) => {
+      await blocked;
+      return saveChatDraftFields(memory.db as never, id, fields, seed);
+    });
+    const handling = handleChatDraftUpdatedImpl({ dispatchEvent: vi.fn() } as never, {
+      event: "chat_draft_updated", chat_id: stale.chat_id,
+      data: { encrypted_draft_md: "master-encrypted-draft", encrypted_draft_preview: "preview" },
+      versions: { draft_v: 2 }, last_edited_overall_timestamp: 100,
+    });
+    await vi.waitFor(() => expect(mocks.chatDB.saveChatDraftFields.mock.calls.length + mocks.chatDB.upsertRawChat.mock.calls.length).toBeGreaterThan(0));
+    const committed = { ...stale, encrypted_chat_key: "first-send-master-wrapped-key",
+      messages_v: 1, encrypted_title: "new-title", metadata_v: 3, waiting_for_metadata: true };
+    memory.commit(committed);
+    resume();
+    await handling;
+    expect(memory.read()).toMatchObject({ ...committed, draft_v: 2,
+      encrypted_draft_md: "master-encrypted-draft", encrypted_draft_preview: "preview" });
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+  it("updates only an existing row unless a broadcast explicitly supplies a missing-row seed", async () => {
+    const { saveChatDraftFields } = await import("../db/chatCrudOperations");
+    const memory = draftTransactionDb(undefined);
+    await expect(saveChatDraftFields(memory.db as never, "draft", { draft_v: 2 })).resolves.toBeNull();
+    const seed = { chat_id: "draft", team_id: null, messages_v: 0, draft_v: 1 };
+    await saveChatDraftFields(memory.db as never, "draft", { draft_v: 2, encrypted_draft_md: "cipher" }, seed as never);
+    expect(memory.read()).toMatchObject({ ...seed, draft_v: 2, encrypted_draft_md: "cipher" });
+    memory.commit({ ...memory.read(), encrypted_chat_key: "wrapped", messages_v: 1, draft_v: 3 });
+    // Discard clears the current draft while preserving the first-message row.
+    await saveChatDraftFields(memory.db as never, "draft", {
+      draft_v: 0, cleared_draft_v: 3, encrypted_draft_md: null, encrypted_draft_preview: null,
+    });
+    await saveChatDraftFields(memory.db as never, "draft", { draft_v: 2, encrypted_draft_md: "stale" });
+    expect(memory.read()).toMatchObject({ encrypted_chat_key: "wrapped", messages_v: 1,
+      draft_v: 0, cleared_draft_v: 3, encrypted_draft_md: null });
   });
 
   // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,drafts.persistence.local-first-encrypted
@@ -584,7 +672,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     activeTeamContext.set({ team: null, teamId: null, epoch: 2 });
     finishLookup({ chat_id: "team-chat", team_id: "team-1", draft_v: 1 });
     await handling;
-    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.saveChatDraftFields).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
@@ -608,12 +696,11 @@ describe("handleChatDraftUpdatedImpl", () => {
 
     expect(mocks.chatDB.getChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.getRawChat).toHaveBeenCalledWith("chat-ideabucket");
-    expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: "chat-ideabucket",
+    expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledWith(
+      "chat-ideabucket", expect.objectContaining({
         ideabucket: true,
         ideabucket_processing_window_id: "bucket-1",
-      }),
+      }), expect.objectContaining({ chat_id: "chat-ideabucket" }),
     );
     expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
       expect.objectContaining({ chat_id: "chat-ideabucket" }),
@@ -658,9 +745,8 @@ describe("handleChatDraftUpdatedImpl", () => {
     });
 
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
-    expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: "chat-existing-draft",
+    expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledWith(
+      "chat-existing-draft", expect.objectContaining({
         encrypted_draft_md: "new-draft",
         encrypted_draft_preview: "new-preview",
         draft_v: 2,
@@ -696,8 +782,9 @@ describe("handleChatDraftUpdatedImpl", () => {
       last_edited_overall_timestamp: 100,
     });
 
-    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.saveChatDraftFields).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -731,8 +818,9 @@ describe("handleChatDraftUpdatedImpl", () => {
       last_edited_overall_timestamp: 90,
     });
 
-    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.saveChatDraftFields).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -755,6 +843,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
@@ -775,6 +864,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
@@ -798,7 +888,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith("remote-draft-only");
     expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
-    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only");
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only", "metadata-sync-draft");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatDeleted", detail: { chat_id: "remote-draft-only" } }),
     );
@@ -861,6 +951,33 @@ describe("handleChatDeletedImpl", () => {
     vi.clearAllMocks();
     mocks.chatListCache.getContextVersion.mockReturnValue(1);
     mocks.chatDB.deleteChat.mockResolvedValue(undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it.each(['empty','new-draft','new-message','atomic-race','pending-send'])('conditionally handles empty-call fanout without erasing %s state',async state=>{
+    emptyCleanup.safe=state!=='new-draft';emptyCleanup.eligible=state!=='new-message';emptyCleanup.pending=state==='pending-send';
+    mocks.chatDB.getChat.mockResolvedValue({chat_id:'remote-deleted'});
+    mocks.chatDB.deleteEmptyVoiceCallChat.mockResolvedValue({deleted:state==='empty',deletedEmbedIds:[]});
+    const service={activeAITasks:new Map(),dispatchEvent:vi.fn()} as unknown as ChatSynchronizationService;
+    await handleChatDeletedImpl(service,{chat_id:'remote-deleted',tombstone:true,empty_call_cleanup:{
+      cleanup_attempt_id:'00000000-1111-4222-8333-000000000000',call_id:null,expected_messages_v:0,lifecycle_message_ids:[],
+    }});
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledTimes(state==='empty'?1:0);
+    expect(service.dispatchEvent).toHaveBeenCalledTimes(state==='empty'?1:0);
+    emptyCleanup.safe=true;emptyCleanup.eligible=true;emptyCleanup.pending=false;
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('clears a sibling tab selection when shared storage already removed the empty shell',async()=>{
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    const service={activeAITasks:new Map(),dispatchEvent:vi.fn()} as unknown as ChatSynchronizationService;
+    await handleChatDeletedImpl(service,{chat_id:'remote-deleted',tombstone:true,empty_call_cleanup:{
+      cleanup_attempt_id:'00000000-1111-4222-8333-000000000000',call_id:null,expected_messages_v:0,lifecycle_message_ids:[],
+    }});
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith('remote-deleted');
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({type:'chatDeleted'}));
   });
 
   // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative

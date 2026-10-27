@@ -15,3 +15,5 @@ The website initially exists on `dev`. Keep `main` as the eventual production br
 Set `PUBLIC_WEBSITE_URL` and `PUBLIC_WEBAPP_URL` per environment to the exact public origins; set `PUBLIC_NEWSLETTER_API_BASE_URL` to the corresponding API origin. Defaults are host-aware for `landing.dev.openmates.org` and `openmates.org`. The API must allow the exact website origin for public newsletter requests via `NEWSLETTER_PUBLIC_WEBSITE_ORIGIN`. Newsletter confirmation URLs contain a token and use `noindex`, `no-store`, and `Referrer-Policy: no-referrer`.
 
 Keep this project's server-rendered public routes, `/robots.txt`, and `/sitemap.xml` without a catch-all app rewrite.
+
+Legacy `/example` and `/example/...` links redirect to the same path and query on the configured web-app origin. Unknown paths and missing HTML pages redirect to `/`; existing public content and endpoint responses keep their own behavior.

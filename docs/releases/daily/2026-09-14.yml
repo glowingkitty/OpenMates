@@ -5,7 +5,6 @@ generated_at: '2026-09-21T00:45:19+00:00'
 range:
   since: '2026-09-14T00:00:00+00:00'
   until: '2026-09-15T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,139 +29,116 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -177,10 +153,7 @@ sections:
     changed_paths:
     - backend/apps/events/app.yml
     - backend/apps/home/app.yml
-    - backend/apps/home/providers/immoscout24.py
-    - backend/apps/home/providers/kleinanzeigen.py
     - backend/apps/home/providers/results.py
-    - backend/apps/home/providers/wg_gesucht.py
     - backend/apps/home/skills/search_skill.py
     - backend/apps/news/app.yml
     - backend/apps/weather/app.yml
@@ -224,7 +197,6 @@ sections:
     - docs/plans/workflows-design-v1/plan.yml
     - docs/user-guide/developers/sdk-reference.md
     - docs/user-guide/developers/sdk-test-coverage.md
-    - examples/workflows/hourly-apartments.yml
     - examples/workflows/morning-weather-news.yml
     - examples/workflows/weekly-ai-events.yml
     - frontend/apps/web_app/src/routes/workflows/+page.svelte
@@ -270,42 +242,32 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -313,20 +275,17 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     feature_metadata_changed: true
@@ -374,7 +333,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -429,7 +387,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -487,21 +444,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -509,13 +462,11 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     feature_metadata_changed: true
@@ -568,15 +519,12 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -617,7 +565,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -644,7 +591,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -698,7 +644,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -751,7 +696,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -767,7 +711,6 @@ sections:
     changed_paths:
     - backend/apps/events/providers/google_events.py
     - backend/apps/events/skills/search_skill.py
-    - backend/apps/home/providers/kleinanzeigen.py
     - backend/core/api/app/services/workflow_chat_delivery_service.py
     - backend/core/api/app/services/workflow_service.py
     - backend/tests/test_events_provider_routing.py
@@ -786,21 +729,16 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: platform:workflows
@@ -808,13 +746,11 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     feature_metadata_changed: false
@@ -846,7 +782,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -881,7 +816,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: align responsive workflows and stop hidden rendering'
     commits:
@@ -895,7 +829,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: simplify workflow inputs and release embed resources'
     commits:
@@ -908,21 +841,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -930,13 +859,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
   - title: 'fix: bill workflow runs and tests through normal skill usage'
@@ -950,15 +877,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: match workflow controls and motion to the approved design'
     commits:
@@ -972,7 +896,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: open workflow sharing from run history'
     commits:
@@ -986,7 +909,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: align workflow UI with approved Figma designs'
     commits:
@@ -1000,7 +922,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: restore workflow inspiration and readable skill labels'
     commits:
@@ -1021,7 +942,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: complete workflow delivery and real search results'
     commits:
@@ -1034,21 +954,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: platform:workflows
@@ -1056,13 +971,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
   - title: 'fix: allow manual workflow runs before scheduling'
@@ -1077,7 +990,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'feat: implement workflow v1 builder and encrypted result delivery'
     commits:
@@ -1090,42 +1002,32 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -1133,20 +1035,17 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
   unknown_release_status: []
@@ -1163,7 +1062,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: simplify workflow inputs and release embed resources'
     commits:
@@ -1176,21 +1074,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -1198,13 +1092,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
   - title: 'fix: bill workflow runs and tests through normal skill usage'
@@ -1218,15 +1110,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'feat: implement workflow v1 builder and encrypted result delivery'
     commits:
@@ -1239,42 +1128,32 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -1282,20 +1161,17 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
 marketing_candidates:
@@ -1313,7 +1189,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: align responsive workflows and stop hidden rendering'
@@ -1328,7 +1203,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: simplify workflow inputs and release embed resources'
@@ -1342,21 +1216,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -1364,13 +1234,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     newsletter_ready: false
@@ -1385,15 +1253,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: match workflow controls and motion to the approved design'
@@ -1408,7 +1273,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: open workflow sharing from run history'
@@ -1423,7 +1287,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: align workflow UI with approved Figma designs'
@@ -1438,7 +1301,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore workflow inspiration and readable skill labels'
@@ -1461,7 +1323,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: complete workflow delivery and real search results'
@@ -1475,21 +1336,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: platform:workflows
@@ -1497,13 +1353,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     newsletter_ready: false
@@ -1519,7 +1373,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: implement workflow v1 builder and encrypted result delivery'
@@ -1533,42 +1386,32 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: platform:workflows
@@ -1576,20 +1419,17 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:weather:forecast
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     newsletter_ready: false
@@ -1866,7 +1706,6 @@ sources:
     changed_paths:
     - backend/apps/events/providers/google_events.py
     - backend/apps/events/skills/search_skill.py
-    - backend/apps/home/providers/kleinanzeigen.py
     - backend/core/api/app/services/workflow_chat_delivery_service.py
     - backend/core/api/app/services/workflow_service.py
     - backend/tests/test_events_provider_routing.py
@@ -1907,10 +1746,7 @@ sources:
     changed_paths:
     - backend/apps/events/app.yml
     - backend/apps/home/app.yml
-    - backend/apps/home/providers/immoscout24.py
-    - backend/apps/home/providers/kleinanzeigen.py
     - backend/apps/home/providers/results.py
-    - backend/apps/home/providers/wg_gesucht.py
     - backend/apps/home/skills/search_skill.py
     - backend/apps/news/app.yml
     - backend/apps/weather/app.yml
@@ -1954,7 +1790,6 @@ sources:
     - docs/plans/workflows-design-v1/plan.yml
     - docs/user-guide/developers/sdk-reference.md
     - docs/user-guide/developers/sdk-test-coverage.md
-    - examples/workflows/hourly-apartments.yml
     - examples/workflows/morning-weather-news.yml
     - examples/workflows/weekly-ai-events.yml
     - frontend/apps/web_app/src/routes/workflows/+page.svelte

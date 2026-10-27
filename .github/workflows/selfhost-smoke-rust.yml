@@ -1,0 +1,413 @@
+# Verifies that the self-hosted edition can be installed and opened from a
+# clean GitHub Actions runner without provider API keys.
+name: "Self-Hosted: Install Smoke"
+
+# This file is the authoritative command recipe for the three coordinator scopes.
+# Dispatch the isolated-tests workflow through ci_coordinator.py, not this recipe.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  install-smoke:
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SOURCE_INSTALL_PATH: /tmp/openmates-selfhost-source
+      NATIVE_SOURCE_INSTALL_PATH: /tmp/openmates-native-selfhost-source
+      IMAGE_INSTALL_PATH: /tmp/openmates-selfhost-image
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+      SELFHOST_API_URL: http://localhost:8000
+      COMPOSE_PARALLEL_LIMIT: 2
+      OPENMATES_CI_PRECOMPRESS: "0"
+      PLAYWRIGHT_BROWSER_CHANNEL: chrome
+      PLAYWRIGHT_VIDEO_MODE: 'off'
+      IMAGE_TAG: selfhost-smoke-${{ github.sha }}
+      NATIVE_STATE_DIR: /tmp/openmates-native-selfhost-profile
+      NATIVE_CLI_PATH: ${{ github.workspace }}/frontend/packages/openmates-tui-native/target/release/openmates
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install workspace dependencies
+        id: selfhost-dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build current branch CLI
+        id: selfhost-typescript-cli
+        run: pnpm --filter openmates build
+
+      - name: Build exact-source Rust self-host CLI
+        id: selfhost-rust-cli
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          cargo +1.98.1 build --release --locked --manifest-path frontend/packages/openmates-tui-native/Cargo.toml --bin openmates
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          install -d -m 700 "$NATIVE_STATE_DIR"
+          sha256sum "$NATIVE_CLI_PATH" > "$GITHUB_WORKSPACE/test-results/native-selfhost-cli-sha256.txt"
+          "$NATIVE_CLI_PATH" --version
+          "$NATIVE_CLI_PATH" server --help
+
+      - name: Install published CLI from npm
+        id: selfhost-published-cli
+        run: |
+          ALPHA_VERSION="$(npm view openmates@alpha version)"
+          PUBLISHED_CLI_PREFIX="$(mktemp -d "$RUNNER_TEMP/openmates-published-cli.XXXXXX")"
+          npm install --global --prefix "$PUBLISHED_CLI_PREFIX" "openmates@$ALPHA_VERSION"
+          INSTALLED_VERSION="$(npm list --global --prefix "$PUBLISHED_CLI_PREFIX" openmates --depth=0 --json | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { const data = JSON.parse(input); console.log(data.dependencies.openmates.version); });")"
+          test "$INSTALLED_VERSION" = "$ALPHA_VERSION"
+          "$PUBLISHED_CLI_PREFIX/bin/openmates" --help
+          "$PUBLISHED_CLI_PREFIX/bin/openmates" server --help
+
+      - name: Stage OpenObserve image for self-hosted install
+        id: selfhost-openobserve
+        # The official Docker Hub and public ECR tags have the same manifest
+        # digest. Pull from Docker Hub to avoid ECR's anonymous data limit on
+        # fresh GitHub runners while keeping the installed Compose image exact.
+        run: |
+          docker pull docker.io/openobserve/openobserve@sha256:67602a1801b0623cb41b2038374d2c93f843f667f126b94d1000aab6d0c7440f
+          docker tag docker.io/openobserve/openobserve@sha256:67602a1801b0623cb41b2038374d2c93f843f667f126b94d1000aab6d0c7440f public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+
+      - name: Source-mode timing baseline
+        id: selfhost-legacy-source
+        # docAssert('openmates server install --source-path starts self-host smoke stack')
+        env:
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          start_all=$(date +%s)
+
+          install_start=$(date +%s)
+          $CLI server install --path "$SOURCE_INSTALL_PATH" --source-path "$GITHUB_WORKSPACE"
+          install_end=$(date +%s)
+
+          start_start=$(date +%s)
+          $CLI server start --path "$SOURCE_INSTALL_PATH" || {
+            echo "Initial source-mode startup failed; retrying once after Docker pull backoff."
+            sleep 30
+            $CLI server start --path "$SOURCE_INSTALL_PATH"
+          }
+          start_end=$(date +%s)
+
+          health_start=$(date +%s)
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          health_end=$(date +%s)
+          $CLI server update --path "$SOURCE_INSTALL_PATH" --dry-run --json | tee "$GITHUB_WORKSPACE/test-results/selfhost-source-update-plan.json"
+          node -e "const p=require(process.argv[1]); if (p.mode !== 'source' || p.status !== 'planned') { console.error(p); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-source-update-plan.json"
+          if $CLI server update --path "$SOURCE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --dry-run 2>"$GITHUB_WORKSPACE/test-results/selfhost-source-update-rejects-image-tag.txt"; then
+            echo "source-mode update unexpectedly accepted --image-tag"
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const e=fs.readFileSync(process.argv[1], 'utf8'); if (!e.includes('only apply to image-mode installs')) { console.error(e); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-source-update-rejects-image-tag.txt"
+          end_all=$(date +%s)
+
+          cat > "$GITHUB_WORKSPACE/test-results/selfhost-source-timing.json" <<JSON
+          {"mode":"source","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"total_s":$((end_all-start_all)),"image_tag":""}
+          JSON
+          $CLI server uninstall --path "$SOURCE_INSTALL_PATH" --yes || true
+
+      - name: Native source-mode install lifecycle
+        id: selfhost-native-source
+        env:
+          OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}/frontend/packages/openmates-cli/templates
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          # This fresh runner must have no previous self-host containers.
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project)"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode source --milestone volume-absent --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-source-volume-absent.json"
+          $CLI server install --path "$NATIVE_SOURCE_INSTALL_PATH" --source-path "$GITHUB_WORKSPACE" --json > "$GITHUB_WORKSPACE/test-results/selfhost-native-source-install.json"
+          $CLI server start --path "$NATIVE_SOURCE_INSTALL_PATH"
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          $CLI server status --path "$NATIVE_SOURCE_INSTALL_PATH" --json > "$GITHUB_WORKSPACE/test-results/selfhost-native-source-status.json"
+          node -e "const p=require(process.argv[1]); if(p.mode!=='source'||p.status!=='success'||!p.containers.some(c=>String(c.State).toLowerCase()==='running'))process.exit(1);" "$GITHUB_WORKSPACE/test-results/selfhost-native-source-status.json"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode source --milestone fresh --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-source-fresh.json"
+          $CLI server update --path "$NATIVE_SOURCE_INSTALL_PATH" --dry-run --json > "$GITHUB_WORKSPACE/test-results/selfhost-native-source-update-plan.json"
+          node -e "const p=require(process.argv[1]);if(p.mode!=='source'||p.status!=='planned')process.exit(1);" "$GITHUB_WORKSPACE/test-results/selfhost-native-source-update-plan.json"
+          $CLI server stop --path "$NATIVE_SOURCE_INSTALL_PATH"
+          $CLI server status --path "$NATIVE_SOURCE_INSTALL_PATH" --json > "$GITHUB_WORKSPACE/test-results/selfhost-native-source-stopped.json"
+          node -e "const p=require(process.argv[1]);if(p.containers.some(c=>String(c.State).toLowerCase()==='running'))process.exit(1);" "$GITHUB_WORKSPACE/test-results/selfhost-native-source-stopped.json"
+          $CLI server start --path "$NATIVE_SOURCE_INSTALL_PATH"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode source --milestone restart --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-source-restart.json"
+          $CLI server stop --path "$NATIVE_SOURCE_INSTALL_PATH"
+          $CLI server uninstall --path "$NATIVE_SOURCE_INSTALL_PATH" --yes
+          test -z "$(docker ps -aq --filter label=com.docker.compose.project)"
+
+      - name: Build local image-mode images
+        id: selfhost-images
+        run: |
+          image_labels=(
+            --label org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            --label "org.opencontainers.image.revision=$GITHUB_SHA"
+            --label "org.opencontainers.image.version=$IMAGE_TAG"
+          )
+          build_with_retry() {
+            for attempt in 1 2 3; do
+              if docker build "$@"; then
+                return 0
+              fi
+              if [ "$attempt" = "3" ]; then
+                return 1
+              fi
+              echo "docker build failed on attempt $attempt; retrying after registry backoff..."
+              sleep $((attempt * 20))
+            done
+          }
+
+          build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/api/Dockerfile.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} "${image_labels[@]}" --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-directus:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/directus/Dockerfile backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
+          build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} "${image_labels[@]}" -f backend/admin_sidecar/Dockerfile .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} "${image_labels[@]}" --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted --build-arg OPENMATES_CI_PRECOMPRESS="$OPENMATES_CI_PRECOMPRESS" -f frontend/apps/web_app/Dockerfile .
+
+          api_image="ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG}"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.source"}}' "$api_image")" = "https://github.com/glowingkitty/OpenMates"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$api_image")" = "$GITHUB_SHA"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$api_image")" = "$IMAGE_TAG"
+
+      - name: Image-mode self-hosted install and timing
+        id: selfhost-native-image
+        # docAssert('self-host install smoke passes without provider API keys')
+        env:
+          OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}/frontend/packages/openmates-cli/templates
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          start_all=$(date +%s)
+
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone volume-absent --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-image-volume-absent.json"
+          install_start=$(date +%s)
+          $CLI server install --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG"
+          # Compose bind mounts must not create this path as root at first start;
+          # the same installer user needs to write update state and lock files.
+          test -d "$IMAGE_INSTALL_PATH/.openmates/runtime-health/metrics"
+          test "$(stat -c %u "$IMAGE_INSTALL_PATH/.openmates")" = "$(id -u)"
+          test -w "$IMAGE_INSTALL_PATH/.openmates"
+          install_end=$(date +%s)
+
+          start_start=$(date +%s)
+          $CLI server start --path "$IMAGE_INSTALL_PATH" || {
+            echo "Initial image-mode startup failed; retrying once after Docker pull backoff."
+            sleep 30
+            $CLI server start --path "$IMAGE_INSTALL_PATH"
+          }
+          start_end=$(date +%s)
+
+          health_start=$(date +%s)
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          health_end=$(date +%s)
+
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone fresh --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-image-fresh.json"
+          $CLI server stop --path "$IMAGE_INSTALL_PATH"
+          $CLI server start --path "$IMAGE_INSTALL_PATH"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone restart --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-image-restart.json"
+
+          update_start=$(date +%s)
+          $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --dry-run --json | tee "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
+          node -e "const p=require(process.argv[1]); if (p.mode !== 'image' || p.targetImageTag !== process.env.IMAGE_TAG || p.status !== 'planned') { console.error(p); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
+          # This fixture has no admin email credentials. The update must keep
+          # the new containers running while failing closed at the email gate.
+          if $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --json > "$GITHUB_WORKSPACE/test-results/selfhost-image-update-result.json" 2> "$GITHUB_WORKSPACE/test-results/selfhost-image-update-stderr.txt"; then
+            echo "Image update unexpectedly passed without an admin completion email."
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.env.IMAGE_INSTALL_PATH+'/.openmates/core-update-status.json','utf8')); const e=fs.readFileSync(process.argv[1],'utf8'); if (s.status!=='degraded' || s.step!=='completion-email' || s.updateMode!=='image' || s.targetImageTag!==process.env.IMAGE_TAG || s.installedVersion!==process.env.IMAGE_TAG || !s.runtimeCompletedAt || s.completionEmailDelivery?.status!=='unavailable' || s.completionEmailDelivery?.attempts!==0 || s.completionEmailDelivery?.sanitizedReason!=='email_not_configured' || !e.includes('admin completion email was not accepted')) { console.error({status:s,error:e}); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-image-update-stderr.txt"
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          node -e "const fs=require('node:fs'); const env=fs.readFileSync(process.env.IMAGE_INSTALL_PATH + '/.env', 'utf8'); if (!env.includes('OPENMATES_IMAGE_TAG=' + process.env.IMAGE_TAG)) process.exit(1);"
+          update_end=$(date +%s)
+          end_all=$(date +%s)
+
+          cat > "$GITHUB_WORKSPACE/test-results/selfhost-image-timing.json" <<JSON
+          {"mode":"image","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"update_s":$((update_end-update_start)),"total_s":$((end_all-start_all)),"image_tag":"${IMAGE_TAG}"}
+          JSON
+
+      - name: Preserve epoch 0 across restart
+        id: selfhost-epoch0-restart
+        env:
+          OPENMATES_SELFHOST_EPOCH_PRESERVATION_FIXTURE: "1"
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          epoch=0
+          state=epoch-zero-paused
+          python3 "$GITHUB_WORKSPACE/scripts/selfhost_chat_epoch_fixture.py" --state "$state"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-before --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-before.json"
+          $CLI server stop --path "$IMAGE_INSTALL_PATH"
+          $CLI server start --path "$IMAGE_INSTALL_PATH"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-restart --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-restart.json"
+
+      - name: Preserve epoch 0 across update
+        id: selfhost-epoch0-update
+        env:
+          OPENMATES_SELFHOST_EPOCH_PRESERVATION_FIXTURE: "1"
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          epoch=0
+          if $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --json > "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-update.json" 2> "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-stderr.txt"; then
+            echo "Image update unexpectedly passed without an admin completion email."
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.env.IMAGE_INSTALL_PATH+'/.openmates/core-update-status.json','utf8')); const e=fs.readFileSync(process.argv[1],'utf8'); if (s.status!=='degraded' || s.step!=='completion-email' || s.updateMode!=='image' || s.targetImageTag!==process.env.IMAGE_TAG || s.installedVersion!==process.env.IMAGE_TAG || !s.runtimeCompletedAt || s.completionEmailDelivery?.status!=='unavailable' || s.completionEmailDelivery?.attempts!==0 || s.completionEmailDelivery?.sanitizedReason!=='email_not_configured' || !e.includes('admin completion email was not accepted')) process.exit(1);" "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-stderr.txt"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-update --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-update.json"
+
+      - name: Preserve epoch 1 across restart
+        id: selfhost-epoch1-restart
+        env:
+          OPENMATES_SELFHOST_EPOCH_PRESERVATION_FIXTURE: "1"
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          epoch=1
+          state=epoch-one-paused
+          python3 "$GITHUB_WORKSPACE/scripts/selfhost_chat_epoch_fixture.py" --state "$state"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-before --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-before.json"
+          $CLI server stop --path "$IMAGE_INSTALL_PATH"
+          $CLI server start --path "$IMAGE_INSTALL_PATH"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-restart --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-restart.json"
+
+      - name: Preserve epoch 1 across update
+        id: selfhost-epoch1-update
+        env:
+          OPENMATES_SELFHOST_EPOCH_PRESERVATION_FIXTURE: "1"
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
+        run: |
+          CLI="$NATIVE_CLI_PATH --state-dir $NATIVE_STATE_DIR"
+          epoch=1
+          if $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --json > "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-update.json" 2> "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-stderr.txt"; then
+            echo "Image update unexpectedly passed without an admin completion email."
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.env.IMAGE_INSTALL_PATH+'/.openmates/core-update-status.json','utf8')); const e=fs.readFileSync(process.argv[1],'utf8'); if (s.status!=='degraded' || s.step!=='completion-email' || s.updateMode!=='image' || s.targetImageTag!==process.env.IMAGE_TAG || s.installedVersion!==process.env.IMAGE_TAG || !s.runtimeCompletedAt || s.completionEmailDelivery?.status!=='unavailable' || s.completionEmailDelivery?.attempts!==0 || s.completionEmailDelivery?.sanitizedReason!=='email_not_configured' || !e.includes('admin completion email was not accepted')) process.exit(1);" "$GITHUB_WORKSPACE/test-results/selfhost-image-preserve-${epoch}-stderr.txt"
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone preservation-update --expected-epoch "$epoch" --expected-paused --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-preserve-${epoch}-update.json"
+
+      - name: Restore ready epoch fixture
+        id: selfhost-restore-ready
+        env:
+          OPENMATES_SELFHOST_EPOCH_PRESERVATION_FIXTURE: "1"
+        run: |
+          # Restore only this empty owned fixture for the unchanged browser flow.
+          python3 "$GITHUB_WORKSPACE/scripts/selfhost_chat_epoch_fixture.py" --state restore-ready
+          python3 "$GITHUB_WORKSPACE/scripts/check_selfhost_chat_readiness.py" --mode image --milestone restored-ready --output "$GITHUB_WORKSPACE/test-results/selfhost-chat-readiness-restored-ready.json"
+
+      - name: Summarize setup timing
+        id: selfhost-timing
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const files = ['selfhost-source-timing.json', 'selfhost-image-timing.json'];
+          const summary = files.filter(file => fs.existsSync('test-results/' + file))
+            .map(file => JSON.stringify(JSON.parse(fs.readFileSync('test-results/' + file, 'utf8')))).join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
+          console.log(summary);
+          NODE
+
+      - name: Check server status JSON
+        id: selfhost-server-status
+        run: |
+          curl -fsS http://localhost:8000/v1/settings/server-status | tee /tmp/server-status.json
+          node -e "const s=require('/tmp/server-status.json'); if (!s.is_self_hosted || s.payment_enabled || s.ai_models_configured) { console.error(s); process.exit(1); }"
+
+      - name: Check backend and web Docker containers
+        id: selfhost-containers
+        run: |
+          for container in api webapp cms; do
+            status="$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
+            echo "$container $status"
+            test "$status" = "true healthy"
+            case "$container" in
+              api) image_name=openmates-api ;;
+              webapp) image_name=openmates-webapp ;;
+              cms) image_name=openmates-directus ;;
+            esac
+            test "$(docker inspect -f '{{.Config.Image}}' "$container")" = "ghcr.io/glowingkitty/${image_name}:${IMAGE_TAG}"
+          done
+
+      - name: Verify Chrome browser
+        id: selfhost-chrome
+        run: google-chrome --version
+
+      - name: Run self-hosted smoke spec
+        id: selfhost-browser
+        working-directory: frontend/apps/web_app
+        env:
+          SELFHOST_INSTALL_PATH: ${{ env.IMAGE_INSTALL_PATH }}
+          OPENMATES_CLI_PATH: ${{ github.workspace }}/frontend/packages/openmates-cli/dist/cli.js
+          OPENMATES_NATIVE_CLI_PATH: ${{ env.NATIVE_CLI_PATH }}
+          OPENMATES_NATIVE_STATE_DIR: ${{ env.NATIVE_STATE_DIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          npx playwright test tests/selfhost-smoke.spec.ts --reporter=json > "$GITHUB_WORKSPACE/test-results/selfhost-smoke-playwright.json"
+
+      - name: Show self-hosted status and logs
+        id: selfhost-diagnostics
+        if: always()
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci_selfhost_diagnostics.py"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfhost-smoke-results
+          path: |
+            test-results/selfhost-smoke-playwright.json
+            test-results/native-selfhost-cli-sha256.txt
+            test-results/selfhost-source-update-plan.json
+            test-results/selfhost-source-update-rejects-image-tag.txt
+            test-results/selfhost-source-timing.json
+            test-results/selfhost-native-source-*.json
+            test-results/selfhost-chat-readiness-*.json
+            test-results/selfhost-image-timing.json
+            test-results/selfhost-image-update-plan.json
+            test-results/selfhost-image-update-result.json
+            test-results/selfhost-image-update-stderr.txt
+            test-results/ci-stack.log
+            test-results/selfhost-user-data-backup.tar.gz
+            frontend/apps/web_app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Uninstall self-hosted edition
+        id: selfhost-uninstall
+        if: always()
+        run: |
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server uninstall --path "$SOURCE_INSTALL_PATH" --yes || true
+          "$NATIVE_CLI_PATH" --state-dir "$NATIVE_STATE_DIR" server uninstall --path "$NATIVE_SOURCE_INSTALL_PATH" --yes || true
+          "$NATIVE_CLI_PATH" --state-dir "$NATIVE_STATE_DIR" server uninstall --path "$IMAGE_INSTALL_PATH" --yes || true

@@ -9,7 +9,10 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+  import { APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, takeAppsWorkspaceWorkflowHandoff,
+    isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
+	import { onMount, untrack } from 'svelte';
+	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
 	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
@@ -105,10 +108,17 @@
 	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
+	$effect(() => {
+		if (!routeError) return;
+		// Keep diagnostic transport errors out of product copy. The notification
+		// stack owns failure presentation; route state still tracks submit outcome.
+		const message = /HTTP \d{3}|^WORKFLOW_[A-Z_]+$/.test(routeError)
+			? $text('workflows.builder.ai_failed') : routeError;
+		untrack(() => notificationStore.error(message));
+	});
 	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
 	let completionRetry = $state(0);
 	let authoringReminder = $state<string | null>(null);
-	let error = $derived(routeError ?? $workflowWorkspaceStore.error);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
 	let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
 	let editorTitle = $state('');
@@ -127,10 +137,6 @@
 	let workflowClosing = $state(false);
 	let workflowOpening = $state(false);
 
-	// Keep the pane mounted for the same 320ms CSS motion used by UnifiedEmbedFullscreen.
-	function fullscreenWorkflowMotion() {
-		return { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320 };
-	}
 	let workflowInputText = $state('');
 	let editorInstruction = $state('');
 	let homeComposerFocused = $state(false);
@@ -229,6 +235,19 @@
 		});
 	}
 	let showManageView = $derived((canRenderWorkflowData && (isManageView || !!provisionalFullscreen)) || (!canRenderWorkflowData && !!guestTemplate));
+	// Retain the outgoing surface's data as well as its DOM until the outro finishes.
+	let outgoingGuestTemplate = $state<typeof guestTemplate>(null);
+	let outgoingProvisionalWorkflow = $state<WorkflowDetail | null>(null);
+	let outgoingRunsView = $state(false);
+	$effect(() => {
+		if (!showManageView) return;
+		outgoingGuestTemplate = guestTemplate;
+		outgoingProvisionalWorkflow = provisionalFullscreen;
+		outgoingRunsView = isRunsView;
+	});
+	let displayedGuestTemplate = $derived(guestTemplate ?? (!showManageView ? outgoingGuestTemplate : null));
+	let displayedProvisionalWorkflow = $derived(provisionalFullscreen ?? (!showManageView ? outgoingProvisionalWorkflow : null));
+	let displayedRunsView = $derived(showManageView ? isRunsView : outgoingRunsView);
 	let visibleWorkflowGreetingName = $derived(
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
@@ -882,6 +901,22 @@
 			icon: item.icon ?? 'workflow'
 		});
 	}
+
+  function consumeAppsWorkflowHandoff(): void {
+    if (!canLoadWorkflows || saving || pendingSaveSessionId) return;
+    const request = takeAppsWorkspaceWorkflowHandoff();
+    if (!request || !isAppsWorkspaceHandoffCurrent(request)) return;
+    if (request.attachments?.length) { void queueAppsWorkspaceChatHandoff(request); return; }
+    void submitWorkflowInput(appsWorkflowInstruction(request));
+  }
+  onMount(() => {
+    window.addEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
+    consumeAppsWorkflowHandoff();
+    return () => window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
+  });
+  $effect(() => {
+    if (canLoadWorkflows && !saving && !pendingSaveSessionId) untrack(consumeAppsWorkflowHandoff);
+  });
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
 		const instruction = text.trim();
@@ -1569,9 +1604,7 @@
 				data-testid="workflows-page"
 				data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
 			>
-				{#if error}
-					<div class="error-banner" data-testid="workflows-error">{error}</div>
-				{/if}
+				<!-- Background loading failures use the header connection indicator. -->
 				{#if completionChatStatus !== 'idle'}
 					<WorkflowCompletionStatus status={completionChatStatus} onRetry={() => completionRetry += 1} />
 				{/if}
@@ -1582,13 +1615,14 @@
 						onComposerDismiss={() => { homeComposerFocused = false; }}
 						surface="workflows"
 						testId="workflows-start-screen"
-						heading={`Hey ${visibleWorkflowGreetingName}!`}
-						subtitle="What do you want to automate next?"
+						heading={$text('workflows.home.greeting', { values: { name: visibleWorkflowGreetingName } })}
+						subtitle={$text(canRenderWorkflowData ? 'workflows.home.subtitle' : 'workflows.home.guest_subtitle')}
+						continueLabel=""
 						actionItems={visibleWorkflowLandingItems}
 						actionItemsTestId="workflow-mixed-row"
 						itemTestId="workflow-landing-card"
 						showReportIssue
-						showComposer={canRenderWorkflowData}
+						showComposer
 						continueItems={canRenderWorkflowData ? [] : workflowTemplateItems}
 						continueItemTestId="workflow-landing-card"
 						showAllMode={browseMode !== 'recent'}
@@ -1628,6 +1662,8 @@
 						<svelte:fragment slot="composer">
 							<input bind:this={workflowImportInput} type="file" accept=".workflow.yml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
 							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
+							<div class="workflow-home-composer">
+							<div inert={!canRenderWorkflowData}>
 							<WorkspacePromptComposer
 								surface="workflows"
 								bind:value={workflowInputText}
@@ -1635,7 +1671,7 @@
 								placeholder={$text('workflows.builder.new_workflow_placeholder')}
 								submitLabel="Create workflow"
 								submittingLabel="Creating..."
-								disabled={!canRenderWorkflowData}
+								disabled={false}
 								submitting={saving || !!pendingSaveSessionId}
 								testId="workflow-input-composer"
 								inputTestId="workflow-input-textarea"
@@ -1648,6 +1684,11 @@
 								onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'home')}
 								onRecordingClose={() => { voiceTarget = null; }}
 							/>
+							</div>
+							{#if !canRenderWorkflowData}
+								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={() => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); }}></button>
+							{/if}
+							</div>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
 							</div>
 							{#if createdAiWorkflowIds.length > 1 && authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
@@ -1660,15 +1701,20 @@
 						class="workflow-management"
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
-						class:composer-docked={!!provisionalFullscreen || (!!selectedWorkflow && !isRunsView && !!editorGraph)}
+						class:composer-docked={!!displayedProvisionalWorkflow || (!!selectedWorkflow && !displayedRunsView && !!editorGraph)}
 						class:composer-focused={editorComposerFocused}
 						data-testid="workflow-management"
-						transition:fullscreenWorkflowMotion
+						transition:workspacePaneMotion
 						onintrostart={() => {
 							workflowClosing = false;
 							workflowOpening = true;
 						}}
 						onintroend={() => (workflowOpening = false)}
+						onoutroend={() => {
+							workflowClosing = false;
+							outgoingGuestTemplate = null;
+							outgoingProvisionalWorkflow = null;
+						}}
 						onoutrostart={() => {
 							workflowOpening = false;
 							workflowClosing = true;
@@ -1676,12 +1722,12 @@
 					>
 						<div class="management-grid" inert={editorComposerFocused}>
 							<section class="workflow-detail" data-testid="workflow-detail">
-								{#if guestTemplate && !canRenderWorkflowData}
+								{#if displayedGuestTemplate && !canRenderWorkflowData}
 									<WorkflowDetailPage
-										title={guestTemplate.item.title}
-										description={guestTemplate.description}
-										category={guestTemplate.item.category ?? 'general_knowledge'}
-										icon={guestTemplate.item.icon ?? 'workflow'}
+										title={displayedGuestTemplate.item.title}
+										description={displayedGuestTemplate.description}
+										category={displayedGuestTemplate.item.category ?? 'general_knowledge'}
+										icon={displayedGuestTemplate.item.icon ?? 'workflow'}
 										enabled={false} canEnable={false} canRun={false} saving={false} provisional
 										activeTab="template"
 										onTabChange={() => undefined} onToggleEnabled={() => undefined}
@@ -1693,15 +1739,15 @@
 									/>
 									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
 										<div data-testid="workflow-editor">
-											<WorkflowGraphRenderer graph={guestTemplate.graph} readOnly guestTemplate={{ onSignup: () => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); } }} onChange={() => undefined} onSave={null}/>
+											<WorkflowGraphRenderer graph={displayedGuestTemplate.graph} readOnly guestTemplate={{ onSignup: () => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); } }} onChange={() => undefined} onSave={null}/>
 										</div>
 									</div>
-								{:else if provisionalFullscreen}
+								{:else if displayedProvisionalWorkflow}
 									<WorkflowDetailPage
-										title={provisionalFullscreen.title}
-										description={provisionalFullscreen.description ?? ''}
-										category={provisionalFullscreen.category ?? 'general_knowledge'}
-										icon={workflowIcon(provisionalFullscreen.title, provisionalFullscreen.icon, provisionalFullscreen.graph)}
+										title={displayedProvisionalWorkflow.title}
+										description={displayedProvisionalWorkflow.description ?? ''}
+										category={displayedProvisionalWorkflow.category ?? 'general_knowledge'}
+										icon={workflowIcon(displayedProvisionalWorkflow.title, displayedProvisionalWorkflow.icon, displayedProvisionalWorkflow.graph)}
 										enabled={false} canEnable={false} canRun={false} saving={true} provisional
 										activeTab="template"
 										onTabChange={() => undefined} onToggleEnabled={() => undefined}
@@ -1715,11 +1761,11 @@
 										<div data-testid="workflow-editor">
 											<div class="workflow-ai-pending" data-testid="workflow-ai-processing" role="status">{pendingSaveMessage || (authoringPhase === 'saving' ? $text('workflows.builder.ai_preview_saving') : $text('workflows.builder.processing'))}</div>
 											<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
-												{#if (acceptedNodeCounts[provisionalFullscreen.id] ?? 0) > 0}<p data-testid="workflow-ai-accepted-nodes">{$text(acceptedNodeCounts[provisionalFullscreen.id] === 1 ? 'workflows.builder.ai_validated_step' : 'workflows.builder.ai_validated_steps', { values: { count: acceptedNodeCounts[provisionalFullscreen.id] } })}</p>{/if}
+												{#if (acceptedNodeCounts[displayedProvisionalWorkflow.id] ?? 0) > 0}<p data-testid="workflow-ai-accepted-nodes">{$text(acceptedNodeCounts[displayedProvisionalWorkflow.id] === 1 ? 'workflows.builder.ai_validated_step' : 'workflows.builder.ai_validated_steps', { values: { count: acceptedNodeCounts[displayedProvisionalWorkflow.id] } })}</p>{/if}
 												<p>{$text('workflows.builder.ai_preview_pending')}</p>
 											</div>
 											<div data-testid="workflow-ai-pending-preview" data-disabled="true" data-save-status={authoringPhase ?? 'saving'}>
-												<WorkflowGraphRenderer graph={provisionalFullscreen.graph} readOnly onChange={() => undefined} onSave={null}/>
+												<WorkflowGraphRenderer graph={displayedProvisionalWorkflow.graph} readOnly onChange={() => undefined} onSave={null}/>
 											</div>
 										</div>
 									</div>
@@ -1740,7 +1786,7 @@
 										canEnable={editorActivationReady && !editorDirty}
 										canRun={savedRunReady}
 										{lastStartedRunId}
-										activeTab={isRunsView ? 'runs' : 'template'}
+										activeTab={displayedRunsView ? 'runs' : 'template'}
 										{saving}
 										onTabChange={requestWorkflowTab}
 										onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
@@ -1759,11 +1805,11 @@
 										runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
 									/>
 									{/key}
-									{#if !isRunsView && selectedWorkflow.binding_requirements?.length}
+									{#if !displayedRunsView && selectedWorkflow.binding_requirements?.length}
 										<WorkflowBindingReview requirements={selectedWorkflow.binding_requirements} completed={selectedWorkflow.completed_binding_requirements ?? []} graph={editorGraph ?? selectedWorkflow.graph} {saving} hasUnsavedChanges={editorDirty || !!workflowGraphRef?.hasPendingDraft()} onEdit={(nodeId) => workflowGraphRef?.openNodeEditor(nodeId)} onConfirm={confirmBinding} />
 									{/if}
 
-									{#if isRunsView}
+									{#if displayedRunsView}
 										<WorkflowRunHistory
 											workflow={selectedWorkflow}
 											{runs}
@@ -1847,7 +1893,7 @@
 								{/if}
 							</section>
 						</div>
-						{#if provisionalFullscreen}
+						{#if displayedProvisionalWorkflow}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
 									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
@@ -1857,7 +1903,7 @@
 									onAudioRecorded={() => undefined} onRecordingClose={() => undefined}/>
 									{#if saving}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.processing')}</span><button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop')}</button></div>{/if}
 							</div>
-						{:else if selectedWorkflow && !isRunsView && editorGraph}
+						{:else if selectedWorkflow && !displayedRunsView && editorGraph}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
 									bind:focusActive={editorComposerFocused}
@@ -1960,9 +2006,9 @@
 					</div>
 				{/if}
 			</main>
-			{#if canRenderWorkflowData}<div class="settings-wrapper">
-				<Settings isLoggedIn={true} />
-			</div>{/if}
+			<div class="settings-wrapper">
+				<Settings isLoggedIn={$authStore.isAuthenticated} />
+			</div>
 		</div>
 	</div>
 {/if}
@@ -1972,6 +2018,9 @@
 <svelte:window onpointerdown={(event) => { if (editorComposerFocused && event.target instanceof Element && event.target.closest('.workflow-management') && !event.target.closest('.workflow-ai-composer')) editorComposerFocused = false; }} />
 
 <style>
+	.workflow-home-composer { position: relative; width: min(629px, 100%); margin: 0 auto; }
+	.workflow-guest-signup { position: absolute; inset: 0; border: 0; border-radius: var(--radius-5); background: transparent; cursor: text; }
+	.workflow-guest-signup:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
 	.workflow-management.composer-focused .workflow-ai-composer { background: transparent; }
 	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
@@ -2017,7 +2066,7 @@
 		height: auto;
 		box-sizing: border-box;
 		gap: 0;
-		padding: 10px 20px 10px 10px;
+		padding: 10px 20px 20px 10px;
 	}
 	.main-content > :global(header.webapp) { flex: none; }
 
@@ -2258,14 +2307,6 @@
 		background: var(--color-button-primary);
 	}
 
-	.error-banner {
-		margin-block-end: 14px;
-		padding: 10px 12px;
-		border-radius: var(--radius-8, 20px);
-		color: var(--color-error, #b00020);
-		background: color-mix(in srgb, var(--color-error, #b00020) 10%, transparent);
-	}
-
 	.workflow-test-now-row {
 		display: flex;
 		justify-content: center;
@@ -2309,16 +2350,11 @@
 		min-width: fit-content;
 	}
 
+	@media (max-width: 600px) {
+		.main-content { inset-inline-start: 0; }
+		.workflows-container { padding: 10px; box-sizing: border-box; }
+	}
 	@media (max-width: 760px) {
-		.main-content {
-			inset-inline-start: 0;
-		}
-
-		.workflows-container {
-			padding: 8px 10px;
-			box-sizing: border-box;
-		}
-
 		/* Let the all-workflows scroll area use the space above the composer. */
 		.workflows-start :global(.workspace-home-shell[data-surface='workflows'].all-items-mode) {
 			display: flex;
@@ -2361,41 +2397,11 @@
 			border-radius: var(--radius-10, 24px);
 		}
 	}
-	/* Release the full pane's graphics surface when its entrance finishes. */
 	.workflow-management.opening,
-	.workflow-management.closing {
-		will-change: transform, opacity;
-		animation: workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
-	}
-	.workflow-management.closing {
-		animation-name: workflow-pane-close;
-		pointer-events: none;
-	}
-	@keyframes workflow-pane-open {
-		from {
-			transform: translateY(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateY(0);
-			opacity: 1;
-		}
-	}
-	@keyframes workflow-pane-close {
-		from {
-			transform: translateY(0);
-			opacity: 1;
-		}
-		to {
-			transform: translateY(100%);
-			opacity: 0;
-		}
-	}
+	.workflow-management.closing { will-change: transform, opacity; }
+	.workflow-management.closing { pointer-events: none; }
 	@media (prefers-reduced-motion: reduce) {
-		.workflow-management,
-		.workflow-management.closing {
-			animation: none;
-			will-change: auto;
-		}
+		.workflow-management.opening,
+		.workflow-management.closing { will-change: auto; }
 	}
 </style>

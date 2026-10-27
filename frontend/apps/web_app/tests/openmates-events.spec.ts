@@ -62,7 +62,7 @@ test('human event SEO navigation forwards to the matching app event detail', asy
 	await expect.poll(() => new URL(page.url()).hash, { timeout: 20000 }).toContain(EVENT_EMBED_HASH);
 	expect(new URL(page.url()).pathname).toBe('/');
 	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
-	await expect(page.getByText('Register on Luma').first()).toBeVisible({ timeout: 10000 });
+	await expect(page.getByText('Register on ExampleEvents').first()).toBeVisible({ timeout: 10000 });
 	await expect(page.locator('body')).toContainText(EVENT.organizer.name);
 	await expect(page.locator('body')).toContainText(EVENT.description.slice(0, 45));
 });
@@ -78,7 +78,7 @@ test.describe('event SEO crawler view', () => {
 		await expect(page.getByRole('article').getByRole('heading', { name: EVENT_TITLE })).toBeVisible();
 		await expect(page.getByRole('article')).toContainText(EVENT.summary);
 		await expect(page.getByRole('link', { name: 'Open event in OpenMates' })).toHaveAttribute('href', new RegExp(`${EVENT_EMBED_HASH}$`));
-		await expect(page.getByRole('link', { name: 'Register on Luma' })).toHaveAttribute('href', EVENT.url);
+		await expect(page.getByRole('link', { name: 'Register on ExampleEvents' })).toHaveAttribute('href', EVENT.url);
 		const jsonLd = await page.locator('script[type="application/ld+json"]').first().textContent();
 		expect(JSON.parse(jsonLd ?? '{}')).toMatchObject({
 			'@type': 'Event',
@@ -95,7 +95,7 @@ test('OpenMates event embed deep link renders details and registration CTA', asy
 	await page.goto(getE2EDebugUrl(`/${EVENT_EMBED_HASH}`), { waitUntil: 'domcontentloaded' });
 
 	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
-	await expect(page.getByText('Register on Luma').first()).toBeVisible({ timeout: 10000 });
+	await expect(page.getByText('Register on ExampleEvents').first()).toBeVisible({ timeout: 10000 });
 	await expect(page.locator('body')).toContainText('October 14, 2026', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('Online event', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('OpenMates Events', { timeout: 10000 });

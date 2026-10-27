@@ -1,0 +1,30 @@
+browser_sessions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary key; opaque OpenMates browser session identity."
+    owner_hash:
+      type: string
+      note: "[Indexed] Owner hash, never a website credential."
+    vault_key_id:
+      type: string
+      note: "User Vault key identifier for encrypted runtime state; no key material."
+    encrypted_payload:
+      type: text
+      note: "[Encrypted] Browser provider handle, owner/chat binding, observations and usage ledger."
+    status:
+      type: string
+      note: "ai, user, paused, closed or expired."
+    last_activity:
+      type: integer
+      note: "[Indexed] Last meaningful authorized activity, Unix seconds."
+    expires_at:
+      type: integer
+      note: "[Indexed] Idle deletion deadline; paused sandboxes still require cleanup."
+    version:
+      type: integer
+      note: "CAS generation for session updates and controller handoffs."
+    needs_reconciliation:
+      type: boolean
+      note: "[Indexed] Pending wallet settlement or inference usage requires independent cleanup."

@@ -313,10 +313,11 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 			await page.setViewportSize({ width: 1280, height: 900 });
 			await ensureSidebarOpen(page);
-			const draftSidebarItem = page
-				.getByTestId('chat-item-wrapper')
-				.filter({ hasText: draftText });
+			const draftSidebarItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${draftChatId}"]`);
 			await expect(draftSidebarItem).toBeVisible({ timeout: 15000 });
+			// Sidebar previews intentionally truncate at 60 characters. The full
+			// editor content was asserted above; bind this preview to the exact chat.
+			await expect(draftSidebarItem).toContainText(draftPrefix);
 			await page
 				.getByTestId('activity-history-wrapper')
 				.getByRole('button', { name: /close/i })
@@ -440,16 +441,14 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 		const chatItems = page.getByTestId('chat-item-wrapper');
 		await expect(chatItems.nth(2)).toBeVisible({ timeout: 15000 });
-		const orderedTitles = await chatItems
-			.locator('[data-testid="chat-title"]')
-			.evaluateAll((nodes: Element[]) =>
-				nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)
-			);
+		const orderedTitles = await chatItems.evaluateAll((nodes: Element[]) =>
+			nodes.map((node) => (node.querySelector('[data-testid="chat-title"]')?.textContent || '').trim())
+		);
 
 		const selectedIndex = orderedTitles.findIndex((title: string, index: number, titles: string[]) => {
 			if (index === 0 || index === titles.length - 1) return false;
 			return [titles[index - 1], title, titles[index + 1]].every(
-				(candidate) => !INTRO_CHAT_TITLES.has(candidate)
+				(candidate) => Boolean(candidate) && !INTRO_CHAT_TITLES.has(candidate)
 			);
 		});
 
@@ -504,3 +503,68 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		await expectFirstUserMessageChanged(page, selectedFirstMessageId);
 	});
 });
+
+
+for (const refreshStage of ['header', 'window']) {
+  for (const destination of ['new', 'other']) {
+    // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,chats.surface.semantic-parity
+    test(`awaited ${refreshStage} refresh cannot read or replace a ${destination} chat after navigation`, async ({ page }: { page: any }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (error: Error) => errors.push(`${error.name}: ${error.message}\n${error.stack ?? ''}`.slice(0, 2048)));
+      page.on('console', (message: any) => {
+        if (message.type() === 'error' && message.text().startsWith('[ActiveChat] handleChatUpdated: Failed to reload stored messages:')) errors.push('stale-refresh-reload-error');
+      });
+      await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+      // These two local-only fixtures have no server row. Supply only their authenticated
+      // message-window shape; the component still reads the seeded IndexedDB messages.
+      await page.route(/\/v1\/chats\/(11111111-1111-4111-8111-11111111e2e1|11111111-1111-4111-8111-11111111e2e2)\/messages\/window(?:\?|$)/, async (route: any) => {
+        const chatId = new URL(route.request().url()).pathname.split('/')[3];
+        await route.fulfill({ json: {
+          chat_id: chatId, messages: [], has_more_before: false, has_more_after: false,
+          start_cursor: null, end_cursor: null, anchor_found: true,
+          oversized_message: null, oversized_message_cursor: null, payload_bytes: 0,
+          server_message_count: 1, messages_v: 1, compression_boundary_timestamp: null,
+          compression_checkpoints: [], respect_compression_boundary: true,
+          storage_tier: 'hot', archive_page_ids: [], archive_payload_cache: null,
+        } });
+      });
+      await ensureSidebarClosed(page);
+      await page.evaluate(async ({ refreshStage }: { refreshStage: 'header' | 'window' }) => {
+        const w = window as any;
+        const now = Math.floor(Date.now() / 1000);
+        const chats = ['11111111-1111-4111-8111-11111111e2e1', '11111111-1111-4111-8111-11111111e2e2'].map(chat_id => ({
+          chat_id, messages_v: 1, title_v: 0, draft_v: 0, created_at: now,
+          updated_at: now, last_edited_overall_timestamp: now, unread_count: 0,
+        }));
+        for (const [index, chat] of chats.entries()) await w.__openmatesE2ESeedChat({ chat, messages: [{
+          message_id: index === 0 ? '22222222-2222-4222-8222-22222222e2e1' : '22222222-2222-4222-8222-22222222e2e2', chat_id: chat.chat_id, role: 'user',
+          sender_name: 'user', content: chat.chat_id, status: 'synced', created_at: now,
+        }] });
+        await w.__openmatesE2ELoadLocalChat({ chatId: chats[0].chat_id, chat: chats[0] });
+        w.__activeChatAwaitRace = { chats };
+        w.__openmatesE2EChatRefreshRace({ action: 'start', stage: refreshStage });
+      }, { refreshStage });
+      try {
+        await expect.poll(() => page.evaluate(() => (window as any).__openmatesE2EChatRefreshRace({ action: 'state' }).paused)).toBe(true);
+        if (destination === 'new') {
+          await startNewChat(page, () => undefined);
+        } else {
+          await page.evaluate(async () => {
+            const w = window as any;
+            const chat = w.__activeChatAwaitRace.chats[1];
+            await w.__openmatesE2ELoadLocalChat({ chatId: chat.chat_id, chat });
+          });
+        }
+      } finally {
+        await page.evaluate(() => (window as any).__openmatesE2EChatRefreshRace?.({ action: 'release' }));
+      }
+      await expect.poll(() => page.evaluate(() => (window as any).__openmatesE2EChatRefreshRace({ action: 'state' }).returned)).toBe(true);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expect(page.getByTestId('message-editor')).toBeVisible();
+      await expect(page.locator('[data-message-id="22222222-2222-4222-8222-22222222e2e1"]')).toHaveCount(0);
+      if (destination === 'other') await expect(page.locator('[data-message-id="22222222-2222-4222-8222-22222222e2e2"]')).toBeVisible();
+      if (errors.length) await test.info().attach('page-errors', { body: errors.join('\n---\n').slice(0, 8192), contentType: 'text/plain' });
+      expect(errors).toEqual([]);
+    });
+  }
+}

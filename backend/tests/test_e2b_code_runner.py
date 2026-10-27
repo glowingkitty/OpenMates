@@ -126,7 +126,7 @@ def test_dependency_commands_prefer_explicit_manifests() -> None:
     [
         (CodeRunFile(path="main.c", language="c"), ["command -v gcc", "gcc main.c -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
         (CodeRunFile(path="main.cpp", language="cpp"), ["command -v g++", "g++ main.cpp -std=c++17 -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
-        (CodeRunFile(path="main.rs", language="rust"), ["command -v rustc", "rustc main.rs -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
+        (CodeRunFile(path="main.rs", language="rust"), ["command -v rustc", "rustc --edition=2021 main.rs -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
         (CodeRunFile(path="main.go", language="go"), ["command -v go", "go run main.go"]),
     ],
 )
@@ -162,8 +162,13 @@ def test_interruptible_command_kills_active_handle_when_cancelled() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.execution.e2b-only,code-run.request.validated
-def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("template", [None, "prepared-languages-v1"])
+def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.MonkeyPatch, template: str | None) -> None:
     monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=FakeE2BSandbox))
+    if template:
+        monkeypatch.setenv("E2B_CODE_RUN_TEMPLATE", template)
+    else:
+        monkeypatch.delenv("E2B_CODE_RUN_TEMPLATE", raising=False)
 
     result = run_code_in_e2b(
         [CodeRunFile(path="main.py", language="python", content="print('ok')", is_target=True)],
@@ -175,6 +180,7 @@ def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.Monke
 
     assert result.sandbox_id == "sandbox-1"
     assert FakeE2BSandbox.create_kwargs == {
+        **({"template": template} if template else {}),
         "api_key": "test-key",
         "secure": True,
         "allow_internet_access": False,

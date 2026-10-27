@@ -1,16 +1,8 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { externalLinks, getPublicLegalUrl, getWebsiteUrl } from '../../config/links';
+    import { locale } from 'svelte-i18n';
+    import { externalLinks, getPublicLegalUrl } from '../../config/links';
     import { getApiUrl } from '../../config/api';
-    import { getLegalChatBySlug, convertDemoChatToChat, translateDemoChat } from '../../demo_chats';
-    import { activeChatStore } from '../../stores/activeChatStore';
-    import { isInSignupProcess } from '../../stores/signupState';
-    import { loginInterfaceOpen } from '../../stores/uiStateStore';
-    import { createEventDispatcher } from 'svelte';
-    import { get } from 'svelte/store';
-    
-    const dispatch = createEventDispatcher();
-    
     // Props using Svelte 5 runes
     // isSelfHosted: When true, hides the legal section (imprint, privacy, terms)
     // because the self-hosted edition is for personal/internal team use only.
@@ -28,89 +20,8 @@
         return `${getApiUrl()}/docs`;
     }
     
-    /**
-     * Check if user is currently in login/signup flow
-     * Returns true if either signup process is active or login interface is open
-     */
-    function isInLoginSignupFlow(): boolean {
-        return get(isInSignupProcess) || get(loginInterfaceOpen);
-    }
-    
-    function getLegalPath(slug: 'imprint' | 'privacy' | 'terms'): string {
-        return slug === 'imprint' ? externalLinks.legal.imprint
-            : slug === 'privacy' ? externalLinks.legal.privacyPolicy
-                : externalLinks.legal.terms;
-    }
-
-    /** Use the new website only after its origin is explicitly configured. */
     function getLegalUrl(slug: 'imprint' | 'privacy' | 'terms'): string {
-        const path = getLegalPath(slug);
-        const configuredUrl = getPublicLegalUrl(path);
-        return configuredUrl !== path ? configuredUrl : getWebsiteUrl(path);
-    }
-    
-    /**
-     * Handle click on a legal document link
-     * If user is in login/signup flow, opens the link in a new tab (since chats can't be opened)
-     * Otherwise, opens the legal chat instead of navigating to external URL
-     */
-    async function handleLegalLinkClick(event: MouseEvent, slug: 'imprint' | 'privacy' | 'terms') {
-        // Once the separate website exists, the ordinary anchor opens its legal page.
-        if (getPublicLegalUrl(getLegalPath(slug)) !== getLegalPath(slug)) return;
-
-        // Check if user is in login/signup flow
-        // If so, open the URL in a new tab instead of trying to open the chat
-        if (isInLoginSignupFlow()) {
-            // Prevent default navigation to avoid opening in current tab
-            event.preventDefault();
-            event.stopPropagation();
-            
-            console.debug(`[SettingsFooter] User in login/signup flow - opening legal link in new tab: ${slug}`);
-            const url = getLegalUrl(slug);
-            window.open(url, '_blank', 'noopener,noreferrer');
-            return;
-        }
-        
-        // Prevent default navigation
-        event.preventDefault();
-        event.stopPropagation();
-        
-        console.debug(`[SettingsFooter] Opening legal chat: ${slug}`);
-        
-        // Get the legal chat by slug
-        const legalChat = getLegalChatBySlug(slug);
-        if (!legalChat) {
-            console.error(`[SettingsFooter] Legal chat not found for slug: ${slug}`);
-            return;
-        }
-        
-        // Translate the chat to the user's locale (legal chats skip translation, return as-is)
-        const translatedLegalChat = translateDemoChat(legalChat);
-        
-        // Convert to Chat format
-        const chat = convertDemoChatToChat(translatedLegalChat);
-        
-        // NOTE: Legal chats are now always shown in the sidebar (like demo chats)
-        // No need to store them in IndexedDB - they're loaded from static bundle
-        // This ensures smooth loading and better UX
-        
-        // Set active chat in store
-        activeChatStore.setActiveChat(chat.chat_id);
-        
-        // Dispatch chatSelected event that will bubble up to +page.svelte
-        // This follows the same pattern as Chats.svelte component
-        dispatch('chatSelected', { chat });
-        
-        // Also dispatch global event so Chats.svelte can mark the chat as active in the sidebar
-        window.dispatchEvent(new CustomEvent('globalChatSelected', {
-            detail: { chat }
-        }));
-        
-        console.debug(`[SettingsFooter] ✅ Legal chat opened: ${chat.chat_id}`);
-        
-        // Close settings menu after opening chat (optional UX improvement)
-        // The parent Settings component can listen for this if needed
-        dispatch('closeSettings');
+        return getPublicLegalUrl(`/legal/${slug}?lang=${encodeURIComponent($locale || 'en')}`);
     }
 </script>
 
@@ -248,17 +159,23 @@
             <a 
                 href={getLegalUrl('imprint')}
                 class="submenu-link" 
-                onclick={(e) => handleLegalLinkClick(e, 'imprint')}
+                data-testid="settings-legal-imprint"
+                target="_blank"
+                rel="noopener noreferrer"
             >{$text('common.imprint')}</a>
             <a 
                 href={getLegalUrl('privacy')}
                 class="submenu-link" 
-                onclick={(e) => handleLegalLinkClick(e, 'privacy')}
+                data-testid="settings-legal-privacy"
+                target="_blank"
+                rel="noopener noreferrer"
             >{$text('common.privacy')}</a>
             <a 
                 href={getLegalUrl('terms')}
                 class="submenu-link" 
-                onclick={(e) => handleLegalLinkClick(e, 'terms')}
+                data-testid="settings-legal-terms"
+                target="_blank"
+                rel="noopener noreferrer"
             >{$text('common.terms_and_conditions')}</a>
         </div>
     {/if}

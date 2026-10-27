@@ -4,12 +4,18 @@ Account Settings - Main menu for account-related settings including Security, Ex
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { text } from '@repo/ui';
+    import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
+    import { locale } from 'svelte-i18n';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsPageContainer } from './elements';
     import { userProfile } from '../../stores/userProfile';
     import { isRestrictedSession } from '../../stores/pairSessionStore';
 
     const dispatch = createEventDispatcher();
+    let activeLanguageName = $derived(SUPPORTED_LANGUAGES.find(language => language.code === $locale)?.name ?? $locale ?? 'English');
+    function navigateToLanguage() {
+        dispatch('openSettings', { settingsPath: 'interface/language', direction: 'forward', icon: 'language', title: $text('common.language') });
+    }
 
     // Get display label for current timezone
     function getTimezoneDisplayLabel(timezoneId: string | null): string {
@@ -204,6 +210,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 </script>
 
+<SettingsPageContainer>
 {#if $isRestrictedSession}
     <div class="restricted-notice">
         Account settings are not available in restricted sessions.
@@ -235,6 +242,11 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="user"
     title={$text('settings.account.profile_picture')}
     onClick={navigateToProfilePicture}
+/>
+
+<SettingsItem
+    type="subsubmenu" icon="language" title={$text('common.language')} subtitle={activeLanguageName}
+    data-testid="account-language" onClick={navigateToLanguage}
 />
 
 <SettingsItem 
@@ -302,6 +314,8 @@ Account Settings - Main menu for account-related settings including Security, Ex
 />
 
 {/if}
+
+</SettingsPageContainer>
 
 <style>
     .restricted-notice {

@@ -61,6 +61,8 @@ export interface DeepLinkHandlers {
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
   requiresAuthentication?: (settingsPath: string) => boolean;
   isAuthenticated?: () => boolean;
+  /** Distinguish private chats from public, shared and browser-local guest chats. */
+  chatRequiresAuthentication?: (chatId: string) => boolean | Promise<boolean>;
   openSettings?: () => void;
   openLogin?: () => void;
   setSettingsDeepLink?: (path: string) => void;
@@ -217,6 +219,27 @@ export function buildChatMessageLink(
   return `${origin}#${hashParams.toString()}`;
 }
 
+/** A resolver cache miss starts a scoped asynchronous fetch; it is not yet a missing embed. */
+export async function waitForDeepLinkedEmbed(
+  embedId: string,
+  chatId: string,
+  isCurrent: () => boolean,
+  timeoutMs = 10_000,
+): Promise<boolean> {
+  const { resolveEmbed } = await import('./embedResolver');
+  const deadline = Date.now() + timeoutMs;
+  while (isCurrent()) {
+    const embed = await resolveEmbed(embedId, { chatId });
+    if (!isCurrent()) return false;
+    if (embed) return true;
+    if (Date.now() >= deadline) return false;
+    // resolveEmbed coalesces the in-flight scoped read; subsequent reads see
+    // its persisted/decrypted result without issuing duplicate requests.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return false;
+}
+
 /**
  * Process a deep link with the provided handlers
  */
@@ -263,7 +286,8 @@ export async function processDeepLink(
         return { type: "chat", processed: true };
       }
       if (handlers.onChat) {
-        if (parsed.data.teamId && handlers.isAuthenticated && !handlers.isAuthenticated()) {
+        if (handlers.isAuthenticated && !handlers.isAuthenticated() &&
+          (parsed.data.teamId || await handlers.chatRequiresAuthentication?.(parsed.data.chatId))) {
           if (typeof window !== "undefined") sessionStorage.setItem("pendingDeepLink", hash);
           handlers.openLogin?.();
           return { type: "chat", processed: true, requiresAuth: true };

@@ -48,7 +48,7 @@ from backend.core.api.app.services.feature_availability_service import (
     skill_feature_id,
 )
 from backend.core.api.app.utils.config_manager import ConfigManager
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, skill_has_provider_support
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,7 @@ def filter_app_components_by_availability(
             s for s in skills_data
             if isinstance(s, dict)
             and s.get("class_path")
+            and skill_has_provider_support(s)
             and availability.is_enabled(skill_feature_id(app_id, str(s.get("id") or "")))
         ]
     else:
@@ -199,8 +200,9 @@ def build_skill_registry(
             failed_apps.append(app_id)
             continue
 
-        # Phased SKILL.md definitions are authoritative for their focus only.
-        # Legacy modes keep their existing translation-backed runtime behavior.
+        # Phased definitions stay authoritative. For legacy modes, merge only
+        # real authored instruction fields, preserving unrelated permissions,
+        # lifecycle/default flags, names and user-facing metadata.
         from backend.shared.python_utils.focus_mode_skill_loader import load_focus_mode_from_skill_md
         from pathlib import Path
         for source in sorted(Path(app_dir).glob("focus_modes/*/SKILL.md")):
@@ -209,6 +211,22 @@ def build_skill_registry(
                 focuses = raw_config.setdefault("focuses", [])
                 focuses[:] = [item for item in focuses if item.get("id") != focus["id"]]
                 focuses.append(focus)
+            else:
+                instruction_fields = {
+                    key: focus[key] for key in ("system_prompt", "process", "how_to_use",
+                                                "systemprompt_translation_key", "process_translation_key")
+                    if focus.get(key)
+                }
+                if instruction_fields:
+                    focuses = raw_config.setdefault("focuses", [])
+                    existing = next((item for item in focuses if item.get("id") == focus["id"]), None)
+                    if existing is None:
+                        focuses.append(focus)
+                    else:
+                        # Pydantic's legacy alias must not shadow canonical text.
+                        if "system_prompt" in instruction_fields:
+                            existing.pop("systemprompt", None)
+                        existing.update(instruction_fields)
         raw_configs[app_id] = raw_config
         feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
 
@@ -299,7 +317,10 @@ class SkillRegistry:
     def is_skill_available(self, app_id: str, skill_id: str) -> bool:
         """True if the app exists in the registry AND the skill class resolved at startup."""
         app = self.apps.get(app_id)
-        return app is not None and skill_id in app.skill_classes
+        if app is None or skill_id not in app.skill_classes:
+            return False
+        definition = app.get_skill_by_id(skill_id)
+        return definition is not None and skill_has_provider_support(definition)
 
     def get_metadata(self, app_id: str) -> Optional[AppYAML]:
         app = self.apps.get(app_id)

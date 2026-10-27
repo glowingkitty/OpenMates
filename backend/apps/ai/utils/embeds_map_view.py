@@ -47,28 +47,26 @@ EMBEDS_MAP_VIEW_INSTRUCTION = """**Embeds Results View**
 When location-capable, route-capable, or schedule-capable embed refs are
 available, include exactly one compact results-view block by default unless the
 view would clearly not make sense for the user's request or the user explicitly
-asks for text/list-only output. Use direct child refs when those are the only
-refs available:
+asks for text/list-only output.
 
-```embeds_results_view
-title: Berlin AI events
-embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
-```
-
-For full app-skill source results, prefer referencing the parent source and
-optionally highlight selected child refs:
-
-```embeds_results_view
-title: Berlin AI events
-sources: events-search-12ab34
-highlight: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
-```
+Use a fenced block starting with ```embeds_results_view and ending with ```.
+Only these fields are allowed:
+- title: a brief human-readable description.
+- sources: copy the exact source_ref supplied with the tool result. For a batch,
+  use the relevant values from source_refs. These are real short parent refs
+  for the whole search result sets; do not derive them from app or skill names.
+- embeds: use exact returned child embed_ref values instead of sources when
+  selecting only individual results, or when no parent source_ref was supplied.
+- highlight: optional exact child embed_ref values to emphasize within sources.
 
 Rules:
 - Only include these fields: title, embeds, sources, highlight.
+- Only use references actually returned by tools or resolved from prior results.
+  Instruction examples and placeholder text are never usable references.
+- If neither a source_ref nor real child embed_ref values are available, omit
+  the block. Never invent or guess a reference.
 - Do not include filters, provider, enrichment, route geometry, prices, or JSON in the block.
 - Do not call or imply automatic paid enrichment such as travel.flight_details, booking details, Flightradar24, or FlightAware.
-- Only use embed_ref values that already appear in the conversation context.
 - Prefer adding this block for map-capable or schedule-capable app-skill results even when the user did not explicitly ask for a map or calendar.
 - Omit it only when the request explicitly asks for no map/calendar, text-only/list-only output, or the result has no usable spatial or schedule data.
 """
@@ -362,3 +360,101 @@ def normalize_embeds_map_view_blocks(
 
     normalized = _MAP_VIEW_FENCE_RE.sub(replace, content)
     return normalized, changed
+
+def collect_results_view_sources(
+    authored_embeds: Iterable[dict], *, app_id: str, skill_id: str,
+) -> dict[str, str]:
+    """Return real short parent references from finished server-authored results."""
+    if (app_id, skill_id) not in MAP_VIEW_CAPABLE_SKILLS:
+        return {}
+    sources: dict[str, str] = {}
+    for embed in authored_embeds:
+        ref = embed.get("embed_ref")
+        embed_id = embed.get("parent_embed_id") or embed.get("embed_id")
+        if (embed.get("status", "finished") == "finished"
+                and embed.get("child_embed_ids")
+                and isinstance(ref, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", ref)
+                and isinstance(embed_id, str) and embed_id):
+            sources[ref] = embed_id
+    return sources
+
+
+def map_view_source_bindings_from_tool_calls(tool_calls: Iterable[dict] | None) -> dict[str, str]:
+    """Bind short sources and legacy IDs only to parents authored by executed tools."""
+    bindings: dict[str, str] = {}
+    for call in tool_calls or []:
+        if not isinstance(call, dict) or (call.get("app_id"), call.get("skill_id")) not in MAP_VIEW_CAPABLE_SKILLS:
+            continue
+        ids = _dedupe_refs([call.get("embed_id"), *(call.get("embed_ids") or [])])
+        authored = call.get("source_ref_bindings")
+        aliases = {
+            ref: embed_id for ref, embed_id in authored.items()
+            if isinstance(ref, str) and ref and embed_id in ids
+        } if isinstance(authored, dict) else {}
+        # Anonymous tool metadata can include child IDs as well; explicit source
+        # bindings identify the actual parents in that case.
+        parent_ids = _dedupe_refs(aliases.values()) if aliases else ids
+        bindings.update({embed_id: embed_id for embed_id in parent_ids})
+        bindings.update(aliases)
+    return bindings
+
+
+def preferred_map_view_source_refs(bindings: dict[str, str]) -> list[str]:
+    """Prefer registered short refs while retaining IDs for legacy parent results."""
+    aliases = [ref for ref, embed_id in bindings.items() if ref != embed_id]
+    covered = {bindings[ref] for ref in aliases}
+    return [*aliases, *(ref for ref, embed_id in bindings.items() if ref == embed_id and embed_id not in covered)]
+
+
+def validate_embeds_map_view_sources(
+    content: str, *, available_sources: dict[str, str], repair_source_refs: Iterable[str] = (),
+) -> tuple[str, bool]:
+    """Reject unknown parents; repair only one unambiguous current source.
+
+    available_sources includes verified historical refs. repair_source_refs is
+    limited to the current tool results so recovery never picks an arbitrary
+    previous search or broadens an existing child-only selection.
+    """
+    original = content
+    content, _ = normalize_embeds_map_view_blocks(content, source_refs=available_sources)
+    repair_refs = [ref for ref in _dedupe_refs(repair_source_refs) if ref in available_sources]
+    repair_ids = {available_sources[ref] for ref in repair_refs}
+
+    def replace(match: re.Match[str]) -> str:
+        fields = {}
+        for line in match.group("body").splitlines():
+            if ":" in line:
+                key, value = line.split(":", 1)
+                fields[key.strip()] = value.strip()
+        requested = _normalize_refs(fields.get("sources", ""))
+        if not requested:
+            return match.group(0)
+        valid = [ref for ref in requested if ref in available_sources]
+        if valid == requested:
+            return match.group(0)
+        if not valid and not fields.get("embeds") and len(repair_ids) == 1:
+            valid = repair_refs[:1]
+        if not valid and not fields.get("embeds"):
+            return fields.get("title", "")
+        lines = [
+            line for line in match.group("body").splitlines()
+            if not line.strip().startswith("sources:")
+        ]
+        if valid:
+            lines.append("sources: " + _join_refs(valid))
+        return "```" + match.group("language") + "\n" + "\n".join(lines) + "\n```"
+
+    content = _MAP_VIEW_FENCE_RE.sub(replace, content)
+    return content, content != original
+
+
+def extract_results_view_source_refs(content: str) -> list[str]:
+    """Return requested parent refs without interpreting instruction examples."""
+    refs: list[str] = []
+    for match in _MAP_VIEW_FENCE_RE.finditer(content):
+        for line in match.group("body").splitlines():
+            if ":" in line:
+                key, value = line.split(":", 1)
+                if key.strip().lower() == "sources":
+                    refs.extend(_normalize_refs(value))
+    return _dedupe_refs(refs)

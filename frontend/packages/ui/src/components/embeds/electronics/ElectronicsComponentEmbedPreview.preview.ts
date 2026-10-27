@@ -1,13 +1,14 @@
 /**
  * Preview mock data for ElectronicsComponentEmbedPreview.
- * Shows one TI WEBENCH component/reference-design child card.
+ * Shows one ExampleComponents component/reference-design child card.
  * Access path: /dev/preview/embeds/electronics.
  * Architecture context: docs/architecture/embeds.md.
  */
 
 const defaultProps = {
+  presentationOnly: true,
   id: "preview-electronics-component-1",
-  provider: "TI WEBENCH",
+  provider: "ExampleComponents",
   part_number: "TPS564257DRLR",
   base_part_number: "TPS564257",
   title: "TPS564257DRLR Buck converter",
@@ -26,6 +27,9 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  missingData: { ...defaultProps, topology: null, package: null, regulator_type: null, bom_cost_usd: null, bom_count: null, efficiency_percent: null, footprint_mm2: null },
+  longTitle: { ...defaultProps, part_number: 'TPS-EXAMPLE-VERY-LONG-REFERENCE-COMPONENT-NUMBER-FOR-RESPONSIVE-DISPLAY' },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   compact: {
     ...defaultProps,
     id: "preview-electronics-component-compact",

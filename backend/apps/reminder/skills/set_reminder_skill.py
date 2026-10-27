@@ -51,6 +51,7 @@ class SetReminderRequest(BaseModel):
     target_embed_id: Optional[str] = Field(None, description="Embed ID to open when an embed reminder fires")
     target_embed_app_id: Optional[str] = Field(None, description="App ID for the target embed")
     target_embed_title: Optional[str] = Field(None, description="Display title for the target embed")
+    notification_context: Optional[Dict[str, Any]] = Field(None, description="Bounded identifying details authorized for this reminder's email")
 
     # Response type: "simple" = notification-only (no AI), "full" = AI executes a task
     response_type: str = Field(default="simple", description="'simple' for notification-only (no AI), 'full' for AI action trigger")
@@ -137,6 +138,7 @@ class SetReminderSkill(BaseSkill):
         target_embed_id: Optional[str] = None,
         target_embed_app_id: Optional[str] = None,
         target_embed_title: Optional[str] = None,
+        notification_context: Optional[Dict[str, Any]] = None,
         # Context parameters passed by skill executor
         secrets_manager: Optional[SecretsManager] = None,
         cache_service=None,
@@ -334,6 +336,21 @@ class SetReminderSkill(BaseSkill):
                     error="target_embed_id is required for embed target type"
                 )
 
+            from backend.core.api.app.services.reminder_notification_context import (
+                create_preview_token, normalize_notification_context,
+                PREVIEW_RETENTION_SECONDS, resolve_reminder_source_chat,
+            )
+            try:
+                notification_context = normalize_notification_context(notification_context)
+                if target_type == "embed":
+                    chat_id = await resolve_reminder_source_chat(
+                        directus_service, user_id, chat_id=chat_id, embed_id=target_embed_id,
+                    )
+                elif target_type == "existing_chat" and notification_context:
+                    await resolve_reminder_source_chat(directus_service, user_id, chat_id=chat_id)
+            except ValueError as error:
+                return SetReminderResponse(success=False, error=str(error))
+
             # For new_chat, title is required (or derive from prompt)
             if target_type == "new_chat" and not new_chat_title:
                 # Derive title from prompt (first 50 chars)
@@ -370,6 +387,23 @@ class SetReminderSkill(BaseSkill):
                     plaintext=new_chat_title,
                     key_id=user_vault_key_id
                 )
+
+            # Only reminder-selected metadata becomes server-readable; the
+            # underlying chat/embed remains client encrypted. Legacy callers
+            # retain a useful title/prompt instead of a generic empty email.
+            if notification_context is None:
+                notification_context = {
+                    "version": 1,
+                    "kind": "embed" if target_type == "embed" else "chat",
+                    "title": (target_embed_title or new_chat_title or prompt)[:200],
+                }
+                if target_embed_app_id:
+                    notification_context["app_id"] = target_embed_app_id[:64]
+            preview_token, preview_token_hash = create_preview_token()
+            stored_context = {**notification_context, "_preview_token": preview_token}
+            encrypted_notification_context, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=json.dumps(stored_context, ensure_ascii=False), key_id=user_vault_key_id,
+            )
 
             # For existing_chat target, cache the current chat history
             encrypted_chat_history = None
@@ -450,6 +484,9 @@ class SetReminderSkill(BaseSkill):
                 "encrypted_prompt": encrypted_prompt,
                 "encrypted_chat_history": encrypted_chat_history,
                 "encrypted_new_chat_title": encrypted_new_chat_title,
+                "encrypted_notification_context": encrypted_notification_context,
+                "notification_preview_token_hash": preview_token_hash,
+                "notification_preview_expires_at": trigger_at + PREVIEW_RETENTION_SECONDS,
                 "encrypted_target_chat_id": encrypted_target_chat_id,
                 "encrypted_created_in_chat_id": encrypted_created_in_chat_id,
                 "trigger_type": trigger_type,
@@ -494,19 +531,23 @@ class SetReminderSkill(BaseSkill):
             # If not, send a real-time WebSocket notification prompting the user to
             # activate email notifications so they don't miss the reminder when offline.
             # The notification includes an action button that deep-links to the
-            # email notification settings page (chat/notifications).
+            # email notification settings page (notifications/chat).
             email_warning = None
             try:
-                email_notifications_active = False
+                email_notifications_active = None
                 should_prompt_email = True
                 if directus_service:
-                    user_profile = await directus_service.get_user_profile(user_id)
-                    if user_profile and user_profile[1]:
-                        email_notifications_active = bool(
-                            user_profile[1].get("email_notifications_enabled", False)
+                    # The cached profile can be stale or omit notification fields.
+                    # Only a persisted, explicit opt-out warrants an activation prompt.
+                    user_settings = await directus_service.get_user_fields_direct(
+                        user_id, ["email_notifications_enabled"], no_cache=True
+                    )
+                    if user_settings:
+                        email_notifications_active = user_settings.get(
+                            "email_notifications_enabled"
                         )
 
-                if not email_notifications_active:
+                if email_notifications_active is False:
                     prompt_cache_key = f"reminder:email_prompt:{hashlib.sha256(user_id.encode()).hexdigest()}"
                     try:
                         already_prompted = await cache_service.get(prompt_cache_key)
@@ -516,7 +557,7 @@ class SetReminderSkill(BaseSkill):
                     except Exception as cache_err:
                         logger.debug(f"Could not dedupe email notification prompt: {cache_err}")
 
-                if not email_notifications_active and should_prompt_email:
+                if email_notifications_active is False and should_prompt_email:
                     email_warning = (
                         "Tip: Set up email notifications in your account settings "
                         "to receive reminder alerts even when you're not using the app."
@@ -539,7 +580,7 @@ class SetReminderSkill(BaseSkill):
                                 "Activate email notifications now to not miss your reminder."
                             ),
                             "action_label": "Go to Settings",
-                            "action_deep_link": "chat/notifications",
+                            "action_deep_link": "notifications/chat",
                             "duration": 12000,
                             "dedupe_key": "activate-email-notifications",
                         },

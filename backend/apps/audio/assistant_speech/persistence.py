@@ -22,10 +22,15 @@ SAFE_STATUS_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_se
 PERSISTED_STATUS_FIELDS = SAFE_STATUS_FIELDS + ("billable_character_count",)
 
 
-def manifest_id_for(*, chat_id: str, assistant_message_id: str, source_version: int, voice_key: str, voice_version: int) -> str:
+def manifest_id_for(*, chat_id: str, assistant_message_id: str, source_version: int, voice_key: str, voice_version: int,
+                    voice_call_id: str | None = None) -> str:
     # Billing is message-scoped; source and voice revisions replace segment
     # membership inside this manifest instead of creating another usage row.
     identity = f"{chat_id}:{assistant_message_id}"
+    # Live delivery has no replay asset. A later explicit Speak request must
+    # create its own cache and generation ledger rather than reuse call state.
+    if voice_call_id:
+        identity += f":voice-call:{voice_call_id}"
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
@@ -46,16 +51,22 @@ async def create_manifest_and_segments(
     source_version: int,
     voice_profile: Mapping[str, object],
     segments: Sequence[Mapping[str, object]],
+    voice_call_id: str | None = None,
 ) -> dict[str, object]:
     """Create idempotent owner-scoped metadata without storing segment plaintext."""
     voice_key = str(voice_profile["key"])
     voice_version = int(voice_profile["version"])
+    speech_model = ASSISTANT_RESPONSE_SPEECH_MODEL
+    if voice_version == 3:
+        from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
+        speech_model = resolve_assistant_voice_profile(voice_key, version=voice_version).model
     manifest_id = manifest_id_for(
         chat_id=chat_id,
         assistant_message_id=assistant_message_id,
         source_version=source_version,
         voice_key=voice_key,
         voice_version=voice_version,
+        voice_call_id=voice_call_id,
     )
     ordered_segment_ids = [str(segment["segment_id"]) for segment in segments]
     manifest = {
@@ -68,7 +79,7 @@ async def create_manifest_and_segments(
         "voice_profile_version": voice_version,
         "ordered_segment_ids": ordered_segment_ids,
         "status": "queued",
-        "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "model": speech_model,
         "sealed": False,
         "billing_status": "pending",
         "billing_settled_segment_ids": [],
@@ -377,6 +388,7 @@ async def finalize_speech_segment_execution(
     *,
     lease_id: str,
     execution_version: int,
+    completed_live: bool = False,
 ) -> bool:
     """Publish a terminal result only from the exact worker claim that produced it."""
     record = {field: result[field] for field in PERSISTED_STATUS_FIELDS if field in result}
@@ -385,6 +397,14 @@ async def finalize_speech_segment_execution(
     rows = await _items(directus, SEGMENT_COLLECTION, {"filter[segment_id][_eq]": segment_id, "limit": 1})
     if not rows:
         return False
+    expected_status = "generating"
+    if completed_live:
+        # Completion accounting is independent from a subsequent hangup. This
+        # exact execution may settle after cancellation, without publishing any
+        # further audio or authorizing replay of its transient call source.
+        expected_status = str(rows[0].get("status") or "")
+        if expected_status not in {"generating", "cancelled", "invalidated"}:
+            return expected_status == "ready" and rows[0].get("billable_character_count") == result.get("billable_character_count")
     row_id = rows[0].get("id") or rows[0].get("segment_id")
     update_if_version = getattr(directus, "update_item_if_version", None)
     if not callable(update_if_version):
@@ -395,7 +415,7 @@ async def finalize_speech_segment_execution(
         record,
         execution_version,
         version_field="execution_version",
-        extra_filters={"status": "generating", "lease_id": lease_id},
+        extra_filters={"status": expected_status, "lease_id": lease_id},
     )
     if finalized:
         return True
@@ -532,6 +552,26 @@ async def claim_speech_segment_execution(
     return {**segment, **claim}
 
 
+async def _cleanup_items(directus: Any, collection: str, params: dict[str, object]) -> list[dict[str, object]]:
+    """Require a successful read before discarding cleanup authority."""
+    rows = await directus.get_items(collection, params=params, no_cache=True, raise_on_error=True)
+    if not isinstance(rows, list):
+        raise RuntimeError(f"Assistant speech cleanup could not read {collection}")
+    return rows
+
+
+async def _delete_cleanup_record(directus: Any, collection: str, row_id: object) -> None:
+    """Retain dependent metadata when Directus cannot confirm deletion."""
+    if not row_id:
+        raise RuntimeError(f"Assistant speech cleanup identity missing for {collection}")
+    if await directus.delete_item(collection, str(row_id)) is False:
+        # A duplicate cleanup may have removed it concurrently. Confirm absence;
+        # False alone also represents permission, transport, and database errors.
+        remaining = await _cleanup_items(directus, collection, {"filter[id][_eq]": str(row_id), "limit": 1})
+        if remaining:
+            raise RuntimeError(f"Assistant speech cleanup could not delete {collection}")
+
+
 async def delete_speech_assets(
     directus: Any,
     *,
@@ -540,44 +580,51 @@ async def delete_speech_assets(
     assistant_message_id: str,
     delete_asset: Callable[[dict[str, object]], Awaitable[None]] | None = None,
 ) -> None:
-    """Delete owner-scoped segment and manifest records after lifecycle removal."""
-    rows = await _items(
-        directus,
-        SEGMENT_COLLECTION,
-        {
-            "filter[user_id][_eq]": user_id,
-            "filter[chat_id][_eq]": chat_id,
-            "filter[assistant_message_id][_eq]": assistant_message_id,
-            "limit": -1,
-        },
-    )
-    await tombstone_speech_assets(
-        directus,
-        user_id=user_id,
-        chat_id=chat_id,
-        assistant_message_id=assistant_message_id,
-    )
+    """Remove dependent assets before their owner-scoped cleanup authority."""
+    scope = {
+        "filter[user_id][_eq]": user_id,
+        "filter[chat_id][_eq]": chat_id,
+        "filter[assistant_message_id][_eq]": assistant_message_id,
+        "limit": -1,
+    }
+    rows = await _cleanup_items(directus, SEGMENT_COLLECTION, scope)
+    # Confirm cancellation here rather than trusting a previous dispatch. Keep
+    # every row until all storage cleanup succeeds, so retries retain identities.
     for row in rows:
         row_id = row.get("id") or row.get("segment_id")
-        row = {**row, "status": "cancelled"}
+        if not row_id:
+            raise RuntimeError("Assistant speech cleanup segment identity missing")
+        if row.get("status") != "cancelled":
+            updated = await directus.update_item(SEGMENT_COLLECTION, str(row_id), {"status": "cancelled"})
+            if not updated:
+                raise RuntimeError("Assistant speech cleanup cancellation failed")
+    # Re-read after cancellation: an executing worker can have published its
+    # pending asset identity while the cancellation was being persisted.
+    rows = await _cleanup_items(directus, SEGMENT_COLLECTION, scope)
+    for row in rows:
+        # Only a reserved upload can outlive cancellation: reserving an asset
+        # requires a generating row under the exact claim CAS. An unreserved
+        # manual worker and an ephemeral live worker cannot upload after this
+        # cancellation. Reserved uploads retain authority until compensation or
+        # lease expiry, even when no upload_files index exists yet.
+        deadline = _parse_timestamp(row.get("lease_expires_at"))
+        if row.get("pending_generated_asset_id") and (
+            (deadline is not None and deadline > datetime.now(timezone.utc))
+            or (row.get("lease_id") and deadline is None)
+        ):
+            raise RuntimeError("Assistant speech cleanup is waiting for the execution lease")
+        if row.get("status") != "cancelled":
+            raise RuntimeError("Assistant speech cleanup cancellation was not confirmed")
+    for row in rows:
+        if delete_asset is None and (row.get("generated_asset_id") or row.get("pending_generated_asset_id")):
+            raise RuntimeError("Assistant speech cleanup requires asset deletion")
         if delete_asset is not None:
-            await delete_asset(row)
-        if row_id:
-            await directus.delete_item(SEGMENT_COLLECTION, str(row_id))
-    manifests = await _items(
-        directus,
-        MANIFEST_COLLECTION,
-        {
-            "filter[user_id][_eq]": user_id,
-            "filter[chat_id][_eq]": chat_id,
-            "filter[assistant_message_id][_eq]": assistant_message_id,
-            "limit": -1,
-        },
-    )
+            await delete_asset({**row, "status": "cancelled"})
+    for row in rows:
+        await _delete_cleanup_record(directus, SEGMENT_COLLECTION, row.get("id") or row.get("segment_id"))
+    manifests = await _cleanup_items(directus, MANIFEST_COLLECTION, scope)
     for manifest in manifests:
-        row_id = manifest.get("id") or manifest.get("manifest_id")
-        if row_id:
-            await directus.delete_item(MANIFEST_COLLECTION, str(row_id))
+        await _delete_cleanup_record(directus, MANIFEST_COLLECTION, manifest.get("id") or manifest.get("manifest_id"))
 
 
 async def cleanup_generated_speech_asset(
@@ -585,20 +632,29 @@ async def cleanup_generated_speech_asset(
     generated_asset_id: str,
     *,
     delete_file: Callable[[str], Awaitable[None]],
+    fallback_file_key: str | None = None,
 ) -> None:
-    """Remove the upload record and object created by a cancelled segment."""
-    uploads = await _items(
-        directus,
-        "upload_files",
+    """Delete objects before upload references; failures retain retry authority."""
+    uploads = await _cleanup_items(
+        directus, "upload_files",
         {"filter[embed_id][_eq]": generated_asset_id, "fields": "id,files_metadata", "limit": -1},
     )
+    # The reserved server-derived key survives a crash after S3 PUT but before
+    # upload indexing. Delete it before discarding either index or segment row.
+    if fallback_file_key:
+        await delete_file(fallback_file_key)
     for upload in uploads:
-        files = upload.get("files_metadata") if isinstance(upload, dict) else None
-        for metadata in files.values() if isinstance(files, dict) else []:
-            if isinstance(metadata, dict) and metadata.get("s3_key"):
-                await delete_file(str(metadata["s3_key"]))
-        if upload.get("id"):
-            await directus.delete_item("upload_files", str(upload["id"]))
+        files = upload.get("files_metadata")
+        if not isinstance(files, dict) or not files:
+            raise RuntimeError("Assistant speech cleanup upload metadata unavailable")
+        for metadata in files.values():
+            if not isinstance(metadata, dict) or not isinstance(metadata.get("s3_key"), str) or not metadata["s3_key"]:
+                raise RuntimeError("Assistant speech cleanup object identity unavailable")
+            # S3 deletion either succeeds or persists regional purge authority;
+            # it raises on failure and deliberately does not return a boolean.
+            if metadata["s3_key"] != fallback_file_key:
+                await delete_file(metadata["s3_key"])
+        await _delete_cleanup_record(directus, "upload_files", upload.get("id"))
 
 
 def safe_segment_status(result: Mapping[str, object]) -> dict[str, object]:

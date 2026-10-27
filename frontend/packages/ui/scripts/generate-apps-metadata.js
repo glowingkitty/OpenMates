@@ -110,6 +110,27 @@ function normalizeTranslationKey(key, prefix) {
   return prefix + trimmedKey;
 }
 
+/** Read only genuinely authored instruction sections from canonical YAML. */
+export function focusTranslationContent(appId, focusId) {
+  const path = resolve(__dirname, "../src/i18n/sources/focus_modes", `${appId}_${focusId}.yml`);
+  if (!existsSync(path)) return {};
+  const source = yaml.parse(readFileSync(path, "utf-8")) || {};
+  return Object.fromEntries(["process", "systemprompt"].flatMap(field => {
+    const text = source[field]?.en;
+    return typeof text === "string" && text.trim() && !text.trim().startsWith("[T:")
+      ? [[field, text.trim()]] : [];
+  }));
+}
+
+function resolvableFocusKey(key) {
+  const match = /^focus_modes\.([^.]*)\.(process|systemprompt)$/.exec(key || "");
+  if (!match) return false;
+  const path = resolve(__dirname, "../src/i18n/sources/focus_modes", `${match[1]}.yml`);
+  if (!existsSync(path)) return false;
+  const source = yaml.parse(readFileSync(path, "utf-8")) || {};
+  return typeof source[match[2]]?.en === "string" && !!source[match[2]].en.trim();
+}
+
 /**
  * Discover SKILL.md-format focus modes for an app.
  *
@@ -171,7 +192,7 @@ function discoverSkillMdFocusModes(appId) {
  * @param {string} dirName - Directory name (kebab-case, e.g., "career-insights")
  * @returns {Object|null} Parsed focus metadata, or null on failure
  */
-function parseSkillMd(filePath, appId, dirName) {
+export function parseSkillMd(filePath, appId, dirName) {
   const raw = readFileSync(filePath, "utf-8");
 
   // Split YAML frontmatter from body
@@ -191,19 +212,15 @@ function parseSkillMd(filePath, appId, dirName) {
   // keys are derived from the snake_case id, not the directory name.
   const focusId = fm.id || dirName.replace(/-/g, "_");
 
-  // Extract system prompt from ## System prompt body section.
-  // Split the body by H2 headings and find the "System prompt" section.
-  let systemPrompt = "";
-  const sections = body.split(/^## /m);
-  for (const section of sections) {
-    if (section.startsWith("System prompt")) {
-      // Skip the heading line, take everything after
-      const lines = section.split("\n");
-      lines.shift(); // remove "System prompt" heading line
-      systemPrompt = lines.join("\n").trim();
-      break;
-    }
-  }
+  const sections = Object.fromEntries(body.split(/^## /m).slice(1).map(section => {
+    const newline = section.indexOf("\n");
+    return [section.slice(0, newline).trim().toLowerCase(), section.slice(newline + 1).trim()];
+  }));
+  const authored = focusTranslationContent(appId, focusId);
+  const systemPrompt = sections["system prompt"] || authored.systemprompt;
+  const process = (sections.process || "").split("\n")
+    .filter(line => /^\s*[-*]\s+/.test(line))
+    .map(line => line.replace(/^\s*[-*]\s+/, "").trim()).filter(Boolean);
 
   // Build the same shape as legacy app.yml focus entries so downstream
   // code (field extraction, translation key normalization) works unchanged.
@@ -216,10 +233,11 @@ function parseSkillMd(filePath, appId, dirName) {
     // Derive translation keys from the snake_case focusId
     name_translation_key: `${appId}.${focusId}`,
     description_translation_key: `${appId}.${focusId}.description`,
-    process_translation_key: `focus_modes.${appId}_${focusId}.process`,
-    systemprompt_translation_key: `focus_modes.${appId}_${focusId}.systemprompt`,
+    process_translation_key: authored.process ? `focus_modes.${appId}_${focusId}.process` : undefined,
+    systemprompt_translation_key: authored.systemprompt ? `focus_modes.${appId}_${focusId}.systemprompt` : undefined,
     // Literal system prompt text for settings page display
     systemprompt: systemPrompt || undefined,
+    process: process.length ? process : undefined,
     // Mark as SKILL.md-sourced for logging
     _source: "skill_md",
   };
@@ -309,7 +327,7 @@ function discoverProvidersForAppSkill(appSkill) {
 /**
  * Map provider name from app.yml to provider ID (provider YAML filename).
  *
- * @param {string} providerName - Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl", "YouTube")
+ * @param {string} providerName - Provider name from app.yml (e.g., "Brave", "Google", "YouTube")
  * @param {string} appId - App ID for context (e.g., "maps" for Google Maps)
  * @returns {string|null} Provider ID (lowercase, matches provider YAML filename) or null if unknown
  */
@@ -604,6 +622,14 @@ function parseAppYaml(appId, filePath) {
           continue;
         }
 
+        // Required-provider skills without a configured source cannot execute.
+        if (skill.provider_required === true && !(skill.providers?.length > 0)) {
+          console.log(
+            `[generate-apps-metadata]   Skipping skill without providers: ${appId}.${skill.id}`,
+          );
+          continue;
+        }
+
         // Auto-prepend "app_skills." prefix to skill translation keys if not already present
         const skillMetadata = {
           id: (skill.id || "").trim(),
@@ -629,7 +655,7 @@ function parseAppYaml(appId, filePath) {
 
         if (Array.isArray(skill.providers) && skill.providers.length > 0) {
           // Use explicitly defined providers if present
-          // Providers can be plain strings ("Brave") or objects ({name: "SerpAPI", display_name: "Google"})
+          // Providers can be plain strings ("Brave") or objects ({name: "ExampleSearch", display_name: "Google"})
           // Use display_name for user-facing UI; fall back to name if not set
           skillProviders = skill.providers
             .map((p) => {
@@ -799,13 +825,16 @@ function parseAppYaml(appId, filePath) {
           focusMetadata.phases = focus.phases;
         }
         // Include system prompt used when this focus mode is activated (for display on settings page)
+        if (Array.isArray(focus.process) && focus.process.some(value => typeof value === "string" && value.trim())) {
+          focusMetadata.process = focus.process.filter(value => typeof value === "string" && value.trim());
+        }
         if (focus.systemprompt && typeof focus.systemprompt === "string") {
           focusMetadata.system_prompt = focus.systemprompt.trim();
         }
         if (
           focus.systemprompt_translation_key &&
           typeof focus.systemprompt_translation_key === "string" &&
-          focus.systemprompt_translation_key.trim()
+          focus.systemprompt_translation_key.trim() && resolvableFocusKey(focus.systemprompt_translation_key.trim())
         ) {
           focusMetadata.system_prompt_translation_key =
             focus.systemprompt_translation_key.trim();
@@ -825,7 +854,7 @@ function parseAppYaml(appId, filePath) {
         if (
           focus.process_translation_key &&
           typeof focus.process_translation_key === "string" &&
-          focus.process_translation_key.trim()
+          focus.process_translation_key.trim() && resolvableFocusKey(focus.process_translation_key.trim())
         ) {
           focusMetadata.process_translation_key =
             focus.process_translation_key.trim();
@@ -1124,12 +1153,16 @@ function generateTypeScript(appsMetadata) {
         );
         const hasOptionalFocusFields =
           focus.icon_image !== undefined ||
+          focus.process !== undefined ||
           focus.process_translation_key !== undefined ||
           focus.system_prompt !== undefined ||
           focus.system_prompt_translation_key !== undefined;
         lines.push(
           `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}${hasOptionalFocusFields ? "," : ""}`,
         );
+        if (focus.process !== undefined) {
+          lines.push(`                process: ${JSON.stringify(focus.process)},`);
+        }
         if (focus.icon_image !== undefined) {
           const hasMoreAfterIcon =
             focus.process_translation_key !== undefined ||
@@ -1353,5 +1386,5 @@ function main() {
   );
 }
 
-// Run the script
-main();
+// Importing the parser for focused tests must not regenerate global metadata.
+if (process.argv[1] && resolve(process.argv[1]) === __filename) main();

@@ -17,7 +17,8 @@ import threading
 TARGETS = {8000: ("api", 8000), 8055: ("cms", 8055)}
 
 
-PUBLIC_PROVIDER_HOSTS = frozenset({"webench.ti.com"})
+# No external provider authority is currently permitted by CI.
+PUBLIC_PROVIDER_HOSTS: frozenset[str] = frozenset()
 PROVIDER_PROXY_PORT = 3128
 MAX_PROXY_HEADER = 16384
 

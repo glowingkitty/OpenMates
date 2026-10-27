@@ -11,6 +11,8 @@ export type AppsSkillExecuteOptions = {
   teamId?: string;
   signal?: AbortSignal;
   metadata?: AppsSkillDetails;
+  /** Recheck caller account/Team ownership immediately before provider dispatch. */
+  assertContext?: () => void;
   /** Persist the accepted task before polling so a reload can resume it. */
   onTaskSubmitted?: (taskId: string) => Promise<void>;
 };
@@ -200,6 +202,7 @@ async function executeOnce(appId: string, skillId: string, input: Record<string,
     if (!eligibility.allowed) throw new Error(eligibility.reason ?? 'signup_required');
   }
   assertExecutionIdentity(identity);
+  options.assertContext?.();
   const base = options.guest ? '/v1/anonymous/apps' : '/v1/apps';
   const url = new URL(getApiEndpoint(`${base}/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}`));
   if (!options.guest && options.teamId) url.searchParams.set('team_id', options.teamId);

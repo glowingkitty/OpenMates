@@ -8,11 +8,11 @@
 const sampleResults = [
   {
     id: "evt-1",
-    provider: "Meetup",
-    title: "AI & Machine Learning Berlin Meetup – Spring Edition",
+    provider: "Gathering",
+    title: "AI & Machine Learning Berlin Gathering – Spring Edition",
     description:
       "Join us for an evening of talks on LLMs, RAG architectures, and production AI.",
-    url: "https://www.meetup.com/example-ai-berlin",
+    url: "https://example.com/fixture",
     date_start: "2026-03-15T19:00:00",
     date_end: "2026-03-15T22:00:00",
     timezone: "Europe/Berlin",
@@ -28,11 +28,11 @@ const sampleResults = [
   },
   {
     id: "evt-2",
-    provider: "Meetup",
+    provider: "Gathering",
     title: "Web Dev Online: TypeScript Deep Dive",
     description:
       "A live online session covering advanced TypeScript patterns for scalable apps.",
-    url: "https://www.meetup.com/example-webdev-online",
+    url: "https://example.com/fixture",
     date_start: "2026-03-20T18:00:00",
     date_end: "2026-03-20T20:00:00",
     timezone: "UTC",
@@ -44,11 +44,11 @@ const sampleResults = [
   },
   {
     id: "evt-3",
-    provider: "Meetup",
+    provider: "Gathering",
     title: "Product Management Summit – London",
     description:
       "Two-day conference covering product strategy, user research, and growth tactics.",
-    url: "https://www.meetup.com/example-pm-london",
+    url: "https://example.com/fixture",
     date_start: "2026-04-05T09:00:00",
     date_end: "2026-04-06T17:00:00",
     timezone: "Europe/London",
@@ -69,7 +69,7 @@ const sampleResults = [
 const defaultProps = {
   id: "preview-events-search-1",
   query: "AI meetups in Berlin",
-  provider: "Meetup",
+  provider: "Gathering",
   status: "finished" as const,
   results: sampleResults,
   isMobile: false,
@@ -84,7 +84,7 @@ export const variants = {
   processing: {
     id: "preview-events-search-processing",
     query: "searching for events...",
-    provider: "Meetup",
+    provider: "Gathering",
     status: "processing" as const,
     results: [],
     isMobile: false,
@@ -94,7 +94,7 @@ export const variants = {
   error: {
     id: "preview-events-search-error",
     query: "failed events search",
-    provider: "Meetup",
+    provider: "Gathering",
     status: "error" as const,
     results: [],
     isMobile: false,

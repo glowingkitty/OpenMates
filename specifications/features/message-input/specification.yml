@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 6
+version: 10
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -285,6 +285,17 @@ assertions:
   depends_on:
   - models.ActionControlState
   - models.RecordingState.start_inputs
+- id: message-input.attachments.quick-access
+  type: behavior
+  must: In the web GUI, the empty minimized composer replaces its decorative AI icon with an accessible attachment
+    shortcut. On phones and tablets, including iPads using a desktop-sized viewport, the shortcut opens the native
+    photo capture picker. On desktop computers, it opens the file picker for images or other supported files.
+    The shortcut acts directly without focusing the text editor or opening the keyboard. Closing or cancelling
+    a picker preserves the draft and returns to usable composer controls. The existing plus menu remains available
+    in the expanded composer, with camera and file actions following the same safe picker handoff.
+  depends_on:
+  - models.EmbedInputState
+  - examples.quick_attachments
 - id: message-input.drafts.preview-persistence
   type: behavior
   must: Meaningful text or embed content updates draft state against the current or temporary chat id; after blur,
@@ -300,15 +311,21 @@ assertions:
   must: Composer embed inputs from paste, drag/drop, picker, camera, sketch, maps or code follow-up preserve their
     embed metadata, defer send while upload is in flight, and mark anonymous private-file attachments as signup-required
     before suggestions or sends proceed. New web microphone recordings follow the editable-transcript contract instead
-    of creating an embed, and Send remains gated while their correction is in flight.
+    of creating an embed. An explicit recording Send request waits for successful correction before the normal
+    composer send gates admit submission; choosing Finish alone leaves the corrected text unsent.
   depends_on:
   - models.EmbedInputState
   - examples.gated_attachments
 - id: message-input.recording.lifecycle
   type: behavior
-  must: Audio recording can start through press-and-hold pointer, touch, or keyboard shortcut paths, shows a focused
+  must: >
+    Audio recording can start through press-and-hold pointer, touch, or keyboard shortcut paths, shows a focused
     recording overlay with cancel/finish affordances, reports active layout state, and on stop or cancel resets
-    recording state without leaving hidden controls or stale focus behind.
+    recording state without leaving hidden controls or stale focus behind. On Apple, Automatic preserves
+    installed enabled local Whisper with the existing disclosed online route otherwise; explicit Whisper or
+    included Whistle never silently falls back online. Off disables live and attachment-batch transcription
+    while preserving capture, waveform and audio attachment. Changing choice drains active transcription and
+    suppresses stale results; live calls retain exclusive audio ownership.
   depends_on:
   - models.RecordingState
   - examples.recording
@@ -334,9 +351,15 @@ assertions:
   - models.DraftState.persistence_target
 - id: message-input.privacy-context
   type: privacy
-  must: Focus-mode, incognito, IdeaBucket, PII warning, anonymous free-text terms, credits, and signup-required
-    states are visible at the composer boundary without leaking durable plaintext private content or bypassing the
-    user's privacy settings.
+  must: >
+    Focus-mode, incognito, IdeaBucket, PII warning, anonymous free-text terms, credits, and signup-required
+    states are visible at the composer boundary without leaking durable plaintext private content or bypassing
+    the user's privacy settings. Saved Apple sends locally compile the complete current encrypted Personal
+    snapshot and reconcile pending or uncertain privacy writes before admission. Focus preparation carries no
+    draft text or inference authority; cached preparation is reusable only after a fresh scoped generation
+    check. Each saved admission and immutable retry requires current owner, key, workspace and transport
+    authority, preserves explicit current-turn exclusions and protected reference identities, and fails closed
+    when freshness or persistence cannot be established.
   depends_on:
   - models.ComposerContextPills
   - models.EmbedInputState.anonymous_signup_required
@@ -361,9 +384,13 @@ assertions:
   type: behavior
   must: In the shared web composer, microphone recordings are transient input for transcription and correction.
     On success, insert the corrected transcript as ordinary editable text at the originating selection while preserving
-    existing notes and other content; do not auto-send, create a recording embed or permanently upload/store the
-    audio. Cancellation, error, context switches and stale completions cannot overwrite another chat or newer submitted
-    draft; release temporary recording resources. Historical recording embeds remain readable. If transcription
+    existing notes and other content. Finish or Enter leaves the corrected text unsent for review. During recording
+    and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
+    Send name. Choosing Send finishes capture if needed and requests exactly one submission of the complete draft
+    after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
+    cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
+    error, context switches and stale completions clear any pending recording Send request and cannot send or overwrite
+    another chat or newer submitted draft; release temporary recording resources. Historical recording embeds remain readable. If transcription
     requires authentication, use the existing login/signup gate before recording instead of a simulated result.
   depends_on:
   - models.RecordingState
@@ -388,6 +415,17 @@ assertions:
   type: behavior
   must: A touch user can accept the visible ghost through a localized Use suggestion control and review or change the inserted draft before choosing Send.
   depends_on: [examples.composer_ghost]
+- id: message-input.audio.realtime-voxtral3
+  type: behavior
+  must: Web microphone dictation streams through the authenticated first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation.
+  depends_on: [examples.voxtral3_dictation]
+
+
+- id: message-input.audio.single-line-preview
+  type: behavior
+  must: During web microphone recording, display only the most recent wrapped transcript line at every desktop, tablet and phone width. The current line remains fully readable; older lines never appear partially above or below it, including while new text arrives or the layout reflows. Do not animate vertically between lines. Preserve the complete transcript for final correction and editable insertion, and keep recording controls visible.
+  depends_on: [examples.single_line_recording]
+
 applies_to:
   rest_api:
     required: false
@@ -412,11 +450,7 @@ applies_to:
         required: true
       apple:
         required: true
-        role: native composer preserves semantic focus
-        draft: null
-        attachment: null
-        recording: null
-        and privacy-context outcomes: null
+        role: native composer preserves semantic focus, draft, attachment, recording, and privacy-context outcomes
     exceptions:
     - id: native-owned-pickers
       implementation: gui.apple
@@ -429,6 +463,7 @@ examples:
   - parent_state
   - focus_visibility
   - action_controls
+  - quick_attachments
   - drafts
   - attachments
   - recording

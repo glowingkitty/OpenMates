@@ -3,7 +3,7 @@
 
 Cleanup may remove only old worktrees with an integration-safe classification.
 Safe reconciliation preserves recent, unique, and uncertain work, while the
-separate seven-day expiry archives unique changes before removing idle
+separate four-day default expiry archives unique changes before removing idle
 worktrees. Deletion manifests retain metadata and archive paths, not source.
 """
 
@@ -36,6 +36,34 @@ def load_sessions_module():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def test_safe_cleanup_default_retains_integrated_work_under_four_days(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "dev-head", ""))
+    monkeypatch.setattr(sessions, "_discover_worktree_candidates", lambda: [
+        {"session_id": "old", "path": "/tmp/old", "idle_hours": 120, "classification": "integrated"},
+        {"session_id": "recent", "path": "/tmp/recent", "idle_hours": 72, "classification": "integrated"},
+    ])
+
+    report = sessions.reconcile_session_worktrees()
+
+    assert {item["session_id"]: item["classification"] for item in report["items"]} == {
+        "old": "integrated", "recent": "recent_active",
+    }
+    assert report["deleted"] == []
+
+
+def test_cleanup_and_reconciliation_delegate_before_inventory_after_disk_cutover(monkeypatch):
+    sessions = load_sessions_module()
+    calls = []
+    monkeypatch.setattr(sessions, "_queue_coordinated_worktree_cleanup", lambda: calls.append(True) or True)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *a, **k: pytest.fail("independent cleanup inventory"))
+    report = sessions.reconcile_session_worktrees(apply_safe=True)
+    assert report["queued"] and report["deleted"] == []
+    expiry = sessions.expire_managed_worktrees.__wrapped__(max_age_hours=96)
+    assert expiry["queued"] and expiry["retained"] == []
+    assert len(calls) == 2
 
 
 def test_safe_cleanup_deletes_only_old_integrated_worktrees(monkeypatch, tmp_path):
@@ -338,6 +366,63 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert manifest["recovery_archive"] == ""
 
 
+def test_hard_expiry_defaults_to_four_inactive_days_and_protects_recent_merged_work(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    now = time.time()
+    managed = tmp_path / "worktrees"
+    records = []
+    session_data = {}
+    for session_id, age_hours, status, session_idle, worktree_idle in (
+        ("old", 120, "active", 120, 120),
+        ("recent", 72, "active", 72, 72),
+        ("merged-recent", 120, "merged", 120, 1),
+        ("ended-recent", 120, "ended", 1, 120),
+    ):
+        path = managed / f"agent-{session_id}"
+        path.mkdir(parents=True)
+        session = {
+            "last_active": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - session_idle * 3600)),
+            "worktree": {
+                "path": str(path),
+                "status": status,
+                "last_active": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - worktree_idle * 3600)),
+            },
+        }
+        session_data[session_id] = session
+        records.append({
+            "session_id": session_id,
+            "path": str(path),
+            "path_timestamp": now - age_hours * 3600,
+            "session": session,
+            "metadata": session["worktree"],
+        })
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(json.dumps({"sessions": session_data}), encoding="utf-8")
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: records)
+    monkeypatch.setattr(sessions, "_hard_expiry_record_is_safely_disposable", lambda _record: (True, "reachable_clean_head"))
+    removed = []
+    monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda record: removed.append(record["session_id"]))
+    monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda _session_id: True)
+
+    report = sessions.expire_managed_worktrees(now_timestamp=now)
+
+    assert removed == ["old"]
+    assert report["deleted"] == ["old"]
+    assert report["max_age_hours"] == 96
+    assert set(report["retained"]) == {"recent", "merged-recent", "ended-recent"}
+    assert set(report["protected_live"]) == {"merged-recent", "ended-recent"}
+    assert set(json.loads(sessions_file.read_text())["sessions"]) == {"recent", "merged-recent", "ended-recent"}
+
+
+def test_hard_expiry_rejects_age_below_four_days(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: pytest.fail("must reject before discovery"))
+
+    with pytest.raises(ValueError, match="below the configured hard lifetime"):
+        sessions.expire_managed_worktrees(max_age_hours=95)
+
+
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     now = time.time()
@@ -474,6 +559,7 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     subprocess.run(["git", "add", "tracked.txt"], cwd=path, check=True)
     (path / "tracked.txt").write_text("after\n", encoding="utf-8")
     (path / "new.txt").write_text("keep me\n", encoding="utf-8")
+    os.link(path / "new.txt", path / "hardlink.txt")
     (path / "link.txt").symlink_to("new.txt")
     (path / ".gitignore").write_text("node_modules/\nprivate.env\n", encoding="utf-8")
     (path / "node_modules").mkdir()
@@ -489,14 +575,19 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     assert archive.stat().st_mode & 0o777 == 0o600
     with tarfile.open(archive, "r:gz") as saved:
         names = set(saved.getnames())
-        assert names == {"manifest.json", "staged.patch", "working.patch", "untracked/.gitignore", "untracked/new.txt", "untracked/link.txt", "untracked/private.env"}
+        assert names == {"manifest.json", "staged.patch", "working.patch", "untracked/.gitignore", "untracked/new.txt", "untracked/hardlink.txt", "untracked/link.txt", "untracked/private.env"}
         manifest = json.load(saved.extractfile("manifest.json"))
         assert b"staged" in saved.extractfile("staged.patch").read()
         assert b"after" in saved.extractfile("working.patch").read()
         assert saved.extractfile("untracked/new.txt").read() == b"keep me\n"
+        for name in ("untracked/new.txt", "untracked/hardlink.txt"):
+            assert saved.getmember(name).isfile()
+            assert not saved.getmember(name).islnk()
+            assert saved.extractfile(name).read() == b"keep me\n"
         assert saved.getmember("untracked/link.txt").linkname == "new.txt"
         assert saved.extractfile("untracked/private.env").read() == b"valuable\n"
     assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True).stdout.strip() == manifest["head"]
+    sessions._verify_expired_worktree_archive_snapshot({"path": str(path)}, str(archive))
     second_archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
     assert second_archive != archive
     assert archive.exists()
@@ -716,6 +807,7 @@ def test_ensure_reactivates_valid_merged_worktree(monkeypatch, tmp_path):
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env"])
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
 
     result = sessions.ensure_session_worktree("abcd")
 
@@ -728,6 +820,7 @@ def test_ensure_rejects_missing_merged_worktree(monkeypatch, tmp_path):
     missing = tmp_path / "managed" / "agent-abcd"
     data = {"sessions": {"abcd": {"worktree": {"path": str(missing), "status": "merged"}}}}
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
 
     with pytest.raises(RuntimeError, match="invalid or missing managed worktree"):
         sessions.ensure_session_worktree("abcd")

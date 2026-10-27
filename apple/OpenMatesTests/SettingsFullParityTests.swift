@@ -56,6 +56,21 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(SettingsDeepLinkRoute("apps/web/skills/search").hasNativeChild)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=billing.access.authenticated-first-party
+    func testEveryBillingRouteRequiresAuthentication() {
+        let billingPaths = SettingsRouteInventory.nativeRoutes.filter {
+            $0 == "billing" || $0.hasPrefix("billing/")
+        }
+        XCTAssertTrue(billingPaths.contains("billing"))
+        XCTAssertTrue(billingPaths.contains("billing/usage"))
+        for path in billingPaths {
+            let route = SettingsDeepLinkRoute(path)
+            XCTAssertTrue(route.requiresAuthentication, path)
+            XCTAssertFalse(route.canOpen(authenticated: false, admin: false), "Guest: \(path)")
+            XCTAssertTrue(route.canOpen(authenticated: true, admin: false), "Account: \(path)")
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.local-execution,apple-local-model-lab.isolated-scope
     func testLocalModelLabIsExplicitNativeOnlyAuthenticatedRoute() {
         let route = SettingsDeepLinkRoute("developers/local-models")

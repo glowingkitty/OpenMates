@@ -43,12 +43,13 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.shared.providers.gemini_transcript_correction import (
-    GEMINI_CORRECTION_MODEL,
+    GEMINI_CORRECTION_MODEL,  # noqa: F401 - retained public test/skill constant
     GEMINI_TRANSCRIPT_TOOL_NAME,  # noqa: F401 - retained public test/skill constant
     TRANSCRIPT_TITLE_MAX_LENGTH,  # noqa: F401 - retained public test/skill constant
     clean_transcript_title,
     correct_transcript_with_gemini,
 )
+from backend.shared.providers.transcript_correction import correct_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -820,7 +821,7 @@ class TranscribeSkill(BaseSkill):
                 mistral_api_key=mistral_api_key,
             )
 
-            # Step 6: Build result & perform Gemini correction
+            # Step 6: Build result and perform provider-neutral correction.
             transcript_text = sanitize_text_simple(
                 mistral_result.get("text", "").strip(),
                 log_prefix="[TranscribeSkill][Mistral] ",
@@ -848,36 +849,28 @@ class TranscribeSkill(BaseSkill):
             correction_model: Optional[str] = None
             use_corrected = False
             try:
-                # Get Gemini API key from Vault
-                google_api_key = await secrets_manager.get_secret(
-                    secret_path="kv/data/providers/google_ai_studio",
-                    secret_key="api_key"
+                correction_result = await correct_transcript(
+                    raw_transcript=transcript_text,
+                    secrets_manager=secrets_manager,
+                    detected_language=detected_language or language,
                 )
-                if google_api_key:
-                    correction_result = await self._correct_transcript_with_gemini(
-                        raw_transcript=transcript_text,
-                        google_api_key=google_api_key,
-                        detected_language=detected_language or language,
-                    )
-                    recording_title = sanitize_text_simple(
-                        correction_result.get("title", ""),
-                        log_prefix="[TranscribeSkill][Gemini title] ",
-                    )
-                    recording_title = _clean_transcript_title(recording_title)
-                    transcript_corrected = sanitize_text_simple(
-                        correction_result.get("corrected_transcript", ""),
-                        log_prefix="[TranscribeSkill][Gemini correction] ",
-                    )
-                    if transcript_corrected.strip():
-                        use_corrected = True
-                        correction_model = GEMINI_CORRECTION_MODEL
-                    else:
-                        transcript_corrected = None
-                        logger.warning("[TranscribeSkill] Gemini correction returned an empty transcript")
+                recording_title = sanitize_text_simple(
+                    correction_result.get("title", ""),
+                    log_prefix="[TranscribeSkill][Correction title] ",
+                )
+                recording_title = _clean_transcript_title(recording_title)
+                transcript_corrected = sanitize_text_simple(
+                    correction_result.get("corrected_transcript", ""),
+                    log_prefix="[TranscribeSkill][Correction] ",
+                )
+                if transcript_corrected.strip():
+                    use_corrected = True
+                    correction_model = correction_result["model"]
                 else:
-                    logger.warning("[TranscribeSkill] Google AI Studio API key not found in Vault, skipping correction")
+                    transcript_corrected = None
+                    logger.warning("[TranscribeSkill] Correction returned an empty transcript")
             except Exception as correction_err:
-                logger.error(f"[TranscribeSkill] Gemini correction failed: {correction_err}", exc_info=True)
+                logger.warning("[TranscribeSkill] Transcript correction failed: %s", type(correction_err).__name__)
                 transcript_corrected = None
 
             result_entry = {

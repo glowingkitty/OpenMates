@@ -6,6 +6,56 @@ import XCTest
 
 @MainActor
 final class SettingsTeamsServiceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=teams.lifecycle.encrypted-profiled,billing.access.authenticated-first-party,auth.session.isolation
+    func testTeamCreationModerationRetainsInitiatingDeletionIdentity() async throws {
+        let scope = SettingsTeamsTestScope(), service = SettingsTeamsCreationTestService()
+        service.accountDeletedUpload = true
+        let controller = SettingsTeamsController(service: service, environment: scope.environment)
+        await controller.load(accountID: scope.accountID)
+        let approved = await controller.continueCreation(name: "Moderated team")
+        XCTAssertTrue(approved)
+        let created = await controller.create(name: "Moderated team", description: "", jpeg: Data([1]))
+        XCTAssertFalse(created); XCTAssertTrue(controller.accountDeleted)
+        let identity = try XCTUnwrap(controller.accountDeletionCleanup).identity
+        XCTAssertEqual(identity.accountID, scope.accountID)
+        XCTAssertEqual(identity.cacheGeneration, scope.scope)
+        XCTAssertEqual(identity.serverProfile, scope.server)
+        controller.reset()
+        XCTAssertNil(controller.accountDeletionCleanup)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.lifecycle.encrypted-profiled,billing.access.authenticated-first-party,auth.session.isolation
+    func testExistingTeamModerationPublishesCapturedDeletionIdentity() async throws {
+        let scope = SettingsTeamsTestScope(), service = SettingsTeamsCreationTestService()
+        service.initialTeams = [makeSettingsTestTeam("moderated-existing-team")]
+        service.accountDeletedUpload = true
+        let controller = SettingsTeamsController(service: service, environment: scope.environment)
+        await controller.load(accountID: scope.accountID, initialTeamID: service.initialTeams[0].id)
+        await controller.uploadAvatar(Data([1]))
+        XCTAssertTrue(controller.accountDeleted)
+        let identity = try XCTUnwrap(controller.accountDeletionCleanup).identity
+        XCTAssertEqual(identity.accountID, scope.accountID)
+        XCTAssertEqual(identity.cacheGeneration, scope.scope)
+        XCTAssertEqual(identity.serverProfile, scope.server)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,billing.access.authenticated-first-party,auth.session.isolation
+    func testLateTeamModerationCannotPublishDeletionForReplacementOwner() async {
+        let scope = SettingsTeamsTestScope(), service = SettingsTeamsCreationTestService()
+        service.initialTeams = [makeSettingsTestTeam("moderated-existing-team")]
+        service.accountDeletedUpload = true
+        service.uploadGate = expectation(description: "original owner upload pending")
+        let controller = SettingsTeamsController(service: service, environment: scope.environment)
+        await controller.load(accountID: scope.accountID, initialTeamID: service.initialTeams[0].id)
+        let pending = Task { await controller.uploadAvatar(Data([1])) }
+        await fulfillment(of: [service.uploadGate!], timeout: 2)
+        scope.accountID = "replacement-owner"; scope.scope = UUID()
+        service.uploadContinuation?.resume(); service.uploadContinuation = nil
+        await pending.value
+        XCTAssertFalse(controller.accountDeleted)
+        XCTAssertNil(controller.accountDeletionCleanup)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated,apple-workspaces.maintenance,apple-workspaces.isolation
     func testMemberPortraitSurvivesActualRosterMaintenanceAndOfflineReloadThenTeamPurge() async throws {
         for uploaded in [false, true] {
@@ -600,10 +650,14 @@ private func makeSettingsTestTeam(_ id: String, role: TeamWorkspaceRole = .owner
 @MainActor private final class SettingsTeamsCreationTestService: SettingsTeamsServing {
     var checkedNames: [String] = [], createCalls = 0, uploadedIDs: [String] = []
     var rejectUpload = false
+    var accountDeletedUpload = false
+    var initialTeams: [TeamWorkspaceTeam] = []
+    var uploadGate: XCTestExpectation?
+    var uploadContinuation: CheckedContinuation<Void, Never>?
     var nameGate: XCTestExpectation?, avatarGate: XCTestExpectation?
     var nameContinuation: CheckedContinuation<Void, Never>?
     var avatarContinuation: CheckedContinuation<Data?, Never>?
-    func list(fence: TeamWorkspaceFence) async throws -> [TeamWorkspaceTeam] { [] }
+    func list(fence: TeamWorkspaceFence) async throws -> [TeamWorkspaceTeam] { initialTeams }
     func checkCreationName(_ name: String, fence: TeamWorkspaceFence) async throws {
         checkedNames.append(name)
         if let gate = nameGate { await withCheckedContinuation { nameContinuation = $0; gate.fulfill() } }
@@ -617,6 +671,8 @@ private func makeSettingsTestTeam(_ id: String, role: TeamWorkspaceRole = .owner
     func create(name: String, description: String, fence: TeamWorkspaceFence) async throws -> TeamWorkspaceTeam { makeSettingsTestTeam("created-once") }
     func uploadAvatar(team: TeamWorkspaceTeam, jpeg: Data, fence: TeamWorkspaceFence) async throws -> TeamWorkspaceTeam {
         uploadedIDs.append(team.id)
+        if let uploadGate { await withCheckedContinuation { uploadContinuation = $0; uploadGate.fulfill() } }
+        if accountDeletedUpload { throw SettingsTeamsError.accountDeleted }
         if rejectUpload { throw SettingsTeamsError.imageRejected }
         return team
     }

@@ -1,6 +1,24 @@
 import { expect, type Page } from '@playwright/test';
 import { waitForChatReady } from './chat-test-helpers';
 
+/** Auth restoration can finish before feature-controlled workspace links load. */
+export async function assertWorkspaceNavigationItems(
+  page: Page,
+  mode: 'desktop' | 'mobile',
+  expectedItems: readonly string[],
+  timeout = 30_000,
+): Promise<void> {
+  const header = page.getByTestId('global-header');
+  await expect.poll(async () => mode === 'desktop'
+    ? header.getByRole('link').and(header.getByTestId(/-nav-link$/))
+      .evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
+    : header.getByTestId('workspace-mobile-select').getByRole('option', { includeHidden: true })
+      .evaluateAll(options => options.map(option => (option as HTMLOptionElement).value)), {
+    timeout,
+    message: `The ${mode} workspace navigation must expose the exact expected items after feature loading`,
+  }).toEqual(expectedItems);
+}
+
 /** The workflow home renders before auth restoration and feature loading finish. */
 export async function waitForWorkflowWorkspaceReady(page: Page, timeout = 30_000): Promise<void> {
   const started = Date.now();
@@ -8,15 +26,31 @@ export async function waitForWorkflowWorkspaceReady(page: Page, timeout = 30_000
   const workspace = page.getByTestId('workflows-page');
   const composer = page.getByTestId('workflow-input-composer');
   try {
+    // /workflows briefly renders a composer before redirecting to the hash
+    // workspace. Typing into that instance loses the draft on its unmount.
+    await expect(page, 'Legacy workflow navigation must finish before typing')
+      .toHaveURL(url => url.pathname === '/' && new URLSearchParams(url.hash.slice(1)).has('workflows'), { timeout: budget() });
+    await expect(page.locator('html'), 'The canonical workspace router must finish initialization')
+      .toHaveAttribute('data-hash-router-ready', 'true', { timeout: budget() });
     await expect(workspace, 'Workflow authentication must settle before owner actions')
       .toHaveAttribute('data-authenticated', 'true', { timeout: budget() });
-    // The composer is rendered only after auth and feature initialization settle.
+    // The composer can render while route initialization still makes its
+    // ancestor inert. Playwright fill checks editable/visible, not inert, and
+    // keyboard insertion then misses the unfocusable field without an error.
     await expect(composer, 'The authenticated workflow workspace must be ready before creating a copy')
       .toBeVisible({ timeout: budget() });
+    await expect.poll(() => page.getByTestId('workflow-input-textarea')
+      .evaluate(element => element.closest('[inert]') === null), {
+      timeout: budget(),
+      message: 'Workflow initialization must release the inert composer before typing',
+    }).toBe(true);
   } catch (error) {
     const state = {
+      url: page.url(),
+      routerReady: await page.locator('html').getAttribute('data-hash-router-ready').catch(() => null),
       authenticated: await workspace.getAttribute('data-authenticated').catch(() => null),
       composerVisible: await composer.isVisible().catch(() => false),
+      composerInert: await composer.evaluate(element => element.closest('[inert]') !== null).catch(() => null),
       featureDisabled: await page.getByTestId('workflows-feature-disabled').isVisible().catch(() => false),
     };
     throw new Error(`Workflow workspace not ready: ${JSON.stringify(state)}. Original: ${String(error)}`);

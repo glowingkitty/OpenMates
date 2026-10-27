@@ -1,3 +1,5 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Web source: frontend/packages/ui/src/components/settings/SettingsTeams.svelte
@@ -39,6 +41,7 @@ final class SettingsTeamsController: ObservableObject {
     @Published private(set) var avatarData: Data?
     @Published private(set) var avatarFailed = false
     @Published private(set) var accountDeleted = false
+    private(set) var accountDeletionCleanup: AccountDeletionCleanup?
     @Published private(set) var imageRejected = false
     @Published private(set) var imageFinalWarning = false
     @Published private(set) var storage: TeamStorageOverview?
@@ -68,7 +71,7 @@ final class SettingsTeamsController: ObservableObject {
         teams = []; selectedID = nil; details = nil
         management = nil; managementLoading = false; managementFailed = false
         actionBusy = false; actionFailed = false; inviteURL = nil
-        avatarData = nil; avatarFailed = false; imageRejected = false; imageFinalWarning = false; accountDeleted = false
+        avatarData = nil; avatarFailed = false; imageRejected = false; imageFinalWarning = false; accountDeleted = false; accountDeletionCleanup = nil
         loading = false; creating = false; inviting = false; failed = false
         inviteSent = nil; inviteFailed = false
     }
@@ -104,7 +107,7 @@ final class SettingsTeamsController: ObservableObject {
         storage = nil; storageLoading = false; storageFailed = false; storageNotice.reset()
         management = nil; managementLoading = false; managementFailed = false
         actionBusy = false; actionFailed = false; inviteURL = nil
-        avatarData = nil; avatarFailed = false; imageRejected = false; imageFinalWarning = false; accountDeleted = false
+        avatarData = nil; avatarFailed = false; imageRejected = false; imageFinalWarning = false; accountDeleted = false; accountDeletionCleanup = nil
         selectedID = id; details = nil; inviteSent = nil; inviteFailed = false; inviting = false
         loading = false; failed = false
         guard let team = selected, let accountID else { return }
@@ -218,6 +221,7 @@ final class SettingsTeamsController: ObservableObject {
         guard createdForDraft == nil || createdForDraft?.name == normalized else { return false }
         let token = generation
         let fence = TeamWorkspaceFence(accountID: accountID, environment: environment)
+        let deletionCleanup = AccountDeletionCleanup(fence: fence)
         let retryingCreatedDraft = createdForDraft != nil
         creating = true; creationFailed = false; imageRejected = false; imageFinalWarning = false
         do {
@@ -250,7 +254,10 @@ final class SettingsTeamsController: ObservableObject {
             guard generation == token else { return false }
             if case TeamWorkspaceError.staleContext = error { reset(); return false }
             guard (try? await fence.check()) != nil, generation == token else { return false }
-            if case SettingsTeamsError.accountDeleted = error { accountDeleted = true }
+            if case SettingsTeamsError.accountDeleted = error {
+                accountDeletionCleanup = deletionCleanup
+                accountDeleted = true
+            }
             if case SettingsTeamsError.imageRejected = error { imageRejected = true }
             if case SettingsTeamsError.imageRejectedFinalWarning = error { imageRejected = true; imageFinalWarning = true }
             creating = false; creationFailed = true
@@ -313,6 +320,7 @@ final class SettingsTeamsController: ObservableObject {
         guard let team = selected, team.canManage, let accountID, !actionBusy else { return }
         let token = generation, selectionToken = selectionGeneration
         let fence = TeamWorkspaceFence(accountID: accountID, environment: environment)
+        let deletionCleanup = AccountDeletionCleanup(fence: fence)
         actionBusy = true; actionFailed = false
         do {
             let updated = try await action(team, fence)
@@ -325,7 +333,10 @@ final class SettingsTeamsController: ObservableObject {
             guard token == generation, selectionToken == selectionGeneration else { return }
             if case TeamWorkspaceError.staleContext = error { reset(); return }
             guard (try? await fence.check()) != nil else { reset(); return }
-            if case SettingsTeamsError.accountDeleted = error { accountDeleted = true }
+            if case SettingsTeamsError.accountDeleted = error {
+                accountDeletionCleanup = deletionCleanup
+                accountDeleted = true
+            }
             if case SettingsTeamsError.imageRejected = error { imageRejected = true }
             if case SettingsTeamsError.imageRejectedFinalWarning = error { imageRejected = true; imageFinalWarning = true }
             actionBusy = false; actionFailed = true

@@ -161,7 +161,7 @@ def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
     assert results[0]["transport_method"] == "train"
     assert results[0]["total_price"]
     assert results[0]["booking_url"]
-    assert results[0]["booking_provider"] == "Deutsche Bahn"
+    assert results[0]["booking_provider"] == "Example Rail"
     assert results[0]["legs"][0]["segments"][0]["departure_station"]
 
 

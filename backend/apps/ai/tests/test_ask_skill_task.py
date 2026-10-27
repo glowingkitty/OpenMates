@@ -194,6 +194,8 @@ def test_artifact_preparation_reads_ledger_for_empty_unknown_and_existing_contex
             ledger = AsyncMock(return_value=historical)
             historical_context = AsyncMock(return_value="Recovered artifact context")
             namespace = {
+                "asyncio": asyncio,
+                "enrich_historical_image_aliases": AsyncMock(return_value=historical),
                 "recover_inline_upload_artifacts": recover,
                 "load_and_merge_artifact_ledger": ledger,
                 "build_historical_artifact_context": historical_context,
@@ -201,7 +203,7 @@ def test_artifact_preparation_reads_ledger_for_empty_unknown_and_existing_contex
             }
             exec("from __future__ import annotations\n" + ast.unparse(module), namespace)
             request = SimpleNamespace(
-                chat_id="chat", user_id_hash="owner", message_history=[],
+                chat_id="chat", user_id="owner", user_id_hash="owner", message_history=[],
                 current_user_content="Question?", embed_file_path_index=initial_index,
                 historical_artifact_context="stale", admission_context=admission,
                 is_incognito=False, is_external=False,
@@ -224,7 +226,8 @@ def test_artifact_preparation_reads_ledger_for_empty_unknown_and_existing_contex
 
 
 # contract: summary activation cannot outrun the authority/cache fences, and
-# metadata publication consumes the persisted sealed job before visible output.
+# metadata publication consumes sealed jobs, while optional generation does not
+# delay first visible output.
 def test_preparation_and_metadata_join_boundaries():
     source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
     body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
@@ -241,7 +244,10 @@ def test_preparation_and_metadata_join_boundaries():
             "wait_for_budget=True")
     assert body.index('initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)') < body.index(
         "metadata_recovery_job=initial_metadata_job", body.index("async def publish_initial_metadata_after_seal"))
-    assert body.index("before_first_chunk_publish=publish_initial_metadata_after_seal") < body.index(
+    assert "if initial_metadata_task and not early_metadata_task else None" in body
+    assert body.index("initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())") < body.index(
+        "_consume_main_processing_stream(")
+    assert body.index("before_first_chunk_publish=(publish_initial_metadata_after_seal") < body.index(
         "wait_for_budget=True")
     assert "if not request_data.is_external:" in body
     assert "if not typing_lifecycle.started:" in body
@@ -703,3 +709,43 @@ async def test_deferred_summary_has_owner_join_and_failure_drain(outcome):
         assert order == (["answer", "marker", "metadata"] if outcome == "normal" else ["answer", "marker"])
     assert cleaned.is_set()
     assert namespace["_owned_summary_tasks"].get() is None
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.parametrize("private_mode", ["normal", "incognito", "external"])
+def test_verified_historical_image_aliases_refresh_encrypted_ledger(monkeypatch, private_mode):
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    import backend.core.api.app.services.embed_service as embed_module
+
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    helper = next(node for node in ast.parse(source).body if isinstance(node, ast.AsyncFunctionDef)
+                  and node.name == "_prepare_artifact_context")
+    parent_id = "22222222-2222-4222-8222-222222222222"
+    child_id = "11111111-1111-4111-8111-111111111111"
+    index = {parent_id: parent_id}
+    enriched = {**index, "openmates_generated_image_11111111.svg": child_id}
+    ledger = AsyncMock(return_value=index)
+    namespace = {
+        "asyncio": asyncio,
+        "recover_inline_upload_artifacts": AsyncMock(return_value=index),
+        "load_and_merge_artifact_ledger": ledger,
+        "enrich_historical_image_aliases": AsyncMock(return_value=enriched),
+        "build_historical_artifact_context": AsyncMock(return_value="historical filenames"),
+        "logger": SimpleNamespace(warning=lambda *_args: None),
+    }
+    module = ast.fix_missing_locations(ast.Module(body=[helper], type_ignores=[]))
+    exec("from __future__ import annotations\n" + ast.unparse(module), namespace)
+    monkeypatch.setattr(embed_module, "EmbedService", lambda **_kwargs: object())
+    request = SimpleNamespace(chat_id="chat", user_id="owner", user_id_hash="owner-hash",
+                              message_history=[], current_user_content="Use the generated image",
+                              embed_file_path_index=None, is_incognito=private_mode == "incognito",
+                              is_external=private_mode == "external")
+    asyncio.run(namespace["_prepare_artifact_context"](request, "task", object(), object(), object(), "vault-key"))
+    assert request.embed_file_path_index == enriched
+    assert ledger.await_count == (2 if private_mode == "normal" else 1)
+    if private_mode == "normal":
+        assert ledger.await_args.kwargs["current_index"] == enriched
+        assert ledger.await_args.kwargs["user_id_hash"] == "owner-hash"
+        assert ledger.await_args.kwargs["chat_id"] == "chat"

@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-26",
+  "kind": "synthetic_provider_completion_check",
+  "source_sha256": "db73f21d5882f7bc3616daff6700c7c30a4b0ee8b742c2014190f60c00bed70f",
+  "assistant_inference": false,
+  "routing_overrides": false,
+  "cases": [
+    {
+      "text": "Could you help me with",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 863
+    },
+    {
+      "text": "How do I make",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 180
+    },
+    {
+      "text": "How do I make ramen?",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 180
+    },
+    {
+      "text": "What is",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 221
+    },
+    {
+      "text": "Yes",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 184
+    },
+    {
+      "text": "Stop",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 159
+    },
+    {
+      "text": "I would like you to",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 171
+    },
+    {
+      "text": "Search Berlin, no, Paris instead.",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 159
+    },
+    {
+      "text": "Ich möchte",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 188
+    },
+    {
+      "text": "Wie mache ich",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 184
+    },
+    {
+      "text": "Wie mache ich Ramen?",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 183
+    },
+    {
+      "text": "Ja",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 194
+    },
+    {
+      "text": "The question is.",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 160
+    },
+    {
+      "text": "Let me think",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 192
+    },
+    {
+      "text": "Please show me the photos",
+      "expected": "complete",
+      "actual": "complete",
+      "ms": 177
+    },
+    {
+      "text": "Can you explain this because",
+      "expected": "incomplete",
+      "actual": "incomplete",
+      "ms": 203
+    }
+  ],
+  "correct": 16,
+  "total": 16,
+  "limits": "Small synthetic English/German text check; not calibration or acoustic speakerphone proof."
+}

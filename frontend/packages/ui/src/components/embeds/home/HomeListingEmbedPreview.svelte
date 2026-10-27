@@ -1,25 +1,21 @@
-<!--
-  frontend/packages/ui/src/components/embeds/home/HomeListingEmbedPreview.svelte
-
-  Child listing preview card for Home Search results.
-  Uses UnifiedEmbedPreview as the base card (unified with all other embed previews).
-  Renders listing image on the right side when available (matching WebsiteEmbedPreview pattern).
-
-  Shows:
-  - Price label (prominent)
-  - Title (2 lines, truncated)
-  - Address line
-  - Metadata: size (m²) + rooms + move-in date
-  - Provider badge overlaid on image
-  - Listing image on right side (or placeholder)
-
-  Clicking the card calls onSelect() to open the fullscreen listing view.
--->
+<!-- Home result card: uncropped photo or factual location-map fallback in the shared result shell. -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { onMount } from "svelte";
+  import { homePreviewCity, resolveHomePreviewCity } from "./homePreviewLocation";
+  import type { HomeMapGeometry } from "./homeListingData";
+  import House from '@lucide/svelte/icons/house';
+  import EmbedCalendarDate from "../EmbedCalendarDate.svelte";
+
+  import { text } from "../../../i18n/translations";
+  import ResultEmbedCard from "../ResultEmbedCard.svelte";
+  import ResultEmbedMapPreview from "../ResultEmbedMapPreview.svelte";
+  import { homeMapGeometry, homeObject } from "./homeListingData";
+  import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
+  import {
+    proxyImage,
+    MAX_WIDTH_PREVIEW_THUMBNAIL,
+  } from "../../../utils/imageProxy";
 
   interface Props {
     /** Child embed ID */
@@ -34,20 +30,28 @@
     rooms?: number;
     /** Address (city + district/street) */
     address?: string;
+    city?: string;
+    location_exact_address?: boolean;
+    location_precision?: string;
+    location_approximate?: boolean;
+    lat?: number;
+    lon?: number;
+    location_area?: unknown;
     /** First listing image URL */
     image_url?: string;
     /** Direct link to listing on platform */
     url?: string;
-    /** Provider name (ImmoScout24, Kleinanzeigen, WG-Gesucht) */
+    /** Provider name (ExampleHousingA, ExampleHousingB, ExampleHousingC) */
     provider?: string;
     /** Listing type (rent or buy) */
     listing_type?: string;
-    /** Move-in date (DD.MM.YYYY, WG-Gesucht only) */
+    /** Move-in date (DD.MM.YYYY, ExampleHousingC only) */
     available_from?: string;
     /** Click handler to open fullscreen view */
     onSelect: () => void;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    resultContext?: "auto" | "chat" | "results";
   }
 
   let {
@@ -57,37 +61,67 @@
     size_sqm,
     rooms,
     address,
+    city,
+    location_exact_address,
     image_url,
+    location_precision,
+    location_approximate = true,
+    lat,
+    lon,
+    location_area,
     provider,
     listing_type: _listingType,
     available_from,
     onSelect,
-    isMobile = false
+    isMobile = false,
+    resultContext = "auto",
   }: Props = $props();
 
   let imageError = $state(false);
+  $effect(() => {
+    void image_url;
+    imageError = false;
+  });
 
   let proxiedImageUrl = $derived(
     image_url && !imageError
       ? proxyImage(image_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
-      : null
+      : null,
   );
 
-  let sizeDisplay = $derived(
-    size_sqm ? `${size_sqm} m\u00B2` : undefined
-  );
+  let host = $state<HTMLDivElement>();
+  let visible = $state(false);
+  let cityGeometry = $state<HomeMapGeometry>();
+  let cityLoading = $state(false);
+  const locality = $derived(homePreviewCity(city, address));
+  const suppliedGeometry = $derived(homeMapGeometry({ latitude: lat, longitude: lon, address, location_precision, location_approximate, location: { exact_address: location_exact_address, area: homeObject(location_area) } }));
+  onMount(() => {
+    if (!host) return;
+    if (typeof IntersectionObserver === 'undefined') { visible = true; return; }
+    const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; });
+    observer.observe(host);
+    return () => observer.disconnect();
+  });
+  $effect(() => {
+    cityGeometry = undefined;
+    cityLoading = false;
+    if (proxiedImageUrl || suppliedGeometry || !locality || !visible) return;
+    let active = true;
+    cityLoading = true;
+    void resolveHomePreviewCity(locality).then(value => {
+      if (active) { cityGeometry = value; cityLoading = false; }
+    });
+    return () => { active = false; };
+  });
+  const geometry = $derived(suppliedGeometry || cityGeometry);
+  const mapCenter = $derived(geometry ? { lat: geometry.lat, lon: geometry.lon } : undefined);
+  const mapMarkers = $derived(geometry ? [{ ...geometry, homeLocation: true, testId: geometry.radiusM ? "home-preview-location-area" : "home-preview-location-pin", label: `${geometry.areaBasis === 'city' ? locality || '' : address || title || ''} · ${geometry.radiusM ? $text("home_listing.approximate") : $text("home_listing.building")}` }] : []);
+  let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
 
   let roomsDisplay = $derived(
-    rooms ? `${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : undefined
+    rooms ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
   );
 
-  let availableDisplay = $derived(
-    available_from ? `from ${available_from}` : undefined
-  );
-
-  let metadataItems = $derived(
-    [sizeDisplay, roomsDisplay, availableDisplay].filter(Boolean)
-  );
 
   function handleStop() {
     // Listing cards are not cancellable
@@ -97,163 +131,51 @@
 <UnifiedEmbedPreview
   id={embed_id}
   appId="home"
-  skillId="search"
-  skillIconName="search"
+  skillId="listing"
+  skillIconName="home"
   status="finished"
-  skillName={title || 'Listing'}
+  skillName={title || $text("home_listing.listing")}
   {isMobile}
   onFullscreen={onSelect}
   onStop={handleStop}
-  showStatus={false}
-  showSkillIcon={false}
-  hasFullWidthImage={!!proxiedImageUrl && !title && !price_label}
+  resultPreview={true}
+  {resultContext}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="listing-details" class:mobile={isMobileLayout}>
-      <div class="listing-content-row">
-        <!-- Text content (left side) -->
-        <div class="listing-text">
-          {#if price_label}
-            <div class="listing-price">{price_label}</div>
-          {/if}
 
-          {#if title}
-            <div class="listing-title">{title}</div>
-          {/if}
-
-          {#if address}
-            <div class="listing-address">{address}</div>
-          {/if}
-
-          {#if metadataItems.length > 0}
-            <div class="listing-metadata">
-              {metadataItems.join(' \u00B7 ')}
-            </div>
+  {#snippet listingMedia()}
+    <div class="listing-media" data-testid="home-preview-media">
+      {#if proxiedImageUrl}
+        <img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />
+      {:else}
+        <div class="listing-map" data-testid="home-preview-map">
+          {#if mapCenter}
+            <ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={geometry?.areaBasis === "city" ? 10 : 12} showAttribution={false} />
+          {:else}
+            <span class="map-status" data-testid="home-preview-map-status">{cityLoading ? $text("common.loading") : $text("home_listing.no_location")}</span>
           {/if}
         </div>
-
-        <!-- Image (right side) -->
-        {#if proxiedImageUrl && !isMobileLayout}
-          <div class="listing-preview-image">
-            {#if provider}
-              <span class="provider-badge">{provider}</span>
-            {/if}
-            <img
-              src={proxiedImageUrl}
-              alt={title || 'Listing'}
-              loading="lazy"
-              crossorigin="anonymous"
-              onerror={(e) => {
-                imageError = true;
-                handleImageError(e.currentTarget as HTMLImageElement);
-              }}
-            />
+      {/if}
+    </div>
+  {/snippet}
+  {#snippet details()}
+    <div bind:this={host} class="listing-card" data-testid="home-listing-result-card">
+      <ResultEmbedCard title={title || $text("home_listing.listing")} media={listingMedia} mediaFit="contain">
+        {#snippet badge()}{#if available_from}<EmbedCalendarDate date={available_from} />{/if}{/snippet}
+        {#snippet facts()}
+          {#if price_label}<span class="listing-price">{price_label}</span>{/if}
+          <div class="listing-extra">
+            {#if address || provider}<span class="listing-location">{address || provider}</span>{/if}
+            {#if sizeDisplay}<span title={sizeDisplay}><House size={14} aria-hidden="true" />{sizeDisplay}</span>{/if}
+            {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
           </div>
-        {/if}
-      </div>
+        {/snippet}
+      </ResultEmbedCard>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .listing-details {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .listing-details.mobile {
-    justify-content: flex-start;
-  }
-
-  .listing-content-row {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    width: 100%;
-  }
-
-  .listing-text {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 0 1 55%;
-    min-width: 0;
-    align-self: center;
-    padding: 4px 0;
-  }
-
-  .listing-price {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-  }
-
-  .listing-title {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  .listing-address {
-    font-size: 0.8125rem;
-    color: var(--color-grey-70);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .listing-metadata {
-    font-size: 0.75rem;
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    margin-top: var(--spacing-1);
-  }
-
-  /* Image on right side */
-  .listing-preview-image {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-    height: 171px;
-    transform: translateX(20px);
-  }
-
-  .listing-preview-image img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-  }
-
-  .provider-badge {
-    position: absolute;
-    top: 8px;
-    right: 28px;
-    padding: 3px 8px;
-    border-radius: var(--radius-3);
-    background-color: rgba(0, 0, 0, 0.6);
-    color: var(--color-grey-0);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    white-space: nowrap;
-    z-index: var(--z-index-raised);
-  }
+.listing-card {width:100%;height:100%;min-width:0;} .home-preview-image {display:block;width:100%;height:100%;object-fit:contain;background:#262626;} .listing-price {width:100%;font-size:var(--font-size-small);font-weight:600;color:var(--color-font-primary);} .listing-extra {display:none;flex-wrap:wrap;gap:var(--spacing-4);font-size:var(--font-size-small);color:var(--color-font-secondary);} .listing-extra>span {display:inline-flex;align-items:center;gap:var(--spacing-2);} .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.listing-media {display:grid;grid-template-columns:minmax(0,1fr);width:100%;height:100%;min-height:0;} .listing-map {position:relative;min-width:0;min-height:0;height:100%;overflow:hidden;background:var(--color-grey-20);} .map-status {display:flex;align-items:center;justify-content:center;height:100%;padding:8px;box-sizing:border-box;font-size:var(--font-size-xxs);color:var(--color-font-secondary);}
+@container result-card (min-width:401px) {.listing-extra {display:flex;} .listing-location {width:100%;}}
 </style>

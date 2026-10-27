@@ -39,3 +39,20 @@ test('unpublished examples stay out of the tour while published apps still requi
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('required-provider skills enter the public tour only with a configured source', () => {
+  const root = mkdtempSync(join(tmpdir(), 'public-landing-providers-'));
+  const appRoot = join(root, 'backend/apps/example');
+  mkdirSync(appRoot, { recursive: true });
+  const source = 'icon_image: search.svg\nskills:\n  - id: search\n    provider_required: true\n';
+  const landing = 'landing:\n  order: 0\n  capability: {type: skill, id: search}\n  caption: {en: Search, de: Suchen}\n  example_chat_id: example-search\n';
+  try {
+    writeFileSync(join(appRoot, 'app.yml'), `${source}    providers: []\n${landing}`);
+    assert.deepEqual(compilePublicApps(root), []);
+    writeFileSync(join(appRoot, 'app.yml'), `${source}    providers: [OpenMates]\n${landing}`);
+    assert.equal(compilePublicApps(root)[0].capability.id, 'search');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -57,6 +57,12 @@ export interface AppSettingsMemoriesEntry {
   sequence_number?: number; // Optional sequence for ordering
 }
 
+/** A no-op is proven only after the whole existing merge transaction commits. */
+export interface AppSettingsMemoriesApplyOutcome {
+  applied: number;
+  complete: boolean;
+}
+
 /**
  * Store app settings/memories entries from server sync.
  * Handles conflict resolution based on item_version (higher version wins).
@@ -68,7 +74,7 @@ export interface AppSettingsMemoriesEntry {
 export async function storeAppSettingsMemoriesEntries(
   dbInstance: ChatDatabaseInstance,
   entries: AppSettingsMemoriesEntry[],
-): Promise<void> {
+): Promise<AppSettingsMemoriesApplyOutcome> {
   if (!dbInstance.db)
     throw new Error("[ChatDatabase] Database not initialized");
 
@@ -81,7 +87,7 @@ export async function storeAppSettingsMemoriesEntries(
 
   if (supportedEntries.length === 0) {
     console.debug("[ChatDatabase] No app settings/memories entries to store");
-    return;
+    return { applied: 0, complete: entries.length === 0 };
   }
 
   try {
@@ -97,6 +103,15 @@ export async function storeAppSettingsMemoriesEntries(
     let storedCount = 0;
     let skippedCount = 0;
     let conflictResolvedCount = 0;
+    // Unknown record shapes (including future deletion/tombstone fields) cannot
+    // establish a no-op under this insert/update-only merge implementation.
+    const knownFields = new Set(['id', 'app_id', 'item_key', 'item_type', 'encrypted_item_json',
+      'encrypted_app_key', 'created_at', 'updated_at', 'item_version', 'sequence_number']);
+    let complete = supportedEntries.length === entries.length && entries.every(entry =>
+      Object.keys(entry).every(key => knownFields.has(key)) &&
+      ['id', 'app_id', 'item_key', 'item_type', 'encrypted_item_json', 'encrypted_app_key']
+        .every(key => typeof entry[key as keyof AppSettingsMemoriesEntry] === 'string') &&
+      [entry.created_at, entry.updated_at, entry.item_version].every(Number.isFinite));
 
     for (const entry of supportedEntries) {
       try {
@@ -176,6 +191,7 @@ export async function storeAppSettingsMemoriesEntries(
           storedCount++;
         }
       } catch (entryError) {
+        complete = false;
         // If add fails due to duplicate key, try put instead
         if (
           entryError instanceof DOMException &&
@@ -207,11 +223,13 @@ export async function storeAppSettingsMemoriesEntries(
     await new Promise<void>((resolve, reject) => {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error ?? new Error('App memories merge aborted'));
     });
 
     console.info(
       `[ChatDatabase] App settings/memories sync complete: stored ${storedCount}, skipped ${skippedCount}, conflicts resolved ${conflictResolvedCount}`,
     );
+    return { applied: storedCount, complete };
   } catch (error) {
     console.error(
       "[ChatDatabase] Error storing app settings/memories entries:",

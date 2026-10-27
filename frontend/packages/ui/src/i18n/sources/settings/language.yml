@@ -1,0 +1,47 @@
+automatic:
+  context: Language option that follows this browser rather than a fixed manual selection
+  en: Automatic (browser language)
+  de: Automatisch (Browsersprache)
+  zh: 自动（浏览器语言）
+  es: Automático (idioma del navegador)
+  fr: Automatique (langue du navigateur)
+  pt: Automático (idioma do navegador)
+  ru: Автоматически (язык браузера)
+  ja: 自動（ブラウザーの言語）
+  ko: 자동 (브라우저 언어)
+  it: Automatico (lingua del browser)
+  tr: Otomatik (tarayıcı dili)
+  vi: Tự động (ngôn ngữ trình duyệt)
+  id: Otomatis (bahasa browser)
+  pl: Automatycznie (język przeglądarki)
+  nl: Automatisch (browsertaal)
+  ar: تلقائي (لغة المتصفح)
+  hi: स्वचालित (ब्राउज़र की भाषा)
+  th: อัตโนมัติ (ภาษาของเบราว์เซอร์)
+  cs: Automaticky (jazyk prohlížeče)
+  sv: Automatiskt (webbläsarens språk)
+  he: אוטומטי (שפת הדפדפן)
+account_save_error:
+  context: Language remains applied locally but account persistence failed
+  en: The account language could not be saved. Please try again.
+  de: Die Sprache konnte nicht in deinem Konto gespeichert werden. Bitte versuche
+    es erneut.
+  zh: 无法保存账户语言。请重试。
+  es: No se pudo guardar el idioma de tu cuenta. Inténtalo de nuevo.
+  fr: La langue du compte n’a pas pu être enregistrée. Réessaie.
+  pt: Não foi possível guardar o idioma da conta. Tenta novamente.
+  ru: Не удалось сохранить язык аккаунта. Попробуйте ещё раз.
+  ja: アカウントの言語を保存できませんでした。もう一度お試しください。
+  ko: 계정 언어를 저장하지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile salvare la lingua dell’account. Riprova.
+  tr: Hesap dili kaydedilemedi. Lütfen tekrar dene.
+  vi: Không thể lưu ngôn ngữ tài khoản. Vui lòng thử lại.
+  id: Bahasa akun tidak dapat disimpan. Silakan coba lagi.
+  pl: Nie udało się zapisać języka konta. Spróbuj ponownie.
+  nl: De accounttaal kon niet worden opgeslagen. Probeer het opnieuw.
+  ar: تعذّر حفظ لغة الحساب. يُرجى المحاولة مجددًا.
+  hi: खाते की भाषा सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।
+  th: บันทึกภาษาของบัญชีไม่ได้ โปรดลองอีกครั้ง
+  cs: Jazyk účtu se nepodařilo uložit. Zkus to znovu.
+  sv: Kontots språk kunde inte sparas. Försök igen.
+  he: לא ניתן לשמור את שפת החשבון. יש לנסות שוב.

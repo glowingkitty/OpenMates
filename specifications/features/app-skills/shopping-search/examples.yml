@@ -1,0 +1,21 @@
+schema_version: 1
+specification: feature.app-skill.shopping-search@2
+boundary_and_history:
+- id: shopping-search-products-supplied-gallery
+  given: A saved product contains a primary photo and three supplied gallery images.
+  when: Alice reopens the card.
+  then: Its price and stored gallery remain available without a product-source request.
+  assertion_ids:
+  - shopping-search.products.supplied-gallery
+- id: shopping-search-relevance-truthful-fallback
+  given: A saved product was never visually assessed.
+  when: Alice opens it while product search is unavailable.
+  then: It remains unassessed and a new search reports unavailable rather than claiming a match.
+  assertion_ids:
+  - shopping-search.relevance.truthful-fallback
+- id: shopping-search-privacy-minimized
+  given: Alice supplies an uploaded reference with a new product query.
+  when: Product discovery has no permitted provider.
+  then: The query fails visibly without disclosing or decrypting that image for a product integration.
+  assertion_ids:
+  - shopping-search.privacy.minimized

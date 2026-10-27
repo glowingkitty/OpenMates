@@ -74,3 +74,34 @@ test('public PDF path is rejected for untrusted URLs and encrypted uploads', asy
   await expect(page.getByTestId('pdf-public-document')).toHaveCount(0);
   await expect(page.getByTestId('pdf-info-fallback')).toBeVisible();
 });
+
+for (const width of [700, 1280]) {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,chats.rendering.inline-entity-interaction
+  test(`wide PDF preview preserves the whole horizontally centered page at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/dev/preview/embeds/pdf/PDFEmbedPreview?variant=guest&width=${width}&chrome=0&context=chat`);
+    await waitForComponentPreview(page);
+    const pageImage = page.getByTestId('pdf-public-preview-page');
+    await expect.poll(() => pageImage.evaluate(image => image.parentElement!.clientWidth)).toBeGreaterThan(400);
+    await expect.poll(() => pageImage.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(1224);
+    await expect(pageImage).toHaveCSS('object-fit', 'contain');
+    await expect(pageImage).toHaveCSS('object-position', '50% 0%');
+    const geometry = await pageImage.evaluate(element => {
+      const image = element as HTMLImageElement;
+      const frame = image.parentElement!.getBoundingClientRect();
+      const box = image.getBoundingClientRect();
+      const scale = Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight);
+      const pageWidth = image.naturalWidth * scale;
+      const pageHeight = image.naturalHeight * scale;
+      return { centerDelta: Math.abs((box.left + box.right) / 2 - (frame.left + frame.right) / 2),
+        pageWidth, pageHeight, imageWidth: box.width, imageHeight: box.height, frameWidth: frame.width, frameHeight: frame.height };
+    });
+    expect(geometry.centerDelta).toBeLessThanOrEqual(1);
+    expect(geometry.imageWidth).toBeLessThanOrEqual(geometry.frameWidth + 1);
+    expect(geometry.imageHeight).toBeLessThanOrEqual(geometry.frameHeight + 1);
+    expect(geometry.pageWidth).toBeGreaterThan(0);
+    expect(geometry.pageWidth).toBeLessThan(geometry.frameWidth);
+    expect(geometry.pageHeight).toBeLessThanOrEqual(geometry.frameHeight + 1);
+    await testInfo.attach(`pdf-centered-wide-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
+  });
+}

@@ -118,6 +118,12 @@ ideabucket_input_pill:
   sv: Dagens IdeaBucket
   he: IdeaBucket להיום
   verified_by_human: []
+link_unavailable:
+  context: Error after an authenticated private chat link cannot resolve its exact target; never opens an unrelated chat
+  en: This chat link is unavailable. It may have been deleted or belong to another account.
+  de: Dieser Chat-Link ist nicht verfügbar. Der Chat wurde möglicherweise gelöscht oder gehört zu einem anderen Konto.
+  verified_by_human: []
+
 request_feature:
   context: Text link shown at the end of chat history to open the feature request form
   en: Request feature
@@ -1802,6 +1808,30 @@ embed_error.report_link:
   cs: Kliknete sem pro nahlaseni problemu a pomoc pri jeho oprave.
   sv: Klicka har for att rapportera problemet och hjalpa till att atgarda det.
   he: לחץ כאן כדי לדווח על הבעיה ולעזור בתיקונה.
+  verified_by_human: []
+copy_message:
+  context: Text link beside the assistant model name that copies the complete response
+  en: Copy message
+  de: Nachricht kopieren
+  zh: 复制消息
+  es: Copiar mensaje
+  fr: Copier le message
+  pt: Copiar mensagem
+  ru: Копировать сообщение
+  ja: メッセージをコピー
+  ko: 메시지 복사
+  it: Copia messaggio
+  tr: Mesajı kopyala
+  vi: Sao chép tin nhắn
+  id: Salin pesan
+  pl: Kopiuj wiadomość
+  nl: Bericht kopiëren
+  ar: نسخ الرسالة
+  hi: संदेश कॉपी करें
+  th: คัดลอกข้อความ
+  cs: Kopírovat zprávu
+  sv: Kopiera meddelande
+  he: העתק הודעה
   verified_by_human: []
 generated_by:
   context: Label indicating which AI model generated the response

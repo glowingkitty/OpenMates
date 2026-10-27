@@ -153,8 +153,8 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
       const skill = models3dOnly ? null : await client.apps.math.calculate({{ expression: '2 + 2' }});
       const modelSearches = [];
       for (const [label, input] of [
-        ['benchy', {{ requests: [{{ query: 'benchy', count: 2, providers: ['Printables'] }}] }}],
-        ['phone-stand', {{ requests: [{{ query: 'phone stand', count: 2, providers: ['Printables'], sort: 'newest', free_only: true }}] }}],
+        ['benchy', {{ requests: [{{ query: 'benchy', count: 2 }}] }}],
+        ['phone-stand', {{ requests: [{{ query: 'phone stand', count: 2, sort: 'newest', free_only: true }}] }}],
       ]) {{
         const response = await client.apps.models3d.search(input);
         const group = response?.data?.results?.[0];
@@ -385,8 +385,8 @@ loaded = client.chats.load(str(chats[0]["id"])) if not models3d_only and chats a
 skill = None if models3d_only else client.apps.math.calculate({"expression": "3 + 4"})
 model_searches = []
 for label, payload in [
-    ("benchy", {"requests": [{"query": "benchy", "count": 2, "providers": ["Printables"]}]}),
-    ("phone-stand", {"requests": [{"query": "phone stand", "count": 2, "providers": ["Printables"], "sort": "newest", "free_only": True}]}),
+    ("benchy", {"requests": [{"query": "benchy", "count": 2}]}),
+    ("phone-stand", {"requests": [{"query": "phone stand", "count": 2, "sort": "newest", "free_only": True}]}),
 ]:
     response = client.apps.models3d.search(payload)
     data = response.get("data", {})

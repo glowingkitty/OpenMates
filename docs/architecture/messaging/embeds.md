@@ -119,6 +119,7 @@ sequenceDiagram
 - **Compressed source message:** the AI worker merges the current `embed_ref -> embed_id` index into a bounded Vault-encrypted artifact ledger before compression. Later turns can resolve the exact reference even after the raw source message leaves active AI context. The ledger contains identifiers only, follows the AI-cache TTL, is cleared on message/chat deletion, and never contains file bytes, extracted text, transcripts, pixels, or tool results.
 - **Skill cancellation:** individual skill cancel without stopping AI → `SkillCancelledException` in [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py) → embed status `cancelled`
 - **Cache miss:** [embedResolver.ts](../../frontend/packages/ui/src/services/embedResolver.ts) fetches from Directus on miss — never terminal error
+- **Historical inline refs:** if a Personal chat's local embeds cannot resolve an exact decrypted ref, `embedStore.ts` can discover missing root groups and children through the existing authenticated ciphertext-window API. Discovery coalesces concurrent links, reads at most ten 30-row pages with an eight-second operation deadline and ten-second retry cooldown, and guards every local write against owner/account/auth/chat changes. Only canonical ciphertext and scoped wrappers enter IndexedDB; the ref index remains in memory. Team and shared-chat reads retain their existing paths.
 - **Composite embeds:** `app_skill_use` contains `embed_ids` → child embeds loaded via `_load_and_cache_embeds_for_chats()` in [user_cache_tasks.py](../../backend/core/api/app/tasks/user_cache_tasks.py)
 - **Web and news images:** preview strips and article fullscreen share the image-field selector in `searchPreviewImages.ts`, including nested and flattened `thumbnail.src` and `thumbnail.original` fields. Current parent image metadata avoids child reads. A visible legacy web or news preview without image metadata may resolve at most ten unique children through the existing embed cache; offscreen previews do not hydrate, and obsolete results are discarded on teardown.
 - **Cross-chat access:** owner uses master key wrapper; recipient uses chat key wrapper from share link
@@ -156,6 +157,28 @@ idempotent; a content edit uses the versioned editing transaction and preserves
 the previous encrypted version. Receipt acknowledgement and head writes share
 the embed advisory lock, so their ordering cannot leave a terminal receipt
 pointing at overwritten ciphertext.
+
+Legacy missing or null head versions mean logical version 1 at every read,
+availability, recovery, and write boundary; malformed versions fail closed. New
+initial heads explicitly write version 1. Explicitly version-probed availability returns a canonical
+revision descriptor (logical version, ciphertext SHA256, and mutable/immutable
+write policy). Missing policy means unknown, never permission to replace a head.
+Ordinary client writes carry an absence or version/digest precondition, compared
+inside the existing embed transaction lock. A racing acknowledgement or writer
+therefore cannot invalidate a preflight decision by overwriting protected bytes.
+
+Fullscreen preview enrichment is a bounded, memory-only display projection tied
+to its source content and revision. It never replaces canonical ciphertext,
+rewraps a key, queues a write, or persists decrypted data. Projections expire on
+source changes and key-cache clearing. Intentional durable edits continue through
+the versioned editing transaction with preserved history.
+
+The browser's durable embed queue distinguishes waiting operations from terminal
+conflicts and access denials. Terminal operations retain their original encrypted
+payloads and wrappers for resolution and do not automatically replay on reconnect.
+The sender exposes persisted/adopted/waiting/conflict/denied outcomes; correlated
+protocol responses belong to their requesting operation instead of generating
+one global error notification per retry. Unmatched errors remain visible.
 
 The CLI performs a fresh metadata read after persisting recovered outputs. Within
 one sync operation it remembers only successfully verified record identities,
@@ -243,3 +266,65 @@ payload so sync can publish the parent-child relationship without dropping index
 Ordinary saved-chat composite results share a task-scoped preparation batch: fresh Project classification and recovery pin, bounded existing-receipt lookup, randomized sealing only for absent records, and bounded atomic inline persistence. All required child and parent records seal before finished cache writes and ordered WebSocket delivery. Transactions preserve per-record current authority, deletion, stable identity and content commitments. Requests cap at 32 outputs/512 KiB; a failure rolls back that transaction and preserves previously committed chunks for retry. The existing large-S3 protocol and registered/volatile producer lifecycles remain authoritative for their outputs.
 
 Retries of one prepared ordinary composite retain its child IDs and fallback references under the existing parent identity, and reuse the first sealed envelope. Reexecuting the ordinary builder allocates new UUIDv4 children and cannot replace an already sealed parent with changed references. Registered producers retain their existing deterministic identities. The public embed delivery and canonical client-encryption/acknowledgement contracts are unchanged. See `docs/plans/chat-processing-next-stage/implemented-flow.md` for the full processing flow and measured-evidence boundaries.
+
+### Standalone calendar events
+
+The Calendar app registers `calendar_event` content (frontend `calendar-event`)
+separately from connected-calendar skill results. Relevance-gated instructions
+let the assistant emit an explicit `openmates_calendar_event` JSON fence after
+research or an event request. The common JSON-content fence dispatcher validates
+one primary event and optional context events, then uses the existing encrypted
+placeholder/finalization lifecycle. Partial or invalid primary data is not
+exportable. Date-only ends are exclusive; timed values require explicit offsets,
+and an unknown timed end stays unknown.
+
+The shared preview shell provides Expand, More and a separate Add to calendar
+action. Primary details occupy one third of the card; the extracted
+`ResultCalendarWeek` occupies the other two thirds and is also used by ordinary
+assistant results. Context entries are dimmed and use separate overlap lanes.
+The shared fullscreen displays optional description, location and source.
+
+The browser, CLI chat download and current npm/Python SDK helpers export one
+primary VEVENT with an embed-derived stable UID. Context entries, invitations and
+alarms are excluded. Rendering never reads a private calendar, and export makes
+no provider call. Native Rust export integration is explicitly deferred; shared
+fixtures live in `shared/test-fixtures/calendar-event-export.json`. See
+[verification](../../plans/calendar-event-embeds/verification.md) for the approved
+scope and evidence.
+
+### Assistant-authored results
+
+`shared/config/authored_result_types.json` defines the validated informational and
+real-resource result kinds. Each app explicitly admits its kinds through
+`embed_types[].authoring`. This admission is independent of an enabled search
+skill: it permits presentation of supplied or researched facts, never execution
+of a removed provider or an operation such as booking or publication.
+
+Jev receives compact discovery hints. Only the relevant kinds' schemas enter the
+assistant prompt, through the existing preview-selection gate. The assistant
+emits a versioned `openmates_embeds` JSON fence with `schemaVersion: 1`, `items`,
+and an optional `view`. Each item has a block-local `id`, canonical `kind`,
+`title`, `origin`, and typed `details`; sources, observation time and images are
+optional. Origins distinguish researched facts, user-provided facts and explicitly
+requested drafts. Unknown optional facts remain absent.
+
+The ordinary JSON-content lifecycle persists one internal `authored_results`
+carrier and ordered, ordinary typed children. It assigns child identities before
+publishing them; local labels never become public embed identities. Each child
+retains its real app/type and encrypted provenance. Independent invalid items
+do not discard valid siblings. The carrier records validation, actual child IDs,
+and the resolved cards/map request. It is not an `app_skill_use` execution record.
+
+Existing image references resolve only through the current authorized context.
+Selected encrypted-image descriptors are copied into the child's encrypted
+content as `authored_media`; the source upload keeps its original ownership and
+parent. HTTP image URLs use the existing image delivery path. Neither validation
+nor rendering grants source access or performs provider enrichment.
+
+API history hydration validates owner, chat, parent, membership and registered
+type before expanding carrier children. Durable client ciphertext stays opaque
+to server-only readers. The normalized content and transport fixtures are shared
+by CLI and SDK coverage; native Rust migration evidence remains separately
+required. See the approved
+[Plan](../../plans/assistant-authored-result-embeds/plan.yml) for delivery order
+and the source-bound verification requirements.

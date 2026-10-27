@@ -1,0 +1,288 @@
+add:
+  context: 'Calendar event embed: Add to calendar'
+  en: Add to calendar
+  de: Zum Kalender hinzufügen
+  zh: 添加到日历
+  es: Añadir al calendario
+  fr: Ajouter au calendrier
+  pt: Adicionar ao calendário
+  ru: Добавить в календарь
+  ja: カレンダーに追加
+  ko: 캘린더에 추가
+  it: Aggiungi al calendario
+  tr: Takvime ekle
+  vi: Thêm vào lịch
+  id: Tambahkan ke kalender
+  pl: Dodaj do kalendarza
+  nl: Toevoegen aan agenda
+  ar: إضافة إلى التقويم
+  hi: कैलेंडर में जोड़ें
+  th: เพิ่มในปฏิทิน
+  cs: Přidat do kalendáře
+  sv: Lägg till i kalendern
+  he: הוספה ליומן
+  verified_by_human: []
+all_day:
+  context: 'Calendar event embed: All day'
+  en: All day
+  de: Ganztägig
+  zh: 全天
+  es: Todo el día
+  fr: Toute la journée
+  pt: Dia inteiro
+  ru: Весь день
+  ja: 終日
+  ko: 종일
+  it: Tutto il giorno
+  tr: Tüm gün
+  vi: Cả ngày
+  id: Sepanjang hari
+  pl: Cały dzień
+  nl: Hele dag
+  ar: طوال اليوم
+  hi: पूरे दिन
+  th: ทั้งวัน
+  cs: Celý den
+  sv: Hela dagen
+  he: כל היום
+  verified_by_human: []
+primary:
+  context: 'Calendar event embed: Primary event'
+  en: Primary event
+  de: Hauptereignis
+  zh: 主要活动
+  es: Evento principal
+  fr: Événement principal
+  pt: Evento principal
+  ru: Основное событие
+  ja: メインの予定
+  ko: 주요 일정
+  it: Evento principale
+  tr: Ana etkinlik
+  vi: Sự kiện chính
+  id: Acara utama
+  pl: Główne wydarzenie
+  nl: Hoofdafspraak
+  ar: الحدث الرئيسي
+  hi: मुख्य कार्यक्रम
+  th: กิจกรรมหลัก
+  cs: Hlavní událost
+  sv: Huvudhändelse
+  he: האירוע הראשי
+  verified_by_human: []
+context:
+  context: 'Calendar event embed: Context event'
+  en: Context event
+  de: Kontexttermin
+  zh: 相关活动
+  es: Evento de contexto
+  fr: Événement de contexte
+  pt: Evento de contexto
+  ru: Связанное событие
+  ja: 関連する予定
+  ko: 관련 일정
+  it: Evento di contesto
+  tr: İlgili etkinlik
+  vi: Sự kiện liên quan
+  id: Acara terkait
+  pl: Powiązane wydarzenie
+  nl: Gerelateerde afspraak
+  ar: حدث ذو صلة
+  hi: संबंधित कार्यक्रम
+  th: กิจกรรมที่เกี่ยวข้อง
+  cs: Související událost
+  sv: Relaterad händelse
+  he: אירוע קשור
+  verified_by_human: []
+unavailable:
+  context: 'Calendar event embed: Calendar event unavailable'
+  en: Calendar event unavailable
+  de: Kalendereintrag nicht verfügbar
+  zh: 日历活动不可用
+  es: Evento no disponible
+  fr: Événement indisponible
+  pt: Evento indisponível
+  ru: Событие недоступно
+  ja: 予定を表示できません
+  ko: 일정을 사용할 수 없습니다
+  it: Evento non disponibile
+  tr: Etkinlik kullanılamıyor
+  vi: Sự kiện không khả dụng
+  id: Acara tidak tersedia
+  pl: Wydarzenie niedostępne
+  nl: Afspraak niet beschikbaar
+  ar: حدث التقويم غير متاح
+  hi: कैलेंडर कार्यक्रम उपलब्ध नहीं है
+  th: ไม่มีกิจกรรมในปฏิทิน
+  cs: Událost není dostupná
+  sv: Kalenderhändelsen är inte tillgänglig
+  he: האירוע אינו זמין
+  verified_by_human: []
+export_failed:
+  context: 'Calendar event embed: Could not export the event'
+  en: Could not export the event
+  de: Der Termin konnte nicht exportiert werden
+  zh: 无法导出活动
+  es: No se pudo exportar el evento
+  fr: Impossible d’exporter l’événement
+  pt: Não foi possível exportar o evento
+  ru: Не удалось экспортировать событие
+  ja: 予定をエクスポートできませんでした
+  ko: 일정을 내보낼 수 없습니다
+  it: Impossibile esportare l’evento
+  tr: Etkinlik dışa aktarılamadı
+  vi: Không thể xuất sự kiện
+  id: Tidak dapat mengekspor acara
+  pl: Nie udało się wyeksportować wydarzenia
+  nl: De afspraak kon niet worden geëxporteerd
+  ar: تعذر تصدير الحدث
+  hi: कार्यक्रम निर्यात नहीं हो सका
+  th: ไม่สามารถส่งออกกิจกรรมได้
+  cs: Událost se nepodařilo exportovat
+  sv: Det gick inte att exportera händelsen
+  he: לא ניתן לייצא את האירוע
+  verified_by_human: []
+source:
+  context: 'Calendar event embed: Source'
+  en: Source
+  de: Quelle
+  zh: 来源
+  es: Fuente
+  fr: Source
+  pt: Fonte
+  ru: Источник
+  ja: 出典
+  ko: 출처
+  it: Fonte
+  tr: Kaynak
+  vi: Nguồn
+  id: Sumber
+  pl: Źródło
+  nl: Bron
+  ar: المصدر
+  hi: स्रोत
+  th: แหล่งที่มา
+  cs: Zdroj
+  sv: Källa
+  he: מקור
+  verified_by_human: []
+week:
+  context: 'Calendar event embed: Week'
+  en: Week
+  de: Woche
+  zh: 周
+  es: Semana
+  fr: Semaine
+  pt: Semana
+  ru: Неделя
+  ja: 週
+  ko: 주
+  it: Settimana
+  tr: Hafta
+  vi: Tuần
+  id: Minggu
+  pl: Tydzień
+  nl: Week
+  ar: الأسبوع
+  hi: सप्ताह
+  th: สัปดาห์
+  cs: Týden
+  sv: Vecka
+  he: שבוע
+  verified_by_human: []
+previous:
+  context: 'Calendar event embed: Previous week'
+  en: Previous week
+  de: Vorherige Woche
+  zh: 上一周
+  es: Semana anterior
+  fr: Semaine précédente
+  pt: Semana anterior
+  ru: Предыдущая неделя
+  ja: 前の週
+  ko: 이전 주
+  it: Settimana precedente
+  tr: Önceki hafta
+  vi: Tuần trước
+  id: Minggu sebelumnya
+  pl: Poprzedni tydzień
+  nl: Vorige week
+  ar: الأسبوع السابق
+  hi: पिछला सप्ताह
+  th: สัปดาห์ก่อนหน้า
+  cs: Předchozí týden
+  sv: Föregående vecka
+  he: השבוע הקודם
+  verified_by_human: []
+next:
+  context: 'Calendar event embed: Next week'
+  en: Next week
+  de: Nächste Woche
+  zh: 下一周
+  es: Semana siguiente
+  fr: Semaine suivante
+  pt: Semana seguinte
+  ru: Следующая неделя
+  ja: 次の週
+  ko: 다음 주
+  it: Settimana successiva
+  tr: Sonraki hafta
+  vi: Tuần sau
+  id: Minggu berikutnya
+  pl: Następny tydzień
+  nl: Volgende week
+  ar: الأسبوع التالي
+  hi: अगला सप्ताह
+  th: สัปดาห์ถัดไป
+  cs: Příští týden
+  sv: Nästa vecka
+  he: השבוע הבא
+  verified_by_human: []
+end_unknown:
+  context: 'Calendar event embed: End time not specified'
+  en: End time not specified
+  de: Endzeit nicht angegeben
+  zh: 未指定结束时间
+  es: Hora de fin no especificada
+  fr: Heure de fin non précisée
+  pt: Hora de fim não especificada
+  ru: Время окончания не указано
+  ja: 終了時刻は未指定
+  ko: 종료 시간 미지정
+  it: Ora di fine non specificata
+  tr: Bitiş saati belirtilmedi
+  vi: Chưa có giờ kết thúc
+  id: Waktu selesai tidak ditentukan
+  pl: Nie podano godziny zakończenia
+  nl: Eindtijd niet opgegeven
+  ar: وقت الانتهاء غير محدد
+  hi: समाप्ति का समय निर्दिष्ट नहीं है
+  th: ไม่ได้ระบุเวลาสิ้นสุด
+  cs: Čas konce není uveden
+  sv: Sluttid saknas
+  he: שעת הסיום לא צוינה
+  verified_by_human: []
+preparing:
+  context: 'Calendar event embed: Preparing event…'
+  en: Preparing event…
+  de: Termin wird vorbereitet…
+  zh: 正在准备活动…
+  es: Preparando evento…
+  fr: Préparation de l’événement…
+  pt: A preparar evento…
+  ru: Подготовка события…
+  ja: 予定を準備中…
+  ko: 일정 준비 중…
+  it: Preparazione dell’evento…
+  tr: Etkinlik hazırlanıyor…
+  vi: Đang chuẩn bị sự kiện…
+  id: Menyiapkan acara…
+  pl: Przygotowywanie wydarzenia…
+  nl: Afspraak voorbereiden…
+  ar: جارٍ إعداد الحدث…
+  hi: कार्यक्रम तैयार हो रहा है…
+  th: กำลังเตรียมกิจกรรม…
+  cs: Příprava události…
+  sv: Förbereder händelse…
+  he: מכין אירוע…
+  verified_by_human: []

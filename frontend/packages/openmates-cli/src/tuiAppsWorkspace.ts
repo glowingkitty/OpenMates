@@ -1,19 +1,26 @@
 /*
  * Apps workspace model for the interactive terminal.
- * Uses the web Apps catalog and skill form contract, with client-side encryption
+ * Uses the web Apps catalog and natural-language request contract, with client-side encryption
  * for saved Personal results. No file, provider, or account secret is sent to the
- * Apps result index in plaintext. Skill execution requires explicit confirmation.
+ * Apps result index in plaintext. Submitting a request accepts its chosen execution.
  * Team and guest execution are disabled until their web authorization contracts
  * can be carried through the CLI client.
  */
 
 import { randomBytes, randomUUID } from "node:crypto";
 import type { OpenMatesClient } from "./client.js";
+import { compileCliPrivacy, prepareCliMessagePrivacy } from "./privacyScan.js";
+import { readPrivacyPreferences } from "./privacyModel.js";
+import { captureTuiWorkspaceOwner } from "./tuiCachedWorkspaces.js";
+import { ProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy.js";
+import { isAppsRequestMappingField, isAppsRequestOpaqueField, isAppsRequestOpaqueValue, mapAppsRequestText } from "../../ui/src/services/appsWorkspaceRequestPrivacy.js";
 import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
-import { formatEmbedPreviewLines } from "./embedRenderers.js";
+import { renderTuiEmbedPreview } from "./tuiEmbedPreviews.js";
+import { listExampleChatsForApp } from "./exampleChats.js";
+import type { TuiState } from "./tuiRenderer.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
-import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { cells, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
+import { centeredCarouselText, renderCardCarousel, renderLineCarousel } from "./tuiCarousel.js";
 import { pointerLine } from "./tuiPointer.js";
 import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import {
@@ -24,7 +31,6 @@ import {
 const APP_ID = /^[a-z][a-z0-9_]{0,63}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RESULT_PAGE_SIZE = 20;
-const MAX_RESULT_LINES = 120;
 const HOME_APP_ORDER = ["web", "news", "health", "travel", "weather", "audio"];
 const pendingConfirmations = new WeakMap<TuiForm, Promise<TuiAppsSavedResult>>();
 
@@ -50,8 +56,186 @@ export type TuiAppsSavedResult = {
   embedId: string; appId: string; skillId: string; status: string;
   content: Record<string, unknown>; children: Array<{ embedId: string; type: string; content: Record<string, unknown> }>;
   retentionError?: string;
+  expiresAt?: number;
 };
-export type TuiAppsPreparedRun = { appId: string; skillId: string; input: Record<string, unknown>; summary: string };
+export type TuiAppsPreparedRun = { appId: string; skillId: string; input: Record<string, unknown>; summary: string; requestText?: string };
+
+export type TuiAppsSavedSearch = { id: string; skillId: string; title: string; query: string; parameters: Record<string, unknown>; savedAt: number };
+export type TuiAppsRecommendation = { id: string; skillId: string; createdAt: number; expiresAt: number; result: Record<string, unknown>; input?: Record<string,unknown>; requestText?: string };
+export type TuiAppsLibrary = { appId: string; dailySearchesEnabled: boolean; savedSearches: TuiAppsSavedSearch[]; recommendations: TuiAppsRecommendation[] };
+export type TuiAppsLibraryEntry = { id: string; title: string; description: string; command: string; section: "Saved" | "Recent" | "Example chats" };
+export const emptyTuiAppsLibrary = (appId = ""): TuiAppsLibrary => ({ appId, dailySearchesEnabled: true, savedSearches: [], recommendations: [] });
+
+export function parseTuiAppsLibrary(value: unknown, appId: string, now = Date.now()): TuiAppsLibrary {
+  const data = record(value);
+  if (data.app_id !== appId) throw new Error("Apps library did not match the selected app.");
+  const milliseconds = (value: unknown): number => typeof value === "number" ? value < 1e12 ? value * 1000 : value : Date.parse(string(value));
+  return { appId, dailySearchesEnabled: data.daily_searches_enabled !== false,
+    savedSearches: rows(data.saved_searches).map(item => ({ id: string(item.id), skillId: string(item.skill_id),
+      title: string(item.title, string(item.query, string(item.skill_id))), query: string(item.query), parameters: record(item.parameters), savedAt: milliseconds(item.saved_at) })),
+    recommendations: rows(data.recommendations).filter(item => milliseconds(item.expires_at) > now && milliseconds(item.created_at) > now - 86400000 && milliseconds(item.created_at) <= now)
+      .map(item => ({ id: string(item.id), skillId: string(item.skill_id), createdAt: milliseconds(item.created_at), expiresAt: milliseconds(item.expires_at), result: record(item.result), input: record(item.input), requestText: string(item.request_text) })),
+  };
+}
+
+/** Expiry also removes data from an already open recommendation and child fullscreen. */
+export function expireTuiAppsRecommendations(state:TuiState,now=Date.now()):boolean {
+  const publicFresh=state.appPublicRecommendations.filter(item=>item.expiresAt>now);
+  let changed=publicFresh.length!==state.appPublicRecommendations.length;state.appPublicRecommendations=publicFresh;
+  const fresh=state.appLibrary.recommendations.filter(item=>item.expiresAt>now);
+  if(fresh.length!==state.appLibrary.recommendations.length){state.appLibrary.recommendations=fresh.length?fresh:publicFresh;changed=true;}
+  const active=state.activeAppResult;
+  if(active?.expiresAt&&active.expiresAt<=now&&active.status!=="expired"){
+    for(const child of tuiAppsResultChildren(active))delete state.chatEmbeds[child.embedId];
+    state.activeAppResult={...active,status:"expired",content:{},children:[]};changed=true;
+    if(state.workspace==="apps"&&state.screen==="embed"&&state.embedOrigin?.screen==="app-result"){
+      state.detailEmbed=null;state.detailTitle="Recommendation expired";state.detailLines=["This recommendation expired. Open the app for fresh results."];
+    }
+  }
+  return changed;
+}
+
+/** Only real saved links and app-specific published examples become navigation targets. */
+export function tuiAppsLibraryEntries(state: TuiState): TuiAppsLibraryEntry[] {
+  if (!state.activeApp) return [];
+  const saved = state.appLibrary.savedSearches.map(item => ({ id: `saved:${item.id}`, title: item.title, description: item.query,
+    command: `/app-saved ${item.id}`, section: "Saved" as const }));
+  const recent = state.appResults.items.map(item => ({ id: `result:${item.embedId}`, title: item.skillId.replaceAll("_", " "), description: item.status,
+    command: `/app-result ${item.embedId}`, section: "Recent" as const }));
+  const recentChats=state.appRecentChats.filter(chat=>!chat.isHidden&&!chat.isHiddenCandidate&&chat.activeFocusId?.startsWith(state.activeApp!.id+"-"))
+    .map(chat=>({id:`chat:${chat.id}`,title:chat.title||"Recent chat",description:chat.summary||"",command:`/chat ${chat.id}`,section:"Recent" as const}));
+  const examples = listExampleChatsForApp(state.activeApp.id).map(chat => ({ id: `example:${chat.id}`, title: chat.title || "Example chat", description: chat.summary || "",
+    command: `/example ${chat.slug || chat.id}`, section: "Example chats" as const }));
+  return [...saved, ...recent, ...recentChats, ...examples];
+}
+
+export function tuiAppsCarouselGroups(state:TuiState): Array<{title:string;commands:string[]}> {
+  const entries=tuiAppsLibraryEntries(state),groups:Array<{title:string;commands:string[]}>=[];
+  const recommendations=state.appLibrary.recommendations.filter(item=>item.expiresAt>Date.now());
+  if(recommendations.length)groups.push({title:"Recommended",commands:recommendations.map(item=>`/app-recommendation ${item.id}`)});
+  for(const title of ["Saved","Recent","Example chats"]){const items=entries.filter(item=>item.section===title);if(items.length)groups.push({title,commands:items.map(item=>item.command)});}
+  return groups;
+}
+
+export function renderTuiAppsWorkspace(state: TuiState, width: number): TuiLine[] {
+  const app = state.activeApp;
+  if (!app) return ["Loading app…"];
+  const lines: TuiLine[] = [...renderTuiAppIdentity(app, width),
+    pointerLine("⚙ Settings", {kind:"command",command:"/app-settings"}), "", "What would you like to find or do?", "Describe your request below. Running searches may use credits.", ""];
+  const library = state.appLibrary;
+  const recommendations = library.recommendations.filter(item => item.expiresAt > Date.now());
+  const entries = tuiAppsLibraryEntries(state);
+  const selectedSection=tuiAppsCarouselGroups(state)[state.appCarouselRow]?.title;
+  if (recommendations.length) {
+    lines.push("Recommended", "");
+    const cards = recommendations.map(item => {
+      const result = recommendationTuiAppsResult(app.id, item);
+      const child = tuiAppsResultChildren(result)[0];
+      if(!child)return [];
+      const cardWidth=Math.min(62,width),card=renderTuiEmbedPreview(toTuiAppsEmbed(child,app.id,item.skillId),cardWidth,child.embedId);
+      // Recommendation batches are not persisted embed graphs; their visible shortcut opens the batch.
+      if(cardWidth>=6)card[card.length-2]=`│ ${padCells(`/app-recommendation ${item.id}`,cardWidth-4)} │`;
+      return card.map(line=>pointerLine(line,{kind:"command",command:`/app-recommendation ${item.id}`}));
+    });
+    lines.push(...renderLineCarousel(cards,width,state.appCarouselPositions.Recommended??0,state.focus==="content"&&selectedSection==="Recommended",Math.min(62,width)), "");
+  }
+  for (const section of ["Saved", "Recent", "Example chats"] as const) {
+    const items = entries.filter(item => item.section === section);
+    if (!items.length) continue;
+    lines.push(section, "", ...renderCardCarousel(items.map(item => ({title:item.title,description:item.description,
+      footer:section === "Saved" ? "Saved search" : section === "Recent" ? "Open results" : "Open example chat",
+      background:(APP_GRADIENTS[app.id]??PRIMARY_GRADIENT).start,action:{kind:"command",command:item.command}})),
+      width,state.appCarouselPositions[section]??0,state.focus==="content"&&selectedSection===section), "");
+  }
+  if (!entries.length && !recommendations.length) lines.push("Your results and saved searches will appear here.");
+  return lines;
+}
+
+export function renderTuiAppsSettings(state: TuiState, width: number): TuiLine[] {
+  const app = state.activeApp;if (!app) return [];
+  return [...renderTuiAppIdentity(app,width),"Settings", "",
+    pointerLine(`Daily searches: ${state.appLibrary.dailySearchesEnabled ? "On" : "Off"}`,{kind:"command",command:`/app-daily ${state.appLibrary.dailySearchesEnabled ? "off" : "on"}`}),
+    "Only your latest saved search runs daily while you are active.", "Personal searches use your credits.", "", "Skills · pricing and providers", "",
+    ...app.skills.flatMap(skill => [pointerLine(`${skill.name}${skill.providers.length ? ` · ${skill.providers.join(", ")}` : ""}`,{kind:"command",command:`/app-skill ${app.id}/${skill.id}`})]),
+    "",pointerLine("Back to app",{kind:"command",command:`/app ${app.id}`})];
+}
+
+export async function interpretTuiAppsRequest(client: OpenMatesClient, app: TuiApp, text: string, result?: TuiAppsSavedResult | null): Promise<{action:"execute"|"chat"|"workflow";run?:TuiAppsPreparedRun}> {
+  if(result?.expiresAt&&result.expiresAt<=Date.now())throw new Error("This recommendation expired. Open the app for fresh results.");
+  if (!client.hasSession()) throw new Error("Sign in to use Apps.");
+  if (client.getActiveTeamId()) throw new Error("Switch to Personal to use Apps in the terminal.");
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const preferencesKey = JSON.stringify(await readPrivacyPreferences());
+  const assertCurrent = async () => {
+    const preferences = await readPrivacyPreferences();
+    if (!ownerCurrent() || !client.hasSession() || client.getActiveTeamId()) throw new Error("Apps privacy account context changed.");
+    if (JSON.stringify(preferences) !== preferencesKey) throw new Error("Apps privacy settings changed. Submit the request again.");
+  };
+  const [owner, memories] = await Promise.all([client.whoAmI(), client.listMemories({ personal: true })]);
+  await assertCurrent();
+  const ownerId = string(owner.id, string(owner.user_id));
+  if (!UUID.test(ownerId)) throw new Error("Apps privacy account identity unavailable.");
+  const privacy = compileCliPrivacy(memories.filter(memory => memory.app_id === "privacy"
+    && ["pii_detection_settings", "personal_data_entry"].includes(memory.item_type)));
+  let mappings: Awaited<ReturnType<typeof prepareCliMessagePrivacy>>["mappings"] = [];
+  const protect = async (value: string) => {
+    const prepared = await prepareCliMessagePrivacy(value, [], mappings, { kind: "message" }, undefined, privacy);
+    mappings = prepared.mappings;
+    return prepared.message;
+  };
+  const textForModel = await protect(text);
+  const requestId = randomUUID();
+  const context = result ? { skill_id: result.skillId, input: record(result.content.input),
+    embed_id: UUID.test(result.embedId) ? result.embedId : undefined,
+    result: { summary: renderTuiAppsResult(result, 120).join("\n").slice(0, 10000) } } : undefined;
+  const contextForModel = context ? { ...context, input: record(await transformTuiAppsPrivacy(context.input, protect)),
+    result: record(await transformTuiAppsPrivacy(context.result, protect)) } : undefined;
+  await assertCurrent();
+  const response = record(await client.interpretAppsWorkspaceRequest({ app_id: app.id, text: textForModel, request_id: requestId, expected_user_id: ownerId,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, locale: Intl.DateTimeFormat().resolvedOptions().locale,
+    ...(contextForModel ? { context: contextForModel } : {}) }));
+  await assertCurrent();
+  if (response.request_id !== requestId || !["execute","chat","workflow"].includes(string(response.action))) throw new Error("Apps returned an invalid request plan.");
+  if (response.action !== "execute") return {action:response.action as "chat"|"workflow"};
+  const skillId = string(response.skill_id);
+  if (!app.skills.some(skill => skill.id === skillId)) throw new Error("Apps chose an unavailable skill.");
+  const skill = await loadTuiAppsSkill(client,app.id,skillId);
+  if (!skill.executionAvailable) throw new Error(skill.unavailableReason || "This skill is unavailable.");
+  await assertCurrent();
+  const restore = new ProjectFilePrivacy({ mappings, save: async () => {} });
+  const restoredInput = mapAppsRequestText(response.input, value => restore.restoreText(value));
+  const input = prepareSkillInput(skill.schema,record(restoredInput),Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const issues = validateSkillInput(skill.schema,input);
+  if (issues.length) throw new Error("Apps could not prepare a valid request. Add more detail and try again.");
+  return {action:"execute",run:{appId:app.id,skillId,input,summary:skill.name,requestText:text}};
+}
+
+
+/** Transform user data only; mappings stay local and capability bytes stay exact. */
+async function transformTuiAppsPrivacy(value: unknown, transform: (value: string) => string | Promise<string>): Promise<unknown> {
+  if (typeof value === "string") return isAppsRequestOpaqueValue(value) ? value : transform(value);
+  if (Array.isArray(value)) { const result = []; for (const child of value) result.push(await transformTuiAppsPrivacy(child, transform)); return result; }
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (isAppsRequestMappingField(key)) continue;
+      result[key] = isAppsRequestOpaqueField(key) ? child : await transformTuiAppsPrivacy(child, transform);
+    }
+    return result;
+  }
+  return value;
+}
+
+/** Submission of a natural-language search accepts its selected billable execution. */
+export function executeTuiAppsRequest(client: OpenMatesClient, run: TuiAppsPreparedRun): Promise<TuiAppsSavedResult> {
+  return executeConfirmedTuiAppsSkill(client,run);
+}
+
+export function tuiAppsHandoffText(text: string, result?: TuiAppsSavedResult | null): string {
+  if (!result) return text;
+  return `${text}\n\nPrevious ${result.appId}/${result.skillId} request and results:\n${JSON.stringify({input:result.content.input,
+    result:result.content,children:result.children.map(child=>({type:child.type,content:child.content}))})}`;
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -251,15 +435,8 @@ export function renderTuiAppsSkill(skill: TuiAppsSkillDetails, options: { width:
   const width = Math.max(1, options.width);
   const lines:TuiLine[] = [...renderTuiAppsSkillIdentity(skill, width), ...(options.pointer?renderTuiAppsSkillTabs(options.tab,width,{pointer:true}):renderTuiAppsSkillTabs(options.tab, width))];
   if (options.tab === "overview") {
-    lines.push("Use this skill manually. Your mates can also use it in chats.", "");
-    for (const path of skillLeafPaths(skill.schema)) {
-      const field = schemaForPath(skill.schema, path);
-      const value = getSkillPath(skill.defaults, path);
-      lines.push(truncateCells(`${path}${isRequired(skill.schema, path) ? " *" : ""} · ${field?.type ?? "value"}${value !== undefined ? ` · ${typeof value === "string" ? value : JSON.stringify(value)}` : ""}`, width));
-    }
-    lines.push("", skill.executionAvailable && options.pointer
-      ? pointerLine("Enter opens the input form. Running may spend credits.",{kind:"command",command:"/app-run"})
-      : skill.executionAvailable ? "Enter opens the input form. Running may spend credits." : `Unavailable: ${skill.unavailableReason ?? "This skill cannot run here."}`);
+    lines.push("Describe what you want in the composer below.", "Your mates can also use this skill in chats.", "",
+      skill.executionAvailable ? "Enter starts a request. Running may spend credits." : `Unavailable: ${skill.unavailableReason ?? "This skill cannot run here."}`);
     const fixed = skill.pricing?.fixed;
     if (typeof fixed === "number") lines.push(`${fixed} credits per request`);
   } else if (options.tab === "embeds") lines.push("Saved results are listed in the app's Embeds tab.");
@@ -270,7 +447,7 @@ export function renderTuiAppsSkill(skill: TuiAppsSkillDetails, options: { width:
 export function renderTuiAppsSkillIdentity(skill: TuiAppsSkillDetails, width: number): string[] {
   return identityCard([`SKILL  /  ${skill.appId.toUpperCase()}`, skill.name, skill.description,
     ...(skill.providers.length ? [`via ${skill.providers.join(", ")}`] : []),
-    skill.executionAvailable ? "Use skill · review input and confirm credits before running" : "Skill unavailable"], width, "APP SKILL");
+    skill.executionAvailable ? "Describe your request · running may use credits" : "Skill unavailable"], width, "APP SKILL");
 }
 
 export function renderTuiAppsSkillTabs(tab:TuiAppsSkillTab,width:number,options:{pointer:true}):TuiLine[];
@@ -388,7 +565,7 @@ async function saveEncryptedResult(client: OpenMatesClient, ownerId: string, roo
   }));
   const childIds = children.map((child) => string(child.embed_id));
   const allIds = [...childIds, ...linkedIds];
-  const content = resultContent(run.appId, run.skillId, run.input, response, status, allIds);
+  const content = {...resultContent(run.appId, run.skillId, run.input, response, status, allIds), ...(run.requestText?{request_text:run.requestText}:{})};
   await client.saveAppsWorkspaceResult({
     app_id: run.appId, skill_id: run.skillId, root_embed_id: rootId, expected_user_id: ownerId,
     encrypted_embed_key: encryptedKey, linked_embed_ids: linkedIds,
@@ -518,38 +695,58 @@ export function renderTuiAppsResults(page: TuiAppsResultsPage, options: { width:
   return lines;
 }
 
-export function renderTuiAppsResult(result: TuiAppsSavedResult, width: number): string[] {
-  width = Math.max(1, width);
-  const lines = [`${result.appId} / ${result.skillId}`, `Result ${result.embedId} · ${result.status}`, ""];
-  if (result.retentionError) lines.push(result.retentionError, "");
-  lines.push(...embedPreview(result.embedId, "app_skill_use", result.content, result.appId, result.skillId,
-    `/app-result ${result.embedId}`, width));
-  if (result.children.length) {
-    lines.push("", `Embeds (${result.children.length})`);
-    for (const child of result.children) {
-      lines.push("", ...embedPreview(child.embedId, child.type, child.content, null, null, `/embed ${child.embedId}`, width));
-      const details = Object.fromEntries(Object.entries(child.content).filter(([key]) => !CHILD_BOOKKEEPING_FIELDS.has(key)));
-      if (Object.keys(details).length) lines.push(...readableFields(details, width).slice(0, result.retentionError ? undefined : 4));
-    }
-  }
-  const input = record(result.content.input);
-  if (Object.keys(input).length) lines.push("", "Request", ...readableFields(input, width));
-  const response = Object.fromEntries(Object.entries(result.content).filter(([key]) => !RESULT_BOOKKEEPING_FIELDS.has(key)));
-  if (Object.keys(response).length) lines.push("", "Response", ...readableFields(response, width));
-  else if (!result.children.length) lines.push("", result.status === "processing" ? "Waiting for the skill result." : "No result content was returned.");
-  const wrapped = lines.flatMap((line) => textLines(line, width));
-  if (result.retentionError || wrapped.length <= MAX_RESULT_LINES) return wrapped;
-  return [...wrapped.slice(0, MAX_RESULT_LINES - 1), "… more content is available in the web app"];
+const CHILD_TYPES: Record<string,string> = {web:"web-website",news:"news-article",shopping:"shopping-product",travel:"travel-stay",events:"events-event",health:"health-appointment",videos:"videos-video",fitness:"fitness-class"};
+export function tuiAppsResultChildren(result: TuiAppsSavedResult): TuiAppsSavedResult["children"] {
+  if (result.children.length) return result.children.map(child=>({...child,content:{...record(child.content.result),...child.content}}));
+  const extracted=responseResults(result.content);
+  const hasStandaloneContent=["title","name","summary","description","text","content","transcript","forecast","weather","code","url","error"].some(key=>Boolean(result.content[key]));
+  const values=extracted.length?extracted:hasStandaloneContent?[result.content]:[];
+  return values.map((value,index)=>{
+    const content = record(value);
+    return {embedId:string(content.embed_id,`${result.embedId}:${index+1}`),type:string(content.type,string(content.embed_type,result.appId==="travel"&&/connection|flight/.test(result.skillId)?"travel-connection":CHILD_TYPES[result.appId]||"app_result")),content};
+  });
 }
-
-const RESULT_BOOKKEEPING_FIELDS = new Set(["app_id", "skill_id", "input", "status", "result_count", "embed_ids", "child_embed_ids", "task_id", "task_ids"]);
-const CHILD_BOOKKEEPING_FIELDS = new Set(["app_id", "skill_id", "embed_id", "embed_type", "type"]);
-
-function embedPreview(embedId: string, type: string, content: Record<string, unknown>, appId: string | null, skillId: string | null, action: string, width: number): string[] {
-  const display = appId ? content : Object.fromEntries(Object.entries(content).filter(([key]) => key !== "app_id" && key !== "skill_id"));
-  const preview = formatEmbedPreviewLines({ id: embedId, embedId, type, textPreview: null, content: display,
-    appId, skillId, createdAt: null }, 3);
-  return preview.map((line) => line.startsWith("└─") ? `└─ ${action}` : line).flatMap((line) => textLines(line, width));
+export function recommendationTuiAppsResult(appId:string,item:TuiAppsRecommendation):TuiAppsSavedResult {
+  return {embedId:item.id,appId,skillId:item.skillId,status:"finished",expiresAt:item.expiresAt,content:{...item.result,input:item.input??record(item.result.input),request_text:item.requestText,results:responseResults(item.result)},children:[]};
+}
+export function toTuiAppsEmbed(child:TuiAppsSavedResult["children"][number],appId:string,skillId:string) {
+  return {id:child.embedId,embedId:child.embedId,type:child.type,content:child.content,textPreview:null,appId,skillId,createdAt:null};
+}
+export function renderTuiAppsResultControls(result:TuiAppsSavedResult,width:number,filter=""):TuiLine[] {
+  return [truncateCells(`${result.appId} / ${result.skillId} · ${tuiAppsResultChildren(result).length} results · ${result.status}`,width),
+    pointerLine(`Filter results${filter?`: ${filter}`:""} · /search`,{kind:"command",command:"/search"}),
+    pointerLine("Save search",{kind:"command",command:"/app-save"}), ""];
+}
+export function renderTuiAppsResult(result: TuiAppsSavedResult, width: number, filter=""): string[] {
+  return renderTuiAppsResultCards(result,width,filter).map(lineText);
+}
+/** Vertical rows of genuine child previews; the pinned controls/composer live outside this grid. */
+export function renderTuiAppsResultCards(result:TuiAppsSavedResult,width:number,filter="",dailyNotice=false):TuiLine[] {
+  width=Math.max(1,width);
+  if(result.status==="expired"||result.expiresAt&&result.expiresAt<=Date.now())return ["This recommendation expired. Open the app for fresh results."];
+  const lines:TuiLine[]=[...renderTuiAppsResultControls(result,width,filter)];
+  if(dailyNotice)lines.splice(3,0,truncateCells("Daily searches are on · personal searches use your credits",width),
+    {text:"OK    Turn off",spans:[{text:"OK",action:{kind:"command",command:"/app-daily-ok"}},{text:"    "},{text:"Turn off",action:{kind:"command",command:"/app-daily off"}}]});
+  if(result.retentionError)lines.push(result.retentionError,"");
+  const children=tuiAppsResultChildren(result).filter(child=>!filter||JSON.stringify(child.content).toLowerCase().includes(filter.toLowerCase()));
+  const columns=width>=100?2:1,gap=2,cardWidth=Math.min(62,Math.floor((width-(columns-1)*gap)/columns));
+  for(let index=0;index<children.length;index+=columns){
+    const cards=children.slice(index,index+columns).map(child=>renderTuiEmbedPreview(toTuiAppsEmbed(child,result.appId,result.skillId),cardWidth,child.embedId));
+    const height=Math.max(...cards.map(card=>card.length));
+    for(let row=0;row<height;row++){
+      const spans:TuiSpan[]=[];
+      for(const [column,card] of cards.entries()){
+        if(column)spans.push({text:" ".repeat(gap)});
+        const line=card[row]??"",text=lineText(line),source=typeof line==="string"?[{text:line}]:line.spans??[{...line,text:line.text}];
+        spans.push(...source,{text:" ".repeat(Math.max(0,cardWidth-cells(text)))});
+      }
+      lines.push({text:spans.map(span=>span.text).join(""),spans});
+    }
+    lines.push("");
+  }
+  if(!children.length)lines.push(filter?"No matching results.":result.status==="processing"?"Waiting for the skill result.":"No result content was returned.");
+  if(result.retentionError)lines.push("Request",...readableFields(record(result.content.input),width),"Response",...readableFields(result.content,width));
+  return lines;
 }
 
 function readableFields(value: Record<string, unknown>, width: number): string[] {

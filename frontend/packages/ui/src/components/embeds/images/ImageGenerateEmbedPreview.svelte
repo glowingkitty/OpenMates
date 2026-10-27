@@ -15,18 +15,16 @@
 -->
 
 <script lang="ts">
-  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
-  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
-  import { onDestroy, getContext} from 'svelte';
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
-  import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { imageGenerationAttribution } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
-  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   
   /**
@@ -39,6 +37,7 @@
     status?: string;
     prompt?: string;
     model?: string;
+    provider?: string;
     aspect_ratio?: string;
     generated_at?: string;
     s3_base_url?: string;
@@ -66,6 +65,7 @@
     prompt?: string;
     /** Model ID used for generation (e.g., "flux-schnell", "gemini-3-pro-image-preview") */
     model?: string;
+    provider?: string;
     /** S3 base URL for image files */
     s3BaseUrl?: string;
     /** Files metadata from embed content */
@@ -95,6 +95,7 @@
     skillId: skillIdProp = 'generate',
     prompt: promptProp,
     model: modelProp,
+    provider: providerProp,
     s3BaseUrl: s3BaseUrlProp,
     files: filesProp,
     aesKey: aesKeyProp,
@@ -111,6 +112,7 @@
   // Local reactive state — updated via handleEmbedDataUpdated callback
   let localPrompt = $state<string | undefined>(undefined);
   let localModel = $state<string | undefined>(undefined);
+  let localProvider = $state<string | undefined>(undefined);
   let localS3BaseUrl = $state<string | undefined>(undefined);
   let localFiles = $state<ImageEmbedData['files'] | undefined>(undefined);
   let localAesKey = $state<string | undefined>(undefined);
@@ -122,9 +124,7 @@
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
 
   // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
-  let inputImageUrls = $state<Map<string, string>>(new Map());
   // S3 keys retained from the cache so we can release on unmount
-  let retainedInputKeys: string[] = [];
   
   // Image blob URL for rendering
   let imageUrl = $state<string | undefined>(undefined);
@@ -163,10 +163,6 @@
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;
     }
-    for (const key of retainedInputKeys) {
-      releaseCachedImage(key);
-    }
-    retainedInputKeys = [];
     observer?.disconnect();
   });
   
@@ -175,6 +171,7 @@
     if (!storeResolved) {
       localPrompt = promptProp;
       localModel = modelProp;
+      localProvider = providerProp;
       localS3BaseUrl = s3BaseUrlProp;
       localFiles = filesProp;
       localAesKey = aesKeyProp;
@@ -201,7 +198,7 @@
   let inputEmbedIds = $derived(localInputEmbedIds);
   
   // Human-readable model name resolved from model ID via frontend metadata
-  let modelDisplayName = $derived(model ? getModelDisplayName(model) : undefined);
+  let modelDisplayName = $derived(imageGenerationAttribution(model, localProvider));
   
   // Model metadata for icon display
   let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
@@ -217,58 +214,6 @@
   );
   
   
-  /**
-   * Load and decrypt preview thumbnails for input (reference) images.
-   * Resolves each embed ID, decodes TOON content, then fetches+decrypts the
-   * preview variant using the same crypto pipeline as the output image.
-   */
-  async function loadInputImages(embedIds: string[]) {
-    for (const embedId of embedIds) {
-      if (inputImageUrls.has(embedId)) continue; // already loaded
-
-      try {
-        const embedData = await resolveEmbed(embedId, { chatId: sourceChatId });
-        if (!embedData?.content) continue;
-
-        const content = await decodeToonContent(embedData.content);
-        if (!content) continue;
-
-        const inputS3BaseUrl = content.s3_base_url as string | undefined;
-        const inputFiles = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string }> | undefined;
-        const inputAesKey = content.aes_key as string | undefined;
-        const inputAesNonce = content.aes_nonce as string | undefined;
-
-        const previewFile = inputFiles?.preview;
-        const previewKey = previewFile?.s3_key;
-        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !hasMediaEncryptionMetadata(previewFile, inputAesNonce)) continue;
-
-        // Check shared cache first
-        const cached = getCachedImageUrl(previewKey);
-        if (cached) {
-          retainCachedImage(previewKey);
-          retainedInputKeys.push(previewKey);
-          inputImageUrls = new Map(inputImageUrls).set(embedId, cached);
-          continue;
-        }
-
-        await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
-        const url = getCachedImageUrl(previewKey)!;
-        retainCachedImage(previewKey);
-        retainedInputKeys.push(previewKey);
-        inputImageUrls = new Map(inputImageUrls).set(embedId, url);
-      } catch (err) {
-        console.warn('[ImageGenerateEmbedPreview] Failed to load input image thumbnail:', embedId, err);
-      }
-    }
-  }
-
-  // Load input image thumbnails when embed IDs are available and embed is in view
-  $effect(() => {
-    if (isInView && inputEmbedIds && inputEmbedIds.length > 0) {
-      loadInputImages(inputEmbedIds);
-    }
-  });
-
   /**
    * Load and decrypt the preview image from S3.
    * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
@@ -361,6 +306,7 @@
       
       if (content.prompt) localPrompt = content.prompt;
       if (content.model) localModel = content.model;
+      if (content.provider) localProvider = content.provider;
       if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
       if (content.files) localFiles = content.files;
       if (content.aes_key) localAesKey = content.aes_key;
@@ -372,7 +318,9 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
+  {inputEmbedIds}
   appId="images"
   skillId={skillIdProp}
   {skillIconName}
@@ -387,36 +335,16 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
+    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
+      {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
-      {#if inputEmbedIds && inputEmbedIds.length > 0}
-        <!-- Input image strip: 30px tall thumbnails shown above the main content -->
-        <div class="input-images-strip">
-          {#each inputEmbedIds as embedId (embedId)}
-            {@const thumbUrl = inputImageUrls.get(embedId)}
-            <div class="input-thumb">
-              {#if thumbUrl}
-                <img src={thumbUrl} alt="" class="input-thumb-img" />
-              {:else}
-                <div class="input-thumb-placeholder"></div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
       {#if status === 'finished' && !error && imageUrl}
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
             <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
           </div>
-          {#if modelDisplayName}
-            <div class="image-model-badge">
-              {#if modelIconUrl}
-                <img src={modelIconUrl} alt="" class="model-icon" />
-              {/if}
-              <span class="generating-via">{$text('embeds.image_generate.generated_by')} {modelDisplayName}</span>
-            </div>
-          {/if}
+
         </div>
       {:else if status === 'finished' && !error && imageError}
         <!-- Finished state but image decryption failed -->
@@ -427,22 +355,10 @@
       {:else if status !== 'error'}
         <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
         <div class="prompt-content">
-          {#if prompt}
-            {#if modelDisplayName}
-              <div class="model-info-line">
-                {#if modelIconUrl}
-                  <img src={modelIconUrl} alt="" class="model-icon" />
-                {/if}
-                <span class="generating-via">{$text('embeds.image_generate.generating_via')} {modelDisplayName}:</span>
-              </div>
-            {/if}
-            <span class="prompt-text">{prompt}</span>
-          {:else}
-            <div class="skeleton-lines">
-              <div class="skeleton-line long"></div>
-              <div class="skeleton-line short"></div>
-            </div>
-          {/if}
+          <div class="skeleton-lines">
+            <div class="skeleton-line long"></div>
+            <div class="skeleton-line short"></div>
+          </div>
         </div>
       {:else}
         <!-- Error state -->
@@ -452,6 +368,8 @@
         </div>
       {/if}
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -465,46 +383,6 @@
     box-sizing: border-box;
   }
 
-  /* Input image thumbnails — 30px strip at the top */
-  .input-images-strip {
-    display: flex;
-    flex-direction: row;
-    gap: var(--spacing-2);
-    padding: var(--spacing-2) var(--spacing-4);
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-shrink: 0;
-    background: var(--color-grey-10, #f8f8f8);
-    scrollbar-width: none;
-  }
-
-  .input-images-strip::-webkit-scrollbar {
-    display: none;
-  }
-
-  .input-thumb {
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    border-radius: 3px;
-    overflow: hidden;
-    border: 1px solid var(--color-grey-20, #e0e0e0);
-  }
-
-  .input-thumb-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .input-thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    background: var(--color-grey-20, #f0f0f0);
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-  
   .image-preview.mobile {
     padding: 0;
   }
@@ -521,37 +399,9 @@
   }
   
   /* "Generating via {Model}:" label shown above the prompt during processing */
-  .prompt-content .generating-via {
-    font-size: var(--font-size-xxs);
-    font-weight: 600;
-    color: var(--color-grey-50, #888);
-    line-height: 1.4;
-  }
   
-  .model-info-line {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    margin-bottom: var(--spacing-2);
-  }
   
-  .model-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
   
-  .prompt-content .prompt-text {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70, #555);
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
-  }
   
   /* Skeleton lines fallback when prompt is not yet available */
   .skeleton-lines {
@@ -603,31 +453,12 @@
   .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
   
   /* Model badge shown over finished images */
-  .image-model-badge {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: var(--spacing-2) var(--spacing-4);
-    border-radius: var(--radius-1);
-    font-size: var(--font-size-tiny);
-    font-weight: 500;
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-  }
   
-  .image-model-badge .model-icon {
-    width: 14px;
-    height: 14px;
-  }
   
   .image-content {
     position: relative;
@@ -694,13 +525,7 @@
   /* Mobile adjustments - no special handling needed since prompt was removed from preview */
   
   /* Dark mode support */
-  :global(.dark) .prompt-content .generating-via {
-    color: var(--color-grey-50, #888);
-  }
   
-  :global(.dark) .prompt-content .prompt-text {
-    color: var(--color-grey-40, #aaa);
-  }
   
   :global(.dark) .skeleton-line {
     background: var(--color-grey-80, #333);
@@ -710,17 +535,8 @@
     background: var(--color-grey-90, #1a1a1a);
   }
 
-  :global(.dark) .input-images-strip {
-    background: var(--color-grey-80, #222);
-  }
 
-  :global(.dark) .input-thumb {
-    border-color: var(--color-grey-70, #444);
-  }
 
-  :global(.dark) .input-thumb-placeholder {
-    background: var(--color-grey-80, #333);
-  }
   
   :global(.dark) .error-state {
     background: var(--color-error-95, #2a1515);

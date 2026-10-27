@@ -1,0 +1,16 @@
+browser_pool_claims:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Immutable claim receipt. Primary key is the never-reused pool slot ID."
+    scope:
+      type: string
+      note: "Server-only deployment scope."
+    session_id:
+      type: uuid
+      unique: true
+      note: "One destination session per VM, and one pooled VM per session."
+    created_at:
+      type: integer
+      note: "Claim time; receipt retained until confirmed destruction of this VM."

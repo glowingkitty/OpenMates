@@ -9,6 +9,7 @@ import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { draftEditorUIState } from './drafts/draftState';
 import { chatMetadataCache } from './chatMetadataCache';
+import type { EmbedType } from '../message_parsing/types';
 
 export type E2EDraftSelectionDecision = {
   chatId: string;
@@ -64,9 +65,18 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
+    __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[]; indexByApp?: boolean }) => Promise<{ decryptedCount: number; encryptedCount: number; indexedCount?: number }>;
+    __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
     __openmatesE2ESeedSavedEmbedMemory?: (input: {
       embedId: string;
       title: string;
+      provider?: string;
+      url?: string;
+      date_start?: string;
+      date_end?: string;
+      location?: string;
+      notes?: string;
     }) => Promise<{ entryId: string }>;
     __openmatesE2ESetDraftPreview?: (chatId: string, preview: string, markdown?: string) => Promise<void>;
     __openmatesE2EChatConnectionState?: () => Promise<{
@@ -82,9 +92,13 @@ export async function installE2ETestHooks() {
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
     __openmatesE2EDraftState?: () => Record<string, unknown>;
+    __openmatesE2ESeedCanonicalEmbedReplay?: (input?: { legacyWeb?: boolean }) => Promise<Record<string, unknown>>;
+    __openmatesE2EInitialCanonicalEmbedWrite?: (input: { chatId: string; head: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    __openmatesE2ECanonicalLifecycle?: (input: { action: 'inspect' | 'reconnect' | 'preview' | 'context'; chatId: string; embedId?: string; operationIds?: string[] }) => Promise<unknown>;
     __openmatesE2EReplayCanonicalEmbedWrite?: (input: {
-      chatId: string; embedId: string; changeContent?: boolean;
-    }) => Promise<{ pending: boolean; connected: boolean }>;
+      chatId: string; embedId: string; changeContent?: boolean; queueOnly?: boolean; taskId?: string;
+      retainedFailure?: "canonical_precondition_mismatch" | "embed_identity_or_version_conflict";
+    }) => Promise<Record<string, unknown>>;
     __openmatesE2EExampleEmbedCollision?: (input: {
       exampleChatId: string; seedPrivate?: boolean;
       sourceProbe?: { chatId: string; embedId: string; cleanup?: boolean };
@@ -175,10 +189,99 @@ export async function installE2ETestHooks() {
     };
   };
 
+  testWindow.__openmatesE2ESeedFollowupImage = async () => {
+    const { authStore } = await import('../stores/authState');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    const { embedStore } = await import('./embedStore');
+    const chatId = activeChatStore.get();
+    if (!get(authStore).isAuthenticated || !chatId || !await chatDB.getChat(chatId)) {
+      throw new Error('Followup fixture requires an existing authenticated test chat');
+    }
+    const embedId = crypto.randomUUID();
+    embedStore.setInMemoryOnly(`embed:${embedId}`, {
+      embed_id: embedId, type: 'app-skill-use', app_id: 'images', skill_id: 'generate', status: 'finished',
+      content: JSON.stringify({ app_id: 'images', skill_id: 'generate', status: 'finished',
+        prompt: 'A mountain at sunset', previewImageUrl: '/images/examples/group1.jpg' }),
+    });
+    return { chatId, embedId };
+  };
+
+  // Prepare actual owned ciphertext before a test creates its cache-only search index.
+  testWindow.__openmatesE2EPrepareEmbedCache = async ({ chatId, embedIds, indexByApp = false }) => {
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      throw new Error('Cache preparation requires the isolated localhost fixture');
+    }
+    const { waitForAuthBootstrapReadiness } = await import('../stores/authBootstrapReadiness');
+    // Cached messages can render under optimistic auth. Wait before capturing
+    // the authoritative auth object that the real Personal read will guard.
+    await waitForAuthBootstrapReadiness(AbortSignal.timeout(30_000));
+    const { authStore } = await import('../stores/authState');
+    const { userProfile } = await import('../stores/userProfile');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    if (!get(authStore).isAuthenticated || !get(userProfile).user_id || activeChatStore.get() !== chatId) {
+      throw new Error('Cache preparation requires the settled test owner and selected source chat');
+    }
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuid.test(chatId) || !embedIds.length || embedIds.length > 2 || embedIds.some(id => !uuid.test(id))) {
+      throw new Error('Cache preparation requires a source chat UUID and at most two fixture UUIDs');
+    }
+    const { resolveEmbedForOpen } = await import('./embedResolver');
+    const { embedStore } = await import('./embedStore');
+    const auth = get(authStore), ownerId = get(userProfile).user_id;
+    const assertIndexScope = () => {
+      if (get(authStore) !== auth || get(userProfile).user_id !== ownerId || activeChatStore.get() !== chatId) {
+        throw new Error('Owned fixture app index scope changed');
+      }
+    };
+    let indexedCount = 0;
+    for (const id of embedIds) {
+      const resolved = await resolveEmbedForOpen(id, { chatId });
+      const local = await embedStore.get(`embed:${id}`);
+      const persisted = await embedStore.getPersistencePayload(id);
+      if (!resolved?.content || !local || typeof local === 'string' || local._decryptionPending || local._decryptionFailed
+        || !persisted?.encrypted_content) {
+        throw new Error('Owned fixture embed must be decrypted and durably encrypted before indexing');
+      }
+      if (indexByApp) {
+        // Archive recovery intentionally skips the catalog index. Rebuild it
+        // from the actual decrypted fixture using the normal encrypted writer.
+        const ref = `embed:${id}`;
+        const raw = await embedStore.getRawEntry(ref);
+        const catalog = await embedStore.getCatalogContext(ref);
+        if (!raw || !catalog?.app_id) throw new Error('Owned fixture catalog metadata unavailable');
+        await embedStore.putEncrypted(ref, {
+          ...persisted, parent_embed_id: raw.parent_embed_id, embed_ids: raw.embed_ids,
+        }, resolved.type as EmbedType, resolved.content, catalog, { writeGuard: assertIndexScope });
+        assertIndexScope();
+        const indexed = await embedStore.getEmbedsByAppId(catalog.app_id);
+        const stored = await embedStore.getPersistencePayload(id);
+        if (!indexed.some(entry => entry.contentRef === ref) || stored?.encrypted_content !== persisted.encrypted_content
+          || stored?.encrypted_type !== persisted.encrypted_type) throw new Error('Owned fixture app index must preserve its ciphertext');
+        indexedCount++;
+      }
+    }
+    return { decryptedCount: embedIds.length, encryptedCount: embedIds.length, ...(indexByApp ? { indexedCount } : {}) };
+  };
+
+  // Remove only local fixture rows and keys; preserve search entries and all server data.
+  testWindow.__openmatesE2EEvictEmbedCache = async (embedIds) => {
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      throw new Error('Cache eviction requires the isolated localhost fixture');
+    }
+    const { authStore } = await import('../stores/authState');
+    if (!get(authStore).isAuthenticated) throw new Error('Cache eviction requires the authenticated test owner');
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!embedIds.length || embedIds.length > 2 || embedIds.some(id => !uuid.test(id))) {
+      throw new Error('Cache eviction requires at most two fixture UUIDs');
+    }
+    const { embedStore } = await import('./embedStore');
+    for (const id of embedIds) await embedStore.deleteEmbed(id);
+  };
+
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
     const chatId = String(chat.chat_id || '');
-    if (!chatId.startsWith('e2e-')) {
-      throw new Error('E2E seed chat IDs must start with e2e-');
+    if (!chatId.startsWith('e2e-') && !['11111111-1111-4111-8111-11111111e2e1', '11111111-1111-4111-8111-11111111e2e2'].includes(chatId)) {
+      throw new Error('E2E seed chat ID is not allowlisted');
     }
 
     const { chatKeyManager } = await import('./encryption/ChatKeyManager');
@@ -195,12 +298,18 @@ export async function installE2ETestHooks() {
     return { chatId, messageCount: messages.length };
   };
 
-  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title }) => {
-    if (!embedId.startsWith('e2e-')) throw new Error('E2E embed IDs must start with e2e-');
+  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title, ...eventFields }) => {
+    if (!embedId.startsWith('e2e-')) {
+      const { authStore } = await import('../stores/authState');
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!['localhost', '127.0.0.1'].includes(window.location.hostname) || !get(authStore).isAuthenticated || !uuid.test(embedId)) {
+        throw new Error('Owned saved embed fixtures require authenticated localhost and a canonical UUID');
+      }
+    }
     const { encryptWithMasterKey } = await import('./cryptoService');
     const { appSettingsMemoriesStore } = await import('../stores/appSettingsMemoriesStore');
     const encrypted = await encryptWithMasterKey(JSON.stringify({
-      embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
+      ...eventFields, embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
     }));
     if (!encrypted) throw new Error('Could not encrypt E2E saved memory fixture');
     const entryId = crypto.randomUUID();
@@ -284,14 +393,94 @@ export async function installE2ETestHooks() {
     get(draftEditorUIState) as unknown as Record<string, unknown>,
   );
 
+  // Build a provider-free encrypted fixture using this disposable owner's real
+  // browser keys. Secret keys stay here; the runner receives fixture ciphertext
+  // and public recovery material for provider-free sealed output envelopes.
+  testWindow.__openmatesE2ESeedCanonicalEmbedReplay = async ({ legacyWeb = false } = {}) => {
+    const { authStore } = await import('../stores/authState');
+    const { userDB } = await import('./userDB');
+    const { chatKeyManager } = await import('./encryption/ChatKeyManager');
+    const { computeSHA256 } = await import('../message_parsing/utils');
+    const { encryptChatKeyWithMasterKey, deriveEmbedKeyFromChatKey, encryptWithEmbedKey,
+      wrapEmbedKeyWithMasterKey, wrapEmbedKeyWithChatKey } = await import('./encryption/MetadataEncryptor');
+    const { encryptWithChatKey } = await import('./encryption/MessageEncryptor');
+    const { embedStore } = await import('./embedStore');
+    const ownerId = (await userDB.getUserProfile())?.user_id;
+    if (!get(authStore).isAuthenticated || !ownerId) throw new Error('Canonical fixture requires the authenticated test owner');
+    const chatId = crypto.randomUUID(), messageId = crypto.randomUUID();
+    const parentId = crypto.randomUUID(), childId = crypto.randomUUID();
+    const now = Math.floor(Date.now() / 1000), date = new Date().toISOString();
+    const chatKey = crypto.getRandomValues(new Uint8Array(32));
+    const embedKey = await deriveEmbedKeyFromChatKey(chatKey, parentId);
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    const encryptedTitle = await encryptWithChatKey('Canonical embed replay fixture', chatKey);
+    if (!encryptedChatKey || !encryptedTitle) throw new Error('Canonical fixture chat encryption failed');
+    const ownerHash = await computeSHA256(ownerId), chatHash = await computeSHA256(chatId);
+    const chat = { id: chatId, hashed_user_id: ownerHash, created_at: now, updated_at: now,
+      last_edited_overall_timestamp: now, last_message_timestamp: now, messages_v: 1, title_v: 1, metadata_v: 1,
+      unread_count: 0, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle };
+    chatKeyManager.injectKey(chatId, chatKey, 'master_key');
+    await chatDB.addChat({ ...chat, chat_id: chatId, user_id: ownerId,
+      title: 'Canonical embed replay fixture', team_id: null } as unknown as Parameters<typeof chatDB.addChat>[0]);
+    const localMessage = { message_id: messageId, chat_id: chatId, role: 'assistant',
+      content: 'Saved canonical embed fixture.', created_at: now, status: 'synced' };
+    const messageFields = await chatDB.getEncryptedFields(
+      localMessage as Parameters<typeof chatDB.getEncryptedFields>[0], chatId,
+    );
+    await chatDB.saveMessage(localMessage as Parameters<typeof chatDB.saveMessage>[0]);
+    const message = { id: messageId, client_message_id: messageId, chat_id: chatId,
+      hashed_user_id: ownerHash, role: 'assistant', created_at: now, updated_at: now, ...messageFields };
+    const type = legacyWeb ? 'app-skill-use' : 'code';
+    const content = legacyWeb
+      ? 'type: app-skill-use\napp_id: web\nskill_id: search\nquery: canonical replay fixture\nstatus: finished'
+      : 'type: code\ncode: canonical replay fixture';
+    const encryptedContent = await encryptWithEmbedKey(content, embedKey);
+    const encryptedType = await encryptWithEmbedKey(type, embedKey);
+    if (!encryptedContent || !encryptedType) throw new Error('Canonical fixture embed encryption failed');
+    const parentHash = await computeSHA256(parentId);
+    const parent = { id: crypto.randomUUID(), embed_id: parentId, hashed_embed_id: parentHash,
+      hashed_chat_id: chatHash, hashed_message_id: await computeSHA256(messageId), hashed_user_id: ownerHash,
+      encrypted_content: encryptedContent, encrypted_type: encryptedType, status: 'finished',
+      version_number: legacyWeb ? null : 1, ...(legacyWeb ? { app_id: 'web', skill_id: 'search' } : {}), encryption_mode: 'client', is_private: false, is_shared: false, created_at: now, updated_at: now };
+    const child = { ...parent, id: crypto.randomUUID(), embed_id: childId,
+      hashed_embed_id: await computeSHA256(childId), version_number: 1, parent_embed_id: parentId, root_embed_id: parentId };
+    const keys = [];
+    for (let index = 0; index < 2; index++) {
+      const master = await wrapEmbedKeyWithMasterKey(embedKey);
+      const wrappedChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+      if (!master || !wrappedChat) throw new Error('Canonical fixture key wrapping failed');
+      keys.push({ id: crypto.randomUUID(), hashed_embed_id: parentHash, key_type: 'master' as const,
+        hashed_chat_id: null, encrypted_embed_key: master, hashed_user_id: ownerHash, created_at: now },
+      { id: crypto.randomUUID(), hashed_embed_id: parentHash, key_type: 'chat' as const,
+        hashed_chat_id: chatHash, encrypted_embed_key: wrappedChat, hashed_user_id: ownerHash, created_at: now });
+    }
+    await embedStore.storeEmbedKeys(keys);
+    for (const embed of [parent, child]) await embedStore.putEncrypted(`embed:${embed.embed_id}`, embed, type, content);
+    const outputs = await Promise.all([parent, child].map(async (embed) => ({
+      id: crypto.randomUUID(), hashed_user_id: ownerHash, root_chat_id: chatId, root_hashed_team_id: null,
+      target_chat_id: chatId, turn_id: crypto.randomUUID(), preflight_id: crypto.randomUUID(),
+      inference_task_id: crypto.randomUUID(), subject_id: embed.embed_id, output_kind: 'embed',
+      message_role: null, output_version: 1, chat_key_version: 1, sealed_payload: null,
+      sealed_payload_digest: await computeSHA256('canonical-replay-fixture'), payload_storage: 'inline',
+      payload_size_bytes: 1, state: 'ACKNOWLEDGED', created_at: date, acknowledged_at: date,
+      canonical_digest: await computeSHA256(encryptedContent),
+    })));
+    const { deriveChatCompletionRecoveryKeypair } = await import('../utils/chatCompletionRecovery');
+    const encodedChatKey = btoa(String.fromCharCode(...chatKey)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const { publicKey: recoveryPublicKey } = await deriveChatCompletionRecoveryKeypair(encodedChatKey, chatId, 1);
+    return { chatId, parentId, childId, ownerId, chat, message, parent, child, keys, outputs,
+      recoveryPublicKey, outputContent: { content, type, message_id: messageId, chat_id: chatId,
+        ...(legacyWeb ? { app_id: 'web', skill_id: 'search' } : {}) } };
+  };
+
   // Exercise the real sender against an owner-authorized recovered head. Return
   // only queue state; neither the plaintext nor encrypted material reaches E2E logs.
-  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false }) => {
+  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false, queueOnly = false, taskId, retainedFailure }) => {
     const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
     const { embedStore } = await import('./embedStore');
     const { decryptWithEmbedKey, encryptWithEmbedKey } = await import('./encryption/MetadataEncryptor');
     const { chatSyncService } = await import('./chatSyncService');
-    const { sendStoreEmbedImpl } = await import('./embedSenders');
+    const { sendStoreEmbedOperationImpl } = await import('./embedSenders');
     const chat = await chatDB.getRawChat(chatId);
     if (!chat) throw new Error('E2E canonical replay chat is unavailable');
     const query = chat.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : '';
@@ -299,13 +488,18 @@ export async function installE2ETestHooks() {
       `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}${query}`,
     ), { credentials: 'include' });
     if (!response.ok) throw new Error(`E2E canonical replay head read failed (${response.status})`);
-    const page = await response.json() as { embed?: Record<string, unknown> };
+    const page = await response.json() as { embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> };
     const head = page.embed;
     if (!head || head.embed_id !== embedId || typeof head.hashed_chat_id !== 'string'
       || typeof head.encrypted_content !== 'string' || typeof head.encrypted_type !== 'string') {
       throw new Error('E2E canonical replay head is incomplete');
     }
-    const key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    let key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    if (!key) {
+      const { requestEmbedFromServerOnce } = await import('./embedResolver');
+      await requestEmbedFromServerOnce(embedId, 'canonical-lifecycle-cold-hydration', { chatId });
+      key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    }
     if (!key) throw new Error('E2E canonical replay key is unavailable');
     const content = await decryptWithEmbedKey(head.encrypted_content, key);
     const type = await decryptWithEmbedKey(head.encrypted_type, key);
@@ -319,14 +513,15 @@ export async function installE2ETestHooks() {
     }
     const connected = chatSyncService.webSocketConnected_FOR_SENDERS_ONLY;
     if (!connected) throw new Error('E2E canonical replay WebSocket is disconnected');
-    await sendStoreEmbedImpl(chatSyncService, {
+    const payload = {
       embed_id: embedId, chat_id: chatId, team_id: chat.team_id ?? null,
       encrypted_content: encryptedContent, encrypted_type: encryptedType,
       encrypted_text_preview: head.encrypted_text_preview as string | undefined,
       status: head.status as string,
       hashed_chat_id: head.hashed_chat_id,
       hashed_message_id: head.hashed_message_id as string,
-      hashed_task_id: head.hashed_task_id as string | undefined,
+      hashed_task_id: taskId ? await (await import("../message_parsing/utils")).computeSHA256(taskId)
+        : head.hashed_task_id as string | undefined,
       hashed_user_id: head.hashed_user_id as string,
       app_id: head.app_id as string | undefined,
       skill_id: head.skill_id as string | undefined,
@@ -337,8 +532,58 @@ export async function installE2ETestHooks() {
       is_shared: head.is_shared as boolean | undefined,
       created_at: head.created_at as number,
       updated_at: head.updated_at as number,
-    } as Parameters<typeof sendStoreEmbedImpl>[1]);
+    } as Parameters<typeof sendStoreEmbedOperationImpl>[1];
+    if (queueOnly) {
+      const operationId = crypto.randomUUID();
+      await chatDB.addPendingEmbedOperation({ operation_id: operationId, embed_id: embedId,
+        store_embed_payload: payload, store_embed_keys_payload: { keys: page.embed_keys ?? [] }, created_at: Date.now(),
+        ...(retainedFailure ? { state: "conflict" as const, failure_code: retainedFailure } : {}) });
+      return { operationId };
+    }
+    const result = await sendStoreEmbedOperationImpl(chatSyncService, payload);
     const pending = (await chatDB.getPendingEmbedOperations()).some((operation) => operation.embed_id === embedId);
-    return { pending, connected };
+    return { pending, connected, ...result };
+  };
+
+  testWindow.__openmatesE2EInitialCanonicalEmbedWrite = async ({ chatId, head }) => {
+    const { chatSyncService } = await import('./chatSyncService');
+    const fields = { ...head };
+    delete fields.id;
+    // These identities are derived by the storage transaction, not accepted
+    // from ordinary producer payloads.
+    delete fields.hashed_embed_id;
+    const embedId = head.embed_id;
+    return { ...await chatSyncService.sendStoreEmbed({
+      ...fields, embed_id: embedId, chat_id: chatId, team_id: null,
+      // Exercise the public service/barrel used by ordinary producers.
+      ...(head.version_number == null ? { version_number: undefined } : {}),
+    } as Parameters<typeof chatSyncService.sendStoreEmbed>[0]) };
+  };
+
+  testWindow.__openmatesE2ECanonicalLifecycle = async ({ action, chatId, embedId, operationIds }) => {
+    const { embedStore } = await import('./embedStore');
+    if (action === 'context') return { chatAvailable: !!await chatDB.getRawChat(chatId) };
+    if (action === 'reconnect') {
+      const { webSocketService } = await import('./websocketService');
+      webSocketService.forceReconnect('E2E canonical lifecycle reconnect');
+      return true;
+    }
+    if (action === 'preview') {
+      if (!embedId) throw new Error('Preview requires an embed');
+      const canonicalBefore = await embedStore.getPersistencePayload(embedId);
+      if (!canonicalBefore) throw new Error('Preview canonical fixture is unavailable');
+      const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        result_count: 1, preview_results: [{ title: 'Enriched canonical preview', url: 'https://example.com/canonical-fixture' }],
+      });
+      const local = await embedStore.get(`embed:${embedId}`);
+      if (!local || typeof local !== 'object') throw new Error('Preview projection is unavailable');
+      return { updated: result.updated, durablePayloadReturned: 'storePayload' in result,
+        resultCount: local?.result_count, previewResults: local?.preview_results,
+        canonicalPayloadUnchanged: JSON.stringify(canonicalBefore) === JSON.stringify(await embedStore.getPersistencePayload(embedId)) };
+    }
+    const operations = (await chatDB.getPendingEmbedOperations()).filter((operation) =>
+      operationIds ? operationIds.includes(operation.operation_id)
+        : operation.store_embed_payload.chat_id === chatId);
+    return operations.map((operation) => ({ ...operation }));
   };
 }

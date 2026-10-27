@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import os
+import asyncio
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,26 @@ ASSISTANT_SPEECH_LIVE_MOCK_AUDIO = (
     Path(__file__).resolve().parents[4]
     / "frontend/apps/web_app/static/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3"
 )
+
+
+class AssistantSpeechReplayStreamClient:
+    """Feed the already-authorized CI fixture through the real live transport."""
+
+    def __init__(self, audio_path: Path) -> None:
+        # Only assistant_speech_live_mock_audio can authorize this test boundary.
+        if assistant_speech_live_mock_audio({
+            "live_mock_mode": "mock", "live_mock_group": ASSISTANT_SPEECH_LIVE_MOCK_GROUP,
+        }) != audio_path:
+            raise RuntimeError("Assistant speech replay stream is unavailable")
+        self.audio_path = audio_path
+
+    async def stream_text_to_speech(self, **_kwargs: object) -> AsyncIterator[bytes]:
+        audio = self.audio_path.read_bytes()
+        yield audio[:16384]
+        # Give native playback a measurable window before provider completion.
+        await asyncio.sleep(0.75)
+        for offset in range(16384, len(audio), 4096):
+            yield audio[offset:offset + 4096]
 
 
 def assistant_speech_live_mock_audio(arguments: dict[str, Any]) -> Path | None:

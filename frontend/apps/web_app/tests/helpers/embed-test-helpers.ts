@@ -186,11 +186,23 @@ async function verifySearchGrid(
 
 /**
  * Close the fullscreen overlay via the minimize button.
- * Verifies the overlay is no longer visible.
+ * Verifies the overlay is no longer visible. Callers about to reload can also
+ * require the chat URL, which settles after the close transition callback.
  */
-async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
-	const overlays = page.locator('.unified-embed-fullscreen-overlay');
+async function closeFullscreen(
+	page: any,
+	fullscreenOverlay: any,
+	options: { returnToChatUrl?: string } = {}
+): Promise<void> {
+	const waitForChatRoute = async (): Promise<void> => {
+		if (options.returnToChatUrl) {
+			await expect(page, 'Fullscreen close must restore the chat route before reload')
+				.toHaveURL(options.returnToChatUrl, { timeout: 10000 });
+		}
+	};
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
 	if (!await fullscreenOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+		await waitForChatRoute();
 		return;
 	}
 	const overlayCountBeforeClose = await overlays.count();
@@ -232,6 +244,7 @@ async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void>
 				|| visibleOverlaysAfterClose < visibleOverlaysBeforeClose
 		).toBe(true);
 	}).toPass({ timeout: 10000 });
+	await waitForChatRoute();
 }
 
 module.exports = {

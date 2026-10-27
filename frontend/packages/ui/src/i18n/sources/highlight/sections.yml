@@ -297,7 +297,7 @@ tasks.paragraph:
 
     that don''t collide with your calendar
 
-    on Doctolib & Jameda.
+    on ExampleClinicA & ExampleClinicB.
 
     '
   de: 'Zum Beispiel:
@@ -306,12 +306,12 @@ tasks.paragraph:
 
     die nicht mit deinem Kalender kollidieren
 
-    auf Doctolib & Jameda.
+    auf ExampleClinicA & ExampleClinicB.
 
     '
   zh: '例如：
 
-    在 Doctolib 和 Jameda 上
+    在 ExampleClinicA 和 ExampleClinicB 上
 
     查找不与你的日历冲突的
 
@@ -324,7 +324,7 @@ tasks.paragraph:
 
     que no colisionen con tu calendario
 
-    en Doctolib y Jameda.
+    en ExampleClinicA y ExampleClinicB.
 
     '
   fr: 'Par exemple :
@@ -333,7 +333,7 @@ tasks.paragraph:
 
     qui ne coïncident pas avec votre calendrier
 
-    sur Doctolib & Jameda.
+    sur ExampleClinicA & ExampleClinicB.
 
     '
   pt: 'Por exemplo:
@@ -342,7 +342,7 @@ tasks.paragraph:
 
     que não conflitem com o seu calendário
 
-    no Doctolib & Jameda.
+    no ExampleClinicA & ExampleClinicB.
 
     '
   ru: 'Например:
@@ -351,12 +351,12 @@ tasks.paragraph:
 
     которые не пересекаются с вашим календарём
 
-    на Doctolib & Jameda.
+    на ExampleClinicA & ExampleClinicB.
 
     '
   ja: '例えば：
 
-    Doctolib & Jamedaで
+    ExampleClinicA & ExampleClinicBで
 
     あなたのカレンダーと重ならない
 
@@ -365,7 +365,7 @@ tasks.paragraph:
     '
   ko: '예를 들어:
 
-    Doctolib & Jameda에서
+    ExampleClinicA & ExampleClinicB에서
 
     일정과 겹치지 않는
 
@@ -378,12 +378,12 @@ tasks.paragraph:
 
     che non si sovrappongano al tuo calendario
 
-    su Doctolib & Jameda.
+    su ExampleClinicA & ExampleClinicB.
 
     '
   tr: 'Örneğin:
 
-    Doctolib & Jameda''da
+    ExampleClinicA & ExampleClinicB''da
 
     takviminizle çakışmayan
 
@@ -396,7 +396,7 @@ tasks.paragraph:
 
     không trùng với lịch của bạn
 
-    trên Doctolib & Jameda.
+    trên ExampleClinicA & ExampleClinicB.
 
     '
   id: 'Misalnya:
@@ -405,7 +405,7 @@ tasks.paragraph:
 
     yang tidak bentrok dengan kalender Anda
 
-    di Doctolib & Jameda.
+    di ExampleClinicA & ExampleClinicB.
 
     '
   pl: 'Na przykład:
@@ -414,7 +414,7 @@ tasks.paragraph:
 
     które nie kolidują z Twoim kalendarzem
 
-    na Doctolib & Jameda.
+    na ExampleClinicA & ExampleClinicB.
 
     '
   nl: 'Bijvoorbeeld:
@@ -423,7 +423,7 @@ tasks.paragraph:
 
     die niet conflicteren met uw agenda
 
-    op Doctolib & Jameda.
+    op ExampleClinicA & ExampleClinicB.
 
     '
   ar: 'على سبيل المثال:
@@ -432,12 +432,12 @@ tasks.paragraph:
 
     التي لا تتعارض مع تقويمك
 
-    على Doctolib & Jameda.
+    على ExampleClinicA & ExampleClinicB.
 
     '
   hi: 'उदाहरण के लिए:
 
-    Doctolib & Jameda पर
+    ExampleClinicA & ExampleClinicB पर
 
     ऐसे डॉक्टर अपॉइंटमेंट खोजें
 
@@ -450,7 +450,7 @@ tasks.paragraph:
 
     ที่ไม่ขัดกับปฏิทินของคุณ
 
-    บน Doctolib & Jameda
+    บน ExampleClinicA & ExampleClinicB
 
     '
   cs: 'Například:
@@ -459,7 +459,7 @@ tasks.paragraph:
 
     které nekolidují s vaším kalendářem
 
-    na Doctolib & Jameda.
+    na ExampleClinicA & ExampleClinicB.
 
     '
   sv: 'Till exempel:
@@ -468,14 +468,14 @@ tasks.paragraph:
 
     som inte krockar med din kalender
 
-    på Doctolib & Jameda.
+    på ExampleClinicA & ExampleClinicB.
 
     '
   he: |
     לדוגמה:
     מצא תורים לרופא
     שלא מתנגשים עם היומן שלך
-    ב-Doctolib ו-Jameda.
+    ב-ExampleClinicA ו-ExampleClinicB.
   verified_by_human: []
 apps.heading:
   context: Section heading for Apps feature
@@ -633,19 +633,19 @@ apps.paragraph:
 
     Find events
 
-    on Meetup, Eventbrite & RA.
+    on Gathering, ExampleTickets & RA.
 
     '
   de: 'Zum Beispiel:
 
     Finde Veranstaltungen
 
-    auf Meetup, Eventbrite & RA.
+    auf Gathering, ExampleTickets & RA.
 
     '
   zh: '例如：
 
-    在 Meetup、Eventbrite 和 RA 上
+    在 Gathering、ExampleTickets 和 RA 上
 
     查找活动。
 
@@ -654,40 +654,40 @@ apps.paragraph:
 
     Descubre eventos
 
-    en Meetup, Eventbrite y RA.
+    en Gathering, ExampleTickets y RA.
 
     '
   fr: 'Par exemple :
 
     Trouvez des événements
 
-    sur Meetup, Eventbrite et RA.
+    sur Gathering, ExampleTickets et RA.
 
     '
   pt: 'Por exemplo:
 
     Encontre eventos
 
-    no Meetup, Eventbrite & RA.
+    no Gathering, ExampleTickets & RA.
 
     '
   ru: 'Например:
 
     Найдите мероприятия
 
-    на Meetup, Eventbrite & RA.
+    на Gathering, ExampleTickets & RA.
 
     '
   ja: '例えば：
 
-    Meetup、Eventbrite、RAで
+    Gathering、ExampleTickets、RAで
 
     イベントを探します。
 
     '
   ko: '예를 들어:
 
-    Meetup, Eventbrite & RA에서
+    Gathering, ExampleTickets & RA에서
 
     이벤트를 찾으세요.
 
@@ -696,12 +696,12 @@ apps.paragraph:
 
     Trova eventi
 
-    su Meetup, Eventbrite & RA.
+    su Gathering, ExampleTickets & RA.
 
     '
   tr: 'Örneğin:
 
-    Meetup, Eventbrite & RA''da
+    Gathering, ExampleTickets & RA''da
 
     etkinlikler bulun.
 
@@ -710,40 +710,40 @@ apps.paragraph:
 
     Tìm các sự kiện
 
-    trên Meetup, Eventbrite & RA.
+    trên Gathering, ExampleTickets & RA.
 
     '
   id: 'Misalnya:
 
     Temukan acara
 
-    di Meetup, Eventbrite & RA.
+    di Gathering, ExampleTickets & RA.
 
     '
   pl: 'Na przykład:
 
     Znajdź wydarzenia
 
-    na Meetup, Eventbrite & RA.
+    na Gathering, ExampleTickets & RA.
 
     '
   nl: 'Bijvoorbeeld:
 
     Vind evenementen
 
-    op Meetup, Eventbrite & RA.
+    op Gathering, ExampleTickets & RA.
 
     '
   ar: 'على سبيل المثال:
 
     ابحث عن الفعاليات
 
-    على Meetup و Eventbrite و RA.
+    على Gathering و ExampleTickets و RA.
 
     '
   hi: 'उदाहरण के लिए:
 
-    Meetup, Eventbrite & RA पर
+    Gathering, ExampleTickets & RA पर
 
     इवेंट खोजें।
 
@@ -752,25 +752,25 @@ apps.paragraph:
 
     ค้นหากิจกรรม
 
-    บน Meetup, Eventbrite & RA
+    บน Gathering, ExampleTickets & RA
 
     '
   cs: 'Například:
 
     Najděte události
 
-    na Meetup, Eventbrite & RA.
+    na Gathering, ExampleTickets & RA.
 
     '
   sv: 'Till exempel:
 
     Hitta evenemang
 
-    på Meetup, Eventbrite & RA.
+    på Gathering, ExampleTickets & RA.
 
     '
   he: |
     לדוגמה:
     מצא אירועים
-    ב-Meetup, Eventbrite ו-RA.
+    ב-Gathering, ExampleTickets ו-RA.
   verified_by_human: []

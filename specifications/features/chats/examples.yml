@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chats@6
+specification: feature.chats@7
 independent_metadata:
 - id: delayed-header-and-suggestions
   assertion_ids: [chats.completion.independent-metadata]
@@ -88,6 +88,30 @@ recovery_takeover:
     terminal_acknowledgements: 1
     duplicate_messages: 0
 lease_fencing:
+- id: completed-saved-followup-keeps-canonical-predecessor
+  input:
+    previous_turn_settled: true
+    local_optimistic_messages_v: 1
+    acknowledged_canonical_messages_v: 3
+    event: send_saved_personal_followup
+  expect:
+    expected_messages_v: 3
+    creation_metadata_included: false
+    full_saved_history_preserved: true
+    backend_immutable_metadata_guard_preserved: true
+- id: completion-version-refresh-preserves-archive-capability
+  assertion_ids: [chats.completion.lease-fenced, chats.message.identity-idempotent]
+  input:
+    local_optimistic_messages_v: 5
+    authoritative_messages_v: 3
+    event: completion_persist_version_conflict
+  expect:
+    refresh_uses_existing_archive_aware_fetch: true
+    required_storage_capability_sent: agentic-storage-v2
+    owner_and_team_scope_preserved: true
+    credentials_preserved: true
+    invalid_or_mismatched_revision_rejected: true
+    original_conflict_preserved_on_refresh_failure: true
 - id: delayed-claim-frame-ignored
   input:
     current_request_id: claim-2
@@ -412,3 +436,14 @@ main_composer_suggestion:
   given: An eligible main response includes a useful next question in its trailing suggestion metadata, possibly split across stream chunks.
   when: The response completes successfully and Alice's client stores or synchronizes the suggestion.
   then: The visible and stored answer excludes the metadata; only the current turn can offer the separate ghost, backend durable storage contains ciphertext, and postprocessed chips remain separate.
+october_apple_response:
+- id: apple-authored-order-and-settled-activity
+  assertion_ids: [chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence]
+  given: An Apple response contains thinking, a completed search, an authored paragraph and a later running child-chat batch.
+  when: The user opens the completed group's disclosure while the later batch continues, then a delayed foreign progress event arrives.
+  then: The paragraph and original group positions remain stable, completed work stays settled, matching live work remains visible and foreign progress changes no batch.
+- id: apple-responsive-canonical-history
+  assertion_ids: [chats.rendering.preview-info-top, chats.streaming.web-chunk-fade, chats.rendering.web-history-entrance]
+  given: A saved conversation is opened on an Apple phone, tablet or Mac using the current rendered web response as its reference.
+  when: History appears, later text streams and the workspace width changes, including with reduced motion enabled.
+  then: Canonical content, preview actions and existing paragraph identities remain usable; initial-history and new-chunk presentation do not repeatedly animate earlier content, and reduced motion shows content immediately.

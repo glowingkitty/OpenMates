@@ -512,6 +512,31 @@
 }
 
 /* Group Scroll Container */
+:global(.ProseMirror .embed-group-container .embed-group-item),
+:global(.ProseMirror .embed-reference-preview.embed-reference-preview--small) {
+  /* Compact cards must not inherit a wide highlighted-card container query.
+     Inline-size containment needs an explicit width to avoid shrink-to-zero
+     flex items; mobile is an explicit card mode, not a viewport breakpoint. */
+  width: 300px;
+  container: embed-preview / inline-size;
+}
+
+:global(.ProseMirror .embed-group-container .embed-group-item:has(.unified-embed-preview.mobile)),
+:global(.ProseMirror .embed-reference-preview.embed-reference-preview--small:has(.unified-embed-preview.mobile)) {
+  width: 150px;
+}
+
+:global(.ProseMirror .embed-group-container .group-scroll-container > *) {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Short text/table cards reserve the same side lanes as their corner arrows. */
+:global(.ProseMirror .embed-group-item:has(.group-preview-navigation) .intrinsic-preview .details-section) {
+  box-sizing: border-box;
+  padding-inline: 48px;
+}
+
 :global(.ProseMirror .embed-group-container .group-scroll-container) {
   display: flex;
   gap: 8px;

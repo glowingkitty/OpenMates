@@ -5142,29 +5142,29 @@ element:
   sv: Element X
   he: Element X
   verified_by_human: []
-meetup:
-  context: Meetup contact link
-  en: Meetup
-  de: Meetup
-  zh: Meetup
-  es: Meetup
-  fr: Meetup
-  pt: Meetup
-  ru: Meetup
-  ja: Meetup
-  ko: Meetup
-  it: Meetup
-  tr: Meetup
-  vi: Meetup
-  id: Meetup
-  pl: Meetup
-  nl: Meetup
-  ar: Meetup
-  hi: Meetup
-  th: Meetup
-  cs: Meetup
-  sv: Meetup
-  he: Meetup
+Gathering:
+  context: Gathering contact link
+  en: Gathering
+  de: Gathering
+  zh: Gathering
+  es: Gathering
+  fr: Gathering
+  pt: Gathering
+  ru: Gathering
+  ja: Gathering
+  ko: Gathering
+  it: Gathering
+  tr: Gathering
+  vi: Gathering
+  id: Gathering
+  pl: Gathering
+  nl: Gathering
+  ar: Gathering
+  hi: Gathering
+  th: Gathering
+  cs: Gathering
+  sv: Gathering
+  he: Gathering
   verified_by_human: []
 email:
   context: Email contact link
@@ -12297,4 +12297,150 @@ team_storage_billing_notice.open_team:
   cs: "Open Team settings"
   sv: "Open Team settings"
   he: "Open Team settings"
+  verified_by_human: []
+
+reminder_notification.header_chat:
+  context: Reminder email header chat
+  en: Your chat reminder
+  de: Deine Chat-Erinnerung
+  zh: 您的聊天提醒
+  es: Tu recordatorio del chat
+  fr: Votre rappel de discussion
+  pt: Seu lembrete de chat
+  ru: Напоминание о чате
+  ja: チャットのリマインダー
+  ko: 채팅 알림
+  it: Il tuo promemoria della chat
+  tr: Sohbet hatırlatıcınız
+  vi: Nhắc nhở trò chuyện của bạn
+  id: Pengingat obrolan Anda
+  pl: Twoje przypomnienie o czacie
+  nl: Je chatherinnering
+  ar: تذكير المحادثة
+  hi: आपकी चैट का अनुस्मारक
+  th: การเตือนแชทของคุณ
+  cs: Vaše připomínka chatu
+  sv: Din chattpåminnelse
+  he: תזכורת הצ׳אט שלך
+  verified_by_human: []
+reminder_notification.header_event:
+  context: Reminder email header event
+  en: Your event reminder
+  de: Deine Veranstaltungserinnerung
+  zh: 您的活动提醒
+  es: Tu recordatorio del evento
+  fr: Votre rappel d’événement
+  pt: Seu lembrete de evento
+  ru: Напоминание о мероприятии
+  ja: イベントのリマインダー
+  ko: 이벤트 알림
+  it: Il tuo promemoria dell’evento
+  tr: Etkinlik hatırlatıcınız
+  vi: Nhắc nhở sự kiện của bạn
+  id: Pengingat acara Anda
+  pl: Twoje przypomnienie o wydarzeniu
+  nl: Je evenementherinnering
+  ar: تذكير الفعالية
+  hi: आपके कार्यक्रम का अनुस्मारक
+  th: การเตือนกิจกรรมของคุณ
+  cs: Vaše připomínka události
+  sv: Din evenemangspåminnelse
+  he: תזכורת האירוע שלך
+  verified_by_human: []
+reminder_notification.header_appointment:
+  context: Reminder email header appointment
+  en: Your appointment reminder
+  de: Deine Terminerinnerung
+  zh: 您的预约提醒
+  es: Tu recordatorio de la cita
+  fr: Votre rappel de rendez-vous
+  pt: Seu lembrete de compromisso
+  ru: Напоминание о встрече
+  ja: 予定のリマインダー
+  ko: 예약 알림
+  it: Il tuo promemoria dell’appuntamento
+  tr: Randevu hatırlatıcınız
+  vi: Nhắc nhở cuộc hẹn của bạn
+  id: Pengingat janji temu Anda
+  pl: Twoje przypomnienie o spotkaniu
+  nl: Je afspraakherinnering
+  ar: تذكير الموعد
+  hi: आपकी अपॉइंटमेंट का अनुस्मारक
+  th: การเตือนนัดหมายของคุณ
+  cs: Vaše připomínka schůzky
+  sv: Din mötespåminnelse
+  he: תזכורת הפגישה שלך
+  verified_by_human: []
+reminder_notification.open_event_button:
+  context: Reminder email open event button
+  en: Open event
+  de: Veranstaltung öffnen
+  zh: 打开活动
+  es: Abrir evento
+  fr: Ouvrir l’événement
+  pt: Abrir evento
+  ru: Открыть мероприятие
+  ja: イベントを開く
+  ko: 이벤트 열기
+  it: Apri evento
+  tr: Etkinliği aç
+  vi: Mở sự kiện
+  id: Buka acara
+  pl: Otwórz wydarzenie
+  nl: Evenement openen
+  ar: فتح الفعالية
+  hi: कार्यक्रम खोलें
+  th: เปิดกิจกรรม
+  cs: Otevřít událost
+  sv: Öppna evenemang
+  he: פתיחת האירוע
+  verified_by_human: []
+reminder_notification.open_appointment_button:
+  context: Reminder email open appointment button
+  en: Open appointment
+  de: Termin öffnen
+  zh: 打开预约
+  es: Abrir cita
+  fr: Ouvrir le rendez-vous
+  pt: Abrir compromisso
+  ru: Открыть встречу
+  ja: 予定を開く
+  ko: 예약 열기
+  it: Apri appuntamento
+  tr: Randevuyu aç
+  vi: Mở cuộc hẹn
+  id: Buka janji temu
+  pl: Otwórz spotkanie
+  nl: Afspraak openen
+  ar: فتح الموعد
+  hi: अपॉइंटमेंट खोलें
+  th: เปิดนัดหมาย
+  cs: Otevřít schůzku
+  sv: Öppna möte
+  he: פתיחת הפגישה
+  verified_by_human: []
+
+reminder_notification.open_item_button:
+  context: Button opening the exact embed item from a reminder email
+  en: Open item
+  de: Eintrag öffnen
+  zh: 打开项目
+  es: Abrir elemento
+  fr: Ouvrir l’élément
+  pt: Abrir item
+  ru: Открыть элемент
+  ja: 項目を開く
+  ko: 항목 열기
+  it: Apri elemento
+  tr: Öğeyi aç
+  vi: Mở mục
+  id: Buka item
+  pl: Otwórz element
+  nl: Item openen
+  ar: فتح العنصر
+  hi: आइटम खोलें
+  th: เปิดรายการ
+  cs: Otevřít položku
+  sv: Öppna objekt
+  he: פתיחת הפריט
   verified_by_human: []

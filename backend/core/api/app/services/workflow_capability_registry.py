@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from backend.shared.python_schemas.app_metadata_schemas import skill_has_provider_support
 from backend.core.api.app.services.workflow_models import WorkflowCapability
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 
@@ -424,7 +425,9 @@ class _FilesystemWorkflowMetadataRegistry:
         return any(
             isinstance(skill, dict)
             and skill.get("id") == skill_id
+            and skill.get("default_enabled") is not False
             and isinstance(skill.get("class_path"), str)
             and bool(skill.get("class_path", "").strip())
+            and skill_has_provider_support(skill)
             for skill in app_metadata.get("skills") or []
         )

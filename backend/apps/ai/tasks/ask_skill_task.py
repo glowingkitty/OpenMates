@@ -80,6 +80,7 @@ from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
+    enrich_historical_image_aliases,
     load_and_merge_artifact_ledger,
     recover_inline_upload_artifacts,
 )
@@ -117,6 +118,9 @@ from backend.apps.ai.processing.chat_compressor import (
     COMPRESSION_SUMMARY_CATEGORY,
     model_compression_threshold,
 )
+from backend.shared.python_utils.saved_chat_turn_authority import (
+    admission_chat_id, admission_message_id, prepare_saved_chat_turn,
+)
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
@@ -134,7 +138,7 @@ def _required_recovery_output_context(request_data: AskSkillRequest) -> Recovery
     return RecoveryOutputContext(
         owner_id=request_data.user_id,
         owner_hash=request_data.user_id_hash,
-        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        root_chat_id=admission_chat_id(request_data),
         target_chat_id=request_data.chat_id,
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,
@@ -261,8 +265,29 @@ def _validated_recovery_queued_member(lease: dict) -> AskSkillRequest:
         raise RequiredRecoveryOutputError("Recovery queue inference request changed")
     latest = request.message_history[-1] if request.message_history else None
     if (latest is None or latest.role != "user" or latest.message_id != request.message_id
-            or latest.content != request.current_user_content or not latest.content):
+            or not latest.content or not request.current_user_content):
         raise RequiredRecoveryOutputError("Recovery queue user turn changed")
+    # The committed API message is immutable admission data. Reapply only its
+    # existing user-text sanitization before comparing the worker's raw intent.
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+    admitted = member["recovery_inference_request"]
+    admitted_message = admitted.get("message")
+    admitted_content = admitted_message.get("content") if isinstance(admitted_message, dict) else None
+    if (not isinstance(admitted_content, str) or not admitted_content
+            or admitted_message.get("message_id") != request.message_id
+            or sanitize_text_for_ascii_smuggling(admitted_content)[0] != request.current_user_content
+            or (admitted.get("chat_id") is not None and admitted["chat_id"] != request.chat_id)):
+        raise RequiredRecoveryOutputError("Recovery queue admitted user turn changed")
+    if latest.content != request.current_user_content:
+        # History may contain server-resolved embeds or an admitted replay marker.
+        # Its original Markdown digest must bind to that same committed raw turn.
+        from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+        if latest.native_cache_canonical_content_sha256 != canonical_content_sha256(request.current_user_content):
+            raise RequiredRecoveryOutputError("Recovery queue canonical user turn changed")
+        if "<<<TEST_LIVE_MOCK:" in latest.content:
+            marker = admitted.get("test_mock_marker")
+            if not isinstance(marker, str) or not marker or not latest.content.endswith(" " + marker):
+                raise RequiredRecoveryOutputError("Recovery queue admitted marker changed")
     return request
 
 
@@ -418,6 +443,8 @@ async def _start_recovery_queued_follower(
 ) -> str:
     """Handoff one epoch-one follow-up with its original preflight and task ID."""
     queued = _validated_recovery_queued_member(queued_lease)
+    from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+    await require_active_voice_dispatch(cache_service, queued)
     if (queued.chat_id != prior_request.chat_id
             or queued.team_id_hash != prior_request.team_id_hash
             or (queued.user_id != prior_request.user_id and not prior_request.team_id)):
@@ -802,7 +829,9 @@ async def _ack_running_recovery_queue_prefix(
     if (state.get("status") != "found"
             or state.get("queue_dispatch_status") != "processing"
             or state.get("recovery_task_id") != task_id
-            or state.get("recovery_preflight_id") != request.recovery_preflight_id):
+            or state.get("recovery_preflight_id") != request.recovery_preflight_id
+            or state.get("inference_commitment") != lease["messages"][0]["recovery_inference_commitment"]
+            or member.current_user_content != request.current_user_content):
         raise RequiredRecoveryOutputError("Running recovery queue lacks durable start receipt")
     await ChatRecoveryService(directus_service).execute(
         "mark_outbox_dispatched", {
@@ -1976,7 +2005,7 @@ async def _publish_recovery_output_pause(request_data: AskSkillRequest, task_id:
     """Tell capable clients that dependent work stopped at the durable-save gate."""
     cache_service = CacheService()
     try:
-        root_chat_id = request_data.root_chat_id or request_data.chat_id
+        root_chat_id = admission_chat_id(request_data)
         await cache_service.publish_event(f"chat_stream::{root_chat_id}", {
             "type": "recovery_output_paused", "chat_id": root_chat_id,
             "child_chat_id": request_data.chat_id if request_data.is_sub_chat else None,
@@ -2357,6 +2386,47 @@ async def _settle_optional_debug_cache(task, started_at, *, wait_for_budget, wri
 
 
 _owned_summary_tasks: ContextVar[list | None] = ContextVar("owned_summary_tasks", default=None)
+_owned_metadata_tasks: ContextVar[list | None] = ContextVar("owned_metadata_tasks", default=None)
+
+
+_owned_live_speech: ContextVar[list | None] = ContextVar("owned_live_speech", default=None)
+
+
+def _owns_live_speech(function):
+    """Drain call output after the complete shared pre/main/post pipeline.
+
+    The AI worker slot remains owned until the bounded audio drain finishes;
+    canonical persistence, final output and postprocessing are already done.
+    Every exceptional/early exit still closes any open provider transport.
+    """
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        owners = []
+        token = _owned_live_speech.set(owners)
+        try:
+            result = await function(*args, **kwargs)
+            if owners:
+                await asyncio.gather(*(owner.wait() for owner in owners))
+            return result
+        finally:
+            if owners:
+                await asyncio.gather(*(owner.cancel() for owner in owners), return_exceptions=True)
+            _owned_live_speech.reset(token)
+    return owned
+
+
+def _owns_optional_metadata(function):
+    """Metadata cannot retain transports on rejection, cancellation or failure."""
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        tasks = []
+        token = _owned_metadata_tasks.set(tasks)
+        try:
+            return await function(*args, **kwargs)
+        finally:
+            await _drain_preparation_tasks(*tasks)
+            _owned_metadata_tasks.reset(token)
+    return owned
 
 
 def _owns_deferred_summary(function):
@@ -2477,6 +2547,37 @@ async def _prepare_artifact_context(
         current_index=current_artifact_index,
         persist=not request_data.is_incognito and not request_data.is_external,
     ) or None
+    ledger_artifact_index = dict(request_data.embed_file_path_index or {})
+    try:
+        request_data.embed_file_path_index = await asyncio.wait_for(
+            enrich_historical_image_aliases(
+                artifact_index=request_data.embed_file_path_index,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+            ),
+            timeout=5.0,
+        ) or None
+    except asyncio.TimeoutError:
+        logger.warning("[Task ID: %s] Historical image alias metadata timed out; retaining canonical refs", task_id)
+    if (request_data.embed_file_path_index != ledger_artifact_index
+            and request_data.embed_file_path_index
+            and not request_data.is_incognito and not request_data.is_external):
+        try:
+            await asyncio.wait_for(
+                load_and_merge_artifact_ledger(
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    user_id_hash=request_data.user_id_hash, chat_id=request_data.chat_id,
+                    current_index=request_data.embed_file_path_index,
+                ), timeout=5.0,
+            )
+        except Exception as exc:
+            logger.warning("[Task ID: %s] Historical image alias ledger refresh unavailable (%s)",
+                           task_id, type(exc).__name__)
     request_data.historical_artifact_context = None
     if request_data.embed_file_path_index and user_vault_key_id:
         try:
@@ -2498,6 +2599,23 @@ async def _prepare_artifact_context(
                 "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
                 task_id, type(exc).__name__,
             )
+
+
+def _retain_main_processing_failure_category(
+    result: dict[str, Any], debug_metadata: object,
+) -> dict[str, Any]:
+    """Preserve bounded stream outcomes for terminal notification classification."""
+    from backend.apps.ai.utils.main_processing_failure import (
+        MAIN_PROCESSING_FAILURE_MARKER, main_processing_failure_reason,
+    )
+    if isinstance(debug_metadata, dict):
+        reason = main_processing_failure_reason({
+            MAIN_PROCESSING_FAILURE_MARKER: True,
+            "reason": debug_metadata.get("main_processing_failure_reason"),
+        })
+        if reason:
+            result["failure_category"] = reason
+    return result
 
 
 def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, Any] | None:
@@ -2554,7 +2672,9 @@ async def _consume_sub_chat_recovery_children(
             raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
 
 
+@_owns_live_speech
 @_owns_deferred_summary
+@_owns_optional_metadata
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -2568,6 +2688,9 @@ async def _async_process_ai_skill_ask_task(
     Initializes services and performs the main processing steps.
     Returns a dictionary with processing results and status flags.
     """
+    # Worker-local elapsed budget only; waiting speech still starts at the
+    # existing validated consumer boundary, never during preprocessing.
+    voice_waiting_started_at = time.monotonic()
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
     from backend.apps.ai.processing.stage_one_handoff import request_fingerprint, load_stage_one
     routing_fingerprint = (request_fingerprint(request_data.model_dump(mode="json"), skill_config.model_dump(mode="json"))
@@ -2624,6 +2747,9 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+        await require_active_voice_dispatch(cache_service_instance, request_data)
+
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
 
@@ -2662,6 +2788,7 @@ async def _async_process_ai_skill_ask_task(
             resume_envelope = request_data
             verify_resume_recovery_identity(original_payload, resume_envelope)
             request_data = AskSkillRequest.model_validate(original_payload)
+            await prepare_saved_chat_turn(request_data, directus_service_instance)
             request_data.same_turn_batch_id = resume_envelope.same_turn_batch_id
             request_data.same_turn_slots = resume_envelope.same_turn_slots
             request_data.is_async_skill_continuation = True
@@ -2724,6 +2851,10 @@ async def _async_process_ai_skill_ask_task(
                     "interrupted_by_revocation": False,
                     "_celery_task_state": "SUCCESS",
                 }
+            # The dispatcher atomically reserves the active chat task for this
+            # verified resume delivery, while recovery keeps the original
+            # inference ID. Recent-work IPC must use the live delivery owner.
+            object.__setattr__(request_data, "_verified_same_turn_delivery_task_id", task_id)
 
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
@@ -3159,6 +3290,7 @@ async def _async_process_ai_skill_ask_task(
     # SECURITY: Only works when SERVER_ENVIRONMENT != "production".
     _test_marker = None  # None or (mode, fixture_id, speed_override)
     _fixture_recorder = None  # FixtureRecorder instance for record mode
+    _fixture_postprocessing_result: Optional[PostProcessingResult] = None
     if os.getenv("SERVER_ENVIRONMENT", "production") != "production":
         from backend.apps.ai.testing.mock_replay import detect_marker, strip_marker
         if request_data.message_history:
@@ -3226,6 +3358,8 @@ async def _async_process_ai_skill_ask_task(
                     f"group='{live_group}' — full pipeline with cached API responses"
                 )
 
+    early_chat_metadata: Dict[str, Optional[str]] = {}
+
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
     # directly to postprocessing. All variables that postprocessing depends on are set
@@ -3247,6 +3381,7 @@ async def _async_process_ai_skill_ask_task(
         aggregated_final_response = mock_result["aggregated_final_response"]
         thinking_content = mock_result.get("thinking_content", [])
         main_processor_debug_metadata = mock_result.get("main_processor_debug_metadata", {})
+        _fixture_postprocessing_result = mock_result.get("postprocessing_result")
         revoked_in_consumer = False
         soft_limited_in_consumer = False
         task_was_revoked = False
@@ -3334,6 +3469,21 @@ async def _async_process_ai_skill_ask_task(
         debug_cache_started_at = None
         debug_cache_write_cancelled = None
         initial_metadata_task = None
+        initial_metadata_notice_task = None
+        early_metadata_task = None
+
+        def start_early_metadata(history, language):
+            nonlocal early_metadata_task
+            from backend.apps.ai.processing.early_chat_metadata import (
+                eligible_for_early_metadata, generate_early_chat_metadata,
+            )
+            if early_metadata_task is None and eligible_for_early_metadata(request_data):
+                early_metadata_task = asyncio.create_task(generate_early_chat_metadata(
+                    task_id=task_id, message_history=history,
+                    user_system_language=language, secrets_manager=secrets_manager,
+                ))
+                _owned_metadata_tasks.get().append(early_metadata_task)
+
         preprocessing_ready_for_main = False
         try:
             if not cache_service_instance:
@@ -3448,6 +3598,7 @@ async def _async_process_ai_skill_ask_task(
                     if summary_task:
                         await summary_task
 
+                await require_active_voice_dispatch(cache_service_instance, request_data)
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     try:
@@ -3468,6 +3619,7 @@ async def _async_process_ai_skill_ask_task(
                             on_early_routing=publish_early_typing,
                             precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
                             before_related_summary_read=before_related_summary_read if summary_task else None,
+                            on_metadata_context_ready=start_early_metadata,
                         )
                         if summary_task:
                             if _can_defer_summary_join(
@@ -3680,6 +3832,8 @@ async def _async_process_ai_skill_ask_task(
                     raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
             else:
                 logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+
+            await require_active_voice_dispatch(cache_service_instance, request_data)
 
             # Compress only after the exact answer model is known. Admin overrides still
             # take precedence, and any compression/provider failure remains non-fatal.
@@ -3948,15 +4102,28 @@ async def _async_process_ai_skill_ask_task(
                     # CRITICAL: Skip WebSocket events for external requests (REST API)
                     # This prevents typing indicators from popping up in the web app when a user makes an API call.
                     if not request_data.is_external:
-                        initial_metadata_operation = time_pre_main("metadata_job", persist_generated_metadata(
-                            request=request_data, task_id=task_id, stage="initial",
-                            metadata={"title": preprocessing_result.title,
-                                      "category": typing_category if not request_data.chat_has_title else None,
-                                      "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
-                        ))
+                        async def seal_initial_metadata():
+                            if early_metadata_task and preprocessing_result.can_proceed:
+                                try:
+                                    generated = await early_metadata_task
+                                    if generated:
+                                        early_chat_metadata.update(title=generated.title, summary=generated.summary)
+                                except Exception as exc:
+                                    logger.info("Early metadata unavailable (%s)", type(exc).__name__)
+                            if await cache_service_instance.get_active_ai_task(request_data.chat_id) != task_id:
+                                return None
+                            return await persist_generated_metadata(
+                                request=request_data, task_id=task_id, stage="initial",
+                                metadata={"title": early_chat_metadata.get("title") or preprocessing_result.title,
+                                          "summary": early_chat_metadata.get("summary"),
+                                          "category": typing_category if not request_data.chat_has_title else None,
+                                          "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+                            )
+
+                        initial_metadata_operation = time_pre_main("metadata_job", seal_initial_metadata())
                         # StageOne already published the selected Mate. Its later
                         # sealed metadata notice can join at first visible output.
-                        if typing_lifecycle.started and preprocessing_result.can_proceed:
+                        if (typing_lifecycle.started or early_metadata_task) and preprocessing_result.can_proceed:
                             initial_metadata_task = asyncio.create_task(initial_metadata_operation)
                             initial_metadata_job = None
                         else:
@@ -4005,7 +4172,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
-                await _drain_preparation_tasks(initial_metadata_task)
+                await _drain_preparation_tasks(initial_metadata_task, early_metadata_task)
 
         # --- Step 2: Main Processing (with streaming) ---
         # Sync wrapper handles Celery state update for progress
@@ -4038,11 +4205,17 @@ async def _async_process_ai_skill_ask_task(
                     logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
                                    task_id, type(exc).__name__)
 
+        if early_metadata_task and initial_metadata_task:
+            # New metadata generation is wholly independent of first visible
+            # output. Its sealed notification may arrive while main is streaming.
+            initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())
+
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
             from backend.apps.ai.processing.main_processor import (
                 _scoped_diffable_embed_prefetch, _scoped_context_summary_barrier,
             )
+            await require_active_voice_dispatch(cache_service_instance, request_data)
             with ai_phase_span("main"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
                 pending_summary = next(iter(_owned_summary_tasks.get() or []), None)
@@ -4068,7 +4241,10 @@ async def _async_process_ai_skill_ask_task(
                         user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
                         skill_config_dict=skill_config_dict,
                         completion_timing=completion_timing,
-                        before_first_chunk_publish=publish_initial_metadata_after_seal if initial_metadata_task else None,
+                        voice_waiting_started_at=voice_waiting_started_at,
+                        owned_live_speech=_owned_live_speech.get(),
+                        before_first_chunk_publish=(publish_initial_metadata_after_seal
+                            if initial_metadata_task and not early_metadata_task else None),
                     )
                 if not revoked_in_consumer and not soft_limited_in_consumer:
                     budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
@@ -4254,7 +4430,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
-            await _drain_preparation_tasks(initial_metadata_task)
+            await _drain_preparation_tasks(initial_metadata_notice_task, initial_metadata_task, early_metadata_task)
 
     if legacy_batch_proof is not None:
         if cache_service_instance is None:
@@ -4359,6 +4535,9 @@ async def _async_process_ai_skill_ask_task(
                     queued_origin.team_id, queued_origin.user_id,
                     {"owner", "admin", "member"},
                 )
+            from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch, queued_voice_delivery
+            for member in queued_messages:
+                await require_active_voice_dispatch(cache_service_instance, member)
             combined_message_ids, combined_content_parts = _validated_queued_messages(
                 queued_origin, queued_lease,
             )
@@ -4449,6 +4628,7 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     current_user_content=combined_content,
+                    **queued_voice_delivery(queued_messages),
                     agentic_context_ref=queued_messages[-1].get("agentic_context_ref"),
                     agentic_context_request_id=queued_messages[-1].get("agentic_context_request_id"),
                     agentic_context_turn_id=queued_messages[-1].get("agentic_context_turn_id"),
@@ -4791,43 +4971,51 @@ async def _async_process_ai_skill_ask_task(
             # OPE-265: Determine current chat title for post-processing title update evaluation.
             # For new chats, use the preprocessing title. For follow-ups, use the client-provided title.
             current_title_for_postproc = None
-            if preprocessing_result and preprocessing_result.title:
+            if early_chat_metadata.get("title"):
+                current_title_for_postproc = early_chat_metadata["title"]
+            elif preprocessing_result and preprocessing_result.title:
                 current_title_for_postproc = preprocessing_result.title
             elif getattr(request_data, 'current_chat_title', None):
                 current_title_for_postproc = request_data.current_chat_title
 
             with ai_phase_span("postprocess"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "started")
-                postprocessing_result = await handle_postprocessing(
-                    task_id=task_id,
-                    user_message=last_user_message,
-                    assistant_response=postprocessing_response,
-                    chat_summary=chat_summary,
-                    chat_tags=chat_tags,
-                    message_history=postprocessing_message_history,
-                    base_instructions=base_instructions,
-                    secrets_manager=secrets_manager,
-                    cache_service=cache_service_instance,
-                    available_app_ids=available_app_ids,
+                # A committed dev-only replay can supply the validated metadata
+                # result too; deterministic fixture checks must not call a provider.
+                if isinstance(_fixture_postprocessing_result, PostProcessingResult):
+                    postprocessing_result = _fixture_postprocessing_result.model_copy(deep=True)
+                else:
+                    postprocessing_result = await handle_postprocessing(
+                        task_id=task_id,
+                        user_message=last_user_message,
+                        assistant_response=postprocessing_response,
+                        chat_summary=chat_summary,
+                        chat_tags=chat_tags,
+                        message_history=postprocessing_message_history,
+                        base_instructions=base_instructions,
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service_instance,
+                        available_app_ids=available_app_ids,
 
-                    available_skills=available_skills_for_postproc,
-                    is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
-                    is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
-                    output_language=chat_output_language,
-                    user_system_language=user_system_language,
-                    current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
-                    follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                    quick_tips_enabled=quick_tips_enabled,
-                    learning_mode_context=effective_learning_mode_context,
-                    learning_focus_context=(
-                        {"focus_id": request_data.active_focus_id,
-                         "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
-                        if request_data.active_focus_id in {
-                            "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
-                        } else None
-                    ),
-                    decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
-                )
+                        available_skills=available_skills_for_postproc,
+                        is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                        is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
+                        output_language=chat_output_language,
+                        user_system_language=user_system_language,
+                        current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
+                        follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                        quick_tips_enabled=quick_tips_enabled,
+                        learning_mode_context=effective_learning_mode_context,
+                        learning_focus_context=(
+                            {"focus_id": request_data.active_focus_id,
+                             "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
+                            if request_data.active_focus_id in {
+                                "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
+                            } else None
+                        ),
+                        decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
+                        voice_mode=request_data.voice_mode,
+                    )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
@@ -4899,17 +5087,20 @@ async def _async_process_ai_skill_ask_task(
                 "source_metadata_v": source_metadata_v,
             }
 
-            # OPE-265: Include updated title only when the postprocessor determined a title change is needed
-            if postprocessing_result.updated_chat_title and not typed_child_metadata:
-                postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
-                logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
+            # Older clients receive their first title at completion. The early
+            # title was delivered only through the capability-gated sealed path.
+            final_generated_title = postprocessing_result.updated_chat_title or (
+                early_chat_metadata.get("title") if not request_data.chat_has_title else None
+            )
+            if final_generated_title and not typed_child_metadata:
+                postprocessing_payload["updated_chat_title"] = final_generated_title
 
             # The final delivery consolidates every generated field so a lost
             # typing event cannot strand the title/category/icon independently.
             final_metadata_job = await persist_generated_metadata(
                 request=request_data, task_id=task_id, stage="postprocessing",
                 source_metadata_v=source_metadata_v,
-                metadata={"title": postprocessing_result.updated_chat_title or preprocessing_result.title,
+                metadata={"title": postprocessing_result.updated_chat_title or early_chat_metadata.get("title") or preprocessing_result.title,
                           "summary": postprocessing_result.chat_summary if request_data.is_sub_chat else final_chat_summary,
                           "category": (preprocessing_result.category or "general_knowledge") if not request_data.chat_has_title else None,
                           "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
@@ -5069,7 +5260,7 @@ async def _async_process_ai_skill_ask_task(
     if request_data.same_turn_batch_id:
         from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
         await release_same_turn_handoffs(request_data)
-    return {
+    return _retain_main_processing_failure_category({
         "task_id": task_id,
         "status": final_status_message,
         "preprocessing_summary": preprocessing_result.model_dump() if preprocessing_result else {},
@@ -5078,7 +5269,7 @@ async def _async_process_ai_skill_ask_task(
         "interrupted_by_soft_time_limit": task_was_soft_limited, # Return determined flag
         "interrupted_by_revocation": task_was_revoked, # Return determined flag
         "_celery_task_state": "SUCCESS"
-    }
+    }, main_processor_debug_metadata)
 
 
 @celery_config.app.task(
@@ -5253,6 +5444,14 @@ def process_ai_skill_ask_task(
             volatile_context_token = active_volatile_ai_context.set(volatile_context)
         elif volatile_header is not None:
             raise RequiredRecoveryOutputError("Saved AI task carries volatile authority")
+        # Re-derive ancestry for every ordinary delivery, including reconstructed
+        # queued messages and async/focus resumes. Durable admission below still
+        # claims the actual user chat/message/task before any inference.
+        ancestry_directus = DirectusService()
+        try:
+            loop.run_until_complete(prepare_saved_chat_turn(request_data, ancestry_directus))
+        finally:
+            loop.run_until_complete(ancestry_directus.close())
         recovery_context = _required_recovery_output_context(request_data)
         if recovery_context:
             recovery_context_token = active_recovery_output_context.set(recovery_context)
@@ -5262,8 +5461,8 @@ def process_ai_skill_ask_task(
                 or request_data.legacy_cutover_task_id
             )
             if legacy_identity:
-                root_chat_id = request_data.root_chat_id or request_data.chat_id
-                root_message_id = request_data.root_user_message_id or request_data.message_id
+                root_chat_id = admission_chat_id(request_data)
+                root_message_id = admission_message_id(request_data)
                 expected_identity = hashlib.sha256(
                     f"{request_data.user_id}:{root_chat_id}:{root_message_id}".encode()
                 ).hexdigest()

@@ -19,6 +19,8 @@ except ImportError:  # pragma: no cover - lightweight contract-test environments
 MEDIA_CHILD_TYPES = {
     "images": "generated_image",
     "audio": "generated_audio",
+    # Private assistant narration uses the same encrypted audio asset transport.
+    "assistant_response_speech": "generated_audio",
     "music": "generated_music",
     "videos": "generated_video",
     "models3d": "generated_model",
@@ -45,7 +47,7 @@ active_media_batch_child: ContextVar[bool] = ContextVar("active_media_batch_chil
 COMPLETION_RESULT_FIELDS = frozenset({
     "id", "type", "prompt", "text_preview", "model", "provider_model",
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
-    "resolution", "output_filetype", "billing_status", "generated_at",
+    "resolution", "filename", "output_filetype", "billing_status", "generated_at", "input_embed_ids",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
@@ -279,6 +281,47 @@ def finalize_trusted_inline_refs(
     return answer
 
 
+def authenticated_generated_outputs(
+    authored_outputs: Sequence[Mapping[str, Any]],
+) -> dict[str, Mapping[str, Any]]:
+    """Return exact generated refs from finished server-authored UUID pairs.
+
+    A cache miss cannot revoke a completed writer's authority. Arbitrary refs,
+    failed outputs and conflicting identities never receive that authority.
+    """
+    outputs: dict[str, Mapping[str, Any]] = {}
+    conflicts: set[str] = set()
+    for row in authored_outputs:
+        if not isinstance(row, Mapping) or row.get("status") != "finished":
+            continue
+        app_id, skill_id = row.get("app_id"), row.get("skill_id")
+        identity = _canonical_output_id(row.get("embed_id"))
+        ref = row.get("embed_ref")
+        if (not isinstance(app_id, str) or not isinstance(skill_id, str)
+                or not isinstance(ref, str) or identity is None
+                or (app_id, skill_id) not in _GENERATED_OUTPUT_SKILLS):
+            continue
+        if ref not in {generated_media_embed_ref(app_id, identity),
+                       generated_media_parent_ref(app_id, identity)}:
+            continue
+        if ref in outputs and outputs[ref].get("embed_id") != identity:
+            conflicts.add(ref)
+        outputs[ref] = {**row, "embed_id": identity}
+    return {ref: row for ref, row in outputs.items() if ref not in conflicts}
+
+
+def generated_image_filename(prompt: str, embed_id: str, extension: str) -> str:
+    """Create a bounded download-safe name tied to this generated image identity."""
+    import unicodedata
+
+    identity = str(uuid.UUID(embed_id)).replace("-", "")[:8]
+    ascii_prompt = unicodedata.normalize("NFKD", prompt).encode("ascii", "ignore").decode()
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_prompt.casefold()).strip("-")[:64].rstrip("-")
+    if extension not in {"png", "jpg", "jpeg", "webp", "svg"}:
+        raise ValueError("Unsupported generated image filename extension")
+    return f"{slug or 'generated-image'}-{identity}.{extension}"
+
+
 def media_completion_result(result: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in result.items() if key in COMPLETION_RESULT_FIELDS}
 
@@ -363,6 +406,10 @@ async def run_generated_media_batch(
             await finalize_generated_media_parent(
                 service, parent_embed_id=parent_id, app_id=app_id, skill_id=skill_id,
                 children=children, failures=failures,
+                input_embed_ids=list(dict.fromkeys(
+                    source_id for request in requests if isinstance(request, dict)
+                    for source_id in request.get("input_embed_ids", []) if isinstance(source_id, str)
+                )),
                 chat_id=str(arguments["chat_id"]),
                 message_id=str(arguments["message_id"]),
                 user_id=user_id, user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -418,6 +465,10 @@ async def run_generated_media_batch(
         "completed_results": children,
         "child_embed_ids": [row["child_embed_id"] for row in children],
         "failed_results": failures,
+        "input_embed_ids": list(dict.fromkeys(
+            source_id for row in children for source_id in row.get("result", {}).get("input_embed_ids", [])
+            if isinstance(source_id, str)
+        )),
     }
 
 
@@ -485,6 +536,7 @@ async def finalize_generated_media_parent(
     user_id_hash: str,
     created_at: int,
     log_prefix: str,
+    input_embed_ids: list[str] | None = None,
 ) -> None:
     """Close the one producer after all request slots have reached a terminal state."""
     ordered = sorted(children, key=lambda row: int(row["request_index"]))
@@ -498,6 +550,10 @@ async def finalize_generated_media_parent(
         "embed_ids": child_ids,
         "output_embed_refs": [str(row["embed_ref"]) for row in ordered],
         "failed_results": failures,
+        "input_embed_ids": list(dict.fromkeys([*(input_embed_ids or []), *(
+            source_id for row in ordered for source_id in row.get("result", {}).get("input_embed_ids", [])
+            if isinstance(source_id, str)
+        )])),
     }
     if failures:
         content["partial_failure"] = bool(child_ids)

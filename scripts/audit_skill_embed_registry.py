@@ -24,6 +24,7 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # do not create user-visible app_skill_use embeds. New entries require a reason.
 SKILL_EMBED_EXCEPTIONS: dict[str, str] = {
     "ai:ask": "Core chat entrypoint invoked implicitly for every request, not a tool-call embed.",
+    "ai:decide": "Bounded inline decision endpoint returns structured decisions without chat or embeds.",
     "code:image_to_html": "Long-running generator returns a direct code embed and screenshot metadata rather than an app-skill-use result embed.",
     "plans:create": "Client-encrypted plan write request; a capable client applies the durable change rather than rendering an app-skill embed.",
     "plans:search": "Client-encrypted plan search request; results are supplied by a capable client rather than an app-skill embed.",

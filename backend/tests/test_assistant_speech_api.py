@@ -6,6 +6,7 @@
 #
 
 import pytest
+import hashlib
 from pathlib import Path
 
 from backend.core.api.app.routes.handlers.websocket_handlers.assistant_speech_handler import (
@@ -221,6 +222,66 @@ async def test_rate_limit_is_charged_once_by_requested_segment_count() -> None:
     assert observed == [{"user_id": "owner-1", "chat_id": "chat-1", "segment_count": 2}]
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only,assistant-speech.access.first-party-owner-scoped
+@pytest.mark.asyncio
+async def test_full_deferred_response_can_generate_each_paragraph_without_double_counting_quota() -> None:
+    used = 0
+    generated: list[int] = []
+    registered: set[int] = set()
+    sent: list[dict[str, object]] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message["payload"])
+
+    async def authorize(**_kwargs):
+        return {"chat_owner_id": "owner", "message_role": "assistant"}
+
+    async def rate_limit(**kwargs):
+        nonlocal used
+        used += kwargs["segment_count"]
+        return used <= 20
+
+    async def dispatch(**kwargs):
+        sequences = [segment["sequence"] for segment in kwargs["segments"]]
+        if kwargs["require_registered"]:
+            assert set(sequences) <= registered
+        registered.update(sequences)
+        generated.extend(sequences[:1] if kwargs["defer_after_first"] else sequences)
+        return [{"segment_id": f"segment-{sequence}", "sequence": sequence,
+                 "status": "registered" if kwargs["defer_after_first"] and index else "queued"}
+                for index, sequence in enumerate(sequences)]
+
+    async def unused(**_kwargs):
+        raise AssertionError("No lifecycle action expected")
+
+    segments = [{"source_version": 1, "sequence": sequence, "kind": "prose_paragraph",
+                 "source_hash": "server-verified", "speakable_text": f"Paragraph {sequence}."}
+                for sequence in range(20)]
+
+    async def send(**payload):
+        await handle_assistant_speech_websocket(
+            manager=Manager(), user_id="owner", device_fingerprint_hash="device",
+            payload={"chat_id": "chat", "assistant_message_id": "message", **payload},
+            authorize=authorize, rate_limit=rate_limit, budget_preflight=lambda **_kwargs: True,
+            dispatch=dispatch, retry=unused, cancel=unused, delete=unused,
+        )
+
+    await send(action="request", segments=segments, defer_after_first=True)
+    assert used == 1
+    assert generated == [0]
+    assert len(sent[-1]["segments"]) == 20
+    assert all(segment["status"] == "registered" for segment in sent[-1]["segments"][1:])
+    for segment in segments[1:]:
+        await send(action="generate", segments=[segment])
+        assert sent[-1]["status"] == "accepted"
+    assert used == 20
+    assert generated == list(range(20))
+    await send(action="generate", segments=[segments[-1]])
+    assert sent[-1] == {"status": "error", "error": "rate_limited"}
+    assert generated == list(range(20))
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.privacy.transient-plaintext-encrypted-audio
 @pytest.mark.asyncio
 async def test_rejects_client_controlled_segment_identity_and_oversized_transient_text_before_dispatch() -> None:
@@ -379,7 +440,7 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
             if collection == "messages":
                 return [{"role": "assistant"}]
             if collection == "assistant_speech_segments":
-                if params["filter[kind][_eq]"] == "app_use_announcement":
+                if params["filter[kind][_eq]"] in {"app_use_announcement", "voice_prose_clause"}:
                     return []
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
                 return [segment] if params["filter[sequence][_eq]"] == 0 else []
@@ -606,6 +667,8 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
             if collection == "assistant_speech_segments":
                 if params["filter[kind][_eq]"] == "app_use_announcement":
                     return [{"segment_id": "app-use", "sequence": 0}]
+                if params["filter[kind][_eq]"] == "voice_prose_clause":
+                    return []
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
                 return [row for row in (segment, repeated_segment) if row["sequence"] == params["filter[sequence][_eq]"]]
             return []
@@ -684,7 +747,8 @@ async def test_event_replay_falls_back_to_content_identity_after_repeated_search
         {"segment_id": "prose", "source_version": 1, "sequence": 3, "kind": "prose_paragraph", "source_hash": _speech_source_identity(prose_text), "status": "ready", "generated_asset_id": "asset-prose"},
     ]
     for row in rows:
-        row.update({"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1"})
+        row.update({"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1",
+                    "manifest_id": hashlib.sha256(b"chat-1:message-1").hexdigest()})
     sent: list[dict[str, object]] = []
     dispatched: list[object] = []
 
@@ -766,6 +830,7 @@ async def test_event_requeues_known_localized_summary_with_canonical_text_and_ha
     row = {
         "id": "row-1",
         "segment_id": "news-summary",
+        "manifest_id": hashlib.sha256(b"chat-1:message-1").hexdigest(),
         "user_id": "owner-1",
         "chat_id": "chat-1",
         "assistant_message_id": "message-1",
@@ -974,11 +1039,11 @@ async def test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup(mo
     from backend.core.api.app.services.directus.chat_methods import ChatMethods
     from backend.core.api.app.tasks.celery_config import app
 
-    segments = [{"id": "speech-row", "segment_id": "segment-1", "status": "generating"}]
+    segments = [{"id": "speech-row", "segment_id": "segment-1", "status": "generating", "user_id": "owner-1", "assistant_message_id": "message-1"}]
     dispatched: list[tuple[str, dict[str, object], str]] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache=False):
+        async def get_items(self, collection, *, params, no_cache=False, raise_on_error=False):
             if collection == "assistant_speech_manifests":
                 return [{"user_id": "owner-1", "assistant_message_id": "message-1"}]
             if collection == "assistant_speech_segments":
@@ -989,6 +1054,7 @@ async def test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup(mo
 
         async def update_item(self, _collection, _row_id, patch):
             segments[0].update(patch)
+            return {"success": True}
 
         async def delete_item(self, **_kwargs):
             return True

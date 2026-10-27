@@ -30,6 +30,7 @@ def _tag_payload(text: str = HIDDEN_INSTRUCTION) -> str:
     return chr(0xE0001) + "".join(chr(0xE0000 + ord(char)) for char in text) + chr(0xE007F)
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 def test_transcription_result_fields_remove_ascii_smuggling() -> None:
     hidden = _tag_payload()
     result = {
@@ -52,8 +53,9 @@ def test_transcription_result_fields_remove_ascii_smuggling() -> None:
         assert not contains, decoded
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
-async def test_gemini_correction_failure_does_not_mark_transcript_corrected() -> None:
+async def test_gemini_correction_failure_does_not_mark_transcript_corrected(monkeypatch) -> None:
     skill = object.__new__(TranscribeSkill)
 
     async def unwrap_aes_key(*_args, **_kwargs) -> bytes:
@@ -83,7 +85,7 @@ async def test_gemini_correction_failure_does_not_mark_transcript_corrected() ->
     skill._unwrap_aes_key = unwrap_aes_key
     skill._fetch_and_decrypt_audio = fetch_and_decrypt_audio
     skill._transcribe_with_mistral = transcribe_with_mistral
-    skill._correct_transcript_with_gemini = fail_correction
+    monkeypatch.setattr(transcribe_module, "correct_transcript", fail_correction)
 
     _request_id, results, error = await skill._process_single_transcribe_request(
         {
@@ -107,8 +109,9 @@ async def test_gemini_correction_failure_does_not_mark_transcript_corrected() ->
     assert result["correction_model"] is None
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
-async def test_successful_gemini_correction_marks_transcript_corrected() -> None:
+async def test_successful_mercury_correction_marks_transcript_corrected(monkeypatch) -> None:
     skill = object.__new__(TranscribeSkill)
 
     async def unwrap_aes_key(*_args, **_kwargs) -> bytes:
@@ -128,6 +131,7 @@ async def test_successful_gemini_correction_marks_transcript_corrected() -> None
         return {
             "title": "Green storage boxes",
             "corrected_transcript": "Search for green storage boxes.",
+            "model": "mercury-3",
         }
 
     class FakeSecretsManager:
@@ -141,7 +145,7 @@ async def test_successful_gemini_correction_marks_transcript_corrected() -> None
     skill._unwrap_aes_key = unwrap_aes_key
     skill._fetch_and_decrypt_audio = fetch_and_decrypt_audio
     skill._transcribe_with_mistral = transcribe_with_mistral
-    skill._correct_transcript_with_gemini = correct_transcript
+    monkeypatch.setattr(transcribe_module, "correct_transcript", correct_transcript)
 
     _request_id, results, error = await skill._process_single_transcribe_request(
         {
@@ -162,9 +166,10 @@ async def test_successful_gemini_correction_marks_transcript_corrected() -> None
     assert result["transcript_original"] == "um search yellow actually green storage boxes"
     assert result["transcript_corrected"] == "Search for green storage boxes."
     assert result["use_corrected"] is True
-    assert result["correction_model"] == GEMINI_CORRECTION_MODEL
+    assert result["correction_model"] == "mercury-3"
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
 async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio(
     monkeypatch: pytest.MonkeyPatch,
@@ -248,6 +253,7 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
     assert "long or confusing recordings" in prompt
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
 async def test_gemini_correction_rejects_response_without_tool_call(
     monkeypatch: pytest.MonkeyPatch,
@@ -294,6 +300,7 @@ async def test_gemini_correction_rejects_response_without_tool_call(
         )
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
 async def test_gemini_correction_rejects_malformed_json_without_corrected_field(
     monkeypatch: pytest.MonkeyPatch,
@@ -339,6 +346,7 @@ async def test_gemini_correction_rejects_malformed_json_without_corrected_field(
         )
 
 
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-results-and-billing
 @pytest.mark.anyio
 async def test_audio_custom_route_can_dispatch_hidden_transcribe_skill(monkeypatch: pytest.MonkeyPatch) -> None:
     slowapi_module = ModuleType("slowapi")

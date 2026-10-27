@@ -7,7 +7,7 @@
 // Chat sync uses the restored WebSocket token from /v1/auth/session after
 // cached user and local master-key checks pass.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.pairing.private-session
+// Assertions: apple-watch.pairing.private-session, apple-watch.pairing.explicit-entry-back
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
 
@@ -29,11 +29,13 @@ final class WatchAuthStore: ObservableObject {
     @Published var errorMessage: String?
 
     private let api = APIClient.shared
+    private let pairTransaction = WatchPairAuthenticationTransaction(storage: .live)
 
-    private static let cachedUserDefaultsKey = "openmates.apple.auth.cached_user"
+    private static let cachedUserDefaultsKey = WatchPairAuthenticationTransaction.cachedUserKey
     private static let diagnosticsCategory = "watch_auth"
 
     func checkSession() async {
+        guard !pairTransaction.isRunning else { return }
         isVerifiedOnline = false
         ServerConfiguration.current = WatchServerProfileStore().currentProfile().endpointConfiguration
         if let pendingUser = PairPendingAckStore.userID() {
@@ -83,51 +85,25 @@ final class WatchAuthStore: ObservableObject {
         }
     }
 
-    func completePairLogin(_ result: PairLoginResult,
-                           acknowledge: () async throws -> Void) async throws {
-        if result.loginResponse.needsDeviceVerification == true {
-            throw AuthError.deviceVerificationRequired
-        }
-        guard result.loginResponse.success, let user = result.loginResponse.user else {
-            throw AuthError.invalidCredentials
-        }
-        await WatchPushNotificationManager.shared.unregisterCurrentDevice()
-        isVerifiedOnline = false
-        WatchChatAccountLifecycle.invalidate()
-        let hapticGeneration = WatchChatAccountLifecycle.generation
-        ServerConfiguration.current = result.serverProfile.endpointConfiguration
-        WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
-        PairPendingAckStore.mark(userID: user.id)
-        NativeDiagnostics.event("pair_login_key_persist_start", category: Self.diagnosticsCategory)
-        try await CryptoManager.shared.saveMasterKey(result.masterKey, for: user.id)
-        cacheAuthenticatedUser(user)
-        PairSessionDeadlineStore.save(userID: user.id, deadline: result.loginResponse.pairExpiresAt)
-        var stage = "local_persistence"
-        do {
-            try PairPendingAckStore.flushLocalPairState()
-            stage = "acknowledgement"
-            try await acknowledge()
-        } catch {
-            NativeDiagnostics.error("phase=pair_login.failed stage=\(stage) errorType=\(type(of: error))",
-                                    category: Self.diagnosticsCategory)
-            await clearRevokedSession(for: user.id)
-            throw error
-        }
-        PairPendingAckStore.clear()
-        currentUser = user
-        webSocketToken = result.loginResponse.wsToken
-        isVerifiedOnline = true
-        schedulePairDeadline(for: user.id)
-        state = .authenticated
-        if WatchChatAccountLifecycle.generation == hapticGeneration, ServerProfile.current() == result.serverProfile {
-            NativeHaptics.shared.confirmed(.authenticated, id: "\(hapticGeneration)",
-                scope: result.serverProfile.apiBaseURL.absoluteString)
-        }
-        NativeDiagnostics.event(
-            "pair_login_authenticated",
-            category: Self.diagnosticsCategory,
-            flags: ["refresh_cookie_present": hasRefreshCookie]
-        )
+    func completePairLogin(serverProfile: ServerProfile,
+                           isCurrent: @escaping @MainActor () -> Bool,
+                           complete: @MainActor () async throws -> PairLoginResult,
+                           acknowledge: @MainActor () async throws -> Void) async throws {
+        try await pairTransaction.run(serverProfile: serverProfile,
+            isCurrent: { self.state == .unauthenticated && isCurrent() }, complete: complete,
+            unregisterPush: { await WatchPushNotificationManager.shared.unregisterCurrentDevice() },
+            acknowledge: acknowledge, publish: { result in
+                guard let user = result.loginResponse.user else { return }
+                currentUser = user
+                webSocketToken = result.loginResponse.wsToken
+                isVerifiedOnline = true
+                schedulePairDeadline(for: user.id)
+                state = .authenticated
+                NativeHaptics.shared.confirmed(.authenticated, id: "\(WatchChatAccountLifecycle.generation)",
+                    scope: serverProfile.apiBaseURL.absoluteString)
+                NativeDiagnostics.event("pair_login_authenticated", category: Self.diagnosticsCategory,
+                    flags: ["refresh_cookie_present": hasRefreshCookie])
+            })
     }
 
     private var hasRefreshCookie: Bool {
@@ -181,13 +157,28 @@ final class WatchAuthStore: ObservableObject {
     }
 
     private func clearRevokedSession(for userId: String) async {
+        let priorGeneration = WatchChatAccountLifecycle.generation
+        let revokedProfile = ServerProfile.current()
         await WatchPushNotificationManager.shared.unregisterCurrentDevice()
+        guard priorGeneration == WatchChatAccountLifecycle.generation,
+              revokedProfile == ServerProfile.current() else { return }
         isVerifiedOnline = false
         WatchChatAccountLifecycle.invalidate()
+        let eraseGeneration = WatchChatAccountLifecycle.generation
+        do { try await WatchVoiceCallStorageOwners.erase(accountID: userId) }
+        catch { NativeDiagnostics.failure("voice_call_cleanup_failed", category: Self.diagnosticsCategory, level: .warning, error: error) }
+        guard eraseGeneration == WatchChatAccountLifecycle.generation,
+              revokedProfile == ServerProfile.current() else { return }
         WatchPushNotificationManager.shared.invalidate()
         try? await CryptoManager.shared.deleteMasterKey(for: userId)
+        guard eraseGeneration == WatchChatAccountLifecycle.generation,
+              revokedProfile == ServerProfile.current() else { return }
         try? await WatchChatOfflineCache.shared.removeSnapshot()
+        guard eraseGeneration == WatchChatAccountLifecycle.generation,
+              revokedProfile == ServerProfile.current() else { return }
         try? await WatchHubOfflineCache.shared.removeAll()
+        guard eraseGeneration == WatchChatAccountLifecycle.generation,
+              revokedProfile == ServerProfile.current() else { return }
         UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: Self.cachedUserDefaultsKey)
         PairSessionDeadlineStore.clear()

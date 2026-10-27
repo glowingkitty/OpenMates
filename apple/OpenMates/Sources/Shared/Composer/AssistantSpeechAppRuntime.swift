@@ -1,3 +1,5 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.audio.single-owner, video-call.lifecycle.recovery-and-billing
 // Specification: specifications/features/assistant-response-speech/specification.yml
 // Assertions: assistant-speech.surface.semantic-parity
 // Specification: specifications/features/apple-local-model-lab/specification.yml
@@ -28,6 +30,107 @@ final class AssistantSpeechAppRuntime {
     // A capture retains its reservation through final decoding, including when
     // its composer disappears or realtime transcription fails before mic stop.
     private var recordingReservations = Set<UUID>()
+    private var heardBoundaryStage = NativeVoiceCallHeardBoundaryStage()
+    private var liveCallID: String?
+    private var liveCallTaskID: String?
+    private var liveCallChatID: String?
+    private var liveCallState: (@MainActor @Sendable (Bool, Bool, String?, String?, String, String) async -> Void)?
+    private var callSpeechSubscription: AnyCancellable?
+    private var liveCallReservation: (id: UUID, invalidate: @MainActor @Sendable () -> Void)?
+
+    /// UI and recorder entry points must use this before capture. Existing
+    /// beginRecording remains source-compatible; migrated callers use the
+    /// failable method so a call lease can never admit concurrent capture.
+    var hasLiveCallReservation: Bool { liveCallReservation != nil }
+    var canBeginRecording: Bool { liveCallReservation == nil && recordingReservations.isEmpty }
+    func tryBeginRecording() -> UUID? {
+        guard canBeginRecording else { return nil }
+        return beginRecording()
+    }
+
+    func reserveLiveCall(chatID: String? = nil, onInvalidated: @escaping @MainActor @Sendable () -> Void) async throws -> UUID {
+        guard liveCallReservation == nil, recordingReservations.isEmpty else {
+            throw NativeVoiceCallError.audioUnavailable
+        }
+        let id = UUID()
+        let expectedSession = sessionGeneration
+        liveCallChatID = chatID
+        liveCallReservation = (id, onInvalidated) // reserve before any suspension
+        activationGeneration = UUID()
+        let preparation = localPreparation
+        preparation?.cancel(); localPreparation = nil
+        for control in Array(controllers.values) { await stopController(control) }
+        await preparation?.value
+        await localSpeech.unloadAndWait()
+        player.stop(); systemMedia.reset(); mediaSubscription = nil
+        guard liveCallReservation?.id == id, expectedSession == sessionGeneration,
+              recordingReservations.isEmpty, !Task.isCancelled else {
+            releaseLiveCall(id)
+            throw NativeVoiceCallError.audioUnavailable
+        }
+        return id
+    }
+    func isLiveCallReservationCurrent(_ id: UUID) -> Bool { liveCallReservation?.id == id }
+    func releaseLiveCall(_ id: UUID) {
+        guard liveCallReservation?.id == id else { return }
+        if let liveCallChatID, let control = controllers[liveCallChatID] {
+            let oldScope = control.scope, oldMessageID = control.currentMessageID
+            earlyEvents.removeValue(forKey: liveCallChatID); outgoing.removeValue(forKey: liveCallChatID)
+            pendingCommitUserIDs.removeValue(forKey: liveCallChatID)
+            control.reset()
+            if let oldScope, let oldMessageID, let socket {
+                Task { [weak self] in
+                    guard self?.current(oldScope) == true else { return }
+                    try? await socket.send(.init(type: "assistant_speech", payload: ["action": "cancel",
+                        "chat_id": oldScope.chatID, "assistant_message_id": oldMessageID]))
+                }
+            }
+        }
+        player.stop()
+        heardBoundaryStage.reset()
+        callSpeechSubscription = nil; liveCallState = nil; liveCallChatID = nil; liveCallID = nil; liveCallTaskID = nil
+        liveCallReservation = nil
+    }
+    private func speechAllowed(chatID: String) -> Bool {
+        liveCallReservation == nil || liveCallChatID == chatID
+    }
+    func beginLiveCallSpeech(chatID: String,
+        state: @escaping @MainActor @Sendable (Bool, Bool, String?, String?, String, String) async -> Void) async throws {
+        guard liveCallReservation != nil, liveCallChatID == chatID, let scope = scope(for: chatID) else { throw NativeVoiceCallError.audioUnavailable }
+        let control = controller(for: chatID)
+        await control.activate(scope)
+        guard liveCallReservation != nil, liveCallChatID == chatID, current(scope), control.ready else { throw NativeVoiceCallError.audioUnavailable }
+        control.setVoiceCallMode(true)
+        activeChatID = chatID; activeOwnerID = liveCallReservation?.id
+        liveCallState = state
+        callSpeechSubscription = control.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in await Task.yield(); await self?.publishLiveCallSpeech() }
+        }
+    }
+    func bindLiveCallID(_ id: String?) { liveCallID = id }
+    private func publishLiveCallSpeech() async {
+        guard liveCallReservation != nil, let chatID = liveCallChatID, let control = controllers[chatID] else { return }
+        let id = control.currentMessageID
+        let text = store?.messages(for: chatID).first(where: { $0.id == id })?.content ?? ""
+        await liveCallState?(control.playbackStatus == .playing, control.playbackStatus == .waitingForSegment || (id == nil && (liveCallTaskID != nil || outgoing[chatID] != nil)), id, liveCallTaskID, String(text.suffix(4_000)), localLanguage)
+    }
+    func interruptLiveCallSpeech(chatID: String, messageID: String?, taskID: String?) async -> Bool {
+        guard liveCallReservation != nil, liveCallChatID == chatID, let control = controllers[chatID],
+              control.currentMessageID == messageID,
+              messageID != nil || (taskID != nil && liveCallTaskID == taskID) else { return false }
+        heardBoundaryStage.stage(control.heardBoundary())
+        liveCallTaskID = nil; outgoing.removeValue(forKey: chatID); earlyEvents.removeValue(forKey: chatID)
+        await control.stop()
+        await publishLiveCallSpeech()
+        return true
+    }
+    func pendingHeardBoundary(chatID: String) -> NativeVoiceCallHeardBoundary? {
+        liveCallReservation != nil && liveCallChatID == chatID ? heardBoundaryStage.pending : nil
+    }
+    func acceptHeardBoundary(_ value: NativeVoiceCallHeardBoundary?, chatID: String) {
+        guard liveCallReservation != nil, liveCallChatID == chatID else { return }
+        heardBoundaryStage.accepted(value)
+    }
     struct LocalPreparationDependencies {
         var isAvailable: @MainActor () -> Bool
         var prepare: @MainActor () async throws -> Void
@@ -63,7 +166,7 @@ final class AssistantSpeechAppRuntime {
         localPreparationDependencies?.didConsiderPreparation()
         localPreparation?.cancel()
         let messages = store?.messages(for: chatID) ?? []
-        guard recordingReservations.isEmpty, control.enabled, localSpeechAvailable, !control.playerVisible,
+        guard liveCallReservation == nil, recordingReservations.isEmpty, control.enabled, localSpeechAvailable, !control.playerVisible,
               !messages.isEmpty, messages.allSatisfy({ $0.isStreaming != true }),
               messages.contains(where: { $0.content?.isEmpty == false }) else { return }
         let generation = activationGeneration
@@ -74,7 +177,7 @@ final class AssistantSpeechAppRuntime {
                 if let wait = self?.localPreparationDependencies?.waitUntilIdle { try await wait() }
                 else { try await Task.sleep(for: .seconds(2)) }
                 try Task.checkCancellation()
-                guard let self, let control, recordingReservations.isEmpty, control.enabled, activeChatID == chatID,
+                guard let self, let control, liveCallReservation == nil, recordingReservations.isEmpty, control.enabled, activeChatID == chatID,
                       activationGeneration == generation, localSpeechAvailable, !control.playerVisible,
                       store?.messages(for: chatID).contains(where: { $0.isStreaming == true }) != true else { return }
                 if let prepare = localPreparationDependencies?.prepare { try await prepare() }
@@ -189,6 +292,7 @@ final class AssistantSpeechAppRuntime {
                 guard let self, let id = activeChatID, let store = self.store else { return }
                 if let control = controllers[id] {
                     control.updateSource(from: store.messages(for: id))
+                    await publishLiveCallSpeech()
                     scheduleLocalPreparation(chatID: id, control: control)
                 }
             }
@@ -237,7 +341,7 @@ final class AssistantSpeechAppRuntime {
         return self.scope(for: scope.chatID) == scope
     }
     func playPublicExample(chatID: String, messageID: String, fixtures: [PublicAssistantSpeechSegment]) async {
-        guard !fixtures.isEmpty else { return }
+        guard liveCallReservation == nil, !fixtures.isEmpty else { return }
         let activation = UUID(); activationGeneration = activation
         let expectedSession = sessionGeneration
         let expectedServer = ServerProfile.current().webBaseURL.absoluteString
@@ -247,7 +351,7 @@ final class AssistantSpeechAppRuntime {
         if let previous = activeChatID, previous != chatID, let previousController = controllers[previous] {
             await stopController(previousController)
         }
-        guard activationGeneration == activation, sessionGeneration == expectedSession,
+        guard liveCallReservation == nil, activationGeneration == activation, sessionGeneration == expectedSession,
               ServerProfile.current().webBaseURL.absoluteString == expectedServer, !Task.isCancelled else { return }
         if publicScope.map({ $0.chatID == chatID && current($0) }) != true {
             let scope = AssistantSpeechScope(accountID: "public", serverID: expectedServer,
@@ -294,7 +398,7 @@ final class AssistantSpeechAppRuntime {
                 }, isCurrent: { [weak self] in self?.current($0) == true })
                 return try await media.audio(scope, assetID: asset)
             }, play: { [weak self] bytes in
-                guard let self, activeChatID == chatID else { throw CancellationError() }; try await player.play(bytes)
+                guard let self, speechAllowed(chatID: chatID), activeChatID == chatID else { throw CancellationError() }; try await player.play(bytes, preserveCaptureSession: liveCallReservation != nil)
             }, stopPlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.stop(); self?.localPreparation?.cancel(); self?.localSpeech.unload() } },
             cancelResponse: { [weak self] scope, id in
                 guard let self, current(scope), let socket else { return }
@@ -306,18 +410,18 @@ final class AssistantSpeechAppRuntime {
                 let (bytes, response) = try await URLSession.shared.data(from: url)
                 guard current(scope), let http = response as? HTTPURLResponse, http.statusCode == 200 else { throw CocoaError(.fileReadNoSuchFile) }
                 return bytes
-            }, startPendingCue: { [weak self] in if self?.activeChatID == chatID { self?.player.startPendingCue() } },
+            }, startPendingCue: { [weak self] in if self?.speechAllowed(chatID: chatID) == true && self?.activeChatID == chatID { self?.player.startPendingCue() } },
             stopPendingCue: { [weak self] in if self?.activeChatID == chatID { self?.player.stopPendingCue() } },
             pausePlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.pause() } },
-            resumePlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.resume() } },
+            resumePlayback: { [weak self] in if self?.speechAllowed(chatID: chatID) == true && self?.activeChatID == chatID { self?.player.resume() } },
             requestSpeech: { [weak self] scope, id, action, segments in
-                guard let self, scope.accountID != "public", current(scope), activeChatID == scope.chatID, let socket else { throw CancellationError() }
+                guard let self, speechAllowed(chatID: scope.chatID), scope.accountID != "public", current(scope), activeChatID == scope.chatID, let socket else { throw CancellationError() }
                 var fields: [String: Any] = ["action": action, "chat_id": scope.chatID, "assistant_message_id": id, "segments": segments]
                 if action == "request" { fields["defer_after_first"] = true }
                 try await socket.send(.init(type: "assistant_speech", payload: fields))
             }, localSpeechAvailable: { [weak self] in self?.localSpeechAvailable == true },
             synthesizeLocal: { [weak self] scope, text in
-                guard let self, recordingReservations.isEmpty, current(scope), activeChatID == scope.chatID, localSpeechAvailable,
+                guard let self, liveCallReservation == nil, recordingReservations.isEmpty, current(scope), activeChatID == scope.chatID, localSpeechAvailable,
                       let directory = try? LocalModelStore.shared.installedDirectory(.supertonic3) else { throw LocalSpeechRuntimeError.unavailableRuntime }
                 let language = localLanguage
                 try registerLocalSpeechRuntime()
@@ -325,7 +429,15 @@ final class AssistantSpeechAppRuntime {
                 guard current(scope), activeChatID == scope.chatID else { throw CancellationError() }
                 guard localLanguage == language, localSpeechAvailable else { throw LocalSpeechRuntimeError.unavailableRuntime }
                 return bytes
-            }, canPlay: { [weak self] scope in self?.current(scope) == true && self?.activeChatID == scope.chatID }))
+            }, canPlay: { [weak self] scope in self?.speechAllowed(chatID: scope.chatID) == true && self?.current(scope) == true && self?.activeChatID == scope.chatID },
+            playbackOffsetMilliseconds: { [weak self] in self?.player.positionMilliseconds ?? 0 },
+            requestSpeechWithSource: { [weak self] scope, id, action, segments, markdown in
+                guard let self, speechAllowed(chatID: scope.chatID), current(scope), activeChatID == scope.chatID, let socket else { throw CancellationError() }
+                var fields: [String: Any] = ["action": action, "chat_id": scope.chatID,
+                    "assistant_message_id": id, "segments": segments, "source_markdown": markdown]
+                if action == "request" { fields["defer_after_first"] = true }
+                try await socket.send(.init(type: "assistant_speech", payload: fields))
+            }))
         controllers[chatID] = value; return value
     }
     func activate(chatID: String, supported: Bool, ownerID: UUID) async -> NativeAssistantSpeech {
@@ -336,7 +448,7 @@ final class AssistantSpeechAppRuntime {
         if let previous = activeChatID, previous != chatID, let previousController = controllers[previous] {
             await stopController(previousController)
         }
-        guard activationGeneration == activation, sessionGeneration == expectedSession, !Task.isCancelled else { return control }
+        guard liveCallReservation == nil, activationGeneration == activation, sessionGeneration == expectedSession, !Task.isCancelled else { return control }
         publicScope = nil
         activeChatID = chatID; activeOwnerID = ownerID
         systemMedia.activate(control)
@@ -375,7 +487,7 @@ final class AssistantSpeechAppRuntime {
         try Task.checkCancellation()
         guard self.socket === socket, current(scope) else { throw CancellationError() }
     }
-    func prepareSend(chat: Chat, userMessageID: String, socket: WebSocketManager, expectedScope: AssistantSpeechScope?) async throws -> [String: Any] {
+    func prepareSend(chat: Chat, userMessageID: String, socket: WebSocketManager, expectedScope: AssistantSpeechScope?, voiceCallTurn: NativeVoiceCallTurn? = nil) async throws -> [String: Any] {
         guard !IncognitoChatSession.isIncognitoChatId(chat.id), let scope = expectedScope else { return [:] }
         try requireCurrent(scope, socket: socket)
         let control = controller(for: chat.id)
@@ -383,7 +495,13 @@ final class AssistantSpeechAppRuntime {
         guard current(scope), control.scope == scope, !Task.isCancelled else { throw CancellationError() }
         // A pending write cannot become a silent false/no-speech preflight.
         guard control.ready else { throw WebSocketError.notConnected }
-        let fields = control.messageFields(for: scope)
+        if let voiceCallTurn {
+            liveCallID = voiceCallTurn.callID; liveCallTaskID = nil
+            guard liveCallReservation != nil, liveCallChatID == chat.id else { throw NativeVoiceCallError.scopeChanged }
+            await control.stop()
+            control.setVoiceCallMode(true)
+        }
+        let fields = voiceCallTurn?.messageFields ?? control.messageFields(for: scope)
         earlyEvents.removeValue(forKey: chat.id)
         if (chat.messagesV ?? 0) > 0 { committedChats.insert(chat.id) }
         pendingCommitUserIDs[chat.id] = userMessageID
@@ -394,6 +512,12 @@ final class AssistantSpeechAppRuntime {
     func receive(type: String, fields: [String: Any], from socket: WebSocketManager) {
         guard self.socket === socket, scopeGeneration == OfflineStore.shared.scopeGeneration,
               let chatID = fields["chat_id"] as? String, let scope = scope(for: chatID) else { return }
+        if !NativeVoiceCallSpeechAdmission.permits(taggedCallID: fields["voice_call_id"] as? String, activeCallID: liveCallID) { return }
+        if type == "ai_task_initiated", liveCallChatID == chatID,
+           fields["user_message_id"] as? String == outgoing[chatID], let taskID = fields["task_id"] as? String {
+            liveCallTaskID = taskID
+            Task { [weak self] in await self?.publishLiveCallSpeech() }
+        }
         if type == "ai_task_initiated", let userID = fields["user_message_id"] as? String,
            pendingCommitUserIDs[chatID] == userID {
             // The inference receipt follows the server's durable user-turn commit;
@@ -415,7 +539,11 @@ final class AssistantSpeechAppRuntime {
                 control.expectResponse(messageID, in: scope)
                 control.updateSource(from: store?.messages(for: chatID) ?? [])
             }
-            for event in earlyEvents.removeValue(forKey: chatID)?.events ?? [] { control.receive(event, in: scope) }
+            for event in earlyEvents.removeValue(forKey: chatID)?.events ?? [] {
+                if NativeVoiceCallSpeechAdmission.permits(taggedCallID: event.voice_call_id, activeCallID: liveCallID) {
+                    control.receive(event, in: scope)
+                }
+            }
         } else if type == "assistant_speech_acknowledgement",
                   let id = fields["message_id"] as? String, let clip = fields["clip_id"] as? String,
                   let path = fields["audio_url"] as? String, path.hasPrefix("/audio/assistant-acknowledgements/") {
@@ -459,6 +587,11 @@ final class AssistantSpeechAppRuntime {
         return assistantID
     }
     func reset() {
+        let invalidatedCall = liveCallReservation
+        liveCallReservation = nil
+        heardBoundaryStage.reset()
+        callSpeechSubscription = nil; liveCallState = nil; liveCallChatID = nil; liveCallID = nil; liveCallTaskID = nil
+        invalidatedCall?.invalidate()
         localPreparation?.cancel(); localPreparation = nil; localSpeech.unload()
         systemMedia.reset(); mediaSubscription = nil; publicScope = nil
         sessionGeneration = UUID(); activationGeneration = UUID(); pendingPublicChatID = nil
@@ -570,7 +703,7 @@ struct AssistantSpeechEarlyEvents {
             for child in children {
                 append(.init(chat_id: event.chat_id, message_id: message, status: child.status,
                     segment_id: child.segment_id, sequence: child.sequence,
-                    generated_asset_id: child.generated_asset_id, segments: [child]))
+                    generated_asset_id: child.generated_asset_id, segments: [child], voice_call_id: event.voice_call_id))
             }
             return
         }

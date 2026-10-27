@@ -34,6 +34,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_VIDEO_PREVIEW, MAX_WIDTH_CHANNEL_THUMBNAIL } from '../../../utils/imageProxy';
   
@@ -326,6 +327,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   appId="videos"
   skillId="video"
@@ -345,6 +347,8 @@
   {customStatusText}
 >
   {#snippet details({ isMobile: isMobileLayout })}
+    <ResultEmbedCard title={displayTitle || shortenedTitle} sourceLabel={channelName || hostname} faviconUrl={channelThumbnailUrl || undefined} description={customStatusText} mediaFit="contain">
+      {#snippet media()}
     <div 
       class="video-details" 
       class:mobile={isMobileLayout}
@@ -397,6 +401,8 @@
         <div class="video-error">{hostname || url}</div>
       {/if}
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -436,7 +442,7 @@
   .video-thumbnail {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
   

@@ -127,13 +127,12 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
         UserComponent("Google", "AI Providers", ("google",)),
         UserComponent("Cerebras", "AI Providers", ("cerebras",)),
         UserComponent("Together", "AI Providers", ("together",)),
+        UserComponent("Inception", "AI Providers", ("inception",)),
         UserComponent("OpenRouter", "AI Providers", ("openrouter",)),
         UserComponent("AWS Bedrock", "AI Providers", ("aws_bedrock",)),
     )),
     ("Search & Data", (
         UserComponent("Brave Search", "Search & Data", ("brave", "brave_search")),
-        UserComponent("SerpAPI", "Search & Data", ("serpapi",)),
-        UserComponent("Firecrawl", "Search & Data", ("firecrawl",)),
         UserComponent("Context7", "Search & Data", ("context7",)),
         UserComponent("YouTube", "Search & Data", ("youtube",)),
         UserComponent("Google Maps", "Search & Data", ("google_maps",)),
@@ -142,14 +141,8 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
         UserComponent("FAL (Flux)", "Image & Media", ("fal",)),
         UserComponent("Recraft", "Image & Media", ("recraft",)),
     )),
-    ("Events & Health", (
-        UserComponent("Doctolib", "Events & Health", ("doctolib",)),
-        UserComponent("Meetup", "Events & Health", ("meetup",)),
-        UserComponent("Luma Events", "Events & Health", ("luma",)),
-    )),
     ("Travel", (
         UserComponent("Travelpayouts", "Travel", ("travelpayouts",)),
-        UserComponent("Transitous", "Travel", ("transitous",)),
         UserComponent("FlightRadar24", "Travel", ("flightradar24",)),
     )),
     ("Payment", (

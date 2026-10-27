@@ -1,5 +1,8 @@
+import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
 /** A single browser-owned voice call, fixed to the chat selected at launch. */
 import { get, writable, type Readable } from 'svelte/store';
+import { text } from '../i18n/translations';
+import { notificationStore } from '../stores/notificationStore';
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
@@ -7,16 +10,23 @@ import { checkAuth } from '../stores/authSessionActions';
 import { authStore } from '../stores/authStore';
 import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
 import { assistantSpeechController } from './assistantSpeechController';
-import { markTypedCallMessageFailed, prepareVoiceCallChat, persistTypedCallMessage, upsertCallTranscript, upsertCallArtifact, VoiceCallContextError, type CallTranscriptUpdate } from './voiceCallMessages';
+import { supportsAssistantSpeechStream } from './assistantSpeechStream';
+import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
+import { reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
 import { setActiveVoiceCallId } from './voiceCallOwnership';
-import { loadVoiceProjectContext } from './voiceCallContext';
-import { applyVoiceToolEvent, applyVoiceCompression } from './voiceCallTools';
-import { voiceArtifactReferenceFromPayload, type VoiceArtifactReference } from './voiceCallArtifactReferences';
-import { CallAudio, type CallAudioPlaybackSchedule } from '../components/videocall/callAudio';
+import { callArtifactReferencesInText, type VoiceArtifactReference } from './voiceCallArtifactReferences';
+import { CallAudio } from '../components/videocall/callAudio';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { recordCallLifecycle } from './voiceCallLifecycle';
+import { cleanupEmptyVoiceCallChat, readEmptyVoiceCallCleanupSnapshot } from './voiceCallEmptyChatCleanup';
+import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
+import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
+import { VoiceCallCamera, type VoiceCallCameraFacing } from './voiceCallCamera';
+import type { VoiceHeardBoundary } from '../types/chat';
+import type { ChatSynchronizationService } from './chatSyncService';
+import type { VoiceCallDisplayedMedia, createVoiceCallMediaResolver } from './voiceCallMedia';
 
 export type VoiceCallStatus = 'idle' | 'connecting' | 'live' | 'ended' | 'error';
 export interface VoiceCallUsage {
@@ -24,8 +34,7 @@ export interface VoiceCallUsage {
   credits_accrued: number;
   credits_charged: number;
   audio_credits: number;
-  gemini_input_tokens: number;
-  gemini_output_tokens: number;
+  stt_duration_seconds: number;
 }
 export interface VoiceCallState {
   status: VoiceCallStatus;
@@ -42,27 +51,45 @@ export interface VoiceCallState {
   usage: VoiceCallUsage | null;
   billingActivity: { inputListening: boolean; processing: boolean } | null;
   error: string | null;
+  cameraAvailable: boolean;
+  cameraEnabled: boolean;
+  cameraPending: boolean;
+  cameraStream: MediaStream | null;
+  cameraFacing: VoiceCallCameraFacing;
+  cameraError: string | null;
+  mediaExpanded: boolean;
+  mediaItems: readonly VoiceCallDisplayedMedia[];
+  mediaIndex: number;
+  displayedMedia: VoiceCallDisplayedMedia | null;
   mateCategory?: string;
   mateName?: string;
   modelName?: string;
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
-  start(chatId?: string, onBound?: (chatId: string) => void): Promise<void>;
+  start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
   submitText(chatId: string, text: string): Promise<boolean>;
   setMuted(muted: boolean): void;
   setMinimized(minimized: boolean): void;
+  setCameraEnabled(enabled: boolean): Promise<void>;
+  flipCamera(): Promise<void>;
+  setMediaExpanded(expanded: boolean): void;
+  showCamera(): void;
+  selectMedia(index: number): void;
   hangup(): void;
 }
 
 export const initialVoiceCallState: VoiceCallState = {
   status: 'idle', chatId: null, callId: null, minimized: false, muted: false,
   elapsedSeconds: 0, activeElapsedSeconds: 0, audioLevels: Array(16).fill(0), inputIdle: false, userSpeaking: false, assistantSpeaking: false, usage: null, billingActivity: null, error: null,
+  cameraAvailable: false, cameraEnabled: false, cameraPending: false, cameraStream: null,
+  cameraFacing: 'environment', cameraError: null, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
 };
 
 const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
   'elapsed_seconds', 'credits_accrued', 'credits_charged', 'audio_credits',
-  'gemini_input_tokens', 'gemini_output_tokens',
+  'stt_duration_seconds',
 ];
+const SPEECH_OUTPUT_TRANSPORT = 'mp3_turn_stream_v2';
 
 function microphoneError(error: unknown): string {
   const name = error instanceof Error ? error.name : '';
@@ -93,7 +120,6 @@ function sortableMessageId(): string {
 }
 
 const WAVE_BINS = 16;
-const WAVE_FRAME_MS = 40;
 const zeroLevels = () => Array<number>(WAVE_BINS).fill(0);
 
 function pcmSamples(data: string): Float32Array {
@@ -120,7 +146,30 @@ function sampleEnvelope(samples: Float32Array): number[] {
 /** Bounded RMS envelope only: no raw microphone/playback PCM enters the store. */
 export function voicePcmEnvelope(data: string): number[] { return sampleEnvelope(pcmSamples(data)); }
 
+/** Local bounded decision evidence; contains no tokens, text, audio or ciphertext. */
+function reportEmptyCallCleanup(phase: 'not_call_created' | 'prerequisites' | 'snapshot' | 'completed' | 'unavailable',
+  flags: Record<string, boolean | number>): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('voiceCallEmptyChatCleanupDecision', {
+    detail: { phase, ...flags },
+  }));
+}
+
+interface NewCallCleanupAttempt {
+  identity: ReturnType<typeof getWorkspaceCacheIdentity>;
+  epoch: ReturnType<typeof getWorkspaceCacheEpoch>;
+  chatId: string | null;
+  cleanupAttemptId?: string;
+  callId: string | null;
+  terminated: boolean;
+  contentAttempted: boolean;
+  scheduled: boolean;
+  preparation?: Promise<void>;
+  lifecycleWrites: Promise<void>[];
+  turnWrites: Promise<unknown>[];
+}
+
 export class VoiceCallController implements VoiceCallControllerLike {
+  private cleanupAttempt: NewCallCleanupAttempt | null = null;
   private store = writable<VoiceCallState>({ ...initialVoiceCallState });
   subscribe = this.store.subscribe;
   private state: VoiceCallState = { ...initialVoiceCallState };
@@ -137,12 +186,30 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private cues = new VoiceCallCuePlayer();
   private waveAnimation: number | null = null;
   private micLevels = { at: 0, levels: zeroLevels() };
-  private playbackLevels: Array<{ at: number; until: number; levels: number[] }> = [];
-  private transcriptWrites = new Map<string, Promise<void>>();
-  private responseEmbeds = new Map<string, Map<string, VoiceArtifactReference>>();
-  private contextPause: string | null = null;
-  private pausedInputs: Array<Record<string, unknown>> = [];
-  private pausedInputBytes = 0;
+  private turnWrites = new Map<string, Promise<boolean>>();
+  private callTurnIds = new Set<string>();
+  private sourceReferences = new Map<string, VoiceArtifactReference[]>();
+  private speechCleanup: (() => void) | null = null;
+  private chatCleanup: (() => void) | null = null;
+  private assistantMessageId: string | null = null;
+  private canonicalService: ChatSynchronizationService | null = null;
+  private assistantTaskId: string | null = null;
+  private pendingHeardBoundary: VoiceHeardBoundary | null = null;
+  private turnAdmission: Promise<void> = Promise.resolve();
+  private assistantMessagesByTask = new Map<string, string>();
+  private assistantTasksByMessage = new Map<string, string>();
+  private speechActivity = { chatId: null as string | null, messageId: null as string | null,
+    text: '', speaking: false, language: 'en' };
+  private camera: VoiceCallCamera | null = null;
+  private cameraGeneration = 0;
+  private cameraCollapse: ReturnType<typeof setTimeout> | null = null;
+  private mediaResolver: ReturnType<typeof createVoiceCallMediaResolver> | null = null;
+  private mediaListenerCleanup: (() => void) | null = null;
+  private mediaLoad: Promise<void> | null = null;
+  private mediaDirty = false;
+  private mediaIds = new Set<string>();
+  private presentedMediaIds = new Set<string>();
+  private sourceFrames = new Map<string, Promise<void>>();
   private pendingTyped = new Map<string, {
     callId: string; chatId: string; resolve: (accepted: boolean) => void;
     timer: ReturnType<typeof setTimeout>;
@@ -161,6 +228,23 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private update(patch: Partial<VoiceCallState>): void {
     this.state = { ...this.state, ...patch };
     this.store.set(this.state);
+    if (patch.error) this.notifyError(patch.error);
+    if (patch.cameraError) this.notifyError(patch.cameraError, true);
+  }
+
+  private notifyError(code: string, camera = false): void {
+    // Only translate known public codes; never display arbitrary server payloads.
+    const known = camera
+      ? ['camera_denied', 'camera_missing', 'camera_failed', 'source_frame_failed', 'media_unavailable']
+      : ['microphone_denied', 'microphone_missing', 'microphone_failed', 'session_expired',
+        'connection_failed', 'connection_lost', 'invalid_response', 'transcript_save_failed', 'transcript_limit',
+        'context_too_large', 'context_unavailable', 'insufficient_credits'];
+    const key = known.includes(code) ? code : camera ? 'camera_failed' : 'call_unavailable';
+    notificationStore.addNotificationWithOptions('error', {
+      message: get(text)(key === 'insufficient_credits' ? 'settings.billing.insufficient_credits_error' : `voicecall.${key}`),
+      duration: 7000,
+      dedupeKey: `voice-call-${camera ? 'camera-' : ''}error-${key}`,
+    });
   }
 
   private refreshClock(): void {
@@ -178,53 +262,76 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.waveAnimation = null;
       if (this.state.status !== 'connecting' && this.state.status !== 'live') return;
       const now = performance.now();
-      const audioTime = this.audio?.playbackAudioTime ?? null;
-      while (audioTime !== null && this.playbackLevels.length && this.playbackLevels[0].until <= audioTime) this.playbackLevels.shift();
-      const playback = this.playbackLevels[0];
-      const mic = !this.state.muted && now - this.micLevels.at < 150 ? this.micLevels.levels : zeroLevels();
-      const levels = mic.map((level, bin) => Math.max(level,
-        playback && audioTime !== null && playback.at <= audioTime ? playback.levels[bin] : 0));
+      const levels = !this.state.muted && now - this.micLevels.at < 150 ? this.micLevels.levels : zeroLevels();
       if (levels.some((level, index) => Math.abs(level - this.state.audioLevels[index]) > 0.005)) this.update({ audioLevels: levels });
       this.waveAnimation = requestAnimationFrame(frame);
     };
     this.waveAnimation = requestAnimationFrame(frame);
   }
 
-  private schedulePlaybackEnvelope(data: string, schedule: CallAudioPlaybackSchedule): void {
-    const samples = pcmSamples(data);
-    const audioTime = this.audio?.playbackAudioTime ?? schedule.startTime;
-    const frameSamples = Math.round(schedule.sampleRate * WAVE_FRAME_MS / 1000);
-    // Keep only RMS envelopes within a bounded two-minute playback horizon.
-    // AudioContext time stops during suspension; wall time must never expire them.
-    for (let offset = 0; offset < samples.length; offset += frameSamples) {
-      const at = schedule.startTime + offset / schedule.sampleRate;
-      const end = Math.min(samples.length, offset + frameSamples);
-      if (at > audioTime + 120 || this.playbackLevels.length >= 3000) break;
-      this.playbackLevels.push({ at, until: schedule.startTime + end / schedule.sampleRate,
-        levels: sampleEnvelope(samples.subarray(offset, end)) });
-    }
-    this.animateWaveform();
-  }
-
   private recordLifecycle(type: 'started' | 'ended'): void {
     const { chatId, callId, activeElapsedSeconds } = this.state;
     if (!chatId || !callId) return;
-    void recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000) })
-      .catch(() => console.warn('[VoiceCall] Call event could not be saved'));
+    const pending = recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000) });
+    if (this.cleanupAttempt?.chatId === chatId) this.cleanupAttempt.lifecycleWrites.push(pending);
+    void pending.catch(() => console.warn('[VoiceCall] Call event could not be saved'));
+  }
+
+  /** Only server-issued authority can retire this attempt's lifecycle-only shell. */
+  private cleanupFinishedAttempt(attempt: NewCallCleanupAttempt): void {
+    if (attempt.scheduled) return;
+    attempt.scheduled = true;
+    void (async () => {
+      await attempt.preparation;
+      const writes = await Promise.allSettled([...attempt.lifecycleWrites, ...attempt.turnWrites]);
+      const current = () => Boolean(attempt.identity) && attempt.identity === getWorkspaceCacheIdentity()
+        && attempt.epoch === getWorkspaceCacheEpoch();
+      reportEmptyCallCleanup('prerequisites', { current:current(), terminated:attempt.terminated,
+        contentAttempted:attempt.contentAttempted, hasChat:!!attempt.chatId, hasAuthority:!!attempt.cleanupAttemptId,
+        hasCall:!!attempt.callId, rejectedWrites:writes.filter(result=>result.status==='rejected').length });
+      if (!current() || !attempt.terminated || attempt.contentAttempted || !attempt.chatId ||
+          !attempt.cleanupAttemptId || writes.some(result => result.status === 'rejected')) return;
+      const input = { chatId: attempt.chatId, cleanupAttemptId: attempt.cleanupAttemptId,
+        callId: attempt.callId, expectedMessagesVersion: 0 };
+      const readSnapshot = async () => {
+        const snapshot = await readEmptyVoiceCallCleanupSnapshot(input, {
+        hasLocalOrdinaryText: attempt.contentAttempted,
+        hasPendingTurn: hasPendingPersonalChatTurn(input.chatId) || this.pendingTyped.size > 0 ||
+          (this.state.chatId === attempt.chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
+        isCurrent: current,
+        });
+        const chat = snapshot.chat;
+        reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
+          messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
+          draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
+          messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
+          pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
+          hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
+          hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
+          hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
+          allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
+        });
+        return snapshot;
+      };
+      let snapshot = await readSnapshot();
+      // System-message receipts and their normal metadata handler complete in
+      // separate microtasks. Wait briefly for the exact lifecycle version;
+      // never ask the server to delete a partial or stale local projection.
+      const lifecycleVersion = attempt.callId === null ? 0 : 2;
+      for (let retry = 0; retry < 3 && current() && snapshot.chat &&
+          snapshot.chat.messages_v < lifecycleVersion; retry++) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        snapshot = await readSnapshot();
+      }
+      if (!current() || !snapshot.chat || !Number.isSafeInteger(snapshot.chat.messages_v) || snapshot.chat.messages_v < lifecycleVersion) return;
+      input.expectedMessagesVersion = snapshot.chat.messages_v;
+      const result = await cleanupEmptyVoiceCallChat(input, readSnapshot);
+      reportEmptyCallCleanup('completed',result);
+    })().catch(() => { reportEmptyCallCleanup('unavailable',{}); /* Preserve uncertain local work. */ });
   }
 
   private send(message: Record<string, unknown>): boolean {
     if (this.socket?.readyState !== WebSocket.OPEN) return false;
-    if (this.contextPause && (message.type === 'mic_audio' || message.type === 'text_input' || message.type === 'audio_stream_end')) {
-      const bytes = JSON.stringify(message).length;
-      if (this.pausedInputBytes + bytes > 2 * 1024 * 1024 || this.pausedInputs.length >= 512) {
-        this.fail('transcript_limit');
-        return false;
-      }
-      this.pausedInputs.push(message);
-      this.pausedInputBytes += bytes;
-      return true;
-    }
     try { this.socket.send(JSON.stringify(message)); return true; }
     catch { return false; }
   }
@@ -234,22 +341,33 @@ export class VoiceCallController implements VoiceCallControllerLike {
     if (!pending) return;
     this.pendingTyped.delete(messageId);
     clearTimeout(pending.timer);
-    if (!accepted) {
-      try { await markTypedCallMessageFailed(pending.callId, pending.chatId, messageId); }
-      catch { this.fail('transcript_save_failed'); }
-    }
     pending.resolve(accepted);
   }
 
-  async start(existingChatId?: string, onBound?: (chatId: string) => void): Promise<void> {
+  async start(existingChatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void> {
+    // Observe rejection immediately, even while consent is pending or another
+    // call owns startup. Registration must use the captured composer's saved ID.
+    const savedDraft = draftReady?.catch(() => false);
     if (this.state.status === 'connecting' || this.state.status === 'live') return;
     this.closeResources();
     this.cues.stop();
+    if (!supportsAssistantSpeechStream()) {
+      this.update({ ...initialVoiceCallState, status: 'error', chatId: existingChatId ?? null, error: 'call_unavailable' });
+      return;
+    }
     this.cues.prepare();
-    this.responseEmbeds.clear();
+    this.turnWrites.clear();
+    this.turnAdmission = Promise.resolve();
+    this.callTurnIds.clear();
+    this.sourceReferences.clear();
     const generation = ++this.generation;
+    const attempt: NewCallCleanupAttempt | null = existingChatId ? null : {
+      identity: getWorkspaceCacheIdentity(), epoch: getWorkspaceCacheEpoch(), chatId: null, callId: null,
+      terminated: false, contentAttempted: false, scheduled: false, lifecycleWrites: [], turnWrites: [],
+    };
+    this.cleanupAttempt = attempt;
     // Preparation can refuse incomplete/oversized context before opening a
-    // socket. Keep its initiating chat bound so that error remains visible.
+    // socket. Keep its initiating chat bound for diagnostics and handset retry.
     this.update({ ...initialVoiceCallState, status: 'connecting', chatId: existingChatId ?? null });
     // The browser's audio activation must occur in the click handler. The mic is
     // captured but never transmitted until the server acknowledges readiness.
@@ -274,7 +392,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.animateWaveform();
         gate.push(data);
       },
-      (_userSpeaking, assistantSpeaking) => { if (current()) this.update({ assistantSpeaking }); },
+      () => {}, // Shared assistant speech is the sole playback owner. Capture never changes it.
     );
     // Capture immediately after permission; the gate buffers up to ten seconds
     // without sending PCM until the provider acknowledges readiness.
@@ -284,10 +402,15 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // Unlock output in the initiating gesture without requesting microphone
       // permission. Capture and provider connection require the saved profile ack.
       audio.unlock();
+      assistantSpeechController.primeForAutoplay();
       const privacyRequest = new AbortController();
       this.privacyRequest = privacyRequest;
       const accepted = await ensureVoiceCallPrivacyAcknowledgement(privacyRequest.signal, () => {
-        if (current()) { audio.unlock(); this.cues.prepare(); }
+        if (current()) {
+          audio.unlock();
+          assistantSpeechController.primeForAutoplay();
+          this.cues.prepare();
+        }
       });
       if (!current()) return;
       this.privacyRequest = null;
@@ -297,18 +420,26 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.update({ ...initialVoiceCallState, chatId: existingChatId ?? null });
         return;
       }
+      if (savedDraft && !await savedDraft) throw new VoiceCallStartError('call_unavailable');
+      if (!current()) return;
       const capture = audio.start().catch((error: unknown) => { throw new VoiceCallStartError(microphoneError(error)); });
-      const [prepared, projectContext] = await Promise.all([
-        prepareVoiceCallChat(existingChatId).catch((error) => {
-          throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
-        }),
-        loadVoiceProjectContext(existingChatId),
-        capture,
-      ]);
+      // Keep preparation independently observed: microphone denial/hangup may
+      // finish first, but its late receipt must still retire the exact new shell.
+      const preparation = prepareVoiceCallChat(existingChatId, true).then(prepared => {
+        if (attempt) { attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId; }
+        return prepared;
+      }).catch((error) => {
+        throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
+      });
+      if (attempt) attempt.preparation = preparation.then(() => {});
+      // Observe now, even if capture rejects before the receipt arrives.
+      void attempt?.preparation?.catch(() => {});
+      const [prepared] = await Promise.all([preparation, capture]);
       if (generation !== this.generation) return;
       this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
       await assistantSpeechController.stop();
+      assistantSpeechController.setCallOwner(prepared.chatId);
       let token = getWebSocketToken();
       if (websocketTokenNeedsRefresh(token)) {
         if (!await checkAuth(undefined, true)) throw new VoiceCallStartError('session_expired');
@@ -323,9 +454,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.socket = socket;
       socket.onopen = () => {
         if (generation !== this.generation) return;
-        this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000, context: { summary: prepared.summary, messages: prepared.history,
-          active_focus: prepared.activeFocus, mate_category: prepared.mateCategory, ...projectContext,
-          app_settings_memories_metadata: [...new Set([...(prepared.memoryMetadata ?? []), ...(projectContext.app_settings_memories_metadata ?? [])])] } });
+        this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000,
+          ...(prepared.cleanupAttemptId ? { cleanup_attempt_id: prepared.cleanupAttemptId } : {}),
+          speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
       };
       socket.onmessage = (event: MessageEvent<string>) => {
         if (generation !== this.generation) return;
@@ -345,120 +476,132 @@ export class VoiceCallController implements VoiceCallControllerLike {
   }
 
   private handleMessage(message: Record<string, unknown>): void {
+    if (this.cleanupAttempt && this.state.status === 'live' && message.call_id === this.state.callId &&
+        ((message.type === 'transcript' && typeof message.text === 'string' && !!message.text.trim()) ||
+          message.type === 'voice_source_frame')) this.cleanupAttempt.contentAttempted = true;
     switch (message.type) {
       case 'ready': {
         if (this.state.status !== 'connecting' || typeof message.call_id !== 'string') return;
+        if (message.speech_output_transport !== SPEECH_OUTPUT_TRANSPORT) { this.fail('call_unavailable'); return; }
         this.startedAt = performance.now();
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
+        if (this.cleanupAttempt) this.cleanupAttempt.callId = message.call_id;
         this.update({ status: 'live', callId: message.call_id, error: null,
-          modelName: typeof message.model === 'string' ? message.model : undefined,
+          cameraAvailable: message.camera_available === true,
+
           mateCategory: typeof message.mate_category === 'string' ? message.mate_category : this.state.mateCategory,
           mateName: typeof message.mate_name === 'string' ? message.mate_name : undefined,
           usage: NUMBER_FIELDS.reduce((usage, field) => ({ ...usage, [field]: Number(message[field]) || 0 }), {} as VoiceCallUsage) });
+        if (this.state.chatId) assistantSpeechController.setCallOwner(this.state.chatId, message.call_id);
+        this.bindCanonicalChat();
         this.lifecycleStarted = true;
         this.recordLifecycle('started');
         this.cues.play('connected');
         this.audioGate?.setLive(true);
         // Model loading and warmup run in the background after a normal start.
         this.audioGate?.start();
-        if (this.state.status !== 'live') return;
+        if (get(this.store).status !== 'live') return;
         this.ticker = setInterval(() => this.refreshClock(), 250);
         return;
       }
-      case 'audio_chunk':
-        if (this.state.status === 'live' && typeof message.data === 'string') {
-          const schedule = this.audio?.playPcm16(message.data, 24_000);
-          if (schedule) this.schedulePlaybackEnvelope(message.data, schedule);
+      case 'voice_source_frame': {
+        const { callId, chatId } = this.state;
+        const generation = this.generation;
+        if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
+            typeof message.user_message_id !== 'string' || typeof message.frame_id !== 'string' ||
+            typeof message.data !== 'string' || message.data.length > 350_000 ||
+            typeof message.captured_at !== 'number' || typeof message.created_at !== 'number') return;
+        const id = message.frame_id;
+        // One sampled frame may ground several turns before the next 1Hz
+        // observation. Each issued user message needs its own attachment/ack.
+        const sourceKey = `${message.user_message_id}:${id}`;
+        const previous = this.sourceFrames.get(sourceKey);
+        if (previous) return;
+        if (this.sourceFrames.size >= 8) {
+          this.send({ type: 'source_frame_failed', call_id: callId, user_message_id: message.user_message_id, frame_id: id });
+          this.update({ cameraError: 'source_frame_failed' });
+          return;
         }
-        return;
-      case 'audio.interrupted':
-        this.playbackLevels.length = 0;
-        this.audio?.interrupt();
-        return;
-      case 'transcript': {
-        const callId = this.state.callId;
-        const chatId = this.state.chatId;
-        if (!callId || !chatId || (message.role !== 'user' && message.role !== 'assistant') ||
-            typeof message.message_id !== 'string' || typeof message.text !== 'string') return;
-        const messageId = message.message_id;
-        // The matching final user echo is the provider acceptance signal. A later
-        // ciphertext outbox failure must retain its encrypted row, not restore a
-        // draft that could submit the same accepted text a second time.
-        if (message.role === 'user' && message.final === true) void this.settleTyped(messageId, true);
-        this.persistTranscript({
-          callId, chatId, messageId, role: message.role as 'user' | 'assistant', text: message.text as string,
-          final: message.final === true, interrupted: message.interrupted === true,
-          ...(message.role === 'assistant' ? { modelName: this.state.modelName, category: this.state.mateCategory,
-            senderName: this.state.mateName ?? 'OpenMates' } : {}),
-          userMessageId: typeof message.user_message_id === 'string' ? message.user_message_id : undefined,
-          createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
-        });
-        return;
-      }
-      case 'voice_compression': {
-        const callId = this.state.callId;
-        const chatId = this.state.chatId;
-        const generation = this.generation;
-        if (!callId || !chatId || this.state.status !== 'live') return;
-        void Promise.all([...this.transcriptWrites.values()]).then(() => applyVoiceCompression({ callId, chatId,
-          isCurrent: () => generation === this.generation && this.state.status === 'live',
-          send: (event) => this.send(event),
-        }, message)).catch(() => { if (generation === this.generation) this.fail('transcript_save_failed'); });
-        return;
-      }
-      case 'voice_context_pause':
-        if (message.call_id !== this.state.callId || typeof message.checkpoint_id !== 'string' || this.state.status !== 'live') return;
-        if (this.contextPause && this.contextPause !== message.checkpoint_id) { this.fail('invalid_response'); return; }
-        this.contextPause = message.checkpoint_id;
-        if (!this.send({ type: 'voice_context_paused', call_id: this.state.callId, checkpoint_id: this.contextPause })) this.fail('connection_lost');
-        return;
-      case 'voice_context_resumed':
-        if (message.call_id !== this.state.callId || message.checkpoint_id !== this.contextPause || !this.contextPause) return;
-        this.contextPause = null;
-        for (const frame of this.pausedInputs.splice(0)) if (!this.send(frame)) { this.fail('connection_lost'); break; }
-        this.pausedInputBytes = 0;
-        return;
-      case 'voice_memory':
-      case 'voice_focus':
-      case 'voice_embed':
-      case 'voice_context':
-      case 'voice_tool_status': {
-        const callId = this.state.callId;
-        const chatId = this.state.chatId;
-        const generation = this.generation;
-        const identity = { modelName: this.state.modelName, category: this.state.mateCategory,
-          senderName: this.state.mateName ?? 'OpenMates' };
-        if (!callId || !chatId || this.state.status !== 'live') return;
-        const payload = message.payload as Record<string, unknown> | undefined;
-        if (message.type === 'voice_embed' && message.call_id === callId &&
-            typeof message.function_call_id === 'string' && typeof message.user_message_id === 'string' &&
-            typeof message.assistant_message_id === 'string' && typeof payload?.embed_id === 'string' &&
-            /^[A-Za-z0-9_-]{1,240}$/.test(payload.embed_id)) {
-          const reference = voiceArtifactReferenceFromPayload(payload);
-          if (reference) {
-            const refs = this.responseEmbeds.get(message.assistant_message_id) ?? new Map<string, VoiceArtifactReference>();
-            refs.set(reference.embed_id, reference);
-            this.responseEmbeds.set(message.assistant_message_id, refs);
+        const pending = import('./voiceCallVisuals').then(({ persistCallSourceFrame }) => persistCallSourceFrame({
+          callId, chatId, messageId: message.user_message_id as string, frameId: id,
+          data: message.data as string, capturedAt: message.captured_at as number, createdAt: message.created_at as number,
+          source: message.source === 'screen' ? 'screen' : 'camera',
+        })).then(reference => {
+          if (generation === this.generation && this.state.callId === callId && this.state.status === 'live') {
+            const refs = this.sourceReferences.get(message.user_message_id as string) ?? [];
+            refs.push(reference);
+            this.sourceReferences.set(message.user_message_id as string, refs);
+            this.send({ type: 'source_frame_saved', call_id: callId, user_message_id: message.user_message_id,
+              frame_id: id, embed_reference: reference });
           }
-        }
-        void applyVoiceToolEvent({ callId, chatId,
-          isCurrent: () => generation === this.generation && this.state.status === 'live',
-          send: (event) => this.send(event),
-        }, message).then((embedId) => {
-          if (!embedId || typeof message.assistant_message_id !== 'string') return;
-          const id = message.assistant_message_id;
-          const previous = this.transcriptWrites.get(id) ?? Promise.resolve();
-          const persisted = previous.catch(() => {}).then(() => upsertCallArtifact({
-            callId, chatId, messageId: id, ...identity, userMessageId: String(message.user_message_id), embedRefs: [embedId],
-            embedReferences: [...(this.responseEmbeds.get(id)?.values() ?? [])],
+        }).catch(() => {
+          if (generation !== this.generation || this.state.callId !== callId) return;
+          this.update({ cameraError: 'source_frame_failed' });
+          this.send({ type: 'source_frame_failed', call_id: callId, user_message_id: message.user_message_id, frame_id: id });
+          throw new Error('Call source could not be saved');
+        }).finally(() => { if (this.sourceFrames.get(sourceKey) === pending) this.sourceFrames.delete(sourceKey); });
+        this.sourceFrames.set(sourceKey, pending);
+        void pending.catch(() => {});
+        return;
+      }
+      case 'camera_error':
+        if (message.call_id !== this.state.callId || this.state.status !== 'live') return;
+        this.update({ cameraError: 'camera_failed' });
+        if (message.enabled === false) void this.setCameraEnabled(false);
+        return;
+      case 'audio.interrupted': {
+        if (this.state.status !== 'live' || message.call_id !== this.state.callId) return;
+        const chatId = this.state.chatId;
+        const taskId = chatId ? this.canonicalService?.activeAITasks.get(chatId)?.taskId : undefined;
+        const sameMessage = typeof message.assistant_message_id === 'string' &&
+          message.assistant_message_id === this.assistantMessageId;
+        const sameTask = typeof message.assistant_task_id === 'string' &&
+          message.assistant_task_id === taskId && message.assistant_task_id === this.assistantTaskId;
+        if (!sameMessage && !sameTask) return;
+        const boundary = assistantSpeechController.playbackBoundary;
+        if (boundary && boundary.assistant_message_id === this.assistantMessageId) this.pendingHeardBoundary = boundary;
+        void assistantSpeechController.stop();
+        if (sameTask && taskId && chatId) void this.canonicalService?.sendCancelAiTask(taskId, chatId).catch(() => {});
+        return;
+      }
+      case 'transcript': {
+        const { callId, chatId } = this.state;
+        if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
+            message.role !== 'user' || message.final !== true || typeof message.message_id !== 'string' ||
+            typeof message.text !== 'string' || !message.text.trim()) return;
+        const id = message.message_id;
+        if (this.turnWrites.has(id)) return;
+        const generation = this.generation;
+        reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'queued');
+        this.callTurnIds.add(id);
+        const frames = [...this.sourceFrames.entries()].filter(([key]) => key.startsWith(`${id}:`)).map(([, pending]) => pending);
+        const pending = this.turnAdmission.catch(() => {}).then(() => Promise.all(frames)).then(async () => {
+          if (generation !== this.generation || this.state.status !== 'live') return false;
+          reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'started');
+          const heardBoundary = this.pendingHeardBoundary;
+          const accepted = await sendVoiceCallTurn({ callId, chatId, turnId: id, text: message.text as string,
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
-          })).then(() => {});
-          this.transcriptWrites.set(id, persisted);
-          void persisted.catch(() => { if (generation === this.generation) this.fail('transcript_save_failed'); })
-            .finally(() => { if (this.transcriptWrites.get(id) === persisted) this.transcriptWrites.delete(id); });
-        }).catch(() => { if (generation === this.generation) this.fail('transcript_save_failed'); });
+            embedReferences: this.sourceReferences.get(id),
+            ...(heardBoundary ? { heardBoundary } : {}),
+            isCurrent: () => generation === this.generation && this.state.status === 'live' });
+          if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
+          return accepted;
+        }).then(accepted => {
+          void this.settleTyped(id, accepted);
+          if (!accepted && generation === this.generation) this.fail('transcript_save_failed');
+          return accepted;
+        }).catch(() => {
+          void this.settleTyped(id, false);
+          if (generation === this.generation) this.fail('transcript_save_failed');
+          return false;
+        }).finally(() => { this.sourceReferences.delete(id); });
+        this.turnWrites.set(id, pending);
+        this.cleanupAttempt?.turnWrites.push(pending);
+        this.turnAdmission = pending.then(() => {});
+        // Completed IDs remain for the call lifetime: a late final must never
+        // invoke the canonical inference pipeline twice.
         return;
       }
       case 'text_input_rejected':
@@ -481,30 +624,85 @@ export class VoiceCallController implements VoiceCallControllerLike {
     }
   }
 
-  private persistTranscript(event: CallTranscriptUpdate): void {
+  /** Bind interruption decisions to the exact canonical task, including the
+   * interval before preprocessing has issued an assistant message identity. */
+  private publishAssistantState(): void {
+    const chatId = this.state.chatId;
+    if (this.state.status !== 'live' || !chatId) return;
+    const task = this.canonicalService?.activeAITasks.get(chatId);
+    const activeTask = task && this.callTurnIds.has(task.userMessageId) ? task : null;
+    const speech = this.speechActivity;
+    const speaking = speech.chatId === chatId && speech.speaking;
+    const messageId = speaking ? speech.messageId
+      : activeTask ? this.assistantMessagesByTask.get(activeTask.taskId) ?? null
+        : speech.chatId === chatId ? speech.messageId : null;
+    const taskId = speaking && messageId ? this.assistantTasksByMessage.get(messageId) ?? null
+      : activeTask?.taskId ?? null;
+    this.assistantMessageId = messageId;
+    this.assistantTaskId = taskId;
+    this.update({ assistantSpeaking: speaking });
+    this.send({ type: 'assistant_state', speaking, generating: !!activeTask,
+      assistant_message_id: messageId, assistant_task_id: taskId,
+      text: speech.chatId === chatId && speech.messageId === messageId ? speech.text.slice(-8_000) : '',
+      language: speech.language });
+  }
+
+  private bindCanonicalChat(): void {
     const generation = this.generation;
-    const embedReferences = [...(this.responseEmbeds.get(event.messageId)?.values() ?? [])];
-    const embedRefs = embedReferences.map((reference) => reference.embed_id);
-    const previous = this.transcriptWrites.get(event.messageId) ?? Promise.resolve();
-    const next = previous.catch(() => {}).then(() => upsertCallTranscript({ ...event, embedRefs, embedReferences }));
-    this.transcriptWrites.set(event.messageId, next);
-    void next.catch(() => { if (generation === this.generation) this.fail('transcript_save_failed'); }).finally(() => {
-      if (this.transcriptWrites.get(event.messageId) === next) this.transcriptWrites.delete(event.messageId);
+    this.speechCleanup = assistantSpeechController.activity.subscribe(activity => {
+      if (generation !== this.generation || this.state.status !== 'live' || activity.chatId !== this.state.chatId) return;
+      this.speechActivity = activity;
+      this.publishAssistantState();
     });
+    void import('./chatSyncService').then(({ chatSyncService }) => {
+      if (generation !== this.generation) return;
+      this.canonicalService = chatSyncService;
+      const changed = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        const message = detail?.newMessage;
+        if (message?.chat_id !== this.state.chatId || message.role !== 'assistant' ||
+            !this.callTurnIds.has(message.user_message_id) || typeof message.content !== 'string') return;
+        this.update({ modelName: message.model_name, mateCategory: message.category, mateName: message.sender_name });
+        for (const ref of callArtifactReferencesInText(message.content)) this.mediaIds.add(ref.embed_id);
+        void this.refreshCallMedia();
+      };
+      const taskChanged = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        if ((detail?.chat_id ?? detail?.chatId) !== this.state.chatId) return;
+        if (event.type === 'aiTaskEnded') { this.publishAssistantState(); return; }
+        if (!this.callTurnIds.has(detail?.user_message_id)) return;
+        // A real canonical credit refusal must stop paid listening and notify
+        // immediately, even when the bound chat is not currently visible.
+        if (event.type === 'aiMessageChunk' && detail.is_final_chunk === true &&
+            detail.rejection_reason === 'insufficient_credits') {
+          this.fail('insufficient_credits');
+          return;
+        }
+        const taskId = detail.task_id ?? detail.ai_task_id;
+        if (typeof taskId === 'string' && typeof detail.message_id === 'string') {
+          this.assistantMessagesByTask.set(taskId, detail.message_id);
+          this.assistantTasksByMessage.set(detail.message_id, taskId);
+        }
+        this.publishAssistantState();
+      };
+      const taskEvents = ['aiTaskInitiated', 'aiTypingStarted', 'aiMessageChunk', 'aiTaskEnded'];
+      chatSyncService.addEventListener('chatUpdated', changed);
+      for (const name of taskEvents) chatSyncService.addEventListener(name, taskChanged);
+      this.chatCleanup = () => {
+        chatSyncService.removeEventListener('chatUpdated', changed);
+        for (const name of taskEvents) chatSyncService.removeEventListener(name, taskChanged);
+      };
+      this.publishAssistantState();
+    }).catch(() => {});
   }
 
   async submitText(chatId: string, text: string): Promise<boolean> {
+    if (this.cleanupAttempt?.chatId === chatId && text.trim()) this.cleanupAttempt.contentAttempted = true;
     const callId = this.state.callId;
     if (this.state.status !== 'live' || this.state.chatId !== chatId || !callId ||
         !text.trim() || text.length > 8_000 || this.socket?.readyState !== WebSocket.OPEN) return false;
     const id = sortableMessageId();
     const createdAt = Math.floor(Date.now() / 1000);
-    try { await persistTypedCallMessage(callId, chatId, id, text, createdAt); }
-    catch { this.fail('transcript_save_failed'); return false; }
-    if (this.state.status !== 'live' || this.state.callId !== callId || this.socket?.readyState !== WebSocket.OPEN) {
-      await markTypedCallMessageFailed(callId, chatId, id);
-      return false;
-    }
     return new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => {
         this.fail('connection_lost');
@@ -529,6 +727,126 @@ export class VoiceCallController implements VoiceCallControllerLike {
 
   setMinimized(minimized: boolean): void { this.update({ minimized }); }
 
+  private clearCameraCollapse(): void {
+    if (this.cameraCollapse !== null) clearTimeout(this.cameraCollapse);
+    this.cameraCollapse = null;
+  }
+
+  async setCameraEnabled(enabled: boolean): Promise<void> {
+    if (this.state.status !== 'live') return;
+    if (!enabled) {
+      ++this.cameraGeneration;
+      this.camera?.stop();
+      this.camera = null;
+      this.clearCameraCollapse();
+      this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null });
+      this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+      return;
+    }
+    if (!this.state.cameraAvailable || this.state.cameraEnabled || this.state.cameraPending) return;
+    const generation = this.generation;
+    const cameraGeneration = ++this.cameraGeneration;
+    this.camera?.stop();
+    let firstStream = true;
+    const current = () => generation === this.generation && cameraGeneration === this.cameraGeneration && this.state.status === 'live';
+    const camera = new VoiceCallCamera({
+      onFrame: frame => {
+        // Compression may pause provider ingress. Drop transient frames instead of
+        // queuing old images or delaying microphone/text recovery.
+        if (!current() || !this.state.cameraEnabled) return;
+        if (!this.send({ type: 'camera_frame', call_id: this.state.callId, frame_id: frame.frameId,
+          data: frame.data, captured_at: frame.capturedAt })) {
+          this.update({ cameraError: 'camera_failed' });
+          void this.setCameraEnabled(false);
+        }
+      },
+      onStream: (stream, facing) => {
+        if (!current()) return;
+        const wasEnabled = this.state.cameraEnabled;
+        this.update({ cameraStream: stream, cameraFacing: facing, cameraEnabled: stream !== null });
+        if (!stream) {
+          if (wasEnabled) this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+          return;
+        }
+        this.send({ type: 'camera_state', call_id: this.state.callId, enabled: true });
+        if (!firstStream) { this.update({ cameraPending: false, cameraError: null }); return; }
+        firstStream = false;
+        this.update({ cameraPending: false, cameraError: null, mediaExpanded: true, displayedMedia: null });
+        this.clearCameraCollapse();
+        this.cameraCollapse = setTimeout(() => {
+          this.cameraCollapse = null;
+          if (current() && !this.state.displayedMedia) this.update({ mediaExpanded: false });
+        }, 2000);
+      },
+      onError: error => {
+        if (!current()) return;
+        this.clearCameraCollapse();
+        this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraError: error });
+        this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+      },
+    });
+    this.camera = camera;
+    this.update({ cameraPending: true, cameraError: null });
+    await camera.start();
+  }
+
+  async flipCamera(): Promise<void> {
+    const camera = this.camera;
+    const generation = this.generation;
+    if (this.state.status !== 'live' || !this.state.cameraEnabled || this.state.cameraPending || !camera) return;
+    this.update({ cameraPending: true });
+    try { await camera.flip(); }
+    finally {
+      if (generation === this.generation && this.camera === camera) this.update({ cameraPending: false });
+    }
+  }
+
+  setMediaExpanded(expanded: boolean): void { this.clearCameraCollapse(); this.update({ mediaExpanded: expanded }); }
+  showCamera(): void { this.clearCameraCollapse(); this.update({ displayedMedia: null, mediaExpanded: true }); }
+  selectMedia(index: number): void {
+    const media = this.state.mediaItems[index];
+    if (!media || !Number.isSafeInteger(index)) return;
+    this.clearCameraCollapse();
+    this.update({ displayedMedia: media, mediaIndex: index, mediaExpanded: true });
+  }
+
+  private async refreshCallMedia(): Promise<void> {
+    if (this.state.status !== 'live' || !this.mediaIds.size) return;
+    if (this.mediaLoad) { this.mediaDirty = true; return this.mediaLoad; }
+    const generation = this.generation;
+    const current = () => generation === this.generation && this.state.status === 'live';
+    const pending = (async () => {
+      if (!this.mediaResolver) {
+        const [{ createVoiceCallMediaResolver }, { chatSyncService }] = await Promise.all([
+          import('./voiceCallMedia'), import('./chatSyncService'),
+        ]);
+        if (!current()) return;
+        this.mediaResolver = createVoiceCallMediaResolver();
+        const listener = () => { void this.refreshCallMedia(); };
+        chatSyncService.addEventListener('embedUpdated', listener);
+        this.mediaListenerCleanup = () => chatSyncService.removeEventListener('embedUpdated', listener);
+      }
+      do {
+        this.mediaDirty = false;
+        // Inspect newest call artifacts first; unrelated earlier skill cards
+        // must not exhaust the resolver's bounded graph before a new visual.
+        const items = await this.mediaResolver.resolve([...this.mediaIds].reverse());
+        if (!current()) return;
+        const fresh = items.find(item => !this.presentedMediaIds.has(item.embedId));
+        for (const item of items) this.presentedMediaIds.add(item.embedId);
+        if (fresh) {
+          this.clearCameraCollapse();
+          this.update({ mediaItems: items, displayedMedia: fresh, mediaIndex: items.indexOf(fresh), mediaExpanded: true });
+        } else if (items.length) {
+          this.update({ mediaItems: items, mediaIndex: Math.max(0, items.findIndex(item => item.embedId === this.state.displayedMedia?.embedId)) });
+        }
+      } while (this.mediaDirty && current());
+    })().catch(() => { if (current()) this.update({ cameraError: 'media_unavailable' }); })
+      .finally(() => { if (this.mediaLoad === pending) this.mediaLoad = null; });
+    this.mediaLoad = pending;
+    return pending;
+  }
+
   hangup(): void {
     if (this.state.status === 'idle' || this.state.status === 'ended') return;
     this.send({ type: 'hangup' });
@@ -544,23 +862,51 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.recordLifecycle('ended');
       this.cues.play('ended');
     } else if (this.state.status === 'connecting') this.cues.stop();
+    const attempt = this.cleanupAttempt;
+    if (attempt) attempt.terminated = true;
     this.closeResources();
     this.update({ status, error, audioLevels: zeroLevels(), inputIdle: false, userSpeaking: false, assistantSpeaking: false,
       billingActivity: { inputListening: false, processing: false } });
+    if (attempt) this.cleanupFinishedAttempt(attempt);
+    else reportEmptyCallCleanup('not_call_created',{});
   }
 
   private closeResources(): void {
     ++this.generation;
+    ++this.cameraGeneration;
+    this.camera?.stop();
+    this.camera = null;
+    this.clearCameraCollapse();
+    this.mediaListenerCleanup?.();
+    this.mediaListenerCleanup = null;
+    this.mediaResolver?.destroy();
+    this.mediaResolver = null;
+    this.mediaLoad = null;
+    this.mediaDirty = false;
+    this.mediaIds.clear();
+    this.presentedMediaIds.clear();
+    this.sourceFrames.clear();
+    this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraAvailable: false,
+      mediaExpanded: false, mediaItems: [], displayedMedia: null, mediaIndex: 0, cameraError: null });
     this.privacyRequest?.abort();
     this.privacyRequest = null;
     if (this.waveAnimation !== null) cancelAnimationFrame(this.waveAnimation);
     this.waveAnimation = null;
     this.micLevels = { at: 0, levels: zeroLevels() };
-    this.playbackLevels.length = 0;
+    this.speechCleanup?.();
+    this.speechCleanup = null;
+    this.chatCleanup?.();
+    this.chatCleanup = null;
+    this.assistantMessageId = null;
+    this.assistantTaskId = null;
+    this.pendingHeardBoundary = null;
+    this.assistantMessagesByTask.clear();
+    this.assistantTasksByMessage.clear();
+    this.speechActivity = { chatId: null, messageId: null, text: '', speaking: false, language: 'en' };
+    this.canonicalService = null;
+    if (this.state.callId) void assistantSpeechController.stop();
+    assistantSpeechController.setCallOwner(null);
     setActiveVoiceCallId(null);
-    this.contextPause = null;
-    this.pausedInputs.length = 0;
-    this.pausedInputBytes = 0;
     for (const messageId of this.pendingTyped.keys()) void this.settleTyped(messageId, false);
     if (this.ticker) clearInterval(this.ticker);
     this.ticker = null;

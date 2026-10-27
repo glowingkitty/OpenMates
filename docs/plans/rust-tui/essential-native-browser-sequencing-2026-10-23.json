@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-23",
+  "session": "d1c4",
+  "approval_id": "essential-native-immediate-browser-2026-10-23",
+  "authorization_source": "Latest explicit user sequencing/parallel-command/retirement decision in Codex conversation 01a15da6-f670-7060-9abb-af2da9d0c3af, relayed by the root coordinator. No new approval question; prior 2026-10-22 hashes not reused.",
+  "workflow": "scripts/specifications.py approve-batch specifications/surfaces/cli specifications/surfaces/sdk --session d1c4 --approval-id essential-native-immediate-browser-2026-10-23 --confirmation explicit_user_confirmation --plan docs/plans/rust-tui/plan.yml",
+  "exact_approval_record": {
+    "approved_at": "2026-10-23T16:59:09.438572+00:00",
+    "confirmation": "explicit_user_confirmation",
+    "review_artifact": {
+      "approval_kind": "plan_batch",
+      "fingerprint_manifest_sha256": "552c05eb7103dc7259e63bfcb60499d9100c3d66743da2dd6835bdd7111a77c5",
+      "plan_id": "rust-tui",
+      "plan_path": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/docs/plans/rust-tui/plan.yml",
+      "plan_sha256": "005de021eb35ef05b25ddfcce1ec591f05bf8889e57d4f5ae58fa233ce2ec8cf",
+      "specification_count": 2
+    },
+    "specification_fingerprints": {
+      "surface.cli": "c9c6e7e7b1e156b298d8b0e493a36acd63846dc2a8dc664358e6facf012e1d51",
+      "surface.sdk": "c988305f550b6d25d5c2c3ecfcb98d9fb836d8ad4881d9e3d0124c3a3a71b239"
+    }
+  },
+  "changed_assertions": [
+    "cli.migration.transition-acceptance",
+    "sdk.migration.ordered-client-rollout",
+    "sdk.web.before-after-performance"
+  ],
+  "example_validation": "Canonical readable-example eligibility check against exact pre-amendment working-tree baseline; the repository HEAD also differs by unrelated earlier approved migration work. All three amended assertions have one or two concrete readable examples.",
+  "checks": {
+    "two_bundle_validation": "passed",
+    "plan_validation": "passed",
+    "two_exact_fingerprint_approval_checks": "passed",
+    "generated_specifications": "passed",
+    "generated_agent_parity": "passed"
+  },
+  "evidence_qualification": "Approval records intent only, not essential runtime proof, full parity, publication, performance, dev installation or retirement. Essential live-chat monitor and recovery/metadata job takeover gaps remain open. No Cargo, product, CI, deployment, credentials or runtime mutation in this docs task."
+}

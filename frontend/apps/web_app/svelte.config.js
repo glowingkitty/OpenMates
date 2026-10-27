@@ -1,25 +1,8 @@
-import adapterStatic from '@sveltejs/adapter-static';
 import adapterVercel from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import * as child_process from 'node:child_process';
-
-/**
- * Get the current git commit hash for version tracking.
- * This enables SvelteKit's built-in version detection to work properly.
- * Falls back to timestamp if git is not available.
- */
-function getVersionName() {
-	try {
-		return child_process.execSync('git rev-parse HEAD').toString().trim();
-	} catch {
-		// Fallback to timestamp if git is not available (e.g., in some CI environments)
-		return `build-${Date.now()}`;
-	}
-}
+import { getVersionName } from './scripts/build-version.mjs';
 
 /** @type {import('@sveltejs/kit').Config} */
-const isVscodeBuild = process.env.OPENMATES_BUILD_TARGET === 'vscode';
-
 const config = {
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
@@ -28,18 +11,10 @@ const config = {
 		runes: true
 	},
 	kit: {
-		adapter: isVscodeBuild
-			? adapterStatic({
-				pages: 'build',
-				assets: 'build',
-				fallback: 'index.html',
-				precompress: true,
-				strict: true
-			})
-			: adapterVercel({
-				// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
-				// for more information on Vercel specific options
-			}),
+		adapter: adapterVercel({
+			// Match our deployment target even when the build runs under Bun.
+			runtime: 'nodejs24.x'
+		}),
 		paths: {
 			// Use absolute asset paths (/_app/...) instead of relative (./_app/...).
 			// Required because the Vercel rewrite for /dev/* serves the SPA shell HTML
@@ -47,7 +22,7 @@ const config = {
 			// With relative paths, the browser would resolve ./_app/... relative to
 			// that deep URL, producing wrong paths like /dev/preview/embeds/web/_app/...
 			// which return HTML instead of JS (MIME type error, blank page).
-			relative: isVscodeBuild
+			relative: false
 		},
 		files: {
 			assets: 'static'
@@ -63,7 +38,7 @@ const config = {
 		 * See: https://kit.svelte.dev/docs/configuration#version
 		 */
 		version: {
-			// Use git commit hash for deterministic version identification
+			// Share one stable identity across HTML, client and prerender workers.
 			name: getVersionName(),
 			// Poll for updates every 2 minutes (120000ms)
 			// This checks if a new version has been deployed

@@ -180,3 +180,9 @@ If investigation only (no fix):
 
 **Suggested fix:** <specific code change needed>
 ```
+
+For the shared Rust client rollout, verified essential native auth, encrypted chat,
+streaming/cancel, persistence and sync/reconnect/recovery admit immediate browser/
+WASM integration. Exhaustive CLI command/app parity remains required separately;
+do not turn unrelated missing commands into a web prerequisite. Preserve focused
+shared-behavior coverage and the explicit retirement gate in `.claude/rules/cli-sdk.md`.

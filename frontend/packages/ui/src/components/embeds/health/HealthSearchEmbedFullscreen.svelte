@@ -47,7 +47,7 @@
     practice_url?: string;
     provider?: string;
     provider_platform?: string;
-    // Jameda-specific fields (null for Doctolib results)
+    // the stored provider-specific fields (null for the stored provider results)
     booking_url?: string;
     rating?: number;
     rating_count?: number;
@@ -335,6 +335,8 @@
       ratingCount={result.rating_count}
       price={result.price}
       providerPlatform={result.provider_platform}
+      gpsCoordinates={result.gps_coordinates}
+      bookingUrl={result.booking_url || result.practice_url}
       additionalSlotCount={result.additional_slot_count ?? 0}
       status="finished"
       isMobile={false}

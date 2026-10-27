@@ -1,15 +1,16 @@
-# Gemini voice and H3 Turbo experiment
+# Retired Gemini voice and H3 Turbo experiment
 
-The first implementation evaluates whether native Gemini conversation and short
-generated video clips make a useful explanation experience. It lives at
-`/experiment/videocall`, separate from ordinary chats. It does not save recordings,
-transcripts, messages or app-skill results.
+This document preserves the historical experiment architecture. The standalone
+`/experiment/videocall` page, its WebSocket and the Gemini Live calling stack were
+removed on 2026-10-22. They are unavailable and have no legacy fallback.
 
-The permanent experimental contract is
-[`feature.video-call-experiment`](../../specifications/features/video-call-experiment/specification.yml).
-The separate [full-mode draft](../../specifications/features/video-call/specification.yml)
-describes future chat binding, skills and recordings. The executable scope is in
-the [experiment Plan](../plans/video-call-experiment/plan.yml).
+Current calls follow [feature.video-call@11](../../specifications/features/video-call/specification.yml):
+Voxtral speech uses the ordinary encrypted chat pipeline, automatic model routing,
+app skills and rich chat output. The [experiment contract](../../specifications/features/video-call-experiment/specification.yml)
+is superseded. The [experiment Plan](../plans/video-call-experiment/plan.yml)
+records historical implementation and verification, not an active deployment target.
+
+The sections below describe the removed implementation.
 
 ## Connection and media
 

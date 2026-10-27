@@ -13,12 +13,14 @@ import logging
 import uuid
 from typing import Any
 
-from backend.apps.audio.assistant_speech.live_mock import assistant_speech_live_mock_audio
+from backend.apps.audio.assistant_speech.live_mock import assistant_speech_live_mock_audio, AssistantSpeechReplayStreamClient
+from backend.apps.audio.assistant_speech.live_stream import generate_live_speech
 from backend.apps.audio.assistant_speech.persistence import (
     claim_speech_segment_execution,
     cleanup_generated_speech_asset,
     finalize_speech_segment_execution,
     get_speech_segment,
+    invalidate_speech_segment,
     safe_segment_status,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
@@ -31,19 +33,29 @@ from backend.apps.audio.tasks.common import (
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
-from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.providers.mistral_speech import MistralSpeechClient
+from backend.shared.python_utils.storage_availability import (
+    initialize_task_storage,
+    is_storage_unavailable_error,
+    require_storage_available,
+)
 
 logger = logging.getLogger(__name__)
+STORAGE_PREFLIGHT_MAX_ATTEMPTS = 2
+STORAGE_PREFLIGHT_RETRY_SECONDS = 0.25
+
+
 class SpeechExecutionInProgress(Exception):
     """A concurrent delivery owns the provider call for this segment."""
 
 
-async def _delete_generated_speech_asset(task: BaseServiceTask, generated_asset_id: str) -> None:
+async def _delete_generated_speech_asset(task: BaseServiceTask, generated_asset_id: str, *, user_id: str) -> None:
     """Compensate storage when cancellation wins after an upload completes."""
     await cleanup_generated_speech_asset(
         task._directus_service,
         generated_asset_id,
         delete_file=lambda file_key: task._s3_service.delete_file(bucket_key="chatfiles", file_key=file_key),
+        fallback_file_key=f"{user_id}/assistant_speech/{generated_asset_id}/original.mp3",
     )
 
 
@@ -82,20 +94,70 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         claimed = await claim_speech_segment_execution(task._directus_service, segment_id, lease_id=lease_id)
         if claimed is None:
             raise SpeechExecutionInProgress
-        storage = await initialize_task_storage(task)
-        await require_storage_available(storage)
+        async def ensure_active() -> None:
+            current = await get_speech_segment(task._directus_service, segment_id)
+            if current is None or current.get("status") != "generating" or current.get("lease_id") != lease_id:
+                raise SpeechExecutionInProgress
+            if arguments.get("voice_call_id"):
+                from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+
+                try:
+                    await require_active_voice_dispatch(task._cache_service, {
+                        "voice_mode": True, "user_id": user_id,
+                        "chat_id": arguments.get("chat_id"),
+                        "message_id": arguments.get("voice_turn_id"),
+                        "voice_call_id": arguments["voice_call_id"],
+                        "voice_turn_id": arguments.get("voice_turn_id"),
+                    })
+                except (ValueError, RuntimeError):
+                    await invalidate_speech_segment(task._directus_service, segment_id)
+                    raise SpeechExecutionInProgress from None
+
+        live_call = bool(arguments.get("voice_call_id"))
+        if not live_call:
+            storage = await initialize_task_storage(task)
+            # Independent Speak caches retain the read-only storage preflight.
+            # Live calls never initialize storage or wait for an audio file.
+            for attempt in range(STORAGE_PREFLIGHT_MAX_ATTEMPTS):
+                await ensure_active()
+                try:
+                    await require_storage_available(storage)
+                    break
+                except Exception as exc:
+                    if not is_storage_unavailable_error(exc) or attempt + 1 == STORAGE_PREFLIGHT_MAX_ATTEMPTS:
+                        raise
+                    logger.warning("%s Storage preflight unavailable; retrying before speech submission", log_prefix)
+                    await asyncio.sleep(STORAGE_PREFLIGHT_RETRY_SECONDS)
+
+        if not live_call and claimed.get("pending_generated_asset_id"):
+            # A previous execution may have crashed after PUT or failed its
+            # compensation. Its reservation remains the sole cleanup authority;
+            # reclaim and purge it before new paid work can replace that identity.
+            prior_asset_id = str(claimed["pending_generated_asset_id"])
+            await _delete_generated_speech_asset(task, prior_asset_id, user_id=user_id)
+            cleared = await task._directus_service.update_item_if_version(
+                "assistant_speech_segments", str(claimed.get("id") or claimed.get("segment_id")),
+                {"pending_generated_asset_id": None}, int(claimed["execution_version"]),
+                version_field="execution_version", extra_filters={
+                    "status": "generating", "lease_id": lease_id,
+                    "pending_generated_asset_id": prior_asset_id,
+                },
+            )
+            if not cleared:
+                current = await get_speech_segment(task._directus_service, segment_id)
+                if (current is None or current.get("pending_generated_asset_id") is not None
+                        or current.get("status") != "generating" or current.get("lease_id") != lease_id
+                        or int(current.get("execution_version") or 0) != int(claimed["execution_version"])):
+                    raise RuntimeError("Assistant speech previous asset cleanup was not acknowledged")
+
         profile = resolve_assistant_voice_profile(
             str(arguments.get("voice_profile_key") or ""),
             version=int(arguments.get("voice_profile_version") or 0),
         )
         live_mock_audio = assistant_speech_live_mock_audio(arguments)
 
-        async def ensure_active() -> None:
-            current = await get_speech_segment(task._directus_service, segment_id)
-            if current is None or current.get("status") != "generating" or current.get("lease_id") != lease_id:
-                raise SpeechExecutionInProgress
-
         async def safety_check(*, text: str) -> dict[str, object]:
+            await ensure_active()
             if live_mock_audio is not None:
                 return {"approved": True, "safe_error": ""}
             # Resolve the optional safeguard SDK only when a worker executes a segment.
@@ -119,20 +181,61 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                     "duration_seconds": estimate_speech_duration_seconds(text),
                     "mime_type": "audio/mpeg",
                 }
-            request = profile.elevenlabs_request()
-            generated = await ElevenLabsClient(secrets_manager=task._secrets_manager).text_to_speech(
-                text=text,
-                voice_id=str(request["voice_id"]),
-                model=str(request["model"]),
-                output_format=str(request["output_format"]),
-                speed=float(dict(request["voice_settings"])["speed"]),
-            )
+            if profile.provider == "mistral":
+                generated = await MistralSpeechClient(secrets_manager=task._secrets_manager).text_to_speech(
+                    text=text, **profile.mistral_request())
+            else:
+                # Only pre-migration version-1 work may use its original provider.
+                request = profile.elevenlabs_request()
+                generated = await ElevenLabsClient(secrets_manager=task._secrets_manager).text_to_speech(
+                    text=text,
+                    voice_id=str(request["voice_id"]),
+                    model=str(request["model"]),
+                    output_format=str(request["output_format"]),
+                    speed=float(dict(request["voice_settings"])["speed"]),
+                )
             duration = generated.duration_seconds or estimate_speech_duration_seconds(text)
             return {"audio_bytes": generated.audio_bytes, "duration_seconds": duration, "mime_type": generated.mime_type}
+
+        async def clear_compensated_asset(*, release_lease: bool) -> None:
+            """Clear only this execution's reservation after verified cleanup."""
+            current = await get_speech_segment(task._directus_service, segment_id)
+            if current is None or current.get("lease_id") != lease_id:
+                return
+            row_id = current.get("id") or current.get("segment_id")
+            patch = {"pending_generated_asset_id": None}
+            if release_lease:
+                patch.update({"lease_id": None, "lease_expires_at": None})
+            updated = await task._directus_service.update_item_if_version(
+                "assistant_speech_segments", str(row_id), patch, int(claimed["execution_version"]),
+                version_field="execution_version", extra_filters={"lease_id": lease_id},
+            )
+            if not updated:
+                verified = await get_speech_segment(task._directus_service, segment_id)
+                if verified is not None and any(verified.get(key) != value for key, value in patch.items()):
+                    raise RuntimeError("Assistant speech compensation acknowledgement unavailable")
 
         async def store_encrypted(*, audio_bytes: bytes, segment_id: str) -> dict[str, object]:
             nonlocal generated_asset_id
             await ensure_active()
+            # A failed publication may already have indexed the segment's old
+            # asset. Separate attempt identities let retry recover without
+            # overwriting that upload or colliding with its unique embed ID.
+            asset_id = str(uuid.uuid4())
+            row_id = claimed.get("id") or claimed.get("segment_id")
+            reserved = await task._directus_service.update_item_if_version(
+                "assistant_speech_segments", str(row_id), {"pending_generated_asset_id": asset_id},
+                int(claimed["execution_version"]), version_field="execution_version",
+                extra_filters={"status": "generating", "lease_id": lease_id, "pending_generated_asset_id": None},
+            )
+            if not reserved:
+                current = await get_speech_segment(task._directus_service, segment_id)
+                if (current is None or current.get("pending_generated_asset_id") != asset_id
+                        or current.get("status") != "generating" or current.get("lease_id") != lease_id
+                        or int(current.get("execution_version") or 0) != int(claimed["execution_version"])):
+                    raise SpeechExecutionInProgress
+            # Set compensation identity before the first storage side effect.
+            generated_asset_id = asset_id
             await store_generated_audio_asset(
                 task,
                 app_id="assistant_response_speech",
@@ -142,7 +245,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 chat_id=str(arguments.get("chat_id") or ""),
                 message_id=str(arguments.get("assistant_message_id") or ""),
                 external_request=False,
-                embed_id=segment_id,
+                embed_id=asset_id,
                 audio_bytes=audio_bytes,
                 mime_type="audio/mpeg",
                 duration_seconds=0,
@@ -156,7 +259,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             )
             # Encryption material remains in upload_files and its owner-scoped
             # generated-asset event; segment metadata stores only this reference.
-            generated_asset_id = segment_id
+            generated_asset_id = asset_id
             return {"generated_asset_id": generated_asset_id}
 
         async def record_submission(*, submitted_characters: int) -> None:
@@ -167,31 +270,75 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         if live_mock_audio is None:
             await ensure_audio_credit_headroom(
                 user_id=user_id,
-                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text)),
+                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text), model=profile.model),
                 operation_name="assistant response speech",
                 log_prefix=log_prefix,
             )
-        result = await generate_speech_segment(
-            segment={"segment_id": segment_id, "speakable_text": text},
-            voice_profile={"profile_id": f"{profile.key}-v{profile.version}", "provider": profile.provider},
-            safety_check=safety_check,
-            provider_generate=provider_generate,
-            store_encrypted=store_encrypted,
-            record_submission=record_submission,
-        )
-        if result.get("status") == "ready":
-            result["billable_character_count"] = submitted_character_count
-        await ensure_active()
+        if live_call:
+            if profile.provider != "mistral" and profile.version != 3:
+                raise RuntimeError("Live speech profile is unavailable")
+            decision = await safety_check(text=text)
+            if not decision.get("approved"):
+                result = {"segment_id": segment_id, "status": "error", "retryable": False,
+                          "error": str(decision.get("safe_error") or "Speech is unavailable for this paragraph.")}
+            else:
+                client = AssistantSpeechReplayStreamClient(live_mock_audio) if live_mock_audio else MistralSpeechClient(secrets_manager=task._secrets_manager)
+                live_request = profile.mistral_request() if profile.provider == "mistral" else {
+                    "voice_id": str(profile.elevenlabs_request()["voice_id"]), "model": profile.model,
+                }
+                if profile.version == 3 and live_mock_audio is None:
+                    from backend.apps.audio.assistant_speech.realtime_turn import ElevenRealtimeFiniteClient
+                    client = ElevenRealtimeFiniteClient(secrets_manager=task._secrets_manager)
+                completion = await generate_live_speech(
+                    client=client, text=text, **live_request,
+                    context={
+                        "chat_id": str(arguments.get("chat_id") or ""),
+                        "message_id": str(arguments.get("assistant_message_id") or ""),
+                        "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+                        "voice_call_id": str(arguments["voice_call_id"]),
+                        "segment_id": segment_id, "sequence": int(existing.get("sequence", arguments.get("sequence", 0))),
+                        "kind": str(arguments.get("kind") or existing.get("kind") or ""),
+                        "source_version": int(existing.get("source_version") or arguments.get("source_version") or 1),
+                        "execution_version": int(claimed["execution_version"]),
+                    },
+                    publish_event=task._cache_service.publish_event, ensure_active=ensure_active,
+                )
+                # A terminal metadata row settles this one completed synthesis.
+                # No audio, generated asset, upload record or replay file exists.
+                result = {"segment_id": segment_id, "status": "ready",
+                          "duration_seconds": estimate_speech_duration_seconds(text),
+                          "billable_character_count": completion.submitted_characters}
+        else:
+            result = await generate_speech_segment(
+                segment={"segment_id": segment_id, "speakable_text": text},
+                voice_profile={"profile_id": f"{profile.key}-v{profile.version}", "provider": profile.provider},
+                safety_check=safety_check,
+                provider_generate=provider_generate,
+                store_encrypted=store_encrypted,
+                record_submission=record_submission,
+            )
+            if result.get("status") == "ready":
+                result["billable_character_count"] = submitted_character_count
+        if not live_call:
+            await ensure_active()
     except SpeechExecutionInProgress:
         if generated_asset_id:
             try:
-                await _delete_generated_speech_asset(task, generated_asset_id)
+                await _delete_generated_speech_asset(task, generated_asset_id, user_id=user_id)
+                await clear_compensated_asset(release_lease=True)
             except Exception:
                 logger.exception("%s Failed to compensate cancelled assistant speech asset", log_prefix)
         current = await get_speech_segment(task._directus_service, segment_id)
         return {"segment_id": segment_id, "status": "cancelled" if not current or current.get("status") == "cancelled" else "queued"}
     except Exception:
         logger.exception("%s Assistant speech segment failed", log_prefix)
+        if generated_asset_id:
+            try:
+                await _delete_generated_speech_asset(task, generated_asset_id, user_id=user_id)
+                # Error finalization still needs the original execution lease.
+                await clear_compensated_asset(release_lease=False)
+            except Exception:
+                logger.exception("%s Failed to compensate failed assistant speech asset", log_prefix)
         result = {"segment_id": segment_id, "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True}
     sequence = existing.get("sequence", arguments.get("sequence"))
     if isinstance(sequence, int):
@@ -202,11 +349,13 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         result,
         lease_id=lease_id,
         execution_version=int(claimed["execution_version"]),
+        completed_live=live_call and result.get("status") == "ready",
     )
     if not finalized:
         if generated_asset_id:
             try:
-                await _delete_generated_speech_asset(task, generated_asset_id)
+                await _delete_generated_speech_asset(task, generated_asset_id, user_id=user_id)
+                await clear_compensated_asset(release_lease=True)
             except Exception:
                 logger.exception("%s Failed to compensate unfinalized assistant speech asset", log_prefix)
         return {"segment_id": segment_id, "status": "cancelled"}
@@ -229,6 +378,9 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 **status,
                 "chat_id": str(arguments.get("chat_id") or ""),
                 "message_id": str(arguments.get("assistant_message_id") or ""),
+                "source_version": int(existing.get("source_version") or arguments.get("source_version") or 1),
+                "execution_version": int(claimed["execution_version"]),
+                **({"voice_call_id": str(arguments["voice_call_id"])} if arguments.get("voice_call_id") else {}),
             },
         },
     )

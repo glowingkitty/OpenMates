@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 
 const mocks = vi.hoisted(() => ({
+  workspace: { identity: 'owner-a' as string | null },
+  memoryStore: { loadEntries: vi.fn(async () => undefined) },
   chatDB: {
+    storeAppSettingsMemoriesEntries: vi.fn(),
     getMessage: vi.fn(),
     getAppSettingsMemoriesEntriesByAppAndType: vi.fn(),
     getChat: vi.fn(),
@@ -21,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   chatKeyManager: {
     createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
+    getKeySync: vi.fn(),
+    injectKey: vi.fn(),
     onKeyReady: vi.fn(() => () => undefined),
   },
   userDB: {
@@ -53,9 +58,12 @@ const mocks = vi.hoisted(() => ({
   },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
+  openRecoveryOutputEnvelope: vi.fn(),
 }));
 
 vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
+vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => mocks.workspace.identity }));
+vi.mock("../../stores/appSettingsMemoriesStore", () => ({ appSettingsMemoriesStore: mocks.memoryStore }));
 vi.mock("../chatSyncServiceSenders", () => ({ sendAppSettingsMemoriesConfirmedImpl: mocks.privateMemories.send }));
 vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsMemoriesPermissionStore: {
   subscribe: (run: (value: unknown) => void) => { run({ currentRequest: mocks.permission.request }); return () => {}; },
@@ -94,6 +102,7 @@ vi.mock("../websocketService", () => ({
 vi.mock("../../utils/chatCompletionRecovery", () => ({
   deriveChatCompletionRecoveryKeypair: mocks.deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope: mocks.openRecoveryOutputEnvelope,
 }));
 vi.mock("../../i18n/translations", () => ({
   text: vi.fn((key: string) => key),
@@ -130,13 +139,53 @@ import {
   handleWorkflowChatDeliveryAcknowledgedImpl,
   notifyCommittedWorkflowDelivery,
   handlePendingAIResponseImpl,
+  handleNewSystemMessageImpl,
+  handleAppSettingsMemoriesSyncReadyImpl,
 } from "../chatSyncServiceHandlersAppSettings";
-import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
+import {
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, resetRecoveryLifecycleImpl,
+} from "../chatSyncServiceHandlersRecovery";
 import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../recoveryAssistantTimestamp";
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('app memories sync no-op proof', () => {
+  beforeEach(() => { resetHoistedMocks(); mocks.workspace.identity = 'owner-a'; mocks.memoryStore.loadEntries.mockResolvedValue(undefined); });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each([
+    [{ applied: 0, complete: true }, true],
+    [{ applied: 1, complete: true }, false],
+    [{ applied: 0, complete: false }, false],
+    [undefined, false],
+  ])('announces no-op only from the committed complete merge outcome %j', async (outcome, expected) => {
+    mocks.chatDB.storeAppSettingsMemoriesEntries.mockResolvedValue(outcome);
+    const event = vi.fn();
+    window.addEventListener('appSettingsMemoriesSyncReady', event);
+    try {
+      await handleAppSettingsMemoriesSyncReadyImpl({} as ChatSynchronizationService, { entries: [], entry_count: 0 });
+      expect(event).toHaveBeenCalledOnce();
+      expect(event.mock.calls[0][0].detail.privacy_snapshot_unchanged).toBe(expected);
+    } finally { window.removeEventListener('appSettingsMemoriesSyncReady', event); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each(['owner', 'deletion'])('does not certify a no-op across %s uncertainty', async uncertainty => {
+    mocks.chatDB.storeAppSettingsMemoriesEntries.mockImplementation(async () => {
+      if (uncertainty === 'owner') mocks.workspace.identity = 'owner-b';
+      return { applied: 0, complete: true };
+    });
+    const event = vi.fn();
+    window.addEventListener('appSettingsMemoriesSyncReady', event);
+    try {
+      const payload = { entries: [], entry_count: 0, ...(uncertainty === 'deletion' ? { deleted_ids: ['removed'] } : {}) };
+      await handleAppSettingsMemoriesSyncReadyImpl({} as ChatSynchronizationService, payload);
+      expect(event.mock.calls[0][0].detail.privacy_snapshot_unchanged).toBe(false);
+    } finally { window.removeEventListener('appSettingsMemoriesSyncReady', event); }
+  });
 });
 
 describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
@@ -1446,4 +1495,154 @@ describe("voice memory permission continuation", () => {
     expect(response).toHaveBeenCalledExactlyOnceWith([]);
     expect(mocks.privateMemories.send).not.toHaveBeenCalled();
   });
+});
+
+describe("recovery output discovery after durable ACK", () => {
+  beforeEach(() => {
+    resetRecoveryLifecycleImpl();
+    resetHoistedMocks();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    Object.defineProperty(window, "setTimeout", { value: globalThis.setTimeout, configurable: true, writable: true });
+    Object.defineProperty(window, "clearTimeout", { value: globalThis.clearTimeout, configurable: true, writable: true });
+    mocks.chatDB.getChat.mockImplementation(async (id: string) => ({
+      chat_id: id, user_id: "owner-1", messages_v: 1,
+      encrypted_chat_key: "wrapped-chat-key", encrypted_title: "encrypted-title",
+    }));
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openRecoveryOutputEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+      record_id: "record-1", target_chat_id: "child-1", subject_id: "message-1",
+      output_kind: "message", output_version: 1,
+      content: { role: "user", content: "Recovered text", category: null,
+        model_name: null, created_at: 1_700_000_001 },
+    })));
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content", encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category", encrypted_model_name: "encrypted-model",
+    });
+  });
+  afterEach(() => resetRecoveryLifecycleImpl());
+
+  const output = {
+    record_id: "record-1", root_chat_id: "root-1", target_chat_id: "child-1",
+    turn_id: "turn-1", subject_id: "message-1", output_kind: "message" as const,
+    output_version: 1, chat_key_version: 1, message_role: "user" as const,
+  };
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("does not re-fetch an output from a queued duplicate discovery after ACK and local save", async () => {
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set(); set.add(handler); handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (type: string, request: Record<string, unknown>) => {
+      queueMicrotask(() => {
+        const reply = type === "recovery_output_get" ? {
+          ...output, request_id: request.request_id, root_hashed_team_id: null,
+          sealed_payload: "{}", messages_v: 1, encrypted_chat_key: "wrapped-chat-key",
+          encrypted_title: "encrypted-title",
+        } : {
+          record_id: output.record_id, request_id: request.request_id,
+          state: "ACKNOWLEDGED", committed_messages_v: 2,
+        };
+        const event = type === "recovery_output_get" ? "recovery_output_ready" : "recovery_output_persisted";
+        for (const handler of handlers.get(event) ?? []) handler(reply);
+      });
+    });
+    const service = { dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true } as unknown as ChatSynchronizationService;
+    const firstPage = handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    const duplicatePage = handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await Promise.all([firstPage, duplicatePage]);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(1);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_persist_message")).toHaveLength(1);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledTimes(1);
+
+    // A reused record ID with changed immutable metadata is never silently skipped.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [{ ...output, output_version: 2 }] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(2);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalled();
+
+    // Session reset removes the local ACK memory; the server must decide anew.
+    resetRecoveryLifecycleImpl();
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(3);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
+  it("retries an output when the first persist is denied, without treating an attempted write as ACKed", async () => {
+    let denyPersist = true;
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set(); set.add(handler); handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (type: string, request: Record<string, unknown>) => {
+      queueMicrotask(() => {
+        const event = type === "recovery_output_get" ? "recovery_output_ready"
+          : denyPersist ? "error" : "recovery_output_persisted";
+        const reply = type === "recovery_output_get" ? {
+          ...output, request_id: request.request_id, root_hashed_team_id: null,
+          sealed_payload: "{}", messages_v: 1, encrypted_chat_key: "wrapped-chat-key",
+          encrypted_title: "encrypted-title",
+        } : denyPersist ? {
+          job_id: output.record_id, request_id: request.request_id,
+          code: "recovery_output_denied", message: "Write denied",
+        } : {
+          record_id: output.record_id, request_id: request.request_id,
+          state: "ACKNOWLEDGED", committed_messages_v: 2,
+        };
+        for (const handler of handlers.get(event) ?? []) handler(reply);
+      });
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = { dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true } as unknown as ChatSynchronizationService;
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(2);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_persist_message")).toHaveLength(2);
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("[ChatSyncService:Recovery] Output recovery failed:",
+      expect.objectContaining({ record_id: output.record_id }), expect.any(Error));
+
+    // Even a durable ACK cannot mask a failed required local save.
+    denyPersist = false;
+    mocks.chatDB.saveMessage.mockRejectedValueOnce(new Error("Local save failed"));
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(4);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(2);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('cross-device system message status', () => {
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: 'chat-1', messages_v: 0 });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array(32));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it.each([undefined, 'synced', 'waiting_for_user'])(
+    'uses neutral status for an omitted lifecycle status and preserves explicit status %s', async status => {
+      const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+      await handleNewSystemMessageImpl(service, {
+        event: 'new_system_message', chat_id: 'chat-1',
+        data: { message_id: 'call-event', role: 'system', encrypted_content: 'ciphertext', created_at: 1700000000,
+          ...(status ? { status } : {}) }, versions: { messages_v: 1 },
+      });
+      expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
+        message_id: 'call-event', status: status ?? 'synced',
+      }));
+    });
 });

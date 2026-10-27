@@ -51,6 +51,8 @@ export interface RetainAppsResultInput {
   appId: string;
   skillId: string;
   input: unknown;
+  /** Display context encrypted with the result; never part of skill arguments. */
+  requestText?: string;
   response: unknown;
   teamId?: string | null;
   guest?: boolean;
@@ -839,6 +841,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     ...appsResultRequestFields(args.input),
     ...responseMetadata,
     app_id: args.appId, skill_id: args.skillId, input: args.input,
+    ...(args.requestText ? { request_text: args.requestText } : {}),
     ...(acceptedTaskIds.length ? { task_ids: acceptedTaskIds } : {}),
     ...(childType ? {} : { results }), result_count: resultCount,
     embed_ids: [...childIds, ...persistedIds], status,

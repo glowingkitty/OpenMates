@@ -110,13 +110,19 @@ def test_embed_fallback_requires_persisting_a_newer_cached_version() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+@pytest.mark.parametrize("embed_type,status,delivered", [
+    ("application", "finished", True),
+    ("app_skill_use", "error", True),
+    ("application", "error", False),
+    ("app_skill_use", "cancelled", False),
+])
 @pytest.mark.asyncio
-async def test_embed_fallback_resends_newer_cached_version(monkeypatch) -> None:
+async def test_embed_fallback_resends_newer_cached_version(monkeypatch, embed_type, status, delivered) -> None:
     published: list[tuple[str, dict]] = []
     cached_embed = {
         "embed_id": "embed-1",
-        "type": "application",
-        "status": "finished",
+        "type": embed_type,
+        "status": status,
         "chat_id": "chat-1",
         "message_id": "message-1",
         "user_id": "user-1",
@@ -166,6 +172,10 @@ async def test_embed_fallback_resends_newer_cached_version(monkeypatch) -> None:
 
     await persistence_tasks._async_persist_embed_fallback("embed-1", "task-1")
 
+    if not delivered:
+        assert published == []
+        return
+    assert published[0][1]["payload"]["status"] == status
     assert published[0][0] == "websocket:user:user-hash"
     assert published[0][1]["payload"]["version_number"] == 2
 
@@ -734,3 +744,45 @@ async def test_delete_chat_preserves_content_when_workflow_cleanup_fails(monkeyp
     with pytest.raises(RuntimeError, match='fence unavailable'):
         await persistence_tasks._async_persist_delete_chat('owner', 'source-chat')
     delete_drafts.assert_not_awaited()
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted
+@pytest.mark.parametrize("embed_type,status,delivered", [
+    ("app_skill_use", "error", True), ("application", "error", False),
+    ("app_skill_use", "cancelled", False),
+])
+async def test_pending_embed_safety_net_resends_failed_skill_terminal_status(monkeypatch, embed_type, status, delivered):
+    published = []
+    cached = {"embed_id": "failed-skill", "type": embed_type, "status": status,
+              "vault_key_id": "vault-key", "encrypted_content": "vault-ciphertext",
+              "chat_id": "chat-1", "message_id": "message-1"}
+    class Redis:
+        async def set(self, *_args, **_kwargs):
+            return True
+        async def get(self, key):
+            return json.dumps(cached) if key == "embed:failed-skill" else None
+        async def publish(self, channel, content):
+            published.append((channel, json.loads(content)))
+    class Cache:
+        @property
+        async def client(self):
+            return Redis()
+        async def get_all_users_with_pending_embeds(self):
+            return ["user-1"]
+        async def get_pending_embed_ids(self, _user):
+            return ["failed-skill"]
+        async def close(self):
+            pass
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock(return_value="status: error"))
+    monkeypatch.setattr(persistence_tasks, "CacheService", Cache)
+    monkeypatch.setattr(persistence_tasks, "DirectusService", lambda: SimpleNamespace(
+        ensure_auth_token=AsyncMock(), embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=None))))
+    monkeypatch.setattr(persistence_tasks, "EncryptionService", lambda **_kwargs: encryption)
+    await persistence_tasks._async_process_pending_embeds("test-run")
+    assert len(published) == int(delivered)
+    if delivered:
+        assert published[0][1]["payload"]["status"] == "error"
+        assert published[0][1]["payload"]["content"] == "status: error"
+        encryption.decrypt_with_user_key.assert_awaited_once_with("vault-ciphertext", "vault-key")
+    else:
+        encryption.decrypt_with_user_key.assert_not_awaited()

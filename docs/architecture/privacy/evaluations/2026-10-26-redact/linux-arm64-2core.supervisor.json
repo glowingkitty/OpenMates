@@ -1,0 +1,19 @@
+{
+  "status": "failed",
+  "result_file": "linux-arm64-2core.json",
+  "supervisor": {
+    "returncode": -9,
+    "stopped_by_supervisor": "wall-time-limit",
+    "wall_seconds": 300.0320510994643,
+    "sampled_peak_rss_bytes": 185298944,
+    "rss_sample_interval_seconds": 0.1,
+    "rss_limit_mib": 1536,
+    "wall_limit_seconds": 300,
+    "affinity_cpus": [
+      0,
+      1
+    ],
+    "niceness_increment": 10
+  },
+  "stdout_stderr": "discarded to prevent raw fixture/prediction logs"
+}

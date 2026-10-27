@@ -25,6 +25,7 @@ class DailyInspirationVideo(BaseModel):
 
     youtube_id: str = Field(..., description="YouTube video ID (e.g., 'dQw4w9WgXcQ')")
     title: str = Field(..., description="Video title")
+    description: Optional[str] = Field(None, description="Public source description used for editorial grounding")
     thumbnail_url: str = Field(..., description="URL of the video thumbnail (YouTube or Brave-provided)")
     channel_name: Optional[str] = Field(None, description="YouTube channel / uploader name")
     view_count: Optional[int] = Field(None, description="View count from YouTube Data API")
@@ -35,6 +36,7 @@ class DailyInspirationVideo(BaseModel):
 class DailyInspirationWiki(BaseModel):
     """Wikipedia article metadata shown in a Daily Inspiration banner."""
 
+    source_language: Optional[str] = Field(None, description="Wikipedia source edition, independent of translated card copy")
     title: str = Field(..., description="Display title for the article")
     wiki_title: str = Field(..., description="Canonical Wikipedia title/slug")
     description: Optional[str] = Field(None, description="Short Wikipedia/Wikidata description")
@@ -80,6 +82,7 @@ class DailyInspiration(BaseModel):
     podcasts, challenges, etc.) but only 'video' is generated currently.
     """
 
+    language: Optional[str] = Field(None, description="Language of generated inspiration text (ISO 639-1)")
     inspiration_id: str = Field(..., description="UUID for this inspiration (used for view tracking)")
     phrase: str = Field(
         ...,

@@ -67,6 +67,11 @@ def _routing_failure_signature(error: Exception) -> tuple[tuple[str, ...], tuple
 async def _routing_authority_is_current(cache: Any, directus: Any,
                                         request: Any, task_id: str) -> bool:
     """Join fresh Redis and durable admission checks at each routing fence."""
+    from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+    try:
+        await require_active_voice_dispatch(cache, request)
+    except ValueError:
+        return False
     checks = (
         asyncio.create_task(routing_turn_is_current(cache, request, task_id)),
         asyncio.create_task(routing_admission_is_current(directus, request, task_id)),
@@ -178,7 +183,6 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     )
     request = AskSkillRequest.model_validate(request_data_dict)
     config = AskSkillDefaultConfig.model_validate(skill_config_dict)
-    fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     started_at = time.monotonic()
     cache = await celery_config.get_worker_cache_service()
     secrets_manager = SecretsManager()
@@ -187,6 +191,9 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
         return None
+    from backend.shared.python_utils.saved_chat_turn_authority import prepare_saved_chat_turn
+    await prepare_saved_chat_turn(request, directus)
+    fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     logger.info("Stage-one admission current task=%s elapsed_ms=%.1f",
                 inference_task_id, (time.monotonic() - started_at) * 1000)
 

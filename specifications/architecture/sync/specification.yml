@@ -15,9 +15,10 @@ scope:
     - Phase 1a shell metadata, Phase 1b recent parent-chat content, and Phase 2 recent metadata boundaries.
     - Phase 2 encrypted draft metadata and explicit deletion evidence semantics.
     - Personal and team-scoped persisted chat metadata; user draft discovery remains personal and author-private.
+    - Shared Rust first-party startup, sync, reconnect and recovery policy through explicit browser, native and terminal adapters.
   excludes:
     - New unauthenticated, public, or developer API sync surfaces.
-    - Full-history pagination, long-term reconciliation redesign, or SDK-owned offline queues.
+    - Full-history pagination, long-term reconciliation redesign, or implicit developer-SDK startup and offline queue ownership.
     - Plaintext message, draft, or embed sync through the server.
     - Embed lifecycle changes unrelated to startup chat metadata and deletion evidence.
 
@@ -47,8 +48,8 @@ models:
   StartupLimits:
     phase1b_parent_chat_limit:
       type: integer
-      default: 10
-      constraints: {maximum: 10, parent_chats_only: true}
+      default: 20
+      constraints: {maximum: 20, parent_chats_only: true}
     phase2_metadata_chat_limit:
       type: integer
       default: 100
@@ -115,6 +116,10 @@ models:
       constraints: {partial_window_deletions: forbidden_except_explicit_tombstone}
 
 assertions:
+  - id: sync.client.shared-rust-policy
+    type: parity
+    must: Shared Rust owns reusable first-party startup synchronization, reconnect, reconciliation and recovery across CLI/TUI, web and Apple, preserving this contract's bounded phases, deletion authority, encrypted drafts and account/Team scope. Thin platform adapters supply explicit transport lifecycle, persistence and UI notifications without separate TypeScript or Swift sync state machines. Platform IO and interactive/foreground facts remain truthful; shared code does not bypass session/device admission or grant developer API keys first-party startup access. Existing platform data remains available through its adapters.
+    depends_on: [examples.shared_client_sync]
   - id: sync.access.first-party-authenticated
     type: security
     must: Chat startup sync runs only on authenticated first-party session or approved-device WebSocket paths and never exposes decrypted chat, draft, message, or embed plaintext.
@@ -129,7 +134,7 @@ assertions:
     depends_on: [models.SyncStatusResponse, examples.startup_readiness]
   - id: sync.startup.bounded-phases
     type: invariant
-    must: Default phase=all startup sync is limited to Phase 1a shell metadata, Phase 1b content for at most 10 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories.
+    must: Default phase=all startup sync is limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand.
     depends_on: [models.StartupLimits, examples.startup_payloads]
   - id: sync.phase2.metadata-only
     type: privacy
@@ -145,7 +150,7 @@ assertions:
     depends_on: [models.DeletionAuthority, models.Phase2MetadataPayload, examples.deletion_authority]
   - id: sync.surface.semantic-parity
     type: parity
-    must: First-party web, Apple, and CLI clients preserve the same startup readiness, metadata-only, encrypted-draft, and deletion-authority semantics; npm and pip SDKs do not own startup or offline queue behavior under this contract.
+    must: First-party web, Apple and CLI clients use shared Rust to preserve the same startup readiness, metadata-only, encrypted-draft, reconnect/recovery and deletion-authority semantics. npm and Python remain direct library SDKs with their public conformance obligations; using the shared core does not automatically start first-party sync or adopt application offline queues in a developer library.
     depends_on: [models, examples.surface_scope, applies_to]
 
 applies_to:
@@ -156,9 +161,10 @@ applies_to:
     required: true
     parity: semantic
   sdks:
-    required: false
-    role: SDKs may expose on-demand encrypted draft read/write but do not own startup sync or offline queues here.
+    required: true
+    role: Rust supplies explicit shared first-party sync/reconnect/recovery policy; developer SDK construction does not implicitly start application sync or adopt an offline queue. Public SDK operations retain their own authorization and parity contracts.
     implementations:
+      rust: {required: true}
       npm: {required: false}
       pip: {required: false}
   gui:
@@ -171,4 +177,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [startup_readiness, startup_payloads, deletion_authority, draft_metadata, surface_scope]
+  required_groups: [startup_readiness, startup_payloads, deletion_authority, draft_metadata, surface_scope, shared_client_sync]

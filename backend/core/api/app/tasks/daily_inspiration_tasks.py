@@ -27,6 +27,7 @@ import asyncio
 import hashlib
 import logging
 import random
+import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 
@@ -83,7 +84,9 @@ async def generate_and_deliver_inspirations_for_user(
     Returns:
         True if generation and delivery succeeded, False on error
     """
-    from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
+    from backend.apps.ai.daily_inspiration.feature_suggestions import (
+        build_feature_inspirations, has_complete_daily_inspiration_set,
+    )
     from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
     from backend.apps.ai.daily_inspiration.generator import generate_inspirations
     from backend.apps.ai.daily_inspiration.wiki_generator import generate_wiki_inspirations
@@ -118,7 +121,7 @@ async def generate_and_deliver_inspirations_for_user(
         language=language,
         task_id=f"{task_id}_wiki",
     )
-    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT)
+    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT, language=language)
     inspirations = video_inspirations + wiki_inspirations + feature_inspirations
 
     policy_checked_inspirations = []
@@ -159,6 +162,7 @@ async def generate_and_deliver_inspirations_for_user(
     random.Random(f"{user_id}:{today_seed}").shuffle(inspirations)
     ordered_base_ts = int(datetime.now(timezone.utc).timestamp())
     for idx, inspiration in enumerate(inspirations):
+        inspiration.language = inspiration.language or language
         inspiration.generated_at = ordered_base_ts - idx
 
     # Serialize inspiration objects to dicts for delivery / cache storage
@@ -203,6 +207,7 @@ async def generate_and_deliver_inspirations_for_user(
                         category=insp.category,
                         content_type=insp.content_type,
                         video_title=insp.video.title if insp.video else None,
+                        video_description=insp.video.description if insp.video else None,
                         video_thumbnail_url=insp.video.thumbnail_url if insp.video else None,
                         video_channel_name=insp.video.channel_name if insp.video else None,
                         video_view_count=insp.video.view_count if insp.video else None,
@@ -230,6 +235,12 @@ async def generate_and_deliver_inspirations_for_user(
         logger.warning(
             f"[DailyInspiration][{task_id}] Pool copy failed (non-fatal): {pool_err}"
         )
+
+    # Do not replace usable personalized content with a partial rejected set.
+    # Approved partial inventory has still entered the shared pool above.
+    if not has_complete_daily_inspiration_set(serialized):
+        logger.info("[DailyInspiration][%s] Withholding incomplete reviewed daily set", task_id)
+        return False
 
     # ── 1. Always store in pending cache (belt-and-suspenders) ──────────────────
     # The pending cache ensures inspirations survive even if the user is offline or
@@ -409,6 +420,23 @@ async def trigger_first_run_inspirations(
         logger.debug(
             f"[DailyInspiration][{task_id}] First-run already completed for user {user_id[:8]}... — skipping"
         )
+        return
+    # First-run seeds have no view requirement, but still require tracked activity.
+    # Skip expensive generation when activity cannot be established from cache.
+    try:
+        paid_data = await cache_service.get_inspiration_paid_request_data(user_id)
+        recent_activity = bool(paid_data) and (
+            time.time() - paid_data.get("last_paid_request_timestamp", 0) < 86400
+        )
+    except Exception:
+        logger.warning(
+            "[DailyInspiration][%s] First-run activity lookup failed; skipping generation",
+            task_id,
+            exc_info=True,
+        )
+        return
+    if not recent_activity:
+        logger.debug("[DailyInspiration][%s] No recent tracked activity; skipping first-run", task_id)
         return
     if await _should_skip_e2e_inspiration_user(cache_service, user_id, task_id, directus_service):
         return

@@ -28,6 +28,13 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from ci_voice_recovery_epoch import (
+    AUTHORED_MEDIA_RECOVERY_SPEC, VOICE_RECOVERY_SPEC,
+    activate_isolated_authored_media_recovery_epoch, activate_isolated_voice_recovery_epoch,
+)
+from ci_web_performance import PERFORMANCE_SPECS, collect as collect_web_performance, performance_environment
+from ci_web_search_diagnostics import capture_scope as web_search_capture_scope
+
 from ci_environment import (COMPOSE_PATH, SOURCE, browser_account_count, browser_account_slots,
                             compose, require_runner, has_team_storage_billing_schema)
 try:
@@ -60,16 +67,34 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-target.spec.ts", "storage-capacity-target-smoke.spec.ts",
 })
 TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
+RUST_BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+RUST_BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
+RUST_BROWSER_SPECS = frozenset({RUST_BROWSER_SPEC, RUST_BROWSER_PASSWORD_SPEC})
+RUST_PRODUCTION_BROWSER_SPECS = frozenset({"rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts", "rust-core-production-local-cursor.spec.ts", "rust-core-production-saved-paging.spec.ts", "rust-core-ordinary-login-retention.spec.ts"})
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+VOICE_CLEANUP_CASE_TITLE = 'keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup'
 APPROVED_RECOVERY_CASES = frozenset({
     ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
     ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+    ("voice-call.spec.ts", VOICE_CLEANUP_CASE_TITLE),
+    ("startup-sync-contract.spec.ts", "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads"),
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
+    "cli-authored-results.spec.ts",
+    "authored-results-flow.spec.ts",
+    "stop-new-chat-draft.spec.ts",
+    "rust-core-browser-session.spec.ts",
+    "rust-core-browser-password-entry.spec.ts",
+    "rust-core-production-saved-session.spec.ts",
+    "rust-core-production-platform.spec.ts",
+    "rust-core-production-local-cursor.spec.ts",
+    "rust-core-production-saved-paging.spec.ts",
+    "rust-core-ordinary-login-retention.spec.ts",
+    "cli-rust-core-essential.spec.ts",
     "cli-recovery-fixtures.spec.ts",
     "cli-recovery-discovery.spec.ts",
     "diagram-html-editing.spec.ts",
@@ -86,6 +111,50 @@ BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
     "billing-storage-logical.spec.ts": "logical",
 }
+
+
+def pinned_node() -> str:
+    """The early trusted producer is mandatory; package managers cannot select Node."""
+    node = os.environ.get("OPENMATES_CI_NODE", "")
+    if not re.fullmatch(r"/tmp/openmates-ci-node-[A-Za-z0-9]+/node", node):
+        raise RuntimeError("Trusted Node runtime was not staged")
+    return node
+
+
+def verify_pinned_node_runtime() -> None:
+    """Attest actual process.execPath before any disposable account is created."""
+    node = pinned_node()
+    env = {k: v for k, v in os.environ.items() if k not in {"NODE_OPTIONS", "NODE_PATH"}}
+    result = subprocess.run(
+        [node, str(Path(__file__).with_name("ci_stage_node_runtime.mjs")), "verify"],
+        env=env, capture_output=True, text=True, timeout=15,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Trusted Node runtime attestation failed")
+    receipt = json.loads(result.stdout)
+    if (receipt.get("schema_version") != 1
+            or receipt.get("producer") != "trusted-node-runtime-v1"
+            or not re.fullmatch(r"v24\.\d+\.\d+", receipt.get("node_version", ""))
+            or not re.fullmatch(r"[0-9a-f]{64}", receipt.get("sha256", ""))
+            or not re.fullmatch(r"[0-9a-f]{64}", receipt.get("producer_sha256", ""))
+            or receipt.get("architecture") not in {"x64", "arm64"}
+            or not all(receipt.get("source", {}).get(key) is True for key in
+                       ("proc_identity", "toolcache_supplier", "stable", "regular_elf", "single_link", "owner_admitted"))
+            or not all(receipt.get("destination", {}).get(key) is True for key in
+                       ("fresh_inode", "private_directory", "owner_current", "mode_0700", "single_link", "fsynced", "hash_matches"))):
+        raise RuntimeError("Trusted Node runtime provenance is incomplete")
+    (RESULTS / "ci-node-runtime.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    os.environ["PATH"] = str(Path(node).parent) + os.pathsep + os.environ.get("PATH", "")
+    os.environ["npm_node_execpath"] = node
+    os.environ["NODE"] = node
+
+
+def playwright_command() -> list[str]:
+    # Invoke the JS entry directly: pnpm exec can inject package-scoped Node.
+    cli = WEB / "node_modules/@playwright/test/cli.js"
+    if not cli.is_file() or not cli.resolve().is_relative_to(ROOT.resolve()):
+        raise RuntimeError("Workspace Playwright CLI is unavailable")
+    return [pinned_node(), str(cli)]
 
 
 def capacity_selector_environment(name: str) -> dict[str, str]:
@@ -159,7 +228,7 @@ def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
         subprocess.run(["pnpm", "run", "build"], cwd=cli, check=True, timeout=300)
         with (RESULTS / "ci-unit-cli-selected.log").open("w") as output:
             result = subprocess.run(
-                ["node", "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
+                [pinned_node(), "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
                  *relative], cwd=cli, stdout=output, stderr=subprocess.STDOUT, timeout=300,
             )
         results.append({"suite": "cli-selected", "exit_code": result.returncode,
@@ -286,7 +355,7 @@ await api.chats.list({limit: 1});
 process.stdout.write(JSON.stringify({api_key: result.api_key}));
 """
     result = subprocess.run(
-        ["node", "--input-type=module", "-e", program, sdk, API],
+        [pinned_node(), "--input-type=module", "-e", program, sdk, API],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_SENSITIVE_TOTP_CODE": totp_code},
         capture_output=True, text=True, timeout=60,
@@ -337,7 +406,7 @@ if (result.success !== true || result.current_credits !== Number(process.argv[3]
 process.stdout.write(JSON.stringify({credits: result.current_credits}));
 """
     result = subprocess.run(
-        ["node", "--input-type=module", "-e", program, sdk, API, str(FIXTURE_CREDITS)],
+        [pinned_node(), "--input-type=module", "-e", program, sdk, API, str(FIXTURE_CREDITS)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
         capture_output=True, text=True, timeout=30,
     )
@@ -353,7 +422,7 @@ def provision_shared_archive(account: dict) -> str:
     """Seed synthetic encrypted archive rows, then share via the genuine client."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_shared_chat_fixture.mjs")), str(ROOT)],
+        [pinned_node(), "--experimental-strip-types", str(Path(__file__).with_name("ci_shared_chat_fixture.mjs")), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=120,
@@ -370,7 +439,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     """Seed disposable encrypted history before a startup browser sync begins."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
+        [pinned_node(), "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=180,
@@ -378,7 +447,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     if result.returncode:
         raise RuntimeError("Fresh encrypted startup chat provisioning failed; no shared-account fallback")
     summary = json.loads(result.stdout)
-    if (summary.get("chats") != 22 or summary.get("messages") != 32
+    if (summary.get("chats") != 23 or summary.get("messages") != 33
             or summary.get("persisted_null_messages_v_count") != 1):
         raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape or legacy version")
     print("Startup sync fixture: " + json.dumps(summary, sort_keys=True), flush=True)
@@ -715,7 +784,7 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
         "OPENMATES_STATE_DIR": str(private / f"state-{slot}-{secrets.token_hex(8)}"),
     }
     command = [
-        "node",
+        pinned_node(),
         str(ROOT / "frontend/packages/openmates-cli/dist/cli.js"),
         "--api-url",
         API,
@@ -1313,6 +1382,13 @@ def run_e2e(
             or not name.endswith(".spec.ts")
         ):
             raise ValueError("Invalid spec selection")
+    if any(name in RUST_BROWSER_SPECS for name in specs) and (len(specs) != 1 or artifact or component or visual_smoke or case_title):
+        raise ValueError("Rust browser package requires its exact unfiltered E2E selector")
+    production_browser = any(name in RUST_PRODUCTION_BROWSER_SPECS for name in specs)
+    if production_browser:
+        from ci_rust_wasm import production_browser_e2e_targets
+        if not production_browser_e2e_targets(specs) or artifact or component or visual_smoke or case_title:
+            raise ValueError("Production Rust browser package requires its closed unfiltered E2E subset")
     if artifact:
         verify_artifact_profile(specs)
     if component:
@@ -1323,6 +1399,19 @@ def run_e2e(
                 raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
+    from ci_native_keyring import SPEC as NATIVE_KEYRING_SPEC
+    if NATIVE_KEYRING_SPEC in specs:
+        if specs != [NATIVE_KEYRING_SPEC] or artifact or component or visual_smoke or case_title:
+            raise ValueError("Native keyring requires its exact unfiltered E2E selector")
+        from ci_native_keyring import prepare as prepare_native_keyring
+        prepare_native_keyring(specs, ROOT)
+    browser_package_env = {}
+    if len(specs) == 1 and specs[0] in RUST_BROWSER_SPECS:
+        from ci_rust_wasm import prepare_browser_e2e_package
+        browser_package_env = prepare_browser_e2e_package(ROOT)
+    if production_browser:
+        from ci_production_rust_browser import verify_for_e2e
+        browser_package_env = verify_for_e2e(ROOT)
     billing_fixtures: list[tuple[Path, Path]] = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None
@@ -1362,19 +1451,32 @@ def run_e2e(
         try:
             if child is not None:
                 (wait_component_web if component else wait_web)(child)
+            performance_metadata = {}
+            if child is not None and not component and PERFORMANCE_SPECS.intersection(specs):
+                performance_metadata = collect_web_performance(
+                    ROOT, RESULTS, pinned_node(),
+                    source=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+                    harness=os.environ.get("CI_HARNESS_COMMIT", ""),
+                    run_id=os.environ.get("GITHUB_RUN_ID", ""),
+                )
             if visual_smoke:
                 from ci_visual_smoke import capture
                 results.extend(capture(specs, WEB, RESULTS))
                 return results
             capacity_epoch_receipt = None
             marker_chat_epoch_receipt = None
+            voice_chat_epoch_receipt = None
+            authored_media_epoch_receipt = None
             identity_index = 0
             for index, name in enumerate(specs):
                 account_slots = browser_account_slots(name)
                 first_identity_index = identity_index
                 identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
-                env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
+                env = performance_environment(os.environ, name, performance_metadata)
+                if name in RUST_BROWSER_SPECS or name in RUST_PRODUCTION_BROWSER_SPECS:
+                    env.update(browser_package_env)
+                env["PLAYWRIGHT_TEST_API_URL"] = API
                 recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())
@@ -1422,6 +1524,18 @@ def run_e2e(
                         if marker_chat_epoch_receipt is None:
                             marker_chat_epoch_receipt = activate_isolated_marker_chat_epoch(name)
                         recovery_epoch_receipt = marker_chat_epoch_receipt
+                    if name == VOICE_RECOVERY_SPEC:
+                        if voice_chat_epoch_receipt is None:
+                            voice_chat_epoch_receipt = activate_isolated_voice_recovery_epoch(
+                                name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                            )
+                        recovery_epoch_receipt = voice_chat_epoch_receipt
+                    if name == AUTHORED_MEDIA_RECOVERY_SPEC:
+                        if authored_media_epoch_receipt is None:
+                            authored_media_epoch_receipt = activate_isolated_authored_media_recovery_epoch(
+                                name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                            )
+                        recovery_epoch_receipt = authored_media_epoch_receipt
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(
@@ -1461,23 +1575,24 @@ def run_e2e(
                 accountability_cleanup_error = None
                 accountability_retention_error = None
                 try:
-                    result = subprocess.run(
-                        [
-                            "pnpm",
-                            "exec",
-                            "playwright",
-                            "test",
-                            "tests/" + name,
-                            "--workers=1",
-                            "--reporter=json",
-                            "--output",
-                            f"test-results/ci-{index}",
-                            *playwright_case_args(case_title),
-                        ],
-                        cwd=WEB,
-                        env=env,
-                        timeout=1200,
-                    )
+                    with web_search_capture_scope(
+                        name, ROOT, index, enabled=not (component or artifact or visual_smoke),
+                    ) as web_search_capture:
+                        result = subprocess.run(
+                            [
+                                *playwright_command(),
+                                "test",
+                                "tests/" + name,
+                                "--workers=1",
+                                "--reporter=json",
+                                "--output",
+                                f"test-results/ci-{index}",
+                                *playwright_case_args(case_title),
+                            ],
+                            cwd=WEB,
+                            env=env,
+                            timeout=1200,
+                        )
                 finally:
                     if name == ACCOUNTABILITY_SPEC:
                         try:
@@ -1519,6 +1634,10 @@ def run_e2e(
                     }
                 )
                 spec_result = results[-1]
+                if web_search_capture is not None:
+                    spec_result["web_search_diagnostics"] = web_search_capture.summarize(
+                        report, WEB / "test-results" / f"ci-{index}",
+                    )
                 if accountability_cleanup_error:
                     results.append({"suite": "storage-accountability-cleanup", "exit_code": 1,
                                     "failure": accountability_cleanup_error})
@@ -1527,7 +1646,8 @@ def run_e2e(
                                     "failure": accountability_retention_error})
                 # Playwright may exit successfully after a retry. Retain the first
                 # failed receipt attempt's bounded API window in that case too.
-                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
+                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts",
+                            "cli-authored-results.spec.ts"} or (name == "voice-call.spec.ts" and case_title == VOICE_CLEANUP_CASE_TITLE):
                     try:
                         spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
                             report, index
@@ -1645,12 +1765,40 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
     return summaries
 
 
+def _fixture_final_publication_summary(output: str) -> tuple[list[dict[str, object]], bool]:
+    """Read only fixed fixture publication facts; discard all worker log bytes."""
+    events = []
+    truncated = False
+    for row in output.splitlines()[-2000:]:
+        start = row.find("{")
+        if start < 0 or len(row) > 65_536:
+            continue
+        try:
+            record = json.loads(row[start:])
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(record, dict) or record.get("name") != "backend.apps.ai.testing.mock_replay":
+            continue
+        message = record.get("message")
+        match = re.fullmatch(r"Fixture final publication stage=(begin|complete) success=(none|true|false)", message) if isinstance(message, str) else None
+        if not match or (match[1] == "begin") != (match[2] == "none"):
+            continue
+        if len(events) == 8:
+            truncated = True
+            continue
+        events.append({"stage": match[1], "success": {"none": None, "true": True, "false": False}[match[2]]})
+    return events, truncated
+
+
 def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
     """Retain bounded API logs for only allowlisted receipt and cache cases."""
+    authored_title = "saved authored results preserve all admitted typed records through fresh CLI reads"
     titles = {
         "legacy connection preserves typed rows while completing the existing v1 final job",
         "saved code embed and version diff replay with canonical ciphertext acknowledgements",
         "native cache keeps selected math tools and settled billing across five chat turns",
+        authored_title,
+        VOICE_CLEANUP_CASE_TITLE,
     }
     private = RESULTS / "ci-private"
     private.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1658,10 +1806,16 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
         raise RuntimeError("Recovery API diagnostics require the runner-private directory")
     private.chmod(0o700)
     summaries: list[dict[str, object]] = []
-    for suite in report.get("suites", []):
+    def nested_suites(suites):
+        for suite in suites:
+            yield suite
+            yield from nested_suites(suite.get("suites", []))
+
+    for suite in nested_suites(report.get("suites", [])):
         for spec in suite.get("specs", []):
             if spec.get("title") not in titles:
                 continue
+            tail_lines = 8000 if spec.get("title") == authored_title else 2000
             for test in spec.get("tests", []):
                 for result in test.get("results", []):
                     if result.get("status") not in {"failed", "timedOut"}:
@@ -1681,16 +1835,20 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                     until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
                     completed = compose(
                         "logs", "--no-color", "--since", since, "--until", until,
-                        "--tail", "2000", "api", capture=True, timeout=90,
+                        "--tail", str(tail_lines), "api", capture=True, timeout=90,
                     )
                     output = completed.stdout if isinstance(completed.stdout, str) else ""
-                    bounded = "\n".join(output.splitlines()[-2000:]).encode("utf-8")[-200_000:]
+                    diagnostic_lines = output.splitlines()[-tail_lines:]
+                    diagnostic_text = "\n".join(diagnostic_lines)
+                    bounded = diagnostic_text.encode("utf-8")[-tail_lines * 100:]
                     filename = private / f"recovery-api-spec-{index}-result-{len(summaries)}.log"
                     descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
                     with os.fdopen(descriptor, "wb") as retained:
                         os.fchmod(retained.fileno(), 0o600)
                         retained.write(bounded)
-                    safe_text = bounded.decode("utf-8", "replace")
+                    # Extract the fixed public fields before the private byte cap
+                    # trims an early failure out of a noisy failed-case window.
+                    safe_text = diagnostic_text
                     frames = re.findall(
                         r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
                         safe_text,
@@ -1704,6 +1862,109 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         "exception_class": classes[-1] if classes else "none",
                         "function": function, "line": int(line),
                     }
+                    if spec.get("title") == authored_title:
+                        publication_error = None
+                        try:
+                            publication_log = compose(
+                                "logs", "--no-color", "--since", since, "--until", until,
+                                "--tail", "2000", "ai-worker", capture=True, timeout=90,
+                            )
+                            publication_output = publication_log.stdout if isinstance(publication_log.stdout, str) else ""
+                            publication_events, publication_truncated = _fixture_final_publication_summary(publication_output)
+                        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                            publication_events, publication_truncated = [], False
+                            error_name = type(exc).__name__
+                            publication_error = error_name if error_name in {
+                                "OSError", "FileNotFoundError", "PermissionError", "RuntimeError",
+                                "SubprocessError", "CalledProcessError", "TimeoutExpired",
+                            } else "other"
+                        structured = None
+                        recovery_failure = None
+                        delivery_stages = []
+                        delivery_truncated = False
+                        protocol_rejections = []
+                        stage_names = {"final_received", "jobs_begin", "jobs_result", "outputs_begin", "outputs_result", "final_send"}
+                        exception_names = {"none", "other", "RuntimeError", "ValueError", "TypeError", "PermissionError",
+                                           "TimeoutError", "ConnectionError", "WebSocketDisconnect", "ChatRecoveryProtocolError",
+                                           "ReadTimeout", "PoolTimeout", "WriteTimeout", "ConnectTimeout", "ConnectError",
+                                           "ReadError", "RemoteProtocolError", "AttributeError", "KeyError", "IndexError",
+                                           "JSONDecodeError", "HTTPException"}
+                        stage_codes = {"none", "other", "forbidden", "not_found", "invalid_request", "lease_conflict", "transaction_failed"}
+                        rejection_codes = stage_codes | {"internal_error", "invalid_operation", "chat_not_found",
+                                                         "recovery_job_not_found", "recovery_output_not_found",
+                                                         "invalid_owner", "invalid_device", "invalid_protocol"}
+                        for row in diagnostic_lines:
+                            # Container JSON rows escape traceback newlines/quotes.
+                            # Decode only bounded rows; never return their messages.
+                            json_start = row.find("{")
+                            if json_start < 0 or len(row) > 65_536:
+                                continue
+                            try:
+                                record = json.loads(row[json_start:])
+                            except (ValueError, TypeError):
+                                continue
+                            if not isinstance(record, dict):
+                                continue
+                            message = record.get("message")
+                            if isinstance(message, str):
+                                stage_match = re.fullmatch(
+                                    r"Final stream delivery stage=([a-z_]{1,32}) device=([0-9]{1,3}) "
+                                    r"success=(true|false|none) exception=([A-Za-z_][A-Za-z_0-9]{0,79}) code=([a-z_]{1,80})",
+                                    message,
+                                )
+                                if (record.get("name") == "backend.core.api.app.routes.websockets"
+                                        and stage_match and stage_match[1] in stage_names
+                                        and int(stage_match[2]) <= 128):
+                                    if len(delivery_stages) < 64:
+                                        event = {"stage": stage_match[1], "device": int(stage_match[2]),
+                                                 "success": {"true": True, "false": False, "none": None}[stage_match[3]]}
+                                        event["exception_class"] = stage_match[4] if stage_match[4] in exception_names else "other"
+                                        event["code"] = stage_match[5] if stage_match[5] in stage_codes else "other"
+                                        delivery_stages.append(event)
+                                    else:
+                                        delivery_truncated = True
+                                rejection = re.fullmatch(
+                                    r"Chat recovery transaction rejected: operation=(list_available_jobs|list_pending_outputs) "
+                                    r"code=([a-z_]{1,100}) status=([45][0-9]{2})", message,
+                                )
+                                if (record.get("name") == "backend.core.api.app.services.chat_recovery_service"
+                                        and rejection and len(protocol_rejections) < 16):
+                                    protocol_rejections.append({"operation": rejection[1],
+                                        "code": rejection[2] if rejection[2] in rejection_codes else "other",
+                                        "status": int(rejection[3])})
+                            if not isinstance(record.get("exc_info"), str):
+                                continue
+                            trace = record["exc_info"]
+                            trace_frames = re.findall(
+                                r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})', trace,
+                            )
+                            trace_classes = re.findall(
+                                r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)', trace,
+                            )
+                            if not trace_frames or not trace_classes:
+                                continue
+                            trace_line, trace_function = trace_frames[-1]
+                            structured = {"exception_class": trace_classes[-1],
+                                          "function": trace_function, "line": int(trace_line)}
+                            logger_name, message = record.get("name"), record.get("message")
+                            if (logger_name in {
+                                "backend.core.api.app.services.chat_recovery_service",
+                                "backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers",
+                            } or (logger_name == "backend.core.api.app.routes.websockets"
+                                  and isinstance(message, str)
+                                  and message.startswith(("AI Stream Listener:", "Foreground recovery")))):
+                                recovery_failure = structured
+                        # Recovery/listener failures take precedence over later
+                        # unrelated exporter/DNS errors in the same bounded tail.
+                        summary = recovery_failure or structured or summary
+                        summary["final_delivery_stages"] = delivery_stages
+                        summary["final_delivery_truncated"] = delivery_truncated
+                        summary["fixture_final_publications"] = publication_events
+                        summary["fixture_publication_truncated"] = publication_truncated
+                        if publication_error is not None:
+                            summary["fixture_publication_capture_error"] = publication_error
+                        if protocol_rejections:
+                            summary["recovery_protocol_rejections"] = protocol_rejections
                     # Raw windows stay runner-private. Boolean cache failures
                     # have no traceback, so deliver only fixed stage names.
                     cache_stages = []
@@ -1987,7 +2248,7 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
                "OPENMATES_CAPACITY_NO_PROVIDER_CREDENTIALS": "confirmed"}
     run_cmd = [sys.executable, "scripts/storage_capacity.py", "run", "--plan", str(plan_path),
                "--results", str(results_path), "--receipts", str(private / "capacity-receipts"),
-               "--client-command", "node", "scripts/storage_capacity_client.mjs"]
+               "--client-command", pinned_node(), "scripts/storage_capacity_client.mjs"]
     result = subprocess.run(run_cmd, cwd=ROOT, env=run_env, capture_output=True, text=True)
     (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
     private_failure_rows = retain_capacity_failure_rows(results_path, private)
@@ -2232,6 +2493,8 @@ def main():
     try:
         if case_title and mode != "e2e":
             raise ValueError("Case filter requires E2E mode")
+        if mode not in ("pytest", "backend-probe", "sdk-lockfiles", "rust-wasm", "rust-native-dev"):
+            verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
@@ -2246,12 +2509,34 @@ def main():
                     results=results,
                     **({"case_title": case_title} if case_title else {}),
                 )
+        elif mode == "rust-native-dev":
+            reject_inherited_accounts()
+            from ci_native_dev import run
+            run(ROOT, results)
+        elif mode == "rust-wasm":
+            reject_inherited_accounts()
+            from ci_rust_wasm import run
+            run(ROOT, results, node=pinned_node(), verify_node=verify_pinned_node_runtime)
+        elif mode == "sdk-lockfiles":
+            reject_inherited_accounts()
+            from ci_sdk_lockfiles import run
+            run(ROOT, results)
+        elif mode == "sdk-conformance":
+            reject_inherited_accounts()
+            verify_shared_dev_rejected()
+            from ci_sdk_conformance import run
+            run(ROOT, results, pinned_node(), verify_node=verify_pinned_node_runtime)
         elif mode == "selfhost":
             reject_inherited_accounts()
             from ci_selfhost import run
-            run(ROOT, results)
+            from ci_selfhost_contract import validate_targets
+            selection = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+            if selection == ["selfhost-smoke.spec.ts"]:
+                run(ROOT, results)
+            else:
+                run(ROOT, results, target=validate_targets(selection))
         elif mode == "codex":
-            result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
+            result = subprocess.run([pinned_node(), str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
             receipt = json.loads((RESULTS / "ci-codex.json").read_text())
             if receipt.get("inference_requested") is not False or receipt.get("status") != "ready":
                 raise RuntimeError("Codex metadata fixture lacks no-inference evidence")
@@ -2368,7 +2653,7 @@ def main():
             with (RESULTS / "ci-unit-cli.log").open("w") as output:
                 result = subprocess.run(
                     [
-                        "node",
+                        pinned_node(),
                         "--test",
                         "--experimental-strip-types",
                         "--loader",
@@ -2385,7 +2670,7 @@ def main():
             with (RESULTS / "ci-unit-cli-plans.log").open("w") as output:
                 plan_result = subprocess.run(
                     [
-                        "node",
+                        pinned_node(),
                         "--test",
                         "--experimental-strip-types",
                         "--loader",
@@ -2416,7 +2701,9 @@ def main():
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
         "case_title": case_title,
-        "coverage_scope": "single-case" if case_title else "full-spec",
+        "coverage_scope": ("compilation-only" if mode == "rust-native-dev" else "recipe-target" if mode == "selfhost"
+            and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) != ["selfhost-smoke.spec.ts"]
+            else "single-case" if case_title else "full-spec"),
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),
@@ -2427,6 +2714,15 @@ def main():
         and all(r["exit_code"] == 0 for r in results),
     }
     (RESULTS / "ci-results.json").write_text(json.dumps(payload, indent=2))
+    # Optional closed observation follows the authoritative report write. A log
+    # failure must never replace the original report, raw error or exit status.
+    try:
+        from ci_closed_failure_summary import failure_summary
+        summary = failure_summary(results)
+        if summary is not None:
+            print(summary)
+    except Exception:
+        pass  # Best-effort observation only; preserve the original result below.
     if error:
         print(error, file=sys.stderr)
     return 0 if payload["success"] else 1

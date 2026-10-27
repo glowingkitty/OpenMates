@@ -49,7 +49,7 @@
   }: Props = $props();
 
   let localQuery = $state('Power converters');
-  let localProvider = $state('TI WEBENCH');
+  let localProvider = $state('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<ComponentResult[]>([]);
   let localEmbedIds = $state<string | string[] | undefined>(undefined);
@@ -61,7 +61,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || 'Power converters';
-      localProvider = providerProp || 'TI WEBENCH';
+      localProvider = providerProp || '';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localEmbedIds = embedIdsProp;

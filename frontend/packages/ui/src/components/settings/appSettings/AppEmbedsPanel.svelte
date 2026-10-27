@@ -6,12 +6,12 @@
 -->
 
 <script lang="ts">
-    /* eslint-disable @typescript-eslint/no-explicit-any -- existing decrypted embed payloads are schemaless; routing change only centralizes fullscreen dispatch */
+    /* eslint-disable @typescript-eslint/no-explicit-any -- existing decrypted embed payloads are schemaless */
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { embedStore } from '../../../services/embedStore';
     import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
-    import { dispatchEmbedFullscreen } from '../../../services/embedFullscreenController';
+    import StandaloneEmbedFullscreen from '../../embeds/StandaloneEmbedFullscreen.svelte';
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import type { EmbedStoreEntry } from '../../../message_parsing/types';
     import { appSkillsStore } from '../../../stores/appSkillsStore';
@@ -27,6 +27,7 @@
     let embedsLoading = $state(false);
     let embeds = $state<EmbedStoreEntry[]>([]);
     let decryptedEmbeds = $state<Map<string, any>>(new Map());
+    let selectedEmbedId = $state<string | null>(null);
     
     // Track which embeds are valid (can be rendered)
     // This prevents showing embeds that fail to decrypt or render
@@ -217,46 +218,6 @@
     }
 
     /**
-     * Open embed in fullscreen view (same as clicking embed in message)
-     */
-    async function openEmbedFullscreen(
-        embedId: string,
-        embedData: any,
-        embedEntry: EmbedStoreEntry
-    ): Promise<void> {
-        try {
-            const decodedContent = await decodeToonContent(embedData.content);
-            if (!decodedContent) {
-                console.warn('[AppEmbedsPanel] Cannot open fullscreen - failed to decode content');
-                return;
-            }
-
-            // Determine the correct embedType for the fullscreen event.
-            // Auto-converted embeds (code, sheet, math-plot, document) use their own type
-            // string so the fullscreen handler can route them to the correct component.
-            // Skill embeds use 'app-skill-use'.
-            const rawType = embedEntry.type || '';
-            const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
-            const eventEmbedType = autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use';
-
-            dispatchEmbedFullscreen({
-                embedId: embedId,
-                embedData: embedData,
-                decodedContent: decodedContent,
-                embedType: eventEmbedType,
-                attrs: {
-                    type: embedEntry.type,
-                    contentRef: embedEntry.contentRef,
-                    status: embedData.status || 'finished'
-                }
-            });
-            console.debug('[AppEmbedsPanel] Dispatched fullscreen event for embed:', embedId);
-        } catch (error) {
-            console.error('[AppEmbedsPanel] Error opening fullscreen:', error);
-        }
-    }
-
-    /**
      * Render embed preview component using the shared embedPreviewRegistry.
      *
      * The registry is the single source of truth for (appId, skillId / embedType) → component.
@@ -309,7 +270,9 @@
                 embedId,
                 embedData: { ...embedData, app_id: embedAppId, skill_id: embedEntry.skill_id || decodedContent.skill_id },
                 decodedContent: decodedContent as Record<string, unknown>,
-                onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry),
+                // Settings exists in every workspace; ActiveChat's document
+                // event listener does not. Own the viewer beside this list.
+                onFullscreen: () => { selectedEmbedId = embedId; },
             });
         } catch (error) {
             console.error('[AppEmbedsPanel] Error rendering embed preview:', error);
@@ -334,7 +297,11 @@
     });
 </script>
 
-<div class="app-embeds">
+{#if selectedEmbedId}
+    <StandaloneEmbedFullscreen embedId={selectedEmbedId} {appId} onClose={() => { selectedEmbedId = null; }} />
+{/if}
+
+<div class="app-embeds" data-testid="app-embeds-panel">
     {#if embedsLoading}
         <div class="loading">
             <div class="spinner"></div>
@@ -349,7 +316,7 @@
             <div class="embeds-list">
                 {#each paginatedEmbeds as embedEntry (embedEntry.contentRef)}
                     {@const embedId = embedEntry.contentRef.replace('embed:', '')}
-                    <div class="embed-item">
+                    <div class="embed-item" data-testid={`app-embed-${embedId}`}>
                         <div class="embed-header">
                             <span class="embed-meta">
                                 {formatDate(embedEntry.createdAt)}
@@ -529,7 +496,7 @@
     }
 
     .pagination-button:hover:not(:disabled) {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-30);
     }
 

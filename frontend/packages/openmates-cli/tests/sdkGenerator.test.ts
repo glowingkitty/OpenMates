@@ -196,3 +196,17 @@ describe("generated npm SDK app skills", () => {
     ]);
   });
 });
+
+// contract-test: supporting surface=sdks.npm assertions=web-browse.structured-data,web-browse.delivery-and-evidence
+it('exposes Browse JSON input and output through the library without spawning a CLI', async () => {
+  const metadata = APP_SKILL_METADATA.find(skill => skill.app_id === 'web' && skill.skill_id === 'browse');
+  assert.ok(metadata);
+  assert.deepEqual(metadata.schema.required, ['task', 'chat_id', 'message_id']);
+  assert.ok(metadata.schema.properties.output_schema);
+  const calls: unknown[][] = [];
+  const observed = { status: 'completed', data: { title: 'Observed' }, sources: [{ url: 'https://example.com' }] };
+  const skills = new GeneratedAppSkills(async (...args) => { calls.push(args); return observed; });
+  const input = { task: 'Extract the title', start_url: 'https://example.com', chat_id: 'chat', message_id: 'message', output_schema: { type: 'object' } };
+  assert.equal(await skills.web.browse(input), observed);
+  assert.deepEqual(calls[0].slice(0, 3), ['web', 'browse', input]);
+});

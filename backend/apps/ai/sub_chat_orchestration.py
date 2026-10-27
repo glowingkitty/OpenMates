@@ -20,6 +20,8 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationService,
 )
 
+from backend.shared.python_utils.saved_chat_turn_authority import saved_chat_turn
+
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_SUB_CHATS_PER_PARENT = 20
@@ -69,7 +71,8 @@ def signed_capacity_child_prompt(prompt: str, request_data: Any) -> str:
 
 def is_sub_chat_continuation(request_data: Any) -> bool:
     return bool(
-        getattr(request_data, "is_sub_chat_continuation", False)
+        saved_chat_turn(request_data)
+        or getattr(request_data, "is_sub_chat_continuation", False)
         or getattr(request_data, "is_app_settings_memories_continuation", False)
         or getattr(request_data, "is_connected_account_permission_continuation", False)
     )
@@ -121,8 +124,10 @@ def ensure_orchestration_envelope(request_data: Any, *, verification_claim: dict
 
 def resolve_sub_chat_depth(request_data: Any) -> int:
     """Fail closed when a child does not carry a complete server envelope."""
+    if saved_chat_turn(request_data):
+        return request_data.sub_chat_depth
     if not request_data.is_sub_chat:
-        return 0
+        return 2 if getattr(request_data, "sub_chat_depth", 0) else 0
     if (
         request_data.orchestration_id
         and request_data.root_chat_id

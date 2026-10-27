@@ -256,7 +256,7 @@ async def test_invalid_schedule_retries_with_field_feedback_before_any_preview(m
     assert result["action"] == "create_workflow"
     assert len(author.requests) == 2
     assert author.requests[1]["accepted_prefixes"] == []
-    assert "weekly schedule supports time" in author.requests[1]["correction"]
+    assert "weekly schedule supports starts_at, time, timezone, weekdays" in author.requests[1]["correction"]
     assert "unsupported fields: at" in author.requests[1]["correction"]
     assert "07:30" not in author.requests[1]["correction"]
     retry_index = next(index for index, event in enumerate(events) if event.get("phase") == "retrying_node")

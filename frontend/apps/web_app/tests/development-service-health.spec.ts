@@ -54,6 +54,12 @@ test('catalog retains unpriced providers and search skills load their request sc
 		}
 	}
 
+	for (const id of ['remotion']) {
+		const matching = providers.filter((provider: any) => provider.provider === id);
+		expect(matching.length, `${id} remains listed without optional provider pricing`).toBeGreaterThan(0);
+		for (const provider of matching) expect(provider.pricing).toEqual({});
+	}
+
 	// Missing query is rejected by the real skill's imported Pydantic schema,
 	// before execution or paid provider calls. An unresolved class gives 404.
 	for (const app of ['news', 'videos']) {

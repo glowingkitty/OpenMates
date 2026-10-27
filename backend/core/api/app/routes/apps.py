@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef, skill_has_provider_support
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
@@ -24,6 +24,9 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_current_user_optional,
     get_encryption_service,
+)
+from backend.core.api.app.services.app_discovery_visibility import (
+    EXCLUDED_DISCOVERY_APPS, app_is_discoverable, enabled_discovery_components,
 )
 from backend.shared.python_utils.provider_health import map_provider_name_to_id, is_provider_healthy
 from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
@@ -57,7 +60,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     This function centralizes the mapping of providers to their API key requirements.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         List of environment variable names to check (in order of preference)
@@ -70,11 +73,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
         "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
         "google_vertex": ["GOOGLE_VERTEX_PROJECT_ID", "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON"],
-        "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
-        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -132,7 +133,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     This is used to determine if a skill should be shown as available.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         secrets_manager: SecretsManager instance for checking Vault
         
     Returns:
@@ -228,7 +229,7 @@ async def is_skill_available(
     1. Has a configured API key OR is marked with no_api_key=True, AND
     2. Is healthy according to the cached health check (fail-open if no data).
 
-    If a skill has no providers, it's considered available (no API key required).
+    Local-only skills need no providers; provider-backed skills require a source.
 
     Args:
         skill: The skill definition
@@ -239,7 +240,11 @@ async def is_skill_available(
     Returns:
         True if the skill is available (at least one provider is configured and healthy), False otherwise
     """
-    # If skill has no providers, it's available (no API key required)
+    if getattr(skill, "default_enabled", None) is False or getattr(skill, "internal", False):
+        return False
+    if not skill_has_provider_support(skill):
+        return False
+    # Local-only skills do not need a provider.
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
@@ -413,6 +418,7 @@ def resolve_translation(
 class AppMetadataResponse(BaseModel):
     """Response model for app metadata endpoint."""
     apps: Dict[str, AppMetadataItem]
+    assistant_speech_available: bool = False
 
 
 class ProviderMetadataItem(BaseModel):
@@ -696,9 +702,9 @@ def build_app_metadata_item(
         ))
 
     focus_modes: List[FocusModeMetadataItem] = []
-    for focus in app_metadata.focuses:
+    for focus in enabled_discovery_components(app_metadata.focuses):
         process = focus.process or []
-        if not process and focus.process_translation_key:
+        if focus.process_translation_key:
             process_text = resolve_translation(
                 translation_service,
                 focus.process_translation_key,
@@ -706,20 +712,22 @@ def build_app_metadata_item(
                 fallback=focus.process_translation_key,
             )
             if process_text not in {focus.process_translation_key, f"focus_modes.{focus.process_translation_key}"}:
-                process = [
-                    line.removeprefix("- ").strip()
+                translated_process = [
+                    line.strip().removeprefix("- ").strip()
                     for line in process_text.splitlines()
                     if line.strip().startswith("- ")
                 ]
+                if translated_process:
+                    process = translated_process
         system_prompt = focus.system_prompt
-        if not system_prompt and focus.systemprompt_translation_key:
+        if focus.systemprompt_translation_key:
             translated_prompt = resolve_translation(
                 translation_service,
                 focus.systemprompt_translation_key,
                 namespace="focus_modes",
                 fallback=focus.systemprompt_translation_key,
             )
-            if translated_prompt not in {
+            if translated_prompt.strip() and translated_prompt not in {
                 focus.systemprompt_translation_key,
                 f"focus_modes.{focus.systemprompt_translation_key}",
             }:
@@ -897,7 +905,7 @@ async def get_apps_metadata(
     )
     if config_manager is None:
         logger.warning("ConfigManager not found in app.state - provider and model details will be empty")
-    available_provider_ids = None if include_unavailable else await _available_provider_ids(
+    available_provider_ids = await _available_provider_ids(
         provider_configs=provider_configs,
         secrets_manager=secrets_manager,
     )
@@ -907,6 +915,8 @@ async def get_apps_metadata(
     apps_metadata: Dict[str, AppMetadataItem] = {}
     
     for app_id, app_metadata in discovered_apps.items():
+        if app_id in EXCLUDED_DISCOVERY_APPS:
+            continue
         # Log what we're processing for debugging
         logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes, {len(app_metadata.memory_fields) if app_metadata.memory_fields else 0} memory fields")
         
@@ -918,35 +928,31 @@ async def get_apps_metadata(
         for skill in app_metadata.skills:
             if skill.internal:
                 continue
-            # Check if skill is available based on API key configuration.
-            # When include_unavailable=True (used by CLI to match the web app's
-            # build-time static metadata), skip provider availability checks so
-            # all discovered skills are returned regardless of API keys.
-            if not include_unavailable:
-                skill_available = await is_skill_available(skill, app_id, secrets_manager, cache_service)
-                if not skill_available:
-                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                    continue
+            # Discovery always reflects executable provider/user availability.
+            skill_available = await is_skill_available(skill, app_id, secrets_manager, cache_service)
+            if not skill_available:
+                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                continue
 
-                if not skill.providers and _skill_models(
-                    app_id=app_id,
-                    skill_id=skill.id,
-                    provider_configs=provider_configs,
-                ) and not _skill_models(
-                    app_id=app_id,
-                    skill_id=skill.id,
-                    provider_configs=provider_configs,
-                    available_provider_ids=available_provider_ids,
-                ):
-                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no configured model providers")
-                    continue
+            if not skill.providers and _skill_models(
+                app_id=app_id,
+                skill_id=skill.id,
+                provider_configs=provider_configs,
+            ) and not _skill_models(
+                app_id=app_id,
+                skill_id=skill.id,
+                provider_configs=provider_configs,
+                available_provider_ids=available_provider_ids,
+            ):
+                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no configured model providers")
+                continue
 
-                # Proton Mail Bridge is intentionally single-account: only the explicitly
-                # configured OpenMates user should see and execute the mail.search skill.
-                if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
-                    logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
-                    continue
-            
+            # Proton Mail Bridge is intentionally single-account: only the explicitly
+            # configured OpenMates user should see and execute the mail.search skill.
+            if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
+                logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
+                continue
+
             available_skill_ids.add(skill.id)
 
         item = build_app_metadata_item(
@@ -958,14 +964,17 @@ async def get_apps_metadata(
         )
         item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
 
-        # Only include app if it has at least one valid component (skill, focus mode, or memory field)
-        if item.skills or item.focus_modes or item.settings_and_memories or item.memories or item.content_types:
+        # Skills, focuses and explicit direct-creation catalogs qualify; memories alone do not.
+        item.focus_modes = enabled_discovery_components(item.focus_modes)
+        if app_is_discoverable(app_id, item.skills, item.focus_modes, app_metadata.embed_types):
             apps_metadata[app_id] = item
         else:
             logger.debug(f"Skipping app '{app_id}' - no available components after provider and permission checks")
     
     logger.info(f"Returning metadata for {len(apps_metadata)} apps")
-    return AppMetadataResponse(apps=apps_metadata)
+    return AppMetadataResponse(apps=apps_metadata, assistant_speech_available=(
+        await check_provider_api_key_available("mistral_ai", secrets_manager)
+    ))
 
 
 @router.get("/{app_id}/skills/{skill_id}/details", response_model=SkillDetailsResponse)
@@ -1065,7 +1074,11 @@ async def get_skill_details(
 
 
 @router.get("/{app_id}/metadata")
-async def get_app_metadata(app_id: str, request: Request, include_unavailable: bool = False):
+async def get_app_metadata(
+    app_id: str, request: Request, include_unavailable: bool = False,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
     """
     Get metadata for a specific app.
     
@@ -1079,7 +1092,7 @@ async def get_app_metadata(app_id: str, request: Request, include_unavailable: b
     discovered_apps: Dict[str, AppYAML] = request.app.state.discovered_apps_metadata
     app_metadata = discovered_apps.get(app_id)
     
-    if not app_metadata:
+    if not app_metadata or app_id in EXCLUDED_DISCOVERY_APPS:
         raise HTTPException(status_code=404, detail=f"App '{app_id}' not found")
     
     # description_translation_key is required (no backwards compatibility)
@@ -1106,18 +1119,27 @@ async def get_app_metadata(app_id: str, request: Request, include_unavailable: b
         if isinstance(config_manager, ConfigManager)
         else {}
     )
-    available_provider_ids = None if include_unavailable else await _available_provider_ids(
+    available_provider_ids = await _available_provider_ids(
         provider_configs=provider_configs,
         secrets_manager=secrets_manager,
     )
 
     available_skill_ids: set[str] = set()
     for skill in app_metadata.skills:
-        if not include_unavailable:
-            skill_available = await is_skill_available(skill, app_id, secrets_manager)
-            if not skill_available:
-                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                continue
+        if not await is_skill_available(skill, app_id, secrets_manager, cache_service):
+            continue
+        if app_id == "mail" and skill.id == "search" and not await _is_protonmail_user_allowed(
+            current_user=current_user, encryption_service=encryption_service,
+            secrets_manager=secrets_manager,
+        ):
+            continue
+        if not skill.providers and _skill_models(
+            app_id=app_id, skill_id=skill.id, provider_configs=provider_configs,
+        ) and not _skill_models(
+            app_id=app_id, skill_id=skill.id, provider_configs=provider_configs,
+            available_provider_ids=available_provider_ids,
+        ):
+            continue
         available_skill_ids.add(skill.id)
 
     item = build_app_metadata_item(
@@ -1128,6 +1150,9 @@ async def get_app_metadata(app_id: str, request: Request, include_unavailable: b
         available_provider_ids=available_provider_ids,
     )
     item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
+    item.focus_modes = enabled_discovery_components(item.focus_modes)
+    if not app_is_discoverable(app_id, item.skills, item.focus_modes, app_metadata.embed_types):
+        raise HTTPException(status_code=404, detail=f"App '{app_id}' not found")
     return item
 
 

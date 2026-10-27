@@ -201,3 +201,23 @@ async def _true() -> bool:
 
 async def _empty_set() -> set[str]:
     return set()
+
+
+# contract-test: supporting surface=rest_api assertions=apps.requests.natural-language,apps.execution.direct-shared-contract
+def test_audio_custom_upload_metadata_preserves_runtime_and_other_capability_gates() -> None:
+    skill = _catalog_skill("audio", "transcribe")
+    registry = SimpleNamespace(is_skill_available=lambda *_: True)
+    capability = SimpleNamespace(enabled=False, reason="WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED", metadata={})
+    assert skill.api_config.expose_post is False
+    assert execution_status(app_id="audio", skill=skill, registry=registry, capability=capability) == (True, None, "sync")
+    assert skill.anonymous_access == "authenticated"
+    missing_runtime = SimpleNamespace(is_skill_available=lambda *_: False)
+    assert execution_status(app_id="audio", skill=skill, registry=missing_runtime, capability=capability)[1] == "SKILL_NOT_REGISTERED"
+    assert execution_status(app_id="audio", skill=skill, registry=registry, capability=None)[1] == "WORKFLOW_CLASSIFICATION_REQUIRED"
+    capability.reason = "WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED"
+    assert execution_status(app_id="audio", skill=skill, registry=registry, capability=capability)[1] == capability.reason
+    capability.reason = "WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED"
+    broken = skill.model_copy(update={"tool_schema": {"type": "object"}, "sdk_tool_schema": None})
+    assert execution_status(app_id="audio", skill=broken, registry=registry, capability=capability)[1] == "REQUEST_SCHEMA_UNAVAILABLE"
+    hidden = skill.model_copy(update={"id": "hidden_custom"})
+    assert execution_status(app_id="audio", skill=hidden, registry=registry, capability=capability)[1] == "REST_EXECUTION_UNAVAILABLE"

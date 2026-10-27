@@ -1,0 +1,33 @@
+schema_version: 2
+profile: concise
+id: chat-message-timeline
+title: Chat Message Timeline
+status: verified
+goal: Reproduce the chat-history overview in OpenMates with hover previews and touch-and-hold scrubbing, including very long chats and messages before compression.
+specifications:
+- feature.chat-message-timeline@1
+scope:
+- Web-only timeline, exchange previews, release-to-jump and bounded selected-section loading.
+- Existing personal, Team, shared, example and device-local reading permissions and PII visibility.
+- Compact scrollable marks beside the message column, header-safe positioning and precise exchange navigation.
+- One-line question previews and assistant-only private bookmarks integrated with copy/report actions and shared tooltips.
+- Full-width narrow transcripts with a matching toolbar toggle and persistent, fading gray timeline pill overlay; preserve the accepted wide-screen rail.
+decisions:
+- Discover message identities with a keyset-paginated catalogue that never sends message bodies. Hot storage uses a fixed metadata projection in the existing internal SQL cursor reader, because Directus item filters reject inequalities on string IDs. Legacy cold storage uses the existing bounded archive reader, without hydrating a whole transcript or changing the archive format.
+- Load previews and jump sections through the existing encrypted message-window machinery, explicitly allowing pre-compression reads for browsing only.
+- Keep preview state local, bounded and fenced to the current chat and workspace; preserve the visible transcript until a requested section is ready.
+- Store saved-chat bookmark identities in the existing client-encrypted account settings. Device-local and incognito bookmarks retain their existing device/lifetime boundaries; bookmark state never becomes a shared annotation or AI context.
+- Carry the existing opaque settings blob through authenticated session, login and pairing profile hydration so bookmarks survive reopening. Verification challenges and anti-enumeration responses do not receive that ciphertext.
+- Show the rail after two answered exchanges. Use a fixed 12px mark pitch and a virtualized scrolling viewport capped at 240px; preserve mark identity while earlier catalogue pages arrive.
+- Measure the message column and visible header to anchor the rail beside the column, clamp it below the header and keep the header full width. Use neutral width/opacity feedback without button scaling.
+- Await exact anchor placement before completing a jump. Reuse the chat's latest-message control instead of adding rail buttons.
+- New bookmark writes target assistant IDs; represent legacy question bookmarks through the associated response and clear those aliases on an intentional unbookmark.
+required_checks:
+- Focused mobile and narrow-pane proof of full transcript width, toolbar disclosure, persistent touch navigation, theme surfaces, fade transitions, keyboard and reduced motion.
+- Focused backend catalogue and access tests, and frontend identity, pairing and text-extraction unit tests.
+- Isolated bare component preview proof for mouse, keyboard, touch cancellation, compression treatment and phone/desktop geometry.
+- Isolated browser proof that an unloaded section is fetched and reached, including compressed history and retry behavior.
+- Review deployed laptop and phone screenshots after the scoped dev deployment.
+- Verify bookmark toggling, dense/unloaded yellow marks, encrypted persistence after reopening, and failed-save rollback without navigation.
+- Verify one-response suppression, follow-up fade-in, fixed mark spacing, capped internal scrolling, wide/phone placement and header boundaries.
+- Verify assistant-only action-row bookmarks, filled icons and delayed shared tooltips without row movement, plus repeated exact jumps after scrolling long answers.

@@ -7,7 +7,65 @@ icon_image: |
   calendar.svg
 category: work
 settings_and_memories: []
+instructions:
+  - for_embed_types: [calendar_event]
+    instruction: |
+      Calendar event content (no connected calendar or tool call needed):
+      When answering when a real event happens, proactively include one useful
+      calendar entry after researching its confirmed dates. Also create an entry
+      when the user explicitly asks. Use only dates/times supported by the user
+      or research; never infer next year's dates or unpublished session times.
+      Explain unknown/conflicting dates instead of creating an exportable entry.
+      Include a normal citation in the answer and source_url in researched events.
+      Use an exact URL returned by the research; never construct a source URL.
+
+      Create the card with this explicit fenced JSON format:
+      ```openmates_calendar_event
+      {"openmatesType":"calendar_event","schemaVersion":1,"primary_event":{"title":"FOSDEM 2027","start":"2027-01-30","end":"2027-02-01","location":"ULB Solbosch, Brussels","source_url":"https://fosdem.org/2027/"},"context_events":[]}
+      ```
+
+      primary_event requires title and start; description, location, source_url,
+      timezone and end are optional. Date-only YYYY-MM-DD values are all-day;
+      end is EXCLUSIVE (January 30–31 ends February 1). A single all-day event
+      can omit end. Timed values MUST include Z or an explicit numeric UTC offset;
+      preserve their actual timezone, and omit an unknown end rather than guess.
+      If supplied, timezone is an IANA name consistent with those offsets.
+      context_events optionally contains up to 50 events with the same fields,
+      selected only from relevant information already available in authorized
+      chat context. They appear dimmed beside the highlighted primary event to
+      show overlaps. Never invent personal commitments or fetch private calendars
+      merely to fill the preview. Omit context when none is useful.
+      Emit valid JSON without comments. This creates an event suggestion only:
+      the user's Add to calendar button downloads the primary event alone.
+      Do not call create-event, request OAuth, invite anyone, or claim an event
+      was saved to a cloud calendar to create this content artifact.
 embed_types:
+  - id: event
+    category: direct
+    frontend_type: calendar-event
+    backend_type: calendar_event
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarEventEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.event
+    content_catalog:
+      enabled: true
+      diff_editable: false
+      content_type_id: calendar_event
+      name: Calendar event
+      description: A dated event suggestion with optional contextual events and primary-only calendar export.
+      icon: calendar
+      example_key: calendar.event
+      order: 10
+    content_fields:
+      - {name: title, type: string, required: true}
+      - {name: primary_event, type: object, required: true}
+      - {name: context_events, type: array}
+      - {name: source_json, type: string, required: true}
+      - {name: validation, type: object}
   - id: calendars
     category: app-skill-use
     skill_id: list-calendars

@@ -29,6 +29,20 @@ vi.mock("../../cryptoService", () => ({
     mockDecryptChatKeyWithMasterKey(...args),
 }));
 
+// CRUD unwraps persisted Team keys through the direct-chat boundary now.
+// Keep this key-persistence unit isolated from unrelated application startup;
+// direct envelopes must never enter this non-direct Team test double.
+vi.mock("../../directChatService", () => ({
+  unwrapTeamOrDirectChatKey: (
+    teamId: string, _chatId: string, encryptedKey: string, visibility?: string | null,
+  ) => {
+    if (!teamId || visibility === "direct" || encryptedKey.startsWith("OMDM1.")) {
+      throw new Error("Direct envelopes require participant-bound validation");
+    }
+    return mockUnwrapTeamChatKey(teamId, encryptedKey);
+  },
+}));
+
 vi.mock("../../teamService", () => ({
   unwrapTeamChatKey: (...args: unknown[]) => mockUnwrapTeamChatKey(...args),
   wrapTeamChatKey: (...args: unknown[]) => mockWrapTeamChatKey(...args),
@@ -495,6 +509,69 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.encrypted_chat_key).toBeNull();
 
     consoleSpy.mockRestore();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable,chats.persistence.client-encrypted
+  it("stores a personal encrypted draft-only shell without a false missing-key error", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      messages_v: 0, title_v: 0, draft_v: 1,
+      encrypted_draft_md: "master-key-encrypted-draft",
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await encryptChatForStorage(db as any, chat, { isFromSync: true });
+      expect(result.encrypted_chat_key).toBeNull();
+      expect(result.encrypted_draft_md).toBe(chat.encrypted_draft_md);
+      expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+      expect(consoleSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable,chats.persistence.client-encrypted
+  it.each([
+    ["message-bearing", { messages_v: 1 }, null],
+    ["missing draft ciphertext", { encrypted_draft_md: null }, null],
+    ["unversioned draft", { draft_v: 0 }, null],
+    ["titled chat", { encrypted_title: "encrypted-title" }, null],
+    ["Team chat", { team_id: "team" }, null],
+    ["Team visibility without local Team ID", { chat_visibility: "team" }, null],
+    ["shared chat", { is_shared_by_others: true }, null],
+    ["existing messages", {}, { messages_v: 1 }],
+    ["existing title", {}, { encrypted_title: "encrypted-title" }],
+    ["existing unreadable key", {}, { encrypted_chat_key: "unreadable-key" }],
+  ] as Array<[string, Partial<Chat>, Partial<Chat> | null]>)("keeps the sync guard for a %s", async (_label, overrides, existing) => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      messages_v: 0, title_v: 0, draft_v: 1,
+      encrypted_draft_md: "master-key-encrypted-draft", ...overrides,
+    });
+    db.getChat.mockResolvedValue(existing ? makeChat({
+      messages_v: 0, title_v: 0, ...existing,
+    }) : null);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await encryptChatForStorage(db as any, chat, { isFromSync: true });
+      expect(result.encrypted_chat_key).toBeNull();
+      expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("SYNC GUARD"));
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+  it("still rejects a direct chat shaped like a draft-only shell", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      chat_visibility: "direct", messages_v: 0, title_v: 0, draft_v: 1,
+      encrypted_draft_md: "master-key-encrypted-draft",
+    });
+    await expect(encryptChatForStorage(db as any, chat, { isFromSync: true }))
+      .rejects.toThrow("Cannot create or replace the key for direct chat");
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only

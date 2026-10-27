@@ -6,6 +6,7 @@
  */
 
 const defaultProps = {
+  presentationOnly: true,
   id: 'preview-social-media-post-1',
   platform: 'bluesky',
   page: 'search',
@@ -26,6 +27,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  invalidDate: { ...defaultProps, published_at: 'not-a-publication-date' },
+  missingData: { ...defaultProps, published_at: undefined, like_count: undefined, reply_count: undefined, repost_count: undefined, author_avatar_url: undefined, media_url: undefined },
+  longTitle: { ...defaultProps, title: 'Community research notes for an accessible and sustainable neighbourhood cafe and library' },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   textOnly: {
     ...defaultProps,
     id: 'preview-social-media-post-text-only',

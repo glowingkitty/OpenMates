@@ -6,6 +6,15 @@ checks only for changed inputs, a concrete failure or a required gate. Physical
 APNs delivery and real-account cross-device behavior need their own evidence;
 an archive or fixture pass does not establish them.
 
+## Supported operating systems
+
+The Apple apps and their extensions require **iOS/iPadOS 26.2, watchOS 26.2,
+and macOS 26.2 or later**. The user authorized these minimums on 19 October 2026
+for bundled Whistle support. Keep the defaults and explicit target overrides in
+`apple/project.yml` aligned, regenerate the Xcode project, and verify the built
+app/extension minimum versions in archive receipts. The pinned Whistle device
+libraries retain their original 26.2 Mach-O deployment metadata.
+
 ## Prepare once
 
 - Freeze implementation before archive creation. One owner runs Xcode and owns

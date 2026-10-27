@@ -1,132 +1,70 @@
-# backend/apps/ai/daily_inspiration/media_coherence.py
-#
-# Deterministic text/media coherence checks for Daily Inspiration video cards.
-# The LLM writes user-facing copy and selects one video candidate; this module
-# prevents hallucinated copy from being paired with unrelated media before it
-# enters personalized delivery, the shared pool, or public defaults.
-#
-# See: docs/architecture/frontend/daily-inspiration.md
+"""Bind scheduled approval to exact public video/wiki source evidence and copy.
 
+Semantic decisions happen during generation/selection, never anonymous reads.
+A changed or legacy unreviewed external row is withheld until the selector reviews
+it. Trusted static builders run separately after the persisted-default filter.
+"""
 from __future__ import annotations
 
-import re
-import unicodedata
+import hashlib
+import json
 from typing import Any, Mapping
 
-
-_TOKEN_RE = re.compile(r"[\w']+", re.UNICODE)
-_MIN_COPY_TOPIC_TOKENS = 3
-_MIN_MEDIA_TOPIC_TOKENS = 1
-
-_STOPWORDS = {
-    "about",
-    "after",
-    "also",
-    "before",
-    "best",
-    "could",
-    "documentary",
-    "does",
-    "every",
-    "explained",
-    "explains",
-    "from",
-    "full",
-    "have",
-    "into",
-    "learn",
-    "life",
-    "live",
-    "made",
-    "make",
-    "makes",
-    "more",
-    "most",
-    "minutes",
-    "part",
-    "short",
-    "that",
-    "their",
-    "them",
-    "this",
-    "through",
-    "video",
-    "watch",
-    "what",
-    "when",
-    "where",
-    "which",
-    "while",
-    "with",
-    "work",
-    "works",
-    "world",
-    "would",
-    "youtube",
-}
-
-_ACRONYM_EXPANSIONS = {
-    "iss": {"international", "space", "station"},
-}
+# Bump whenever editorial or visual requirements change.
+REVIEW_VERSION = "daily-editorial-v10"
+_REVIEW_FIELDS = (
+    "language", "youtube_id", "video_title", "video_description", "video_thumbnail_url",
+    "video_channel_name", "title", "phrase", "assistant_response", "category",
+)
 
 
-def check_inspiration_media_coherence(entry: Mapping[str, Any]) -> dict[str, Any]:
-    """Return PASS/REJECT for whether video metadata matches generated copy."""
-    if (entry.get("content_type") or "video") != "video":
-        return {"verdict": "PASS", "reason": "not_video", "overlap": []}
-    if not entry.get("youtube_id"):
-        return {"verdict": "PASS", "reason": "no_video", "overlap": []}
+def canonical_wiki_review_source(entry: Mapping[str, Any]) -> dict[str, Any]:
+    """Require actual source identity/edition and passage; never borrow output copy.
 
-    media_tokens = _topic_tokens(str(entry.get("video_title") or ""))
-    copy_tokens = _topic_tokens(
-        " ".join(
-            str(entry.get(field) or "")
-            for field in ("phrase", "title", "assistant_response")
-        )
-    )
+    Directus may return the same metadata as JSON text or an object. Parse it
+    once, preserve every metadata field and let sorted digest encoding normalize
+    key order. Missing source editions cannot be inferred from the output locale.
+    """
+    metadata = entry.get("wiki_metadata")
+    if isinstance(metadata, str):
+        metadata = json.loads(metadata)
+    if not isinstance(metadata, dict):
+        raise ValueError("Missing wiki source metadata")
+    for field in ("wiki_title", "source_language", "title", "extract"):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Missing wiki source {field}")
+    if metadata.get("description") is not None and not isinstance(metadata["description"], str):
+        raise ValueError("Invalid wiki source description")
+    return dict(metadata)
 
-    if len(media_tokens) < _MIN_MEDIA_TOPIC_TOKENS:
-        return {"verdict": "PASS", "reason": "media_inconclusive", "overlap": []}
-    if len(copy_tokens) < _MIN_COPY_TOPIC_TOKENS:
-        return {"verdict": "PASS", "reason": "copy_inconclusive", "overlap": []}
 
-    overlap = sorted(media_tokens & copy_tokens)
-    if overlap:
-        return {"verdict": "PASS", "reason": "shared_topic_tokens", "overlap": overlap}
-
-    return {
-        "verdict": "REJECT",
-        "reason": "no_shared_topic_tokens",
-        "media_tokens": sorted(media_tokens),
-        "copy_tokens": sorted(copy_tokens),
-        "overlap": [],
-    }
+def editorial_review_digest(entry: Mapping[str, Any]) -> str:
+    evidence = {field: entry.get(field) or "" for field in _REVIEW_FIELDS}
+    content_type = entry.get("content_type") or "video"
+    evidence["content_type"] = content_type
+    if content_type == "wiki":
+        evidence["wiki_metadata"] = canonical_wiki_review_source(entry)
+    suggestions = entry.get("follow_up_suggestions") or []
+    if isinstance(suggestions, str):
+        suggestions = json.loads(suggestions)
+    if not isinstance(suggestions, list) or any(not isinstance(item, str) for item in suggestions):
+        raise ValueError("Invalid reviewed follow-ups")
+    evidence["follow_up_suggestions"] = suggestions
+    encoded = json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return REVIEW_VERSION + ":" + hashlib.sha256(encoded.encode()).hexdigest()
 
 
 def is_inspiration_media_coherent(entry: Mapping[str, Any]) -> bool:
-    """Return True when a Daily Inspiration video card is safe to publish."""
-    return check_inspiration_media_coherence(entry)["verdict"] == "PASS"
-
-
-def _topic_tokens(text: str) -> set[str]:
-    tokens: set[str] = set()
-    normalized = unicodedata.normalize("NFKD", text).casefold()
-    for raw_token in _TOKEN_RE.findall(normalized):
-        token = raw_token.strip("'")
-        if not token or token.isdigit():
-            continue
-        token = _stem_token(token)
-        if len(token) < 4 or token in _STOPWORDS:
-            continue
-        tokens.add(token)
-        tokens.update(_ACRONYM_EXPANSIONS.get(token, set()))
-    return tokens
-
-
-def _stem_token(token: str) -> str:
-    for suffix in ("'s", "ing", "ers", "ies", "ied", "ed", "es", "s"):
-        if token.endswith(suffix) and len(token) > len(suffix) + 3:
-            if suffix in {"ies", "ied"}:
-                return f"{token[:-len(suffix)]}y"
-            return token[: -len(suffix)]
-    return token
+    """Require current scheduled proof for persisted external videos and wiki."""
+    content_type = entry.get("content_type") or "video"
+    if content_type == "feature":
+        return True
+    if content_type not in {"video", "wiki"}:
+        return False
+    try:
+        if content_type == "video" and not entry.get("youtube_id"):
+            return False
+        return bool(entry.get("editorial_review")) and entry["editorial_review"] == editorial_review_digest(entry)
+    except (TypeError, ValueError):
+        return False

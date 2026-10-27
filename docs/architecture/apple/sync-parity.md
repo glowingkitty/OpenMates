@@ -29,9 +29,9 @@ Apple sync must preserve the same user-visible chat state as the web app after l
 ## Web Contract From Specs
 
 - Startup sync sends `phased_sync_request`.
-- Phase 1b full-content sync is capped to 10 parent chats.
+- Phase 1b full-content sync is capped to 20 parent chats.
 - Phase 2 is metadata-only and must not include `embeds`, `embed_keys`, `code_run_outputs`, `messages`, or `compression_checkpoints`.
-- Startup login must not receive `background_message_sync` for chats 11-100.
+- Startup login must not receive `background_message_sync` for chats 21-100.
 - Opening a metadata-only chat sends `request_chat_content_batch` to hydrate older content on demand.
 - Empty local IndexedDB plus cold server cache must keep sync pending instead of dispatching a synthetic completion and hiding the syncing indicator.
 - Partial local IndexedDB schemas must be healed before authenticated sync starts.
@@ -74,7 +74,7 @@ Apple sync must preserve the same user-visible chat state as the web app after l
 
 - Login with a seeded account and confirm the Apple chat list matches web for recent chats.
 - Confirm the sync indicator appears while sync is active and remains visible if server chat count is known but phase data does not arrive.
-- Confirm phase 1b loads full content for at most 10 parent chats.
+- Confirm phase 1b loads full content for at most 20 parent chats.
 - Confirm metadata-only chats do not show stale/empty messages as final state.
 - Open a metadata-only chat and confirm a content hydration request is sent and messages appear.
 - Clear local Apple SwiftData/offline store, relaunch, and confirm server chats recover.

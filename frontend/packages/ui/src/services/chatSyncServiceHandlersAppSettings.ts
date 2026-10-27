@@ -30,6 +30,7 @@ import { get } from "svelte/store";
 import type { Message } from "../types/chat";
 import { text } from "../i18n/translations";
 import { markDeviceReceivedFreeTestingCreditsFromNotification } from "../stores/serverStatusStore";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 
 /**
  * Pending system-message queue for cross-device sync.
@@ -1464,7 +1465,8 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
     // Store encrypted app settings/memories entries in IndexedDB
     // The storeAppSettingsMemoriesEntries method handles conflict resolution
     // based on item_version (higher version wins, or updated_at if versions are equal)
-    await chatDB.storeAppSettingsMemoriesEntries(entries);
+    const owner = getWorkspaceCacheIdentity();
+    const outcome = await chatDB.storeAppSettingsMemoriesEntries(entries);
 
     console.info(
       `[ChatSyncService:AppSettings] Successfully synced ${entries.length} app settings/memories entries`,
@@ -1491,6 +1493,11 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
           detail: {
             entry_count: entries.length,
             synced_at: Date.now(),
+            // Older/unknown producers retain conservative invalidation. Neither
+            // a received row count nor a skipped batch alone proves a no-op.
+            privacy_snapshot_unchanged: !!owner && owner === getWorkspaceCacheIdentity()
+              && Object.keys(payload).every(key => key === 'entries' || key === 'entry_count')
+              && outcome?.complete === true && outcome.applied === 0,
           },
         }),
       );
@@ -1869,11 +1876,10 @@ export async function handleNewSystemMessageImpl(
   // Preserve the status from the originating device (e.g., "waiting_for_user" for
   // credits-rejection messages).  This is critical for the sidebar to show
   // "Credits needed..." instead of falling back to "Untitled Chat" on reload.
-  // Default to "waiting_for_user" for system messages since that's the most common
-  // cross-device case (credits rejection). Regular app-settings/memories responses
-  // can override with a different status via the payload.
+  // An omitted status is an ordinary stored system message, including call
+  // lifecycle notices. Only an explicit rejection may request user action.
   const messageStatus =
-    (data.status as Message["status"]) || "waiting_for_user";
+    (data.status as Message["status"]) || "synced";
 
   // Build the system message object.
   // NOTE: Do NOT call chatDB.saveMessage() yet — it calls encryptMessageFields()

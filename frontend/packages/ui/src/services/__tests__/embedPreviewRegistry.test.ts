@@ -8,12 +8,15 @@ import { describe, expect, it, vi } from 'vitest';
 // These unit checks verify renderer selection and its props. The real Svelte
 // components are exercised by the bare preview and route E2E specs; importing
 // their authentication/runtime graph here would obscure that small contract.
-const previews = vi.hoisted(() => ({ website: () => {}, connection: () => {}, place: () => {}, search: () => {} }));
+const previews = vi.hoisted(() => ({ website: () => {}, news: () => {}, connection: () => {}, place: () => {}, search: () => {}, event: () => {} }));
 vi.mock('../../components/embeds/web/WebSearchEmbedPreview.svelte', () => ({ default: previews.search }));
+vi.mock('../../components/embeds/news/NewsEmbedPreview.svelte', () => ({ default: previews.news }));
 vi.mock('../../components/embeds/web/WebsiteEmbedPreview.svelte', () => ({ default: previews.website }));
 vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', () => ({ default: previews.connection }));
 vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
+vi.mock('../../components/embeds/events/EventEmbedPreview.svelte', () => ({ default: previews.event }));
 import { embedPreviewRegistry, parentPreviewProps, pdfPreviewProps } from '../embedPreviewRegistry';
+import connectionFixture, { variants as connectionVariants } from '../../components/embeds/travel/TravelConnectionEmbedPreview.preview';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
   return parentPreviewProps(
@@ -30,6 +33,33 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=maps-search.gui.place-rendering,maps-search.output.source-and-identity
+  it.each([
+    [{ type: 'place_result', types: ['cafe', 'food', 'establishment'] }, 'Cafe'],
+    [{ type: 'place_result', types: 'coffee_shop|food|establishment' }, 'Coffee shop'],
+    [{ type: 'place_result', place_type: 'Ruins', types: ['establishment'] }, 'Ruins'],
+    [{ type: 'place_result', place_type: 'place_result', types: ['cafe'] }, 'Cafe'],
+    [{ type: 'place_result', types: ['point_of_interest', 'establishment'] }, undefined],
+  ])('uses place categories without exposing the embed discriminator: %j', async (content, label) => {
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'place-label-regression', embedData: { type: 'maps-place', status: 'finished', app_id: 'maps', skill_id: 'search' },
+      decodedContent: { name: 'Evening Coffee', ...content }, onFullscreen: () => {},
+    });
+    expect(resolved?.props.__previewComponent).toBe(previews.place);
+    expect(resolved?.props.placeType).toBe(label);
+    expect(resolved?.props.displayName).toBe('Evening Coffee');
+  });
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
+  it('keeps flat and nested one-way preview journeys consistent across flight and rail examples', () => {
+    for (const fixture of [connectionFixture, connectionVariants.multiStop, connectionVariants.exampleRail,
+      connectionVariants.ExampleCoach, connectionVariants.trainRealtime]) {
+      const legs = fixture.connection?.legs;
+      if (!legs?.length) continue; // Legacy flat payloads must not inherit another journey's nested data.
+      expect(legs).toHaveLength(1);
+      expect(legs[0]).toMatchObject({ origin: fixture.origin, destination: fixture.destination,
+        departure: fixture.departure, arrival: fixture.arrival });
+    }
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
   it('shows the request query for an older saved parent using the CLI requests envelope', async () => {
     const resolved = await embedPreviewRegistry.resolve({
@@ -37,7 +67,8 @@ describe('embedPreviewRegistry parent preview metadata', () => {
       decodedContent: { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Saved native request' }] }, result_count: 10, embed_ids: ['child'] },
       onFullscreen: () => {},
     });
-    expect(resolved?.component).toBe(previews.search);
+    expect(resolved?.props.__previewComponent).toBe(previews.search);
+    expect(resolved?.props.__previewPresentation).toBe('execution');
     expect(resolved?.props).toMatchObject({ query: 'Saved native request', resultCount: 10, childEmbedIds: ['child'] });
   });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
@@ -50,11 +81,27 @@ describe('embedPreviewRegistry parent preview metadata', () => {
         decodedContent: { app_id: 'web', skill_id: 'search', url: 'https://example.test', title: 'Saved website', snippet: 'Website snippet', meta_url: { favicon: 'https://example.test/icon.png' }, thumbnail: { original: 'https://example.test/photo.png' } },
         onFullscreen,
       });
-      expect(resolved?.component).toBe(previews.website);
+      expect(resolved?.props.__previewComponent).toBe(previews.website);
+      expect(resolved?.props.__previewPresentation).toBe('content');
       expect(resolved?.props).toMatchObject({ id: 'website-child', url: 'https://example.test', title: 'Saved website', description: 'Website snippet', favicon: 'https://example.test/icon.png', image: 'https://example.test/photo.png', status: 'finished', onFullscreen });
       expect(resolved?.props).not.toHaveProperty('childEmbedIds');
       expect(resolved?.props).not.toHaveProperty('resultCount');
     }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  it.each(['website', 'web-website', 'search_result'])('keeps News article identity and metadata for %s children', async (type) => {
+    const onFullscreen = vi.fn();
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'news-child-2', embedData: { type, status: 'finished', app_id: 'news', skill_id: 'search' },
+      decodedContent: { app_id: 'news', skill_id: 'search', parent_embed_id: 'news-root', url: 'https://example.test/article-2', title: 'Second article', snippet: 'Article details', thumbnail: { original: 'https://example.test/photo.png' } },
+      onFullscreen,
+    });
+    expect(resolved?.props.__previewComponent).toBe(previews.news);
+    expect(resolved?.props.__previewPresentation).toBe('content');
+    expect(resolved?.props).toMatchObject({ id: 'news-child-2', url: 'https://example.test/article-2', title: 'Second article', description: 'Article details', image: 'https://example.test/photo.png' });
+    (resolved?.props.onFullscreen as () => void)();
+    expect(onFullscreen).toHaveBeenCalledOnce();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
@@ -154,6 +201,18 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     expect(resolved?.props).not.toHaveProperty('childEmbedIds');
   });
 
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity,travel-search.realtime.source-faithful
+  it('retains nested travel route and realtime metadata in Apps result previews', async () => {
+    const connection = { app_id: 'travel', skill_id: 'search_connections', legs: [{
+      origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z',
+      segments: [{ arrival_delay_minutes: 12, cancelled: true }],
+    }] };
+    const resolved = await embedPreviewRegistry.resolve({ embedId: 'nested-rail', embedData: { type: 'connection', status: 'finished' }, decodedContent: connection, onFullscreen: () => {} });
+    expect(resolved?.props.__previewComponent).toBe(previews.connection);
+    expect(resolved?.props.__previewPresentation).toBe('content');
+    expect(resolved?.props).toMatchObject({ connection, origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z', arrivalDelayMinutes: 12, hasCancellation: true });
+  });
+
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('resolves raw Maps place children before their inherited parent skill', async () => {
     const resolved = await embedPreviewRegistry.resolve({
@@ -239,4 +298,14 @@ it('resolves uploaded project PDFs through the existing PDF preview', () => {
     isMobile: false,
     onFullscreen,
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+it('normalizes flattened event child data through the shared registry', async () => {
+  const resolved = await embedPreviewRegistry.resolve({ embedId: 'flat-event', embedData: { type: 'event', status: 'finished', app_id: 'events', skill_id: 'search' },
+    decodedContent: { organizer_name: 'Berlin Lingua Hub', venue_name: 'Community space', fee_amount: '0', fee_currency: 'EUR', rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' }, onFullscreen: () => {},
+  });
+  expect(resolved?.props.__previewComponent).toBe(previews.event);
+  expect(resolved?.props.__previewPresentation).toBe('content');
+  expect(resolved?.props.event).toMatchObject({ embed_id: 'flat-event', organizer: {name: 'Berlin Lingua Hub'}, venue: {name: 'Community space'}, fee: {amount: 0, currency: 'EUR'}, rsvp_count: 80, date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' });
 });

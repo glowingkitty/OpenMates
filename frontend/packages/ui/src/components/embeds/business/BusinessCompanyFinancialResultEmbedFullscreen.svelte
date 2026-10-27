@@ -7,7 +7,8 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
@@ -81,7 +82,8 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={Object.fromEntries(["company", "ticker", "source_url", "fiscal_year", "fiscal_quarter", "period_end", "currency", "revenue", "net_income"].filter(key => financialContent[key] !== undefined).map(key => [key, financialContent[key]]))}
   appId="business"
   skillId="company_financial_result"
   skillIconName="business"
@@ -101,22 +103,15 @@
     {/if}
   {/snippet}
 
-  {#snippet content()}
+  {#snippet summary()}{#each [['revenue', $text('embeds.business.company_financials.revenue')], ['net_income', $text('embeds.business.company_financials.net_income')]] as [key, label]}
+{#if typeof financialContent[key] === 'number'}<ResultEmbedInfo icon="ChartNoAxesCombined" {label} value={formatMoney(financialContent[key])}>{#snippet children()}{label}: {formatMoney(financialContent[key])} · {formatPeriod()}{/snippet}</ResultEmbedInfo>{/if}{/each}{/snippet}
+
+  {#snippet detailContent()}
     <div class="business-financial-fullscreen" data-testid="business-financial-result-fullscreen">
       <section class="hero-card">
         <p class="kicker">{$text('embeds.business.company_financials.sec_filing')}</p>
         <h2>{company}</h2>
         <p>{formatPeriod()} · {[asString(financialContent.period_start), asString(financialContent.period_end)].filter(Boolean).join(' - ')}</p>
-        <div class="hero-metrics">
-          <div>
-            <span>{$text('embeds.business.company_financials.revenue')}</span>
-            <strong>{formatMoney(financialContent.revenue)}</strong>
-          </div>
-          <div>
-            <span>{$text('embeds.business.company_financials.net_income')}</span>
-            <strong>{formatMoney(financialContent.net_income)}</strong>
-          </div>
-        </div>
       </section>
 
       <section class="metric-table" aria-label="Financial metrics">
@@ -133,138 +128,18 @@
         {/if}
       </section>
 
-      <section class="source-card" aria-label="Source filing">
-        <h3>{$text('embeds.business.company_financials.source')}</h3>
-        <p>{[asString(financialContent.form), asString(financialContent.accession_number), asString(financialContent.filed)].filter(Boolean).join(' · ')}</p>
-        {#if sourceUrl}
-          <a href={sourceUrl} target="_blank" rel="noopener noreferrer" data-testid="business-open-sec-filing-inline">{$text('embeds.business.company_financials.open_filing')}</a>
-        {/if}
-      </section>
-
-      {#if notes.length > 0}
-        <section class="source-card" aria-label="Metric notes">
-          <h3>{$text('embeds.business.company_financials.notes')}</h3>
-          {#each notes as note}<p>{note}</p>{/each}
-        </section>
-      {/if}
+      <div class="source-details">
+        {#if financialContent.form || financialContent.accession_number || financialContent.filed}<ResultEmbedInfo icon="FileText" label={$text('embeds.business.company_financials.source')}>
+          {#snippet children()}<p>{[asString(financialContent.form), asString(financialContent.accession_number), asString(financialContent.filed)].filter(Boolean).join(' · ')}</p>{/snippet}
+        </ResultEmbedInfo>{/if}
+        {#if notes.length > 0}<ResultEmbedInfo icon="Info" label={$text('embeds.business.company_financials.notes')}>
+          {#snippet children()}{#each notes as note}<p>{note}</p>{/each}{/snippet}
+        </ResultEmbedInfo>{/if}
+      </div>
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .business-financial-fullscreen {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-    gap: 18px;
-    width: 100%;
-    max-width: 1040px;
-    margin: 0 auto;
-    padding: 20px clamp(8px, 3vw, 16px) 120px;
-    box-sizing: border-box;
-  }
-
-  .hero-card,
-  .metric-table,
-  .source-card {
-    border-radius: 28px;
-    border: 1px solid color-mix(in srgb, var(--color-app-business) 18%, var(--color-grey-20));
-    background: color-mix(in srgb, var(--color-grey-0) 92%, transparent);
-    box-shadow: 0 18px 42px color-mix(in srgb, var(--color-grey-100) 9%, transparent);
-  }
-
-  .hero-card {
-    grid-row: span 2;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 380px;
-    padding: 30px;
-    background:
-      radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--color-app-business) 34%, transparent), transparent 34%),
-      linear-gradient(135deg, color-mix(in srgb, var(--color-app-business) 18%, var(--color-grey-0)), var(--color-grey-0));
-  }
-
-  .kicker,
-  .hero-card p,
-  .source-card p,
-  .metric-table p,
-  .metric-row span,
-  .hero-metrics span {
-    color: var(--color-font-secondary);
-  }
-
-  .kicker {
-    margin: 0 0 10px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  h2, h3, p { margin: 0; }
-
-  h2 {
-    color: var(--color-font-primary);
-    font-size: clamp(34px, 5vw, 56px);
-    line-height: 1;
-  }
-
-  h3 {
-    color: var(--color-font-primary);
-    font-size: 16px;
-  }
-
-  .hero-metrics {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 28px;
-  }
-
-  .hero-metrics div {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 18px;
-    border-radius: 20px;
-    background: color-mix(in srgb, var(--color-grey-0) 76%, transparent);
-  }
-
-  .hero-metrics strong {
-    color: var(--color-font-primary);
-    font-size: clamp(22px, 3vw, 34px);
-  }
-
-  .metric-table,
-  .source-card {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 20px;
-  }
-
-  .metric-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    padding-top: 10px;
-    border-top: 1px solid var(--color-grey-20);
-  }
-
-  .metric-row strong {
-    color: var(--color-font-primary);
-    white-space: nowrap;
-  }
-
-  a {
-    align-self: flex-start;
-    color: var(--color-link);
-    font-weight: 650;
-    text-decoration: none;
-  }
-
-  @media (max-width: 820px) {
-    .business-financial-fullscreen { grid-template-columns: 1fr; }
-    .hero-card { grid-row: auto; min-height: 300px; }
-  }
+ .business-financial-fullscreen {display:flex;flex-direction:column;gap:var(--spacing-6);width:100%;} .hero-card,.metric-table {display:flex;flex-direction:column;gap:var(--spacing-3);} h2,h3,p {margin:0;} h2 {font-size:var(--font-size-h4);overflow-wrap:anywhere;} h3 {font-size:var(--font-size-p);} p {color:var(--color-font-secondary);line-height:1.5;} .metric-row {display:flex;justify-content:space-between;gap:var(--spacing-3);padding-block:var(--spacing-2);border-bottom:1px solid var(--color-grey-20);} .metric-row span {color:var(--color-font-secondary);}
 </style>

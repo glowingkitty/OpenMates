@@ -4,7 +4,7 @@
 // Handles login flows (password, passkey, recovery key, backup code),
 // session persistence, and device verification state.
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.registration.lifecycle
+// Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.direct-reply
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation, auth.lookup.anti-enumeration, auth.login.method-convergence
 
@@ -35,10 +35,23 @@ struct AuthSessionRecoveryContext: Equatable, Sendable {
 @MainActor
 final class AuthManager: ObservableObject {
     @Published var state: AuthState = .initializing {
-        didSet { if state != .authenticated { networkAuthority = nil } }
+        didSet {
+            if state != .authenticated {
+                NotificationReplyStore().revoke()
+                networkAuthority = nil
+            }
+        }
     }
     @Published var currentUser: UserProfile? {
-        didSet { if currentUser?.id != oldValue?.id { networkAuthority = nil } }
+        didSet {
+            let ownerChanged = oldValue?.id != nil && currentUser?.id != oldValue?.id
+            let preferenceChanged = oldValue?.id != nil && currentUser?.pushNotificationEnabled != oldValue?.pushNotificationEnabled
+            let persistedOwner = try? NotificationReplyStore().registration()?.accountID
+            if ownerChanged || preferenceChanged || (currentUser?.id != nil && persistedOwner != nil && persistedOwner != currentUser?.id) {
+                NotificationReplyStore().revoke()
+            }
+            if currentUser?.id != oldValue?.id { networkAuthority = nil }
+        }
     }
     @Published var error: String?
     @Published private(set) var webSocketToken: String?
@@ -55,6 +68,7 @@ final class AuthManager: ObservableObject {
             case .validating:
                 break // A routine cookie renewal retains its existing authority.
             default:
+                if networkAuthority != nil { NotificationReplyStore().revoke() }
                 networkAuthority = nil
             }
         }
@@ -865,6 +879,7 @@ final class AuthManager: ObservableObject {
     // MARK: - Logout
 
     func logout() async {
+        NotificationReplyStore().revoke()
         validationGeneration = UUID()
         await PushNotificationManager.shared.unregisterCurrentDevice()
         do {
@@ -901,6 +916,7 @@ final class AuthManager: ObservableObject {
     }
 
     func forceLocalLogout(reason: String) async {
+        NotificationReplyStore().revoke()
         validationGeneration = UUID()
         PushNotificationManager.shared.invalidateRegistration()
         print("[Auth] Forced local logout reason=\(reason)")

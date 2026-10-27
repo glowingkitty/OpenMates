@@ -5,11 +5,11 @@
  * Access at: /dev/preview/embeds/health/HealthSearchEmbedPreview
  */
 
-/** Default props — finished search with mixed Doctolib + Jameda results */
+/** Default props — finished search with mixed ExampleClinicA + ExampleClinicB results */
 const defaultProps = {
   id: "preview-health-search-1",
   query: "Ophthalmologist in Munich",
-  provider: "Doctolib, Jameda",
+  provider: "ExampleClinicA, ExampleClinicB",
   status: "finished" as const,
   results: [
     {

@@ -97,7 +97,7 @@ export function normalizeDomain(embedId: string, raw: Record<string, unknown>): 
     domain_ascii: ascii,
     domain_unicode: textValue(raw.domain_unicode) || ascii,
     availability: availability === 'available' || availability === 'unavailable' ? availability : 'unknown',
-    provider: textValue(raw.provider) || 'Gandi',
+    provider: textValue(raw.provider_name) || textValue(raw.provider),
     provider_url: textValue(raw.provider_url),
     premium: raw.premium === true,
     reserved: raw.reserved === true,
@@ -149,7 +149,7 @@ export function formatMoney(amount: number, currency: string): string {
   }
 }
 
-/** Gandi quotes are per duration_unit, even when the tier requires several years. */
+/** Stored quotes are per duration_unit, even when the tier requires several years. */
 export function formatTierMoney(tier: DomainTier | undefined, currency: string, localizedYear: string): string | null {
   const value = quote(tier);
   if (!value) return null;
@@ -165,10 +165,10 @@ export function formatChecked(value: string | null | undefined): string {
   return Number.isNaN(date.valueOf()) ? '' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-export function safeGandiUrl(value: string): string | null {
+export function safeProviderUrl(value: string): string | null {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && url.hostname === 'shop.gandi.net' ? url.toString() : null;
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null;
   } catch {
     return null;
   }

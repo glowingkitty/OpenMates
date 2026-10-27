@@ -57,6 +57,55 @@ final class ImageUploadPrivacyTests: XCTestCase {
         XCTAssertEqual(output.contentType, "text/plain")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.surface.semantic-parity
+    func testShareProductionMultipartAssemblyStripsSourceMetadataAndKeepsWorkflowPath() throws {
+        let input = try fixture(orientation: 6)
+        let filename = "workflow/photos/original.png"
+        // The real Share sender assigns this helper's result directly to its
+        // upload request body; no credentials or network are needed here.
+        let body = try BackgroundChatSender.makeAttachmentUploadBody(data: input, filename: filename,
+            contentType: "application/octet-stream", chatId: "synthetic-share-chat", boundary: "synthetic-boundary")
+        XCTAssertNotNil(body.range(of: Data("filename=\"workflow/photos/original.png\"".utf8)))
+        XCTAssertNotNil(body.range(of: Data("Content-Type: image/png\r\n".utf8)))
+        XCTAssertNil(body.range(of: Data("PRIVATE-SYNTHETIC-CAMERA".utf8)))
+        XCTAssertNil(body.range(of: Data("PRIVATE-SYNTHETIC-XMP".utf8)))
+        let marker = Data("\r\n\r\n".utf8)
+        let start = try XCTUnwrap(body.range(of: marker)).upperBound
+        let end = try XCTUnwrap(body.range(of: Data("\r\n--synthetic-boundary".utf8), in: start..<body.endIndex)).lowerBound
+        let sentImage = body.subdata(in: start..<end)
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(sentImage as CFData, nil))
+        XCTAssertEqual(CGImageSourceGetType(source) as String?, "public.png")
+        let pixels = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        XCTAssertEqual(pixels.width, 2); XCTAssertEqual(pixels.height, 4)
+        XCTAssertEqual(try corners(pixels), ["blue", "red", "yellow", "green"])
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+        XCTAssertNil(properties[kCGImagePropertyGPSDictionary])
+        XCTAssertNil(properties[kCGImagePropertyIPTCDictionary])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
+    func testShareProductionMultipartRejectsMalformedImageMIMEAndMisleadingImageFilename() throws {
+        for (filename, mime) in [("workflow/photo.png", "application/octet-stream"),
+                                  ("workflow/file.bin", "image/png"), ("workflow/photo.JPG", "audio/mp4")] {
+            XCTAssertThrowsError(try BackgroundChatSender.makeAttachmentUploadBody(data: Data("not raster pixels".utf8),
+                filename: filename, contentType: mime, chatId: "synthetic-share-chat", boundary: "synthetic-boundary"))
+        }
+        let audio = Data("synthetic unchanged audio bytes".utf8)
+        let body = try BackgroundChatSender.makeAttachmentUploadBody(data: audio, filename: "workflow/audio/original.m4a",
+            contentType: "audio/mp4", chatId: "synthetic-share-chat", boundary: "synthetic-boundary")
+        XCTAssertNotNil(body.range(of: audio))
+        XCTAssertNotNil(body.range(of: Data("filename=\"workflow/audio/original.m4a\"".utf8)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
+    func testVerifiedWatchUploadRejectsImageMIMEOrFilenameAndKeepsAudioContract() throws {
+        for (filename, mime) in [("photo.bin", "image/png"), ("photo.PNG", "application/octet-stream"),
+                                  ("workflow/photo.jpg", "audio/mp4"), ("workflow/icon.svg", "text/plain")] {
+            XCTAssertThrowsError(try APIClient.validateVerifiedWatchUpload(filename: filename, contentType: mime))
+        }
+        XCTAssertNoThrow(try APIClient.validateVerifiedWatchUpload(filename: "workflow/audio/original.m4a", contentType: "audio/mp4"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testSanitizedMultipartBytesRetainOriginalFilenameAndExcludeSourceMetadata() throws {
         let source = try fixture(orientation: 6)

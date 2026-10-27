@@ -48,22 +48,24 @@ def tmp_db():
 
 
 class TestConfig:
+    # contract-test: infrastructure
     def test_service_groups_has_all_expected_groups(self):
         group_names = [name for name, _ in SERVICE_GROUPS]
         assert "Core Platform" in group_names
         assert "AI Providers" in group_names
         assert "Search & Data" in group_names
         assert "Image & Media" in group_names
-        assert "Events & Health" in group_names
         assert "Travel" in group_names
         assert "Payment" in group_names
         assert "Email & Moderation" in group_names
-        assert len(group_names) == 8
+        assert len(group_names) == 7
 
+    # contract-test: infrastructure
     def test_all_service_ids_not_empty(self):
         ids = get_all_service_ids()
         assert len(ids) > 20  # We have 30+ services
 
+    # contract-test: infrastructure
     def test_categorize_test_matches(self):
         assert categorize_test("chat-flow") == "Chat"
         assert categorize_test("buy-credits-flow") == "Payment"
@@ -72,10 +74,12 @@ class TestConfig:
         assert categorize_test("reminder-email") == "Reminders"
         assert categorize_test("cli-skills-pdf") == "Skills"
 
+    # contract-test: infrastructure
     def test_categorize_test_uncategorized(self):
         assert categorize_test("unknown-random-test") is None
         assert categorize_test("") is None
 
+    # contract-test: infrastructure
     def test_no_duplicate_service_ids(self):
         seen: set[str] = set()
         for _, components in SERVICE_GROUPS:
@@ -90,6 +94,7 @@ class TestConfig:
 
 class TestDatabase:
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_daily_service_status_fills_gaps(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -116,6 +121,7 @@ class TestDatabase:
         assert all("date" in entry and "status" in entry for entry in result)
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_daily_service_status_worst_status_per_day(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -146,6 +152,7 @@ class TestDatabase:
         assert result[0]["status"] == "down"  # worst status wins
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_response_time_series_hourly(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -170,6 +177,7 @@ class TestDatabase:
         assert "timestamp" in result[0]
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_intraday_checks(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -194,6 +202,7 @@ class TestDatabase:
         assert all("time" in check and "status" in check for check in result)
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_incidents_groups_events(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -224,6 +233,7 @@ class TestDatabase:
         assert len(incidents[0]["updates"]) == 2
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_get_incidents_open_incident(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -244,6 +254,7 @@ class TestDatabase:
         assert incidents[0]["duration_minutes"] is not None  # Should be ~60
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_compute_uptime_pct_all_operational(self, tmp_db):
         await init_db(tmp_db)
 
@@ -262,6 +273,7 @@ class TestDatabase:
         assert pct == 100.0
 
     @pytest.mark.asyncio
+    # contract-test: infrastructure
     async def test_compute_uptime_pct_with_downtime(self, tmp_db):
         await init_db(tmp_db)
         now = datetime.now(timezone.utc)
@@ -311,6 +323,7 @@ class TestAPI:
         return tmp_db
 
     @pytest.mark.asyncio
+    # contract-test: direct surface=rest_api assertions=operational-monitoring.public-status.existing-response
     async def test_status_v2_returns_all_groups(self, api_db):
         from httpx import ASGITransport, AsyncClient
 
@@ -337,11 +350,12 @@ class TestAPI:
         assert resp.status_code == 200
         data = resp.json()
         group_names = [g["name"] for g in data["groups"]]
-        assert len(group_names) == 8
+        assert len(group_names) == 7
         assert "Core Platform" in group_names
         assert "AI Providers" in group_names
 
     @pytest.mark.asyncio
+    # contract-test: direct surface=rest_api assertions=operational-monitoring.public-status.existing-response
     async def test_status_v2_response_structure(self, api_db):
         from httpx import ASGITransport, AsyncClient
 
@@ -383,6 +397,7 @@ class TestAPI:
         assert "incidents" in data
 
     @pytest.mark.asyncio
+    # contract-test: direct surface=rest_api assertions=operational-monitoring.public-status.existing-response
     async def test_status_v2_intraday_service(self, api_db):
         from httpx import ASGITransport, AsyncClient
 
@@ -418,6 +433,7 @@ class TestAPI:
         assert len(data["checks"]) >= 1
 
     @pytest.mark.asyncio
+    # contract-test: direct surface=rest_api assertions=operational-monitoring.public-status.existing-response
     async def test_status_v2_intraday_test(self, api_db):
         from httpx import ASGITransport, AsyncClient
 
@@ -446,6 +462,7 @@ class TestAPI:
         assert "runs" in data
 
     @pytest.mark.asyncio
+    # contract-test: direct surface=rest_api assertions=operational-monitoring.public-status.existing-response
     async def test_status_v2_intraday_invalid_type(self, api_db):
         from httpx import ASGITransport, AsyncClient
 

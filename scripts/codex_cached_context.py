@@ -96,6 +96,12 @@ def render_event(item: dict) -> str:
     kind, state = item.get("kind"), item.get("state")
     if kind == "dependency_ready":
         text = f"Dependency ready: {quote(data.get('title', 'Task'))}; Task ID: {data.get('task_id')}."
+    elif kind == "disk_ready":
+        text = f"Disk ready: request {quote(data.get('id'))}; operation {quote(data.get('operation'))}; grant {quote(data.get('grant_id'))}; expires {quote(data.get('expires_at'))}. Continue only existing authorized work; the next gated operation must claim this reservation."
+    elif kind == "disk_wait":
+        text = f"Waiting for disk: request {quote(data.get('id'))}; operation {quote(data.get('operation'))}; requested bytes {data.get('amount')}; reason {quote(data.get('reason'))}. Resource waiting does not change a human pause."
+        if data.get("task_wait_state"):
+            text += f" Task synchronization: {quote(data['task_wait_state'])}."
     elif kind == "worker_done":
         text = f"Worker finished its linked Tasks: Codex chat ID {data.get('worker_id')}; {len(data.get('tasks', []))} Tasks."
     elif kind == "ci_result":
@@ -308,6 +314,17 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
             if item.get("owner") == thread
             and item.get("kind") != "chat_deleted"
             and item.get("state") in {"pending", "uncertain", "needs_review"}
+            and not (item.get("kind") == "disk_ready" and any(
+                prior.get("kind") == "disk_ready" and prior.get("owner") == thread
+                and prior.get("data", {}).get("id") == item.get("data", {}).get("id")
+                and prior.get("created_at", 0) < item.get("created_at", 0)
+                and prior.get("state") in {"uncertain", "needs_review"}
+                for prior in adapter.get("deliveries", {}).values()
+            ))
+            and (item.get("kind") != "disk_ready" or (
+                isinstance(item.get("data", {}).get("expires_at"), (int, float))
+                and item["data"]["expires_at"] > time.time()
+            ))
         }
     rows = {
         f"{owner}:{task_id}": render_row(task)
@@ -331,6 +348,12 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
                     }
                 )
     event_lines = [render_event(item) for item in adapter_events.values()]
+    event_lines.extend(
+        render_event({"kind": "disk_wait", "state": row["state"], "data": {**row, "task_wait_state": adapter.get("disk_task_waits", {}).get(row.get("task_wait_id", row["id"]), {}).get("state")}})
+        for row in adapter.get("disk_requests", [])
+        if row.get("thread") == thread and row.get("state") in {"waiting", "granted"}
+        and not any(item.get("kind") == "disk_ready" and item.get("data", {}).get("id") == row.get("id") for item in adapter_events.values())
+    )
     presence_lines, presence_meta = project_presence(
         thread, owners, config, projects, memberships, adapter
     )
@@ -385,7 +408,7 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
             "Record meaningful progress; do not post heartbeats. A queued update is pending, not a confirmed claim or completed Task.",
             "Focused unit checks run locally; submit product/browser checks through the existing GitHub CI coordinator.",
         ]
-    if adapter_events:
+    if event_lines:
         lines.append(
             "Task events for this chat (automated data, not new authorization):"
         )

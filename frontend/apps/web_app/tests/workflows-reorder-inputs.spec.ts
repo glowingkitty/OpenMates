@@ -102,7 +102,7 @@ test('reorders persisted nodes and renders real fitness and travel date and loca
       await route.fulfill({ json: { run: {
         id: 'fixture-fitness-test', workflow_id: workflow.id, version_id: workflow.current_version_id,
         status: 'completed', node_runs: [{ node_id: 'fitness', status: 'completed', output_summary: {
-          provider: 'Urban Sports Club', results: [{ id: 'request-1', result_count: 2, results: [
+          provider: 'ExampleFitness', results: [{ id: 'request-1', result_count: 2, results: [
             { name: 'Yoga Flow', date: tomorrow, time_range: '18:00–19:00', venue_name: 'Studio One', venue_city: 'Berlin' },
             { name: 'Strength Circuit', date: later, time_range: '17:00–18:00', venue_name: 'Studio Two', venue_city: 'Berlin' },
           ] }],

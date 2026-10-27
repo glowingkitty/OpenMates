@@ -4,7 +4,7 @@
 // run phased rediscovery, because the browser may have missed draft-only chats
 // that were created while the socket was disconnected.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 type WebSocketStatusValue = {
   status: "connecting" | "connected" | "disconnected" | "error" | "reconnecting";
@@ -37,8 +37,14 @@ const mocks = vi.hoisted(() => {
     error: null,
   };
   const websocketSubscribers = new Set<Subscriber<WebSocketStatusValue>>();
+  let baselineSubscribers: Subscriber<WebSocketStatusValue>[] = [];
 
   return {
+    saveBaselineWebSocketSubscribers() { baselineSubscribers = [...websocketSubscribers]; },
+    resetWebSocketSubscribers() {
+      websocketSubscribers.clear();
+      for (const subscriber of baselineSubscribers) websocketSubscribers.add(subscriber);
+    },
     websocketStatus: {
       subscribe: vi.fn((run: Subscriber<WebSocketStatusValue>) => {
         websocketSubscribers.add(run);
@@ -59,12 +65,15 @@ const mocks = vi.hoisted(() => {
       sendMessage: vi.fn(),
       isConnected: vi.fn(() => false),
       forceReconnect: vi.fn(),
+      notifyDataActivity: vi.fn(),
     },
     chatDB: {
       getAllMessages: vi.fn(async () => []),
       getChat: vi.fn(),
       getMessage: vi.fn(),
       addChat: vi.fn(),
+      updateChat: vi.fn(),
+      getPendingMessageRetryPage: vi.fn(async () => ({ rows: [], nextCursor: null, oversizedCount: 0 })),
     },
     chatKeyManager: {
       getKeySync: vi.fn(),
@@ -77,6 +86,7 @@ const mocks = vi.hoisted(() => {
     },
     aiTypingStore: {
       clearTypingForChat: vi.fn(),
+      clearTyping: vi.fn(),
     },
     aiTypingByChatStore: createReadable({}),
     workspaceIdentity: 'account-a',
@@ -97,6 +107,8 @@ const mocks = vi.hoisted(() => {
     },
     chatListCache: {
       clear: vi.fn(),
+      getCache: vi.fn(() => null),
+      upsertChat: vi.fn(),
     },
     chatMetadataCache: {
       clearAll: vi.fn(),
@@ -188,19 +200,45 @@ vi.mock("../chatSyncServiceHandlersRecovery", () => ({
   prepareRecoveryLifecycleImpl: vi.fn(),
   resetRecoveryLifecycleImpl: vi.fn(),
 }));
-vi.mock("../chatSyncServiceHandlersAI", () => ({ clearPendingQueuedRevisionsImpl: vi.fn() }));
+vi.mock("../chatSyncServiceHandlersAI", async importOriginal => ({ ...await importOriginal<typeof import("../chatSyncServiceHandlersAI")>(), clearPendingQueuedRevisionsImpl: vi.fn() }));
+vi.mock("../embedStore", () => ({ embedStore: { cancelProcessingEmbeds: vi.fn(() => []) } }));
+vi.mock("../composerGhostSuggestion", () => ({ persistComposerGhostSuggestion: vi.fn(async () => undefined) }));
 vi.mock("../chatSyncServiceHandlersChatUpdates", () => ({}));
 vi.mock("../chatSyncServiceHandlersCoreSync", () => ({}));
 vi.mock("../chatSyncServiceHandlersPhasedSync", () => ({}));
 vi.mock("../chatSyncServiceHandlersAppSettings", () => ({}));
 vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
+vi.mock("../voiceCallMessages", () => ({ retryPendingCallMessages: vi.fn(async () => undefined), applyCallMessageChanged: vi.fn() }));
 
 import { ChatSynchronizationService, canReuseEarlyEmptyConnectedAccounts, chatSyncService } from "../chatSyncService";
 import { sendNewMessageImpl } from "../chatSyncServiceSenders";
 import { getTeam, TeamRequestCancelledError } from "../teamService";
 import { incognitoChatService } from "../incognitoChatService";
 import type { Chat, Message } from "../../types/chat";
+import { awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers, reservePersonalChatTurn } from "../personalChatTurnBarrier";
+import * as handlers from "../chatSyncServiceHandlersAI";
+
+// Service constructors warm activity asynchronously. Keep those unrelated HTTP
+// reads deterministic and retire each test's subscriber before restoring globals.
+beforeAll(async () => {
+  await vi.dynamicImportSettled();
+  mocks.saveBaselineWebSocketSubscribers();
+});
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'object' && 'url' in input ? input.url : String(input);
+    if (!url.includes('/v1/chats/activity')) throw new Error(`Unmocked unit HTTP request: ${url}`);
+    return { ok: true, status: 200, json: async () => ({ chats: [], active_tasks: [] }) };
+  }));
+});
+afterEach(async () => {
+  mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+  mocks.emitWebSocketStatus('disconnected');
+  mocks.resetWebSocketSubscribers();
+  await vi.dynamicImportSettled();
+  vi.unstubAllGlobals();
+});
 
 describe('uncertain queued snapshot during an outbound user send', () => {
   const message = { chat_id: 'chat-send', message_id: 'message-send', role: 'user',
@@ -241,6 +279,25 @@ describe('uncertain queued snapshot during an outbound user send', () => {
     await vi.waitFor(() => expect(sender).toHaveBeenCalled());
     return { sending, finish: () => finish(), signal: () => signal() };
   }
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('coalesces ordinary and recovery calls through context ACK and permits same-ID replay on reconnect', async () => {
+    const service = await readyService();
+    let settle!: () => void;
+    const completion = new Promise<void>(resolve => { settle = resolve; });
+    const sender = vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
+      (args[13] as (completion: Promise<void>) => void)(completion);
+    });
+    await service.sendNewMessage(message, undefined, {}, undefined, false);
+    await service.sendNewMessage({ ...message, status: 'synced' });
+    expect(sender).toHaveBeenCalledOnce();
+    await expect(service.sendNewMessage({ ...message, content: 'changed' })).rejects.toThrow('immutable content');
+    mocks.emitWebSocketStatus('disconnected');
+    mocks.emitWebSocketStatus('connected');
+    await service.sendNewMessage({ ...message, status: 'sending' });
+    expect(sender).toHaveBeenCalledTimes(2);
+    settle();
+  });
 
   // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
   it('refreshes uncertain queue state only after the same-chat user frame was queued', async () => {
@@ -334,7 +391,8 @@ describe('uncertain queued snapshot during an outbound user send', () => {
 describe('per-send connected-account empty lookup', () => {
   beforeEach(() => {
     mocks.workspaceIdentity = 'account-a';
-    mocks.connectedAccountMutationEpoch = 0;
+    // A cache result from another test is not part of this Send fixture.
+    mocks.connectedAccountMutationEpoch += 1;
     mocks.activeTeamId.set(null);
     mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
     mocks.listConnectedAccounts.mockReset().mockResolvedValue([]);
@@ -348,10 +406,10 @@ describe('per-send connected-account empty lookup', () => {
     const service = new ChatSynchronizationService();
     const early = await service.beginEmptyConnectedAccountLookup();
     expect(mocks.listConnectedAccounts).toHaveBeenCalledOnce();
-    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    const current = { scope: 'account-a', mutationEpoch: mocks.connectedAccountMutationEpoch, authenticated: true, teamId: null };
     expect(canReuseEarlyEmptyConnectedAccounts(early, current)).toBe(true);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, scope: 'account-b' })).toBe(false);
-    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, mutationEpoch: 1 })).toBe(false);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, mutationEpoch: current.mutationEpoch + 1 })).toBe(false);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, authenticated: false })).toBe(false);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, teamId: 'team-a' })).toBe(false);
   });
@@ -359,7 +417,7 @@ describe('per-send connected-account empty lookup', () => {
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it('keeps nonempty and failed early reads on the fresh Send lookup path', async () => {
     const service = new ChatSynchronizationService();
-    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    const current = { scope: 'account-a', mutationEpoch: mocks.connectedAccountMutationEpoch, authenticated: true, teamId: null };
     mocks.listConnectedAccounts.mockResolvedValueOnce([{ id: 'connected-a' }]);
     expect(canReuseEarlyEmptyConnectedAccounts(await service.beginEmptyConnectedAccountLookup(), current)).toBe(false);
     mocks.listConnectedAccounts.mockRejectedValueOnce(new Error('offline'));
@@ -898,5 +956,96 @@ describe("ChatSynchronizationService reconnect sync state", () => {
     repeatedDispose();
     dispose();
     mocks.webSocketService.isConnected.mockReturnValue(false);
+  });
+});
+
+
+describe('cancellation preserves encrypted reply dependencies', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearPersonalChatTurnBarriers();
+    mocks.workspaceIdentity = 'account-a';
+    mocks.activeTeamId.set(null);
+    mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+  });
+  afterEach(() => clearPersonalChatTurnBarriers());
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it.each(['failed', 'timed_out'])('still fails dependent sends on an actual %s task failure', async status => {
+    const service = new ChatSynchronizationService();
+    const first = reservePersonalChatTurn('failed-task-chat', 'prior-user');
+    bindPersonalChatTurn(first, 'prior-preflight');
+    const next = reservePersonalChatTurn('failed-task-chat', 'next-user');
+    const waiting = awaitPersonalChatPredecessor(next);
+    service.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: {
+      chatId: first.chatId, userMessageId: first.messageId, status,
+    } }));
+    await expect(waiting).rejects.toThrow('previous encrypted reply has not been saved');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,video-call.audio.intentional-interruption
+  it.each([
+    ['ordinary', 'ack-first'], ['ordinary', 'final-first'],
+    ['voice', 'ack-first'], ['voice', 'final-first'],
+  ])('keeps a %s follow-up pending across %s cancellation until exact encrypted persistence', async (mode, order) => {
+    const chatId = `cancel-${mode}-${order}`;
+    const firstUserId = 'prior-user';
+    const taskId = 'prior-assistant';
+    const chat = { chat_id: chatId, messages_v: 99, updated_at: 1, last_edited_overall_timestamp: 1 };
+    const assistant = { message_id: taskId, chat_id: chatId, role: 'assistant', user_message_id: firstUserId };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValue(assistant);
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    service.activeAITasks.set(chatId, { taskId, userMessageId: firstUserId });
+    const first = reservePersonalChatTurn(chatId, firstUserId);
+    bindPersonalChatTurn(first, 'prior-preflight');
+    const message = { message_id: 'next-user', chat_id: chatId, role: 'user', content: 'Continue',
+      created_at: 2, status: 'sending', ...(mode === 'voice' ? {
+        voice_mode: true, voice_call_id: 'call-1', voice_turn_id: 'next-user',
+        voice_heard_boundary: { assistant_message_id: taskId, completed_sequences: [0], active_sequence: 1, active_offset_ms: 120 },
+      } : {}) } as Message;
+    const preflight = vi.fn();
+    vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
+      const turn = args[6]!;
+      const version = await awaitPersonalChatPredecessor(turn);
+      bindPersonalChatTurn(turn, 'next-preflight');
+      preflight({ message: args[1], expected_messages_v: version });
+    });
+    // Attach rejection handling immediately: before the fix cancellation fails
+    // this promise before canonical verification has a chance to complete.
+    const sending = service.sendNewMessage(message, undefined, {}).then(() => null, error => error);
+    await vi.waitFor(() => expect(sendNewMessageImpl).toHaveBeenCalledOnce());
+    const ack = () => handlers.handleAITaskCancelRequestedImpl(service, { task_id: taskId, status: 'revocation_sent' });
+    const final = () => handlers.handleAIMessageUpdateImpl(service, {
+      chat_id: chatId, task_id: taskId, message_id: taskId, user_message_id: firstUserId,
+      is_final_chunk: true, interrupted_by_revocation: true, full_content_so_far: '', sequence: 1,
+    });
+    if (order === 'ack-first') { await ack(); final(); } else { final(); await ack(); }
+    expect(first.settled).toBe(false);
+    expect(preflight).not.toHaveBeenCalled();
+    expect(service.activeAITasks.has(chatId)).toBe(false);
+
+    let verify!: (value: unknown) => void;
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: () => new Promise(resolve => { verify = resolve; }) })));
+    const storing = handlers.handleAIResponseStorageConfirmedImpl(service, {
+      chat_id: chatId, message_id: taskId, task_id: taskId,
+    });
+    await vi.waitFor(() => expect(verify).toBeTypeOf('function'));
+    expect(preflight).not.toHaveBeenCalled();
+    expect(first.settled).toBe(false);
+    verify({ chat_id: chatId, messages_v: 7, messages: [{ ...assistant, encrypted_content: 'owner-ciphertext' }] });
+    await storing;
+    expect(await sending).toBeNull();
+    expect(mocks.chatDB.updateChat).toHaveBeenCalled();
+    expect(preflight).toHaveBeenCalledExactlyOnceWith({ message, expected_messages_v: 7 });
+    expect(message.message_id).toBe('next-user');
+    await ack();
+    expect(preflight).toHaveBeenCalledOnce();
   });
 });

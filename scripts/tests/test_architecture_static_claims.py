@@ -39,6 +39,7 @@ def write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+# contract-test: infrastructure
 def test_static_claims_validate_files_functions_classes_routes_and_schema_fields(tmp_path):
     source = tmp_path / "backend" / "routes.py"
     write(
@@ -87,6 +88,7 @@ def test_static_claims_validate_files_functions_classes_routes_and_schema_fields
     assert result.checked_anchors == 5
 
 
+# contract-test: infrastructure
 def test_static_claims_fail_for_missing_anchor_and_line_number_links(tmp_path):
     source = tmp_path / "backend" / "routes.py"
     write(source, "def other():\n    pass\n")
@@ -119,6 +121,7 @@ def test_static_claims_fail_for_missing_anchor_and_line_number_links(tmp_path):
 
 # BEGIN GENERATED ARCHITECTURE STATIC CLAIM MARKERS
 
+# contract-test: infrastructure
 def test_architecture_doc_static_claim_markers_are_declared():
     docAssertStatic("arch-accessibility-audit-source-1")
     docAssertStatic("arch-accessibility-audit-source-2")
@@ -238,8 +241,6 @@ def test_architecture_doc_static_claim_markers_are_declared():
     docAssertStatic("arch-infrastructure-status-page-source-3")
     docAssertStatic("arch-infrastructure-video-hosting-source-1")
     docAssertStatic("arch-infrastructure-video-hosting-source-2")
-    docAssertStatic("arch-integrations-luma-source-1")
-    docAssertStatic("arch-integrations-luma-source-2")
     docAssertStatic("arch-integrations-media-generation-source-1")
     docAssertStatic("arch-integrations-media-generation-source-2")
     docAssertStatic("arch-integrations-media-generation-source-3")

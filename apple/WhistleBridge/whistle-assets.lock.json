@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "model": {
+    "repository": "Cactus-Compute/whistle",
+    "revision": "741118687e1f008f06d1351a402a731274789790",
+    "path": "whistle.cact",
+    "sha256": "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb",
+    "sizeBytes": 16919407,
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "repository": "Cactus-Compute/needle3",
+    "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+    "license": "Apache-2.0",
+    "capabilities": {
+      "deterministicUnload": false,
+      "watchSimulator": false
+    },
+    "platforms": {
+      "ios-arm64": {
+        "architectures": [
+          "arm64"
+        ],
+        "platform": "iOS",
+        "minimumOS": "26.2",
+        "sdk": "26.2"
+      },
+      "ios-sim-arm64": {
+        "architectures": [
+          "arm64"
+        ],
+        "platform": "iOSSimulator",
+        "minimumOS": "26.2",
+        "sdk": "26.2"
+      },
+      "watchos-arm64": {
+        "architectures": [
+          "arm64_32",
+          "arm64"
+        ],
+        "platform": "watchOS",
+        "minimumOS": "26.2",
+        "sdk": "26.2"
+      }
+    }
+  },
+  "files": [
+    {
+      "repository": "Cactus-Compute/whistle",
+      "revision": "741118687e1f008f06d1351a402a731274789790",
+      "path": "whistle.cact",
+      "sizeBytes": 16919407,
+      "sha256": "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb"
+    },
+    {
+      "repository": "Cactus-Compute/whistle",
+      "revision": "741118687e1f008f06d1351a402a731274789790",
+      "path": "LICENSE",
+      "sizeBytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "repository": "Cactus-Compute/needle3",
+      "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+      "path": "LICENSE",
+      "sizeBytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "repository": "Cactus-Compute/needle3",
+      "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+      "path": "ios-arm64/needle.h",
+      "sizeBytes": 4528,
+      "sha256": "a27dac4b3239eead91d124b7f7dbce5495c13019903fd817b68c16d39b055a99"
+    },
+    {
+      "repository": "Cactus-Compute/needle3",
+      "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+      "path": "ios-arm64/libneedle.a",
+      "sizeBytes": 1500240,
+      "sha256": "786131bcbbaf82e2ccb82387297b44d2cd9e019cbb2b7f108c49fa6250837033"
+    },
+    {
+      "repository": "Cactus-Compute/needle3",
+      "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+      "path": "ios-sim-arm64/libneedle.a",
+      "sizeBytes": 1534288,
+      "sha256": "112eb7d1d4c5109c7f377b50906b2c41ab521ce73e5192f871036ff271a0f11d"
+    },
+    {
+      "repository": "Cactus-Compute/needle3",
+      "revision": "3391a1007e7db31d2fe5c69c734bbe93a9c1ce79",
+      "path": "watchos-arm64/libneedle.a",
+      "sizeBytes": 3008392,
+      "sha256": "e5f16154e7f4873f3204d799323ed15b7974778339ac1d2538775a4cfbf995d3"
+    }
+  ]
+}

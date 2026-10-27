@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 from backend.apps.ai.processing import jev_preprocessing
 from backend.apps.ai.processing.rule_context import eligible_rule_catalog
@@ -110,7 +111,7 @@ async def test_jev_stage_two_sees_all_type_memories_and_selects_full_guide_id(mo
         answers = {}
         for key, question in questions.items():
             if question["type"] == "noul":
-                answers[key] = {"type": "noul", "noul": 0.96 if key == "diagram_creation" else 0.0}
+                answers[key] = {"type": "noul", "noul": 0.96 if key == "diagram_guidance_relevant" else 0.0}
             else:
                 first = next(iter(question["criteria"]))
                 answers[key] = {"type": "choice", "choice": first, "confidence": 0.99,
@@ -132,3 +133,75 @@ async def test_jev_stage_two_sees_all_type_memories_and_selects_full_guide_id(mo
     assert all(len(description) < 200 for description in seen["primary_criteria"].values())
     assert result["relevant_diagram_types"] == ["type-architecture"]
     assert result["relevant_diagram_variant"] == "minimal_light"
+
+
+@pytest.mark.parametrize(("history", "relevant"), [
+    ([{"role": "user", "content": "Compare a tiered planner, researcher and coder architecture."}], True),
+    ([{"role": "user", "content": "How does our order approval process flow between teams?"}], True),
+    ([{"role": "user", "content": "Discuss the architecture of a planner and workers."},
+      {"role": "assistant", "content": "The planner assigns bounded work."},
+      {"role": "user", "content": "What about nested workers? Answer in prose only."}], True),
+    ([{"role": "user", "content": "What is the capital of Peru?"}], False),
+])
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.precedence.obligations
+@pytest.mark.asyncio
+async def test_discussion_routes_optional_public_guides_without_skills_or_private_memories(
+    monkeypatch, history, relevant,
+) -> None:
+    calls = []
+
+    async def evaluate(**kwargs):
+        calls.append(kwargs)
+        answers = {}
+        for key, question in kwargs["questions"].items():
+            if question["type"] == "noul":
+                candidate = question["instructions"]
+                app_id = candidate.get("candidate_id") if isinstance(candidate, dict) else None
+                selected = relevant and (app_id in {"diagrams", "mindmaps"}
+                    or key in {"diagram_guidance_relevant", "needs_detailed_context"})
+                answers[key] = {"type": "noul", "noul": float(selected)}
+            else:
+                criteria = question["criteria"]
+                preferred = {"diagram_primary_type": "type-architecture",
+                             "diagram_secondary_type": "none", "diagram_tertiary_type": "none",
+                             "diagram_variant": "minimal_light", "topic_shift": "same_topic"}.get(key)
+                chosen = preferred if preferred in criteria else next(iter(criteria))
+                answers[key] = {"type": "choice", "choice": chosen, "confidence": 1.0,
+                                "probabilities": {option: float(option == chosen) for option in criteria}}
+        return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None, message_history=history,
+        topic_areas=["software_development: Software", "general_misc: General"],
+        available_skills=[], available_focus_modes=[], available_settings_and_memories={},
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=len(history) == 1, available_apps=["diagrams", "mindmaps", "web"],
+    )
+    assert calls[0]["state"]["messages"] == history
+    assert result["selected_app_ids"] == (["diagrams", "mindmaps"] if relevant else [])
+    assert result["relevant_diagram_types"] == (["type-architecture"] if relevant else [])
+    assert result["relevant_app_skills"] == []
+    assert result["load_app_settings_and_memories"] == []
+    assert result["relevant_focus_modes"] == []
+    assert result["relevant_workflows"] == []
+    if relevant:
+        prompt = diagram_guidance_prompt(result["relevant_diagram_types"])
+        assert (_VENDOR / "references/type-architecture.md").read_text() in prompt
+        assert "you decide whether a visual helps" in prompt
+        assert "explicit prose-only request must be respected" in prompt
+        assert len(selected_diagram_memories(result["relevant_diagram_types"])) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations
+def test_both_native_protocols_preserve_optional_visuals_and_explicit_only_mermaid() -> None:
+    root = Path(__file__).resolve().parents[1] / "apps"
+    for app_id in ("diagrams", "mindmaps"):
+        app = yaml.safe_load((root / app_id / "app.yml").read_text())
+        instruction = " ".join(app["instructions"][0]["instruction"].split())
+        assert "prose alone is fine" in instruction.lower()
+        assert "does not require creating" in instruction
+        assert "Respect explicit prose-only requests" in instruction
+        assert "Use Mermaid source only when the user explicitly asks" in instruction
+    catalogue = jev_preprocessing._app_catalogue(["diagrams", "mindmaps"], [], [])
+    assert all("even without a visual request" in entry for entry in catalogue)

@@ -1,18 +1,10 @@
 landing:
-  order: 27
-  capability:
-    type: skill
-    id: search_components
-  caption:
-    en: Find electronic components
-    de: Finde elektronische Bauteile
-  example_chat_id: example-buck-converters-24v-5v
+  enabled: false
 
 # backend/apps/electronics/app.yml
 #
 # Electronics app — component search and circuit-design assistance.
 #
-# The first production skill searches TI WEBENCH Power Designer for power
 # converter reference designs. Future providers can add categories such as
 # passives, connectors, semiconductors, JLCPCB/LCSC, Mouser, and Digi-Key.
 
@@ -87,6 +79,9 @@ embed_types:
       - name: artifact_manifest
         type: object
   - id: search_components
+    authoring:
+      kind: electronics.component
+      schema_id: electronics.component
     category: app-skill-use
     skill_id: search_components
     frontend_type: app-skill-use
@@ -109,14 +104,9 @@ skills:
     description_translation_key: electronics.search_components.description
     icon_image: pcbdesign.svg
     preprocessor_hint: >
-      Use this skill when the user asks to find electronic components,
-      especially power converters or voltage regulators matching input voltage,
-      output voltage, output current, efficiency, BOM cost, footprint, or
-      topology requirements. Currently supports category power_converters via
-      Texas Instruments WEBENCH Power Designer.
-    providers:
-      - name: Texas Instruments
-        no_api_key: true
+      This capability is currently unavailable because no permitted provider is configured.
+    provider_required: true
+    providers: []
     class_path: |
       backend.apps.electronics.skills.search_components.SearchComponentsSkill
     pricing:
@@ -189,7 +179,7 @@ skills:
                 type: string
                 enum: [balanced, low_cost, high_efficiency, small_footprint]
                 default: balanced
-                description: Optimization goal for WEBENCH ranking.
+                description: Optimization goal for component ranking.
               max_results:
                 x-ui:
                   basic: false

@@ -4,6 +4,61 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
 
+for (const width of [330, 768]) {
+  for (const processing of [false, true]) {
+    // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.layout.responsive-parity
+    test(`round Send remains reachable ${processing ? 'during correction' : 'while recording'} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width: Math.max(390, width + 40), height: 844 });
+      await page.goto(`/dev/preview/enter_message/RecordAudio?${processing ? 'variant=processing&' : ''}theme=dark&background=%23181818&width=${width}&chrome=0`);
+      await waitForComponentPreview(page);
+      const overlay = page.getByTestId('record-overlay');
+      const send = overlay.getByTestId('record-send-button');
+      await expect(send).toBeVisible();
+      await expect(send).toBeEnabled();
+      await expect(send).toHaveAccessibleName('Send');
+      await expect(send.locator('svg')).toBeVisible();
+      await expect(send).toHaveCSS('width', '40px');
+      await expect(send).toHaveCSS('height', '40px');
+      await expect(send).toHaveCSS('border-radius', '50%');
+      for (const id of ['timer-pill', 'record-cancel-button', 'record-finish-button', 'record-send-button']) {
+        const button = overlay.getByTestId(id);
+        await expect(button).toBeVisible();
+        const [controlBox, overlayBox] = await Promise.all([button.boundingBox(), overlay.boundingBox()]);
+        expect(controlBox!.x).toBeGreaterThanOrEqual(overlayBox!.x);
+        expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(overlayBox!.x + overlayBox!.width);
+      }
+      const [finishBox, sendBox] = await Promise.all([
+        overlay.getByTestId('record-finish-button').boundingBox(), send.boundingBox(),
+      ]);
+      expect(finishBox!.x + finishBox!.width).toBeLessThanOrEqual(sendBox!.x);
+      await send.hover();
+      await send.focus();
+      await expect(send).toBeFocused();
+      // Native Enter on Send must retain the selected action during recording.
+      await send.press('Enter');
+      await expect(send).toBeDisabled();
+      await expect(overlay.getByTestId('record-cancel-button')).toBeEnabled();
+    });
+  }
+}
+
+// contract-test: direct surface=gui.web assertions=message-input.actions.visibility
+test('shared compact Send preserves its normal and busy states', async ({ page }) => {
+  await page.goto('/dev/preview/enter_message/CompactSendButton?theme=light&background=%23dbeafe&width=330&chrome=0');
+  await waitForComponentPreview(page);
+  const send = page.getByTestId('composer-send-button');
+  await expect(send).toBeVisible();
+  await expect(send).toHaveAccessibleName('Send');
+  await expect(send).toBeEnabled();
+  await expect(send.locator('svg')).toBeVisible();
+  await expect(send).toHaveCSS('width', '40px');
+  await expect(send).toHaveCSS('height', '40px');
+  await page.goto('/dev/preview/enter_message/CompactSendButton?variant=disabled&theme=light&background=%23dbeafe&width=330&chrome=0');
+  await waitForComponentPreview(page);
+  await expect(send).toBeDisabled();
+  await expect(send).toHaveAttribute('aria-busy', 'true');
+});
+
 type RecorderTestState = {
   stopCalls: number;
   trackStops: number;

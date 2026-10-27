@@ -1,0 +1,144 @@
+/* Intentional syntax palette: same GitHub Dark theme as web app code embeds. */
+/*!
+  Theme: GitHub Dark
+  Description: Dark theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-dark
+  Current colors taken from GitHub's CSS
+*/
+.article-markdown pre code {
+  color: #c9d1d9;
+  background: transparent
+}
+.article-markdown .hljs-doctag,
+.article-markdown .hljs-keyword,
+.article-markdown .hljs-meta .hljs-keyword,
+.article-markdown .hljs-template-tag,
+.article-markdown .hljs-template-variable,
+.article-markdown .hljs-type,
+.article-markdown .hljs-variable.language_ {
+  /* prettylights-syntax-keyword */
+  color: #ff7b72
+}
+.article-markdown .hljs-title,
+.article-markdown .hljs-title.class_,
+.article-markdown .hljs-title.class_.inherited__,
+.article-markdown .hljs-title.function_ {
+  /* prettylights-syntax-entity */
+  color: #d2a8ff
+}
+.article-markdown .hljs-attr,
+.article-markdown .hljs-attribute,
+.article-markdown .hljs-literal,
+.article-markdown .hljs-meta,
+.article-markdown .hljs-number,
+.article-markdown .hljs-operator,
+.article-markdown .hljs-variable,
+.article-markdown .hljs-selector-attr,
+.article-markdown .hljs-selector-class,
+.article-markdown .hljs-selector-id {
+  /* prettylights-syntax-constant */
+  color: #79c0ff
+}
+.article-markdown .hljs-regexp,
+.article-markdown .hljs-string,
+.article-markdown .hljs-meta .hljs-string {
+  /* prettylights-syntax-string */
+  color: #a5d6ff
+}
+.article-markdown .hljs-built_in,
+.article-markdown .hljs-symbol {
+  /* prettylights-syntax-variable */
+  color: #ffa657
+}
+.article-markdown .hljs-comment,
+.article-markdown .hljs-code,
+.article-markdown .hljs-formula {
+  /* prettylights-syntax-comment */
+  color: #8b949e
+}
+.article-markdown .hljs-name,
+.article-markdown .hljs-quote,
+.article-markdown .hljs-selector-tag,
+.article-markdown .hljs-selector-pseudo {
+  /* prettylights-syntax-entity-tag */
+  color: #7ee787
+}
+.article-markdown .hljs-subst {
+  /* prettylights-syntax-storage-modifier-import */
+  color: #c9d1d9
+}
+.article-markdown .hljs-section {
+  /* prettylights-syntax-markup-heading */
+  color: #1f6feb;
+  font-weight: bold
+}
+.article-markdown .hljs-bullet {
+  /* prettylights-syntax-markup-list */
+  color: #f2cc60
+}
+.article-markdown .hljs-emphasis {
+  /* prettylights-syntax-markup-italic */
+  color: #c9d1d9;
+  font-style: italic
+}
+.article-markdown .hljs-strong {
+  /* prettylights-syntax-markup-bold */
+  color: #c9d1d9;
+  font-weight: bold
+}
+.article-markdown .hljs-addition {
+  /* prettylights-syntax-markup-inserted */
+  color: #aff5b4;
+  background-color: #033a16
+}
+.article-markdown .hljs-deletion {
+  /* prettylights-syntax-markup-deleted */
+  color: #ffdcd7;
+  background-color: #67060c
+}
+.article-markdown .hljs-char.escape_,
+.article-markdown .hljs-link,
+.article-markdown .hljs-params,
+.article-markdown .hljs-property,
+.article-markdown .hljs-punctuation,
+.article-markdown .hljs-tag {
+  /* purposely ignored */
+
+}
+/* Intentional GitHub light colors match CodeEmbedPreview light overrides. */
+[data-theme="light"] .article-markdown pre code { color: #24292e; }
+[data-theme="light"] .article-markdown .hljs-doctag,
+[data-theme="light"] .article-markdown .hljs-keyword,
+[data-theme="light"] .article-markdown .hljs-meta .hljs-keyword,
+[data-theme="light"] .article-markdown .hljs-template-tag,
+[data-theme="light"] .article-markdown .hljs-template-variable,
+[data-theme="light"] .article-markdown .hljs-type,
+[data-theme="light"] .article-markdown .hljs-variable.language_ { color: #d73a49; }
+[data-theme="light"] .article-markdown .hljs-title { color: #6f42c1; }
+[data-theme="light"] .article-markdown .hljs-attr,
+[data-theme="light"] .article-markdown .hljs-attribute,
+[data-theme="light"] .article-markdown .hljs-literal,
+[data-theme="light"] .article-markdown .hljs-meta,
+[data-theme="light"] .article-markdown .hljs-number,
+[data-theme="light"] .article-markdown .hljs-operator,
+[data-theme="light"] .article-markdown .hljs-variable,
+[data-theme="light"] .article-markdown .hljs-selector-attr,
+[data-theme="light"] .article-markdown .hljs-selector-class,
+[data-theme="light"] .article-markdown .hljs-selector-id { color: #005cc5; }
+[data-theme="light"] .article-markdown .hljs-regexp,
+[data-theme="light"] .article-markdown .hljs-string,
+[data-theme="light"] .article-markdown .hljs-meta .hljs-string { color: #032f62; }
+[data-theme="light"] .article-markdown .hljs-built_in,
+[data-theme="light"] .article-markdown .hljs-symbol { color: #e36209; }
+[data-theme="light"] .article-markdown .hljs-comment,
+[data-theme="light"] .article-markdown .hljs-code,
+[data-theme="light"] .article-markdown .hljs-formula { color: #6a737d; }
+[data-theme="light"] .article-markdown .hljs-name,
+[data-theme="light"] .article-markdown .hljs-bullet,
+[data-theme="light"] .article-markdown .hljs-deletion { color: #b31d28; }
+[data-theme="light"] .article-markdown .hljs-section,
+[data-theme="light"] .article-markdown .hljs-link { color: #0366d6; }

@@ -1,3 +1,7 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.explicit-entry-back
 // HTTP API client for the OpenMates backend.
 // Handles auth tokens, cookie-based sessions, and JSON encoding/decoding.
 // Supports both Encodable bodies and raw dictionary bodies.
@@ -7,6 +11,8 @@
 // Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete
 
 import Foundation
 #if os(iOS)
@@ -193,6 +199,18 @@ actor APIClient {
                              expectedAccountID: expectedAccountID, expectedScope: expectedScope)
     }
 
+    func uploadAccountProfileImage(data: Data, serverProfile: ServerProfile,
+                                   expectedAccountID: String, expectedScope: UUID,
+                                   expectedTeamContext: APIRequestTeamContext) async throws -> Data {
+        let response = try await uploadFile(data: data, filename: "profile.jpg", contentType: "image/jpeg",
+            optionalChatID: nil, serverProfile: serverProfile, expectedAccountID: expectedAccountID,
+            expectedScope: expectedScope, endpoint: "v1/upload/profile-image",
+            expectedTeamContext: expectedTeamContext)
+        try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+        try await checkTeamContext(expectedTeamContext)
+        return response
+    }
+
     func uploadTeamProfileImage(data: Data, encryptedMetadata: String, teamID: String,
                                 serverProfile: ServerProfile, expectedAccountID: String, expectedScope: UUID,
                                 expectedTeamContext: APIRequestTeamContext) async throws -> Data {
@@ -350,7 +368,7 @@ actor APIClient {
     func validateNativeSession(serverProfile: ServerProfile, body: SessionRequest,
                                expectedAccountID: String?,
                                isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
-        var request = buildRequest(.post, path: "/v1/auth/session", headers: nil,
+        var request = try buildRequest(.post, path: "/v1/auth/session", headers: nil,
             baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
         request.httpBody = try encoder.encode(body)
         let prepared = request
@@ -383,7 +401,7 @@ actor APIClient {
                                         body: (any Encodable & Sendable)? = nil, headers: [String: String]? = nil,
                                         verifyResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil,
                                         validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
-        var request = buildRequest(method, path: path, headers: headers,
+        var request = try buildRequest(method, path: path, headers: headers,
                                    baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
         if let body {
             if let rawBody = body as? JSONRawBody { request.httpBody = rawBody.data }
@@ -431,7 +449,7 @@ actor APIClient {
         body: (any Encodable)? = nil,
         headers: [String: String]? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(method, path: path, headers: headers)
+        var urlRequest = try buildRequest(method, path: path, headers: headers)
 
         if let body {
             if let rawBody = body as? JSONRawBody {
@@ -453,7 +471,7 @@ actor APIClient {
         expectedAccountID: String? = nil, expectedScope: UUID? = nil,
         expectedTeamContext: APIRequestTeamContext? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(
+        var urlRequest = try buildRequest(
             method,
             path: path,
             headers: headers,
@@ -535,7 +553,7 @@ actor APIClient {
         body dict: [String: Any],
         headers: [String: String]? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(method, path: path, headers: headers)
+        var urlRequest = try buildRequest(method, path: path, headers: headers)
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: dict)
         return try await execute(urlRequest)
     }
@@ -666,24 +684,29 @@ actor APIClient {
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?
-    ) -> URLRequest {
-        buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
+    ) throws -> URLRequest {
+        try buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
     }
 
-    private func buildRequest(
+    func buildRequest(
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?,
         baseURL: URL,
         webAppURL: URL
-    ) -> URLRequest {
+    ) throws -> URLRequest {
         let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)
-        var url = baseURL.appendingPathComponent(pathAndQuery[0])
-        if pathAndQuery.count == 2, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-            components.percentEncodedQuery = pathAndQuery[1]
-            url = components.url ?? url
-        }
+        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        // Route builders escape individual IDs already. Appending that string as
+        // a raw path component would encode each '%' again (e.g. %3A -> %253A).
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              let route = URLComponents(string: "/" + pathAndQuery[0]),
+              route.host == nil, route.fragment == nil else { throw APIError.invalidResponse }
+        let basePath = components.percentEncodedPath.hasSuffix("/")
+            ? String(components.percentEncodedPath.dropLast()) : components.percentEncodedPath
+        components.percentEncodedPath = basePath + route.percentEncodedPath
+        components.percentEncodedQuery = pathAndQuery.count == 2 ? pathAndQuery[1] : nil
+        guard let url = components.url else { throw APIError.invalidResponse }
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -808,6 +831,12 @@ actor APIClient {
                 return pinned
             }
         }
+        if dispatchedRequest.url?.path.hasPrefix("/v1/auth/pair/v2/complete/") == true {
+            let prepared = dispatchedRequest
+            dispatchedRequest = await MainActor.run {
+                Self.preparePairCompletionRequest(prepared, cookieStorage: cookieStorage)
+            }
+        }
         try Task.checkCancellation()
         let sentRequest = dispatchedRequest
         let cookieURL = cookieAuthenticationURL
@@ -858,8 +887,13 @@ actor APIClient {
         } else if let explicitMutationProfile {
             await MainActor.run {
                 guard ServerProfile.current() == explicitMutationProfile else { return }
-                Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
-                    profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                if sentRequest.url?.path.hasPrefix("/v1/auth/pair/v2/complete/") == true {
+                    Self.publishPairCompletionCookies(httpResponse, request: sentRequest,
+                        profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                } else {
+                    Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
+                        profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                }
             }
         }
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -972,6 +1006,24 @@ actor APIClient {
             scopeURLs: [authURL, url], cookieStorage: cookieStorage)
         guard let successor, !successor.isEmpty, successor != current else { return false }
         return Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value == successor
+    }
+
+    // Specification: specifications/features/apple-watch/specification.yml
+    // Assertion: apple-watch.pairing.explicit-entry-back
+    // Disable automatic cookie acceptance for pair completion, then publish only
+    // on the still-running receiver task. Other login/logout handling is unchanged.
+    @MainActor static func preparePairCompletionRequest(_ request: URLRequest, cookieStorage: HTTPCookieStorage) -> URLRequest {
+        var pinned = request
+        pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage)
+        return pinned
+    }
+
+    @MainActor static func publishPairCompletionCookies(_ response: HTTPURLResponse, request: URLRequest,
+        profile: ServerProfile, cookieStorage: HTTPCookieStorage) {
+        guard !Task.isCancelled, ServerProfile.current() == profile,
+              WatchPairReceiverAuthority.current?.isCurrent() != false else { return }
+        reconcileExplicitSessionCookies(response, request: request, profile: profile, cookieStorage: cookieStorage)
+        WatchPairReceiverAuthority.current?.cookiesDidPublish()
     }
 
     /// Explicit login/logout already owns cookie creation/deletion. Reconcile

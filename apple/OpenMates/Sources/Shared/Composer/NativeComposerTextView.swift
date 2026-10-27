@@ -99,7 +99,14 @@ final class NativeComposerTextView: NSObject {
 
     #if canImport(UIKit)
     func makePlatformView() -> UITextView {
-        let textView = UITextView(usingTextLayoutManager: true)
+        let textView: UITextView
+        #if DEBUG && !OPENMATES_SHARE_EXTENSION
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-focus-trace") {
+            textView = NativeComposerFocusProbeTextView(usingTextLayoutManager: true)
+        } else { textView = UITextView(usingTextLayoutManager: true) }
+        #else
+        textView = UITextView(usingTextLayoutManager: true)
+        #endif
         textView.delegate = self
         textView.autocapitalizationType = .none
         let piiTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handlePIITap(_:)))
@@ -469,10 +476,16 @@ extension NativeComposerTextView: UITextViewDelegate {
     }
 
     func textViewDidBeginEditing(_ textView: UITextView) {
+        #if DEBUG && !OPENMATES_SHARE_EXTENSION
+        (textView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 7)
+        #endif
         onFocusChange(true)
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        #if DEBUG && !OPENMATES_SHARE_EXTENSION
+        (textView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 8)
+        #endif
         onFocusChange(false)
     }
 }
@@ -516,6 +529,99 @@ extension NativeComposerTextView: NSTextViewDelegate {
 
     func textDidEndEditing(_ notification: Notification) {
         onFocusChange(false)
+    }
+}
+#endif
+
+#if DEBUG && canImport(UIKit) && !OPENMATES_SHARE_EXTENSION
+/// Opt-in observation only. Preserve TextKit 2 and UIKit's responder/gesture
+/// decisions; never force focus or inject a replacement gesture recognizer.
+@MainActor
+final class NativeComposerFocusProbeTextView: UITextView {
+    private static var nextProbeID = 0
+    private lazy var probeID: Int = {
+        Self.nextProbeID += 1
+        return Self.nextProbeID
+    }()
+    private var probeSequence = 0
+
+    // Phases: 1 hitTest, 2 touchesBegan, 3 touchesEnded, 4 touchesCancelled,
+    // 5 become result, 6 resign result, 7 delegate began, 8 delegate ended,
+    // 9 reconcile become, 10 reconcile resign, 11 window change, 12 dismantle.
+    func recordFocusProbe(phase: Int, point: CGPoint? = nil, hit: UIView? = nil,
+                          outcome: Bool? = nil) {
+        guard probeSequence < 256 else { return }
+        probeSequence += 1
+        func scaled(_ value: CGFloat) -> Int {
+            guard value.isFinite else { return 0 }
+            return Int(min(999_999_999, max(-999_999_999, value * 1000)).rounded())
+        }
+        let windowFrame = window.map { convert(bounds, to: $0) } ?? .zero
+        // Three compact scalar records retain every observation below the
+        // 320-character sanitation limit. Shared id/seq/p/ms bind each group.
+        let common: [String: Int] = ["id": probeID, "seq": probeSequence, "p": phase,
+            "ms": Int(min(9_999_999_999_999, ProcessInfo.processInfo.systemUptime * 1000))]
+        var state: [String: Bool] = ["r": isFirstResponder, "cb": canBecomeFirstResponder,
+            "ed": isEditable, "sl": isSelectable, "ui": isUserInteractionEnabled,
+            "hi": isHidden, "wa": window != nil, "tr": isTracking,
+            "dr": isDragging, "dc": isDecelerating, "he": hit != nil,
+            "hs": hit === self, "hd": hit?.isDescendant(of: self) == true]
+        if let outcome { state["ok"] = outcome }
+        var stateCounts = common
+        stateCounts["part"] = 0
+        NativeDiagnostics.event("composer_focus_probe", category: "apple_composer", flags: state, counts: stateCounts)
+        var geometry: [String: Int] = ["fx": scaled(windowFrame.minX), "fy": scaled(windowFrame.minY),
+            "fw": scaled(windowFrame.width), "fh": scaled(windowFrame.height),
+            "bx": scaled(bounds.minX), "by": scaled(bounds.minY),
+            "bw": scaled(bounds.width), "bh": scaled(bounds.height),
+            "ox": scaled(contentOffset.x), "oy": scaled(contentOffset.y), "a": scaled(alpha)]
+        if let point { geometry["x"] = scaled(point.x); geometry["y"] = scaled(point.y) }
+        geometry.merge(common) { _, new in new }
+        geometry["part"] = 1
+        NativeDiagnostics.event("composer_focus_probe", category: "apple_composer", counts: geometry)
+        let recognizers = gestureRecognizers ?? []
+        func boundedCount(_ count: Int) -> Int { min(9999, count) }
+        var gestures: [String: Int] = ["n": boundedCount(recognizers.count),
+            "po": boundedCount(recognizers.filter { $0.state == .possible }.count),
+            "be": boundedCount(recognizers.filter { $0.state == .began }.count),
+            "ch": boundedCount(recognizers.filter { $0.state == .changed }.count),
+            "fa": boundedCount(recognizers.filter { $0.state == .failed }.count),
+            "ca": boundedCount(recognizers.filter { $0.state == .cancelled }.count)]
+        gestures.merge(common) { _, new in new }
+        gestures["part"] = 2
+        NativeDiagnostics.event("composer_focus_probe", category: "apple_composer", counts: gestures)
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        if event?.type == .touches { recordFocusProbe(phase: 1, point: point, hit: hit) }
+        return hit
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        recordFocusProbe(phase: 2, point: touches.first?.location(in: self))
+        super.touchesBegan(touches, with: event)
+    }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        recordFocusProbe(phase: 3, point: touches.first?.location(in: self))
+        super.touchesEnded(touches, with: event)
+    }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        recordFocusProbe(phase: 4, point: touches.first?.location(in: self))
+        super.touchesCancelled(touches, with: event)
+    }
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        recordFocusProbe(phase: 5, outcome: result)
+        return result
+    }
+    override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        recordFocusProbe(phase: 6, outcome: result)
+        return result
+    }
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        recordFocusProbe(phase: 11)
     }
 }
 #endif

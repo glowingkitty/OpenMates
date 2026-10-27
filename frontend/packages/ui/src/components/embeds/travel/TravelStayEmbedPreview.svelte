@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
   
@@ -24,6 +25,7 @@
    * individual stay result fields directly.
    */
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
     /** Synthetic embed ID for this stay card */
     id: string;
     /** Property name */
@@ -59,6 +61,7 @@
   }
   
   let {
+    resultContext = 'auto',
     id,
     name,
     thumbnail,
@@ -69,7 +72,7 @@
     ratePerNight,
     totalRate,
     amenities: amenitiesProp = [],
-    isCheapest = false,
+    isCheapest: _isCheapest = false,
     // ecoCertified and freeCancellation accepted but not shown in preview to keep it compact
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ecoCertified = false,
@@ -113,6 +116,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="travel"
   skillId="search_stays"
@@ -126,228 +131,14 @@
   showSkillIcon={false}
   hasFullWidthImage={true}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="stay-details" class:mobile={isMobileLayout} class:cheapest={isCheapest}>
-      <!-- Thumbnail -->
-      {#if thumbnail}
-        <div class="stay-thumb">
-          <img src={proxyImage(thumbnail, MAX_WIDTH_PREVIEW_THUMBNAIL)} alt={name || 'Property'} loading="lazy" />
-        </div>
-      {:else}
-        <div class="stay-thumb placeholder">
-          <span class="placeholder-icon">🏨</span>
-        </div>
-      {/if}
-      
-      <!-- Info section below thumbnail -->
-      <div class="stay-info">
-        <!-- Name -->
-        <div class="stay-name">{name || 'Unknown'}</div>
-        
-        <!-- Stars -->
-        {#if stars}
-          <div class="stay-stars">{stars}</div>
-        {/if}
-        
-        <!-- Rating and reviews -->
-        {#if formattedRating}
-          <div class="stay-meta">
-            <span class="rating">{formattedRating}</span>
-            {#if formattedReviews}
-              <span class="reviews">({formattedReviews})</span>
-            {/if}
-          </div>
-        {/if}
-        
-        <!-- Amenities (compact badges) -->
-        {#if topAmenities.length > 0}
-          <div class="stay-amenities">
-            {#each topAmenities as amenity}
-              <span class="amenity">{amenity}</span>
-            {/each}
-          </div>
-        {/if}
-        
-        <!-- Price -->
-        <div class="stay-price">
-          {#if ratePerNight != null}
-            <span class="price-amount" class:cheapest-price={isCheapest}>
-              {currency} {Math.round(ratePerNight)}
-            </span>
-            <span class="price-unit">/{$text('embeds.night')}</span>
-          {/if}
-          {#if totalRate != null}
-            <span class="price-total">
-              {currency} {Math.round(totalRate)} {$text('embeds.total')}
-            </span>
-          {/if}
-        </div>
-      </div>
-    </div>
+  {#snippet details()}
+    <ResultEmbedCard title={name || 'Unknown Property'} imageUrl={thumbnail ? proxyImage(thumbnail, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined} imageAlt={name || 'Property'} description={topAmenities.join(' · ')}>
+      {#snippet facts()}
+        {#if ratePerNight != null}<strong>{currency} {Math.round(ratePerNight)} /{$text('embeds.night')}</strong>{/if}
+        {#if formattedRating}<span>★ {formattedRating}{formattedReviews ? ` (${formattedReviews})` : ''}</span>{/if}
+        {#if stars}<span>{stars}</span>{/if}
+        {#if totalRate != null}<span>{currency} {Math.round(totalRate)} {$text('embeds.total')}</span>{/if}
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  /* ===========================================
-     Stay Details Content
-     =========================================== */
-  
-  .stay-details {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  /* Cheapest highlight border (inset glow) */
-  .stay-details.cheapest::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: var(--radius-7);
-    box-shadow: inset 0 0 0 2px var(--color-primary);
-    pointer-events: none;
-    z-index: var(--z-index-raised);
-  }
-  
-  /* ===========================================
-     Thumbnail
-     =========================================== */
-  
-  .stay-thumb {
-    width: 100%;
-    height: 110px;
-    overflow: hidden;
-    background: var(--color-grey-15);
-    flex-shrink: 0;
-  }
-  
-  .stay-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .stay-thumb.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .placeholder-icon {
-    font-size: var(--font-size-xxl);
-    opacity: 0.4;
-  }
-  
-  /* ===========================================
-     Info Section
-     =========================================== */
-  
-  .stay-info {
-    padding: var(--spacing-4) var(--spacing-6) var(--spacing-3);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    flex: 1;
-    min-height: 0;
-  }
-  
-  .stay-name {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .stay-stars {
-    font-size: null;
-    color: #f5a623;
-    letter-spacing: 1px;
-  }
-  
-  /* Rating and reviews */
-  .stay-meta {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    font-size: var(--font-size-xxs);
-  }
-  
-  .rating {
-    font-weight: 600;
-    color: var(--color-font-primary);
-  }
-  
-  .reviews {
-    color: var(--color-font-secondary);
-  }
-  
-  /* Amenities */
-  .stay-amenities {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-  }
-  
-  .amenity {
-    font-size: null;
-    padding: 1px 6px;
-    border-radius: var(--radius-3);
-    background: var(--color-grey-15);
-    color: var(--color-font-secondary);
-    white-space: nowrap;
-  }
-  
-  /* Price */
-  .stay-price {
-    display: flex;
-    align-items: baseline;
-    gap: 3px;
-    flex-wrap: wrap;
-    margin-top: auto;
-  }
-  
-  .price-amount {
-    font-size: var(--font-size-small);
-    font-weight: 700;
-    color: var(--color-font-primary);
-  }
-  
-  .price-amount.cheapest-price {
-    color: var(--color-success, #22c55e);
-  }
-  
-  .price-unit {
-    font-size: var(--font-size-tiny);
-    color: var(--color-font-secondary);
-  }
-  
-  .price-total {
-    font-size: var(--font-size-tiny);
-    color: var(--color-font-secondary);
-    margin-left: auto;
-  }
-  
-  /* ===========================================
-     Mobile Adjustments
-     =========================================== */
-  
-  .stay-details.mobile .stay-thumb {
-    height: 90px;
-  }
-  
-  .stay-details.mobile .stay-name {
-    font-size: var(--font-size-xxs);
-  }
-  
-  .stay-details.mobile .price-amount {
-    font-size: var(--font-size-xs);
-  }
-</style>

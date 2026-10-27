@@ -261,6 +261,20 @@ def test_disabled_tracker_does_not_schedule_speech_work() -> None:
     assert dispatched == []
 
 
+# contract-test: supporting surface=rest_api assertions=assistant-speech.segmentation.immutable-source,assistant-speech.projection.deterministic-semantic
+def test_oversized_paragraphs_prefer_complete_sentences_and_preserve_text() -> None:
+    from backend.apps.ai.assistant_speech.streaming import _split_automatic_paragraph
+
+    first = ("A complete sentence. " * 70).strip()
+    second = ("The following sentence has more words. " * 30).strip()
+    paragraph = f"{first} {second}"
+    chunks = _split_automatic_paragraph(paragraph)
+    assert len(chunks) == 2
+    assert " ".join(chunks) == paragraph
+    assert all(len(chunk) <= 2_000 and chunk.endswith(".") for chunk in chunks)
+    assert [len(chunk) for chunk in _split_automatic_paragraph("x" * 4001)] == [2000, 2000, 1]
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.immutable-source
 def test_tracker_deterministically_splits_automatic_paragraphs_at_the_safe_bound() -> None:
     dispatched: list[dict[str, object]] = []
@@ -382,6 +396,20 @@ def test_explicit_focus_activation_defers_speech_until_resolved_continuation() -
     assert gate(request(auto_speak_response=True), preprocessing, trusted) is False
     assert gate(request(active_focus_id="study-learn_topic"), preprocessing, trusted) is True
     assert gate(request(active_focus_id="study-learn_topic", auto_speak_response=True), preprocessing, trusted) is True
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.failure.nonblocking-visible-resumable
+def test_project_consent_only_routing_does_not_prepare_speech_without_an_answer() -> None:
+    from types import SimpleNamespace
+
+    request = SimpleNamespace(is_external=False, is_incognito=False, active_focus_id=None,
+                              active_project_focus=None, project_focus_candidates=[{"project_id": "one"}])
+    preprocessing = SimpleNamespace(routing_only=True, user_requested_focus_only=True,
+                                    relevant_focus_modes=["project-one"], selected_mate_id=None)
+    gate = stream_consumer._should_prepare_assistant_speech
+    assert gate(request, preprocessing, None) is False
+    preprocessing.routing_only = False
+    assert gate(request, preprocessing, None) is True  # A real answer still surfaces a missing profile.
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.failure.nonblocking-visible-resumable

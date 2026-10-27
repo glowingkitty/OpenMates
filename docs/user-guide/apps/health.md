@@ -14,40 +14,12 @@ claims:
 
 # Health
 
-> Find available doctor appointments.
+Appointment search is currently unavailable.
 
-## What It Does
-
-The Health app helps you find available doctor appointments.
-
-**Available skills:**
-
-- **Search Appointments** -- Search for available doctor and specialist appointments in German cities. Pulls real-time availability from Doctolib and Jameda with direct booking links. You can filter by speciality, city, insurance type (public or private), telehealth availability, spoken language, and how far ahead to search.
-
-**Supported specialities include:** general practitioner, dermatologist, ophthalmologist, dentist, gynaecologist, cardiologist, orthopaedist, neurologist, paediatrician, ENT specialist, physiotherapist, urologist, and more.
-
-## How to Use It
-
-- Find a doctor: "Find a dermatologist in Berlin with availability this week"
-- Filter by insurance: "Search for a general practitioner in Munich that accepts public insurance"
-- Telehealth: "Find an English-speaking therapist offering video consultations in Hamburg"
-- Specific appointment type: "Search for vaccination appointments in Frankfurt"
-
-## Screenshots
-
-![Doctor appointment search](../../images/user-guide/apps/health/previews/search/finished.jpg)
-
-## Memories
-
-Health memories are temporarily unavailable while we review the consent and privacy requirements for storing consumer health data. Existing encrypted entries are preserved but are not offered as active memory categories.
-
-## Tips
-
-- Search results include the doctor's name, speciality, next available appointment, address, and a direct link to book online.
-- Both Doctolib and Jameda are searched in parallel to give you the widest selection.
-- Avoid including identifying medical details in appointment searches unless they are necessary for the search.
+Avoid sharing identifying medical details unless they are necessary for your conversation.
+Health memories are temporarily unavailable while consent and privacy requirements are reviewed. Existing encrypted entries are preserved.
 
 ## Related
 
-- [Reminder](./reminder.md) -- Set reminders for upcoming appointments
-- [Maps](./maps.md) -- Find the clinic location and directions
+- [Reminder](./reminder.md) -- Set reminders for appointments
+- [Maps](./maps.md) -- Find a clinic location

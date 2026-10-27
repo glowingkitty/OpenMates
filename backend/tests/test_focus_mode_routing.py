@@ -304,3 +304,20 @@ def test_deep_research_verifier_final_barrier_keeps_legacy_and_failure_honest():
         is_sub_chat_continuation=True, active_focus_id="web-research") is False
     assert should_expose_subchat_tool(enable_subchats=True, chat_depth=1,
         is_sub_chat_continuation=False, active_focus_id="web-research") is False
+
+
+def test_admitted_child_can_delegate_despite_classifier_rejection():
+    enabled = resolve_subchat_enablement(False, active_focus_id=None, chat_depth=1)
+    assert enabled
+    assert should_expose_subchat_tool(enable_subchats=enabled, chat_depth=1, is_sub_chat_continuation=False)
+
+
+def test_grandchild_and_invalid_depth_never_expose_delegation():
+    for depth in (2, 3, 99, -1, True, None):
+        assert not resolve_subchat_enablement(True, active_focus_id=None, chat_depth=depth)
+        assert not should_expose_subchat_tool(enable_subchats=True, chat_depth=depth, is_sub_chat_continuation=False)
+
+
+def test_child_continuation_and_research_angle_remain_nonrecursive():
+    assert not resolve_subchat_enablement(True, active_focus_id=None, chat_depth=1, is_sub_chat_continuation=True)
+    assert not resolve_subchat_enablement(True, active_focus_id="web-research", chat_depth=1)

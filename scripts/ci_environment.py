@@ -42,6 +42,24 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "wiki-learning-flow.spec.ts",
 })
 DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"})
+# Authenticated native CLI/TUI preparation requires a private backend without
+# enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
+# harness selector only strengthens network isolation; it grants no execution.
+PRIVATE_BACKEND_SPECS = frozenset({
+    "cli-rust-cli-performance.spec.ts",
+    "cli-rust-tui-performance.spec.ts",
+    "cli-rust-tui-proof.spec.ts",
+    "cli-native-bounded-saved-read.spec.ts",
+    "cli-rust-native-keyring.spec.ts",
+    "cli-rust-core-essential.spec.ts",
+    "rust-core-browser-session.spec.ts",
+    "rust-core-browser-password-entry.spec.ts",
+    "rust-core-production-saved-session.spec.ts",
+    "rust-core-production-platform.spec.ts",
+    "rust-core-production-local-cursor.spec.ts",
+    "rust-core-production-saved-paging.spec.ts",
+    "rust-core-ordinary-login-retention.spec.ts",
+})
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
@@ -611,10 +629,20 @@ def has_team_storage_billing_schema(source_root: str | Path) -> bool:
     return (Path(source_root) / "backend/core/directus/schemas/team_storage_billing.yml").is_file()
 
 
+def web_read_fixture_selected(specs: list[str]) -> bool:
+    """The controlled-origin reader contract owns an exclusive runtime batch."""
+    if "web-read-public-page.spec.ts" not in specs:
+        return False
+    if specs != ["web-read-public-page.spec.ts"]:
+        raise ValueError("Public-page reader fixture requires its own standalone batch")
+    return True
+
+
 def compose_profile(
     source_hash: str,
     *,
     ai_fixtures: bool = False,
+    voice_camera: bool = False,
     object_storage: bool = False,
     uploads: bool = False,
     public_provider: bool = False,
@@ -633,13 +661,19 @@ def compose_profile(
     capacity_run_id: str | None = None,
     billing_profile: str | None = None,
     telemetry_proxy: bool = False,
+    private_backend: bool = False,
+    web_read_fixture: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if web_read_fixture and public_provider:
+        raise ValueError("Public-page reader fixture cannot enable a provider proxy")
     if billing_profile not in (None, "legacy", "logical"):
         raise ValueError("Unknown isolated storage billing profile")
     storage_capacity = storage_capacity or billing_profile is not None
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
     object_storage = object_storage or uploads or storage_capacity
+    if voice_camera and not (ai_fixtures and uploads):
+        raise ValueError("Voice camera fixture requires isolated AI fixtures and real uploads")
     if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows or workflow_runtime):
         raise ValueError("Storage accountability requires its standalone zero-provider profile")
     if storage_accountability and (not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000):
@@ -654,7 +688,7 @@ def compose_profile(
         raise ValueError("Target profile requires exactly 500 isolated worker slots")
     if workflow_runtime and (workflows or ai_fixtures or object_storage or offline_preview or storage_accountability or detached_docs):
         raise ValueError("Internal Workflow runtime cannot mix with weather or provider/storage profiles")
-    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
+    isolate_backend = web_read_fixture or private_backend or ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -689,6 +723,7 @@ def compose_profile(
         "DRAGONFLY_URL": "cache:6379",
         "DRAGONFLY_PASSWORD": credentials["cache"],
         "VAULT_URL": "http://vault:8200",
+        "APPS_RECOMMENDATIONS_DIR": "/app/data/apps-recommendations",
         "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
         "SERVER_ENVIRONMENT": "development",
         "OPENMATES_DEPLOYMENT_MODE": "self_host",
@@ -704,6 +739,11 @@ def compose_profile(
         "E2E_TEST_PROD_ENABLED": "false",
         "CELERY_AUTOSCALE_MAX": "1",
     }
+    if private_backend:
+        # The exact trusted private-backend selector admits this isolated
+        # no-inference profile. Native runtime guards require these markers;
+        # no AI/mail/storage/provider replay fixture is enabled by them.
+        common.update(CI="true", OPENMATES_CI_ISOLATED="1")
     if mail_capture:
         common.update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1",
@@ -747,6 +787,7 @@ def compose_profile(
         "backend-logs:/app/backend/core/api/logs",
         "api-cache:/app/backend/apps/ai/testing/api_cache",
         "vault-tokens:/vault-data",
+        "apps-recommendations-data:/app/data/apps-recommendations",
     ]
     if storage_capacity:
         source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
@@ -1004,13 +1045,22 @@ def compose_profile(
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
         ai_worker = deepcopy(worker)
+        # Video work stays on the guarded fixture worker. Speech gets its own
+        # worker below so audio can begin while the single AI slot is streaming.
+        ai_queues = "app_ai,app_ai_routing" + (",app_videos" if voice_camera else "")
         ai_worker["environment"].update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
-            CELERY_QUEUES="app_ai,app_ai_routing",
+            CELERY_QUEUES=ai_queues,
         )
-        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai,app_ai_routing") for part in worker["command"]]
+        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={ai_queues}") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+        if voice_camera:
+            speech_worker = deepcopy(ai_worker)
+            speech_worker["environment"]["CELERY_QUEUES"] = "app_music"
+            speech_worker["command"] = [part.replace(f"--queues={ai_queues}", "--queues=app_music")
+                                        for part in ai_worker["command"]]
+            services["speech-worker"] = speech_worker
         if storage_capacity:
             ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={TARGET_SLOTS_PER_WORKER if capacity_target else capacity_concurrency}")
                                     for part in ai_worker["command"]]
@@ -1107,6 +1157,7 @@ def compose_profile(
                 mounts.append(mount)
         if mounts:
             service["volumes"] = mounts
+    volumes["apps-recommendations-data"]["labels"] = {"openmates.backup.exclude": "true"}
     if telemetry_proxy:
         # Only the telemetry boundary spec needs to reach the proxy body read.
         # The absent collector stays inside the disposable network; no operator
@@ -1124,6 +1175,38 @@ def compose_profile(
             services[name]["networks"] = ["default", "ingress"]
     if isolate_backend:
         profile["networks"] = {"default": {"internal": True}, "ingress": {}}
+    if web_read_fixture:
+        # Only this opt-in spec may reach the controlled HTTPS origin. Its
+        # public-shaped subnet is wholly internal: no external route or proxy.
+        if __package__:
+            from .ci_web_read_fixture import ADDRESS, HOSTNAME, SUBNET
+        else:
+            from ci_web_read_fixture import ADDRESS, HOSTNAME, SUBNET
+        fixture_dir = str(Path(SOURCE) / "test-results/ci-private/web-read-tls")
+        profile["networks"]["web-read-fixture"] = {
+            "internal": True, "ipam": {"config": [{"subnet": SUBNET}]},
+        }
+        api["networks"] = ["default", "web-read-fixture"]
+        api["extra_hosts"][HOSTNAME] = ADDRESS
+        api["environment"]["SSL_CERT_FILE"] = "/ci-web-read/ca.pem"
+        api["volumes"].append(f"{fixture_dir}/ca.pem:/ci-web-read/ca.pem:ro")
+        api["depends_on"]["web-read-origin"] = {"condition": "service_healthy"}
+        services["web-read-origin"] = {
+            "image": "openmates-ci-api:local",
+            "command": ["python", "/ci_web_read_fixture.py", "serve", "/tls"],
+            "environment": {"OPENMATES_CI_WEB_READ_FIXTURE": "github-isolated"},
+            "volumes": [f"{Path(__file__).with_name('ci_web_read_fixture.py').resolve()}:/ci_web_read_fixture.py:ro",
+                        f"{fixture_dir}:/tls:ro"],
+            "networks": {"web-read-fixture": {"ipv4_address": ADDRESS}},
+            "ports": ["127.0.0.1:8443:443"],
+            "mem_limit": 96 * MIB, "pids_limit": 64, "restart": "no",
+            "healthcheck": {"test": ["CMD", "python", "-c",
+                "import ssl,urllib.request; c=ssl.create_default_context(cafile='/tls/ca.pem'); "
+                "r=urllib.request.urlopen('https://read-page.ci.test/__health',context=c,timeout=3); assert r.status==200"],
+                "interval": "2s", "timeout": "5s", "retries": 20},
+            "extra_hosts": {HOSTNAME: ADDRESS},
+            "labels": {"org.openmates.source": source_hash},
+        }
     return profile
 
 
@@ -1294,6 +1377,59 @@ def start_with_evidence():
         destination.write_text(json.dumps(report, indent=2))
 
 
+def validate_ai_worker_queues(command: list[str], environment_queues: str, *, voice_camera: bool) -> list[str]:
+    """Compare actual worker inputs, retaining only validated queue names."""
+    def parse(value: str) -> set[str]:
+        if not isinstance(value, str) or not value or len(value) > 1024:
+            raise RuntimeError("Isolated AI worker queues are invalid")
+        values = value.split(",")
+        if any(not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", name) for name in values):
+            raise RuntimeError("Isolated AI worker queues are invalid")
+        return set(values)
+
+    if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+        raise RuntimeError("Isolated AI worker command is invalid")
+    declared = []
+    for index, part in enumerate(command):
+        if part.startswith("--queues="):
+            declared.append(part.partition("=")[2])
+        elif part in {"--queues", "-Q"}:
+            declared.append(command[index + 1] if index + 1 < len(command) else "")
+    if len(declared) != 1:
+        raise RuntimeError("Isolated AI worker must declare one explicit queue list")
+    actual = parse(declared[0])
+    if actual != parse(environment_queues):
+        raise RuntimeError("Isolated AI worker command and CELERY_QUEUES disagree")
+    if voice_camera and not {"app_ai", "app_ai_routing", "app_videos"}.issubset(actual):
+        raise RuntimeError("Voice camera fixture worker lacks required AI and video queues")
+    return sorted(actual)
+
+
+def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]:
+    """Read only the command and named queue variable, never emit environment."""
+    template = ('{{json .Config.Cmd}}\n{{range .Config.Env}}'
+                '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}')
+    raw = subprocess.check_output(
+        ["docker", "inspect", "--format", template, container], text=True, timeout=10,
+    )
+    output = [line for line in raw.splitlines() if line]
+    if len(output) != 2 or not output[1].startswith("CELERY_QUEUES="):
+        raise RuntimeError("Isolated AI worker requires one CELERY_QUEUES value")
+    try:
+        command = json.loads(output[0])
+    except ValueError:
+        raise RuntimeError("Isolated AI worker command is invalid") from None
+    return validate_ai_worker_queues(command, output[1].partition("=")[2], voice_camera=voice_camera)
+
+
+def inspect_speech_worker_queues(container: str) -> list[str]:
+    """Prove speech has an independent consumer without the busy AI queue."""
+    queues = inspect_ai_worker_queues(container, voice_camera=False)
+    if queues != ["app_music"]:
+        raise RuntimeError("Voice fixture requires an independent shared-speech queue consumer")
+    return queues
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -1373,7 +1509,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)), web_read_fixture=web_read_fixture_selected(selected))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -1401,6 +1537,12 @@ def main():
             if billing_private.is_symlink():
                 raise RuntimeError("Storage billing private mount cannot be a symlink")
             billing_private.chmod(0o700)
+        if "web-read-public-page.spec.ts" in selected:
+            if __package__:
+                from .ci_web_read_fixture import prepare_tls
+            else:
+                from ci_web_read_fixture import prepare_tls
+            prepare_tls(COMPOSE_PATH.parent / "web-read-tls")
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
         evidence = {
@@ -1448,10 +1590,15 @@ def main():
                 raise RuntimeError("Runner-local API is not healthy")
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
+        voice_camera = "voice-call.spec.ts" in json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        if voice_camera and not {"ai-worker", "speech-worker"}.issubset(profile["services"]):
+            raise RuntimeError("Voice camera fixture requires independent AI and speech workers")
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if voice_camera:
+            required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
-            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "Gandi", "JobTech"], "paid_provider_credentials": "absent"}
+            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "JobTech"], "paid_provider_credentials": "absent"}
         if "uploads" in profile["services"]:
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
@@ -1524,6 +1671,10 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
+            if service == "speech-worker":
+                identities[service]["queues"] = inspect_speech_worker_queues(container)
+            if service == "ai-worker" or service.startswith("ai-worker-"):
+                identities[service]["queues"] = inspect_ai_worker_queues(container, voice_camera=voice_camera)
             if (evidence.get("target_capacity_admission") or calibration_active) and (
                     service == "ai-worker" or service.startswith("ai-worker-")):
                 configured = profile["services"][service]["command"]
@@ -1537,7 +1688,7 @@ def main():
                 if not children.isdecimal() or int(children) < TARGET_SLOTS_PER_WORKER:
                     raise RuntimeError("Target worker has fewer live prefork processes than admitted")
                 observed_worker_slots += TARGET_SLOTS_PER_WORKER
-            if (service in ("api", "core-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
+            if (service in ("api", "core-worker", "speech-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
                 mounts = [
                     mount
                     for mount in info["Mounts"]
@@ -1560,7 +1711,7 @@ def main():
             evidence["storage_capacity"]["observed_worker_processes"] = observed_worker_slots
         if profile["services"].get("runner-gateway", {}).get("environment", {}).get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
             compose("exec", "-T", "api", "python", "-c", "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()", capture=True, timeout=10)
-            evidence["public_provider_proxy"] = {"allowed_https_hosts": ["webench.ti.com"], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
+            evidence["public_provider_proxy"] = {"allowed_https_hosts": [], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
         if "object-storage" in profile["services"]:
             if socket.gethostbyname("storage.ci.test") != "127.0.0.1":
                 raise RuntimeError("Object storage must resolve on this runner")

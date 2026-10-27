@@ -1,0 +1,168 @@
+{
+  "status": "complete",
+  "model": {
+    "repository": "desert-ant-labs/redact",
+    "tag": "v0.4.0",
+    "revision": "3ed5033aeb544f454ebde77dc76fd7b7e76cc572",
+    "files": {
+      "redact.tflite": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27",
+      "redact_tokenizer.bin": "81bc354dc99285e05b8f70edca9df3afbd83dfa4b0cea18d0448ab17ce58aae2",
+      "labels.json": "fe76679736d86b47a45fe03a94994aa292fc6203"
+    }
+  },
+  "sdk": {
+    "name": "@desert-ant-labs/redact",
+    "version": "4.1.0",
+    "core_version": "4.1.0",
+    "koffi_version": "2.16.3"
+  },
+  "environment": {
+    "platform": "linux",
+    "architecture": "arm64",
+    "node": "v24.22.1",
+    "os": "6.8.0-137-generic",
+    "cpu": "Neoverse-N1",
+    "affinity": "0-1",
+    "native_thread_setting": "SDK default; no supported public thread option; all threads affinity-bounded by supervisor",
+    "native_threads_after_load": 13
+  },
+  "disk": {
+    "native_files": [
+      {
+        "file": "libLiteRt.so",
+        "bytes": 5831880,
+        "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+      },
+      {
+        "file": "libRedactNode.so",
+        "bytes": 56377136,
+        "sha256": "513aa6212cdcffcd767ee2b066df155986563471518c1a1ca87ae249373031fe"
+      },
+      {
+        "file": "libdalcpushim.so",
+        "bytes": 67504,
+        "sha256": "b14e75056c68bc2380b00a60d4c97419d85fc578bf1c4861dc8a12d5fa80e5f7"
+      }
+    ],
+    "model_files": [
+      {
+        "file": "redact.tflite",
+        "bytes": 24529472,
+        "sha256": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27"
+      },
+      {
+        "file": "redact_tokenizer.bin",
+        "bytes": 391416,
+        "sha256": "81bc354dc99285e05b8f70edca9df3afbd83dfa4b0cea18d0448ab17ce58aae2"
+      },
+      {
+        "file": "labels.json",
+        "bytes": 3842,
+        "sha256": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a"
+      }
+    ],
+    "model_plus_native_bytes": 87201250,
+    "note": "Logical file sizes; excludes shared system libraries, Node executable and npm JS dependency tree"
+  },
+  "source_hashes": {
+    "scripts/privacy_filter_regex_baseline.mjs": "9bb266418935e475cf2248b43a52188861d4bb891b0e948b48e7c27e0d93e67c",
+    "scripts/redact_linux_evaluation.mjs": "2dee21e532d909793d4beb0174d298195442a7c617b1e5be163edce2f55698d8",
+    "scripts/redact_linux_evaluation.py": "0986eac80c17c118a2892aefe40e600522d4daf89459e9010028e58a6482dfaf",
+    "frontend/packages/secret-scanner/src/identifierRanges.ts": "f3ff7568bfff437f016531ebaeaa192c4cf9ce8c306687e254b90a43429ae81c",
+    "frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts": "b44daca234317d5dc9dc3ec646701cfd3af951d5d7258129c392ffc3acc20c88",
+    "frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts": "425b4f9fdacc73b70b91aa3df765c1d1d77967bfb14d61880d8bc9ca4a0e9bd4"
+  },
+  "offline": {
+    "mechanism": "libseccomp TSYNC, EPERM",
+    "all_threads": true,
+    "socket_creation_denied": true,
+    "existing_internet_sockets": 0,
+    "required_telemetry": "normal SDK load and flush before seal; SDK unmodified"
+  },
+  "labels": {
+    "raw_default": [
+      "GIVEN_NAME",
+      "SURNAME",
+      "STREET_NAME",
+      "BUILDING_NUMBER",
+      "SECONDARY_ADDRESS",
+      "CITY",
+      "STATE",
+      "ZIP_CODE",
+      "EMAIL",
+      "PHONE",
+      "CREDIT_CARD",
+      "BANK_ACCOUNT",
+      "ROUTING_NUMBER",
+      "IP_ADDRESS",
+      "URL",
+      "GOVERNMENT_ID",
+      "PASSPORT",
+      "DRIVERS_LICENSE",
+      "TAX_ID",
+      "SSN",
+      "IMEI"
+    ],
+    "browser_policy": [
+      "GIVEN_NAME",
+      "SURNAME",
+      "STREET_NAME",
+      "BUILDING_NUMBER",
+      "SECONDARY_ADDRESS",
+      "CITY",
+      "STATE",
+      "ZIP_CODE",
+      "EMAIL",
+      "PHONE",
+      "CREDIT_CARD",
+      "BANK_ACCOUNT",
+      "ROUTING_NUMBER",
+      "GOVERNMENT_ID",
+      "PASSPORT",
+      "DRIVERS_LICENSE",
+      "TAX_ID",
+      "SSN",
+      "IMEI",
+      "IP_ADDRESS"
+    ]
+  },
+  "fixture_sha256": "128bc8e6ded2237e457fad56ea79c86c1dca2006433fb3f0d1fd0a7e9073e5f5",
+  "fixtures": [],
+  "memory": {
+    "before_model_load_rss_bytes": 105521152,
+    "after_model_load_rss_bytes": 124526592,
+    "final_rss_bytes": 160559104,
+    "process_peak_rss_bytes": 173416448
+  },
+  "load": {
+    "first_new_process_ms": 25.939193999999986,
+    "warm_same_process_reload_ms": 0.15752099999997426,
+    "first_redaction_ms": 23169.470725,
+    "note": "OS page cache not flushed; SDK can initialize lazily: first_redaction_ms includes any deferred initialization"
+  },
+  "reliability": {
+    "restore_failures": 0,
+    "repeated_output_drift": 0,
+    "completed_quality_cases": 0,
+    "completed_latency_scans": 3,
+    "fail_closed_on_sdk_or_offset_error": true
+  },
+  "quality": null,
+  "quality_timings": [],
+  "latency": [
+    {
+      "whitespace_units": 4096,
+      "characters_utf16": 27135,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        23538.537296000002,
+        23079.631600000008,
+        23403.833375000002
+      ],
+      "median_ms": 23403.833375000002,
+      "p95_ms": 23538.537296000002,
+      "before_repetitions_rss_bytes": 173285376,
+      "after_repetitions_rss_bytes": 173416448
+    }
+  ]
+}

@@ -1,0 +1,321 @@
+{
+  "afterSha256": "c0382cad397e94c5417b2f151ca03e211b318cf995bc3ccfd9d39d149b9da6a1",
+  "beforeSha256": "bb1da8b22c146f87c9f3f8e1942a5b14d724a8397732308ca9c72b04b326e241",
+  "counts": {
+    "contracts": 79,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 309
+  },
+  "fixtureTransition": {
+    "afterCount": 33,
+    "afterSha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+    "appendedCaseIds": [
+      "long-4096",
+      "escaped-control-long",
+      "supplementary-255",
+      "bmp-255",
+      "reserved-path",
+      "nfc-preserved",
+      "nfd-preserved",
+      "utf16-first",
+      "utf8-first"
+    ],
+    "beforeCount": 24,
+    "beforeSha256": "c383e2237174f21679e8fb805e54ea61dd04158ca70b19a2b8992f6c2140adc6",
+    "invertedCaseIds": [
+      "space",
+      "embedded-space",
+      "tab",
+      "linefeed",
+      "carriage-return",
+      "nul",
+      "del",
+      "non-ascii",
+      "over-bound"
+    ],
+    "paths": [
+      "tests/sdk-conformance/fixtures/message-id-compatibility.json",
+      "packages/openmates-rust/tests/fixtures/message-id-compatibility.json"
+    ],
+    "priorCaseIds": [
+      "uuid",
+      "web-chat-suffix-uuid",
+      "opaque-legacy-ascii",
+      "task-event",
+      "mixed-case-preserved",
+      "upper-uuid-preserved",
+      "different-suffix-is-not-authority",
+      "visible-punctuation",
+      "maximum-bytes",
+      "empty",
+      "space",
+      "embedded-space",
+      "tab",
+      "linefeed",
+      "carriage-return",
+      "nul",
+      "del",
+      "non-ascii",
+      "over-bound",
+      "null",
+      "number",
+      "boolean",
+      "array",
+      "object"
+    ],
+    "priorCasesSha256": "6fa72f1e518648bbd4654975f50d363ab20fc5ac7429dd77dae36d5715d5f9a1",
+    "priorMetadata": {
+      "policy": {
+        "ascii_max": 126,
+        "ascii_min": 33,
+        "backend_universal_limit_claimed": false,
+        "max_bytes": 256,
+        "min_bytes": 1,
+        "remaining_wire_compatibility_gaps": [
+          "space",
+          "unicode",
+          "more_than_256_bytes"
+        ]
+      },
+      "purpose": "Public synthetic vectors for bounded saved-message READ identity compatibility; selectors confer no owner/chat/scope authority.",
+      "schema_version": 1
+    },
+    "priorMetadataJson": "{\"schema_version\": 1, \"purpose\": \"Public synthetic vectors for bounded saved-message READ identity compatibility; selectors confer no owner/chat/scope authority.\", \"policy\": {\"min_bytes\": 1, \"max_bytes\": 256, \"ascii_min\": 33, \"ascii_max\": 126, \"backend_universal_limit_claimed\": false, \"remaining_wire_compatibility_gaps\": [\"space\", \"unicode\", \"more_than_256_bytes\"]}}"
+  },
+  "gapsUnchanged": true,
+  "matrixDelta": {
+    "afterSha256": "6d466f3806f59d5e69ef94072ed2c169ec9f539fc46531c75502a4dacab374e8",
+    "beforeSha256": "2847dac0c6d45998e2ba0d39928fb39381a6ad0844cdfac523f287b86aaa3a90",
+    "family": "sdk.session-client",
+    "rustApiRemoved": "client.message_window.MAX_MESSAGE_ID_BYTES"
+  },
+  "nativeExecutions": 0,
+  "oldGapsSha256": "309e5baf7b8d0aa185f76a50005dac99c624d3d877fce00777697000705d0362",
+  "oldPlansSha256": "87eaab316b78a628b6bcd9c125a7147d604adb9819db0c1ad3f59586e17a4cbe",
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "6d466f3806f59d5e69ef94072ed2c169ec9f539fc46531c75502a4dacab374e8",
+        "before": "2847dac0c6d45998e2ba0d39928fb39381a6ad0844cdfac523f287b86aaa3a90"
+      },
+      "packages/openmates-rust/tests/fixtures/message-id-compatibility.json": {
+        "after": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+        "before": "c383e2237174f21679e8fb805e54ea61dd04158ca70b19a2b8992f6c2140adc6"
+      },
+      "tests/sdk-conformance/fixtures/message-id-compatibility.json": {
+        "after": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474",
+        "before": "c383e2237174f21679e8fb805e54ea61dd04158ca70b19a2b8992f6c2140adc6"
+      }
+    },
+    "programs": {
+      "frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorIO.test.cjs": {
+        "after": "b95cb810a82747e47d85f7dac258e0c269645ad427799364bd08939bf1322622",
+        "before": "44b2086dd4f95b315db570ccb15a1cb618260bd4bfec3ca487f13f97c1879a2e"
+      },
+      "frontend/packages/ui/src/services/rustCore/protocol.ts": {
+        "after": "65207ac341b47e15570bdf9a4b1d16cbb434978655e76995ed1ebac468c35a87",
+        "before": "b769282cb6f00a789e2ded5a6a37fa323443bcfd9008c28313b92d7c4ccf65fc"
+      },
+      "frontend/packages/ui/src/services/rustCore/savedReadProtocol.ts": {
+        "after": "ac95d79db6515547f80984bdb37b1364092e0de506b726a56a8800356d767862",
+        "before": "b964b623d5323958b796fd5f792d785b99c4570c537a1a249f7123bdd08cf9a0"
+      },
+      "packages/openmates-browser-bindings/src/browser.rs": {
+        "after": "d8b90a4f70373f981c8cdf8ba5ddd7281b6d4127a8e6b0cf640d2aaa9094f57b",
+        "before": "f398fbff45d08ae8cfed5c15d3aebe6edc6269512377bbb4cdfe604cbf3d8416"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor.rs": {
+        "after": "cbd574724d091aae8cce6dc3e52495ba57e9ee047efda0edabd7dadd64a2edc4",
+        "before": "9baabf70a5ffb712d6bcaf6018966214b910667179e4eca0c5a70828cb13a4f6"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor_tests.rs": {
+        "after": "20d9bffbd5b176b8219da5bf695ee463bb56faba64f4b12702d68a00522954c5",
+        "before": "7f9d9273793863d1ff5b4349f9d73825832069a4efeab6ec8b80b6e22df0a737"
+      },
+      "packages/openmates-rust/src/client/browser_local_read_glue_tests.rs": {
+        "after": "7b5f368ab9b30414e66b78c50b67798a89f8a6900c66ff4e8832a4e0a2f99f86",
+        "before": "016394a81e3b69d3b5a79672b20a10f9ef382dbfdee9530b329448d46a6a5088"
+      },
+      "packages/openmates-rust/src/client/chat_first_page_tests.rs": {
+        "after": "cb799598d60f74b8c72bbb7fe331e5aee4726bdf21768afff0a490ee1bf72b29",
+        "before": "07f8eaadf559aa2a7d68ca0fd2983f913b06d259853e2f4b4cb5fa792d923bda"
+      },
+      "packages/openmates-rust/src/client/local_cached_read.rs": {
+        "after": "3ccc1cde5497274e454ba320d0de8417f9d10a4a98a06ffc415a785a84d16b1e",
+        "before": "b99b1ff603c4f5261d8b77c9c58e2d8695eaa44cd6eb5a538825519aa341ff1b"
+      },
+      "packages/openmates-rust/src/client/local_checkpoint_presentation.rs": {
+        "after": "02a05a5d0c9aa30766757ad6772589857f5588281c8d16e761d8c86a2d292436",
+        "before": "7e7a4d89050cea56d9d90d2d6b3612ed3e798d18b4eeb35f2164f1adbb908144"
+      },
+      "packages/openmates-rust/src/client/local_checkpoint_presentation_tests.rs": {
+        "after": "3188fa4c8f759c91e304cff980ed57857875dbafbe615e016f6c5685ef54897f",
+        "before": "9ff9d124ef128ab94fc4cfcd551b54935c87d068b29650e3ddedc5b94302ac90"
+      },
+      "packages/openmates-rust/src/client/local_storage_wire.rs": {
+        "after": "13e9b56fa60d0c321ac4f60f7a70381e468c12cf5b1d345af0e16d0bdfc0bf99",
+        "before": "6faa52f84a47e95c52e78d97fab291c387af1a014c7425aea654f0e5381f728d"
+      },
+      "packages/openmates-rust/src/client/message_window.rs": {
+        "after": "4e61df0444dd171717cc1bdb14dee3cbd19f3e88c4fbc3a6b6f599bdac94dc06",
+        "before": "733d15bbf0185a32b01100daee21e2724044d09b6f1ce063aef908399c472d91"
+      },
+      "packages/openmates-rust/src/client/message_window_tests.rs": {
+        "after": "00061d8da765b93a53f9a5b8721227db940aa050769b1adeaf6e0930c1d84234",
+        "before": "69d43e9eeb716a0e2eaffea6af27a548c7ce112ad91acd02c67fa78058956bff"
+      },
+      "packages/openmates-rust/src/client/saved_chat_read.rs": {
+        "after": "34ac206b6ad80b8b3168a78e966fc9a8a821cad25420a984f4fc9879964c6e4b",
+        "before": "cac00ee5d8b0bbbc9a48dccc2ab75afbadeabfe4cb5d4aa71fb5c94a04adaad6"
+      },
+      "packages/openmates-rust/src/client/sync_windows.rs": {
+        "after": "823e752bda33ab7c3be7971ce9401597dd6ca0367c93257566e5034c3076ba62",
+        "before": "85fbbe088820dd0db43834482609899bfaf2778dabc5e544636dce1a24c2b976"
+      },
+      "packages/openmates-rust/src/client/sync_windows_tests.rs": {
+        "after": "cc84ecc4751ffb80668a7d209c1dabbd2a5ceb2fb7773a7be35b0c6b6a9a641b",
+        "before": "e3d8ff9e4fe55d81c813548cda46d210b413ed460faac64ecbf673dc8d603c22"
+      },
+      "scripts/tests/test_sdk_session_embed_version_gate.py": {
+        "after": "03cfaef448a465aa4716cc78efed7f46555f79c0907dcc65bf03cb0a1d2a5efe",
+        "before": "b820aae18c878266515697e5b4daafeae4d230763e3be7959f15e51d93affd51"
+      }
+    }
+  },
+  "plansUnchanged": true,
+  "private": true,
+  "releaseEligible": false,
+  "schemaVersion": 1,
+  "sourceClosure": [
+    {
+      "beforeSha256": "733d15bbf0185a32b01100daee21e2724044d09b6f1ce063aef908399c472d91",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/message_window.rs",
+      "sha256": "4e61df0444dd171717cc1bdb14dee3cbd19f3e88c4fbc3a6b6f599bdac94dc06"
+    },
+    {
+      "beforeSha256": "69d43e9eeb716a0e2eaffea6af27a548c7ce112ad91acd02c67fa78058956bff",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/message_window_tests.rs",
+      "sha256": "00061d8da765b93a53f9a5b8721227db940aa050769b1adeaf6e0930c1d84234"
+    },
+    {
+      "beforeSha256": "85fbbe088820dd0db43834482609899bfaf2778dabc5e544636dce1a24c2b976",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/sync_windows.rs",
+      "sha256": "823e752bda33ab7c3be7971ce9401597dd6ca0367c93257566e5034c3076ba62"
+    },
+    {
+      "beforeSha256": "e3d8ff9e4fe55d81c813548cda46d210b413ed460faac64ecbf673dc8d603c22",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/sync_windows_tests.rs",
+      "sha256": "cc84ecc4751ffb80668a7d209c1dabbd2a5ceb2fb7773a7be35b0c6b6a9a641b"
+    },
+    {
+      "beforeSha256": "07f8eaadf559aa2a7d68ca0fd2983f913b06d259853e2f4b4cb5fa792d923bda",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/chat_first_page_tests.rs",
+      "sha256": "cb799598d60f74b8c72bbb7fe331e5aee4726bdf21768afff0a490ee1bf72b29"
+    },
+    {
+      "beforeSha256": "cac00ee5d8b0bbbc9a48dccc2ab75afbadeabfe4cb5d4aa71fb5c94a04adaad6",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/saved_chat_read.rs",
+      "sha256": "34ac206b6ad80b8b3168a78e966fc9a8a821cad25420a984f4fc9879964c6e4b"
+    },
+    {
+      "beforeSha256": "6faa52f84a47e95c52e78d97fab291c387af1a014c7425aea654f0e5381f728d",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/local_storage_wire.rs",
+      "sha256": "13e9b56fa60d0c321ac4f60f7a70381e468c12cf5b1d345af0e16d0bdfc0bf99"
+    },
+    {
+      "beforeSha256": "b99b1ff603c4f5261d8b77c9c58e2d8695eaa44cd6eb5a538825519aa341ff1b",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/local_cached_read.rs",
+      "sha256": "3ccc1cde5497274e454ba320d0de8417f9d10a4a98a06ffc415a785a84d16b1e"
+    },
+    {
+      "beforeSha256": "9baabf70a5ffb712d6bcaf6018966214b910667179e4eca0c5a70828cb13a4f6",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/browser_local_cursor.rs",
+      "sha256": "cbd574724d091aae8cce6dc3e52495ba57e9ee047efda0edabd7dadd64a2edc4"
+    },
+    {
+      "beforeSha256": "7f9d9273793863d1ff5b4349f9d73825832069a4efeab6ec8b80b6e22df0a737",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/browser_local_cursor_tests.rs",
+      "sha256": "20d9bffbd5b176b8219da5bf695ee463bb56faba64f4b12702d68a00522954c5"
+    },
+    {
+      "beforeSha256": "7e7a4d89050cea56d9d90d2d6b3612ed3e798d18b4eeb35f2164f1adbb908144",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/local_checkpoint_presentation.rs",
+      "sha256": "02a05a5d0c9aa30766757ad6772589857f5588281c8d16e761d8c86a2d292436"
+    },
+    {
+      "beforeSha256": "9ff9d124ef128ab94fc4cfcd551b54935c87d068b29650e3ddedc5b94302ac90",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/local_checkpoint_presentation_tests.rs",
+      "sha256": "3188fa4c8f759c91e304cff980ed57857875dbafbe615e016f6c5685ef54897f"
+    },
+    {
+      "beforeSha256": "f398fbff45d08ae8cfed5c15d3aebe6edc6269512377bbb4cdfe604cbf3d8416",
+      "bucket": "programs",
+      "path": "packages/openmates-browser-bindings/src/browser.rs",
+      "sha256": "d8b90a4f70373f981c8cdf8ba5ddd7281b6d4127a8e6b0cf640d2aaa9094f57b"
+    },
+    {
+      "beforeSha256": "c383e2237174f21679e8fb805e54ea61dd04158ca70b19a2b8992f6c2140adc6",
+      "bucket": "contracts",
+      "path": "packages/openmates-rust/tests/fixtures/message-id-compatibility.json",
+      "sha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474"
+    },
+    {
+      "beforeSha256": "c383e2237174f21679e8fb805e54ea61dd04158ca70b19a2b8992f6c2140adc6",
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/fixtures/message-id-compatibility.json",
+      "sha256": "d72bba8856bfda3978a5fe3556724fcd6796cf9844a1b40f8514f89eaa993474"
+    },
+    {
+      "beforeSha256": "b964b623d5323958b796fd5f792d785b99c4570c537a1a249f7123bdd08cf9a0",
+      "bucket": "programs",
+      "path": "frontend/packages/ui/src/services/rustCore/savedReadProtocol.ts",
+      "sha256": "ac95d79db6515547f80984bdb37b1364092e0de506b726a56a8800356d767862"
+    },
+    {
+      "beforeSha256": "63e40b64a23ca361e3e8ca5606153d60bd0464f060aafb6719c55100bfa7ca27",
+      "bucket": null,
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/readMessageIdentity.test.cjs",
+      "sha256": "ef3c49792b694588473f7857432105c458cb83eca89d78b47e92cdfc57995d0b"
+    },
+    {
+      "beforeSha256": "b769282cb6f00a789e2ded5a6a37fa323443bcfd9008c28313b92d7c4ccf65fc",
+      "bucket": "programs",
+      "path": "frontend/packages/ui/src/services/rustCore/protocol.ts",
+      "sha256": "65207ac341b47e15570bdf9a4b1d16cbb434978655e76995ed1ebac468c35a87"
+    },
+    {
+      "beforeSha256": "44b2086dd4f95b315db570ccb15a1cb618260bd4bfec3ca487f13f97c1879a2e",
+      "bucket": "programs",
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorIO.test.cjs",
+      "sha256": "b95cb810a82747e47d85f7dac258e0c269645ad427799364bd08939bf1322622"
+    },
+    {
+      "beforeSha256": "016394a81e3b69d3b5a79672b20a10f9ef382dbfdee9530b329448d46a6a5088",
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/browser_local_read_glue_tests.rs",
+      "sha256": "7b5f368ab9b30414e66b78c50b67798a89f8a6900c66ff4e8832a4e0a2f99f86"
+    },
+    {
+      "beforeSha256": "54534e63de3da52f9fc2c44ce6a24c7b6ba91a33d9f0273313d08ce687990b2a",
+      "bucket": null,
+      "path": "frontend/apps/web_app/tests/rust-core-production-local-cursor.spec.ts",
+      "sha256": "7be376c15d3fad2cd1c7dead7e4e684e6dd3c44e523755d896bc656c1e049b8d"
+    }
+  ],
+  "sourceGateRuns": 0,
+  "sourceManifestSha256": "2ceb80c55cf84c30663296dc9ce1b973294e506aa2870d1e5a0d66dfdc0a9f5e",
+  "sourcePatchSha256": "b5d3cd27cbe3e5870107f1e6409c89bf8ca813db302c2dce59e035b14dd24863"
+}

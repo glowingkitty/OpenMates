@@ -18,6 +18,8 @@ final class WatchAudioPlaybackLoader: NSObject, ObservableObject, AVAudioPlayerD
     private var task: Task<Void, Never>?
     private var generation = UUID()
 
+    static func stopCurrentPlayback() { current?.stop() }
+
     func toggle(load: @escaping () async throws -> Data) {
         if playing || loading { stop(); return }
         Self.current?.stop(); stop(); Self.current = self
@@ -28,13 +30,15 @@ final class WatchAudioPlaybackLoader: NSObject, ObservableObject, AVAudioPlayerD
                 let data = try await load()
                 try Task.checkCancellation()
                 guard let self, self.generation == attempt else { return }
+                guard WatchAudioOwnership.shared.currentLease == nil else { throw WatchComposerActionError.busy }
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
                 guard try await session.activate(options: []) else { throw URLError(.cannotDecodeContentData) }
                 // watchOS activation is asynchronous and may show its route
                 // chooser. A cancelled source must never start after it returns.
-                guard self.generation == attempt, !Task.isCancelled else {
-                    if Self.current == nil { try? session.setActive(false, options: .notifyOthersOnDeactivation) }
+                guard self.generation == attempt, !Task.isCancelled,
+                      WatchAudioOwnership.shared.currentLease == nil else {
+                    if Self.current == nil, WatchAudioOwnership.shared.currentLease == nil { try? session.setActive(false, options: .notifyOthersOnDeactivation) }
                     return
                 }
                 let player = try AVAudioPlayer(data: data)
@@ -53,7 +57,9 @@ final class WatchAudioPlaybackLoader: NSObject, ObservableObject, AVAudioPlayerD
         player?.stop(); player = nil; playing = false; loading = false
         if Self.current === self {
             Self.current = nil
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            if WatchAudioOwnership.shared.currentLease == nil {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
         }
     }
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {

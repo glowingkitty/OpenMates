@@ -20,6 +20,8 @@
 
 <script lang="ts">
     import AppDetails from './AppDetails.svelte';
+    import { text } from '../../i18n/translations';
+    import { discoverableApps, initializeFeatureAvailability, initializeUserAvailableSkills } from '../../stores/appSkillsStore';
     import SkillDetails from './SkillDetails.svelte';
     import ContentEmbedDetails from './ContentEmbedDetails.svelte';
     import FocusModeDetails from './FocusModeDetails.svelte';
@@ -31,7 +33,12 @@
     import ProviderDetails from './ProviderDetails.svelte';
     import SettingsReminders from './notifications/SettingsReminders.svelte';
     import ReminderEntryDetail from './appSettings/ReminderEntryDetail.svelte';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
+
+    onMount(() => {
+        void initializeFeatureAvailability();
+        void initializeUserAvailableSkills();
+    });
     
     interface Props {
         activeSettingsView?: string;
@@ -175,6 +182,16 @@
         return null;
     });
     
+    // Durable memory routes retain their schemas even when an app leaves discovery.
+    let discoveryRouteAllowed = $derived.by(() => {
+        if (routeInfo.type === 'invalid' || routeInfo.appId === 'ai' || routeInfo.type.startsWith('settings_memories') || routeInfo.type.startsWith('reminder_')) return true;
+        const app = $discoverableApps[routeInfo.appId];
+        if (!app) return false;
+        if ('skillId' in routeInfo) return app.skills.some(skill => skill.id === routeInfo.skillId);
+        if ('focusModeId' in routeInfo) return app.focus_modes.some(focus => focus.id === routeInfo.focusModeId);
+        return true;
+    });
+
     // Debug logging for route parsing
     $effect(() => {
         console.log('[AppDetailsWrapper] activeSettingsView:', activeSettingsView);
@@ -182,7 +199,9 @@
     });
 </script>
 
-{#if routeInfo.type === 'app_details'}
+{#if !discoveryRouteAllowed}
+    <p role="status" data-testid="app-discovery-unavailable">{$text('apps_workspace.not_found')}</p>
+{:else if routeInfo.type === 'app_details'}
     <AppDetails appId={routeInfo.appId} {presentation} {section} on:openSettings={handleOpenSettings} />
 {:else if aiAskModelRouteInfo}
     {@const route = aiAskModelRouteInfo}

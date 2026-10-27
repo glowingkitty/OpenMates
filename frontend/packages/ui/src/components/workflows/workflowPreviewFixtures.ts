@@ -82,7 +82,7 @@ export function weeklyEventsGraph(): WorkflowGraph {
       requests: [
         {
           query: "AI",
-          providers: ["Luma", "Eventbrite"],
+          providers: ["ExampleEvents", "ExampleTickets"],
           location: "Berlin",
           start_date: { $date: "next_week_start", format: "datetime" },
           end_date: { $date: "next_week_end", format: "datetime" },
@@ -112,7 +112,7 @@ export function hourlyApartmentsGraph(): WorkflowGraph {
           property_type: "apartment",
           max_price_eur: 1200,
           sort: "newest",
-          providers: ["Kleinanzeigen"],
+          providers: ["ExampleHousingB"],
           max_results: 10,
         },
       ],

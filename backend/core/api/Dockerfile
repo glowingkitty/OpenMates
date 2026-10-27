@@ -33,6 +33,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # This makes the 'backend' module available for import.
 COPY backend /app/backend
 COPY shared/events/openmates_events.yml /app/shared/events/openmates_events.yml
+COPY shared/config/authored_result_types.json /app/shared/config/authored_result_types.json
 COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py

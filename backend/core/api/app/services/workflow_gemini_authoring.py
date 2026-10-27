@@ -27,7 +27,8 @@ class WorkflowAuthoringProviderError(ValueError):
 
     def __init__(self, reason: str, metrics: dict[str, Any] | None = None,
                  accepted_prefixes: list[dict[str, Any]] | None = None,
-                 *, code: str | None = None) -> None:
+                 *, code: str | None = None, is_availability_failure: bool = False) -> None:
+        self.is_availability_failure = is_availability_failure
         self.metrics = metrics or {}
         self.accepted_prefixes = accepted_prefixes or []
         known = {
@@ -484,6 +485,32 @@ class WorkflowGeminiAuthor:
         self.secrets_manager = secrets_manager
         self.client = client
         self.model = model
+        self.model_id = "google/" + model
+        self.prices = MODEL_PRICES[model]
+
+    async def _provider_key(self) -> str | None:
+        return await self.secrets_manager.get_secret(secret_path=GOOGLE_SECRET_PATH, secret_key="api_key")
+
+    async def _events(self, body, key, client, check_stop, has_useful_output):
+        """Yield native events; deterministic parsing and acceptance stay shared."""
+        async with client.stream("POST", f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent",
+                                 params={"alt": "sse"}, headers={"x-goog-api-key": str(key)}, json=body) as response:
+            if response.status_code != 200:
+                error = WorkflowAuthoringProviderError(
+                    f"Workflow provider HTTP {response.status_code}",
+                    is_availability_failure=response.status_code == 429 or response.status_code >= 500)
+                error.http_status = response.status_code
+                raise error
+            async for line in _stoppable_lines(response, check_stop):
+                if not line.startswith("data:"):
+                    continue
+                try:
+                    event = json.loads(line[5:].strip())
+                except ValueError as exc:
+                    raise WorkflowAuthoringProviderError("Invalid provider stream") from exc
+                if "error" in event:
+                    raise WorkflowAuthoringProviderError("Workflow provider stream failed")
+                yield event
 
     async def generate(self, *, text: str, selection: Any, timezone: str,
                        selected_workflow: dict[str, Any] | None = None,
@@ -542,7 +569,7 @@ class WorkflowGeminiAuthor:
         def snapshots() -> list[dict[str, Any]]:
             return [item.flat_snapshot() for item in accumulators if item is not None]
 
-        key = await self.secrets_manager.get_secret(secret_path=GOOGLE_SECRET_PATH, secret_key="api_key")
+        key = await self._provider_key()
         if not key:
             raise WorkflowAuthoringProviderError("Workflow authoring provider unavailable",
                                                  accepted_prefixes=snapshots())
@@ -667,45 +694,34 @@ class WorkflowGeminiAuthor:
                 if inspect.isawaitable(result):
                     await result
 
+        events = self._events(body, key, client, check_stop,
+                              lambda: metrics["first_component_ms"] is not None)
         try:
             await check_stop()
-            async with client.stream("POST", f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent",
-                                     params={"alt": "sse"}, headers={"x-goog-api-key": str(key)}, json=body) as response:
-                if response.status_code != 200:
-                    error = WorkflowAuthoringProviderError(f"Workflow provider HTTP {response.status_code}", metrics, snapshots())
-                    error.http_status = response.status_code
-                    raise error
-                lines = response.aiter_lines() if should_stop is None else _stoppable_lines(response, check_stop)
-                async for line in lines:
-                    await check_stop()
-                    if not line.startswith("data:"):
-                        continue
-                    try:
-                        event = json.loads(line[5:].strip())
-                    except ValueError as exc:
-                        raise WorkflowAuthoringProviderError("Invalid provider stream", metrics, snapshots()) from exc
-                    if "error" in event:
-                        raise WorkflowAuthoringProviderError("Workflow provider stream failed", metrics, snapshots())
-                    usage = event.get("usageMetadata") or {}
-                    if usage:
-                        metrics["input_tokens"] = int(usage.get("promptTokenCount") or 0)
-                        metrics["thinking_tokens"] = int(usage.get("thoughtsTokenCount") or 0)
-                        metrics["output_tokens"] = int(usage.get("candidatesTokenCount") or 0) + metrics["thinking_tokens"]
-                        in_price, out_price = MODEL_PRICES[self.model]
+            async for event in events:
+                await check_stop()
+                usage = event.get("usageMetadata") or {}
+                if usage:
+                    metrics["input_tokens"] = int(usage.get("promptTokenCount") or 0)
+                    metrics["cache_read_input_tokens"] = usage.get("cachedContentTokenCount")
+                    metrics["thinking_tokens"] = int(usage.get("thoughtsTokenCount") or 0)
+                    metrics["output_tokens"] = int(usage.get("candidatesTokenCount") or 0) + metrics["thinking_tokens"]
+                    if self.prices is not None:
+                        in_price, out_price = self.prices
                         metrics["estimated_cost_usd"] = round((metrics["input_tokens"] * in_price + metrics["output_tokens"] * out_price) / 1_000_000, 8)
-                    for candidate in event.get("candidates") or []:
-                        finish_reason = candidate.get("finishReason") or finish_reason
-                        for part in (candidate.get("content") or {}).get("parts") or []:
-                            if not part.get("thought") and isinstance(part.get("text"), str):
-                                source += part["text"]
-                        if len(source.encode("utf-8")) > MAX_RESPONSE_BYTES:
-                            raise WorkflowAuthoringProviderError("Workflow provider response too large", metrics, snapshots())
-                        for component in complete_flat_components(source):
-                            identity = (component["workflow_index"], component.get("index", -1))
-                            if identity in seen_components:
-                                continue
-                            seen_components.add(identity)
-                            await accept(component)
+                for candidate in event.get("candidates") or []:
+                    finish_reason = candidate.get("finishReason") or finish_reason
+                    for part in (candidate.get("content") or {}).get("parts") or []:
+                        if not part.get("thought") and isinstance(part.get("text"), str):
+                            source += part["text"]
+                    if len(source.encode("utf-8")) > MAX_RESPONSE_BYTES:
+                        raise WorkflowAuthoringProviderError("Workflow provider response too large", metrics, snapshots())
+                    for component in complete_flat_components(source):
+                        identity = (component["workflow_index"], component.get("index", -1))
+                        if identity in seen_components:
+                            continue
+                        seen_components.add(identity)
+                        await accept(component)
             await check_stop()
             if finish_reason != "STOP":
                 raise WorkflowAuthoringProviderError("Workflow provider did not complete the plan", metrics, snapshots())
@@ -730,15 +746,19 @@ class WorkflowGeminiAuthor:
             plans = [item.snapshot() for item in accumulators]
             return (plans[0] if len(plans) == 1 else {"operations": plans}), metrics
         except httpx.HTTPError as exc:
-            raise WorkflowAuthoringProviderError("Workflow provider transport failed", metrics, snapshots()) from exc
+            raise WorkflowAuthoringProviderError("Workflow provider transport failed", metrics, snapshots(),
+                                                 is_availability_failure=True) from exc
         except BaseException as exc:
             # The planner may cancel through its component callback after the
             # provider has already reported usage. Preserve that metering for
             # settlement even when the callback stops the stream.
-            if not hasattr(exc, "metrics"):
+            if not getattr(exc, "metrics", None):
                 exc.metrics = metrics
+            if not getattr(exc, "accepted_prefixes", None):
+                exc.accepted_prefixes = snapshots()
             raise
         finally:
             metrics["seconds"] = round(time.perf_counter() - started, 3)
+            await events.aclose()
             if owned_client:
                 await client.aclose()

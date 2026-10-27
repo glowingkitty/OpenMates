@@ -422,3 +422,33 @@ async def test_inline_producer_retry_reuses_original_record_identity(monkeypatch
             "sealed_payload": "randomized-retry", "content_commitment": "same-commitment"}
     assert await ChatRecoveryService(directus).save_sealed_output(body) == receipt
     assert [call["json"]["operation"] for call in directus.calls] == ["create_sealed_output"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_personal_draft_registration_uses_strict_internal_transport(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    directus = FakeDirectus(FakeResponse(200, {"data": {"chat_id": "draft", "created": True}}))
+    result = await ChatRecoveryService(directus).register_personal_chat_draft(
+        hashed_user_id="owner", chat_id="draft", encrypted_chat_key="wrapped", created_at=100,
+    )
+    assert result == {"chat_id": "draft", "created": True}
+    assert directus.calls[0]["json"] == {
+        "operation": "register_personal_chat_draft",
+        "data": {"protocol_version": 1, "hashed_user_id": "owner", "chat_id": "draft",
+                 "encrypted_chat_key": "wrapped", "created_at": 100},
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("code,status", [("chat_not_found", 404), ("account_recovery_fenced", 409)])
+async def test_personal_draft_registration_preserves_fence_errors(monkeypatch, code, status) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    directus = FakeDirectus(FakeResponse(status, {"error": {"code": code}}))
+    with pytest.raises(ChatRecoveryProtocolError) as error:
+        await ChatRecoveryService(directus).register_personal_chat_draft(
+            hashed_user_id="owner", chat_id="draft", encrypted_chat_key="wrapped", created_at=100,
+        )
+    assert error.value.status_code == status
+    assert error.value.code == code

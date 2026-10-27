@@ -17,73 +17,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -1036,8 +1016,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-31'
     title: 'feat: implement actual sub-chats record creation and dispatch in backend'
@@ -1214,16 +1192,6 @@ themes:
   newsletter_ready_count: 0
   dev_only_count: 0
   source_items:
-  - date: '2026-05-25'
-    title: 'fix: add Stoffe provider appstore logo'
-    commits:
-    - fbad428fb
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
   - date: '2026-05-25'
     title: 'fix: allow referral API through Caddy'
     commits:
@@ -2554,16 +2522,6 @@ themes:
     newsletter_ready: true
     user_facing: true
     related_features: []
-  - date: '2026-05-25'
-    title: 'fix: use real rewe recipe examples'
-    commits:
-    - 69d3f9a13
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-05-26'
     title: 'feature: add referral QR code'
     commits:
@@ -3014,16 +2972,6 @@ themes:
     newsletter_ready: true
     user_facing: true
     related_features: []
-  - date: '2026-05-25'
-    title: 'fix: show multiple rewe recipe examples'
-    commits:
-    - 103767acc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-05-26'
     title: 'fix: classify workflow dispatch errors'
     commits:
@@ -3163,15 +3111,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: docs
   item_count: 3
@@ -3406,16 +3350,6 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-05-25'
-    title: 'fix: show multiple rewe recipe examples'
-    commits:
-    - 103767acc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-25'
     title: 'fix: show settings icon for default profile menu'
     commits:
     - e94ebf325
@@ -3429,16 +3363,6 @@ marketing_candidates:
     title: 'fix: sync font setting for restored sessions'
     commits:
     - 59221210a
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-25'
-    title: 'fix: use real rewe recipe examples'
-    commits:
-    - 69d3f9a13
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -5227,16 +5151,6 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-05-25'
-    title: 'fix: show multiple rewe recipe examples'
-    commits:
-    - 103767acc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-25'
     title: 'fix: show settings icon for default profile menu'
     commits:
     - e94ebf325
@@ -5250,16 +5164,6 @@ marketing_candidates:
     title: 'fix: sync font setting for restored sessions'
     commits:
     - 59221210a
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-25'
-    title: 'fix: use real rewe recipe examples'
-    commits:
-    - 69d3f9a13
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -6740,8 +6644,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-31'
     title: 'feat: implement actual sub-chats record creation and dispatch in backend'
@@ -6917,15 +6819,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 unreleased_progress:
   dev_only: []

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.billing@10
+specification: feature.billing@11
 
 scheduled_model_prices:
   - id: argon-introduction-ends-after-november
@@ -358,3 +358,14 @@ team_storage_warning:
     given: An admin's warning delivery is unconfirmed, or a newly appointed admin has not received the required warning history, or a warned unit is still needed by active work or another owner.
     when: Team expiry is evaluated at the apparent deadline.
     then: The incomplete notice or reference proof holds expiry; no partial unit is deleted, no personal credit is debited, and no debt is falsely marked paid or waived.
+october_apple_usage:
+  - id: inline-usage-history-and-exact-action
+    assertion_ids: [billing.usage.landing-complete, billing.surface.semantic-parity]
+    given: Apple Billing shows a mixed day of committed usage and older sparse monthly summaries, with one exact local message or app-skill embed available.
+    when: The user expands history and opens an available receipt or context action, then changes account or Team before a delayed result arrives.
+    then: History and day totals remain non-overlapping, sparse months do not invent an end-of-history claim, the action opens only its authorized exact existing target, and stale results cannot replace the new scope.
+  - id: discarded-recording-marker-lifecycle
+    assertion_ids: [billing.usage.landing-complete, billing.access.authenticated-first-party]
+    given: The new-chat recording composer explicitly allocated a scoped draft identity and the user discarded the recording before sending a normal message.
+    when: Usage is read after relaunch, an unrelated or merely queued receipt arrives, or a matching ordinary-user message is durably confirmed and the account cache is later erased.
+    then: The draft usage label survives discard only in that original owner scope; usage rows and unrelated receipts cannot create or clear it, exact durable acceptance removes it, and authoritative deletion or cache erasure removes only the corresponding retained evidence.

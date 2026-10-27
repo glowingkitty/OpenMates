@@ -371,6 +371,7 @@ async def test_model_generation_charge_payload_uses_hi3d_metadata(monkeypatch) -
             api_key_hash="api-key-hash",
             device_hash="device-hash",
             log_prefix="[test]",
+            event_id="model-output-1",
     )
 
     assert requests == [
@@ -383,6 +384,7 @@ async def test_model_generation_charge_payload_uses_hi3d_metadata(monkeypatch) -
                 "credits": 25,
                 "skill_id": "generate",
                 "app_id": "models3d",
+                "idempotency_key": "app-skill:model-output-1",
                 "api_key_hash": "api-key-hash",
                 "device_hash": "device-hash",
                 "usage_details": {
@@ -433,4 +435,5 @@ async def test_model_generation_charge_failure_is_not_silenced(monkeypatch) -> N
             api_key_hash=None,
             device_hash=None,
             log_prefix="[test]",
+            event_id="model-output-1",
         )

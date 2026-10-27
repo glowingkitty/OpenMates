@@ -81,7 +81,16 @@
 	# /v1/default-inspirations is public (no auth required) — daily inspiration previews for unauthenticated users.
 	# /v1/users/* — profile image endpoint supports both session cookie and API key auth;
 	#   API key clients (no Origin header) fall through here after @webapp_actual doesn't match.
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /v1/account-exports /v1/account-exports/* # Public API endpoints (authentication enforced by FastAPI where applicable). /v1/features/availability exposes effective feature availability without secrets.
+	# Official CLI/native sessions carry the refresh cookie without a browser Origin.
+	# FastAPI still validates the session; developer API keys cannot read private Apps stores.
+	@apps_private_session {
+		path /v1/apps/workspace/library /v1/apps/workspace/library/* /v1/apps/workspace/results /v1/apps/workspace/results/*
+		header Cookie *auth_refresh_token=*
+	}
+	@public_api_paths {
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /v1/account-exports /v1/account-exports/* # Public API endpoints (authentication enforced by FastAPI where applicable). /v1/features/availability exposes effective feature availability without secrets.
+		not path /v1/apps/workspace/library /v1/apps/workspace/library/* /v1/apps/workspace/results /v1/apps/workspace/results/*
+	}
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -111,7 +120,7 @@
 	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
 	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/account-exports /v1/account-exports/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/code/run /v1/code/run/* /v1/code/notebooks/run /v1/code/notebooks/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/embeds/chats/*/references/availability /v1/embeds/chats/* /v1/features/availability /v1/users/* /v1/telemetry/* /v1/client-logs /v1/learning-mode /v1/learning-mode/*  # /v1/client-logs: ephemeral anonymized console log forwarding (all authenticated users)
+		path /v1/apps/workspace/library /v1/apps/workspace/library/* /v1/apps/workspace/results /v1/apps/workspace/results/* /v1/apps/workspace/interpret /v1/apps/workspace/rank /v1/apps/workspace/public/* /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/account-exports /v1/account-exports/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/code/run /v1/code/run/* /v1/code/notebooks/run /v1/code/notebooks/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/embeds/chats/*/references/availability /v1/embeds/chats/* /v1/features/availability /v1/users/* /v1/telemetry/* /v1/client-logs /v1/learning-mode /v1/learning-mode/*  # /v1/client-logs: ephemeral anonymized console log forwarding (all authenticated users)
 		method OPTIONS
 	}
 
@@ -128,7 +137,7 @@
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	# Includes /v1/client-logs — ephemeral anonymized console log forwarding (credentials: include for auth + rate limiting)
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/account-exports /v1/account-exports/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/code/run /v1/code/run/* /v1/code/notebooks/run /v1/code/notebooks/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/embeds/chats/*/references/availability /v1/embeds/chats/* /v1/features/availability /v1/users/* /v1/telemetry/* /v1/client-logs /v1/learning-mode /v1/learning-mode/*
+		path /v1/apps/workspace/library /v1/apps/workspace/library/* /v1/apps/workspace/results /v1/apps/workspace/results/* /v1/apps/workspace/interpret /v1/apps/workspace/rank /v1/apps/workspace/public/* /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/account-exports /v1/account-exports/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/code/run /v1/code/run/* /v1/code/notebooks/run /v1/code/notebooks/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/embeds/chats/*/references/availability /v1/embeds/chats/* /v1/features/availability /v1/users/* /v1/telemetry/* /v1/client-logs /v1/learning-mode /v1/learning-mode/*
 		not method OPTIONS
 	}
 
@@ -163,7 +172,7 @@
 	}
 
 	# Recipient token URLs are bearer secrets and must not enter access logs.
-	@newsletter_token_url path /v1/newsletter/confirm/* /v1/newsletter/unsubscribe/*
+	@newsletter_token_url path /v1/newsletter/confirm/* /v1/newsletter/unsubscribe/* /v1/email/reminder-preview/*
 	log_skip @newsletter_token_url
 
 	# RFC 8058 mailbox-server requests carry only the recipient-held token.
@@ -175,6 +184,14 @@
 
 	# Route requests using explicit handlers
 	route {
+		# Email images prove possession of a bounded recipient capability in FastAPI.
+		@reminder_email_image {
+			path /v1/email/reminder-preview/*
+			method GET HEAD
+		}
+		handle @reminder_email_image {
+			reverse_proxy localhost:8000
+		}
 		handle @newsletter_one_click {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
@@ -288,6 +305,10 @@
 		# Only matches requests that didn't match @webapp_actual (i.e., no Origin header = API key requests)
 		# Authentication is enforced by FastAPI - endpoints use get_current_user (session-only) or get_current_user_or_api_key (supports both)
 		# FastAPI will reject requests without proper authentication (401/403)
+		handle @apps_private_session {
+			reverse_proxy <API_UPSTREAM>
+		}
+
 		handle @public_api_paths {
 			# Add permissive CORS headers for API access
 			header Access-Control-Allow-Origin "*"

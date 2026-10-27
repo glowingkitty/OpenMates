@@ -6,6 +6,7 @@ messages and metadata. A stale client can generate ciphertext with the wrong
 chat key; the server must fail closed before anything is persisted.
 """
 
+import pytest
 import asyncio
 from pathlib import Path
 import sys
@@ -557,3 +558,146 @@ async def _run_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkey
             "chat_key_rotation_reason": "hidden_chat",
         },
     }
+
+
+async def _handle_voice_call_chat_prepare(**kwargs):
+    allowed = {"manager", "directus_service", "user_id", "user_id_hash", "device_fingerprint_hash", "payload"}
+    await _handler_module().handle_voice_call_chat_prepare(**{
+        key: value for key, value in kwargs.items() if key in allowed
+    })
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+def test_voice_bootstrap_acks_only_after_atomic_commit_and_never_uses_generic_persistence(monkeypatch):
+    async def run():
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        manager = FakeManager()
+        calls = []
+
+        async def register(_self, **kwargs):
+            assert manager.personal_messages == []
+            calls.append(kwargs)
+            return {"chat_id": "draft-123", "created": False}
+
+        async def forbidden(*args, **kwargs):
+            raise AssertionError("bootstrap must not use generic persistence")
+
+        monkeypatch.setattr(ChatRecoveryService, "register_personal_chat_draft", register)
+        monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", forbidden)
+        await _handle_voice_call_chat_prepare(
+            websocket=None, manager=manager, cache_service=object(), directus_service=object(),
+            encryption_service=object(), user_id="user-123", user_id_hash="trusted-owner",
+            device_fingerprint_hash="device-123", payload={"chat_id": "draft-123",
+            "encrypted_chat_key": "wrapped-key", "created_at": 100, "voice_call_bootstrap": True},
+        )
+        assert calls == [{"hashed_user_id": "trusted-owner", "chat_id": "draft-123",
+                          "encrypted_chat_key": "wrapped-key", "created_at": 100}]
+        assert manager.personal_messages == [({"type": "encrypted_metadata_stored", "payload": {
+            "chat_id": "draft-123", "message_id": None, "status": "stored", "voice_call_bootstrap": True,
+        }}, "user-123", "device-123")]
+        assert manager.broadcasts == []
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+def test_voice_bootstrap_rejects_extra_or_missing_fields_and_never_falls_back(monkeypatch):
+    async def run():
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        calls = []
+
+        async def forbidden(*args, **kwargs):
+            calls.append(True)
+            raise AssertionError("malformed bootstrap must not reach storage")
+
+        monkeypatch.setattr(ChatRecoveryService, "register_personal_chat_draft", forbidden)
+        monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", forbidden)
+        base = {"chat_id": "draft-123", "encrypted_chat_key": "wrapped-key", "created_at": 100,
+                "voice_call_bootstrap": True}
+        variants = [dict(base, **fields) for fields in [
+            {"versions": {}}, {"encrypted_title": "title"}, {"team_id": "team"},
+            {"user_id": "other"}, {"voice_call_bootstrap": False}, {"voice_call_bootstrap": 1},
+        ]]
+        variants.extend({key: value for key, value in base.items() if key != missing}
+                        for missing in ["encrypted_chat_key", "voice_call_bootstrap"])
+        for payload in variants:
+            manager = FakeManager()
+            await _handle_voice_call_chat_prepare(
+                websocket=None, manager=manager, cache_service=object(), directus_service=object(),
+                encryption_service=object(), user_id="user-123", user_id_hash="trusted-owner",
+                device_fingerprint_hash="device-123", payload=payload,
+            )
+            assert [message[0]["type"] for message in manager.personal_messages] == ["error"]
+        assert calls == []
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+def test_voice_bootstrap_storage_failure_never_acknowledges_or_falls_back(monkeypatch):
+    async def run():
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+
+        async def fenced(*args, **kwargs):
+            raise ChatRecoveryProtocolError(404, "chat_not_found")
+
+        async def forbidden(*args, **kwargs):
+            raise AssertionError("failed bootstrap must not use generic persistence")
+
+        monkeypatch.setattr(ChatRecoveryService, "register_personal_chat_draft", fenced)
+        monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", forbidden)
+        manager = FakeManager()
+        await _handle_voice_call_chat_prepare(
+            websocket=None, manager=manager, cache_service=object(), directus_service=object(),
+            encryption_service=object(), user_id="user-123", user_id_hash="trusted-owner",
+            device_fingerprint_hash="device-123", payload={"chat_id": "draft-123",
+            "encrypted_chat_key": "wrapped-key", "created_at": 100, "voice_call_bootstrap": True},
+        )
+        assert [message[0]["type"] for message in manager.personal_messages] == ["error"]
+        error = manager.personal_messages[0][0]["payload"]
+        assert error["chat_id"] == "draft-123"
+        assert error["voice_call_bootstrap"] is True
+        assert error["code"] == "voice_call_bootstrap_failed"
+        assert "chat_not_found" not in str(error)
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+def test_generic_metadata_rejects_reserved_voice_bootstrap_without_storage(monkeypatch):
+    async def run():
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        calls = []
+
+        async def forbidden(*args, **kwargs):
+            calls.append(True)
+            raise AssertionError("reserved flag must not reach any persistence")
+
+        monkeypatch.setattr(ChatRecoveryService, "register_personal_chat_draft", forbidden)
+        monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", forbidden)
+        manager = FakeManager()
+        await _handle_encrypted_chat_metadata(
+            websocket=None, manager=manager, cache_service=object(), directus_service=object(),
+            encryption_service=object(), user_id="user-123", user_id_hash="trusted-owner",
+            device_fingerprint_hash="device-123", payload={"chat_id": "draft-123",
+            "encrypted_chat_key": "wrapped-key", "created_at": 100, "voice_call_bootstrap": True},
+        )
+        assert [message[0]["type"] for message in manager.personal_messages] == ["error"]
+        assert calls == []
+    asyncio.run(run())
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
+    """Existing fixtures model a successful separate cleanup exclusion RPC.
+
+    Atomic eligibility/failure behavior is exercised by cleanup admission and
+    Directus transaction tests; these cases retain their original boundaries.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] in {"disqualify", "start", "finish"}
+            return {"eligible": False, "disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)

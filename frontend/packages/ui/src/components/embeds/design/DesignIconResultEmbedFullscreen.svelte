@@ -8,7 +8,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { getApiEndpoint } from '../../../config/api';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -148,6 +149,7 @@
   let isPalette = $derived(content.palette === true);
   let svgPath = $derived(asString(content.svg_path));
   let iconSrc = $derived(svgPath ? getApiEndpoint(svgPath) : '');
+  let failedImage = $state<string>();
   let color = $state('#111827');
   let pngSize = $state(256);
   let canRecolor = $derived(!isPalette);
@@ -206,9 +208,17 @@
       isCancelled = true;
     };
   });
+  // Attribution and dimensions are visible; raw SVG/storage envelopes are not context.
+  let visibleContext = $derived({
+    title, provider, url: providerUrl, collection, license, author, width, height,
+    palette: isPalette,
+  });
 </script>
 
-<UnifiedEmbedFullscreen
+<div class="icon-result-wrapper" data-testid="design-icon-result-fullscreen">
+<ResultEmbedFullscreen
+  result={visibleContext}
+  summary={license || (width && height) ? iconSummary : undefined}
   appId="design"
   skillId="search_icons"
   skillIconName="design"
@@ -232,27 +242,29 @@
     {/if}
   {/snippet}
 
-  {#snippet content()}
-    <div class="icon-result-fullscreen" data-testid="design-icon-result-fullscreen">
+  {#snippet media()}
       <div class="icon-stage">
         {#if preparedSvg}
           <div class="icon-svg" aria-label={title} role="img">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG is validated and sanitized by the OpenMates Design icon route. -->
             {@html preparedSvg}
           </div>
-        {:else if iconSrc}
-          <img src={iconSrc} alt={title} />
+        {:else if iconSrc && failedImage !== iconSrc}
+          <img src={iconSrc} alt={title} onerror={() => { failedImage = iconSrc; }} />
         {:else}
           <span class="clickable-icon icon_design placeholder-icon"></span>
         {/if}
       </div>
 
+  {/snippet}
+  {#snippet iconSummary()}
+    {#if license}<ResultEmbedInfo icon="scale" label={license} value={license}><p>{license}</p></ResultEmbedInfo>{/if}
+    {#if width && height}<ResultEmbedInfo icon="scan" label={`${width} × ${height}`} value={`${width} × ${height}`}><p>{width} × {height}</p></ResultEmbedInfo>{/if}
+  {/snippet}
+  {#snippet detailContent()}
       <section class="metadata">
-        <h2>{title}</h2>
         {#if collection}<p>{collection}</p>{/if}
-        {#if license}<p>{license}</p>{/if}
         {#if author}<p>{author}</p>{/if}
-        {#if width && height}<p>{width} x {height}</p>{/if}
         {#if isPalette}<p>Palette icon. Recoloring is disabled to preserve the original colors.</p>{/if}
 
         <div class="export-controls" aria-label="Icon export controls">
@@ -286,36 +298,33 @@
           >Download PNG</a>
         </div>
       </section>
-    </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
+</div>
 
 <style>
-  .icon-result-fullscreen {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-    gap: var(--spacing-12);
-    width: 100%;
-    padding: var(--spacing-12);
-  }
-
+  .icon-result-wrapper { display:contents; }
   .icon-stage {
     display: grid;
     place-items: center;
-    min-height: 360px;
+    min-height: 20rem;
+    width:100%;
     border-radius: 24px;
-    background: var(--color-grey-8);
+    background: var(--color-grey-10);
     border: 1px solid var(--color-grey-20);
   }
 
   .icon-stage img,
   .icon-svg :global(svg) {
-    width: min(220px, 45vw);
-    height: min(220px, 45vw);
+    display:block;
+    width: min(32rem, 100%);
+    height: auto;
+    max-height: 65vh;
     object-fit: contain;
   }
 
   .icon-svg {
+    width:min(100%, 32rem);
     display: grid;
     place-items: center;
   }
@@ -327,15 +336,11 @@
   }
 
   .metadata {
+    width:100%;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-4);
     color: var(--color-font-primary);
-  }
-
-  h2 {
-    margin: 0;
-    font-size: var(--font-size-lg);
   }
 
   p {
@@ -382,7 +387,7 @@
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-4);
     padding: var(--spacing-3) var(--spacing-5);
-    background: var(--color-grey-8);
+    background: var(--color-grey-10);
     color: var(--color-font-primary);
     cursor: pointer;
     font: inherit;
@@ -391,7 +396,7 @@
 
   button:hover:not(:disabled),
   .export-actions a:hover:not(.disabled) {
-    background: var(--color-grey-15);
+    background: var(--color-grey-20);
   }
 
   button:disabled,
@@ -401,10 +406,4 @@
     opacity: 0.55;
   }
 
-  @media (max-width: 760px) {
-    .icon-result-fullscreen {
-      grid-template-columns: 1fr;
-      padding: var(--spacing-6);
-    }
-  }
 </style>

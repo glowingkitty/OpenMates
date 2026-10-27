@@ -494,7 +494,7 @@ async def test_correct_transcript_with_gemini_invalid_json_raises():
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction,videos.transcript.audio-results-and-billing
 @pytest.mark.anyio
-async def test_full_execute_flow_with_gemini_correction():
+async def test_full_execute_flow_with_gemini_correction(monkeypatch):
     """Test the full TranscribeSkill.execute pipeline including Mistral transcription and Gemini correction."""
     app = DummyApp()
     skill = TranscribeSkill(
@@ -542,10 +542,11 @@ async def test_full_execute_flow_with_gemini_correction():
     mock_secrets_manager.get_secret = fake_get_secret
 
     # Mock Gemini correction helper
-    skill._correct_transcript_with_gemini = AsyncMock(return_value={
+    monkeypatch.setattr("backend.apps.audio.skills.transcribe_skill.correct_transcript", AsyncMock(return_value={
         "title": "Search for green boxes",
         "corrected_transcript": "Search for green boxes.",
-    })
+        "model": GEMINI_CORRECTION_MODEL,
+    }))
 
     # Execute
     requests = [

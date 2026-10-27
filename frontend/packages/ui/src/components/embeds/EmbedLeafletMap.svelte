@@ -19,60 +19,20 @@
   See docs/architecture/embeds.md
 -->
 
+<script module lang="ts">
+  import type { MapMarker as MarkerGeometry, MapPathPoint as RoutePoint, MapRoutePath as RouteGeometry, MapBounds as BoundsGeometry } from './embedMapTypes';
+  export type MapMarker = MarkerGeometry;
+  export type MapPathPoint = RoutePoint;
+  export type MapRoutePath = RouteGeometry;
+  export type MapBounds = BoundsGeometry;
+</script>
+
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { text } from '../../i18n/translations';
   import mapsMarkerIconSvg from '../../../static/icons/maps.svg?raw';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
-  /** A single marker on the map */
-  export interface MapMarker {
-    lat: number;
-    lon: number;
-    /** Optional ref for selection callbacks */
-    ref?: string;
-    /** Optional label (used as tooltip) */
-    label?: string;
-    /** Optional custom CSS class for the marker icon */
-    iconClass?: string;
-    /** Optional test ID for the marker element */
-    testId?: string;
-    /** App color, independent of marker selection or hover state */
-    color?: string;
-    /** Visual opacity, used for list-hover focus without refitting the map */
-    opacity?: number;
-    /** Every result ref represented by this coordinate (for shared stops) */
-    relatedRefs?: string[];
-    /** Stable coordinate key used to preserve explicit marker selection */
-    selectionKey?: string;
-    /** Keep the marker label visible while this marker is selected */
-    selected?: boolean;
-  }
-
-  /** A point in a polyline path */
-  export interface MapPathPoint {
-    lat: number;
-    lon: number;
-    label?: string;
-  }
-
-  /** A route polyline rendered on the map */
-  export interface MapRoutePath {
-    points: MapPathPoint[];
-    color?: string;
-    weight?: number;
-    opacity?: number;
-    dashArray?: string;
-    ref?: string;
-    testId?: string;
-  }
-
-  export interface MapBounds {
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-  }
 
   interface Props {
     /** Map center latitude and longitude */
@@ -101,6 +61,9 @@
     scrollWheelZoom?: boolean;
     /** Leaflet corner used for the zoom control (default: top-right) */
     zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
+    /** Keep attribution visible unless a compact preview explicitly omits it. */
+    showAttribution?: boolean;
+    controlStyle?: 'default' | 'compact' | 'hidden';
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
     /** Called when a marker with a ref is clicked */
@@ -127,6 +90,8 @@
     minHeight = '220px',
     scrollWheelZoom = true,
     zoomControlPosition = 'topright',
+    controlStyle = 'default',
+    showAttribution = true,
     onMapReady,
     onMarkerSelect,
     onRouteSelect,
@@ -135,7 +100,7 @@
   }: Props = $props();
 
   let shouldFitBounds = $derived(
-    fitBoundsProp ?? (markers.length > 1 || path.length > 0 || paths.length > 0)
+    fitBoundsProp ?? (markers.length > 1 || markers.some(marker => !!marker.radiusM) || path.length > 0 || paths.length > 0)
   );
   let normalizedPaths = $derived(
     [
@@ -168,6 +133,7 @@
   let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
+  let lastInteractionSignature = '';
   const markerIconHtml = mapsMarkerIconSvg
     .replace('<svg ', '<svg class="embed-map-pin" viewBox="0 0 48 48" aria-hidden="true" ')
     .replace('fill="#000"', 'fill="currentColor"');
@@ -179,11 +145,21 @@
 
   function geometrySignature(): string {
     return JSON.stringify({
-      center,
-      markers: markers.map((marker) => [marker.lat, marker.lon]),
+      center: [center.lat, center.lon],
+      markers: markers.map((marker) => [marker.lat, marker.lon, marker.radiusM]),
       paths: normalizedPaths.map((routePath) => routePath.points.map((point) => [point.lat, point.lon])),
       shouldFitBounds,
       fitBoundsPadding,
+    });
+  }
+
+  // Event handlers capture the rendered geometry's identity. Equal coordinates
+  // may represent a different filtered result, so replace handlers without
+  // resetting the user's viewport or refitting on shared-stop hover.
+  function interactionSignature(): string {
+    return JSON.stringify({
+      markers: markers.map(marker => [marker.ref, marker.relatedRefs, marker.selectionKey]),
+      paths: normalizedPaths.map(routePath => routePath.ref),
     });
   }
 
@@ -192,6 +168,9 @@
       markers: markers.map((marker) => [
         marker.lat,
         marker.lon,
+        marker.radiusM,
+        marker.areaBasis,
+        marker.homeLocation,
         marker.ref,
         marker.relatedRefs,
         marker.selectionKey,
@@ -216,6 +195,18 @@
     });
   }
 
+  function circleStyle(marker: MapMarker) {
+    const opacity = marker.opacity ?? 1;
+    return {color: marker.color ?? 'var(--color-app-home-start)', weight: marker.selected ? 4 : 2,
+      opacity, fillOpacity: (marker.selected ? 0.28 : 0.16) * opacity};
+  }
+  function setAreaAttributes(element: Element | undefined, marker: MapMarker) {
+    if (marker.homeLocation) element?.setAttribute('data-home-location', marker.radiusM ? 'area' : 'exact');
+    if (marker.radiusM) element?.setAttribute('data-radius-m', String(marker.radiusM));
+    if (marker.areaBasis) element?.setAttribute('data-area-basis', marker.areaBasis);
+    if (marker.radiusM && marker.ref) element?.setAttribute('aria-label', marker.label ?? marker.ref);
+  }
+
   function renderLeafletLayers({ fitBoundsToGeometry = false } = {}) {
     if (!leafletMap || !leafletModule) return;
     const L = leafletModule;
@@ -235,22 +226,34 @@
         iconAnchor: [20, 40],
       });
 
-      const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
-      m.setOpacity(marker.opacity ?? 1);
+      const m = marker.radiusM
+        ? L.circle([marker.lat, marker.lon], {radius: marker.radiusM, ...circleStyle(marker), className: 'embed-map-area'}).addTo(markerLayerGroup)
+        : L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
+      m.setOpacity?.(marker.opacity ?? 1);
       const element = m.getElement?.();
       element?.style.setProperty('--embed-map-pin-color', marker.color ?? 'var(--color-app-maps-start)');
+      setAreaAttributes(element, marker);
       if (marker.testId) element?.setAttribute('data-testid', marker.testId);
       if (marker.label) element?.setAttribute('data-marker-label', marker.label);
       if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
       if (marker.ref) {
         element?.setAttribute('data-marker-ref', marker.ref);
-        m.on('click', () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey));
+        const select = () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey);
+        m.on('click', select);
+        if (marker.radiusM) {
+          element?.setAttribute('tabindex', '0');
+          element?.setAttribute('role', 'button');
+          element?.setAttribute('aria-label', marker.label ?? marker.ref);
+          element?.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); }
+          });
+        }
       }
       if (marker.label) {
         m.bindTooltip(marker.label, {
           permanent: marker.selected === true,
           direction: 'top',
-          offset: [0, -34],
+          offset: marker.radiusM ? [0, 0] : [0, -34],
           className: 'embed-map-marker-label',
         });
       }
@@ -282,8 +285,18 @@
           ...markers.map(m => [m.lat, m.lon] as [number, number]),
           ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
         ];
-        if (allPoints.length > 1) {
-          leafletMap.fitBounds(L.latLngBounds(allPoints), { padding: [fitBoundsPadding, fitBoundsPadding] });
+        const bounds = L.latLngBounds(allPoints);
+        markerLayers.forEach(layer => { if (layer.getBounds) bounds.extend(layer.getBounds()); });
+        if (allPoints.length > 1 || markers.some(marker => !!marker.radiusM)) {
+          const hasArea = markers.some(marker => !!marker.radiusM);
+          const areaOffset = hasArea ? Math.abs(getEffectiveCenterOffsetX()) : 0;
+          // A stacked map is only 150px tall: fixed 50px padding on both sides
+          // shrinks its useful geographic area before Leaflet rounds the zoom.
+          const padding = hasArea && mapContainer
+            ? Math.min(fitBoundsPadding, Math.min(mapContainer.clientWidth, mapContainer.clientHeight) * 0.12)
+            : fitBoundsPadding;
+          leafletMap.fitBounds(bounds, { padding: [padding + areaOffset, padding], animate: false });
+          if (hasArea) appliedCenterPanX = 0;
         } else {
           leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
         }
@@ -294,6 +307,7 @@
     applyCenterOffset();
     emitBoundsChange();
     lastLayerSignature = layerSignature();
+    lastInteractionSignature = interactionSignature();
   }
 
   function emitBoundsChange() {
@@ -315,6 +329,7 @@
       const markerLayer = markerLayers[index];
       if (!markerLayer) return;
       markerLayer.setOpacity?.(marker.opacity ?? 1);
+      if (marker.radiusM) markerLayer.setStyle?.(circleStyle(marker));
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
         html: markerIconHtml,
@@ -323,6 +338,7 @@
       }));
       const element = markerLayer.getElement?.();
       element?.style.setProperty('--embed-map-pin-color', marker.color ?? 'var(--color-app-maps-start)');
+      setAreaAttributes(element, marker);
       if (marker.testId) element?.setAttribute('data-testid', marker.testId);
       if (marker.label) element?.setAttribute('data-marker-label', marker.label);
       if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
@@ -331,7 +347,7 @@
         markerLayer.bindTooltip?.(marker.label, {
           permanent: marker.selected === true,
           direction: 'top',
-          offset: [0, -34],
+          offset: marker.radiusM ? [0, 0] : [0, -34],
           className: 'embed-map-marker-label',
         });
       }
@@ -353,7 +369,8 @@
       resizeAnimationFrame = null;
       if (!leafletMap) return;
       leafletMap.invalidateSize();
-      applyCenterOffset();
+      if (markers.some(marker => !!marker.radiusM)) renderLeafletLayers({fitBoundsToGeometry: true});
+      else applyCenterOffset();
     });
   }
 
@@ -395,7 +412,7 @@
         center: [center.lat, center.lon],
         zoom,
         zoomControl: false,
-        attributionControl: true,
+        attributionControl: showAttribution,
         scrollWheelZoom,
       });
       leafletMap.on('moveend zoomend', emitBoundsChange);
@@ -474,6 +491,7 @@
     tilesLoaded = false;
     lastFitGeometrySignature = '';
     lastLayerSignature = '';
+    lastInteractionSignature = '';
   }
 
   onDestroy(() => {
@@ -484,12 +502,17 @@
   $effect(() => {
     const nextLayerSignature = layerSignature();
     const nextGeometrySignature = geometrySignature();
+    const nextInteractionSignature = interactionSignature();
     if (!leafletReady) return;
-    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature) return;
+    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature && nextInteractionSignature === lastInteractionSignature) return;
     const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
     if (shouldRefit) {
       renderLeafletLayers({ fitBoundsToGeometry: true });
       lastFitGeometrySignature = nextGeometrySignature;
+      return;
+    }
+    if (nextInteractionSignature !== lastInteractionSignature) {
+      renderLeafletLayers();
       return;
     }
     updateLeafletLayerStyles();
@@ -499,6 +522,8 @@
 <div class="embed-leaflet-map-shell" style="height: {height}; min-height: {minHeight};">
 <div
   class="embed-leaflet-map"
+  class:compact-controls={controlStyle === 'compact'}
+  class:hide-zoom-controls={controlStyle === 'hidden'}
   data-testid="embed-leaflet-map"
   data-tiles-loaded={tilesLoaded ? 'true' : 'false'}
   data-map-ready={leafletReady ? 'true' : 'false'}
@@ -552,6 +577,21 @@
   :global(.embed-leaflet-map .default-map-marker) {
     background: none;
     border: none;
+  }
+
+  :global(.embed-leaflet-map .embed-map-area:focus-visible) {
+    outline: 3px solid var(--color-primary-start);
+    outline-offset: 3px;
+  }
+
+  :global(.embed-leaflet-map .approximate-location) {
+    background: none;
+    border: none;
+  }
+
+  :global(.embed-leaflet-map .approximate-location .embed-map-pin) {
+    opacity: 0.6;
+    stroke-dasharray: 3 2;
   }
 
   :global(.embed-leaflet-map .embed-map-pin) {
@@ -652,4 +692,46 @@
     font-size: 1.75rem;
     line-height: 1;
   }
+  :global(.embed-leaflet-map.compact-controls .leaflet-top .leaflet-control-zoom a) {
+    /* Legacy MapsView globals use !important; contain their sizing here. */
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.5rem;
+  }
+  /* Leaflet panes must stay below controls, including legacy MapsView globals. */
+  :global(.embed-leaflet-map .leaflet-top),
+  :global(.embed-leaflet-map .leaflet-bottom) { z-index: 1000; }
+  :global(.embed-leaflet-map .leaflet-top .leaflet-control-zoom) {
+    position: relative;
+    z-index: 1001;
+    background: var(--color-grey-0) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a) {
+    background: var(--color-grey-0) !important;
+    color: var(--color-primary);
+    position: relative;
+    font-size: 0 !important;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a::after) {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-primary);
+    mask: center / contain no-repeat;
+    -webkit-mask: center / contain no-repeat;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a.leaflet-control-zoom-in::after) {
+    mask-image: var(--icon-url-plus);
+    -webkit-mask-image: var(--icon-url-plus);
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a.leaflet-control-zoom-out::after) {
+    mask-image: var(--icon-url-minus);
+    -webkit-mask-image: var(--icon-url-minus);
+  }
+  :global(.embed-leaflet-map.hide-zoom-controls .leaflet-control-zoom) { display: none; }
 </style>

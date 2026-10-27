@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""The narrow recovery case selection preserves file fixtures and honest CI scope."""
+"""Approved exact case selection preserves file fixtures and honest CI scope."""
 
 import json
 import re
@@ -60,6 +60,8 @@ def test_playwright_receives_literal_exact_case_and_stats_are_partial(monkeypatc
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests
 
+    assert ci_run_tests.APPROVED_RECOVERY_CASES == ci_coordinator.APPROVED_RECOVERY_CASES
+
     assert ci_run_tests.playwright_case_args("") == []
     assert ci_run_tests.playwright_case_args(title) == ["--grep", re.escape(title) + "$"]
     pattern = ci_run_tests.playwright_case_args(title)[1]
@@ -112,12 +114,43 @@ def test_native_receipt_cannot_claim_full_spec_for_filtered_case(spec, title):
 def test_registered_recovery_titles_cannot_select_a_different_spec(tmp_path):
     queue = ci_coordinator.Queue(tmp_path / "queue.sqlite3")
     pairs = sorted(ci_coordinator.APPROVED_RECOVERY_CASES)
-    assert len(pairs) == 2
-    for index, (spec, title) in enumerate(pairs):
-        wrong_spec = pairs[1 - index][0]
-        with pytest.raises(ValueError, match="Case filter requires"):
-            queue.enqueue("owner", SOURCE, [wrong_spec], "e2e", case_title=title)
-        with pytest.raises(ValueError, match="Case filter requires"):
-            ci_coordinator.enqueue_submission(queue, "owner", SOURCE, [wrong_spec], "e2e", case_title=title)
+    assert len(pairs) == 4
+    assert ("voice-call.spec.ts", ci_coordinator.VOICE_CLEANUP_CASE_TITLE) in pairs
+    assert ("startup-sync-contract.spec.ts",
+            "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads") in pairs
+    for spec, title in pairs:
+        for wrong_spec, _ in pairs:
+            if wrong_spec == spec:
+                continue
+            with pytest.raises(ValueError, match="Case filter requires"):
+                queue.enqueue("owner", SOURCE, [wrong_spec], "e2e", case_title=title)
+            with pytest.raises(ValueError, match="Case filter requires"):
+                ci_coordinator.enqueue_submission(queue, "owner", SOURCE, [wrong_spec], "e2e", case_title=title)
         with pytest.raises(ValueError, match="Case filter requires"):
             queue.enqueue("owner", SOURCE, [spec], "pytest", case_title=title)
+
+
+def test_voice_cleanup_retains_only_its_private_failure_window(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    calls = []
+    def compose(*args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(stdout="private-voice-cleanup-sentinel")
+    monkeypatch.setattr(runner, "compose", compose)
+    failure = {"status": "failed", "startTime": "2026-10-26T12:00:00Z", "duration": 1000}
+    report = {"suites": [{"title": "voice-call.spec.ts", "suites": [{"specs": [
+        {"title": runner.VOICE_CLEANUP_CASE_TITLE, "tests": [{"results": [failure]}]},
+        {"title": "unrelated voice failure", "tests": [{"results": [failure]}]},
+    ]}]}]}
+    summaries = runner.capture_recovery_receipt_api_diagnostics(report, 0)
+    assert len(calls) == 1
+    assert calls[0][0] == ("logs", "--no-color", "--since", "2026-10-26T11:59:58+00:00",
+                          "--until", "2026-10-26T12:00:06+00:00", "--tail", "2000", "api")
+    retained = tmp_path / "ci-private/recovery-api-spec-0-result-0.log"
+    assert retained.read_text() == "private-voice-cleanup-sentinel"
+    assert retained.stat().st_mode & 0o777 == 0o600
+    assert "private-voice-cleanup-sentinel" not in json.dumps(summaries)

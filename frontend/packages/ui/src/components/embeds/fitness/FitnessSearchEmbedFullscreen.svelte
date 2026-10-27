@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
 
-  Fullscreen renderer for Fitness Urban Sports search embeds. Uses the unified
+  Fullscreen renderer for Fitness fitness source search embeds. Uses the unified
   SearchResultsTemplate parent/child layout so Fitness matches Events search:
   parent result grid, child preview cards, and drill-down fullscreen details.
 -->

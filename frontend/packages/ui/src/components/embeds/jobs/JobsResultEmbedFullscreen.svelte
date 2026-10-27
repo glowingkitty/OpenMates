@@ -1,5 +1,7 @@
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { jobDate, jobProviderLabel, jobSalary, normalizeJob, safeExternalUrl } from './jobsEmbedData';
@@ -20,9 +22,13 @@
   let applyUrl = $derived(safeExternalUrl(job.apply_url));
   let salary = $derived(jobSalary(job));
   let published = $derived(jobDate(job.published_at));
+  let deadline = $derived(jobDate(job.valid_through));
+  let providerSourceLabel = $derived($text('embeds.jobs.search.result.source').replace('{provider}', jobProviderLabel(job.provider) || $text('embeds.jobs.search.result.listing')));
+  const factFields = ['sector', 'role', 'seniority', 'organization_type'] as const;
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={({ title: job.title, company: job.company, location: job.location, url: sourceUrl, apply_url: applyUrl })}
   testId="jobs-result-fullscreen"
   appId="jobs"
   skillId="search"
@@ -38,48 +44,45 @@
   {onNavigatePrevious}
   {onNavigateNext}
 >
-  {#snippet content()}
-    <main class="job-detail" data-testid="jobs-detail-body">
-      <div class="facts">
-        {#if job.company}<div><span>{$text('embeds.jobs.search.result.company')}</span><strong data-testid="jobs-company-value">{job.company}</strong></div>{/if}
-        {#if job.location}<div><span>{$text('common.location')}</span><strong>{job.location}</strong></div>{/if}
-        {#if job.employment_type}<div><span>{$text('embeds.jobs.search.result.employment_type')}</span><strong>{job.employment_type}</strong></div>{/if}
-        {#if published}<div><span>{$text('embeds.jobs.search.result.published')}</span><strong>{published}</strong></div>{/if}
-        {#if job.remote === true}<div><span>{$text('embeds.jobs.search.result.remote')}</span><strong data-testid="jobs-remote-badge">{$text('embeds.jobs.search.result.remote')}</strong></div>{/if}
-        {#if salary}<div><span>{$text('embeds.jobs.search.result.salary')}</span><strong data-testid="jobs-salary">{salary}</strong></div>{/if}
-      </div>
-
-      {#if job.description}
-        <section class="description"><h2>{$text('embeds.jobs.search.result.description')}</h2><p>{job.description}</p></section>
+  {#snippet embedHeaderCta()}
+    <div class="embed-header-cta-group">
+      {#if applyUrl}
+        <EmbedHeaderCtaButton label={$text('embeds.jobs.search.result.apply')} href={applyUrl} testId="jobs-apply-link" />
+      {:else if sourceUrl}
+        <EmbedHeaderCtaButton label={providerSourceLabel} href={sourceUrl} testId="jobs-source-link" />
       {/if}
+    </div>
+  {/snippet}
 
-      <div class="actions">
-        {#if sourceUrl}
-          <a data-testid="jobs-source-link" href={sourceUrl} target="_blank" rel="noopener noreferrer">
-            {$text('embeds.jobs.search.result.source').replace('{provider}', jobProviderLabel(job.provider) || $text('embeds.jobs.search.result.listing'))}
-          </a>
-        {/if}
-        {#if applyUrl && applyUrl !== sourceUrl}
-          <a data-testid="jobs-apply-link" class="apply" href={applyUrl} target="_blank" rel="noopener noreferrer">{$text('embeds.jobs.search.result.apply')}</a>
-        {/if}
+  {#snippet summary()}{#if salary || job.salary_text}<ResultEmbedInfo icon="Banknote" label={$text('embeds.jobs.search.result.salary')} value={salary || job.salary_text} testId="jobs-salary">{#snippet children()}{salary || job.salary_text}{/snippet}</ResultEmbedInfo>{/if}
+{#if job.employment_type}<ResultEmbedInfo icon="BriefcaseBusiness" label={$text('embeds.jobs.search.result.employment_type')} value={job.employment_type.replaceAll('_', ' ')}>{#snippet children()}{job.employment_type}{/snippet}</ResultEmbedInfo>{/if}
+<ResultEmbedInfo icon="House" label="Remote work" state={job.remote === true ? 'yes' : job.remote === false ? 'no' : 'unknown'}>{#snippet children()}{job.work_arrangement || 'Work arrangement not provided.'}{/snippet}</ResultEmbedInfo>{/snippet}
+
+  {#snippet detailContent()}
+    <main class="job-detail" data-testid="jobs-detail-body">
+      {#if sourceUrl && applyUrl && sourceUrl !== applyUrl}
+        <div class="source-action">
+          <EmbedHeaderCtaButton label={providerSourceLabel} href={sourceUrl} variant="secondary" testId="jobs-source-link" />
+        </div>
+      {/if}
+      <div class="facts">
+        {#if job.company}<ResultEmbedInfo icon="Building2" label={$text('embeds.jobs.search.result.company')} value={job.company} testId="jobs-company-value">{#snippet children()}{job.company}{/snippet}</ResultEmbedInfo>{/if}
+        {#if job.location}<ResultEmbedInfo icon="MapPin" label={$text('common.location')} value={job.location}>{#snippet children()}{job.location}{/snippet}</ResultEmbedInfo>{/if}
+        {#each factFields as field}{#if job[field]}<ResultEmbedInfo icon="BriefcaseBusiness" label={$text(`embeds.jobs.search.result.${field}`)} value={job[field]} testId={`jobs-${field.replaceAll('_', '-')}-value`}>{#snippet children()}{job[field]}{/snippet}</ResultEmbedInfo>{/if}{/each}
+        {#if published || deadline}<ResultEmbedInfo icon="Calendar" label={$text('embeds.jobs.search.result.published')} value={published || deadline}>{#snippet children()}{#if published}<p>{$text('embeds.jobs.search.result.published')} {published}</p>{/if}{#if deadline}<p>{$text('embeds.jobs.search.result.valid_through')} {deadline}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+        {#if job.work_arrangement || job.remote === true}<ResultEmbedInfo icon="House" label={$text('embeds.jobs.search.result.work_arrangement')} value={job.work_arrangement || $text('embeds.jobs.search.result.remote')} testId={job.remote === true ? 'jobs-remote-badge' : 'jobs-work-arrangement'}>{#snippet children()}{job.work_arrangement || $text('embeds.jobs.search.result.remote')}{/snippet}</ResultEmbedInfo>{/if}
       </div>
+
+      {#if job.impact}<section class="description" data-testid="jobs-impact"><h2>{$text('embeds.jobs.search.result.impact')}</h2><p>{job.impact}</p></section>{/if}
+      {#if job.description}
+        <section class="description" data-testid="jobs-description"><h2>{$text('embeds.jobs.search.result.description')}</h2><p>{job.description}</p></section>
+      {/if}
+      {#if job.detail_status === 'summary'}<p class="details-warning" data-testid="jobs-details-warning">{$text('embeds.jobs.search.result.details_unavailable')}</p>{/if}
     </main>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .job-detail { box-sizing: border-box; width: 100%; max-width: 1000px; container-type: inline-size; padding: var(--spacing-10); margin: 0 auto; color: var(--color-font-primary); }
-  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-8); }
-  .facts > div { display: flex; flex-direction: column; gap: var(--spacing-2); min-width: 0; padding: var(--spacing-6); background: var(--color-grey-10); border-radius: var(--radius-5); overflow-wrap: anywhere; }
-  .facts span { color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .facts strong { font-size: var(--font-size-p); font-weight: 600; }
-  .description { margin-top: var(--spacing-10); }
-  h2 { margin: 0 0 var(--spacing-4); font-size: var(--font-size-h4); }
-  .description p { margin: 0; white-space: pre-wrap; line-height: 1.5; overflow-wrap: anywhere; }
-  .actions { display: flex; flex-wrap: wrap; gap: var(--spacing-4); margin-top: var(--spacing-10); }
-  a { display: inline-flex; align-items: center; padding: var(--spacing-4) var(--spacing-8); border: 1px solid var(--color-grey-30); border-radius: var(--radius-8); color: var(--color-font-primary); text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
-  a:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  a.apply { background: var(--color-grey-10); color: var(--color-font-primary); border-color: var(--color-app-jobs-start); }
-  @container (max-width: 540px) { .facts { grid-template-columns: 1fr; } .actions { flex-direction: column; } }
-  @media (max-width: 600px) { .job-detail { padding: var(--spacing-6); } }
+ .source-action {display:flex;justify-content:center;margin-bottom:var(--spacing-4);}
+ .job-detail {width:100%;color:var(--color-font-primary);} .facts {display:flex;flex-wrap:wrap;justify-content:center;gap:var(--spacing-2);} .description {margin-top:var(--spacing-6);} h2 {margin:0 0 var(--spacing-3);font-size:var(--font-size-p);} .description p {margin:0;white-space:pre-wrap;line-height:1.5;overflow-wrap:anywhere;} .details-warning {color:var(--color-font-secondary);margin-top:var(--spacing-4);}
 </style>

@@ -124,7 +124,7 @@ remains unverified until the Mac build and interaction checks can run.
 - Users expect instant chat access after login — even 2-second delay feels broken
 - Zero-knowledge means server can't pre-decrypt for fast access
 - Multiple devices need sync while maintaining client-side encryption
-- Different data has different priorities: startup shell > recent 10 full parent chats > recent 100 metadata > on-demand content
+- Different data has different priorities: startup shell > recent 20 full parent chats > recent 100 metadata > on-demand content
 
 ## How It Works
 
@@ -159,7 +159,7 @@ sequenceDiagram
     C->>S: WebSocket connect
     S->>R: Read warm cache
     S-->>C: Startup shell — suggestions + recent metadata
-    S-->>C: Recent full — last 10 parent chats content
+    S-->>C: Recent full — last 20 parent chats content
     S-->>C: Recent metadata — last 100 chats metadata only
     S-->>C: App memories
 ```
@@ -174,7 +174,7 @@ Directus (encrypted) → Redis cache → WebSocket (encrypted) → IndexedDB (en
 
 Startup/login sync has a hard payload boundary:
 
-- The 10 most recent parent chats are fully synced.
+- The 20 most recent parent chats are fully synced.
 - The 100 most recent chats are metadata-only beyond that full-content budget.
 - Sub-chat messages and sub-chat embeds are always on-demand.
 - Parent full-content sync may include embeds referenced by parent chat messages.
@@ -202,10 +202,10 @@ Required invariant for every Phase 1a chat payload:
 
 Client-side Phase 1a handling must use the shared chat metadata merge policy (`mergeServerChatWithLocal`) rather than writing server payloads directly over IndexedDB. This prevents null/incomplete sync payloads from erasing locally valid encrypted metadata and keeps key-mismatch handling consistent with Phase 2/3.
 
-### Recent Full Content: Last 10 Parent Chats
+### Recent Full Content: Last 20 Parent Chats
 
 - WebSocket event: `phase_1b_chat_content_ready`
-- Sends full content for at most `STARTUP_FULL_PARENT_CHAT_LIMIT = 10` parent chats.
+- Sends full content for at most `STARTUP_FULL_PARENT_CHAT_LIMIT = 20` parent chats.
 - Parent chat selection excludes `is_sub_chat=true` and rows with `parent_id`.
 - Sub-chat content is not included in this payload.
 
@@ -223,6 +223,12 @@ Client-side Phase 1a handling must use the shared chat metadata merge policy (`m
 - Used when opening a metadata-only parent chat or any sub-chat.
 - Returns encrypted messages, embeds, embed keys, Code Run outputs, compression checkpoints, and version data for requested chats only.
 
+### Completed Replies Before A Saved-Chat Follow-Up
+
+After reload, the web sender performs a fresh foreground recovery discovery before building a saved-chat follow-up when no retained submission or in-memory predecessor already owns that ordering. An optional `request_id` correlates the job pages and completion fence. The sender collects these frames in wire order, waits for completed replies in the same chat to be canonically persisted and hydrated, then reads the refreshed history and version. Discovery, key, lease or persistence failures stop admission rather than sending incomplete history.
+
+Discovery reports an unexpired lease as owner-scoped `pending_jobs` metadata; it does not expose the lease token or make the job claimable. The sender waits and rescans until recovery settles or its bounded deadline expires. A stable job creation timestamp preserves the original assistant position when the final stream marker was missed. These fields are additive; uncorrelated discovery and the sealed reply payload retain their existing format.
+
 ### App Settings And Memories
 
 - Automatic after startup metadata sync
@@ -231,12 +237,12 @@ Client-side Phase 1a handling must use the shared chat metadata merge policy (`m
 
 ### Native Offline Prefetch
 
-Native/desktop offline sync for parent chats 11-100 is a separate capability-gated path, not part of web startup.
+Native/desktop offline sync for parent chats 21-100 is a separate capability-gated path, not part of web startup.
 
 - REST endpoint: `POST /v1/sync/offline-prefetch`
 - Request: `cursor`, `limit` (max 5), and `include_embeds`.
 - Response: encrypted parent-chat metadata, encrypted message strings, referenced embeds, embed keys, Code Run output sidecars, compression checkpoints, and `next_cursor`.
-- Cursor starts at offset 10 so startup-owned parent chats are not fetched again.
+- Cursor starts at offset 20 so startup-owned parent chats are not fetched again.
 - The endpoint filters out sub-chat content; sub-chats remain on-demand only.
 - Apple/native clients run it opportunistically after startup sync and on network restore only when network is non-expensive/non-constrained, Low Power Mode is off, thermal state is acceptable, and local storage remains under budget.
 - Prefetched content is persisted to SwiftData through `OfflineStore`; it is not pushed into the visible in-memory transcript unless the chat is already part of normal startup/opened-chat state.
@@ -268,7 +274,7 @@ Sync **never overrides** explicit user choices:
 - **User switches chat during Phase 1:** `userMadeExplicitChoice` prevents auto-navigation — handled by `shouldAutoSelectPhase1Chat()` in [phasedSyncStateStore.ts](../../frontend/packages/ui/src/stores/phasedSyncStateStore.ts)
 - **Duplicate cache warming:** dedup via Redis flags `cache_warming_in_progress:{user_id}` (5-min TTL) in [auth_login.py](../../backend/core/api/app/routes/auth_routes/auth_login.py)
 - **Multiple browser instances:** unique sessionID per tab (UUID in sessionStorage) → device hash `SHA256(OS:Country:UserID:SessionID)` → separate WebSocket connections. See [device-sessions.md](./device-sessions.md)
-- **Storage overflow:** startup full content is capped to 10 parent chats; older chat content hydrates on demand
+- **Storage overflow:** startup full content is capped to 20 parent chats; older chat content hydrates on demand
 - **Embed eviction:** `chat:{chat_id}:embed_ids` Redis set tracks ownership → embeds evicted only when no active chat references them. In [cache_chat_mixin.py](../../backend/core/api/app/services/cache_chat_mixin.py)
 
 <!-- TODO: screenshot (1000x400) — sync phase indicators in UI during login -->

@@ -1,0 +1,24 @@
+schema_version: 2
+profile: concise
+id: production-metadata-recovery-followups
+title: Restore Project callbacks and offline metadata replay
+status: approved
+goal: >-
+  continue debugging and fixing the remaining issues, starting with the
+  Project-version callback failure and offline metadata conflicts.
+scope:
+  - Restore hosted Project mutation callbacks without reporting reads as commits.
+  - Preserve causal offline edit order, encrypted previews and account/workspace boundaries.
+  - Retain ambiguous historical conflicts without overwriting or deleting drafts.
+  - Restore successful offline replay acknowledgements after encrypted edits are persisted.
+  - Verify scoped repairs on dev and apply the specifically authorized production hotfix through SSH.
+constraints:
+  - Keep existing encryption, authorization and component-version guards.
+  - Production hotfix authorization does not enable unrelated unreleased features.
+  - User explicitly declined a PR; use a reversible reviewed SSH overlay without branch or release publication.
+required_checks:
+  - Focused CLI executor and offline queue/sender/receipt unit checks.
+  - Isolated GitHub Project-version capacity and offline reconnect regression coverage.
+  - Normal scoped dev publication gates; exact production source tests and runtime verification for the SSH overlay.
+  - Preserve the production image tags, setup result and Caddy configuration; retain rollback source and template.
+task: TASK-2828

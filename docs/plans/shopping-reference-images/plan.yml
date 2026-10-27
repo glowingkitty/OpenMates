@@ -1,0 +1,51 @@
+schema_version: 2
+profile: concise
+id: shopping-reference-images
+title: Shopping product images and visual relevance
+status: verified
+goal: >-
+  Improve the shopping search skill by getting additional images, adding support
+  for using Jev to evaluate / filter also based on user/assistant provided images
+  and compare to the product description and product images.
+scope:
+  - Preserve all distinct image URLs already supplied by each product search response.
+  - Keep the existing primary image and structured product identity, price and purchase link.
+  - Accept up to three authorized uploaded or generated reference images per request.
+  - Compare references, stated requirements, product descriptions and bounded product photos with Jev.
+  - Expose evaluated versus unavailable visual comparisons; do not claim exact identity from appearance alone.
+  - Make every supplied product photo accessible in the shopping product gallery.
+  - Keep assistant explanations grounded in stated product facts and the explicit zero-to-four score scale.
+  - Retrieve up to forty candidates before relevance filtering and retain the caller's final result limit.
+decisions:
+  - User chose no additional paid Amazon product-details requests for gallery enrichment.
+  - Keep shopping results separate from images.search; no additional search provider integration.
+  - Keep the existing Jev model route; no global version change or SubQ fallback.
+  - Filter only on a usable evaluation; preserve deterministic fallback when image evaluation is unavailable.
+  - User explicitly confirmed forty candidates on 2026-10-20; use at most eight visual batches and three concurrent calls, without paid Amazon pagination or gallery enrichment.
+  - Limit and validate image downloads and owner-check private reference embeds before decryption.
+checks:
+  - Focused parser tests cover image order, duplicate/malformed entries, prices and primary compatibility.
+  - Focused visual-ranking tests cover three references, multimodal evaluation, authorization and fallback.
+  - Isolated GitHub E2E covers structured image results and reference validation through real skill dispatch.
+  - Relevant local lint, TypeSafe provider tests and schema checks pass before scoped dev publication.
+  - Isolated component proof covers product-gallery selection, keyboard navigation and primary-image fallback.
+  - Grounding regressions preserve score scale and composition limits through assistant tool history.
+  - Real-inference validation uses automatic routing without overrides and verifies the actual Gemini 3.8 Flash model and applicable thinking level.
+  - Objective image tests cover OCR, object counts, ambiguous evidence, multiple references and a text follow-up after images.view, with no unsolicited coordinate or label dumps.
+  - Forty-candidate coverage proves a matching candidate beyond rank twenty survives filtering and final result limits remain unchanged.
+related_tasks:
+  shopping: d7038041-a992-4b13-a66e-962836eeedf0
+  privacy: 2aca2bef-0daf-41e0-9310-8bcdc9829fa7
+  provider_assessment: 19f120e0-323d-49de-8660-40aa4da35a2e
+  gallery_ui: 166a3b11-e95e-4a41-a862-1b816b184f40
+  claim_grounding: a04c019c-2252-4699-9d4b-e2d0498175c6
+  image_model_validation: ffb0ce45-46b9-44f7-ba4b-25725b1cfce1
+  forty_candidates: ddad0ac8-6a73-45fd-9f0f-3f60f41fa695
+  mercury_assessment: edb91663-842d-450f-8906-bbdbc649034f
+verification_notes:
+  - "2026-10-20: all five isolated gallery component checks passed on unchanged UI source (run 39287134730)."
+  - "All five isolated Shopping integration cases passed with verified cleanup (run 39400678392, source 786a173999521ce461cc09cfe4703f7cbf35b635)."
+  - "Actual automatic-routing image checks covered OCR, counts, image history, obscured evidence and three-image comparison; Gemini 3.8 completed directly on AI Studio with LOW, MEDIUM and HIGH thinking."
+  - "The final unchanged-prompt Shopping run on 0cbcf2c715b49c83424f028659948683b4dbc94e made one request with final cap five, evaluated all forty candidates, filtered thirty-nine and retained the independently verified fabric match; no product was unavailable."
+  - "Existing image URL compatibility preserves supplied gallery URLs and existing public-DNS, pinned-IP and no-redirect guards; unavailable-image fallback remains explicit."
+  - "Mercury Decide comparison is recorded in docs/apis/mercury-decide-jev-comparison.md; Jev remains the production default and no Mercury or SubQ integration was added."

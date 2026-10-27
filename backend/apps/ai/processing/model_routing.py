@@ -42,8 +42,8 @@ LEGACY_REQUEST_TIERS: dict[str, RequestTier] = {
 
 DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
     LOW_TIER: {
-        "model": "google/gemini-3.8-flash",
-        "thinking_level": "LOW",
+        "model": "inception/mercury-3",
+        "thinking_level": "MEDIUM",
     },
     MEDIUM_TIER: {
         "model": "google/gemini-3.8-flash",
@@ -58,6 +58,104 @@ DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
         "thinking_level": "HIGH",
     },
 }
+
+
+LOW_FALLBACK_MODEL = "google/gemini-3.8-flash"
+MERCURY_MODEL = "inception/mercury-3"
+MERCURY_REASONING_BUDGETS = {
+    "LOW": (5.0, 8192),
+    "MEDIUM": (15.0, 16384),
+    "HIGH": (60.0, 32768),
+}
+
+
+def mercury_reasoning_budget(requested_level: str | None) -> tuple[float, int]:
+    """Bound reasoning plus visible output without increasing credit limits."""
+    from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level
+
+    level = normalize_reasoning_level(requested_level) or "MEDIUM"
+    return MERCURY_REASONING_BUDGETS["HIGH" if level == "EXTRA_HIGH" else level]
+
+
+def automatic_model_candidates(tier: str) -> list[str]:
+    """Return current approved routes, ending with inexpensive text recovery."""
+    return list(dict.fromkeys([
+        default_profile_for_tier(tier)["model"], LOW_FALLBACK_MODEL, MERCURY_MODEL,
+    ]))
+
+
+def automatic_attempt_thinking_level(tier: str, model_id: str, primary_level: str | None) -> str | None:
+    """Retain automatic provenance separately from a Jev effort recommendation."""
+    if primary_level is None or model_id not in automatic_model_candidates(tier):
+        return None
+    if model_id == MERCURY_MODEL:
+        return "MEDIUM"
+    if normalize_request_tier(tier) == LOW_TIER:
+        return "LOW"
+    return primary_level
+
+
+def history_requires_non_text(history: Any) -> bool:
+    """Inspect actual content blocks, including image/document tool results."""
+    for message in history or []:
+        content = message.get("content") if isinstance(message, Mapping) else getattr(message, "content", None)
+        if isinstance(content, list):
+            if any(not isinstance(block, Mapping) or block.get("type") != "text"
+                   or not isinstance(block.get("text"), str) for block in content):
+                return True
+        elif isinstance(content, Mapping):
+            # Rich tool payloads may wrap provider-ready image blocks.
+            if content.get("type") in {"image", "image_url", "input_image", "document", "file", "input_file"}:
+                return True
+            if history_requires_non_text([{"content": value} for value in content.values() if isinstance(value, (list, Mapping))]):
+                return True
+    return False
+
+
+def mercury_allowed_by_preferences(preferences: Mapping[str, Any] | None) -> bool:
+    preferences = preferences or {}
+    disabled_models = preferences.get("disabled_ai_models") or []
+    disabled_servers = preferences.get("disabled_ai_servers") or {}
+    excluded_providers = set(preferences.get("excluded_provider_ids") or []) | set(preferences.get("disabled_ai_providers") or [])
+    return ("mercury-3" not in disabled_models and MERCURY_MODEL not in disabled_models
+            and "inception" not in (disabled_servers.get("mercury-3") or [])
+            and "inception" not in excluded_providers)
+
+
+def automatic_model_allowed_servers(
+    model_id: str, preferences: Mapping[str, Any] | None,
+    provider_config: Mapping[str, Any] | None,
+) -> set[str]:
+    """Enforce model, provider and server restrictions on every automatic route."""
+    if not provider_config or "/" not in model_id:
+        return set()
+    preferences = preferences or {}
+    provider, model = model_id.split("/", 1)
+    disabled_models = preferences.get("disabled_ai_models") or []
+    disabled_servers = preferences.get("disabled_ai_servers") or {}
+    if not isinstance(disabled_servers, Mapping):
+        return set()
+    excluded = set(preferences.get("excluded_provider_ids") or []) | set(preferences.get("disabled_ai_providers") or [])
+    if provider in excluded or model in disabled_models or model_id in disabled_models:
+        return set()
+    model_config = next((entry for entry in provider_config.get("models", [])
+                         if isinstance(entry, Mapping) and entry.get("id") == model), None)
+    if model_config is None:
+        return set()
+    blocked = set(disabled_servers.get(model) or []) | set(disabled_servers.get(model_id) or [])
+    return {server["id"] for server in model_config.get("servers", [])
+            if isinstance(server, Mapping) and isinstance(server.get("id"), str)
+            and server["id"] not in blocked and server["id"] not in excluded}
+
+
+def automatic_low_allowed_servers(
+    model_id: str, preferences: Mapping[str, Any] | None,
+    provider_config: Mapping[str, Any] | None,
+) -> set[str]:
+    """Retain the existing low-pair boundary for callers restricted to that pair."""
+    if model_id not in {MERCURY_MODEL, LOW_FALLBACK_MODEL}:
+        return set()
+    return automatic_model_allowed_servers(model_id, preferences, provider_config)
 
 
 @dataclass(frozen=True)
@@ -97,7 +195,11 @@ def automatic_profile_thinking_level(tier: RequestTier, model_id: str | None) ->
     """Apply a tier's reasoning profile only to its automatically chosen model."""
 
     profile = default_profile_for_tier(tier)
-    return profile["thinking_level"] if model_id == profile["model"] else None
+    if model_id not in automatic_model_candidates(tier):
+        return None
+    if model_id == MERCURY_MODEL:
+        return "MEDIUM"
+    return "LOW" if normalize_request_tier(tier) == LOW_TIER else profile["thinking_level"]
 
 
 def explicit_api_model_override(
@@ -175,11 +277,16 @@ def resolve_model_routing(
         )
 
     profile = default_profile_for_tier(tier)
+    fallback_model = profile["model"]
+    if tier == LOW_TIER and fallback_model == MERCURY_MODEL and not _available(fallback_model, is_model_available):
+        fallback_model = LOW_FALLBACK_MODEL
+        if not _available(fallback_model, is_model_available):
+            raise ValueError("No permitted automatic low model is available")
     return ModelRoutingDecision(
         tier=tier,
-        model_id=profile["model"],
+        model_id=fallback_model,
         chat_model_preference=AUTO_CHAT_MODEL_PREFERENCE,
         complexity_classifier_used_for_model=True,
         source="configured_fallback",
-        thinking_level=profile["thinking_level"],
+        thinking_level=automatic_profile_thinking_level(tier, fallback_model),
     )

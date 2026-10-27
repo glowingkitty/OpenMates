@@ -1,0 +1,83 @@
+schema_version: 1
+id: feature.app-skill.home-search
+version: 1
+status: draft
+title: Apartment Search, Listing Galleries and Location Evidence
+summary: Housing discovery is unavailable; generic saved listings, galleries, location uncertainty and local map
+  views remain usable.
+
+inherits: [architecture.app-skill-execution@1]
+
+scope:
+  includes:
+  - Explicit unavailable behavior for new housing requests through the shared provider boundary.
+  - Saved generic housing evidence, photo galleries and local map/card filtering.
+  excludes:
+  - New listing platforms, contacting advertisers, submitting applications, purchases or authenticated scraping.
+  - A locally cached spatial index, bulk geodata ingestion or a new geospatial database.
+  - Recovering intentionally hidden addresses, guaranteed listing authenticity, comprehensive photo verification
+    or inferred neighborhood safety.
+  - Changing retention of owner-uploaded originals or the existing public UI image-proxy cache.
+
+assertions:
+- id: home-search.listings.rich-provider-evidence
+  type: invariant
+  must: Saved listings retain supplied descriptions, address precision, price basis, rent components, area, rooms,
+    availability and amenities without inventing missing facts or refreshing retired sources.
+  depends_on:
+  - examples.boundary_and_history
+- id: home-search.images.complete-gallery
+  type: behavior
+  must: Saved listings preserve their stored primary image and ordered deduplicated gallery. Missing images are
+    not synthesized and viewing history does not fetch retired listing pages or new listing images.
+  depends_on:
+  - examples.boundary_and_history
+- id: home-search.filters.explicit-and-unknown
+  type: behavior
+  must: Local saved-listing filters preserve the distinction between known matching facts, known exclusions and
+    unknown attributes. Applying a local filter never launches a new housing search or invents an amenity.
+  depends_on:
+  - examples.boundary_and_history
+- id: home-search.location.precision
+  type: invariant
+  must: Saved coordinates and declared building, street, district or city approximation remain distinct. History
+    never upgrades approximate locations to exact addresses or performs new housing-source enrichment.
+  depends_on:
+  - examples.boundary_and_history
+- id: home-search.web.map-and-filter
+  type: parity
+  must: Saved housing cards and overview map remain linked to the same saved listings, with consistent local filtering
+    and explicit missing-coordinate states. Parent/child navigation works without source rediscovery.
+  depends_on:
+  - examples.boundary_and_history
+- id: home-search.output.safe-and-truthful
+  type: security
+  must: Saved housing text and image evidence remain untrusted and protected by inherited output safety and encryption.
+    New housing invocations report unavailable without provider requests, inference enrichment or fabricated results.
+  depends_on:
+  - examples.boundary_and_history
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups:
+  - boundary_and_history
+
+approval_source:
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

@@ -137,47 +137,6 @@ vi.mock("../../demo_chats", () => ({
       },
     },
   ],
-  LEGAL_CHATS: [
-    {
-      chat_id: "legal-privacy",
-      title: "Privacy Policy",
-      slug: "privacy",
-      messages: [],
-      metadata: {
-        category: "legal",
-        icon_names: ["shield"],
-        featured: false,
-        order: 0,
-        lastUpdated: "2026-01-01",
-      },
-    },
-    {
-      chat_id: "legal-terms",
-      title: "Terms of Use",
-      slug: "terms",
-      messages: [],
-      metadata: {
-        category: "legal",
-        icon_names: ["file-text"],
-        featured: false,
-        order: 1,
-        lastUpdated: "2026-01-01",
-      },
-    },
-    {
-      chat_id: "legal-imprint",
-      title: "Imprint",
-      slug: "imprint",
-      messages: [],
-      metadata: {
-        category: "legal",
-        icon_names: ["info"],
-        featured: false,
-        order: 2,
-        lastUpdated: "2026-01-01",
-      },
-    },
-  ],
   getAllExampleChats: () => sharedState.exampleChats,
   translateDemoChat: vi.fn((chat: any) => chat),
 }));
@@ -255,7 +214,7 @@ function makeExampleChats(): Chat[] {
 
 /**
  * Build the full navigable list as Chats.svelte would for an unauthenticated user.
- * Order: intro (group 0) → examples (group 1) → legal (group 2)
+ * Order: intro (group 0) → examples (group 1)
  */
 function buildFullChatList(): Chat[] {
   const introChats = [
@@ -276,21 +235,7 @@ function buildFullChatList(): Chat[] {
     ...c,
     group_key: "examples" as const,
   }));
-  const legalChats = [
-    makeChat("legal-privacy", {
-      group_key: "legal",
-      last_edited_overall_timestamp: Date.now() - 300,
-    }),
-    makeChat("legal-terms", {
-      group_key: "legal",
-      last_edited_overall_timestamp: Date.now() - 400,
-    }),
-    makeChat("legal-imprint", {
-      group_key: "legal",
-      last_edited_overall_timestamp: Date.now() - 500,
-    }),
-  ];
-  return [...introChats, ...exampleChats, ...legalChats];
+  return [...introChats, ...exampleChats];
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -307,7 +252,8 @@ describe("chatNavigationStore — example chat navigation", () => {
   });
 
   describe("setChatNavigationList (sidebar-driven)", () => {
-    it("all 11 chats are navigable via setChatNavigationList + store.set", () => {
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
+    it("all 8 chats are navigable via setChatNavigationList + store.set", () => {
       const fullList = buildFullChatList();
 
       // Mimic what Chats.svelte's $effect does:
@@ -325,7 +271,8 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(state.hasNext).toBe(true);
     });
 
-    it("can navigate forward through all 11 chats", async () => {
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
+    it("can navigate forward through all 8 chats", async () => {
       const fullList = buildFullChatList();
       const idx = fullList.findIndex((c) => c.chat_id === "demo-for-everyone");
       chatNavigationStore.set({
@@ -349,7 +296,8 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(state.hasPrev).toBe(true);
     });
 
-    it("can navigate backward through all 11 chats", async () => {
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
+    it("can navigate backward through all 8 chats", async () => {
       const fullList = buildFullChatList();
       const lastChat = fullList[fullList.length - 1];
       const idx = fullList.length - 1;
@@ -374,6 +322,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(state.hasNext).toBe(true);
     });
 
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("every example chat is individually reachable", async () => {
       const fullList = buildFullChatList();
 
@@ -397,6 +346,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(safety).toBe(fullList.length - 1);
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.empty-new-chat.excluded
     it("skips empty metadata-less user chats as header navigation targets", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
@@ -430,6 +380,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("includes draft-only user chats as header navigation targets", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
@@ -469,6 +420,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: true });
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("keeps the active draft-only chat as a navigation anchor", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
@@ -507,6 +459,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.order.sidebar-header-match
     it("skips unreadable hidden-candidate chats as header navigation targets", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
@@ -536,6 +489,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.order.sidebar-header-match
     it("keeps encrypted metadata-only chats as header navigation targets", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
@@ -563,6 +517,7 @@ describe("chatNavigationStore — example chat navigation", () => {
   });
 
   describe("updateNavFromCache (cold boot, sidebar closed)", () => {
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("includes all example chats when available at call time", async () => {
       const demos = makeExampleChats();
       sharedState.exampleChats = demos;
@@ -586,10 +541,11 @@ describe("chatNavigationStore — example chat navigation", () => {
         safety++;
       }
 
-      // intro(3) + example(5) + legal(3) = 11
-      expect(count).toBe(11);
+      // intro(3) + example(5) = 8
+      expect(count).toBe(8);
     });
 
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("example chats added between updateNavFromCache calls become navigable", async () => {
       // Start with no example chats
       sharedState.exampleChats = [];
@@ -613,10 +569,11 @@ describe("chatNavigationStore — example chat navigation", () => {
         safety++;
       }
 
-      // All 11 should be reachable
-      expect(count).toBe(11);
+      // All 8 should be reachable
+      expect(count).toBe(8);
     });
 
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("every example chat has navigable neighbors when set as active", async () => {
       const demos = makeExampleChats();
       sharedState.exampleChats = demos;
@@ -648,6 +605,7 @@ describe("chatNavigationStore — example chat navigation", () => {
      * With releaseChatNavigationOwnership() called on sidebar destroy, the
      * store resumes self-managing and picks up new chats from cache/DB.
      */
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("releaseChatNavigationOwnership lets subsequent updateNavFromCache rebuild from fresh sources", async () => {
       // 1. Simulate sidebar mounting and taking ownership with an initial list
       //    that only contains the 3 intro chats.
@@ -684,10 +642,11 @@ describe("chatNavigationStore — example chat navigation", () => {
         s = get(chatNavigationStore);
         safety++;
       }
-      // 3 intro + 5 example + 3 legal
-      expect(count).toBe(11);
+      // 3 intro + 5 example
+      expect(count).toBe(8);
     });
 
+    // contract-test: supporting surface=gui.web assertions=landing-onboarding.guest-examples
     it("without releasing ownership, stale sidebar list still shadows fresh sources", async () => {
       // Negative-control test: verifies the bug reproduces when ownership
       // is NOT released (proves the fix above is doing real work).

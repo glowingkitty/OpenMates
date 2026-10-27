@@ -1,0 +1,35 @@
+schema_version: 2
+profile: concise
+id: reloaded-chat-followup-recovery
+title: Restore sent-message visibility and completed reply ordering
+status: verified
+goal: >-
+  Investigate further, properly fix the missing sent message and the two assistant
+  responses after reloading and sending a question mark, and explain what caused
+  it and what fix was implemented.
+contracts:
+  - specifications/features/chats/specification.yml
+  - specifications/features/chat-message-timeline/specification.yml
+scope:
+  - Reveal a local submission when reading a historical exchange, before assistant text arrives.
+  - Restore completed encrypted replies before constructing a new saved-chat follow-up after reload or reconnect.
+  - Keep original response ordering when a final stream marker was missed.
+constraints:
+  - Preserve owner, key, lease, account, socket and canonical version fences.
+  - Preserve deliberate edits, rewinds and privacy-filtered history; do not merge server plaintext.
+  - Preserve installed clients and the existing sealed payload field set.
+  - Discovery and recovery failure must not permit inference with incomplete history.
+required_checks:
+  - Focused recovery ordering, failure, connection reset and timestamp unit checks.
+  - Focused bare component proof for a send while viewing an older exchange.
+  - Isolated browser E2E for reload, missed completion, follow-up history and stable assistant order.
+  - Focused transaction and WebSocket discovery checks for any changed server metadata.
+  - Managed scoped dev deployment after exact-source checks pass.
+evidence:
+  task: TASK-3203
+  focused_checks: "101 UI unit, 52 WebSocket, 158 transaction tests passed; scoped lint passed."
+  sent_message_visibility: https://github.com/glowingkitty/OpenMates/actions/runs/40117522663
+  response_alignment: https://github.com/glowingkitty/OpenMates/actions/runs/40117519393
+  reload_followup_and_cold_login: https://github.com/glowingkitty/OpenMates/actions/runs/40122031672
+  dev_deployment: c4a2c3af290c2b1ed5772f14cf6e6aa20b3a5ffc
+  runtime_activation: "docker-43078d23: API, CMS and dependent workers running and healthy; frontend deployment ready."

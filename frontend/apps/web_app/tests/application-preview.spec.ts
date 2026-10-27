@@ -2,8 +2,8 @@
 /**
  * Application embed live-preview E2E coverage.
  *
- * Runs against app.dev.openmates.org through scripts/run_tests.py. Do not run
- * locally; Playwright specs require deployed code and shared test accounts.
+ * Runs through the isolated GitHub CI coordinator with its provisioned preview
+ * gateway and E2B executor. Do not run against the shared development stack.
  */
 export {};
 
@@ -90,6 +90,34 @@ test('generated application embed starts explicit isolated live preview', async 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
 
+	// Hold the real authenticated POST response until fullscreen is mounted.
+	// Keep status/open replies queued so only the owner WebSocket can reveal readiness.
+	let releaseStart!: () => void;
+	const startGate = new Promise<void>((resolve) => { releaseStart = resolve; });
+	let starts = 0;
+	let opens = 0;
+	let activeSessionId = '';
+	await page.route('**/v1/applications/*/preview/start', async (route: any) => {
+		starts += 1;
+		const response = await route.fetch();
+		expect(response.ok()).toBe(true);
+		const payload = await response.json();
+		activeSessionId = payload.session_id;
+		await startGate;
+		await route.fulfill({ response, json: { ...payload, status: 'queued' } });
+	});
+	const queuedStatus = async (route: any) => {
+		if (route.request().method() === 'POST') {
+			opens += 1;
+			// Preserve the server-side opening transition and lifetime semantics.
+			const response = await route.fetch();
+			expect(response.ok()).toBe(true);
+		}
+		await route.fulfill({ json: { session_id: activeSessionId, status: 'queued' } });
+	};
+	await page.route('**/v1/applications/preview/*', queuedStatus);
+	await page.route('**/v1/applications/preview/*/open', queuedStatus);
+
 	await sendMessage(
 		page,
 		withMockMarker('Create a svelte based recipe manager application.', 'application_preview'),
@@ -106,25 +134,30 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10_000 });
 	await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10_000 });
 	const liveScreenshot = applicationEmbed.getByTestId('application-preview-screenshot-image');
-	await expect(liveScreenshot).toBeVisible({ timeout: 180_000 });
-	await expect.poll(() => liveScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
+	// Open from the placeholder: live readiness must not wait for its thumbnail.
 
 	const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
 	await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10_000 });
 	await expect(fullscreenOverlay.getByTestId('application-preview-files')).toBeVisible({ timeout: 10_000 });
+	// The saved fixture has two files; live interaction below proves startup supplies its bootstrap.
+	for (const path of ['package.json', 'src/App.svelte']) {
+		await expect(fullscreenOverlay.getByTestId('application-preview-files').getByText(path, { exact: true })).toBeVisible();
+	}
+	for (const path of ['src/main.ts', 'index.html']) {
+		await expect(fullscreenOverlay.getByTestId('application-preview-files').getByText(path, { exact: true })).toHaveCount(0);
+	}
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
-	const previewStartResponse = page.waitForResponse(
-		(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
-		{ timeout: 90_000 }
-	);
-	await dismissVisibleNotifications(page);
-	await fullscreenOverlay.getByTestId('application-start-preview').click();
-	const startResponse = await previewStartResponse;
-	expect(startResponse.ok(), `preview start failed with ${startResponse.status()}`).toBe(true);
+	await expect.poll(() => starts, { timeout: 30_000 }).toBe(1);
+	// The auto-start is still pending when fullscreen opens; no manual start click.
+	releaseStart();
 
 	const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
-	await expect(iframe).toBeVisible({ timeout: 180_000 });
+	await expect(iframe).toBeVisible({ timeout: 30_000 });
+	expect(starts, 'fullscreen must adopt the pending auto-start without another paid start').toBe(1);
+	await expect.poll(() => opens, { timeout: 10_000 }).toBe(1);
+	await page.unroute('**/v1/applications/preview/*', queuedStatus);
+	await page.unroute('**/v1/applications/preview/*/open', queuedStatus);
 	const iframeSrc = await iframe.getAttribute('src');
 	expect(iframeSrc, 'preview iframe src missing').toBeTruthy();
 	expect(iframeSrc).toContain('/t/');
@@ -153,6 +186,8 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
 	await closeFullscreen(page, fullscreenOverlay);
+	await expect(liveScreenshot).toBeVisible({ timeout: 60_000 });
+	await expect.poll(() => liveScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
 	const reloadAutoStarts: string[] = [];
 	page.on('request', (request: any) => {
 		if (request.method() === 'POST' && request.url().includes('/preview/start') && request.postDataJSON()?.auto_started === true) reloadAutoStarts.push(request.url());

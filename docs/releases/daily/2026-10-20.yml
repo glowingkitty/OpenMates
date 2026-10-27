@@ -1,0 +1,4869 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-20'
+generated_at: '2026-10-21T00:20:38+00:00'
+range:
+  since: '2026-10-20T00:00:00+00:00'
+  until: '2026-10-21T00:00:00+00:00'
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 58
+  section_counts:
+    features: 7
+    bug_fixes: 34
+    improvements: 0
+    docs: 7
+    tests: 10
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 34
+  dev_only_items: 58
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: review inspiration coherence and thumbnails with Jev'
+    section: features
+    commits:
+    - 1c753c461
+    authored_at: '2026-10-20T18:24:04+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/static_localization.py
+    - backend/apps/ai/daily_inspiration/static_localizations.json
+    - backend/apps/ai/daily_inspiration/thumbnail_review.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/services/directus/daily_inspiration_defaults_methods.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_defaults.yml
+    - backend/scripts/benchmark_daily_inspiration_controls.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_static_localization.py
+    - backend/tests/test_daily_inspiration_thumbnails.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.preview.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/build_daily_inspiration_fallback.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: recover daily copy with Mercury retry and Gemini Flash Lite'
+    section: features
+    commits:
+    - 6ca5b49de
+    authored_at: '2026-10-20T17:27:06+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/scripts/benchmark_daily_inspiration_recovery.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: generate early chat headers with Mercury'
+    section: features
+    commits:
+    - 11544e1f9
+    authored_at: '2026-10-20T17:24:00+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/directus/extensions/chat-recovery-transaction/test/metadata_operations.test.js
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+    - frontend/packages/openmates-cli/src/chatMetadataRecovery.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/chatMetadataRecovery.test.ts
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/services/__tests__/metadataRecovery.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+    - scripts/ci_chat_metadata_recovery.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add camera and generated media to chat calls'
+    section: features
+    commits:
+    - dfe468e9c
+    authored_at: '2026-10-20T16:28:06+00:00'
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/processing/voice_async_skills.py
+    - backend/apps/ai/processing/voice_call_broker.py
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/directus/extensions/chat-archive-transaction/src/hot-message-window.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/hot-message-window.test.js
+    - backend/shared/providers/fal/h3_turbo.py
+    - backend/shared/providers/gemini_live_voice.py
+    - backend/shared/providers/live_voice.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/shared/python_utils/generated_media_graph.py
+    - backend/shared/python_utils/voice_action_receipts.py
+    - backend/shared/python_utils/voice_call_visuals.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_generated_media_graph.py
+    - backend/tests/test_h3_turbo.py
+    - backend/tests/test_upload_camera_jpeg_original.py
+    - backend/tests/test_video_generate_task.py
+    - backend/tests/test_video_generation_pricing.py
+    - backend/tests/test_voice_action_receipts.py
+    - backend/tests/test_voice_async_skills.py
+    - backend/tests/test_voice_call_billing.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_call_visuals.py
+    - backend/tests/test_web_search_fixture.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/preview_generator.py
+    - docs/architecture/infrastructure/file-upload-pipeline.md
+    - docs/plans/integrated-voice-video-calling/plan.yml
+    - docs/user-guide/apps/videos.md
+    - docs/user-guide/voice-calls.md
+    - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-bar.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-media.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-scroll.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/InputEmbedThumbnails.preview.ts
+    - frontend/packages/ui/src/components/embeds/InputEmbedThumbnails.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBar.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBar.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMedia.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMedia.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMediaPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMediaPreview.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds_input.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallCamera.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMedia.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallVisuals.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallCamera.ts
+    - frontend/packages/ui/src/services/voiceCallMedia.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/voiceCallVisuals.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/web/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:videos:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:videos, app:web, embed:images:generate, embed:images:generate_draft,
+      embed:images:generated_image, embed:images:vectorize, embed:videos:generate, embed:web:search, skill:videos:generate,
+      skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: use Mercury 3 for fast inference with bounded recovery'
+    section: features
+    commits:
+    - 7ff9714f2
+    authored_at: '2026-10-20T13:44:17+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/inception_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_routing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/mercury_routing_fixture.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_mercury_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/providers/google.yml
+    - backend/providers/inception.yml
+    - backend/scripts/probe_workflow_authoring_recovery.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/inception/client.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_ai_model_routing.py
+    - backend/tests/test_inception_provider.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_mercury_routing_fixture.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_model_routing_restrictions.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_transcript_correction.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - backend/tests/test_workflow_mercury_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/expanded-correction-2026-10-20.md
+    - docs/plans/mercury-fast-inference/expanded-evaluation-protocol.md
+    - docs/plans/mercury-fast-inference/expanded-workflow-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/postprocessing-2026-10-20.md
+    - docs/plans/mercury-fast-inference/rollout-addendum.md
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
+    - frontend/apps/web_app/tests/workflows-authoring-transaction.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/packages/ui/src/services/__tests__/modelRoutingRestrictions.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/modelRoutingRestrictions.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: screen daily inspirations with Jev and compare writers'
+    section: features
+    commits:
+    - a0def9059
+    authored_at: '2026-10-20T13:15:14+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/services/directus/daily_inspiration_pool_methods.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_pool.yml
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_wiki_generator.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: integrate Mercury 3 with launch pricing and fast-inference evaluation'
+    section: features
+    commits:
+    - 1891f7aa7
+    authored_at: '2026-10-20T08:26:59+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/llm_providers/inception_client.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/providers/inception.yml
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/inception/__init__.py
+    - backend/shared/providers/inception/client.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/status/app/config.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_inception_provider.py
+    - backend/tests/test_transcribe_skill.py
+    - backend/tests/test_transcript_correction.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/static/icons/inception.svg
+    - scripts/api_tests/test_inception_api.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: restore fitness routing and retain failed skill cards'
+    section: bug_fixes
+    commits:
+    - 034108ec2
+    authored_at: '2026-10-20T20:19:02+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/fitness/skills/search_classes.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_embed_service_draft_events.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_fitness_skill_timeout.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_request_embed_authorization.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - frontend/apps/web_app/tests/components/chat-header-image-lifecycle.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/skill-fitness-class-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHeaderImageLifecyclePreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/ChatHeaderImageLifecyclePreviewHarness.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/UnifiedEmbedPreviewRecovery.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedResolverSourceContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/utils/__tests__/embedUpdateTargets.test.ts
+    - frontend/packages/ui/src/utils/embedUpdateTargets.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:fitness, embed:fitness:search_classes, skill:fitness:search_classes'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain shopping evidence policy in final system prompts'
+    section: bug_fixes
+    commits:
+    - 1807f822d
+    authored_at: '2026-10-20T19:57:29+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/shopping/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_shopping_images_fixture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor daily inspiration writer deadlines'
+    section: bug_fixes
+    commits:
+    - 785f15a0a
+    authored_at: '2026-10-20T19:35:11+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_search_locales.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ground delegated shopping explanations in returned evidence'
+    section: bug_fixes
+    commits:
+    - 8bdbae49f
+    authored_at: '2026-10-20T18:56:07+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_image_reference_handoff_instruction.md
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/tests/test_shopping_images_fixture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: map inspiration locales to supported Brave values'
+    section: bug_fixes
+    commits:
+    - 0e235d477
+    authored_at: '2026-10-20T18:52:37+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/scripts/benchmark_daily_inspiration_controls.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_search_locales.py
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover assistant speech and respect provider availability'
+    section: bug_fixes
+    commits:
+    - bc175d630
+    authored_at: '2026-10-20T18:41:04+00:00'
+    changed_paths:
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/shared/python_utils/generated_media_graph.py
+    - backend/tests/test_assistant_speech_asset_publication.py
+    - backend/tests/test_assistant_speech_worker.py
+    - frontend/apps/web_app/tests/assistant-speech-availability.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/assistant-speech-action.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechAvailability.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechAvailability.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: install terminal capture dependencies in isolated CI'
+    section: bug_fixes
+    commits:
+    - 26c380a37
+    authored_at: '2026-10-20T18:36:31+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover composer follow-ups from current-turn post-processing'
+    section: bug_fixes
+    commits:
+    - 3d50f144f
+    authored_at: '2026-10-20T18:36:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve earlier speech in realtime transcripts'
+    section: bug_fixes
+    commits:
+    - 33793f455
+    authored_at: '2026-10-20T18:33:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/tests/fixtures/realtime_transcription_long_speech.txt
+    - backend/tests/fixtures/realtime_transcription_long_speech.wav
+    - backend/tests/test_audio_realtime_transcription.py
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pass image references directly to app skills'
+    section: bug_fixes
+    commits:
+    - '672867199'
+    authored_at: '2026-10-20T18:18:59+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/instructions/base_image_content_safety_instruction.md
+    - backend/apps/ai/instructions/base_image_reference_handoff_instruction.md
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/shared/python_utils/image_reference_resolver.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_image_reference_resolver.py
+    - backend/tests/test_image_reference_routing.py
+    - backend/tests/test_images_search_references.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/user-guide/apps/images.md
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/images/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:images, app:shopping, embed:images:search, skill:images:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve natural localized chat headers'
+    section: bug_fixes
+    commits:
+    - d2733343b
+    authored_at: '2026-10-20T18:05:51+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep minimized composer send button circular'
+    section: bug_fixes
+    commits:
+    - 96e671a36
+    authored_at: '2026-10-20T18:04:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve multilingual early chat metadata quality'
+    section: bug_fixes
+    commits:
+    - 72f499301
+    authored_at: '2026-10-20T17:56:27+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dispatch early metadata requests with private tracing'
+    section: bug_fixes
+    commits:
+    - ce67df637
+    authored_at: '2026-10-20T17:47:33+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_llm_utils_chat_direction_privacy.py
+    - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept complete XML closing tags in follow-up metadata'
+    section: bug_fixes
+    commits:
+    - d119f0d86
+    authored_at: '2026-10-20T17:29:32+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/tests/test_suggested_followup_stream.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require composer follow-up metadata in final answer format'
+    section: bug_fixes
+    commits:
+    - 96f2dcf1c
+    authored_at: '2026-10-20T17:06:15+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove workflow background load error banner'
+    section: bug_fixes
+    commits:
+    - c551cead7
+    authored_at: '2026-10-20T17:01:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-load-failure.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show composer follow-ups only on focus and improve generation'
+    section: bug_fixes
+    commits:
+    - 9bc40b22b
+    authored_at: '2026-10-20T16:48:52+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/tests/test_suggested_followup_stream.py
+    - frontend/apps/web_app/tests/components/composer-ghost-suggestion.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve unknown daily inspiration source identity'
+    section: bug_fixes
+    commits:
+    - f23144e82
+    authored_at: '2026-10-20T13:39:32+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete generated app previews and cache startup dependencies'
+    section: bug_fixes
+    commits:
+    - c94ebe85a
+    authored_at: '2026-10-20T13:09:34+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/test_application_preview_startup.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_streaming.py
+    - backend/tests/test_e2b_application_preview.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use a stable SvelteKit build identity for source uploads'
+    section: bug_fixes
+    commits:
+    - 98d0293ac
+    authored_at: '2026-10-20T12:57:12+00:00'
+    changed_paths:
+    - .github/workflows/production-webapp-startup.yml
+    - frontend/apps/web_app/README.md
+    - frontend/apps/web_app/scripts/build-version.mjs
+    - frontend/apps/web_app/scripts/build-version.test.mjs
+    - frontend/apps/web_app/svelte.config.js
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require browser verification around production web app promotion'
+    section: bug_fixes
+    commits:
+    - 5bef59d86
+    authored_at: '2026-10-20T12:55:16+00:00'
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/rules/deployment.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - docs/contributing/guides/production-webapp-gate.md
+    - scripts/promote_production_webapp.py
+    - scripts/tests/test_production_webapp_promotion.py
+    - scripts/verify_production_webapp.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use real short parent refs for results views'
+    section: bug_fixes
+    commits:
+    - 81b6cf818
+    authored_at: '2026-10-20T12:40:11+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - backend/tests/test_native_history_cache_state.py
+    - frontend/apps/web_app/tests/components/results-view-source-validation.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/services/__tests__/resultsViewRefResolver.test.ts
+    - frontend/packages/ui/src/services/resultsViewRefResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve embed recovery and offline retention'
+    section: bug_fixes
+    commits:
+    - b2a15b4d7
+    authored_at: '2026-10-20T10:26:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/TeamWorkspaceContextTests.swift
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/services/degraded_services_report.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/openobserve_log_collector.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/shared/python_utils/provider_health.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_degraded_services_discord_report.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_keys_authorization.py
+    - docs/plans/dev-recovery-and-retention-repair/plan.yml
+    - frontend/apps/web_app/tests/cli-recovery-fixtures.spec.ts
+    - frontend/apps/web_app/tests/development-service-health.spec.ts
+    - frontend/packages/ui/src/__tests__/test-setup.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalReuse.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/test-mocks/unit-fetch-guard.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify Mercury transcript self-correction instructions'
+    section: bug_fixes
+    commits:
+    - e27304e2c
+    authored_at: '2026-10-20T10:19:48+00:00'
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept native Mercury correction completion reason'
+    section: bug_fixes
+    commits:
+    - '795396136'
+    authored_at: '2026-10-20T10:14:20+00:00'
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    - backend/tests/test_transcript_correction.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve landing language in example chat links'
+    section: bug_fixes
+    commits:
+    - baf91678e
+    authored_at: '2026-10-20T10:11:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-example-link.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-public-example-discovery.spec.ts
+    - frontend/apps/web_app/tests/website-language.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use low reasoning for Mercury transcript corrections'
+    section: bug_fixes
+    commits:
+    - b5c22713e
+    authored_at: '2026-10-20T10:06:41+00:00'
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    - backend/tests/test_transcript_correction.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve scoped human specification prompt waivers'
+    section: bug_fixes
+    commits:
+    - b24e791f0
+    authored_at: '2026-10-20T09:38:59+00:00'
+    changed_paths:
+    - scripts/_workflow_decisions.py
+    - scripts/sessions.py
+    - scripts/specification_prompt_waiver.py
+    - scripts/specifications.py
+    - scripts/tests/test_specification_prompt_waiver.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load legacy shopping photos and honor final result caps'
+    section: bug_fixes
+    commits:
+    - 0cbcf2c71
+    authored_at: '2026-10-20T09:37:51+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping, embed:shopping:search_products, skill:shopping:search_products'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve ordered Gemini tool images without name references'
+    section: bug_fixes
+    commits:
+    - 9eb8093d6
+    authored_at: '2026-10-20T08:57:34+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/tests/test_google_multimodal_tool_protocol.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep legal provider tables readable on mobile'
+    section: bug_fixes
+    commits:
+    - f85bcc0e2
+    authored_at: '2026-10-20T08:51:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Gemini tool images and rank forty shopping candidates'
+    section: bug_fixes
+    commits:
+    - 0e05ef5b0
+    authored_at: '2026-10-20T08:40:32+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/scripts/benchmark_decision_contract.py
+    - backend/scripts/benchmark_mercury_decide_jev.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_google_multimodal_tool_protocol.py
+    - backend/tests/test_search_relevance.py
+    - backend/tests/test_shopping_candidate_providers.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_skill_timeout.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/apis/mercury-decide-jev-comparison.md
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/features/app-skills/shopping-search/examples.yml
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping, embed:shopping:search_products, skill:shopping:search_products'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep German legal pages within mobile width'
+    section: bug_fixes
+    commits:
+    - '710488874'
+    authored_at: '2026-10-20T08:16:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record direct image results and remaining grounding gap'
+    section: docs
+    commits:
+    - 44c39239d
+    authored_at: '2026-10-20T20:21:55+00:00'
+    changed_paths:
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/plans/direct-image-reference-processing/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record multilingual inspiration qualification'
+    section: docs
+    commits:
+    - a12dd36b5
+    authored_at: '2026-10-20T20:20:15+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Mercury recovery qualification and multilingual gaps'
+    section: docs
+    commits:
+    - b22674254
+    authored_at: '2026-10-20T17:44:32+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_daily_inspiration_recovery.py
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Mercury rollout verification and quality limits'
+    section: docs
+    commits:
+    - 3925993e3
+    authored_at: '2026-10-20T13:57:36+00:00'
+    changed_paths:
+    - docs/apis/inception.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/rollout-addendum.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record completed native Mercury evaluation and dev correction rollout'
+    section: docs
+    commits:
+    - 8af2727e8
+    authored_at: '2026-10-20T10:29:20+00:00'
+    changed_paths:
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified shopping image implementation'
+    section: docs
+    commits:
+    - 369bbafb3
+    authored_at: '2026-10-20T09:49:46+00:00'
+    changed_paths:
+    - docs/plans/shopping-reference-images/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Mercury capacity and public benchmark comparison'
+    section: docs
+    commits:
+    - b0f1fc3a5
+    authored_at: '2026-10-20T09:01:04+00:00'
+    changed_paths:
+    - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/public-benchmarks.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: configure isolated Apps recommendation storage'
+    section: tests
+    commits:
+    - cfb1d6b44
+    authored_at: '2026-10-20T20:02:20+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: disambiguate metadata evaluation purchase permissions'
+    section: tests
+    commits:
+    - 11b8856f8
+    authored_at: '2026-10-20T18:12:55+00:00'
+    changed_paths:
+    - backend/scripts/test_early_chat_metadata_quality.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover runtime bootstrap for two-file application previews'
+    section: tests
+    commits:
+    - b09abc8d5
+    authored_at: '2026-10-20T13:34:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run camera video tasks in isolated CI'
+    section: tests
+    commits:
+    - 05e65b3be
+    authored_at: '2026-10-20T12:47:25+00:00'
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expand paired native workflow author quality checks'
+    section: tests
+    commits:
+    - 3c1106d83
+    authored_at: '2026-10-20T11:34:47+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/scripts/workflow_authoring_model_cases.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expand native transcript correction quality benchmark'
+    section: tests
+    commits:
+    - 6de23b1a1
+    authored_at: '2026-10-20T11:32:18+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/mercury_transcript_quality_cases.py
+    - backend/tests/test_mercury_transcript_quality_cases.py
+    - docs/plans/mercury-fast-inference/expanded-evaluation-protocol.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add native German and English postprocessing comparison'
+    section: tests
+    commits:
+    - a7be2a23e
+    authored_at: '2026-10-20T11:09:00+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_postprocessing_models.py
+    - backend/tests/test_postprocessing_models_benchmark.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover Mercury 3 manual model selection'
+    section: tests
+    commits:
+    - 2946a90ef
+    authored_at: '2026-10-20T10:23:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stop model benchmarks at first rate-limit response'
+    section: tests
+    commits:
+    - 7fb52e4ad
+    authored_at: '2026-10-20T09:58:47+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: benchmark Mercury through Inception gateway'
+    section: tests
+    commits:
+    - 9cc5ec1d2
+    authored_at: '2026-10-20T08:46:37+00:00'
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: record direct image results and remaining grounding gap'
+    commits:
+    - 44c39239d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record multilingual inspiration qualification'
+    commits:
+    - a12dd36b5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore fitness routing and retain failed skill cards'
+    commits:
+    - 034108ec2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - title: 'test: configure isolated Apps recommendation storage'
+    commits:
+    - cfb1d6b44
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain shopping evidence policy in final system prompts'
+    commits:
+    - 1807f822d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: honor daily inspiration writer deadlines'
+    commits:
+    - 785f15a0a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: ground delegated shopping explanations in returned evidence'
+    commits:
+    - 8bdbae49f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: map inspiration locales to supported Brave values'
+    commits:
+    - 0e235d477
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: recover assistant speech and respect provider availability'
+    commits:
+    - bc175d630
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+  - title: 'fix: install terminal capture dependencies in isolated CI'
+    commits:
+    - 26c380a37
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover composer follow-ups from current-turn post-processing'
+    commits:
+    - 3d50f144f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve earlier speech in realtime transcripts'
+    commits:
+    - 33793f455
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: review inspiration coherence and thumbnails with Jev'
+    commits:
+    - 1c753c461
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: pass image references directly to app skills'
+    commits:
+    - '672867199'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/images/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'test: disambiguate metadata evaluation purchase permissions'
+    commits:
+    - 11b8856f8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve natural localized chat headers'
+    commits:
+    - d2733343b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep minimized composer send button circular'
+    commits:
+    - 96e671a36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: improve multilingual early chat metadata quality'
+    commits:
+    - 72f499301
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: dispatch early metadata requests with private tracing'
+    commits:
+    - ce67df637
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record Mercury recovery qualification and multilingual gaps'
+    commits:
+    - b22674254
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept complete XML closing tags in follow-up metadata'
+    commits:
+    - d119f0d86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'feat: recover daily copy with Mercury retry and Gemini Flash Lite'
+    commits:
+    - 6ca5b49de
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'feat: generate early chat headers with Mercury'
+    commits:
+    - 11544e1f9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: require composer follow-up metadata in final answer format'
+    commits:
+    - 96f2dcf1c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: remove workflow background load error banner'
+    commits:
+    - c551cead7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+  - title: 'fix: show composer follow-ups only on focus and improve generation'
+    commits:
+    - 9bc40b22b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add camera and generated media to chat calls'
+    commits:
+    - dfe468e9c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/web/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:videos:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'docs: record Mercury rollout verification and quality limits'
+    commits:
+    - 3925993e3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: use Mercury 3 for fast inference with bounded recovery'
+    commits:
+    - 7ff9714f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+  - title: 'fix: preserve unknown daily inspiration source identity'
+    commits:
+    - f23144e82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover runtime bootstrap for two-file application previews'
+    commits:
+    - b09abc8d5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: screen daily inspirations with Jev and compare writers'
+    commits:
+    - a0def9059
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: complete generated app previews and cache startup dependencies'
+    commits:
+    - c94ebe85a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: use a stable SvelteKit build identity for source uploads'
+    commits:
+    - 98d0293ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: require browser verification around production web app promotion'
+    commits:
+    - 5bef59d86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: run camera video tasks in isolated CI'
+    commits:
+    - 05e65b3be
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use real short parent refs for results views'
+    commits:
+    - 81b6cf818
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'test: expand paired native workflow author quality checks'
+    commits:
+    - 3c1106d83
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: expand native transcript correction quality benchmark'
+    commits:
+    - 6de23b1a1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add native German and English postprocessing comparison'
+    commits:
+    - a7be2a23e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record completed native Mercury evaluation and dev correction rollout'
+    commits:
+    - 8af2727e8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve embed recovery and offline retention'
+    commits:
+    - b2a15b4d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+  - title: 'test: cover Mercury 3 manual model selection'
+    commits:
+    - 2946a90ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify Mercury transcript self-correction instructions'
+    commits:
+    - e27304e2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept native Mercury correction completion reason'
+    commits:
+    - '795396136'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve landing language in example chat links'
+    commits:
+    - baf91678e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use low reasoning for Mercury transcript corrections'
+    commits:
+    - b5c22713e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stop model benchmarks at first rate-limit response'
+    commits:
+    - 7fb52e4ad
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record verified shopping image implementation'
+    commits:
+    - 369bbafb3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve scoped human specification prompt waivers'
+    commits:
+    - b24e791f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load legacy shopping photos and honor final result caps'
+    commits:
+    - 0cbcf2c71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'docs: record Mercury capacity and public benchmark comparison'
+    commits:
+    - b0f1fc3a5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve ordered Gemini tool images without name references'
+    commits:
+    - 9eb8093d6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep legal provider tables readable on mobile'
+    commits:
+    - f85bcc0e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: benchmark Mercury through Inception gateway'
+    commits:
+    - 9cc5ec1d2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align Gemini tool images and rank forty shopping candidates'
+    commits:
+    - 0e05ef5b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'feat: integrate Mercury 3 with launch pricing and fast-inference evaluation'
+    commits:
+    - 1891f7aa7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: keep German legal pages within mobile width'
+    commits:
+    - '710488874'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: restore fitness routing and retain failed skill cards'
+    commits:
+    - 034108ec2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - title: 'fix: retain shopping evidence policy in final system prompts'
+    commits:
+    - 1807f822d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: recover assistant speech and respect provider availability'
+    commits:
+    - bc175d630
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+  - title: 'test: disambiguate metadata evaluation purchase permissions'
+    commits:
+    - 11b8856f8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve natural localized chat headers'
+    commits:
+    - d2733343b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: improve multilingual early chat metadata quality'
+    commits:
+    - 72f499301
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'fix: dispatch early metadata requests with private tracing'
+    commits:
+    - ce67df637
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'feat: generate early chat headers with Mercury'
+    commits:
+    - 11544e1f9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add camera and generated media to chat calls'
+    commits:
+    - dfe468e9c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/web/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:videos:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: load legacy shopping photos and honor final result caps'
+    commits:
+    - 0cbcf2c71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: align Gemini tool images and rank forty shopping candidates'
+    commits:
+    - 0e05ef5b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: restore fitness routing and retain failed skill cards'
+    commits:
+    - 034108ec2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    newsletter_ready: false
+  - title: 'fix: retain shopping evidence policy in final system prompts'
+    commits:
+    - 1807f822d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'fix: honor daily inspiration writer deadlines'
+    commits:
+    - 785f15a0a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: ground delegated shopping explanations in returned evidence'
+    commits:
+    - 8bdbae49f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: map inspiration locales to supported Brave values'
+    commits:
+    - 0e235d477
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: recover assistant speech and respect provider availability'
+    commits:
+    - bc175d630
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: recover composer follow-ups from current-turn post-processing'
+    commits:
+    - 3d50f144f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve earlier speech in realtime transcripts'
+    commits:
+    - 33793f455
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: review inspiration coherence and thumbnails with Jev'
+    commits:
+    - 1c753c461
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: pass image references directly to app skills'
+    commits:
+    - '672867199'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/images/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve natural localized chat headers'
+    commits:
+    - d2733343b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep minimized composer send button circular'
+    commits:
+    - 96e671a36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: improve multilingual early chat metadata quality'
+    commits:
+    - 72f499301
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: dispatch early metadata requests with private tracing'
+    commits:
+    - ce67df637
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: accept complete XML closing tags in follow-up metadata'
+    commits:
+    - d119f0d86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: recover daily copy with Mercury retry and Gemini Flash Lite'
+    commits:
+    - 6ca5b49de
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: generate early chat headers with Mercury'
+    commits:
+    - 11544e1f9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: require composer follow-up metadata in final answer format'
+    commits:
+    - 96f2dcf1c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: remove workflow background load error banner'
+    commits:
+    - c551cead7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show composer follow-ups only on focus and improve generation'
+    commits:
+    - 9bc40b22b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add camera and generated media to chat calls'
+    commits:
+    - dfe468e9c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/web/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:videos:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'feat: use Mercury 3 for fast inference with bounded recovery'
+    commits:
+    - 7ff9714f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: screen daily inspirations with Jev and compare writers'
+    commits:
+    - a0def9059
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: complete generated app previews and cache startup dependencies'
+    commits:
+    - c94ebe85a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: use a stable SvelteKit build identity for source uploads'
+    commits:
+    - 98d0293ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use real short parent refs for results views'
+    commits:
+    - 81b6cf818
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve embed recovery and offline retention'
+    commits:
+    - b2a15b4d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve landing language in example chat links'
+    commits:
+    - baf91678e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: load legacy shopping photos and honor final result caps'
+    commits:
+    - 0cbcf2c71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve ordered Gemini tool images without name references'
+    commits:
+    - 9eb8093d6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep legal provider tables readable on mobile'
+    commits:
+    - f85bcc0e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align Gemini tool images and rank forty shopping candidates'
+    commits:
+    - 0e05ef5b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'feat: integrate Mercury 3 with launch pricing and fast-inference evaluation'
+    commits:
+    - 1891f7aa7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep German legal pages within mobile width'
+    commits:
+    - '710488874'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 44c39239df713e34fb13dc09e3fdc9d61a844cee
+    short_sha: 44c39239d
+    authored_at: '2026-10-20T20:21:55+00:00'
+    subject: 'docs: record direct image results and remaining grounding gap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/plans/direct-image-reference-processing/verification.md
+    related_feature_ids: []
+  - sha: a12dd36b586e4d0ee4933e0b6de6d22832258910
+    short_sha: a12dd36b5
+    authored_at: '2026-10-20T20:20:15+00:00'
+    subject: 'docs: record multilingual inspiration qualification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    related_feature_ids: []
+  - sha: 034108ec24fb169720011759f48f92e21c3e527a
+    short_sha: 034108ec2
+    authored_at: '2026-10-20T20:19:02+00:00'
+    subject: 'fix: restore fitness routing and retain failed skill cards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/fitness/skills/search_classes.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_embed_service_draft_events.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_fitness_skill_timeout.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_request_embed_authorization.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - frontend/apps/web_app/tests/components/chat-header-image-lifecycle.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/skill-fitness-class-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHeaderImageLifecyclePreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/ChatHeaderImageLifecyclePreviewHarness.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/UnifiedEmbedPreviewRecovery.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedResolverSourceContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/utils/__tests__/embedUpdateTargets.test.ts
+    - frontend/packages/ui/src/utils/embedUpdateTargets.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:fitness
+    - embed:fitness:search_classes
+    - skill:fitness:search_classes
+  - sha: cfb1d6b44088a11d51c4d27e4489c53cf4eeec0c
+    short_sha: cfb1d6b44
+    authored_at: '2026-10-20T20:02:20+00:00'
+    subject: 'test: configure isolated Apps recommendation storage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 1807f822de3a87439874129198a9ebdf180d2abb
+    short_sha: 1807f822d
+    authored_at: '2026-10-20T19:57:29+00:00'
+    subject: 'fix: retain shopping evidence policy in final system prompts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/shopping/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_shopping_images_fixture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+  - sha: 785f15a0a9237a96640927d1b5f6cf1e2d6c4005
+    short_sha: 785f15a0a
+    authored_at: '2026-10-20T19:35:11+00:00'
+    subject: 'fix: honor daily inspiration writer deadlines'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_search_locales.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 8bdbae49f248948cc8e7741b0b78470c68381338
+    short_sha: 8bdbae49f
+    authored_at: '2026-10-20T18:56:07+00:00'
+    subject: 'fix: ground delegated shopping explanations in returned evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_image_reference_handoff_instruction.md
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/tests/test_shopping_images_fixture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 0e235d47780b3082802fbb0d169dc45db7cd4cda
+    short_sha: 0e235d477
+    authored_at: '2026-10-20T18:52:37+00:00'
+    subject: 'fix: map inspiration locales to supported Brave values'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/scripts/benchmark_daily_inspiration_controls.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_search_locales.py
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: bc175d630e475d4374780a738064de09c03c8a9d
+    short_sha: bc175d630
+    authored_at: '2026-10-20T18:41:04+00:00'
+    subject: 'fix: recover assistant speech and respect provider availability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/shared/python_utils/generated_media_graph.py
+    - backend/tests/test_assistant_speech_asset_publication.py
+    - backend/tests/test_assistant_speech_worker.py
+    - frontend/apps/web_app/tests/assistant-speech-availability.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/assistant-speech-action.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechAvailability.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechAvailability.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+  - sha: 26c380a37403a1c919b8982a618da772e9b2a252
+    short_sha: 26c380a37
+    authored_at: '2026-10-20T18:36:31+00:00'
+    subject: 'fix: install terminal capture dependencies in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    related_feature_ids: []
+  - sha: 3d50f144fe47c55aed447a3102952c9af8317b62
+    short_sha: 3d50f144f
+    authored_at: '2026-10-20T18:36:18+00:00'
+    subject: 'fix: recover composer follow-ups from current-turn post-processing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 33793f45550f93317456a19eba59f31fb3013a61
+    short_sha: 33793f455
+    authored_at: '2026-10-20T18:33:21+00:00'
+    subject: 'fix: preserve earlier speech in realtime transcripts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/tests/fixtures/realtime_transcription_long_speech.txt
+    - backend/tests/fixtures/realtime_transcription_long_speech.wav
+    - backend/tests/test_audio_realtime_transcription.py
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
+    short_sha: 1c753c461
+    authored_at: '2026-10-20T18:24:04+00:00'
+    subject: 'feat: review inspiration coherence and thumbnails with Jev'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/static_localization.py
+    - backend/apps/ai/daily_inspiration/static_localizations.json
+    - backend/apps/ai/daily_inspiration/thumbnail_review.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/services/directus/daily_inspiration_defaults_methods.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_defaults.yml
+    - backend/scripts/benchmark_daily_inspiration_controls.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_static_localization.py
+    - backend/tests/test_daily_inspiration_thumbnails.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.preview.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/build_daily_inspiration_fallback.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 672867199a2d4638531009a244cbe18141ba2549
+    short_sha: '672867199'
+    authored_at: '2026-10-20T18:18:59+00:00'
+    subject: 'fix: pass image references directly to app skills'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/instructions/base_image_content_safety_instruction.md
+    - backend/apps/ai/instructions/base_image_reference_handoff_instruction.md
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/shared/python_utils/image_reference_resolver.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_image_reference_resolver.py
+    - backend/tests/test_image_reference_routing.py
+    - backend/tests/test_images_search_references.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/user-guide/apps/images.md
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:images
+    - app:shopping
+    - embed:images:search
+    - skill:images:search
+  - sha: 11b8856f87ad20dc3de76cadd812152e67fb7bc1
+    short_sha: 11b8856f8
+    authored_at: '2026-10-20T18:12:55+00:00'
+    subject: 'test: disambiguate metadata evaluation purchase permissions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/test_early_chat_metadata_quality.py
+    related_feature_ids: []
+  - sha: d2733343be7dbfa5cfcd2d8849f8742956f8b6aa
+    short_sha: d2733343b
+    authored_at: '2026-10-20T18:05:51+00:00'
+    subject: 'fix: preserve natural localized chat headers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    related_feature_ids:
+    - app:ai
+  - sha: 96e671a364781332dba723de70a097af6bb69c6d
+    short_sha: 96e671a36
+    authored_at: '2026-10-20T18:04:40+00:00'
+    subject: 'fix: keep minimized composer send button circular'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 72f499301a9f83e182a3d08ed4b3acf042df08cb
+    short_sha: 72f499301
+    authored_at: '2026-10-20T17:56:27+00:00'
+    subject: 'fix: improve multilingual early chat metadata quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    related_feature_ids:
+    - app:ai
+  - sha: ce67df637583e7215f8a4d04a1a3471be089be07
+    short_sha: ce67df637
+    authored_at: '2026-10-20T17:47:33+00:00'
+    subject: 'fix: dispatch early metadata requests with private tracing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_llm_utils_chat_direction_privacy.py
+    - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: b22674254b5d250748ee8d5be0f6d4569f3eb3d3
+    short_sha: b22674254
+    authored_at: '2026-10-20T17:44:32+00:00'
+    subject: 'docs: record Mercury recovery qualification and multilingual gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_daily_inspiration_recovery.py
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+    related_feature_ids: []
+  - sha: d119f0d8692d5a7cdbe7d55fe7754f3f4aa3f375
+    short_sha: d119f0d86
+    authored_at: '2026-10-20T17:29:32+00:00'
+    subject: 'fix: accept complete XML closing tags in follow-up metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/tests/test_suggested_followup_stream.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 6ca5b49de24f5e6a797b17bc1b5447cc7d909634
+    short_sha: 6ca5b49de
+    authored_at: '2026-10-20T17:27:06+00:00'
+    subject: 'feat: recover daily copy with Mercury retry and Gemini Flash Lite'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/scripts/benchmark_daily_inspiration_recovery.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 11544e1f9d509ff2c1a35e6d7d71a6cb8077c8ca
+    short_sha: 11544e1f9
+    authored_at: '2026-10-20T17:24:00+00:00'
+    subject: 'feat: generate early chat headers with Mercury'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/early_chat_metadata.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/directus/extensions/chat-recovery-transaction/test/metadata_operations.test.js
+    - backend/scripts/test_early_chat_metadata_quality.py
+    - backend/tests/test_early_chat_metadata.py
+    - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+    - frontend/packages/openmates-cli/src/chatMetadataRecovery.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/chatMetadataRecovery.test.ts
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/services/__tests__/metadataRecovery.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+    - scripts/ci_chat_metadata_recovery.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 96f2dcf1ccab15a56745d128924c3372bcf48d01
+    short_sha: 96f2dcf1c
+    authored_at: '2026-10-20T17:06:15+00:00'
+    subject: 'fix: require composer follow-up metadata in final answer format'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: c551cead7b8aede0d8cf8ed48ceeaed5aad85225
+    short_sha: c551cead7
+    authored_at: '2026-10-20T17:01:33+00:00'
+    subject: 'fix: remove workflow background load error banner'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-load-failure.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 9bc40b22b2c6246791301798b2bd42382eb819b7
+    short_sha: 9bc40b22b
+    authored_at: '2026-10-20T16:48:52+00:00'
+    subject: 'fix: show composer follow-ups only on focus and improve generation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/tests/test_suggested_followup_stream.py
+    - frontend/apps/web_app/tests/components/composer-ghost-suggestion.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: dfe468e9c1201ab2c907f076252238d6195aa557
+    short_sha: dfe468e9c
+    authored_at: '2026-10-20T16:28:06+00:00'
+    subject: 'feat: add camera and generated media to chat calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/processing/voice_async_skills.py
+    - backend/apps/ai/processing/voice_call_broker.py
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/directus/extensions/chat-archive-transaction/src/hot-message-window.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/hot-message-window.test.js
+    - backend/shared/providers/fal/h3_turbo.py
+    - backend/shared/providers/gemini_live_voice.py
+    - backend/shared/providers/live_voice.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/shared/python_utils/generated_media_graph.py
+    - backend/shared/python_utils/voice_action_receipts.py
+    - backend/shared/python_utils/voice_call_visuals.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_generated_media_graph.py
+    - backend/tests/test_h3_turbo.py
+    - backend/tests/test_upload_camera_jpeg_original.py
+    - backend/tests/test_video_generate_task.py
+    - backend/tests/test_video_generation_pricing.py
+    - backend/tests/test_voice_action_receipts.py
+    - backend/tests/test_voice_async_skills.py
+    - backend/tests/test_voice_call_billing.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_call_visuals.py
+    - backend/tests/test_web_search_fixture.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/preview_generator.py
+    - docs/architecture/infrastructure/file-upload-pipeline.md
+    - docs/plans/integrated-voice-video-calling/plan.yml
+    - docs/user-guide/apps/videos.md
+    - docs/user-guide/voice-calls.md
+    - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-bar.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-media.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-scroll.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/InputEmbedThumbnails.preview.ts
+    - frontend/packages/ui/src/components/embeds/InputEmbedThumbnails.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBar.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBar.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallBarPreview.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMedia.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMedia.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMediaPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallMediaPreview.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds_input.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallCamera.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMedia.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallVisuals.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallCamera.ts
+    - frontend/packages/ui/src/services/voiceCallMedia.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/voiceCallVisuals.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:videos
+    - app:web
+    - embed:images:generate
+    - embed:images:generate_draft
+    - embed:images:generated_image
+    - embed:images:vectorize
+    - embed:videos:generate
+    - embed:web:search
+    - skill:videos:generate
+    - skill:web:search
+  - sha: 3925993e31aadad4e136d0e62033a58c82c12f64
+    short_sha: 3925993e3
+    authored_at: '2026-10-20T13:57:36+00:00'
+    subject: 'docs: record Mercury rollout verification and quality limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/apis/inception.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/rollout-addendum.md
+    related_feature_ids: []
+  - sha: 7ff9714f24c62a0b8bc5d07e164b7b719be055b7
+    short_sha: 7ff9714f2
+    authored_at: '2026-10-20T13:44:17+00:00'
+    subject: 'feat: use Mercury 3 for fast inference with bounded recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/inception_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_routing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/mercury_routing_fixture.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_mercury_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/providers/google.yml
+    - backend/providers/inception.yml
+    - backend/scripts/probe_workflow_authoring_recovery.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/inception/client.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_ai_model_routing.py
+    - backend/tests/test_inception_provider.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_mercury_routing_fixture.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_model_routing_restrictions.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_transcript_correction.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - backend/tests/test_workflow_mercury_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/expanded-correction-2026-10-20.md
+    - docs/plans/mercury-fast-inference/expanded-evaluation-protocol.md
+    - docs/plans/mercury-fast-inference/expanded-workflow-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/postprocessing-2026-10-20.md
+    - docs/plans/mercury-fast-inference/rollout-addendum.md
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
+    - frontend/apps/web_app/tests/workflows-authoring-transaction.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/packages/ui/src/services/__tests__/modelRoutingRestrictions.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/modelRoutingRestrictions.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+  - sha: f23144e82e393e09a7309b8699837059a83938ac
+    short_sha: f23144e82
+    authored_at: '2026-10-20T13:39:32+00:00'
+    subject: 'fix: preserve unknown daily inspiration source identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b09abc8d53bac58f383a406de49b91ad93d6aa21
+    short_sha: b09abc8d5
+    authored_at: '2026-10-20T13:34:07+00:00'
+    subject: 'test: cover runtime bootstrap for two-file application previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: a0def9059fa52494fca903a5732c35bf19e17902
+    short_sha: a0def9059
+    authored_at: '2026-10-20T13:15:14+00:00'
+    subject: 'feat: screen daily inspirations with Jev and compare writers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/services/directus/daily_inspiration_pool_methods.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_pool.yml
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_wiki_generator.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: c94ebe85a14f87aa3223eacfe129aa85ec93d939
+    short_sha: c94ebe85a
+    authored_at: '2026-10-20T13:09:34+00:00'
+    subject: 'fix: complete generated app previews and cache startup dependencies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/test_application_preview_startup.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_streaming.py
+    - backend/tests/test_e2b_application_preview.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 98d0293ac570c637d127883423687f9aa8f472b1
+    short_sha: 98d0293ac
+    authored_at: '2026-10-20T12:57:12+00:00'
+    subject: 'fix: use a stable SvelteKit build identity for source uploads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/production-webapp-startup.yml
+    - frontend/apps/web_app/README.md
+    - frontend/apps/web_app/scripts/build-version.mjs
+    - frontend/apps/web_app/scripts/build-version.test.mjs
+    - frontend/apps/web_app/svelte.config.js
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    related_feature_ids: []
+  - sha: 5bef59d864603a4147110d40eaf9005da119d6b5
+    short_sha: 5bef59d86
+    authored_at: '2026-10-20T12:55:16+00:00'
+    subject: 'fix: require browser verification around production web app promotion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/rules/deployment.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - docs/contributing/guides/production-webapp-gate.md
+    - scripts/promote_production_webapp.py
+    - scripts/tests/test_production_webapp_promotion.py
+    - scripts/verify_production_webapp.py
+    related_feature_ids: []
+  - sha: 05e65b3be97619d57c6629c6ed642c484b1b4224
+    short_sha: 05e65b3be
+    authored_at: '2026-10-20T12:47:25+00:00'
+    subject: 'test: run camera video tasks in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 81b6cf818386c9e35f269ca4c955d4a675921e95
+    short_sha: 81b6cf818
+    authored_at: '2026-10-20T12:40:11+00:00'
+    subject: 'fix: use real short parent refs for results views'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - backend/tests/test_native_history_cache_state.py
+    - frontend/apps/web_app/tests/components/results-view-source-validation.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/services/__tests__/resultsViewRefResolver.test.ts
+    - frontend/packages/ui/src/services/resultsViewRefResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 3c1106d837a982e8bd740f72266a9552b87db849
+    short_sha: 3c1106d83
+    authored_at: '2026-10-20T11:34:47+00:00'
+    subject: 'test: expand paired native workflow author quality checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/scripts/workflow_authoring_model_cases.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    related_feature_ids: []
+  - sha: 6de23b1a18421485ead5ad592bb1accd7e2804b8
+    short_sha: 6de23b1a1
+    authored_at: '2026-10-20T11:32:18+00:00'
+    subject: 'test: expand native transcript correction quality benchmark'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/mercury_transcript_quality_cases.py
+    - backend/tests/test_mercury_transcript_quality_cases.py
+    - docs/plans/mercury-fast-inference/expanded-evaluation-protocol.md
+    related_feature_ids: []
+  - sha: a7be2a23efa0e66ebf1e64ddf7cfc1d1b38ef71a
+    short_sha: a7be2a23e
+    authored_at: '2026-10-20T11:09:00+00:00'
+    subject: 'test: add native German and English postprocessing comparison'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_postprocessing_models.py
+    - backend/tests/test_postprocessing_models_benchmark.py
+    related_feature_ids: []
+  - sha: 8af2727e89c17f33284b83c0644d728421dc52a1
+    short_sha: 8af2727e8
+    authored_at: '2026-10-20T10:29:20+00:00'
+    subject: 'docs: record completed native Mercury evaluation and dev correction rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    related_feature_ids: []
+  - sha: b2a15b4d7055c18b22026e6e086fa5919e3337c2
+    short_sha: b2a15b4d7
+    authored_at: '2026-10-20T10:26:06+00:00'
+    subject: 'fix: preserve embed recovery and offline retention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/TeamWorkspaceContextTests.swift
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/services/degraded_services_report.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/openobserve_log_collector.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/shared/python_utils/provider_health.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_degraded_services_discord_report.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_keys_authorization.py
+    - docs/plans/dev-recovery-and-retention-repair/plan.yml
+    - frontend/apps/web_app/tests/cli-recovery-fixtures.spec.ts
+    - frontend/apps/web_app/tests/development-service-health.spec.ts
+    - frontend/packages/ui/src/__tests__/test-setup.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalReuse.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/test-mocks/unit-fetch-guard.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2946a90efdbc3ca6382988162123eb2dc3304f2c
+    short_sha: 2946a90ef
+    authored_at: '2026-10-20T10:23:15+00:00'
+    subject: 'test: cover Mercury 3 manual model selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e27304e2c31f76c5b23714c094ca3a7e7f89fbd7
+    short_sha: e27304e2c
+    authored_at: '2026-10-20T10:19:48+00:00'
+    subject: 'fix: clarify Mercury transcript self-correction instructions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    related_feature_ids: []
+  - sha: 7953961367c28d3de00db6f4bd9e1079448456dd
+    short_sha: '795396136'
+    authored_at: '2026-10-20T10:14:20+00:00'
+    subject: 'fix: accept native Mercury correction completion reason'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    - backend/tests/test_transcript_correction.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: baf91678ef1800cee1ee6cdf9c92780efb011459
+    short_sha: baf91678e
+    authored_at: '2026-10-20T10:11:36+00:00'
+    subject: 'fix: preserve landing language in example chat links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-example-link.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-public-example-discovery.spec.ts
+    - frontend/apps/web_app/tests/website-language.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b5c22713ee8be2a87adf0a2cf9b9e033d7ccad4b
+    short_sha: b5c22713e
+    authored_at: '2026-10-20T10:06:41+00:00'
+    subject: 'fix: use low reasoning for Mercury transcript corrections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/transcript_correction.py
+    - backend/tests/test_transcript_correction.py
+    related_feature_ids: []
+  - sha: 7fb52e4ad35cf31190abc80ec30f8345721229e3
+    short_sha: 7fb52e4ad
+    authored_at: '2026-10-20T09:58:47+00:00'
+    subject: 'test: stop model benchmarks at first rate-limit response'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    related_feature_ids: []
+  - sha: 369bbafb3100637c357eab8dcaa16acedddc964f
+    short_sha: 369bbafb3
+    authored_at: '2026-10-20T09:49:46+00:00'
+    subject: 'docs: record verified shopping image implementation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/shopping-reference-images/plan.yml
+    related_feature_ids: []
+  - sha: b24e791f0579dde5545bb7ef13a7a39076201b96
+    short_sha: b24e791f0
+    authored_at: '2026-10-20T09:38:59+00:00'
+    subject: 'fix: preserve scoped human specification prompt waivers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/_workflow_decisions.py
+    - scripts/sessions.py
+    - scripts/specification_prompt_waiver.py
+    - scripts/specifications.py
+    - scripts/tests/test_specification_prompt_waiver.py
+    related_feature_ids: []
+  - sha: 0cbcf2c715b49c83424f028659948683b4dbc94e
+    short_sha: 0cbcf2c71
+    authored_at: '2026-10-20T09:37:51+00:00'
+    subject: 'fix: load legacy shopping photos and honor final result caps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+    - embed:shopping:search_products
+    - skill:shopping:search_products
+  - sha: b0f1fc3a5729cc8828ef09f5fabb07563a3d831c
+    short_sha: b0f1fc3a5
+    authored_at: '2026-10-20T09:01:04+00:00'
+    subject: 'docs: record Mercury capacity and public benchmark comparison'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - docs/plans/mercury-fast-inference/public-benchmarks.md
+    related_feature_ids: []
+  - sha: 9eb8093d6cc7970e7e3561b08997c242021b3115
+    short_sha: 9eb8093d6
+    authored_at: '2026-10-20T08:57:34+00:00'
+    subject: 'fix: preserve ordered Gemini tool images without name references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/tests/test_google_multimodal_tool_protocol.py
+    related_feature_ids:
+    - app:ai
+  - sha: f85bcc0e259b1e5f038fb75b5d8f445c158d8807
+    short_sha: f85bcc0e2
+    authored_at: '2026-10-20T08:51:03+00:00'
+    subject: 'fix: keep legal provider tables readable on mobile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9cc5ec1d273d7efded6ab2e0b4469bbe3d4a7802
+    short_sha: 9cc5ec1d2
+    authored_at: '2026-10-20T08:46:37+00:00'
+    subject: 'test: benchmark Mercury through Inception gateway'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    related_feature_ids: []
+  - sha: 0e05ef5b06e8019df120b84bf8a52bd8db097c20
+    short_sha: 0e05ef5b0
+    authored_at: '2026-10-20T08:40:32+00:00'
+    subject: 'fix: align Gemini tool images and rank forty shopping candidates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/scripts/benchmark_decision_contract.py
+    - backend/scripts/benchmark_mercury_decide_jev.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_google_multimodal_tool_protocol.py
+    - backend/tests/test_search_relevance.py
+    - backend/tests/test_shopping_candidate_providers.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_skill_timeout.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/apis/mercury-decide-jev-comparison.md
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/features/app-skills/shopping-search/examples.yml
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+    - embed:shopping:search_products
+    - skill:shopping:search_products
+  - sha: 1891f7aa7700b9998b36530ba6121e839968f53e
+    short_sha: 1891f7aa7
+    authored_at: '2026-10-20T08:26:59+00:00'
+    subject: 'feat: integrate Mercury 3 with launch pricing and fast-inference evaluation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/llm_providers/inception_client.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/providers/inception.yml
+    - backend/scripts/benchmark_fast_inference.py
+    - backend/scripts/benchmark_workflow_authoring_models.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/inception/__init__.py
+    - backend/shared/providers/inception/client.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/status/app/config.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_fast_inference_benchmark.py
+    - backend/tests/test_inception_provider.py
+    - backend/tests/test_transcribe_skill.py
+    - backend/tests/test_transcript_correction.py
+    - backend/tests/test_workflow_authoring_models_benchmark.py
+    - docs/apis/inception.md
+    - docs/plans/mercury-fast-inference/plan.yml
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/static/icons/inception.svg
+    - scripts/api_tests/test_inception_api.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 710488874ca92a95f0b4a9857ffd7ac7a6f969e5
+    short_sha: '710488874'
+    authored_at: '2026-10-20T08:16:10+00:00'
+    subject: 'fix: keep German legal pages within mobile width'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the integration of Mercury 3 for fast inference, significant refinements to the Daily Inspiration
+    generation pipeline, and enhanced grounding for image-based shopping results. Additional work improved the reliability
+    of assistant speech and realtime audio transcription.
+  released_changes: []
+  bug_fixes:
+  - text: Shopping interactions now ground delegated explanations in returned evidence and utilize improved visual ranking
+      for product candidates.
+    evidence:
+      commits:
+      - 0e05ef5b0
+      - 8bdbae49f
+      - 0cbcf2c71
+      - 1807f822d
+    release_status: dev_only
+  - text: UI refinements improved mobile readability for legal pages, corrected the circular shape of the minimized composer
+      button, and preserved landing languages in example chat links.
+    evidence:
+      commits:
+      - f85bcc0e2
+      - '710488874'
+      - 96e671a36
+      - baf91678e
+    release_status: dev_only
+  - text: Audio processing updates restored assistant speech recovery and ensured earlier speech is preserved in realtime
+      transcripts.
+    evidence:
+      commits:
+      - bc175d630
+      - 33793f455
+    release_status: dev_only
+  - text: Fitness routing was restored and failed skill cards are now retained in the chat interface.
+    evidence:
+      commits:
+      - 034108ec2
+    release_status: dev_only
+  unreleased_progress:
+  - text: Mercury 3 was integrated for fast inference with bounded recovery, supported by new early chat header generation
+      and private tracing for metadata requests.
+    evidence:
+      commits:
+      - 1891f7aa7
+      - 7ff9714f2
+      - 11544e1f9
+      - 72f499301
+      - d2733343b
+      - ce67df637
+    release_status: dev_only
+  - text: The Daily Inspiration system added thumbnail review, writer comparison, and recovery copy using Gemini Flash Lite.
+    evidence:
+      commits:
+      - 1c753c461
+      - a0def9059
+      - 6ca5b49de
+      - 0e235d477
+      - 785f15a0a
+    release_status: dev_only
+  - text: Support for camera and generated media was added to the chat calling interface.
+    evidence:
+      commits:
+      - dfe468e9c
+    release_status: dev_only
+  - text: The unreleased workflows feature received a fix to remove background load error banners.
+    evidence:
+      commits:
+      - c551cead7
+    release_status: dev_only
+  - text: Work continued on unreleased iOS and macOS platforms to preserve embed recovery and offline retention.
+    evidence:
+      commits:
+      - b2a15b4d7
+    release_status: dev_only
+  - text: Generated application previews now support cached startup dependencies and two-file bootstrap configurations.
+    evidence:
+      commits:
+      - c94ebe85a
+      - b09abc8d5
+    release_status: dev_only
+  internal_progress:
+  - text: Quality benchmarks were expanded for transcript correction, workflow authoring, and post-processing models across
+      multiple languages.
+    evidence:
+      commits:
+      - 6de23b1a1
+      - 3c1106d83
+      - a7be2a23e
+      - 7fb52e4ad
+      - 9cc5ec1d2
+    release_status: dev_only
+  - text: CI infrastructure was updated to support isolated app recommendation storage and terminal capture dependencies.
+    evidence:
+      commits:
+      - cfb1d6b44
+      - 26c380a37
+      - 05e65b3be
+      - 5bef59d86
+    release_status: dev_only
+  - text: Documentation was updated to record Mercury 3 rollout verification, shopping image implementation details, and remaining
+      grounding gaps.
+    evidence:
+      commits:
+      - b0f1fc3a5
+      - 8af2727e8
+      - 3925993e3
+      - 369bbafb3
+      - 44c39239d
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Mercury 3 Fast Inference Integration
+      evidence:
+        commits:
+        - 1891f7aa7
+        - 7ff9714f2
+      reason: Mercury 3 integration is currently in development and not yet released to the main branch.
+    - text: Daily Inspiration Pipeline Enhancements
+      evidence:
+        commits:
+        - 1c753c461
+        - a0def9059
+      reason: Daily Inspiration updates are currently dev-only.
+    - text: Integrated Voice and Video Calling Media
+      evidence:
+        commits:
+        - dfe468e9c
+      reason: Camera and generated media support in chat calls are unreleased.
+    rationale: All features and improvements from this period are currently in development (dev_only) and have not reached
+      the main branch for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the speed of Mercury 3 fast inference compared to standard models.
+    priority: medium
+    reason: Provides a concrete performance story for AI responsiveness.
+    evidence:
+      commits:
+      - 7ff9714f2
+  - idea: Showcase the new camera and generated media capabilities within a live chat call.
+    priority: low
+    reason: Visual feature that demonstrates multi-modal interaction, though currently unreleased.
+    evidence:
+      commits:
+      - dfe468e9c
+  quality_notes:
+  - Extensive benchmarking was performed on Mercury 3 inference speed and transcript correction quality.
+  - Visual ranking for shopping candidates was expanded to handle larger candidate pools.
+  validation_warnings: []

@@ -34,6 +34,8 @@ export interface FullscreenRouteState {
 
 export interface EmbedFullscreenDispatchDetail {
   embedId?: string | null;
+    /** The caller has completed recovery and the original is unavailable. */
+    loadError?: boolean;
   projectId?: string;
   teamId?: string | null;
   embedData?: unknown;
@@ -46,6 +48,10 @@ export interface EmbedFullscreenDispatchDetail {
   focusSheetRange?: string | null;
   hasChatContext?: boolean;
   sourceChatId?: string | null;
+  /** Read-only embed owner, independent of the active composer chat. */
+  lookupChatId?: string | null;
+  /** Public fixture lookup owner, independent of the current chat/draft. */
+  exampleChatId?: string | null;
 }
 
 export type ExampleFullscreenResolver = (

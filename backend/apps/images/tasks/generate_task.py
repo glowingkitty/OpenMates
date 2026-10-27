@@ -1345,6 +1345,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         now_ts = int(datetime.now(timezone.utc).timestamp())
         original_content_type = files_metadata["original"]["mime_type"]
         output_filetype = files_metadata["original"]["format"]
+        from backend.shared.python_utils.generated_media_graph import generated_image_filename
+        filename = generated_image_filename(prompt, embed_id, output_filetype)
+        provider = actual_model.split(" ", 1)[0]
         upload_record_stored = await index_generated_asset(
             task,
             user_id=user_id,
@@ -1357,7 +1360,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             vault_wrapped_aes_key=encrypted_aes_key_vault,
             created_at=now_ts,
             content_hash_source=image_bytes if isinstance(image_bytes, bytes) else str(image_bytes).encode("utf-8"),
-            original_filename=f"openmates_generated_image_{embed_id[:8]}.{output_filetype}",
+            original_filename=filename,
             content_type=original_content_type,
             log_prefix=log_prefix,
             provenance_metadata={
@@ -1387,6 +1390,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "vault_wrapped_aes_key": encrypted_aes_key_vault,  # For server-side LLM vision access
             "prompt": prompt,
             "model": display_model_id,
+            "provider": provider,
+            "filename": filename,
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,                 # Actual "png", "jpg", "webp", or "svg"
             "generated_at": generated_at,
@@ -1497,6 +1502,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             },
             "prompt": prompt,
             "model": display_model_id,
+            "provider": provider,
+            "filename": filename,
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,
             "generated_at": generated_at,

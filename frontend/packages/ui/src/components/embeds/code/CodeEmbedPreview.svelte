@@ -21,6 +21,8 @@
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToElement, highlightToLines } from './codeHighlighting';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
@@ -373,9 +375,19 @@
   async function handleStop() {
     // Code embeds don't have cancellable tasks, but we include this for API consistency
   }
+  async function copyPreviewContent() {
+    try {
+      const result = await copyToClipboard(renderCodeContent);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      notificationStore.success($text('embeds.copied_to_clipboard'));
+    } catch {
+      notificationStore.error($text('embeds.copy_failed'));
+    }
+  }
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   {presentationOnly}
   {appId}
@@ -392,6 +404,10 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished' && !!renderCodeContent}<button type="button" aria-label={$text('common.copy')} title={$text('common.copy')} data-testid="preview-copy" onclick={(event) => { event.stopPropagation(); void copyPreviewContent(); }}><span class="clickable-icon icon_copy" aria-hidden="true"></span></button>{/if}
+  {/snippet}
+
 	  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
 	    {(isLargePreview = isLargeLayout, undefined)}
 	    <div class="code-details" class:mobile={isMobileLayout}>
@@ -443,7 +459,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
-    height: 100%;
+    min-height: 0;
     /* Ensure no background shows through during 3D transforms */
     background: transparent;
   }
@@ -461,7 +477,7 @@
   /* Code preview container */
   .code-preview-container {
     position: relative;
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
     overflow: hidden;
     display: flex;
@@ -472,8 +488,8 @@
   
   .code-preview {
     margin: 0;
-    /* Top padding gives first line breathing room from the card edge */
-    padding: 0.75rem 0 0 0;
+    /* Short snippets must clear the rounded bottom corners as well as the header. */
+    padding: 0.75rem 0;
     font-size: 0.75rem;
     line-height: 1.5;
     overflow: hidden;
@@ -483,9 +499,9 @@
     background: transparent !important;
     color: var(--color-font-primary);
     width: 100%;
-    height: 100%;
+    height: auto;
     display: block;
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
   }
   
@@ -730,7 +746,7 @@
     font-size: 0.8rem;
     line-height: 1.5;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    padding-top: 1rem;
+    padding-block: 1rem 0.75rem;
   }
 
   /* Each line: gutter number on left, code text on right */

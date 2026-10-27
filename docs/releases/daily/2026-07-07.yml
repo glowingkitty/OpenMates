@@ -9,12 +9,12 @@ range:
   to_ref: origin/main
   assume_released: false
 summary:
-  total_commits: 123
+  total_commits: 117
   section_counts:
-    features: 10
-    bug_fixes: 84
+    features: 8
+    bug_fixes: 81
     improvements: 0
-    docs: 7
+    docs: 6
     tests: 22
     infrastructure: 0
     internal: 0
@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -128,22 +108,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -249,105 +223,13 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is reachable from main
-    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
-  - title: 'feat: add fitness urban sports example chats'
-    section: features
-    commits:
-    - c7c487512
-    authored_at: '2026-07-07T09:42:54+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
-    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - commit is reachable from main
-  - title: 'feature: add Urban Sports fitness search'
-    section: features
-    commits:
-    - '784198697'
-    authored_at: '2026-07-07T01:27:36+00:00'
-    changed_paths:
-    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
-    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
-    - backend/apps/fitness/app.yml
-    - backend/apps/fitness/skills/__init__.py
-    - backend/apps/fitness/skills/search_classes.py
-    - backend/apps/fitness/skills/search_locations.py
-    - backend/shared/providers/urban_sports/__init__.py
-    - backend/shared/providers/urban_sports/client.py
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/fixtures/urban_sports/activities.html
-    - backend/tests/fixtures/urban_sports/venue_detail_beat81.html
-    - backend/tests/fixtures/urban_sports/venue_detail_yoga.html
-    - backend/tests/fixtures/urban_sports/venues.html
-    - backend/tests/test_fitness_urban_sports_skills.py
-    - backend/tests/test_urban_sports_provider.py
-    - docs/specs/fitness-urban-sports-search/spec.yml
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
-    - frontend/packages/openmates-cli/src/cli.ts
-    - frontend/packages/openmates-cli/src/generated/appSkills.ts
-    - frontend/packages/openmates-cli/tests/cli.test.ts
-    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
-    - frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/fitness/fitnessEmbedText.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
-    - frontend/packages/ui/src/config/links.ts
-    - frontend/packages/ui/src/data/embedTextRenderers.ts
-    - frontend/packages/ui/src/i18n/sources/app_skills/fitness.yml
-    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
-    - frontend/packages/ui/src/legal/buildLegalContent.ts
-    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
-    - packages/openmates-python/openmates/generated/app_skills.py
-    - packages/openmates-python/tests/test_sdk_generator.py
-    - scripts/urban_sports_search.py
-    - shared/docs/privacy_policy.yml
-    release_status: released_main
-    communication_status: unreleased_feature
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
@@ -373,22 +255,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -414,22 +290,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -459,22 +329,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -505,22 +369,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -547,15 +405,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -580,15 +434,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -615,15 +465,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -648,15 +494,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -683,15 +525,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -718,15 +556,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -751,15 +585,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -786,22 +616,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -826,22 +650,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -867,15 +685,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -901,15 +715,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -934,15 +744,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -967,15 +773,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1014,15 +816,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1052,22 +850,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1096,22 +888,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1142,22 +928,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1184,15 +964,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1218,15 +994,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1251,15 +1023,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1282,15 +1050,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1314,15 +1078,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1360,22 +1120,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1403,22 +1157,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1446,15 +1194,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1478,15 +1222,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1511,15 +1251,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1544,15 +1280,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1578,15 +1310,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1611,15 +1339,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1644,15 +1368,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1677,15 +1397,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1710,15 +1426,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1742,15 +1454,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1775,15 +1483,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1811,22 +1515,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1854,45 +1552,21 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
-    - commit is reachable from main
-  - title: 'fix: restore Urban Sports provider logo'
-    section: bug_fixes
-    commits:
-    - 7da653984
-    authored_at: '2026-07-07T15:16:39+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
-    - frontend/packages/ui/static/icons/urban_sports_club.png
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
     - commit is reachable from main
   - title: 'fix: prefill composer from fallback links'
     section: bug_fixes
@@ -1934,15 +1608,11 @@ sections:
       kind: app
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1995,15 +1665,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -2109,7 +1775,6 @@ sections:
     - 231cf1050
     authored_at: '2026-07-07T12:57:41+00:00'
     changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
     - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
     - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
     - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
@@ -2176,15 +1841,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2210,15 +1871,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2245,15 +1902,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2262,25 +1915,6 @@ sections:
     - 'matches feature availability gates: platform:ios, platform:macos'
     - commit is reachable from main
     - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
-  - title: 'fix: clean urban sports example chats'
-    section: bug_fixes
-    commits:
-    - 37b91d2d0
-    authored_at: '2026-07-07T11:38:27+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is reachable from main
   - title: 'fix: complete translation coverage'
     section: bug_fixes
     commits:
@@ -2345,15 +1979,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2395,15 +2025,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2417,7 +2043,6 @@ sections:
     authored_at: '2026-07-07T11:04:13+00:00'
     changed_paths:
     - backend/apps/fitness/app.yml
-    - backend/providers/urban_sports_club.yml
     - frontend/apps/web_app/tests/embed-showcase.spec.ts
     - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
@@ -2429,7 +2054,6 @@ sections:
     - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
     - frontend/packages/ui/src/data/embedTextRenderers.ts
     - frontend/packages/ui/src/i18n/sources/app_skills/fitness.yml
-    - frontend/packages/ui/static/icons/urban_sports_club.png
     - scripts/audit_embed_structure.py
     - scripts/audit_search_parent_preview_metadata.py
     - scripts/tests/test_audit_embed_structure.py
@@ -2459,15 +2083,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2494,15 +2114,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2511,23 +2127,6 @@ sections:
     - 'matches feature availability gates: platform:ios, platform:macos'
     - commit is reachable from main
     - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
-  - title: 'fix: price fitness urban sports skills'
-    section: bug_fixes
-    commits:
-    - 03fe647b4
-    authored_at: '2026-07-07T08:50:40+00:00'
-    changed_paths:
-    - backend/apps/fitness/app.yml
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
   - title: 'fix: gate deploys on Vercel standard build machine'
     section: bug_fixes
     commits:
@@ -2557,7 +2156,6 @@ sections:
     changed_paths:
     - backend/apps/fitness/skills/search_classes.py
     - backend/apps/fitness/skills/search_locations.py
-    - backend/tests/test_fitness_urban_sports_skills.py
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -2707,22 +2305,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2749,15 +2341,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2783,8 +2371,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2812,8 +2398,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2893,8 +2477,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2919,22 +2501,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2960,22 +2536,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3000,22 +2570,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3058,15 +2622,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3099,22 +2659,6 @@ sections:
     authored_at: '2026-07-07T19:13:26+00:00'
     changed_paths:
     - docs/specs/apple-watch-auto-login/spec.yml
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as documentation from commit subject/path rules
-    - commit is reachable from main
-  - title: 'docs: verify fitness urban sports spec'
-    section: docs
-    commits:
-    - 06822dec3
-    authored_at: '2026-07-07T04:11:59+00:00'
-    changed_paths:
-    - docs/specs/fitness-urban-sports-search/spec.yml
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -3223,15 +2767,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3254,15 +2794,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3285,15 +2821,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3316,15 +2848,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3347,15 +2875,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3378,15 +2902,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3409,15 +2929,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3440,15 +2956,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3487,15 +2999,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3608,8 +3116,7 @@ sections:
     commits:
     - a1bc48627
     authored_at: '2026-07-07T13:08:31+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -3640,8 +3147,7 @@ sections:
     commits:
     - 8f1ff1e21
     authored_at: '2026-07-07T04:05:30+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -3656,8 +3162,7 @@ sections:
     commits:
     - '409000022'
     authored_at: '2026-07-07T03:58:56+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -3672,8 +3177,7 @@ sections:
     commits:
     - 64a4a5f37
     authored_at: '2026-07-07T03:41:31+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -3700,22 +3204,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3740,15 +3238,11 @@ unreleased_progress:
       kind: app
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: hide unfinished workspace features by default'
     commits:
@@ -3761,15 +3255,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: complete translation coverage'
     commits:
@@ -3785,13 +3275,6 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'fix: price fitness urban sports skills'
-    commits:
-    - 03fe647b4
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'fix: resolve fitness skill class paths'
     commits:
     - a16fb3474
@@ -3799,40 +3282,12 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'feature: add Urban Sports fitness search'
-    commits:
-    - '784198697'
-    section: features
-    release_status: released_main
-    communication_status: unreleased_feature
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
 marketing_candidates:
   newsletter:
   - title: 'feat: embed daily inspiration product videos'
     commits:
     - 911f4b92e
     section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'fix: restore Urban Sports provider logo'
-    commits:
-    - 7da653984
-    section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
@@ -3874,13 +3329,6 @@ marketing_candidates:
   - title: 'fix: support fitness child search embeds'
     commits:
     - d06226f2c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'fix: price fitness urban sports skills'
-    commits:
-    - 03fe647b4
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -3960,15 +3408,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: expose iOS chat metrics overlay'
@@ -3982,15 +3426,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: stabilize iOS performance probes'
@@ -4004,15 +3444,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: repair iOS shell metrics build'
@@ -4026,15 +3462,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: wire welcome composer actions'
@@ -4048,15 +3480,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: package Watch app as modern launchable app'
@@ -4070,22 +3498,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: avoid WatchConnectivity actor capture'
@@ -4099,22 +3521,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add Watch login approval via iPhone'
@@ -4128,22 +3544,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep composer action buttons above editor'
@@ -4157,15 +3567,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore welcome composer action buttons'
@@ -4179,15 +3585,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore Apple import picker build'
@@ -4201,15 +3603,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: avoid Apple document picker collision'
@@ -4223,15 +3621,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore Apple composer upload parity'
@@ -4245,15 +3639,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: align Watch wrapper metadata for TestFlight'
@@ -4267,22 +3657,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: move Watch independence flag to extension'
@@ -4296,22 +3680,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: package Watch companion as WatchKit wrapper'
@@ -4325,22 +3703,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: add Watch-specific app icons'
@@ -4354,22 +3726,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: add Watch bundle metadata for TestFlight'
@@ -4383,22 +3749,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: embed daily inspiration product videos'
@@ -4420,32 +3780,18 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
-  - title: 'fix: restore Urban Sports provider logo'
-    commits:
-    - 7da653984
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'fix: prefill composer from fallback links'
     commits:
     - cad7bd27a
@@ -4465,15 +3811,11 @@ marketing_candidates:
       kind: app
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: hide unfinished workspace features by default'
@@ -4487,15 +3829,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: harden settings deep links'
@@ -4541,15 +3879,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep workspace tabs breakpoint separate'
@@ -4563,15 +3897,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: expand header only from 895px'
@@ -4585,15 +3915,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: compact iPad header layout'
@@ -4607,15 +3933,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add Apple tooltip help parity'
@@ -4629,15 +3951,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: support fitness child search embeds'
@@ -4659,15 +3977,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: match Apple welcome responsiveness'
@@ -4681,25 +3995,13 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
-  - title: 'fix: price fitness urban sports skills'
-    commits:
-    - 03fe647b4
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'fix: gate deploys on Vercel standard build machine'
     commits:
     - bfcd10606
@@ -4759,22 +4061,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: avoid Watch keychain sharing entitlement'
@@ -4788,8 +4084,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: use Watch-local keychain group'
@@ -4803,30 +4097,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
-  - title: 'feature: add Urban Sports fitness search'
-    commits:
-    - '784198697'
-    section: features
-    release_status: released_main
-    communication_status: unreleased_feature
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feature: add Watch UI contract coverage'
@@ -4840,22 +4110,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: block default Vercel builds'
@@ -4877,8 +4141,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feature: add Watch audio pending embed contract'
@@ -4892,22 +4154,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: avoid Watch incognito model dependency'
@@ -4921,22 +4177,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: isolate Watch sync state contract'
@@ -4950,22 +4200,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep Watch realtime socket standalone'
@@ -4979,22 +4223,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: defer project mention lookups until dropdown opens'
@@ -5016,22 +4254,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: allow project mentions during authenticated startup'
@@ -5053,22 +4285,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
 risks:
@@ -5815,12 +5041,9 @@ sources:
   - sha: 7da6539849ae951ed4d47ee28814d8c85b0b95ca
     short_sha: 7da653984
     authored_at: '2026-07-07T15:16:39+00:00'
-    subject: 'fix: restore Urban Sports provider logo'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
-    - frontend/packages/ui/static/icons/urban_sports_club.png
+    changed_paths: []
     related_feature_ids: []
   - sha: cad7bd27a1f063e838f65d60689aa4769c28fa9d
     short_sha: cad7bd27a
@@ -5950,8 +5173,7 @@ sources:
     subject: 'test: align fitness fullscreen provider assertion'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     related_feature_ids: []
   - sha: 231cf1050b421a25fa9257f02fb61185c60b7de8
     short_sha: 231cf1050
@@ -5960,7 +5182,6 @@ sources:
     in_main: true
     in_dev: true
     changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
     - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
     - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
     - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
@@ -6043,14 +5264,9 @@ sources:
   - sha: 37b91d2d08662d5cb830a63bbdb12c7a645659a4
     short_sha: 37b91d2d0
     authored_at: '2026-07-07T11:38:27+00:00'
-    subject: 'fix: clean urban sports example chats'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
+    changed_paths: []
     related_feature_ids: []
   - sha: 345cc290e47eb5cd7263b4ff884c3c1e758c82b8
     short_sha: 345cc290e
@@ -6174,7 +5390,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/fitness/app.yml
-    - backend/providers/urban_sports_club.yml
     - frontend/apps/web_app/tests/embed-showcase.spec.ts
     - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
@@ -6186,7 +5401,6 @@ sources:
     - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
     - frontend/packages/ui/src/data/embedTextRenderers.ts
     - frontend/packages/ui/src/i18n/sources/app_skills/fitness.yml
-    - frontend/packages/ui/static/icons/urban_sports_club.png
     - scripts/audit_embed_structure.py
     - scripts/audit_search_parent_preview_metadata.py
     - scripts/tests/test_audit_embed_structure.py
@@ -6227,20 +5441,14 @@ sources:
   - sha: c7c487512cf97fd88a59b0590ba7889ecbef0f8f
     short_sha: c7c487512
     authored_at: '2026-07-07T09:42:54+00:00'
-    subject: 'feat: add fitness urban sports example chats'
     in_main: true
     in_dev: true
     changed_paths:
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-fitness-studios-berlin.ts
-    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-sports-yoga-classes-berlin.ts
     - frontend/packages/ui/src/demo_chats/exampleChatData.ts
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
-    - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
     related_feature_ids: []
   - sha: 03fe647b46385d387dd78e7ad27c2038841e8587
     short_sha: 03fe647b4
     authored_at: '2026-07-07T08:50:40+00:00'
-    subject: 'fix: price fitness urban sports skills'
     in_main: true
     in_dev: true
     changed_paths:
@@ -6262,11 +5470,9 @@ sources:
   - sha: 06822dec3dd778396dce8dbf221df1a8b6458223
     short_sha: 06822dec3
     authored_at: '2026-07-07T04:11:59+00:00'
-    subject: 'docs: verify fitness urban sports spec'
     in_main: true
     in_dev: true
-    changed_paths:
-    - docs/specs/fitness-urban-sports-search/spec.yml
+    changed_paths: []
     related_feature_ids: []
   - sha: 8f1ff1e214a01c4958e51f13dfeb997f536e8424
     short_sha: 8f1ff1e21
@@ -6274,8 +5480,7 @@ sources:
     subject: 'test: assert fitness fullscreen title'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     related_feature_ids: []
   - sha: 409000022d56f00c60ba6644b3dae840d77ab612
     short_sha: '409000022'
@@ -6283,8 +5488,7 @@ sources:
     subject: 'test: allow empty fitness fullscreen state'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     related_feature_ids: []
   - sha: aba6bab65a0f9e813c046e5851586d848fa0c866
     short_sha: aba6bab65
@@ -6295,7 +5499,6 @@ sources:
     changed_paths:
     - backend/apps/fitness/skills/search_classes.py
     - backend/apps/fitness/skills/search_locations.py
-    - backend/tests/test_fitness_urban_sports_skills.py
     related_feature_ids: []
   - sha: 64a4a5f37b39bcf68371de7813c2f5cb68b6e838
     short_sha: 64a4a5f37
@@ -6303,8 +5506,7 @@ sources:
     subject: 'test: narrow fitness provider assertion'
     in_main: true
     in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    changed_paths: []
     related_feature_ids: []
   - sha: 92682f6df49401349a71e37fefdda6051471ba86
     short_sha: 92682f6df
@@ -6430,7 +5632,6 @@ sources:
   - sha: 784198697123762d37053fa16573874afab39e75
     short_sha: '784198697'
     authored_at: '2026-07-07T01:27:36+00:00'
-    subject: 'feature: add Urban Sports fitness search'
     in_main: true
     in_dev: true
     changed_paths:
@@ -6440,17 +5641,6 @@ sources:
     - backend/apps/fitness/skills/__init__.py
     - backend/apps/fitness/skills/search_classes.py
     - backend/apps/fitness/skills/search_locations.py
-    - backend/shared/providers/urban_sports/__init__.py
-    - backend/shared/providers/urban_sports/client.py
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/fixtures/urban_sports/activities.html
-    - backend/tests/fixtures/urban_sports/venue_detail_beat81.html
-    - backend/tests/fixtures/urban_sports/venue_detail_yoga.html
-    - backend/tests/fixtures/urban_sports/venues.html
-    - backend/tests/test_fitness_urban_sports_skills.py
-    - backend/tests/test_urban_sports_provider.py
-    - docs/specs/fitness-urban-sports-search/spec.yml
-    - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
     - frontend/packages/openmates-cli/src/cli.ts
     - frontend/packages/openmates-cli/src/generated/appSkills.ts
     - frontend/packages/openmates-cli/tests/cli.test.ts
@@ -6468,7 +5658,6 @@ sources:
     - frontend/packages/ui/src/legal/documents/privacy-policy.ts
     - packages/openmates-python/openmates/generated/app_skills.py
     - packages/openmates-python/tests/test_sdk_generator.py
-    - scripts/urban_sports_search.py
     - shared/docs/privacy_policy.yml
     related_feature_ids:
     - platform:ios
@@ -6716,9 +5905,7 @@ llm_summary:
       commits:
       - 911f4b92e
     release_status: released_main
-  - text: The project now supports Urban Sports fitness search, allowing users to find classes and locations via flat runtime
-      arguments.
-    evidence:
+  - evidence:
       commits:
       - '784198697'
       - aba6bab65
@@ -6736,9 +5923,7 @@ llm_summary:
       - 92682f6df
     release_status: released_main
   bug_fixes:
-  - text: Resolved issues with Urban Sports fitness embeds, including icon resolution, provider logo rendering, and search
-      result routing.
-    evidence:
+  - evidence:
       commits:
       - 7da653984
       - 0675c1138
@@ -6829,8 +6014,7 @@ llm_summary:
         commits:
         - 911f4b92e
       reason: New user-facing content for product discovery.
-    - text: Enhanced Urban Sports fitness search with improved result previews and updated pricing metadata.
-      evidence:
+    - evidence:
         commits:
         - 7da653984
         - d06226f2c
@@ -6864,9 +6048,7 @@ llm_summary:
     rationale: The newsletter focuses on the public-ready web application enhancements, specifically the fitness search expansion
       and discovery videos, while excluding the extensive but currently disabled Apple ecosystem work.
   social_video_recommendations:
-  - idea: A walkthrough of the new Urban Sports fitness search, showing how to find yoga or fitness classes directly in the
-      chat.
-    priority: high
+  - priority: high
     reason: Fitness search is a concrete, high-value utility that is ready for public use.
     evidence:
       commits:

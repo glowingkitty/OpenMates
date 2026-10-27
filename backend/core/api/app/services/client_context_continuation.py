@@ -155,6 +155,8 @@ async def _open(encryption: Any, vault_key_id: str, ciphertext: Any) -> dict:
     if isinstance(ciphertext, bytes):
         ciphertext = ciphertext.decode()
     value = await encryption.decrypt_with_user_key(ciphertext, vault_key_id)
+    if value is None:
+        raise ClientContextUnavailable("Context decryption unavailable")
     result = json.loads(value)
     if not isinstance(result, dict):
         raise ClientContextUnavailable("Invalid encrypted context")

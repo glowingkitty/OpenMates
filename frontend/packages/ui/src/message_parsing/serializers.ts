@@ -338,9 +338,36 @@ function _buildEmbedHtml(json: string, plainText: string): string {
 export async function writeEmbedToClipboard(
   attrs: EmbedNodeAttributes,
   plainTextPromise: string | Promise<string>,
+  imagePngPromise?: Promise<Blob>,
 ): Promise<void> {
   const clipboardData = createEmbedClipboardData(attrs);
   const json = JSON.stringify(clipboardData);
+
+  if (imagePngPromise) {
+    // Use only browser-supported MIME types so Safari can start writing within
+    // the click gesture. HTML retains the reference for in-app paste and actual
+    // image data for other rich-text editors, without copying encryption keys.
+    const html = imagePngPromise.then(blob => new Promise<Blob>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Unable to prepare image clipboard'));
+      reader.onload = () => resolve(new Blob([
+        _buildEmbedHtml(json, '').replace('<pre></pre>', `<img src="${reader.result}" alt="">`),
+      ], { type: 'text/html' }));
+      reader.readAsDataURL(blob);
+    }));
+    // Mark both preparations as handled even when a browser rejects writing
+    // before consuming ClipboardItem's promises.
+    void html.catch(() => {});
+    void imagePngPromise.catch(() => {});
+    if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+      throw new Error('Image clipboard is unavailable');
+    }
+    await navigator.clipboard.write([new ClipboardItem({
+      'image/png': imagePngPromise,
+      'text/html': html,
+    })]);
+    return;
+  }
 
   // Normalise: wrap plain strings in a resolved promise so all paths below
   // can treat the value uniformly.
@@ -649,6 +676,14 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return "";
 
       }
+    case "calendar-event":
+      {
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        return `\`\`\`json\n${JSON.stringify(createEmbedReference("calendar_event", embed_id), null, 2)}\n\`\`\``;
+      }
+      return "";
+      }
     case "mindmaps-mindmap":
       {
       if (attrs.contentRef?.startsWith("embed:")) {
@@ -661,6 +696,11 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
 
       }
     case "image":
+      // Inline SVG images retain their editable source when sending/restoring a draft.
+      if (attrs.code && !attrs.contentRef?.startsWith("embed:")) {
+        const pathSuffix = attrs.filename ? `:${attrs.filename}` : "";
+        return `\`\`\`${attrs.language || "svg"}${pathSuffix}\n${attrs.code}\n\`\`\``;
+      }
       // User-uploaded images: serialized as embed references when contentRef is set
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
@@ -739,6 +779,14 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return "";
 
     default:
+      // Reusing an existing result must preserve its reference even for result
+      // types that have no editable-content serializer. Never inline its data.
+      if (attrs.referenceOnly && attrs.contentRef?.startsWith("embed:")) {
+        const reference = createEmbedReference(attrs.type, attrs.contentRef.slice(6));
+        if (attrs.app_id) reference.app_id = attrs.app_id;
+        if (attrs.skill_id) reference.skill_id = attrs.skill_id;
+        return `\`\`\`json\n${JSON.stringify(reference, null, 2)}\n\`\`\``;
+      }
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {
         const groupMarkdown = groupHandlerRegistry.groupToMarkdown(attrs);

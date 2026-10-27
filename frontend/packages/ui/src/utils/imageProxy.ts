@@ -6,7 +6,7 @@
 // improve performance (7-day server-side cache).
 //
 // Architecture: See docs/architecture/servers.md, docs/contributing/guides/image-proxy.md
-// Tests: None yet — frontend utility, verified via component usage.
+// Tests: imageProxy.test.ts
 
 import { getPreviewUrl } from "../config/api";
 
@@ -36,8 +36,8 @@ export function proxyImage(
   maxWidth?: number,
 ): string {
   if (!url) return "";
-  // Avoid double-proxying
-  if (url.startsWith(`${PREVIEW_BASE}/api/v1/image`) || url.startsWith("data:")) {
+  // Avoid double-proxying or sending local plaintext media URLs to the proxy.
+  if (url.startsWith(`${PREVIEW_BASE}/api/v1/image`) || url.startsWith("data:") || url.startsWith("blob:")) {
     return url;
   }
   // Local / same-origin paths (e.g., /store-examples/home-1.webp) are served

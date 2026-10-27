@@ -30,6 +30,7 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
   if (doc.type !== 'doc' || !Array.isArray(doc.content)) return null;
   const runs: AssistantActivityRun[] = [];
   const runKeys = new Set<string>();
+  const seenSkills = new Set<string>();
   let nodes: Array<Record<string, unknown>> = [];
   let currentKind: 'content' | 'skills' | null = null;
   const flush = () => {
@@ -39,8 +40,7 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
     const skills = items.filter((item) => item.type !== 'focus-mode-activation' && item.type !== 'sub-chat-batch');
     const baseKey = currentKind === 'skills' ? `skills:${items[0]?.id ?? runs.length}` : `content:${runs.length}`;
     let key = baseKey;
-    // Preserve the first invocation key; repeated refs at later source positions
-    // still need their own keyed component rather than crashing the transcript.
+    // Focus and sub-chat anchors can legitimately repeat independently of skills.
     for (let occurrence = 1; runKeys.has(key); occurrence++) key = `${baseKey}:occurrence:${occurrence}`;
     runKeys.add(key);
     runs.push({
@@ -51,7 +51,27 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
     });
     nodes = [];
   };
-  for (const node of doc.content) {
+  for (const original of doc.content) {
+    let node = original;
+    const items = activityItems(node);
+    if (items) {
+      const unique = items.filter((item) => {
+        // Identity belongs to the invocation, not its source position. The
+        // same long-running call can be echoed as a result-parent reference.
+        if (item.type === 'focus-mode-activation' || item.type === 'sub-chat-batch') return true;
+        const id = item.id ?? item.contentRef;
+        if (typeof id !== 'string' || !id) return true;
+        if (seenSkills.has(id)) return false;
+        seenSkills.add(id);
+        return true;
+      });
+      if (!unique.length) continue;
+      if (unique.length !== items.length) {
+        const embed = (node.content as Array<Record<string, unknown>>)[0];
+        node = { ...node, content: [{ ...embed, attrs: { ...(embed.attrs as Record<string, unknown>),
+          groupedItems: unique, groupCount: unique.length } }] };
+      }
+    }
     const kind = activityItems(node) ? 'skills' : 'content';
     if (kind !== currentKind) { flush(); currentKind = kind; }
     nodes.push(node);

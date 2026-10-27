@@ -23,6 +23,7 @@
 
   interface Props {
     /** Embed-specific secondary actions; omitted for existing embeds. */
+    headerPrimaryAction?: import('svelte').Snippet;
     headerActions?: import('svelte').Snippet;
     headerActionCount?: number;
     /** Whether to show the "restore chat" button (ultra-wide side-by-side mode). */
@@ -79,6 +80,7 @@
   }
 
   let {
+    headerPrimaryAction,
     headerActions,
     headerActionCount = 1,
     showChatButton = false,
@@ -141,7 +143,7 @@
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean(showPIIToggle && onTogglePII)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
+  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
@@ -178,6 +180,7 @@
       {/if}
     {/snippet}
     {#snippet priorityAction()}
+      <div class="primary-action-group">
       <!-- PII toggle -->
       {#if showPIIToggle && onTogglePII}
         <div class="button-wrapper">
@@ -204,6 +207,8 @@
         </div>
       {/if}
 
+      {#if headerPrimaryAction}{@render headerPrimaryAction()}{/if}
+      </div>
     {/snippet}
     {#snippet restoreChat()}
       <!-- Restore chat (ultra-wide side-by-side mode) -->
@@ -414,6 +419,7 @@
 </div>
 
 <style>
+  .primary-action-group { display: flex; align-items: center; gap: var(--spacing-4); }
   .edit-icon { -webkit-mask-image: url('@openmates/ui/static/icons/edit.svg'); mask-image: url('@openmates/ui/static/icons/edit.svg'); }
   .close-action-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .import-icon { -webkit-mask-image: var(--icon-url-upload); mask-image: var(--icon-url-upload); }

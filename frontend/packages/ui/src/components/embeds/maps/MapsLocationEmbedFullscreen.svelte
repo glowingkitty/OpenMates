@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
 
   Fullscreen view for Maps Location skill embeds.
-  Uses EntryWithMapTemplate for responsive map + detail card layout.
+  Uses ResultEmbedFullscreen for responsive map + detail card layout.
 
   Shows:
   - Interactive OpenStreetMap map centered on the pin (or static map image)
@@ -14,7 +14,8 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -105,9 +106,12 @@
       : undefined
   );
 
-  let mapMarkers = $derived(
-    mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: name }] : []
-  );
+  let mapMarkers = $derived.by(() => {
+    if (!mapCenter) return [];
+    const radius = pickFirstNumber(dc.radius_m, dc.radius);
+    if (showNearbyLabel) return radius && radius > 0 ? [{ ...mapCenter, label: name, radiusM: radius, areaBasis: 'description' as const }] : [];
+    return [{ ...mapCenter, label: name }];
+  });
 
   function handleOpenInGoogleMaps() {
     if (googleMapsUrl) {
@@ -128,13 +132,14 @@
   }
 </script>
 
-<EntryWithMapTemplate
+<ResultEmbedFullscreen
+  result={dc as unknown as Record<string, unknown>}
   appId="maps"
   skillId="location"
   {onClose}
   currentEmbedId={embedId}
   skillIconName="pin"
-  embedHeaderTitle={$text('common.location')}
+  embedHeaderTitle={name || $text('common.location')}
   {showShare}
   onCopy={osmUrl ? handleCopyOsmUrl : undefined}
   {hasPreviousEmbed}
@@ -149,7 +154,10 @@
   {mapMarkers}
   staticMapImageUrl={mapImageUrl}
 >
-  {#snippet detailContent(_ctx)}
+  {#snippet summary()}
+    <ResultEmbedInfo icon="map-pin" label="Location accuracy" value={showNearbyLabel ? 'Approximate area' : 'Provider location'} state={showNearbyLabel ? 'unknown' : undefined}>{showNearbyLabel ? 'The provider identifies a nearby area; the marker is not an exact address.' : 'Coordinates supplied by the provider.'}</ResultEmbedInfo>
+  {/snippet}
+  {#snippet detailContent()}
     <div class="location-details" data-testid="map-location-fullscreen">
       {#if name}
         <h2 class="location-title">{name}</h2>
@@ -171,7 +179,7 @@
       <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Maps')} onclick={handleOpenInGoogleMaps} />
     {/if}
   {/snippet}
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 
 <style>
   .location-details {

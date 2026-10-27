@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@11
+specification: feature.marketing-landing@12
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -24,14 +24,17 @@ layout:
     a viewport. Large desktop devices may crop intentionally, phones show only phone imagery, and the model selector
     captures are real with multiple providers, export and ownership explained. As each section enters view, its
     heading, copy and imagery appear in a gentle stagger while Alex keeps control of scrolling; reduced motion
-    shows them immediately.
+    shows them immediately. On short desktop viewports the entire story introduction, including icon, heading,
+    animation and Skip animation control, stays clear of the fixed header, section arrows and bottom composer.
 destinations:
 - id: website-app-links
-  given: Alex visits landing.dev.openmates.org while signed out.
+  given: Alex visits landing.dev.openmates.org while signed out, with a configured separate public website origin.
   when: Alex selects Open Web App, Explore Apps, Explore Workflows, an official social icon or the TestFlight
-    testing link.
+    testing link, then opens web-app Settings and selects Privacy, Terms and Imprint.
   then: Open Web App reaches the configured dev app root; Explore and social links open new tabs; the TestFlight
     link scrolls to newsletter signup. The full wordmark returns to the website home, with no workspace tabs.
+    Settings opens each full legal document on the configured public website. The chat sidebar has no legal
+    section, and privacy, terms and imprint chats are absent from the app.
 - id: shared-compact-header
   given: Sam visits the website home, news, blog or legal pages on a 320-pixel phone or a wide desktop.
   when: Sam reads the landing browser tab, then uses the header and opens language selection.
@@ -40,6 +43,7 @@ destinations:
     The language panel stays within the screen. GitHub remains visible and accessible on the narrow phone. Blog
     links stay on the website and non-HTTP origin overrides are rejected. The landing tab and social previews
     say OpenMates — Your privacy first AI team mates.
+
 catalog_alignment:
 - id: matching-default-examples
   given: Alex sees Events, Travel and Code first on the landing page and has not selected interests in the web
@@ -48,13 +52,17 @@ catalog_alignment:
   then: Every metadata-selected landing app-wheel example appears in exactly the same order, with no unlinked
     catalog extras or truncation. Alex's own local conversation remains ahead of the examples; explicit interest
     ranking and Show all still work. A cold boot and reload both preserve that default selection.
-- id: retain-capability-coverage
-  given: Two older chats demonstrate image search, neither is linked on the landing page, and one separate chat
-    is the only demonstration of speech generation.
-  when: The public example catalog is cleaned up.
-  then: One successful image-search example and the sole speech-generation example remain. The redundant image-search
-    chat disappears from discovery, direct example pages and interest mappings. Landing-linked examples and their
-    child conversations remain available.
+- id: quality-precedes-capability-coverage
+  assertion_ids: [marketing-landing.example-catalog-alignment]
+  given: A user-identified poor-quality speech example is the only example for that skill, and another poor
+    example is still linked from the landing page.
+  when: The explicitly requested examples are removed from the public catalog.
+  then: Both disappear from discovery, direct example pages, interest mappings and landing links even though
+    speech generation now has no public example. Their definitions, message and embed data, translations and
+    orphan-only assets are deleted, with no archived fixture copies. Regression tests retain only their IDs.
+    Good retained examples, their child conversations and required shared assets remain; no fabricated replacement
+    is added.
+
 hero_entrance:
 - id: staged-first-impression
   given: Sam opens the landing page in a fresh tab with normal motion enabled.
@@ -95,14 +103,19 @@ composer:
     labels are localized, the destination stays unchanged, and placeholder and microphone colors match the app.
 screenshots:
 - id: real-safe-device-images
-  given: The latest deployed development app shows events, highlighted fictional contact data, the model selector,
-    the workflow template and a train chat.
-  when: These views are captured at the top with branded browser chrome and placed in device frames.
-  then: The browser bar visibly says openmates.org; the provenance manifest retains the actual app.dev origin
-    and revision. All captured pixels stay within rounded screen apertures. Screenshots open related real examples
-    in new tabs; the workflow screenshot opens the existing Workflows workspace while its replacement example
-    remains unadmitted. Open source shows a linked GitHub icon instead of screenshots. Native iPhone and Watch
-    captures are supplied separately; only a real supplied Watch image may overlay the phone.
+  assertion_ids: [marketing-landing.real-screenshots]
+  given: >-
+    The latest development app provides real event, privacy, model-selector, Workflow and train views, and
+    the user supplies native phone status/header imagery.
+  when: "The marketing screenshots are captured and composited into their device frames."
+  then: >-
+    Desktop views show settings and openmates.org browser chrome. Phone views use actual mobile-web content
+    with the supplied native status/header and correct safe areas, clearly described as a mobile-web
+    composition. Task and Project controls are omitted only in these marketing captures and retain their
+    normal app availability. The manifest retains actual origin, revision and hashes; screen pixels stay
+    clipped, related real-example links work, and only a real supplied Watch capture may overlay the phone.
+    Open source keeps its linked GitHub icon instead of screenshots. If the former privacy example has been
+    removed, its real unsent-draft screenshot remains without a link to that retired chat.
 public_content:
 - id: all-upcoming-events-and-human-detail
   given: Published events include an ongoing free workshop, a future paid meetup and a finished event.

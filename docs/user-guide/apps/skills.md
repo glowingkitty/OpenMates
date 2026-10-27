@@ -18,7 +18,7 @@ claims:
 
 ## What Are Skills?
 
-Skills are the specific actions your mates can take -- like searching the web, generating an image, finding a doctor's appointment, or getting a YouTube transcript. Each app provides one or more skills.
+Skills are the specific actions your mates can take -- like searching the web, generating an image, looking up completed flights, or retrieving supported captions. Each app provides one or more skills.
 
 Your mates choose which skills to use based on what you ask for. You do not need to pick a skill yourself -- just describe what you need and your mate handles the rest.
 

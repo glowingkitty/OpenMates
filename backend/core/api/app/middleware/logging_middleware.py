@@ -19,6 +19,7 @@ from starlette.types import ASGIApp
 
 from backend.core.api.app.utils.request_context import generate_request_id, set_debugging_id
 from backend.core.api.app.utils.log_filters import redact_newsletter_token_urls
+from backend.core.api.app.middleware.ai_decide_body import DECISION_POST_PATHS
 
 # Maximum number of error fingerprints stored in Redis.
 # Oldest (lowest score) entries are trimmed when this limit is exceeded.
@@ -212,7 +213,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             # Validation errors can echo the submitted plaintext Team name.
             # This check is transient: never persist its response body in logs.
-            if status_code >= 400 and path.rstrip("/") != "/v1/teams/name-approval":
+            private_decision = (method == "POST" and path.rstrip("/") in DECISION_POST_PATHS) or path.startswith("/v1/apps/workspace/")
+            if status_code >= 400 and private_decision:
+                # FastAPI root/JSON validation can echo arbitrary inline image
+                # bytes before skill validation runs. Log status only.
+                logger.warning("Decision request failed: %s %s - %s", method, path, status_code)
+            if status_code >= 400 and path.rstrip("/") != "/v1/teams/name-approval" and not private_decision:
                 error_detail_str = None
                 response_body_preview = None # For non-JSON or unparseable bodies
 
@@ -277,10 +283,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log exceptions as errors with more context
             trace_id = getattr(request.state, 'trace_id', None)
+            private_decision = (method == "POST" and path.rstrip("/") in DECISION_POST_PATHS) or path.startswith("/v1/apps/workspace/")
+            safe_error = "Decision request failed" if private_decision else str(e)
             extra_exception_data = {
                 "request_id": request_id,
                 "error_type": type(e).__name__,
-                "error_message": str(e),
+                "error_message": safe_error,
                 "method": method, # method and path are from the outer scope
                 "path": path,   #
                 "event_type": "request_exception",
@@ -288,7 +296,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             if trace_id:
                 extra_exception_data["trace_id"] = trace_id
             if hasattr(request, 'query_params'): # Check if request attributes are safe to access
-                extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
+                extra_exception_data["query_params"] = None if private_decision else (str(request.query_params) if request.query_params else None)
             if hasattr(request, 'headers'):
                  headers_subset = {
                     h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in ["user-agent", "referer", "origin"]
@@ -298,9 +306,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     extra_exception_data["request_headers_subset"] = headers_subset
 
             logger.error(
-                f"Request processing failed with unhandled exception: {method} {path} - {type(e).__name__}: {str(e)}",
+                f"Request processing failed with unhandled exception: {method} {path} - {type(e).__name__}: {safe_error}",
                 extra=extra_exception_data,
-                exc_info=True # This provides the full traceback
+                exc_info=not private_decision # Decision exception text may contain inline image bytes.
             )
 
             # Compute and record the error fingerprint for aggregation.

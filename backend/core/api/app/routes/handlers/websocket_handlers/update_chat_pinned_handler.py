@@ -35,7 +35,7 @@ async def handle_update_chat_pinned(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("update_chat_pinned", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -51,6 +51,14 @@ async def handle_update_chat_pinned(
             return
 
         # Normalize to bool
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        import hashlib
+        metadata = await directus_service.chat.get_chat_metadata(chat_id)
+        if not metadata or not metadata.get("hashed_team_id"):
+            await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                "chat_id": chat_id, "mode": "disqualify",
+            })
         pinned = bool(pinned)
 
         logger.info(

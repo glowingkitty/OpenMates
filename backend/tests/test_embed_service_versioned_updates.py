@@ -56,7 +56,6 @@ from backend.shared.python_utils.chat_recovery_context import (  # noqa: E402
     RecoveryOutputContext, RequiredRecoveryOutputError, VerifiedOutputProducer,
     active_recovery_output_context, active_verified_output_producer,
 )
-from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context  # noqa: E402
 from backend.shared.python_utils import volatile_embed_authority  # noqa: E402
 
 if sys.modules.get("backend.shared.providers.e2b_application_preview") is e2b_preview_stub:
@@ -66,13 +65,48 @@ encode = EmbedService.update_application_embed_thumbnail.__globals__["encode"]
 decode = EmbedService.update_application_embed_thumbnail.__globals__["decode"]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_search_parent_short_ref_survives_placeholder_completion(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    service = EmbedService(FakeCacheService({}), object(), FakeEncryptionService())
+    sent = AsyncMock(return_value=True)
+    monkeypatch.setattr(service, "send_embed_data_to_client", sent)
+    monkeypatch.setattr(service, "_cache_embed", AsyncMock())
+    monkeypatch.setattr(service, "_schedule_embed_persistence_fallback", lambda *_: None)
+    monkeypatch.setattr(EmbedService, "get_composite_child_embed_type", AsyncMock(return_value="event"))
+    args = dict(app_id="events", skill_id="search", chat_id="chat-one", message_id="message-one",
+                user_id="owner-one", user_id_hash="owner-hash", user_vault_key_id="vault-one")
+    placeholder = await service.create_processing_embed_placeholder(**args)
+    original = decode(sent.call_args.kwargs["content_toon"])
+    short_ref = placeholder["embed_ref"]
+    assert original["embed_ref"] == short_ref
+    assert short_ref.startswith("events-search-")
+    assert len(short_ref) < len(placeholder["embed_id"])
+    monkeypatch.setattr(service, "_get_cached_embed", AsyncMock(return_value=original))
+
+    finished = await service.update_embed_with_results(
+        embed_id=placeholder["embed_id"], results=[{"title": "Synthetic AI event", "embed_ref": "ai-event-Ab1"}],
+        **args,
+    )
+    parent = next(call.kwargs for call in reversed(sent.call_args_list)
+                  if call.kwargs["embed_id"] == placeholder["embed_id"])
+    assert finished["embed_ref"] == short_ref
+    assert decode(parent["content_toon"])["embed_ref"] == short_ref
+    filtered, historical_ref = service._filter_toon_for_llm(parent["content_toon"], placeholder["embed_id"])
+    assert historical_ref == short_ref
+    assert decode(filtered)["embed_ref"] == short_ref
+    assert parent["finished_cache_data"]["encrypted_content"]
+    assert len(finished["child_embed_ids"]) == 1
+
+
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fail_at", [1, 3, None])
 async def test_incognito_finished_publication_rechecks_live_socket_before_cache_and_event(
     monkeypatch, fail_at,
 ):
-    assert active_voice_worker_context.get() is None
     checks = []
 
     async def require_live_incognito_session(nonce, owner_hash):
@@ -116,7 +150,6 @@ async def test_incognito_finished_publication_rechecks_live_socket_before_cache_
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_external_volatile_publication_does_not_require_websocket_nonce(monkeypatch):
-    assert active_voice_worker_context.get() is None
 
     async def reject_if_called(*_args):
         raise AssertionError("External REST output has no incognito socket")
@@ -142,7 +175,6 @@ async def test_external_volatile_publication_does_not_require_websocket_nonce(mo
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_disconnected_incognito_error_cannot_be_reported_as_published(monkeypatch):
-    assert active_voice_worker_context.get() is None
 
     async def disconnected(*_args):
         raise ValueError("socket_closed")
@@ -467,6 +499,14 @@ async def test_versioned_finished_code_update_publishes_same_embed_snapshot():
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,code-run.artifacts.encrypted-indexed,chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_application_thumbnail_update_publishes_versioned_finished_parent():
+    class VaultEncryption(FakeEncryptionService):
+        async def encrypt_with_user_key(self, content: str, vault_key_id: str):
+            return f"vault:v1:test:{content}", "test-key-version"
+
+        async def decrypt_with_user_key(self, encrypted_content: str, vault_key_id: str):
+            assert encrypted_content.startswith("vault:v1:test:")
+            return encrypted_content.removeprefix("vault:v1:test:")
+
     initial_toon = encode(
         {
             "type": "application",
@@ -486,7 +526,7 @@ async def test_application_thumbnail_update_publishes_versioned_finished_parent(
         {
             "embed_id": "embed-1",
             "type": "application",
-            "encrypted_content": initial_toon,
+            "encrypted_content": f"vault:v1:test:{initial_toon}",
             "status": "finished",
             "message_id": "message-1",
             "version_number": 1,
@@ -496,7 +536,7 @@ async def test_application_thumbnail_update_publishes_versioned_finished_parent(
             "updated_at": 1760000000,
         }
     )
-    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service = EmbedService(cache, directus_service=object(), encryption_service=VaultEncryption())
     service._schedule_embed_persistence_fallback = lambda embed_id: None
 
     ok = await service.update_application_embed_thumbnail(

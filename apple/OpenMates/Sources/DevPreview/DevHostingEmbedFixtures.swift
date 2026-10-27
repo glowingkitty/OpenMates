@@ -23,7 +23,7 @@ enum DevHostingEmbedFixtures {
     }
     static func domain(_ variant: String = "default", fullscreen: Bool = false) -> EmbedRecord {
         var name = fullscreen ? "cedarcomet.com" : "cedarcomet.net"
-        var raw: [String: Any] = ["availability": "available", "provider": "Gandi", "currency": "EUR", "country": "DE",
+        var raw: [String: Any] = ["availability": "available", "provider": "ExampleRegistrar", "currency": "EUR", "country": "DE",
             "checked_at": "2026-10-01T13:09:00Z", "restrictions": [],
             "registration_tiers": fullscreen ? [tier(13.09), tier(30.91, minimum: 2, discount: true)] : [tier(14.27, discount: true)],
             "renewal_tiers": fullscreen ? [tier(38.06), tier(34.25, minimum: 2, discount: true)] : [tier(47.60)]]
@@ -37,7 +37,7 @@ enum DevHostingEmbedFixtures {
         default: break
         }
         raw["domain_ascii"] = name; raw["domain_unicode"] = raw["domain_unicode"] ?? name
-        raw["provider_url"] = "https://shop.gandi.net/en/domain/suggest?search=\(name)"
+        raw["provider_url"] = "https://example.com/fixture\(name)"
         return record(id: "preview-hosting-domain-\(variant)", type: "hosting-domain", raw: raw, parent: "preview-hosting-search")
     }
     static func search(_ variant: String = "default") -> DevEmbedPreviewSkill {
@@ -49,14 +49,14 @@ enum DevHostingEmbedFixtures {
         // Include the remaining checked candidates from the exact web fixture.
         var idn = domain().rawData?.mapValues(\.value) ?? [:]
         idn["domain_ascii"] = "xn--bcher-beispiel-wob.de"; idn["domain_unicode"] = "bücher-beispiel.de"
-        idn["provider_url"] = "https://shop.gandi.net/en/domain/suggest?search=xn--bcher-beispiel-wob.de"
+        idn["provider_url"] = "https://example.com/fixture"
         idn["registration_tiers"] = [tier(18.40)]; idn["renewal_tiers"] = [tier(24.80)]
         var co = domain("unavailable").rawData?.mapValues(\.value) ?? [:]
-        co["provider_url"] = "https://shop.gandi.net/en/domain/suggest?search=cedarcomet.co"
+        co["provider_url"] = "https://example.com/fixture"
         co["domain_ascii"] = "cedarcomet.co"; co["domain_unicode"] = "cedarcomet.co"
         children.insert(record(id: "preview-hosting-idn", type: "hosting-domain", raw: idn, parent: parentID), at: 2)
         children.insert(record(id: "preview-hosting-co", type: "hosting-domain", raw: co, parent: parentID), at: 4)
-        var raw: [String: Any] = ["query": "cedarcomet", "provider": "Gandi", "country": "DE", "currency": "EUR",
+        var raw: [String: Any] = ["query": "cedarcomet", "provider": "ExampleRegistrar", "country": "DE", "currency": "EUR",
             "max_results": 2, "checked_count": 6, "result_count": 2, "available_count": 3, "unavailable_count": 2, "unknown_count": 1,
             "embed_ids": children.map(\.id), "selected_embed_ids": Array(children.prefix(2)).map(\.id), "partial": false,
             "preview_starting_registration": ["amount": 13.09, "currency": "EUR", "tax_basis": "including", "unit": "year", "duration": 1]]

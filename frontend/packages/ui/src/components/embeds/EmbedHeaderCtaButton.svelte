@@ -9,8 +9,9 @@
 -->
 
 <script lang="ts">
+  import { resolveIconName } from '../../utils/iconNameResolver';
   interface Props {
-    /** Button label text, e.g. "Open on Doctolib" */
+    /** Button label text, e.g. "Open on ExampleClinicA" */
     label: string;
     /** If set, renders as an <a> tag with target="_blank" */
     href?: string;
@@ -20,6 +21,10 @@
     variant?: 'primary' | 'secondary' | 'destructive' | 'loading' | 'fallback';
     /** Optional data-testid for E2E targeting */
     testId?: string;
+    /** Existing icon asset, retaining a spoken label when visible copy is omitted. */
+    iconName?: string;
+    iconOnly?: boolean;
+    pressed?: boolean;
   }
 
   let {
@@ -28,6 +33,9 @@
     onclick,
     variant = 'primary',
     testId,
+    iconName,
+    iconOnly = false,
+    pressed,
   }: Props = $props();
 </script>
 
@@ -47,8 +55,9 @@
     <span class="cta-spinner"></span>
   </div>
 {:else}
-  <button class="embed-header-cta {variant}" data-testid={testId} onclick={onclick}>
-    {label}
+  <button type="button" class="embed-header-cta {variant}" class:icon-only={iconOnly} class:selected={pressed === true} data-testid={testId} aria-label={iconOnly ? label : undefined} aria-pressed={pressed} onclick={onclick}>
+    {#if iconName}<span class="clickable-icon cta-icon" style:--icon-name={iconName} style:--icon-url={`var(--icon-url-${resolveIconName(iconName)})`} style:mask-image="var(--icon-url)" aria-hidden="true"></span>{/if}
+    {#if !iconOnly}{label}{/if}
   </button>
 {/if}
 
@@ -86,12 +95,28 @@
     min-width: 120px;
     background-color: var(--color-grey-20);
     color: var(--color-font-primary);
-    border: 1px solid var(--color-grey-35);
+    border: 1px solid var(--color-grey-30);
   }
 
   .embed-header-cta.secondary:hover {
     background-color: var(--color-grey-30);
   }
+
+  .cta-icon { width: 24px; height: 24px; background: currentColor; cursor: inherit; }
+  .embed-header-cta.icon-only {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-font-button);
+    color: var(--color-button-secondary);
+    transition: background-color var(--duration-normal), color var(--duration-normal), transform var(--duration-fast);
+  }
+  .embed-header-cta.icon-only.selected { background: var(--color-app-health-start); color: var(--color-font-button); }
+  .embed-header-cta.icon-only:hover { filter: brightness(.96); }
+  .embed-header-cta.icon-only:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
 
   .embed-header-cta.destructive {
     min-width: 120px;

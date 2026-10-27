@@ -26,6 +26,13 @@ export default defaultProps;
 
 /** Named variants for different notification states */
 export const variants = {
+  repeated: {
+    notification: {
+      ...defaultProps.notification,
+      chatTitle: "Travel Planning: comparing the complete itinerary and accommodation options",
+      count: 5,
+    },
+  },
   /** Long message — tests truncation */
   longMessage: {
     notification: {

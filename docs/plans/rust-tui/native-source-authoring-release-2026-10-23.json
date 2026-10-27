@@ -1,0 +1,49 @@
+{
+  "source": "034a77d428aea2400950db8daa75c5dc56439da2",
+  "target": "aarch64-unknown-linux-gnu",
+  "path": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/native-candidates/034a77d428aea2400950db8daa75c5dc56439da2/openmates",
+  "sha256": "292873233819aa29901d5bb465ab58dbaa9ca1ea52cc989788a40b077748334f",
+  "size": 24191320,
+  "owner_mode": "0700",
+  "nlink": 1,
+  "independent_source_inode": true,
+  "source_unchanged_including_mode_and_links": true,
+  "arm64_elf_verified": true,
+  "verified_inputs": 181,
+  "runtime_inputs": 145,
+  "inventory_sha256": "313468c969a8d9debb756a0ab2e1105510fa7460b97d19aa75d007d16df5bedf",
+  "runtime_inventory_sha256": "70622e6c73199f29fbdcf50a67604b40b284f90b948e95e816bfc728c0dcc0f1",
+  "build_seconds": 265.06,
+  "minimum_free_bytes": 36762505216,
+  "minimum_free_gib": 34.2378,
+  "disk_floor_gib": 30.75,
+  "disk_sampling_seconds": 1,
+  "deadline_seconds": 900,
+  "command": [
+    "cargo",
+    "build",
+    "--release",
+    "--bin",
+    "openmates",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/Cargo.toml"
+  ],
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target"
+  },
+  "preserved_inherited_flag_hashes": {
+    "RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_BUILD_RUSTFLAGS": null,
+    "RUSTC_WRAPPER": null,
+    "RUSTC_WORKSPACE_WRAPPER": null
+  },
+  "installed": false,
+  "published": false,
+  "qualification": "Private cache-assisted release rebuild; elapsed time is not a clean-build benchmark. Captured local Rust/Cargo/embedded Git blobs verified before/after plus actual executable rustc dep-info. No signed reproducible/supply-chain attestation or product adoption proof."
+}

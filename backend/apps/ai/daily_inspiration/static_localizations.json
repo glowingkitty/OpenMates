@@ -1,0 +1,1934 @@
+{
+  "en": {
+    "antikythera": {
+      "phrase": "An ancient shipwreck held a machine that predicted the sky.",
+      "title": "The Antikythera mechanism",
+      "description": "An ancient Greek hand-powered model of the cosmos.",
+      "assistant_response": "The Antikythera mechanism used bronze gears to model astronomical cycles. Explore how ancient engineers predicted the sky."
+    },
+    "bioluminescence": {
+      "phrase": "Some animals make their own light. The chemistry is surprisingly elegant.",
+      "title": "Bioluminescence",
+      "description": "Living organisms producing light through chemistry.",
+      "assistant_response": "Organisms glow for hunting, camouflage, communication, and defense. Explore how chemistry becomes light."
+    },
+    "fermi": {
+      "phrase": "If the universe is so large, why does it seem so quiet?",
+      "title": "The Fermi paradox",
+      "description": "The tension between likely extraterrestrial life and no clear evidence.",
+      "assistant_response": "The Fermi paradox asks why we have found no convincing evidence of extraterrestrial civilizations. Explore possible answers."
+    },
+    "export": {
+      "phrase": "Keep your own backup. Export your OpenMates data whenever you need it.",
+      "title": "Export your OpenMates data",
+      "description": "Back up chats, settings, memories, and more.",
+      "assistant_response": "Export a copy of your OpenMates data from account settings. Sign in to access your encrypted account data."
+    },
+    "pii": {
+      "phrase": "Want stronger privacy controls? Add personal details that OpenMates should hide.",
+      "title": "Custom PII detection",
+      "description": "Protect personal details before model calls.",
+      "assistant_response": "Choose personal details for OpenMates to hide before a model call. Review the privacy settings to manage them."
+    },
+    "focus": {
+      "phrase": "Need a more focused answer? Give your mate a specific job.",
+      "title": "Focus modes",
+      "description": "Guide a chat toward a specific goal.",
+      "assistant_response": "Use a focus mode to guide a chat toward a specific goal. Explore available modes in Apps."
+    },
+    "memories": {
+      "phrase": "Repeating yourself gets old. Save context your mates should remember.",
+      "title": "Memories",
+      "description": "Save useful preferences and context.",
+      "assistant_response": "Save useful preferences and context as memories, then choose what your mates can use."
+    },
+    "events": {
+      "phrase": "Looking for something to do? Explore events near you.",
+      "title": "Find local events",
+      "description": "Search classes, meetups, and other events.",
+      "assistant_response": "Use Events search to find local classes and meetups. Choose a place and topic to see what is happening nearby."
+    },
+    "collective": {
+      "phrase": "Thousands of animals move as one. No conductor is in charge.",
+      "title": "Collective animal behavior",
+      "description": "How groups of animals coordinate movement and decisions.",
+      "assistant_response": "Collective animal behavior explains how fish schools, bird flocks, and insect swarms coordinate through local interactions. Simple responses between neighbors can create large patterns that look choreographed. Open it to explore how complex behavior can emerge from simple rules."
+    },
+    "alexandria": {
+      "phrase": "The ancient world's most famous library was also a research institution.",
+      "title": "Library of Alexandria",
+      "description": "One of the ancient world's most famous centers of knowledge.",
+      "assistant_response": "The Library of Alexandria was part of a larger scholarly ecosystem attached to the Mouseion. It gathered texts, hosted scholars, and became a symbol of ambitious knowledge preservation. Open it to separate the legend from what historians actually know."
+    },
+    "tensegrity": {
+      "phrase": "Some structures seem to float because tension does the hidden work.",
+      "title": "Tensegrity",
+      "description": "Structures stabilized by a balance of tension and compression.",
+      "assistant_response": "Tensegrity structures use isolated compression elements held together by continuous tension. The result can look impossibly light while remaining stable. Open it to see why artists, architects, and biologists all care about this principle."
+    },
+    "quotes": {
+      "phrase": "Need an answer you can verify? Ask OpenMates to quote the supporting source.",
+      "title": "Trusted source quotes",
+      "description": "Ask mates to inspect sources and quote the exact lines that support an answer.",
+      "assistant_response": "Ask mates to inspect sources and quote the exact lines that support an answer."
+    },
+    "image_detection": {
+      "phrase": "Wondering if an image was AI-generated? Upload it and inspect the signals.",
+      "title": "AI image detection",
+      "description": "Upload an image and see AI-generation signals directly in the chat.",
+      "assistant_response": "Upload an image and see AI-generation signals directly in the chat."
+    },
+    "incognito": {
+      "phrase": "Need a temporary conversation? Keep it out of your saved chat history.",
+      "title": "Incognito chats",
+      "description": "Start temporary chats when you do not want them saved to history.",
+      "assistant_response": "Start temporary chats when you do not want them saved to history."
+    },
+    "privacy": {
+      "phrase": "Review what OpenMates protects before you urgently need the controls.",
+      "title": "Privacy controls",
+      "description": "Tune personal-data hiding, connected accounts, and automatic deletion in one place.",
+      "assistant_response": "Tune personal-data hiding, connected accounts, and automatic deletion in one place."
+    }
+  },
+  "de": {
+    "antikythera": {
+      "phrase": "Ein antikes Schiffswrack barg eine Maschine, die den Himmel vorhersagte.",
+      "title": "Der Mechanismus von Antikythera",
+      "description": "Ein antikes griechisches, handbetriebenes Modell des Kosmos.",
+      "assistant_response": "Der Mechanismus von Antikythera nutzte Bronzezahnräder, um astronomische Zyklen nachzubilden. Entdecke, wie antike Ingenieure den Himmel vorhersagten."
+    },
+    "bioluminescence": {
+      "phrase": "Manche Tiere erzeugen ihr eigenes Licht. Die Chemie dahinter ist überraschend elegant.",
+      "title": "Biolumineszenz",
+      "description": "Lebende Organismen, die durch Chemie Licht erzeugen.",
+      "assistant_response": "Organismen leuchten für die Jagd, Tarnung, Kommunikation und Verteidigung. Entdecke, wie Chemie zu Licht wird."
+    },
+    "fermi": {
+      "phrase": "Wenn das Universum so groß ist, warum scheint es dann so still zu sein?",
+      "title": "Das Fermi-Paradoxon",
+      "description": "Das Spannungsfeld zwischen wahrscheinlichem außerirdischem Leben und fehlenden Beweisen.",
+      "assistant_response": "Das Fermi-Paradoxon fragt, warum wir keine überzeugenden Beweise für außerirdische Zivilisationen gefunden haben. Entdecke mögliche Antworten."
+    },
+    "export": {
+      "phrase": "Behalte dein eigenes Backup. Exportiere deine OpenMates-Daten, wann immer du sie brauchst.",
+      "title": "Exportiere deine OpenMates-Daten",
+      "description": "Sichere Chats, Einstellungen, Erinnerungen und mehr.",
+      "assistant_response": "Exportiere eine Kopie deiner OpenMates-Daten in den Kontoeinstellungen. Melde dich an, um auf deine verschlüsselten Kontodaten zuzugreifen."
+    },
+    "pii": {
+      "phrase": "Willst du mehr Kontrolle über deine Privatsphäre? Füge persönliche Details hinzu, die OpenMates verbergen soll.",
+      "title": "Eigene PII-Erkennung",
+      "description": "Schütze persönliche Details vor Modellaufrufen.",
+      "assistant_response": "Wähle persönliche Details aus, die OpenMates vor einem Modellaufruf verbergen soll. Verwalte sie in den Privatsphäre-Einstellungen."
+    },
+    "focus": {
+      "phrase": "Brauchst du eine gezieltere Antwort? Gib deinem Mate eine spezifische Aufgabe.",
+      "title": "Fokus-Modi",
+      "description": "Lenke einen Chat auf ein bestimmtes Ziel.",
+      "assistant_response": "Nutze einen Fokus-Modus, um einen Chat auf ein bestimmtes Ziel zu lenken. Entdecke verfügbare Modi in den Apps."
+    },
+    "memories": {
+      "phrase": "Sich ständig zu wiederholen, nervt. Speichere Kontext, den sich deine Mates merken sollen.",
+      "title": "Erinnerungen",
+      "description": "Speichere nützliche Präferenzen und Kontext.",
+      "assistant_response": "Speichere nützliche Präferenzen und Kontext als Erinnerungen und wähle dann aus, was deine Mates verwenden dürfen."
+    },
+    "events": {
+      "phrase": "Suchst du etwas zu unternehmen? Entdecke Veranstaltungen in deiner Nähe.",
+      "title": "Lokale Veranstaltungen finden",
+      "description": "Suche nach Kursen, Treffen und weiteren Veranstaltungen.",
+      "assistant_response": "Nutze die Events-Suche, um Kurse und Treffen in deiner Nähe zu finden. Wähle einen Ort und ein Thema, um passende Veranstaltungen zu entdecken."
+    },
+    "collective": {
+      "phrase": "Tausende Tiere bewegen sich wie ein einziges Wesen. Ganz ohne Dirigenten.",
+      "title": "Kollektives Verhalten bei Tieren",
+      "description": "Wie Tiergruppen ihre Bewegungen und Entscheidungen koordinieren.",
+      "assistant_response": "Fischschwärme, Vogelschwärme und Insektengruppen koordinieren sich durch lokale Wechselwirkungen. Einfache Reaktionen auf Nachbarn erzeugen große Muster, die choreografiert wirken. Entdecke, wie komplexes Verhalten aus einfachen Regeln entsteht."
+    },
+    "alexandria": {
+      "phrase": "Die berühmteste Bibliothek der Antike war auch eine Forschungseinrichtung.",
+      "title": "Die Bibliothek von Alexandria",
+      "description": "Eines der berühmtesten Wissenszentren der Antike.",
+      "assistant_response": "Die Bibliothek von Alexandria gehörte zu einer größeren Gelehrtengemeinschaft am Museion. Sie sammelte Texte, beherbergte Forscher und wurde zum Sinnbild für die Bewahrung von Wissen. Entdecke, was Historiker über sie wissen und was Legende ist."
+    },
+    "tensegrity": {
+      "phrase": "Manche Bauwerke scheinen zu schweben. Zugkräfte leisten die verborgene Arbeit.",
+      "title": "Tensegrität",
+      "description": "Strukturen, die durch das Gleichgewicht von Zug und Druck stabil bleiben.",
+      "assistant_response": "Tensegritätsstrukturen verbinden einzelne Druckelemente durch ein durchgehendes Netz unter Spannung. Dadurch wirken sie erstaunlich leicht und bleiben dennoch stabil. Entdecke, warum dieses Prinzip Kunst, Architektur und Biologie beschäftigt."
+    },
+    "quotes": {
+      "phrase": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein Zitat aus der Quelle.",
+      "title": "Zitate aus verlässlichen Quellen",
+      "description": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen.",
+      "assistant_response": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
+    },
+    "image_detection": {
+      "phrase": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise.",
+      "title": "KI-Bilder erkennen",
+      "description": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat.",
+      "assistant_response": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
+    },
+    "incognito": {
+      "phrase": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem gespeicherten Verlauf heraus.",
+      "title": "Inkognito-Chats",
+      "description": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden.",
+      "assistant_response": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
+    },
+    "privacy": {
+      "phrase": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche Einstellungen du nutzen kannst.",
+      "title": "Datenschutzeinstellungen",
+      "description": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort.",
+      "assistant_response": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
+    }
+  },
+  "zh": {
+    "antikythera": {
+      "phrase": "一艘古代沉船中曾藏有一台可以预测星空的机器。",
+      "title": "安提基特拉机械装置",
+      "description": "古希腊的手动宇宙模型。",
+      "assistant_response": "安提基特拉机械装置利用青铜齿轮来模拟天文周期。探索古代工程师是如何预测星空的。"
+    },
+    "bioluminescence": {
+      "phrase": "有些动物会自己发光。其中的化学原理异常精妙。",
+      "title": "生物发光",
+      "description": "生物体通过化学反应产生光。",
+      "assistant_response": "生物发光是为了捕食、伪装、交流和防御。探索化学反应是如何转化为光芒的。"
+    },
+    "fermi": {
+      "phrase": "如果宇宙如此广阔，为什么它看起来如此寂静？",
+      "title": "费米悖论",
+      "description": "外星生命存在的可能性与缺乏明确证据之间的矛盾。",
+      "assistant_response": "费米悖论探讨了为什么我们还没有发现外星文明存在的有力证据。探索可能的答案。"
+    },
+    "export": {
+      "phrase": "保留你自己的备份。随时根据需要导出你的 OpenMates 数据。",
+      "title": "导出你的 OpenMates 数据",
+      "description": "备份聊天记录、设置、记忆等。",
+      "assistant_response": "在账户设置中导出你的 OpenMates 数据副本。登录以访问你的加密账户数据。"
+    },
+    "pii": {
+      "phrase": "想要更强大的隐私控制？添加 OpenMates 应当隐藏的个人详情。",
+      "title": "自定义 PII 检测",
+      "description": "在调用模型前保护个人详情。",
+      "assistant_response": "在调用模型前，选择要让 OpenMates 隐藏的个人详情。查看隐私设置以进行管理。"
+    },
+    "focus": {
+      "phrase": "需要更精准的回答？给你的 Mate 一个具体的任务。",
+      "title": "专注模式",
+      "description": "引导对话达成特定目标。",
+      "assistant_response": "使用专注模式引导对话达成特定目标。在“应用”中探索可用模式。"
+    },
+    "memories": {
+      "phrase": "重复同样的话很乏味。保存你希望 Mate 记住的背景信息。",
+      "title": "记忆",
+      "description": "保存实用的偏好和背景信息。",
+      "assistant_response": "将有用的偏好和背景信息保存为记忆，然后选择你的 Mate 可以使用的内容。"
+    },
+    "events": {
+      "phrase": "想找点事做？探索你附近的活动。",
+      "title": "查找本地活动",
+      "description": "搜索课程、聚会和其他活动。",
+      "assistant_response": "使用活动搜索查找附近的课程和聚会。选择地点和主题，看看周边有哪些活动。"
+    },
+    "collective": {
+      "phrase": "成千上万的动物为何能在没有指挥的情况下同步移动？",
+      "title": "动物的集体行为",
+      "description": "动物群体如何协调行动和决策。",
+      "assistant_response": "动物群体如何协调行动和决策。"
+    },
+    "alexandria": {
+      "phrase": "古代最著名的图书馆也是一所研究机构。",
+      "title": "亚历山大图书馆",
+      "description": "古代最著名的知识中心之一。",
+      "assistant_response": "古代最著名的知识中心之一。"
+    },
+    "tensegrity": {
+      "phrase": "有些结构看似悬浮，是拉力在暗中发挥作用。",
+      "title": "张拉整体结构",
+      "description": "通过拉力与压力的平衡保持稳定的结构。",
+      "assistant_response": "通过拉力与压力的平衡保持稳定的结构。"
+    },
+    "quotes": {
+      "phrase": "需要核实回答？请 OpenMates 引用支持它的来源。",
+      "title": "可信来源引用",
+      "description": "让助手检查来源并引用支持回答的原文。",
+      "assistant_response": "让助手检查来源并引用支持回答的原文。"
+    },
+    "image_detection": {
+      "phrase": "想知道图像是否由 AI 生成？上传后查看相关迹象。",
+      "title": "AI 图像检测",
+      "description": "上传图像，直接在聊天中查看 AI 生成的迹象。",
+      "assistant_response": "上传图像，直接在聊天中查看 AI 生成的迹象。"
+    },
+    "incognito": {
+      "phrase": "需要临时对话？让它不进入已保存的聊天记录。",
+      "title": "无痕聊天",
+      "description": "当你不想保存历史记录时，开启临时聊天。",
+      "assistant_response": "当你不想保存历史记录时，开启临时聊天。"
+    },
+    "privacy": {
+      "phrase": "提前了解 OpenMates 如何保护数据，以及有哪些可用设置。",
+      "title": "隐私控制",
+      "description": "在同一处管理个人数据隐藏、关联账户和自动删除。",
+      "assistant_response": "在同一处管理个人数据隐藏、关联账户和自动删除。"
+    }
+  },
+  "es": {
+    "antikythera": {
+      "phrase": "Un antiguo naufragio albergaba una máquina que predecía el cielo.",
+      "title": "El mecanismo de Anticitera",
+      "description": "Un antiguo modelo griego del cosmos accionado manualmente.",
+      "assistant_response": "El mecanismo de Anticitera utilizaba engranajes de bronce para modelar ciclos astronómicos. Explora cómo los ingenieros de la antigüedad predecían el cielo."
+    },
+    "bioluminescence": {
+      "phrase": "Algunos animales crean su propia luz. La química es sorprendentemente elegante.",
+      "title": "Bioluminiscencia",
+      "description": "Organismos vivos que producen luz a través de la química.",
+      "assistant_response": "Los organismos brillan para cazar, camuflarse, comunicarse y defenderse. Explora cómo la química se convierte en luz."
+    },
+    "fermi": {
+      "phrase": "Si el universo es tan grande, ¿por qué parece estar tan callado?",
+      "title": "La paradoja de Fermi",
+      "description": "La tensión entre la probabilidad de vida extraterrestre y la falta de pruebas claras.",
+      "assistant_response": "La paradoja de Fermi se pregunta por qué no hemos encontrado pruebas convincentes de civilizaciones extraterrestres. Explora posibles respuestas."
+    },
+    "export": {
+      "phrase": "Mantén tu propia copia de seguridad. Exporta tus datos de OpenMates cuando lo necesites.",
+      "title": "Exporta tus datos de OpenMates",
+      "description": "Crea copias de seguridad de chats, ajustes, recuerdos y más.",
+      "assistant_response": "Exporta una copia de tus datos de OpenMates desde los ajustes de la cuenta. Inicia sesión para acceder a tus datos de cuenta cifrados."
+    },
+    "pii": {
+      "phrase": "¿Quieres controles de privacidad más sólidos? Añade los datos personales que OpenMates debería ocultar.",
+      "title": "Detección de PII personalizada",
+      "description": "Protege tus datos personales antes de las llamadas al modelo.",
+      "assistant_response": "Elige qué datos personales debe ocultar OpenMates antes de una llamada al modelo. Revisa los ajustes de privacidad para gestionarlos."
+    },
+    "focus": {
+      "phrase": "¿Necesitas una respuesta más enfocada? Dale a tu mate una tarea específica.",
+      "title": "Modos de enfoque",
+      "description": "Guía un chat hacia un objetivo específico.",
+      "assistant_response": "Usa un modo de enfoque para guiar un chat hacia un objetivo específico. Explora los modos disponibles en Apps."
+    },
+    "memories": {
+      "phrase": "Repetirse cansa. Guarda el contexto que tus mates deberían recordar.",
+      "title": "Recuerdos",
+      "description": "Guarda preferencias y contexto útiles.",
+      "assistant_response": "Guarda preferencias y contexto útiles como recuerdos, y luego elige qué pueden usar tus mates."
+    },
+    "events": {
+      "phrase": "¿Buscas algo que hacer? Explora eventos cerca de ti.",
+      "title": "Encuentra eventos locales",
+      "description": "Busca clases, encuentros y otros eventos.",
+      "assistant_response": "Usa la búsqueda de Eventos para encontrar clases y encuentros locales. Elige un lugar y un tema para ver qué sucede cerca."
+    },
+    "collective": {
+      "phrase": "Miles de animales se mueven al unísono sin un director.",
+      "title": "Comportamiento colectivo de los animales",
+      "description": "Cómo los grupos de animales coordinan movimientos y decisiones.",
+      "assistant_response": "Cómo los grupos de animales coordinan movimientos y decisiones."
+    },
+    "alexandria": {
+      "phrase": "La biblioteca más famosa de la Antigüedad también era un centro de investigación.",
+      "title": "Biblioteca de Alejandría",
+      "description": "Uno de los centros de conocimiento más famosos de la Antigüedad.",
+      "assistant_response": "Uno de los centros de conocimiento más famosos de la Antigüedad."
+    },
+    "tensegrity": {
+      "phrase": "Algunas estructuras parecen flotar gracias al trabajo oculto de la tensión.",
+      "title": "Tensegridad",
+      "description": "Estructuras estabilizadas por el equilibrio entre tensión y compresión.",
+      "assistant_response": "Estructuras estabilizadas por el equilibrio entre tensión y compresión."
+    },
+    "quotes": {
+      "phrase": "¿Quieres verificar una respuesta? Pide a OpenMates una cita de la fuente.",
+      "title": "Citas de fuentes fiables",
+      "description": "Pide a tus mates que revisen fuentes y citen las líneas que respaldan una respuesta.",
+      "assistant_response": "Pide a tus mates que revisen fuentes y citen las líneas que respaldan una respuesta."
+    },
+    "image_detection": {
+      "phrase": "¿Una imagen fue generada por IA? Súbela y examina las señales.",
+      "title": "Detección de imágenes de IA",
+      "description": "Sube una imagen y revisa señales de generación por IA en el chat.",
+      "assistant_response": "Sube una imagen y revisa señales de generación por IA en el chat."
+    },
+    "incognito": {
+      "phrase": "¿Necesitas una conversación temporal? Déjala fuera del historial guardado.",
+      "title": "Chats de incógnito",
+      "description": "Inicia chats temporales cuando no quieras guardarlos en el historial.",
+      "assistant_response": "Inicia chats temporales cuando no quieras guardarlos en el historial."
+    },
+    "privacy": {
+      "phrase": "Revisa cómo OpenMates protege tus datos antes de necesitar estos controles con urgencia.",
+      "title": "Controles de privacidad",
+      "description": "Configura la ocultación de datos personales, las cuentas conectadas y el borrado automático en un solo lugar.",
+      "assistant_response": "Configura la ocultación de datos personales, las cuentas conectadas y el borrado automático en un solo lugar."
+    }
+  },
+  "fr": {
+    "antikythera": {
+      "phrase": "Une épave antique renfermait une machine qui prédisait le ciel.",
+      "title": "La machine d'Anticythère",
+      "description": "Un modèle manuel du cosmos datant de la Grèce antique.",
+      "assistant_response": "La machine d'Anticythère utilisait des engrenages en bronze pour modéliser les cycles astronomiques. Découvre comment les ingénieurs de l'Antiquité prédisaient le ciel."
+    },
+    "bioluminescence": {
+      "phrase": "Certains animaux produisent leur propre lumière. La chimie à l'œuvre est d'une élégance surprenante.",
+      "title": "Bioluminescence",
+      "description": "Des organismes vivants produisant de la lumière par réaction chimique.",
+      "assistant_response": "Les organismes brillent pour chasser, se camoufler, communiquer et se défendre. Découvre comment la chimie se transforme en lumière."
+    },
+    "fermi": {
+      "phrase": "Si l'univers est si vaste, pourquoi semble-t-il si silencieux ?",
+      "title": "Le paradoxe de Fermi",
+      "description": "La tension entre la probabilité d'une vie extraterrestre et l'absence de preuves claires.",
+      "assistant_response": "Le paradoxe de Fermi interroge l'absence de preuves convaincantes de civilisations extraterrestres. Explore les réponses possibles."
+    },
+    "export": {
+      "phrase": "Garde ta propre sauvegarde. Exporte tes données OpenMates quand tu en as besoin.",
+      "title": "Exporte tes données OpenMates",
+      "description": "Sauvegarde tes discussions, paramètres, souvenirs et plus encore.",
+      "assistant_response": "Exporte une copie de tes données OpenMates depuis les paramètres du compte. Connecte-toi pour accéder à tes données chiffrées."
+    },
+    "pii": {
+      "phrase": "Tu veux plus de contrôle sur ta vie privée ? Ajoute les informations personnelles qu'OpenMates doit masquer.",
+      "title": "Détection personnalisée des PII",
+      "description": "Protège tes données personnelles avant les appels au modèle.",
+      "assistant_response": "Choisis les informations personnelles qu'OpenMates doit masquer avant un appel au modèle. Gère-les dans les paramètres de confidentialité."
+    },
+    "focus": {
+      "phrase": "Besoin d'une réponse plus ciblée ? Donne une mission précise à ton mate.",
+      "title": "Modes Focus",
+      "description": "Oriente une discussion vers un objectif précis.",
+      "assistant_response": "Utilise un mode focus pour orienter une discussion vers un objectif précis. Explore les modes disponibles dans les Apps."
+    },
+    "memories": {
+      "phrase": "Se répéter devient lassant. Enregistre le contexte dont tes mates doivent se souvenir.",
+      "title": "Souvenirs",
+      "description": "Enregistre tes préférences et ton contexte.",
+      "assistant_response": "Enregistre tes préférences et ton contexte sous forme de souvenirs, puis choisis ce que tes mates peuvent utiliser."
+    },
+    "events": {
+      "phrase": "Tu cherches une activité ? Découvre les événements près de chez toi.",
+      "title": "Trouver des événements locaux",
+      "description": "Recherche des cours, des rencontres et d'autres événements.",
+      "assistant_response": "Utilise la recherche d'événements pour trouver des cours et des rencontres près de chez toi. Choisis un lieu et un sujet pour voir ce qui se passe à proximité."
+    },
+    "collective": {
+      "phrase": "Des milliers d’animaux se déplacent ensemble, sans chef d’orchestre.",
+      "title": "Comportement collectif des animaux",
+      "description": "Comment les groupes d’animaux coordonnent leurs mouvements et leurs décisions.",
+      "assistant_response": "Comment les groupes d’animaux coordonnent leurs mouvements et leurs décisions."
+    },
+    "alexandria": {
+      "phrase": "La plus célèbre bibliothèque antique était aussi un institut de recherche.",
+      "title": "Bibliothèque d’Alexandrie",
+      "description": "L’un des centres du savoir les plus célèbres de l’Antiquité.",
+      "assistant_response": "L’un des centres du savoir les plus célèbres de l’Antiquité."
+    },
+    "tensegrity": {
+      "phrase": "Certaines structures semblent flotter grâce au rôle discret de la tension.",
+      "title": "Tenségrité",
+      "description": "Des structures stabilisées par l’équilibre entre tension et compression.",
+      "assistant_response": "Des structures stabilisées par l’équilibre entre tension et compression."
+    },
+    "quotes": {
+      "phrase": "Besoin de vérifier une réponse ? Demande à OpenMates de citer sa source.",
+      "title": "Citations de sources fiables",
+      "description": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse.",
+      "assistant_response": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
+    },
+    "image_detection": {
+      "phrase": "Cette image a-t-elle été générée par IA ? Importe-la pour examiner les indices.",
+      "title": "Détection d’images IA",
+      "description": "Importe une image et examine les indices de génération par IA dans le chat.",
+      "assistant_response": "Importe une image et examine les indices de génération par IA dans le chat."
+    },
+    "incognito": {
+      "phrase": "Besoin d’une conversation temporaire ? Garde-la hors de ton historique enregistré.",
+      "title": "Chats incognito",
+      "description": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique.",
+      "assistant_response": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
+    },
+    "privacy": {
+      "phrase": "Découvre comment OpenMates protège tes données avant d’avoir besoin de ces réglages en urgence.",
+      "title": "Réglages de confidentialité",
+      "description": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit.",
+      "assistant_response": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
+    }
+  },
+  "pt": {
+    "antikythera": {
+      "phrase": "Um antigo naufrágio guardava uma máquina que previa o céu.",
+      "title": "O mecanismo de Anticítera",
+      "description": "Um antigo modelo grego do cosmos movido à mão.",
+      "assistant_response": "O mecanismo de Anticítera usava engrenagens de bronze para modelar ciclos astronómicos. Explora como os engenheiros antigos previam o céu."
+    },
+    "bioluminescence": {
+      "phrase": "Alguns animais produzem a sua própria luz. A química é surpreendentemente elegante.",
+      "title": "Bioluminescência",
+      "description": "Organismos vivos que produzem luz através da química.",
+      "assistant_response": "Os organismos brilham para caçar, para camuflagem, comunicação e defesa. Explora como a química se torna luz."
+    },
+    "fermi": {
+      "phrase": "Se o universo é tão grande, por que parece tão silencioso?",
+      "title": "O paradoxo de Fermi",
+      "description": "A tensão entre a provável vida extraterrestre e a ausência de provas claras.",
+      "assistant_response": "O paradoxo de Fermi questiona por que não encontramos provas convincentes de civilizações extraterrestres. Explora possíveis respostas."
+    },
+    "export": {
+      "phrase": "Mantém a tua própria cópia de segurança. Exporta os teus dados do OpenMates sempre que precisares.",
+      "title": "Exporta os teus dados do OpenMates",
+      "description": "Faz uma cópia de segurança de conversas, definições, memórias e muito mais.",
+      "assistant_response": "Exporta uma cópia dos teus dados do OpenMates nas definições da conta. Inicia sessão para acederes aos dados encriptados da tua conta."
+    },
+    "pii": {
+      "phrase": "Queres controlos de privacidade mais fortes? Adiciona detalhes pessoais que o OpenMates deve ocultar.",
+      "title": "Deteção de PII personalizada",
+      "description": "Protege detalhes pessoais antes das chamadas ao modelo.",
+      "assistant_response": "Escolhe detalhes pessoais para o OpenMates ocultar antes de uma chamada ao modelo. Revê as definições de privacidade para os gerires."
+    },
+    "focus": {
+      "phrase": "Precisas de uma resposta mais focada? Dá ao teu mate uma tarefa específica.",
+      "title": "Modos de foco",
+      "description": "Guia uma conversa em direção a um objetivo específico.",
+      "assistant_response": "Usa um modo de foco para guiar uma conversa em direção a um objetivo específico. Explora os modos disponíveis em Aplicações."
+    },
+    "memories": {
+      "phrase": "Repetires-te torna-se cansativo. Guarda o contexto de que os teus mates se devem lembrar.",
+      "title": "Memórias",
+      "description": "Guarda preferências e contexto úteis.",
+      "assistant_response": "Guarda preferências e contexto úteis como memórias e, depois, escolhe o que os teus mates podem usar."
+    },
+    "events": {
+      "phrase": "Procuras algo para fazer? Descobre eventos perto de ti.",
+      "title": "Encontrar eventos locais",
+      "description": "Procura aulas, encontros e outros eventos.",
+      "assistant_response": "Usa a pesquisa de Eventos para encontrar aulas e encontros locais. Escolhe um lugar e um tema para ver o que acontece por perto."
+    },
+    "collective": {
+      "phrase": "Milhares de animais se movem juntos, sem um maestro.",
+      "title": "Comportamento coletivo dos animais",
+      "description": "Como grupos de animais coordenam movimentos e decisões.",
+      "assistant_response": "Como grupos de animais coordenam movimentos e decisões."
+    },
+    "alexandria": {
+      "phrase": "A biblioteca mais famosa da Antiguidade também era uma instituição de pesquisa.",
+      "title": "Biblioteca de Alexandria",
+      "description": "Um dos centros de conhecimento mais famosos da Antiguidade.",
+      "assistant_response": "Um dos centros de conhecimento mais famosos da Antiguidade."
+    },
+    "tensegrity": {
+      "phrase": "Algumas estruturas parecem flutuar porque a tensão faz o trabalho invisível.",
+      "title": "Tensegridade",
+      "description": "Estruturas estabilizadas pelo equilíbrio entre tensão e compressão.",
+      "assistant_response": "Estruturas estabilizadas pelo equilíbrio entre tensão e compressão."
+    },
+    "quotes": {
+      "phrase": "Quer verificar uma resposta? Peça ao OpenMates uma citação da fonte.",
+      "title": "Citações de fontes confiáveis",
+      "description": "Peça aos mates que verifiquem fontes e citem os trechos que sustentam uma resposta.",
+      "assistant_response": "Peça aos mates que verifiquem fontes e citem os trechos que sustentam uma resposta."
+    },
+    "image_detection": {
+      "phrase": "Será que uma imagem foi gerada por IA? Envie-a e examine os sinais.",
+      "title": "Detecção de imagens de IA",
+      "description": "Envie uma imagem e veja sinais de geração por IA diretamente no chat.",
+      "assistant_response": "Envie uma imagem e veja sinais de geração por IA diretamente no chat."
+    },
+    "incognito": {
+      "phrase": "Precisa de uma conversa temporária? Deixe-a fora do histórico salvo.",
+      "title": "Chats anônimos",
+      "description": "Inicie chats temporários quando não quiser salvá-los no histórico.",
+      "assistant_response": "Inicie chats temporários quando não quiser salvá-los no histórico."
+    },
+    "privacy": {
+      "phrase": "Veja como o OpenMates protege seus dados antes de precisar desses controles com urgência.",
+      "title": "Controles de privacidade",
+      "description": "Ajuste a ocultação de dados pessoais, as contas conectadas e a exclusão automática em um só lugar.",
+      "assistant_response": "Ajuste a ocultação de dados pessoais, as contas conectadas e a exclusão automática em um só lugar."
+    }
+  },
+  "ru": {
+    "antikythera": {
+      "phrase": "На древнем затонувшем корабле нашли механизм, предсказывавший движение светил.",
+      "title": "Антикитерский механизм",
+      "description": "Древнегреческая ручная модель космоса.",
+      "assistant_response": "Антикитерский механизм использовал бронзовые шестерни для моделирования астрономических циклов. Узнай, как древние инженеры предсказывали движение небесных тел."
+    },
+    "bioluminescence": {
+      "phrase": "Некоторые животные сами излучают свет. Химия этого процесса удивительно изящна.",
+      "title": "Биолюминесценция",
+      "description": "Живые организмы, производящие свет с помощью химических реакций.",
+      "assistant_response": "Организмы светятся для охоты, маскировки, общения и защиты. Узнай, как химия превращается в свет."
+    },
+    "fermi": {
+      "phrase": "Если Вселенная так велика, почему в ней так тихо?",
+      "title": "Парадокс Ферми",
+      "description": "Противоречие между высокой вероятностью внеземной жизни и отсутствием доказательств.",
+      "assistant_response": "Парадокс Ферми задает вопрос: почему мы не нашли убедительных доказательств существования внеземных цивилизаций? Изучи возможные ответы."
+    },
+    "export": {
+      "phrase": "Сохраняй резервную копию. Экспортируй данные OpenMates в любое время.",
+      "title": "Экспорт данных OpenMates",
+      "description": "Резервное копирование чатов, настроек, воспоминаний и многого другого.",
+      "assistant_response": "Экспортируй копию данных OpenMates в настройках аккаунта. Войди в систему, чтобы получить доступ к зашифрованным данным."
+    },
+    "pii": {
+      "phrase": "Нужна усиленная приватность? Укажи личные данные, которые OpenMates должен скрывать.",
+      "title": "Обнаружение личных данных",
+      "description": "Защита личных данных перед запросами к модели.",
+      "assistant_response": "Выбери личные данные, которые OpenMates будет скрывать перед запросом к модели. Управляй ими в настройках приватности."
+    },
+    "focus": {
+      "phrase": "Нужен более точный ответ? Дай своему помощнику конкретную задачу.",
+      "title": "Режимы фокуса",
+      "description": "Направляй чат к конкретной цели.",
+      "assistant_response": "Используй режим фокуса, чтобы направить чат к конкретной цели. Ознакомься с доступными режимами в разделе «Приложения»."
+    },
+    "memories": {
+      "phrase": "Надоело повторяться? Сохраняй контекст, который должны помнить твои помощники.",
+      "title": "Воспоминания",
+      "description": "Сохраняй полезные предпочтения и контекст.",
+      "assistant_response": "Сохраняй полезные предпочтения и контекст в виде воспоминаний, а затем выбирай, что могут использовать твои помощники."
+    },
+    "events": {
+      "phrase": "Ищешь, чем заняться? Узнай о мероприятиях поблизости.",
+      "title": "Найти местные мероприятия",
+      "description": "Ищи занятия, встречи и другие мероприятия.",
+      "assistant_response": "Используй поиск событий, чтобы найти занятия и встречи поблизости. Выбери место и тему, чтобы узнать, что происходит рядом."
+    },
+    "collective": {
+      "phrase": "Тысячи животных движутся как одно целое без дирижёра.",
+      "title": "Коллективное поведение животных",
+      "description": "Как группы животных согласуют движения и решения.",
+      "assistant_response": "Как группы животных согласуют движения и решения."
+    },
+    "alexandria": {
+      "phrase": "Самая известная библиотека древности была также исследовательским учреждением.",
+      "title": "Александрийская библиотека",
+      "description": "Один из самых известных центров знаний древнего мира.",
+      "assistant_response": "Один из самых известных центров знаний древнего мира."
+    },
+    "tensegrity": {
+      "phrase": "Некоторые конструкции словно парят благодаря незаметной работе сил натяжения.",
+      "title": "Тенсегрити",
+      "description": "Конструкции, устойчивые благодаря равновесию растяжения и сжатия.",
+      "assistant_response": "Конструкции, устойчивые благодаря равновесию растяжения и сжатия."
+    },
+    "quotes": {
+      "phrase": "Хотите проверить ответ? Попросите OpenMates привести цитату из источника.",
+      "title": "Цитаты из надёжных источников",
+      "description": "Попросите помощников проверить источники и процитировать строки, подтверждающие ответ.",
+      "assistant_response": "Попросите помощников проверить источники и процитировать строки, подтверждающие ответ."
+    },
+    "image_detection": {
+      "phrase": "Изображение создано ИИ? Загрузите его и проверьте признаки.",
+      "title": "Распознавание изображений ИИ",
+      "description": "Загрузите изображение и изучите признаки генерации ИИ прямо в чате.",
+      "assistant_response": "Загрузите изображение и изучите признаки генерации ИИ прямо в чате."
+    },
+    "incognito": {
+      "phrase": "Нужен временный разговор? Не добавляйте его в сохранённую историю.",
+      "title": "Чаты инкогнито",
+      "description": "Начинайте временные чаты, если не хотите сохранять их в истории.",
+      "assistant_response": "Начинайте временные чаты, если не хотите сохранять их в истории."
+    },
+    "privacy": {
+      "phrase": "Узнайте, как OpenMates защищает данные, прежде чем эти настройки понадобятся срочно.",
+      "title": "Настройки конфиденциальности",
+      "description": "Управляйте скрытием личных данных, подключёнными аккаунтами и автоудалением в одном месте.",
+      "assistant_response": "Управляйте скрытием личных данных, подключёнными аккаунтами и автоудалением в одном месте."
+    }
+  },
+  "ja": {
+    "antikythera": {
+      "phrase": "古代の沈没船には、天体を予測する機械が眠っていた。",
+      "title": "アンティキティラ島の機械",
+      "description": "古代ギリシャの手動式宇宙模型。",
+      "assistant_response": "アンティキティラ島の機械は、青銅製の歯車を使って天体の周期を再現していました。古代の技術者たちがどのように空を予測していたのか、探ってみましょう。"
+    },
+    "bioluminescence": {
+      "phrase": "自ら光を放つ動物たちがいます。その化学反応は驚くほど優雅です。",
+      "title": "生物発光",
+      "description": "化学反応によって光を生成する生物。",
+      "assistant_response": "生物は狩り、擬態、コミュニケーション、防御のために光ります。化学がどのように光へと変わるのか、探ってみましょう。"
+    },
+    "fermi": {
+      "phrase": "宇宙がこれほど広いのに、なぜこれほど静かなのでしょうか？",
+      "title": "フェルミのパラドックス",
+      "description": "地外生命体が存在する可能性と、明確な証拠がないことの間の矛盾。",
+      "assistant_response": "フェルミのパラドックスは、なぜ地球外文明の確かな証拠が見つからないのかを問いかけます。考えられる答えを探ってみましょう。"
+    },
+    "export": {
+      "phrase": "独自のバックアップを。必要な時にいつでも OpenMates データをエクスポートできます。",
+      "title": "OpenMates データをエクスポート",
+      "description": "チャット、設定、メモリーなどをバックアップ。",
+      "assistant_response": "アカウント設定から OpenMates データのコピーをエクスポートできます。サインインして、暗号化されたアカウントデータにアクセスしてください。"
+    },
+    "pii": {
+      "phrase": "より強力なプライバシー管理が必要ですか？OpenMates に非表示にさせたい個人情報を追加しましょう。",
+      "title": "カスタム PII 検出",
+      "description": "モデル呼び出しの前に個人情報を保護。",
+      "assistant_response": "モデル呼び出しの前に OpenMates が非表示にする個人情報を選択します。プライバシー設定を確認して管理しましょう。"
+    },
+    "focus": {
+      "phrase": "より的を絞った回答が必要ですか？メイトに特定の役割を与えてみましょう。",
+      "title": "フォーカスモード",
+      "description": "チャットを特定の目標へと導きます。",
+      "assistant_response": "フォーカスモードを使用して、チャットを特定の目標へと導きます。「アプリ」で利用可能なモードを確認してみましょう。"
+    },
+    "memories": {
+      "phrase": "同じ説明を繰り返す必要はありません。メイトに覚えておいてほしいコンテキストを保存しましょう。",
+      "title": "メモリー",
+      "description": "便利な設定やコンテキストを保存。",
+      "assistant_response": "便利な設定やコンテキストをメモリーとして保存し、メイトが使用できるものを選択します。"
+    },
+    "events": {
+      "phrase": "何か楽しめることを探していますか？近くのイベントを見つけましょう。",
+      "title": "近くのイベントを探す",
+      "description": "講座や交流会などのイベントを検索できます。",
+      "assistant_response": "イベント検索で近くの講座や交流会を探せます。場所とテーマを選んで、周辺の催しを見てみましょう。"
+    },
+    "collective": {
+      "phrase": "何千もの動物が指揮者なしで一体となって動きます。",
+      "title": "動物の集団行動",
+      "description": "動物の群れが動きや判断をそろえる仕組み。",
+      "assistant_response": "動物の群れが動きや判断をそろえる仕組み。"
+    },
+    "alexandria": {
+      "phrase": "古代の有名な図書館は研究機関でもありました。",
+      "title": "アレクサンドリア図書館",
+      "description": "古代世界で最も有名な知の拠点の一つ。",
+      "assistant_response": "古代世界で最も有名な知の拠点の一つ。"
+    },
+    "tensegrity": {
+      "phrase": "浮いて見える構造の裏では張力が働いています。",
+      "title": "テンセグリティ",
+      "description": "張力と圧縮力の釣り合いで安定する構造。",
+      "assistant_response": "張力と圧縮力の釣り合いで安定する構造。"
+    },
+    "quotes": {
+      "phrase": "回答を確かめたいときは、OpenMatesに根拠の引用を頼みましょう。",
+      "title": "信頼できる情報源の引用",
+      "description": "回答の根拠となる情報源を調べ、該当箇所を引用するようメイトに頼みましょう。",
+      "assistant_response": "回答の根拠となる情報源を調べ、該当箇所を引用するようメイトに頼みましょう。"
+    },
+    "image_detection": {
+      "phrase": "AIが作った画像か気になりますか？アップロードして兆候を調べましょう。",
+      "title": "AI画像の検出",
+      "description": "画像をアップロードし、AI生成の兆候をチャットで確認できます。",
+      "assistant_response": "画像をアップロードし、AI生成の兆候をチャットで確認できます。"
+    },
+    "incognito": {
+      "phrase": "一時的な会話が必要ですか？保存する履歴に残さず話せます。",
+      "title": "シークレットチャット",
+      "description": "履歴に残したくないときは一時的なチャットを始めましょう。",
+      "assistant_response": "履歴に残したくないときは一時的なチャットを始めましょう。"
+    },
+    "privacy": {
+      "phrase": "急に必要になる前に、OpenMatesのデータ保護設定を確認しましょう。",
+      "title": "プライバシー設定",
+      "description": "個人情報の非表示、連携アカウント、自動削除を一か所で設定できます。",
+      "assistant_response": "個人情報の非表示、連携アカウント、自動削除を一か所で設定できます。"
+    }
+  },
+  "ko": {
+    "antikythera": {
+      "phrase": "고대의 난파선에는 하늘을 예측하는 기계가 실려 있었습니다.",
+      "title": "안티키티라 메커니즘",
+      "description": "고대 그리스의 수동식 우주 모델입니다.",
+      "assistant_response": "안티키티라 메커니즘은 청동 기어를 사용하여 천문학적 주기를 모델링했습니다. 고대 엔지니어들이 어떻게 하늘을 예측했는지 알아보세요."
+    },
+    "bioluminescence": {
+      "phrase": "어떤 동물들은 스스로 빛을 냅니다. 그 화학 작용은 놀라울 정도로 정교합니다.",
+      "title": "생물 발광",
+      "description": "화학 작용을 통해 빛을 내는 생물입니다.",
+      "assistant_response": "생물은 사냥, 위장, 의사소통, 방어를 위해 빛을 냅니다. 화학 작용이 어떻게 빛으로 변하는지 알아보세요."
+    },
+    "fermi": {
+      "phrase": "우주가 이렇게 넓은데, 왜 이토록 조용한 걸까요?",
+      "title": "페르미 역설",
+      "description": "외계 생명체의 존재 가능성과 명확한 증거가 없는 현실 사이의 모순입니다.",
+      "assistant_response": "페르미 역설은 왜 우리가 외계 문명의 설득력 있는 증거를 찾지 못했는지 묻습니다. 가능한 답변들을 알아보세요."
+    },
+    "export": {
+      "phrase": "나만의 백업을 보관하세요. 필요할 때마다 OpenMates 데이터를 내보낼 수 있습니다.",
+      "title": "OpenMates 데이터 내보내기",
+      "description": "채팅, 설정, 기억 등을 백업하세요.",
+      "assistant_response": "계정 설정에서 OpenMates 데이터 사본을 내보낼 수 있습니다. 암호화된 계정 데이터에 액세스하려면 로그인하세요."
+    },
+    "pii": {
+      "phrase": "더 강력한 개인정보 보호를 원하시나요? OpenMates가 숨겨야 할 개인 정보를 추가하세요.",
+      "title": "맞춤형 PII 탐지",
+      "description": "모델 호출 전에 개인 정보를 보호합니다.",
+      "assistant_response": "모델 호출 전에 OpenMates가 숨길 개인 정보를 선택하세요. 개인정보 보호 설정에서 이를 관리할 수 있습니다."
+    },
+    "focus": {
+      "phrase": "더 집중된 답변이 필요한가요? 메이트에게 구체적인 역할을 부여해 보세요.",
+      "title": "집중 모드",
+      "description": "채팅이 특정 목표를 향하도록 안내합니다.",
+      "assistant_response": "집중 모드를 사용하여 채팅이 특정 목표를 향하도록 유도하세요. 앱에서 사용 가능한 모드를 확인해 보세요."
+    },
+    "memories": {
+      "phrase": "같은 말을 반복하는 건 지루한 일이죠. 메이트가 기억해야 할 맥락을 저장하세요.",
+      "title": "기억",
+      "description": "유용한 기본 설정과 맥락을 저장합니다.",
+      "assistant_response": "유용한 기본 설정과 맥락을 기억으로 저장한 다음, 메이트가 사용할 항목을 선택하세요."
+    },
+    "events": {
+      "phrase": "할 일을 찾고 있나요? 가까운 이벤트를 살펴보세요.",
+      "title": "지역 이벤트 찾기",
+      "description": "수업, 모임 및 기타 이벤트를 검색하세요.",
+      "assistant_response": "이벤트 검색으로 가까운 수업과 모임을 찾아보세요. 장소와 주제를 선택해 주변에서 열리는 행사를 확인하세요."
+    },
+    "collective": {
+      "phrase": "수천 마리의 동물이 지휘자 없이 하나처럼 움직입니다.",
+      "title": "동물의 집단행동",
+      "description": "동물 무리가 움직임과 결정을 조율하는 방식입니다.",
+      "assistant_response": "동물 무리가 움직임과 결정을 조율하는 방식입니다."
+    },
+    "alexandria": {
+      "phrase": "고대의 유명한 도서관은 연구기관이기도 했습니다.",
+      "title": "알렉산드리아 도서관",
+      "description": "고대 세계에서 가장 유명한 지식의 중심지 중 하나입니다.",
+      "assistant_response": "고대 세계에서 가장 유명한 지식의 중심지 중 하나입니다."
+    },
+    "tensegrity": {
+      "phrase": "일부 구조물이 떠 있는 듯 보이는 비결은 보이지 않는 인장력입니다.",
+      "title": "텐세그리티",
+      "description": "인장력과 압축력의 균형으로 안정되는 구조입니다.",
+      "assistant_response": "인장력과 압축력의 균형으로 안정되는 구조입니다."
+    },
+    "quotes": {
+      "phrase": "답변을 검증하고 싶나요? OpenMates에 근거가 되는 출처를 인용해 달라고 요청하세요.",
+      "title": "신뢰할 수 있는 출처 인용",
+      "description": "메이트에게 출처를 확인하고 답변을 뒷받침하는 구절을 인용해 달라고 요청하세요.",
+      "assistant_response": "메이트에게 출처를 확인하고 답변을 뒷받침하는 구절을 인용해 달라고 요청하세요."
+    },
+    "image_detection": {
+      "phrase": "AI로 만든 이미지인지 궁금한가요? 업로드하여 징후를 살펴보세요.",
+      "title": "AI 이미지 감지",
+      "description": "이미지를 업로드하고 채팅에서 AI 생성의 징후를 확인하세요.",
+      "assistant_response": "이미지를 업로드하고 채팅에서 AI 생성의 징후를 확인하세요."
+    },
+    "incognito": {
+      "phrase": "잠깐 대화가 필요한가요? 저장된 채팅 기록에 남기지 마세요.",
+      "title": "시크릿 채팅",
+      "description": "기록에 저장하고 싶지 않을 때 임시 채팅을 시작하세요.",
+      "assistant_response": "기록에 저장하고 싶지 않을 때 임시 채팅을 시작하세요."
+    },
+    "privacy": {
+      "phrase": "설정이 급하게 필요해지기 전에 OpenMates의 데이터 보호 방식을 확인하세요.",
+      "title": "개인정보 보호 설정",
+      "description": "개인정보 숨기기, 연결된 계정, 자동 삭제를 한곳에서 설정하세요.",
+      "assistant_response": "개인정보 숨기기, 연결된 계정, 자동 삭제를 한곳에서 설정하세요."
+    }
+  },
+  "it": {
+    "antikythera": {
+      "phrase": "Un antico relitto custodiva una macchina che prediceva il cielo.",
+      "title": "Il meccanismo di Anticitera",
+      "description": "Un antico modello greco del cosmo azionato a mano.",
+      "assistant_response": "Il meccanismo di Anticitera usava ingranaggi in bronzo per modellare i cicli astronomici. Scopri come gli antichi ingegneri predicevano il cielo."
+    },
+    "bioluminescence": {
+      "phrase": "Alcuni animali producono la propria luce. La chimica è sorprendentemente elegante.",
+      "title": "Bioluminescenza",
+      "description": "Organismi viventi che producono luce attraverso la chimica.",
+      "assistant_response": "Gli organismi brillano per cacciare, mimetizzarsi, comunicare e difendersi. Scopri come la chimica diventa luce."
+    },
+    "fermi": {
+      "phrase": "Se l'universo è così vasto, perché sembra così silenzioso?",
+      "title": "Il paradosso di Fermi",
+      "description": "La tensione tra la probabile vita extraterrestre e la mancanza di prove chiare.",
+      "assistant_response": "Il paradosso di Fermi si chiede perché non abbiamo trovato prove convincenti di civiltà extraterrestri. Esplora le possibili risposte."
+    },
+    "export": {
+      "phrase": "Conserva il tuo backup. Esporta i tuoi dati OpenMates ogni volta che ne hai bisogno.",
+      "title": "Esporta i tuoi dati OpenMates",
+      "description": "Esegui il backup di chat, impostazioni, ricordi e altro ancora.",
+      "assistant_response": "Esporta una copia dei tuoi dati OpenMates dalle impostazioni dell'account. Accedi per consultare i dati crittografati del tuo account."
+    },
+    "pii": {
+      "phrase": "Vuoi controlli sulla privacy più rigorosi? Aggiungi i dettagli personali che OpenMates dovrebbe nascondere.",
+      "title": "Rilevamento PII personalizzato",
+      "description": "Proteggi i dettagli personali prima delle chiamate al modello.",
+      "assistant_response": "Scegli i dettagli personali che OpenMates deve nascondere prima di una chiamata al modello. Controlla le impostazioni sulla privacy per gestirli."
+    },
+    "focus": {
+      "phrase": "Hai bisogno di una risposta più mirata? Assegna al tuo mate un compito specifico.",
+      "title": "Modalità Focus",
+      "description": "Guida una chat verso un obiettivo specifico.",
+      "assistant_response": "Usa una modalità focus per guidare una chat verso un obiettivo specifico. Esplora le modalità disponibili in App."
+    },
+    "memories": {
+      "phrase": "Ripetersi stanca. Salva il contesto che i tuoi mate dovrebbero ricordare.",
+      "title": "Ricordi",
+      "description": "Salva preferenze e contesti utili.",
+      "assistant_response": "Salva preferenze e contesti utili come ricordi, poi scegli cosa possono usare i tuoi mate."
+    },
+    "events": {
+      "phrase": "Cerchi qualcosa da fare? Scopri gli eventi vicino a te.",
+      "title": "Trova eventi locali",
+      "description": "Cerca corsi, incontri e altri eventi.",
+      "assistant_response": "Usa la ricerca Eventi per trovare corsi e incontri locali. Scegli un luogo e un argomento per vedere cosa succede nelle vicinanze."
+    },
+    "collective": {
+      "phrase": "Migliaia di animali si muovono insieme, senza un direttore.",
+      "title": "Comportamento collettivo degli animali",
+      "description": "Come i gruppi di animali coordinano movimenti e decisioni.",
+      "assistant_response": "Come i gruppi di animali coordinano movimenti e decisioni."
+    },
+    "alexandria": {
+      "phrase": "La biblioteca più famosa del mondo antico era anche un istituto di ricerca.",
+      "title": "Biblioteca di Alessandria",
+      "description": "Uno dei più celebri centri del sapere dell’antichità.",
+      "assistant_response": "Uno dei più celebri centri del sapere dell’antichità."
+    },
+    "tensegrity": {
+      "phrase": "Alcune strutture sembrano fluttuare grazie al lavoro nascosto della tensione.",
+      "title": "Tensegrità",
+      "description": "Strutture stabilizzate dall’equilibrio tra tensione e compressione.",
+      "assistant_response": "Strutture stabilizzate dall’equilibrio tra tensione e compressione."
+    },
+    "quotes": {
+      "phrase": "Vuoi verificare una risposta? Chiedi a OpenMates una citazione dalla fonte.",
+      "title": "Citazioni da fonti affidabili",
+      "description": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta.",
+      "assistant_response": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta."
+    },
+    "image_detection": {
+      "phrase": "Un’immagine è stata generata con l’IA? Caricala ed esamina gli indizi.",
+      "title": "Rilevamento di immagini IA",
+      "description": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat.",
+      "assistant_response": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat."
+    },
+    "incognito": {
+      "phrase": "Ti serve una conversazione temporanea? Tienila fuori dalla cronologia salvata.",
+      "title": "Chat in incognito",
+      "description": "Avvia chat temporanee quando non vuoi salvarle nella cronologia.",
+      "assistant_response": "Avvia chat temporanee quando non vuoi salvarle nella cronologia."
+    },
+    "privacy": {
+      "phrase": "Scopri come OpenMates protegge i tuoi dati prima di aver bisogno urgente dei controlli.",
+      "title": "Controlli sulla privacy",
+      "description": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto.",
+      "assistant_response": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto."
+    }
+  },
+  "tr": {
+    "antikythera": {
+      "phrase": "Antik bir gemi enkazında gökyüzünü tahmin eden bir makine bulundu.",
+      "title": "Antikythera düzeneği",
+      "description": "Kozmosun antik Yunan yapımı, elle çalışan bir modeli.",
+      "assistant_response": "Antikythera düzeneği, astronomik döngüleri modellemek için bronz dişliler kullanıyordu. Antik mühendislerin gökyüzünü nasıl tahmin ettiğini keşfet."
+    },
+    "bioluminescence": {
+      "phrase": "Bazı hayvanlar kendi ışıklarını üretir. Kimyası şaşırtıcı derecede zariftir.",
+      "title": "Biyolüminesans",
+      "description": "Kimyasal yollarla ışık üreten canlı organizmalar.",
+      "assistant_response": "Organizmalar avlanma, kamuflaj, iletişim ve savunma için parlar. Kimyanın nasıl ışığa dönüştüğünü keşfet."
+    },
+    "fermi": {
+      "phrase": "Evren bu kadar büyükse neden bu kadar sessiz görünüyor?",
+      "title": "Fermi paradoksu",
+      "description": "Muhtemel dış dünya yaşamı ile net bir kanıtın olmaması arasındaki çelişki.",
+      "assistant_response": "Fermi paradoksu, neden dünya dışı medeniyetlere dair ikna edici bir kanıt bulamadığımızı sorgular. Olası cevapları keşfet."
+    },
+    "export": {
+      "phrase": "Kendi yedeğini tut. OpenMates verilerini dilediğin zaman dışa aktar.",
+      "title": "OpenMates verilerini dışa aktar",
+      "description": "Sohbetleri, ayarları, anıları ve daha fazlasını yedekle.",
+      "assistant_response": "Hesap ayarlarından OpenMates verilerinin bir kopyasını dışa aktar. Şifrelenmiş hesap verilerine erişmek için giriş yap."
+    },
+    "pii": {
+      "phrase": "Daha güçlü gizlilik kontrolleri mi istiyorsun? OpenMates'in gizlemesi gereken kişisel detayları ekle.",
+      "title": "Özel PII tespiti",
+      "description": "Model çağrılarından önce kişisel detayları koru.",
+      "assistant_response": "Bir model çağrısından önce OpenMates'in gizlemesini istediğin kişisel detayları seç. Bunları yönetmek için gizlilik ayarlarını gözden geçir."
+    },
+    "focus": {
+      "phrase": "Daha odaklanmış bir cevaba mı ihtiyacın var? Mate'ine özel bir görev ver.",
+      "title": "Odak modları",
+      "description": "Bir sohbeti belirli bir hedefe yönlendir.",
+      "assistant_response": "Bir sohbeti belirli bir hedefe yönlendirmek için bir odak modu kullan. Uygulamalar'daki mevcut modları keşfet."
+    },
+    "memories": {
+      "phrase": "Kendini tekrarlamak sıkar. Mate'lerinin hatırlaması gereken bağlamları kaydet.",
+      "title": "Anılar",
+      "description": "Faydalı tercihleri ve bağlamı kaydet.",
+      "assistant_response": "Faydalı tercihleri ve bağlamı anı olarak kaydet, ardından mate'lerinin neleri kullanabileceğini seç."
+    },
+    "events": {
+      "phrase": "Yapacak bir şey mi arıyorsun? Yakınındaki etkinlikleri keşfet.",
+      "title": "Yerel etkinlikleri bul",
+      "description": "Dersleri, buluşmaları ve diğer etkinlikleri ara.",
+      "assistant_response": "Yakınındaki dersleri ve buluşmaları bulmak için Etkinlik aramasını kullan. Çevrende neler olduğunu görmek için bir yer ve konu seç."
+    },
+    "collective": {
+      "phrase": "Binlerce hayvan, bir şef olmadan tek bir canlı gibi hareket eder.",
+      "title": "Hayvanlarda kolektif davranış",
+      "description": "Hayvan gruplarının hareketlerini ve kararlarını nasıl koordine ettiği.",
+      "assistant_response": "Hayvan gruplarının hareketlerini ve kararlarını nasıl koordine ettiği."
+    },
+    "alexandria": {
+      "phrase": "Antik dünyanın en ünlü kütüphanesi aynı zamanda bir araştırma kurumuydu.",
+      "title": "İskenderiye Kütüphanesi",
+      "description": "Antik dünyanın en ünlü bilgi merkezlerinden biri.",
+      "assistant_response": "Antik dünyanın en ünlü bilgi merkezlerinden biri."
+    },
+    "tensegrity": {
+      "phrase": "Bazı yapılar, gerilimin görünmeyen işi sayesinde havada asılı gibi görünür.",
+      "title": "Tensegrite",
+      "description": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar.",
+      "assistant_response": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar."
+    },
+    "quotes": {
+      "phrase": "Yanıtı doğrulamak mı istiyorsun? OpenMates’ten destekleyici kaynağı alıntılamasını iste.",
+      "title": "Güvenilir kaynak alıntıları",
+      "description": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste.",
+      "assistant_response": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
+    },
+    "image_detection": {
+      "phrase": "Bir görsel yapay zekâyla mı üretildi? Yükle ve işaretleri incele.",
+      "title": "Yapay zekâ görsel tespiti",
+      "description": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele.",
+      "assistant_response": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
+    },
+    "incognito": {
+      "phrase": "Geçici bir konuşma mı gerekiyor? Kayıtlı sohbet geçmişinin dışında tut.",
+      "title": "Gizli sohbetler",
+      "description": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat.",
+      "assistant_response": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
+    },
+    "privacy": {
+      "phrase": "Kontrollere acilen ihtiyaç duymadan önce OpenMates’in neleri koruduğunu incele.",
+      "title": "Gizlilik kontrolleri",
+      "description": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla.",
+      "assistant_response": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
+    }
+  },
+  "vi": {
+    "antikythera": {
+      "phrase": "Một xác tàu cổ chứa đựng một cỗ máy dự đoán bầu trời.",
+      "title": "Cơ chế Antikythera",
+      "description": "Mô hình vũ trụ vận hành bằng tay của người Hy Lạp cổ đại.",
+      "assistant_response": "Cơ chế Antikythera sử dụng các bánh răng bằng đồng để mô phỏng các chu kỳ thiên văn. Hãy khám phá cách các kỹ sư cổ đại dự đoán bầu trời."
+    },
+    "bioluminescence": {
+      "phrase": "Một số loài động vật tự tạo ra ánh sáng. Phản ứng hóa học này thanh tao một cách đáng ngạc nhiên.",
+      "title": "Phát quang sinh học",
+      "description": "Các sinh vật sống tạo ra ánh sáng thông qua các phản ứng hóa học.",
+      "assistant_response": "Các sinh vật phát sáng để săn mồi, ngụy trang, giao tiếp và tự vệ. Hãy khám phá cách hóa học biến thành ánh sáng."
+    },
+    "fermi": {
+      "phrase": "Nếu vũ trụ rộng lớn đến vậy, tại sao nó lại có vẻ tĩnh lặng như thế?",
+      "title": "Nghịch lý Fermi",
+      "description": "Sự mâu thuẫn giữa khả năng tồn tại sự sống ngoài hành tinh và việc thiếu bằng chứng rõ ràng.",
+      "assistant_response": "Nghịch lý Fermi đặt câu hỏi tại sao chúng ta chưa tìm thấy bằng chứng thuyết phục nào về các nền văn minh ngoài hành tinh. Hãy khám phá các câu trả lời khả thi."
+    },
+    "export": {
+      "phrase": "Hãy giữ bản sao lưu của riêng bạn. Xuất dữ liệu OpenMates bất cứ khi nào bạn cần.",
+      "title": "Xuất dữ liệu OpenMates của bạn",
+      "description": "Sao lưu các cuộc trò chuyện, cài đặt, ký ức và nhiều nội dung khác.",
+      "assistant_response": "Xuất một bản sao dữ liệu OpenMates từ phần cài đặt tài khoản. Đăng nhập để truy cập dữ liệu tài khoản đã được mã hóa của bạn."
+    },
+    "pii": {
+      "phrase": "Bạn muốn kiểm soát quyền riêng tư chặt chẽ hơn? Hãy thêm các chi tiết cá nhân mà OpenMates nên ẩn đi.",
+      "title": "Phát hiện PII tùy chỉnh",
+      "description": "Bảo vệ các chi tiết cá nhân trước khi thực hiện lệnh gọi mô hình.",
+      "assistant_response": "Chọn các chi tiết cá nhân để OpenMates ẩn đi trước khi thực hiện lệnh gọi mô hình. Hãy xem lại cài đặt quyền riêng tư để quản lý chúng."
+    },
+    "focus": {
+      "phrase": "Cần một câu trả lời tập trung hơn? Hãy giao cho người bạn của bạn một nhiệm vụ cụ thể.",
+      "title": "Chế độ tập trung",
+      "description": "Hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể.",
+      "assistant_response": "Sử dụng chế độ tập trung để hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể. Khám phá các chế độ hiện có trong phần Ứng dụng."
+    },
+    "memories": {
+      "phrase": "Việc phải lặp lại chính mình thật nhàm chán. Hãy lưu lại ngữ cảnh mà các người bạn của bạn nên ghi nhớ.",
+      "title": "Ký ức",
+      "description": "Lưu các tùy chọn và ngữ cảnh hữu ích.",
+      "assistant_response": "Lưu các tùy chọn và ngữ cảnh hữu ích dưới dạng ký ức, sau đó chọn những gì các người bạn của bạn có thể sử dụng."
+    },
+    "events": {
+      "phrase": "Bạn đang tìm việc gì đó để làm? Khám phá các sự kiện gần bạn.",
+      "title": "Tìm sự kiện địa phương",
+      "description": "Tìm lớp học, buổi gặp gỡ và các sự kiện khác.",
+      "assistant_response": "Dùng tìm kiếm Sự kiện để tìm lớp học và buổi gặp gỡ gần bạn. Chọn địa điểm và chủ đề để xem những gì đang diễn ra xung quanh."
+    },
+    "collective": {
+      "phrase": "Hàng nghìn con vật di chuyển như một mà không cần người chỉ huy.",
+      "title": "Hành vi tập thể ở động vật",
+      "description": "Cách các nhóm động vật phối hợp chuyển động và quyết định.",
+      "assistant_response": "Cách các nhóm động vật phối hợp chuyển động và quyết định."
+    },
+    "alexandria": {
+      "phrase": "Thư viện nổi tiếng nhất thời cổ đại cũng là một cơ sở nghiên cứu.",
+      "title": "Thư viện Alexandria",
+      "description": "Một trong những trung tâm tri thức nổi tiếng nhất thời cổ đại.",
+      "assistant_response": "Một trong những trung tâm tri thức nổi tiếng nhất thời cổ đại."
+    },
+    "tensegrity": {
+      "phrase": "Một số kết cấu trông như lơ lửng nhờ lực kéo âm thầm làm việc.",
+      "title": "Kết cấu toàn vẹn chịu kéo",
+      "description": "Các kết cấu ổn định nhờ cân bằng lực kéo và lực nén.",
+      "assistant_response": "Các kết cấu ổn định nhờ cân bằng lực kéo và lực nén."
+    },
+    "quotes": {
+      "phrase": "Muốn kiểm chứng câu trả lời? Hãy nhờ OpenMates trích dẫn nguồn hỗ trợ.",
+      "title": "Trích dẫn nguồn đáng tin cậy",
+      "description": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời.",
+      "assistant_response": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời."
+    },
+    "image_detection": {
+      "phrase": "Bạn thắc mắc ảnh có được tạo bằng AI không? Hãy tải lên và kiểm tra các dấu hiệu.",
+      "title": "Phát hiện ảnh AI",
+      "description": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện.",
+      "assistant_response": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện."
+    },
+    "incognito": {
+      "phrase": "Cần một cuộc trò chuyện tạm thời? Đừng lưu vào lịch sử trò chuyện.",
+      "title": "Trò chuyện ẩn danh",
+      "description": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử.",
+      "assistant_response": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử."
+    },
+    "privacy": {
+      "phrase": "Tìm hiểu cách OpenMates bảo vệ dữ liệu trước khi bạn cần gấp các tùy chọn này.",
+      "title": "Kiểm soát quyền riêng tư",
+      "description": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi.",
+      "assistant_response": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi."
+    }
+  },
+  "id": {
+    "antikythera": {
+      "phrase": "Sebuah bangkai kapal kuno menyimpan mesin yang memprediksi langit.",
+      "title": "Mekanisme Antikythera",
+      "description": "Model kosmos bertenaga tangan dari Yunani kuno.",
+      "assistant_response": "Mekanisme Antikythera menggunakan roda gigi perunggu untuk memodelkan siklus astronomi. Jelajahi bagaimana para insinyur kuno memprediksi langit."
+    },
+    "bioluminescence": {
+      "phrase": "Beberapa hewan menghasilkan cahayanya sendiri. Proses kimianya sangat elegan.",
+      "title": "Bioluminesensi",
+      "description": "Organisme hidup yang menghasilkan cahaya melalui proses kimia.",
+      "assistant_response": "Organisme bercahaya untuk berburu, kamuflase, komunikasi, dan pertahanan. Jelajahi bagaimana kimia menjadi cahaya."
+    },
+    "fermi": {
+      "phrase": "Jika alam semesta begitu luas, mengapa ia tampak begitu sunyi?",
+      "title": "Paradoks Fermi",
+      "description": "Ketegangan antara kemungkinan adanya kehidupan luar angkasa dan tidak adanya bukti yang jelas.",
+      "assistant_response": "Paradoks Fermi mempertanyakan mengapa kita belum menemukan bukti meyakinkan tentang peradaban luar angkasa. Jelajahi jawaban yang mungkin."
+    },
+    "export": {
+      "phrase": "Simpan cadanganmu sendiri. Ekspor data OpenMates kamu kapan pun kamu membutuhkannya.",
+      "title": "Ekspor data OpenMates kamu",
+      "description": "Cadangkan chat, pengaturan, memori, dan lainnya.",
+      "assistant_response": "Ekspor salinan data OpenMates kamu dari pengaturan akun. Masuk untuk mengakses data akun kamu yang terenkripsi."
+    },
+    "pii": {
+      "phrase": "Ingin kontrol privasi yang lebih kuat? Tambahkan detail pribadi yang harus disembunyikan OpenMates.",
+      "title": "Deteksi PII kustom",
+      "description": "Lindungi detail pribadi sebelum pemanggilan model.",
+      "assistant_response": "Pilih detail pribadi yang ingin disembunyikan OpenMates sebelum pemanggilan model. Tinjau pengaturan privasi untuk mengelolanya."
+    },
+    "focus": {
+      "phrase": "Butuh jawaban yang lebih fokus? Berikan tugas spesifik kepada mate kamu.",
+      "title": "Mode fokus",
+      "description": "Arahkan chat menuju tujuan tertentu.",
+      "assistant_response": "Gunakan mode fokus untuk mengarahkan chat ke tujuan tertentu. Jelajahi mode yang tersedia di Aplikasi."
+    },
+    "memories": {
+      "phrase": "Mengulang hal yang sama itu membosankan. Simpan konteks yang harus diingat oleh mate kamu.",
+      "title": "Memori",
+      "description": "Simpan preferensi dan konteks yang berguna.",
+      "assistant_response": "Simpan preferensi dan konteks yang berguna sebagai memori, lalu pilih apa yang bisa digunakan oleh mate kamu."
+    },
+    "events": {
+      "phrase": "Mencari kegiatan? Jelajahi acara di dekatmu.",
+      "title": "Temukan acara lokal",
+      "description": "Cari kelas, pertemuan, dan acara lainnya.",
+      "assistant_response": "Gunakan pencarian Acara untuk menemukan kelas dan pertemuan setempat. Pilih lokasi dan topik untuk melihat kegiatan di sekitarmu."
+    },
+    "collective": {
+      "phrase": "Ribuan hewan bergerak serempak tanpa pemimpin.",
+      "title": "Perilaku kolektif hewan",
+      "description": "Cara kelompok hewan mengoordinasikan gerakan dan keputusan.",
+      "assistant_response": "Cara kelompok hewan mengoordinasikan gerakan dan keputusan."
+    },
+    "alexandria": {
+      "phrase": "Perpustakaan kuno yang paling terkenal juga merupakan lembaga penelitian.",
+      "title": "Perpustakaan Aleksandria",
+      "description": "Salah satu pusat pengetahuan paling terkenal di dunia kuno.",
+      "assistant_response": "Salah satu pusat pengetahuan paling terkenal di dunia kuno."
+    },
+    "tensegrity": {
+      "phrase": "Beberapa struktur tampak melayang karena tarikan bekerja secara tersembunyi.",
+      "title": "Tensegritas",
+      "description": "Struktur yang stabil berkat keseimbangan tegangan dan kompresi.",
+      "assistant_response": "Struktur yang stabil berkat keseimbangan tegangan dan kompresi."
+    },
+    "quotes": {
+      "phrase": "Ingin memverifikasi jawaban? Minta OpenMates mengutip sumber pendukungnya.",
+      "title": "Kutipan sumber tepercaya",
+      "description": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban.",
+      "assistant_response": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban."
+    },
+    "image_detection": {
+      "phrase": "Penasaran apakah gambar dibuat AI? Unggah dan periksa tanda-tandanya.",
+      "title": "Deteksi gambar AI",
+      "description": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan.",
+      "assistant_response": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan."
+    },
+    "incognito": {
+      "phrase": "Butuh percakapan sementara? Jangan simpan di riwayat obrolan.",
+      "title": "Obrolan penyamaran",
+      "description": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat.",
+      "assistant_response": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat."
+    },
+    "privacy": {
+      "phrase": "Tinjau perlindungan OpenMates sebelum kamu mendadak membutuhkan kontrolnya.",
+      "title": "Kontrol privasi",
+      "description": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat.",
+      "assistant_response": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat."
+    }
+  },
+  "pl": {
+    "antikythera": {
+      "phrase": "Starożytny wrak skrywał maszynę, która przewidywała ruchy nieba.",
+      "title": "Mechanizm z Antykithiry",
+      "description": "Starożytny grecki, napędzany ręcznie model kosmosu.",
+      "assistant_response": "Mechanizm z Antykithiry wykorzystywał brązowe koła zębate do modelowania cykli astronomicznych. Dowiedz się, jak starożytni inżynierowie przewidywali ruchy nieba."
+    },
+    "bioluminescence": {
+      "phrase": "Niektóre zwierzęta same wytwarzają światło. Ta chemia jest zaskakująco elegancka.",
+      "title": "Bioluminescencja",
+      "description": "Żywe organizmy wytwarzające światło dzięki procesom chemicznym.",
+      "assistant_response": "Organizmy świecą, by polować, kamuflować się, komunikować i bronić. Dowiedz się, jak chemia zamienia się w światło."
+    },
+    "fermi": {
+      "phrase": "Skoro wszechświat jest tak wielki, dlaczego wydaje się tak cichy?",
+      "title": "Paradoks Fermiego",
+      "description": "Sprzeczność między wysokim prawdopodobieństwem życia pozaziemskiego a brakiem dowodów.",
+      "assistant_response": "Paradoks Fermiego stawia pytanie, dlaczego nie znaleźliśmy przekonujących dowodów na istnienie pozaziemskich cywilizacji. Poznaj możliwe odpowiedzi."
+    },
+    "export": {
+      "phrase": "Twórz własne kopie zapasowe. Eksportuj swoje dane z OpenMates, kiedy tylko potrzebujesz.",
+      "title": "Eksportuj swoje dane z OpenMates",
+      "description": "Twórz kopie zapasowe czatów, ustawień, wspomnień i nie tylko.",
+      "assistant_response": "Wyeksportuj kopię swoich danych z OpenMates w ustawieniach konta. Zaloguj się, aby uzyskać dostęp do zaszyfrowanych danych."
+    },
+    "pii": {
+      "phrase": "Chcesz lepszej kontroli prywatności? Dodaj dane osobowe, które OpenMates ma ukrywać.",
+      "title": "Niestandardowe wykrywanie danych osobowych",
+      "description": "Chroń dane osobowe przed wysłaniem zapytania do modelu.",
+      "assistant_response": "Wybierz dane osobowe, które OpenMates ma ukrywać przed zapytaniem do modelu. Zarządzaj nimi w ustawieniach prywatności."
+    },
+    "focus": {
+      "phrase": "Potrzebujesz bardziej konkretnej odpowiedzi? Przydziel swojemu asystentowi konkretne zadanie.",
+      "title": "Tryby skupienia",
+      "description": "Skieruj czat na konkretny cel.",
+      "assistant_response": "Użyj trybu skupienia, aby skierować czat na konkretny cel. Sprawdź dostępne tryby w sekcji Aplikacje."
+    },
+    "memories": {
+      "phrase": "Powtarzanie się bywa męczące. Zapisuj kontekst, który Twoi asystenci powinni zapamiętać.",
+      "title": "Wspomnienia",
+      "description": "Zapisuj przydatne preferencje i kontekst.",
+      "assistant_response": "Zapisuj przydatne preferencje i kontekst jako wspomnienia, a potem wybieraj, z czego mogą korzystać Twoi asystenci."
+    },
+    "events": {
+      "phrase": "Szukasz czegoś do zrobienia? Odkryj wydarzenia w pobliżu.",
+      "title": "Znajdź lokalne wydarzenia",
+      "description": "Szukaj zajęć, spotkań i innych wydarzeń.",
+      "assistant_response": "Użyj wyszukiwarki wydarzeń, aby znaleźć lokalne zajęcia i spotkania. Wybierz miejsce i temat, by zobaczyć, co dzieje się w pobliżu."
+    },
+    "collective": {
+      "phrase": "Tysiące zwierząt poruszają się jak jedno, bez dyrygenta.",
+      "title": "Zachowania zbiorowe zwierząt",
+      "description": "Jak grupy zwierząt koordynują ruchy i decyzje.",
+      "assistant_response": "Jak grupy zwierząt koordynują ruchy i decyzje."
+    },
+    "alexandria": {
+      "phrase": "Najsłynniejsza biblioteka starożytności była też instytucją badawczą.",
+      "title": "Biblioteka Aleksandryjska",
+      "description": "Jeden z najsłynniejszych ośrodków wiedzy starożytnego świata.",
+      "assistant_response": "Jeden z najsłynniejszych ośrodków wiedzy starożytnego świata."
+    },
+    "tensegrity": {
+      "phrase": "Niektóre konstrukcje zdają się unosić dzięki niewidocznemu działaniu sił naciągu.",
+      "title": "Tensegracja",
+      "description": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających.",
+      "assistant_response": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających."
+    },
+    "quotes": {
+      "phrase": "Chcesz zweryfikować odpowiedź? Poproś OpenMates o cytat ze źródła.",
+      "title": "Cytaty z wiarygodnych źródeł",
+      "description": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź.",
+      "assistant_response": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
+    },
+    "image_detection": {
+      "phrase": "Czy obraz powstał dzięki AI? Prześlij go i sprawdź wskazówki.",
+      "title": "Wykrywanie obrazów AI",
+      "description": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie.",
+      "assistant_response": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
+    },
+    "incognito": {
+      "phrase": "Potrzebujesz tymczasowej rozmowy? Nie zapisuj jej w historii czatów.",
+      "title": "Czaty incognito",
+      "description": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii.",
+      "assistant_response": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
+    },
+    "privacy": {
+      "phrase": "Sprawdź ochronę OpenMates, zanim pilnie potrzebne będą ustawienia.",
+      "title": "Ustawienia prywatności",
+      "description": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu.",
+      "assistant_response": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
+    }
+  },
+  "nl": {
+    "antikythera": {
+      "phrase": "Een oud scheepswrak bevatte een machine die de hemel voorspelde.",
+      "title": "Het mechanisme van Antikythera",
+      "description": "Een oud-Grieks handbediend model van de kosmos.",
+      "assistant_response": "Het mechanisme van Antikythera gebruikte bronzen tandwielen om astronomische cycli na te bootsen. Ontdek hoe ingenieurs uit de oudheid de hemel voorspelden."
+    },
+    "bioluminescence": {
+      "phrase": "Sommige dieren maken hun eigen licht. De chemie is verrassend elegant.",
+      "title": "Bioluminescentie",
+      "description": "Levende organismen die licht produceren via chemie.",
+      "assistant_response": "Organismen geven licht voor de jacht, camouflage, communicatie en verdediging. Ontdek hoe chemie licht wordt."
+    },
+    "fermi": {
+      "phrase": "Als het universum zo groot is, waarom lijkt het dan zo stil?",
+      "title": "De Fermi-paradox",
+      "description": "De spanning tussen de waarschijnlijkheid van buitenaards leven en het gebrek aan bewijs.",
+      "assistant_response": "De Fermi-paradox stelt de vraag waarom we geen overtuigend bewijs hebben gevonden van buitenaardse beschavingen. Ontdek mogelijke antwoorden."
+    },
+    "export": {
+      "phrase": "Houd je eigen back-up bij. Exporteer je OpenMates-gegevens wanneer je maar wilt.",
+      "title": "Exporteer je OpenMates-gegevens",
+      "description": "Maak een back-up van chats, instellingen, herinneringen en meer.",
+      "assistant_response": "Exporteer een kopie van je OpenMates-gegevens via de accountinstellingen. Log in om toegang te krijgen tot je versleutelde accountgegevens."
+    },
+    "pii": {
+      "phrase": "Wil je meer controle over je privacy? Voeg persoonlijke gegevens toe die OpenMates moet verbergen.",
+      "title": "Aangepaste PII-detectie",
+      "description": "Bescherm persoonlijke gegevens vóór modelaanroepen.",
+      "assistant_response": "Kies welke persoonlijke gegevens OpenMates moet verbergen vóór een modelaanroep. Bekijk de privacyinstellingen om ze te beheren."
+    },
+    "focus": {
+      "phrase": "Heb je een gerichter antwoord nodig? Geef je mate een specifieke taak.",
+      "title": "Focusmodi",
+      "description": "Stuur een chat in de richting van een specifiek doel.",
+      "assistant_response": "Gebruik een focusmodus om een chat naar een specifiek doel te leiden. Ontdek de beschikbare modi in Apps."
+    },
+    "memories": {
+      "phrase": "Jezelf herhalen wordt vermoeiend. Sla context op die je mates moeten onthouden.",
+      "title": "Herinneringen",
+      "description": "Sla nuttige voorkeuren en context op.",
+      "assistant_response": "Sla nuttige voorkeuren en context op als herinneringen en kies vervolgens wat je mates kunnen gebruiken."
+    },
+    "events": {
+      "phrase": "Zoek je iets om te doen? Ontdek evenementen bij jou in de buurt.",
+      "title": "Vind lokale evenementen",
+      "description": "Zoek lessen, bijeenkomsten en andere evenementen.",
+      "assistant_response": "Gebruik de zoekfunctie voor evenementen om lessen en bijeenkomsten in de buurt te vinden. Kies een plaats en onderwerp om te zien wat er te doen is."
+    },
+    "collective": {
+      "phrase": "Duizenden dieren bewegen als één geheel, zonder dirigent.",
+      "title": "Collectief diergedrag",
+      "description": "Hoe groepen dieren bewegingen en beslissingen coördineren.",
+      "assistant_response": "Hoe groepen dieren bewegingen en beslissingen coördineren."
+    },
+    "alexandria": {
+      "phrase": "De beroemdste bibliotheek uit de oudheid was ook een onderzoeksinstituut.",
+      "title": "Bibliotheek van Alexandrië",
+      "description": "Een van de beroemdste kenniscentra uit de oudheid.",
+      "assistant_response": "Een van de beroemdste kenniscentra uit de oudheid."
+    },
+    "tensegrity": {
+      "phrase": "Sommige constructies lijken te zweven doordat trekkrachten onzichtbaar hun werk doen.",
+      "title": "Tensegriteit",
+      "description": "Constructies die stabiel blijven door een evenwicht van trek en druk.",
+      "assistant_response": "Constructies die stabiel blijven door een evenwicht van trek en druk."
+    },
+    "quotes": {
+      "phrase": "Wil je een antwoord controleren? Vraag OpenMates de bron te citeren.",
+      "title": "Citaten uit betrouwbare bronnen",
+      "description": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen.",
+      "assistant_response": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
+    },
+    "image_detection": {
+      "phrase": "Is een afbeelding met AI gemaakt? Upload hem en bekijk de aanwijzingen.",
+      "title": "AI-beelddetectie",
+      "description": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat.",
+      "assistant_response": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
+    },
+    "incognito": {
+      "phrase": "Een tijdelijk gesprek nodig? Houd het buiten je opgeslagen chatgeschiedenis.",
+      "title": "Incognitochats",
+      "description": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren.",
+      "assistant_response": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
+    },
+    "privacy": {
+      "phrase": "Bekijk hoe OpenMates je gegevens beschermt voordat je de instellingen dringend nodig hebt.",
+      "title": "Privacyinstellingen",
+      "description": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek.",
+      "assistant_response": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
+    }
+  },
+  "ar": {
+    "antikythera": {
+      "phrase": "احتوى حطام سفينة قديمة على آلة تنبأت بحركة السماء.",
+      "title": "آلية أنتيكيثيرا",
+      "description": "نموذج يوناني قديم للكون يعمل يدوياً.",
+      "assistant_response": "استخدمت آلية أنتيكيثيرا تروساً برونزية لمحاكاة الدورات الفلكية. استكشف كيف تنبأ المهندسون القدماء بحركة السماء."
+    },
+    "bioluminescence": {
+      "phrase": "بعض الحيوانات تصنع ضوءها الخاص. كيمياؤها أنيقة بشكل مذهل.",
+      "title": "التلألؤ البيولوجي",
+      "description": "كائنات حية تنتج الضوء من خلال تفاعلات كيميائية.",
+      "assistant_response": "تتوهج الكائنات الحية للصيد، والتمويه، والتواصل، والدفاع. استكشف كيف تتحول الكيمياء إلى ضوء."
+    },
+    "fermi": {
+      "phrase": "إذا كان الكون شاسعاً جداً، فلماذا يبدو هادئاً إلى هذا الحد؟",
+      "title": "مفارقة فيرمي",
+      "description": "التناقض بين احتمالية وجود حياة خارج الأرض وغياب الأدلة الواضحة.",
+      "assistant_response": "تتساءل مفارقة فيرمي عن سبب عدم عثورنا على أدلة مقنعة لحضارات خارج كوكب الأرض. استكشف الإجابات المحتملة."
+    },
+    "export": {
+      "phrase": "احتفظ بنسختك الاحتياطية الخاصة. صَدِّر بيانات OpenMates الخاصة بك وقتما تشاء.",
+      "title": "تصدير بيانات OpenMates الخاصة بك",
+      "description": "انسخ المحادثات، والإعدادات، والذكريات، وغيرها احتياطياً.",
+      "assistant_response": "صَدِّر نسخة من بيانات OpenMates الخاصة بك من إعدادات الحساب. سَجِّل الدخول للوصول إلى بيانات حسابك المشفرة."
+    },
+    "pii": {
+      "phrase": "هل تريد ضوابط خصوصية أقوى؟ أضف التفاصيل الشخصية التي يجب على OpenMates إخفاؤها.",
+      "title": "كشف مخصص لمعلومات الهوية الشخصية (PII)",
+      "description": "حماية التفاصيل الشخصية قبل استدعاءات النموذج.",
+      "assistant_response": "اختر التفاصيل الشخصية التي تريد من OpenMates إخفاءها قبل استدعاء النموذج. راجع إعدادات الخصوصية لإدارتها."
+    },
+    "focus": {
+      "phrase": "هل تحتاج إلى إجابة أكثر تركيزاً؟ امنح رفيقك مهمة محددة.",
+      "title": "أوضاع التركيز",
+      "description": "توجيه المحادثة نحو هدف محدد.",
+      "assistant_response": "استخدم وضع التركيز لتوجيه المحادثة نحو هدف محدد. استكشف الأوضاع المتاحة في التطبيقات."
+    },
+    "memories": {
+      "phrase": "تكرار الكلام أمر ممل. احفظ السياق الذي يجب على رفاقك تذكره.",
+      "title": "الذكريات",
+      "description": "احفظ التفضيلات والسياقات المفيدة.",
+      "assistant_response": "احفظ التفضيلات والسياقات المفيدة كذكريات، ثم اختر ما يمكن لرفاقك استخدامه."
+    },
+    "events": {
+      "phrase": "هل تبحث عن شيء تفعله؟ استكشف الفعاليات القريبة منك.",
+      "title": "ابحث عن فعاليات محلية",
+      "description": "ابحث عن الدروس واللقاءات والفعاليات الأخرى.",
+      "assistant_response": "استخدم البحث عن الفعاليات للعثور على دروس ولقاءات محلية. اختر مكاناً وموضوعاً لترى ما يحدث بالقرب منك."
+    },
+    "collective": {
+      "phrase": "تتحرك آلاف الحيوانات كأنها كائن واحد، دون قائد.",
+      "title": "السلوك الجماعي للحيوانات",
+      "description": "كيف تنسّق مجموعات الحيوانات حركاتها وقراراتها.",
+      "assistant_response": "كيف تنسّق مجموعات الحيوانات حركاتها وقراراتها."
+    },
+    "alexandria": {
+      "phrase": "كانت أشهر مكتبة في العصور القديمة مؤسسة بحثية أيضًا.",
+      "title": "مكتبة الإسكندرية",
+      "description": "أحد أشهر مراكز المعرفة في العالم القديم.",
+      "assistant_response": "أحد أشهر مراكز المعرفة في العالم القديم."
+    },
+    "tensegrity": {
+      "phrase": "تبدو بعض الهياكل معلّقة لأن قوى الشد تعمل في الخفاء.",
+      "title": "التكامل الشدّي",
+      "description": "هياكل تستقر بتوازن قوى الشد والضغط.",
+      "assistant_response": "هياكل تستقر بتوازن قوى الشد والضغط."
+    },
+    "quotes": {
+      "phrase": "هل تريد التحقق من إجابة؟ اطلب من OpenMates اقتباس المصدر الداعم.",
+      "title": "اقتباسات من مصادر موثوقة",
+      "description": "اطلب من المساعدين فحص المصادر واقتباس السطور التي تدعم الإجابة.",
+      "assistant_response": "اطلب من المساعدين فحص المصادر واقتباس السطور التي تدعم الإجابة."
+    },
+    "image_detection": {
+      "phrase": "هل تتساءل إن كانت صورة مولّدة بالذكاء الاصطناعي؟ ارفعها وافحص المؤشرات.",
+      "title": "كشف صور الذكاء الاصطناعي",
+      "description": "ارفع صورة واطّلع على مؤشرات إنشائها بالذكاء الاصطناعي داخل المحادثة.",
+      "assistant_response": "ارفع صورة واطّلع على مؤشرات إنشائها بالذكاء الاصطناعي داخل المحادثة."
+    },
+    "incognito": {
+      "phrase": "تحتاج إلى محادثة مؤقتة؟ أبقها خارج سجل المحادثات المحفوظ.",
+      "title": "محادثات خفية",
+      "description": "ابدأ محادثات مؤقتة عندما لا تريد حفظها في السجل.",
+      "assistant_response": "ابدأ محادثات مؤقتة عندما لا تريد حفظها في السجل."
+    },
+    "privacy": {
+      "phrase": "راجع ما يحميه OpenMates قبل أن تحتاج إلى هذه الإعدادات بشكل عاجل.",
+      "title": "إعدادات الخصوصية",
+      "description": "اضبط إخفاء البيانات الشخصية والحسابات المتصلة والحذف التلقائي في مكان واحد.",
+      "assistant_response": "اضبط إخفاء البيانات الشخصية والحسابات المتصلة والحذف التلقائي في مكان واحد."
+    }
+  },
+  "hi": {
+    "antikythera": {
+      "phrase": "एक प्राचीन जहाज के मलबे में एक ऐसी मशीन मिली जो आकाश की भविष्यवाणी करती थी।",
+      "title": "एंटीकाइथेरा मैकेनिज्म (Antikythera mechanism)",
+      "description": "ब्रह्मांड का एक प्राचीन ग्रीक हस्त-चालित मॉडल।",
+      "assistant_response": "एंटीकाइथेरा मैकेनिज्म ने खगोलीय चक्रों का मॉडल बनाने के लिए कांस्य गियर का उपयोग किया था। जानें कि प्राचीन इंजीनियरों ने आकाश की भविष्यवाणी कैसे की थी।"
+    },
+    "bioluminescence": {
+      "phrase": "कुछ जानवर अपना प्रकाश स्वयं बनाते हैं। इसका रसायन विज्ञान आश्चर्यजनक रूप से शानदार है।",
+      "title": "जैवदीप्ति (Bioluminescence)",
+      "description": "रसायन विज्ञान के माध्यम से प्रकाश उत्पन्न करने वाले जीवित जीव।",
+      "assistant_response": "जीव शिकार, छलावरण, संचार और रक्षा के लिए चमकते हैं। जानें कि रसायन विज्ञान प्रकाश में कैसे बदल जाता है।"
+    },
+    "fermi": {
+      "phrase": "अगर ब्रह्मांड इतना बड़ा है, तो यह इतना शांत क्यों लगता है?",
+      "title": "फर्मी विरोधाभास (Fermi paradox)",
+      "description": "संभावित अलौकिक जीवन और किसी स्पष्ट प्रमाण के न होने के बीच का तनाव।",
+      "assistant_response": "फर्मी विरोधाभास पूछता है कि हमें अलौकिक सभ्यताओं का कोई ठोस सबूत क्यों नहीं मिला है। संभावित उत्तरों को जानें।"
+    },
+    "export": {
+      "phrase": "अपना खुद का बैकअप रखें। जब भी ज़रूरत हो, अपना OpenMates डेटा एक्सपोर्ट करें।",
+      "title": "अपना OpenMates डेटा एक्सपोर्ट करें",
+      "description": "चैट, सेटिंग्स, यादों और बहुत कुछ का बैकअप लें।",
+      "assistant_response": "अकाउंट सेटिंग्स से अपने OpenMates डेटा की एक कॉपी एक्सपोर्ट करें। अपने एन्क्रिप्टेड अकाउंट डेटा तक पहुँचने के लिए साइन इन करें।"
+    },
+    "pii": {
+      "phrase": "बेहतर प्राइवेसी कंट्रोल चाहते हैं? वे व्यक्तिगत विवरण जोड़ें जिन्हें OpenMates को छिपाना चाहिए।",
+      "title": "कस्टम PII डिटेक्शन (Custom PII detection)",
+      "description": "मॉडल कॉल से पहले व्यक्तिगत जानकारी सुरक्षित रखें।",
+      "assistant_response": "मॉडल कॉल से पहले OpenMates द्वारा छिपाई जाने वाली व्यक्तिगत जानकारी चुनें। उन्हें प्रबंधित करने के लिए प्राइवेसी सेटिंग्स की समीक्षा करें।"
+    },
+    "focus": {
+      "phrase": "अधिक केंद्रित उत्तर चाहिए? अपने मेट (mate) को एक विशिष्ट काम दें।",
+      "title": "फोकस मोड (Focus modes)",
+      "description": "चैट को किसी विशिष्ट लक्ष्य की ओर निर्देशित करें।",
+      "assistant_response": "चैट को किसी विशिष्ट लक्ष्य की ओर ले जाने के लिए फोकस मोड का उपयोग करें। ऐप्स में उपलब्ध मोड देखें।"
+    },
+    "memories": {
+      "phrase": "एक ही बात बार-बार दोहराना उबाऊ हो जाता है। वह संदर्भ सहेजें जो आपके मेट्स को याद रखना चाहिए।",
+      "title": "यादें (Memories)",
+      "description": "उपयोगी प्राथमिकताओं और संदर्भ को सहेजें।",
+      "assistant_response": "उपयोगी प्राथमिकताओं और संदर्भों को यादों (memories) के रूप में सहेजें, फिर चुनें कि आपके मेट्स किसका उपयोग कर सकते हैं।"
+    },
+    "events": {
+      "phrase": "कुछ करने के लिए ढूँढ रहे हैं? अपने आस-पास के कार्यक्रम देखें।",
+      "title": "स्थानीय कार्यक्रम खोजें",
+      "description": "कक्षाएँ, मिलन समारोह और अन्य कार्यक्रम खोजें।",
+      "assistant_response": "आस-पास की कक्षाएँ और मिलन समारोह खोजने के लिए इवेंट खोज का उपयोग करें। नज़दीकी गतिविधियाँ देखने के लिए स्थान और विषय चुनें।"
+    },
+    "collective": {
+      "phrase": "हज़ारों पशु बिना किसी संचालक के एक साथ चलते हैं।",
+      "title": "पशुओं का सामूहिक व्यवहार",
+      "description": "पशुओं के समूह अपनी गतिविधियों और निर्णयों में तालमेल कैसे बनाते हैं।",
+      "assistant_response": "पशुओं के समूह अपनी गतिविधियों और निर्णयों में तालमेल कैसे बनाते हैं।"
+    },
+    "alexandria": {
+      "phrase": "प्राचीन विश्व का सबसे प्रसिद्ध पुस्तकालय एक शोध संस्थान भी था।",
+      "title": "अलेक्ज़ेंड्रिया का पुस्तकालय",
+      "description": "प्राचीन विश्व के सबसे प्रसिद्ध ज्ञान केंद्रों में से एक।",
+      "assistant_response": "प्राचीन विश्व के सबसे प्रसिद्ध ज्ञान केंद्रों में से एक।"
+    },
+    "tensegrity": {
+      "phrase": "कुछ संरचनाएँ तैरती हुई लगती हैं क्योंकि खिंचाव अदृश्य काम करता है।",
+      "title": "तन्यता अखंडता",
+      "description": "खींचने और दबाने वाले बलों के संतुलन से स्थिर रहने वाली संरचनाएँ।",
+      "assistant_response": "खींचने और दबाने वाले बलों के संतुलन से स्थिर रहने वाली संरचनाएँ।"
+    },
+    "quotes": {
+      "phrase": "उत्तर की पुष्टि करना चाहते हैं? OpenMates से सहायक स्रोत का उद्धरण माँगें।",
+      "title": "विश्वसनीय स्रोतों से उद्धरण",
+      "description": "अपने मेट्स से स्रोत जाँचने और उत्तर का समर्थन करने वाली पंक्तियाँ उद्धृत करने को कहें।",
+      "assistant_response": "अपने मेट्स से स्रोत जाँचने और उत्तर का समर्थन करने वाली पंक्तियाँ उद्धृत करने को कहें।"
+    },
+    "image_detection": {
+      "phrase": "क्या कोई छवि AI से बनी है? उसे अपलोड करके संकेत जाँचें।",
+      "title": "AI छवि पहचान",
+      "description": "छवि अपलोड करें और चैट में AI से बनने के संकेत देखें।",
+      "assistant_response": "छवि अपलोड करें और चैट में AI से बनने के संकेत देखें।"
+    },
+    "incognito": {
+      "phrase": "अस्थायी बातचीत चाहिए? इसे सहेजे गए चैट इतिहास से बाहर रखें।",
+      "title": "गुप्त चैट",
+      "description": "जब इतिहास में सहेजना न चाहें, तो अस्थायी चैट शुरू करें।",
+      "assistant_response": "जब इतिहास में सहेजना न चाहें, तो अस्थायी चैट शुरू करें।"
+    },
+    "privacy": {
+      "phrase": "ज़रूरत पड़ने से पहले जानें कि OpenMates किन चीज़ों की सुरक्षा करता है।",
+      "title": "गोपनीयता नियंत्रण",
+      "description": "व्यक्तिगत डेटा छिपाने, जुड़े खातों और अपने आप हटाने की सेटिंग एक जगह करें।",
+      "assistant_response": "व्यक्तिगत डेटा छिपाने, जुड़े खातों और अपने आप हटाने की सेटिंग एक जगह करें।"
+    }
+  },
+  "th": {
+    "antikythera": {
+      "phrase": "ซากเรือโบราณบรรจุเครื่องจักรที่ใช้ทำนายท้องฟ้า",
+      "title": "กลไกแอนติคิเธียรา",
+      "description": "แบบจำลองจักรวาลแบบใช้มือหมุนของกรีกโบราณ",
+      "assistant_response": "กลไกแอนติคิเธียราใช้เฟืองทองสัมฤทธิ์เพื่อจำลองวงจรทางดาราศาสตร์ มาสำรวจกันว่าวิศวกรโบราณทำนายท้องฟ้าได้อย่างไร"
+    },
+    "bioluminescence": {
+      "phrase": "สัตว์บางชนิดสร้างแสงสว่างได้เอง กลไกทางเคมีนั้นงดงามอย่างน่าทึ่ง",
+      "title": "การเรืองแสงทางชีวภาพ",
+      "description": "สิ่งมีชีวิตที่ผลิตแสงผ่านกระบวนการทางเคมี",
+      "assistant_response": "สิ่งมีชีวิตเรืองแสงเพื่อการล่า การพรางตัว การสื่อสาร และการป้องกันตัว มาสำรวจกันว่าเคมีกลายเป็นแสงได้อย่างไร"
+    },
+    "fermi": {
+      "phrase": "หากจักรวาลกว้างใหญ่ขนาดนี้ ทำไมมันถึงดูเงียบเหงาจัง?",
+      "title": "พาราด็อกซ์ของเฟอร์มี",
+      "description": "ความขัดแย้งระหว่างความเป็นไปได้ที่จะมีสิ่งมีชีวิตนอกโลกกับการไม่มีหลักฐานที่ชัดเจน",
+      "assistant_response": "พาราด็อกซ์ของเฟอร์มีตั้งคำถามว่าทำไมเราถึงไม่พบหลักฐานที่น่าเชื่อถือของอารยธรรมนอกโลกเลย มาสำรวจคำตอบที่เป็นไปได้กัน"
+    },
+    "export": {
+      "phrase": "สำรองข้อมูลไว้ด้วยตัวเอง ส่งออกข้อมูล OpenMates ของคุณได้ทุกเมื่อที่ต้องการ",
+      "title": "ส่งออกข้อมูล OpenMates ของคุณ",
+      "description": "สำรองข้อมูลแชท การตั้งค่า ความจำ และอื่นๆ",
+      "assistant_response": "ส่งออกสำเนาข้อมูล OpenMates ของคุณได้จากการตั้งค่าบัญชี ลงชื่อเข้าใช้เพื่อเข้าถึงข้อมูลบัญชีที่เข้ารหัสไว้"
+    },
+    "pii": {
+      "phrase": "ต้องการการควบคุมความเป็นส่วนตัวที่เข้มงวดขึ้นไหม? เพิ่มรายละเอียดส่วนตัวที่ต้องการให้ OpenMates ซ่อนไว้",
+      "title": "การตรวจจับข้อมูลส่วนบุคคลแบบกำหนดเอง",
+      "description": "ปกป้องรายละเอียดส่วนตัวก่อนส่งข้อมูลไปยังโมเดล",
+      "assistant_response": "เลือกรายละเอียดส่วนตัวเพื่อให้ OpenMates ซ่อนก่อนส่งข้อมูลไปยังโมเดล ตรวจสอบการตั้งค่าความเป็นส่วนตัวเพื่อจัดการข้อมูลเหล่านี้"
+    },
+    "focus": {
+      "phrase": "ต้องการคำตอบที่ตรงประเด็นกว่าเดิมไหม? มอบหมายหน้าที่เฉพาะเจาะจงให้คู่หูของคุณสิ",
+      "title": "โหมดโฟกัส",
+      "description": "นำทางแชทไปสู่เป้าหมายที่เฉพาะเจาะจง",
+      "assistant_response": "ใช้โหมดโฟกัสเพื่อนำทางแชทไปสู่เป้าหมายที่เฉพาะเจาะจง สำรวจโหมดต่างๆ ที่มีได้ในแอป"
+    },
+    "memories": {
+      "phrase": "การพูดซ้ำๆ มันน่าเบื่อ บันทึกบริบทที่ต้องการให้คู่หูของคุณจดจำไว้สิ",
+      "title": "ความจำ",
+      "description": "บันทึกการตั้งค่าและบริบทที่เป็นประโยชน์",
+      "assistant_response": "บันทึกการตั้งค่าและบริบทที่เป็นประโยชน์ไว้ในความจำ แล้วเลือกสิ่งที่คู่หูของคุณสามารถนำไปใช้ได้"
+    },
+    "events": {
+      "phrase": "กำลังมองหาอะไรทำอยู่ไหม? สำรวจกิจกรรมใกล้คุณ",
+      "title": "ค้นหากิจกรรมในพื้นที่",
+      "description": "ค้นหาคลาส การพบปะ และกิจกรรมอื่น ๆ",
+      "assistant_response": "ใช้การค้นหากิจกรรมเพื่อหาคลาสและการพบปะในพื้นที่ เลือกสถานที่และหัวข้อเพื่อดูว่ามีอะไรเกิดขึ้นใกล้คุณ"
+    },
+    "collective": {
+      "phrase": "สัตว์หลายพันตัวเคลื่อนไหวพร้อมกันได้โดยไม่มีผู้ควบคุม",
+      "title": "พฤติกรรมรวมหมู่ของสัตว์",
+      "description": "กลุ่มสัตว์ประสานการเคลื่อนไหวและการตัดสินใจอย่างไร",
+      "assistant_response": "กลุ่มสัตว์ประสานการเคลื่อนไหวและการตัดสินใจอย่างไร"
+    },
+    "alexandria": {
+      "phrase": "หอสมุดที่มีชื่อเสียงที่สุดในยุคโบราณยังเป็นสถาบันวิจัยด้วย",
+      "title": "หอสมุดแห่งอเล็กซานเดรีย",
+      "description": "หนึ่งในศูนย์กลางความรู้ที่มีชื่อเสียงที่สุดของโลกยุคโบราณ",
+      "assistant_response": "หนึ่งในศูนย์กลางความรู้ที่มีชื่อเสียงที่สุดของโลกยุคโบราณ"
+    },
+    "tensegrity": {
+      "phrase": "บางโครงสร้างดูเหมือนลอยได้เพราะแรงดึงทำงานอยู่เบื้องหลัง",
+      "title": "โครงสร้างเทนเซกริตี",
+      "description": "โครงสร้างที่มั่นคงด้วยสมดุลของแรงดึงและแรงอัด",
+      "assistant_response": "โครงสร้างที่มั่นคงด้วยสมดุลของแรงดึงและแรงอัด"
+    },
+    "quotes": {
+      "phrase": "อยากตรวจสอบคำตอบใช่ไหม ขอให้ OpenMates อ้างอิงข้อความจากแหล่งข้อมูลได้เลย",
+      "title": "คำอ้างอิงจากแหล่งที่เชื่อถือได้",
+      "description": "ให้เมตตรวจสอบแหล่งข้อมูลและยกข้อความที่สนับสนุนคำตอบ",
+      "assistant_response": "ให้เมตตรวจสอบแหล่งข้อมูลและยกข้อความที่สนับสนุนคำตอบ"
+    },
+    "image_detection": {
+      "phrase": "สงสัยว่าภาพสร้างด้วย AI หรือไม่ อัปโหลดแล้วตรวจสอบสัญญาณได้เลย",
+      "title": "ตรวจจับภาพ AI",
+      "description": "อัปโหลดภาพแล้วดูสัญญาณการสร้างด้วย AI ได้ในแชท",
+      "assistant_response": "อัปโหลดภาพแล้วดูสัญญาณการสร้างด้วย AI ได้ในแชท"
+    },
+    "incognito": {
+      "phrase": "ต้องการสนทนาชั่วคราวใช่ไหม เก็บไว้นอกประวัติแชทที่บันทึกได้เลย",
+      "title": "แชทไม่ระบุตัวตน",
+      "description": "เริ่มแชทชั่วคราวเมื่อไม่ต้องการบันทึกไว้ในประวัติ",
+      "assistant_response": "เริ่มแชทชั่วคราวเมื่อไม่ต้องการบันทึกไว้ในประวัติ"
+    },
+    "privacy": {
+      "phrase": "ตรวจสอบว่า OpenMates ปกป้องข้อมูลอย่างไรก่อนต้องใช้การตั้งค่าอย่างเร่งด่วน",
+      "title": "การควบคุมความเป็นส่วนตัว",
+      "description": "ตั้งค่าการซ่อนข้อมูลส่วนบุคคล บัญชีที่เชื่อมต่อ และการลบอัตโนมัติในที่เดียว",
+      "assistant_response": "ตั้งค่าการซ่อนข้อมูลส่วนบุคคล บัญชีที่เชื่อมต่อ และการลบอัตโนมัติในที่เดียว"
+    }
+  },
+  "cs": {
+    "antikythera": {
+      "phrase": "Starověký vrak lodi ukrýval stroj, který předpovídal oblohu.",
+      "title": "Mechanismus z Antikythéry",
+      "description": "Starořecký ručně poháněný model vesmíru.",
+      "assistant_response": "Mechanismus z Antikythéry využíval bronzová ozubená kola k modelování astronomických cyklů. Prozkoumej, jak starověcí inženýři předpovídali oblohu."
+    },
+    "bioluminescence": {
+      "phrase": "Někteří živočichové si vytvářejí vlastní světlo. Ta chemie je překvapivě elegantní.",
+      "title": "Bioluminiscence",
+      "description": "Živé organismy produkující světlo pomocí chemie.",
+      "assistant_response": "Organismy svítí kvůli lovu, maskování, komunikaci a obraně. Prozkoumej, jak se chemie mění ve světlo."
+    },
+    "fermi": {
+      "phrase": "Pokud je vesmír tak rozlehlý, proč se zdá být tak tichý?",
+      "title": "Fermiho paradox",
+      "description": "Rozpor mezi pravděpodobností mimozemského života a chybějícími jasnými důkazy.",
+      "assistant_response": "Fermiho paradox se ptá, proč jsme nenašli žádné přesvědčivé důkazy o mimozemských civilizacích. Prozkoumej možná vysvětlení."
+    },
+    "export": {
+      "phrase": "Měj vlastní zálohu. Exportuj si svá data z OpenMates, kdykoli potřebuješ.",
+      "title": "Exportuj svá data z OpenMates",
+      "description": "Zálohuj si chaty, nastavení, vzpomínky a další.",
+      "assistant_response": "Exportuj si kopii svých dat z OpenMates v nastavení účtu. Přihlas se pro přístup ke svým šifrovaným datům."
+    },
+    "pii": {
+      "phrase": "Chceš silnější kontrolu soukromí? Přidej osobní údaje, které má OpenMates skrýt.",
+      "title": "Vlastní detekce osobních údajů",
+      "description": "Chraň osobní údaje před odesláním modelu.",
+      "assistant_response": "Vyber si osobní údaje, které má OpenMates před odesláním modelu skrýt. Spravovat je můžeš v nastavení soukromí."
+    },
+    "focus": {
+      "phrase": "Potřebuješ cílenější odpověď? Dej svému parťákovi konkrétní úkol.",
+      "title": "Režimy zaměření",
+      "description": "Nasměruj chat ke konkrétnímu cíli.",
+      "assistant_response": "Použij režim zaměření a nasměruj chat ke konkrétnímu cíli. Dostupné režimy najdeš v Aplikacích."
+    },
+    "memories": {
+      "phrase": "Neustálé opakování unavuje. Ulož si kontext, který si mají tvoji parťáci pamatovat.",
+      "title": "Vzpomínky",
+      "description": "Ukládej si užitečné předvolby a kontext.",
+      "assistant_response": "Ukládej si užitečné předvolby a kontext jako vzpomínky a pak si vyber, co mohou tvoji parťáci používat."
+    },
+    "events": {
+      "phrase": "Hledáš, co podniknout? Objev akce ve svém okolí.",
+      "title": "Najít místní akce",
+      "description": "Hledej kurzy, setkání a další akce.",
+      "assistant_response": "Použij vyhledávání akcí a najdi kurzy a setkání ve svém okolí. Vyber místo a téma a zjisti, co se děje poblíž."
+    },
+    "collective": {
+      "phrase": "Tisíce zvířat se pohybují jako jedno, bez dirigenta.",
+      "title": "Kolektivní chování zvířat",
+      "description": "Jak skupiny zvířat koordinují pohyb a rozhodování.",
+      "assistant_response": "Jak skupiny zvířat koordinují pohyb a rozhodování."
+    },
+    "alexandria": {
+      "phrase": "Nejslavnější starověká knihovna byla také výzkumnou institucí.",
+      "title": "Alexandrijská knihovna",
+      "description": "Jedno z nejslavnějších center vědění starověkého světa.",
+      "assistant_response": "Jedno z nejslavnějších center vědění starověkého světa."
+    },
+    "tensegrity": {
+      "phrase": "Některé konstrukce jako by se vznášely díky skryté práci tahových sil.",
+      "title": "Tensegrita",
+      "description": "Konstrukce stabilizované rovnováhou tahu a tlaku.",
+      "assistant_response": "Konstrukce stabilizované rovnováhou tahu a tlaku."
+    },
+    "quotes": {
+      "phrase": "Chceš ověřit odpověď? Požádej OpenMates o citaci ze zdroje.",
+      "title": "Citace z důvěryhodných zdrojů",
+      "description": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď.",
+      "assistant_response": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
+    },
+    "image_detection": {
+      "phrase": "Zajímá tě, zda obrázek vytvořila AI? Nahraj ho a prozkoumej příznaky.",
+      "title": "Rozpoznávání obrázků AI",
+      "description": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu.",
+      "assistant_response": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
+    },
+    "incognito": {
+      "phrase": "Potřebuješ dočasnou konverzaci? Nech ji mimo uloženou historii chatů.",
+      "title": "Anonymní chaty",
+      "description": "Začni dočasný chat, pokud ho nechceš ukládat do historie.",
+      "assistant_response": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
+    },
+    "privacy": {
+      "phrase": "Prohlédni si ochranu OpenMates dřív, než budeš nastavení naléhavě potřebovat.",
+      "title": "Nastavení soukromí",
+      "description": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě.",
+      "assistant_response": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
+    }
+  },
+  "sv": {
+    "antikythera": {
+      "phrase": "Ett antikt skeppsvrak dolde en maskin som förutspådde himlavalvet.",
+      "title": "Antikytheramekanismen",
+      "description": "En antik grekisk handdriven modell av kosmos.",
+      "assistant_response": "Antikytheramekanismen använde kugghjul av brons för att modellera astronomiska cykler. Utforska hur antika ingenjörer förutspådde himlavalvet."
+    },
+    "bioluminescence": {
+      "phrase": "Vissa djur skapar sitt eget ljus. Kemins bakom är förvånansvärt elegant.",
+      "title": "Bioluminescens",
+      "description": "Levande organismer som producerar ljus genom kemi.",
+      "assistant_response": "Organismer lyser för jakt, kamouflage, kommunikation och försvar. Utforska hur kemi blir till ljus."
+    },
+    "fermi": {
+      "phrase": "Om universum är så stort, varför verkar det då så tyst?",
+      "title": "Fermiparadoxen",
+      "description": "Spänningen mellan sannolikheten för utomjordiskt liv och bristen på tydliga bevis.",
+      "assistant_response": "Fermiparadoxen frågar varför vi inte har hittat några övertygande bevis på utomjordiska civilisationer. Utforska möjliga svar."
+    },
+    "export": {
+      "phrase": "Behåll din egen säkerhetskopia. Exportera dina OpenMates-data när du behöver det.",
+      "title": "Exportera dina OpenMates-data",
+      "description": "Säkerhetskopiera chattar, inställningar, minnen med mera.",
+      "assistant_response": "Exportera en kopia av dina OpenMates-data från kontoinställningarna. Logga in för att komma åt dina krypterade kontodata."
+    },
+    "pii": {
+      "phrase": "Vill du ha starkare integritetskontroller? Lägg till personuppgifter som OpenMates ska dölja.",
+      "title": "Anpassad PII-identifiering",
+      "description": "Skydda personuppgifter före modellanrop.",
+      "assistant_response": "Välj personuppgifter som OpenMates ska dölja före ett modellanrop. Gå till integritetsinställningarna för att hantera dem."
+    },
+    "focus": {
+      "phrase": "Behöver du ett mer fokuserat svar? Ge din mate en specifik uppgift.",
+      "title": "Fokuslägen",
+      "description": "Styr en chatt mot ett specifikt mål.",
+      "assistant_response": "Använd ett fokusläge för att styra en chatt mot ett specifikt mål. Utforska tillgängliga lägen i Appar."
+    },
+    "memories": {
+      "phrase": "Det blir tjatigt att upprepa sig. Spara sammanhang som dina mates bör komma ihåg.",
+      "title": "Minnen",
+      "description": "Spara användbara preferenser och sammanhang.",
+      "assistant_response": "Spara användbara preferenser och sammanhang som minnen, och välj sedan vad dina mates får använda."
+    },
+    "events": {
+      "phrase": "Letar du efter något att göra? Upptäck evenemang nära dig.",
+      "title": "Hitta lokala evenemang",
+      "description": "Sök efter kurser, träffar och andra evenemang.",
+      "assistant_response": "Använd evenemangssökning för att hitta kurser och träffar nära dig. Välj plats och ämne för att se vad som händer i närheten."
+    },
+    "collective": {
+      "phrase": "Tusentals djur rör sig som ett, utan dirigent.",
+      "title": "Kollektivt djurbeteende",
+      "description": "Hur djurgrupper samordnar rörelser och beslut.",
+      "assistant_response": "Hur djurgrupper samordnar rörelser och beslut."
+    },
+    "alexandria": {
+      "phrase": "Antikens mest berömda bibliotek var också en forskningsinstitution.",
+      "title": "Biblioteket i Alexandria",
+      "description": "Ett av antikens mest berömda kunskapscentrum.",
+      "assistant_response": "Ett av antikens mest berömda kunskapscentrum."
+    },
+    "tensegrity": {
+      "phrase": "Vissa konstruktioner tycks sväva tack vare dragkrafternas dolda arbete.",
+      "title": "Tensegritet",
+      "description": "Konstruktioner som stabiliseras av balansen mellan drag och tryck.",
+      "assistant_response": "Konstruktioner som stabiliseras av balansen mellan drag och tryck."
+    },
+    "quotes": {
+      "phrase": "Vill du kontrollera ett svar? Be OpenMates citera källan.",
+      "title": "Citat från tillförlitliga källor",
+      "description": "Be dina mates granska källor och citera raderna som stöder ett svar.",
+      "assistant_response": "Be dina mates granska källor och citera raderna som stöder ett svar."
+    },
+    "image_detection": {
+      "phrase": "Undrar du om en bild skapats med AI? Ladda upp den och granska tecknen.",
+      "title": "Identifiera AI-bilder",
+      "description": "Ladda upp en bild och granska tecken på AI-generering direkt i chatten.",
+      "assistant_response": "Ladda upp en bild och granska tecken på AI-generering direkt i chatten."
+    },
+    "incognito": {
+      "phrase": "Behöver du ett tillfälligt samtal? Håll det utanför din sparade chatthistorik.",
+      "title": "Inkognitochattar",
+      "description": "Starta tillfälliga chattar när du inte vill spara dem i historiken.",
+      "assistant_response": "Starta tillfälliga chattar när du inte vill spara dem i historiken."
+    },
+    "privacy": {
+      "phrase": "Se hur OpenMates skyddar dina uppgifter innan du behöver inställningarna akut.",
+      "title": "Sekretessinställningar",
+      "description": "Hantera dolda personuppgifter, anslutna konton och automatisk radering på ett ställe.",
+      "assistant_response": "Hantera dolda personuppgifter, anslutna konton och automatisk radering på ett ställe."
+    }
+  },
+  "he": {
+    "antikythera": {
+      "phrase": "ספינה טרופה עתיקה הכילה מכונה שחזתה את השמיים.",
+      "title": "מנגנון אנטיקיתרה",
+      "description": "מודל יווני עתיק של הקוסמוס המופעל ידנית.",
+      "assistant_response": "מנגנון אנטיקיתרה השתמש בגלגלי שיניים מברונזה כדי לדמות מחזורים אסטרונומיים. גלה כיצד מהנדסים עתיקים חזו את השמיים."
+    },
+    "bioluminescence": {
+      "phrase": "יש בעלי חיים שמייצרים אור בעצמם. הכימיה הזו אלגנטית להפליא.",
+      "title": "ביולומינסנציה",
+      "description": "אורגניזמים חיים המפיקים אור באמצעות תהליכים כימיים.",
+      "assistant_response": "אורגניזמים זוהרים לצורכי ציד, הסוואה, תקשורת והגנה. גלה כיצד כימיה הופכת לאור."
+    },
+    "fermi": {
+      "phrase": "אם היקום כל כך גדול, למה הוא נראה כל כך שקט?",
+      "title": "פרדוקס פרמי",
+      "description": "המתח בין הסבירות לקיום חיים מחוץ לכדור הארץ לבין היעדר ראיות ברורות.",
+      "assistant_response": "פרדוקס פרמי שואל מדוע לא מצאנו ראיות משכנעות לציוויליזציות חוץ-ארציות. גלה תשובות אפשריות."
+    },
+    "export": {
+      "phrase": "שמור גיבוי משלך. ייצא את נתוני ה-OpenMates שלך בכל עת שתצטרך.",
+      "title": "ייצוא נתוני ה-OpenMates שלך",
+      "description": "גבה צ'אטים, הגדרות, זיכרונות ועוד.",
+      "assistant_response": "ייצא עותק של נתוני ה-OpenMates שלך מהגדרות החשבון. התחבר כדי לגשת לנתוני החשבון המוצפנים שלך."
+    },
+    "pii": {
+      "phrase": "רוצה בקרת פרטיות חזקה יותר? הוסף פרטים אישיים ש-OpenMates צריכה להסתיר.",
+      "title": "זיהוי PII מותאם אישית",
+      "description": "הגן על פרטים אישיים לפני קריאות למודל.",
+      "assistant_response": "בחר פרטים אישיים ש-OpenMates תסתיר לפני קריאה למודל. בדוק את הגדרות הפרטיות כדי לנהל אותם."
+    },
+    "focus": {
+      "phrase": "צריך תשובה ממוקדת יותר? תן ל-mate שלך תפקיד ספציפי.",
+      "title": "מצבי מיקוד",
+      "description": "כוון את הצ'אט לעבר יעד ספציפי.",
+      "assistant_response": "השתמש במצב מיקוד כדי לכוון את הצ'אט לעבר יעד ספציפי. גלה את המצבים הזמינים ב'אפליקציות'."
+    },
+    "memories": {
+      "phrase": "לחזור על עצמך זה מעייף. שמור הקשר שה-mates שלך צריכים לזכור.",
+      "title": "זיכרונות",
+      "description": "שמור העדפות והקשרים שימושיים.",
+      "assistant_response": "שמור העדפות והקשרים שימושיים כזיכרונות, ואז בחר במה ה-mates שלך יכולים להשתמש."
+    },
+    "events": {
+      "phrase": "מחפשים מה לעשות? גלו אירועים בקרבתכם.",
+      "title": "מצאו אירועים מקומיים",
+      "description": "חפשו שיעורים, מפגשים ואירועים נוספים.",
+      "assistant_response": "השתמשו בחיפוש אירועים כדי למצוא שיעורים ומפגשים מקומיים. בחרו מקום ונושא כדי לראות מה קורה בקרבתכם."
+    },
+    "collective": {
+      "phrase": "אלפי בעלי חיים נעים כאחד, ללא מנצח.",
+      "title": "התנהגות קולקטיבית של בעלי חיים",
+      "description": "כיצד קבוצות בעלי חיים מתאמות תנועה והחלטות.",
+      "assistant_response": "כיצד קבוצות בעלי חיים מתאמות תנועה והחלטות."
+    },
+    "alexandria": {
+      "phrase": "הספרייה המפורסמת ביותר בעת העתיקה הייתה גם מוסד מחקר.",
+      "title": "הספרייה הגדולה של אלכסנדריה",
+      "description": "אחד ממרכזי הידע המפורסמים ביותר בעולם העתיק.",
+      "assistant_response": "אחד ממרכזי הידע המפורסמים ביותר בעולם העתיק."
+    },
+    "tensegrity": {
+      "phrase": "מבנים מסוימים נראים מרחפים בזכות פעולת המתיחה הנסתרת.",
+      "title": "טנסגריטי",
+      "description": "מבנים המתייצבים באמצעות איזון בין מתיחה ללחיצה.",
+      "assistant_response": "מבנים המתייצבים באמצעות איזון בין מתיחה ללחיצה."
+    },
+    "quotes": {
+      "phrase": "רוצים לבדוק תשובה? בקשו מ־OpenMates לצטט את המקור התומך.",
+      "title": "ציטוטים ממקורות אמינים",
+      "description": "אפשר לבקש מהעוזרים לבדוק מקורות ולצטט את השורות שתומכות בתשובה.",
+      "assistant_response": "אפשר לבקש מהעוזרים לבדוק מקורות ולצטט את השורות שתומכות בתשובה."
+    },
+    "image_detection": {
+      "phrase": "תוהים אם תמונה נוצרה באמצעות AI? העלו אותה ובדקו את הסימנים.",
+      "title": "זיהוי תמונות AI",
+      "description": "העלו תמונה ובדקו סימנים ליצירה באמצעות AI ישירות בצ׳אט.",
+      "assistant_response": "העלו תמונה ובדקו סימנים ליצירה באמצעות AI ישירות בצ׳אט."
+    },
+    "incognito": {
+      "phrase": "צריכים שיחה זמנית? השאירו אותה מחוץ להיסטוריית הצ׳אטים השמורה.",
+      "title": "צ׳אטים בגלישה בסתר",
+      "description": "פתחו צ׳אטים זמניים כשאינכם רוצים לשמור אותם בהיסטוריה.",
+      "assistant_response": "פתחו צ׳אטים זמניים כשאינכם רוצים לשמור אותם בהיסטוריה."
+    },
+    "privacy": {
+      "phrase": "בדקו כיצד OpenMates מגן על המידע לפני שתזדקקו להגדרות בדחיפות.",
+      "title": "בקרות פרטיות",
+      "description": "נהלו הסתרת מידע אישי, חשבונות מחוברים ומחיקה אוטומטית במקום אחד.",
+      "assistant_response": "נהלו הסתרת מידע אישי, חשבונות מחוברים ומחיקה אוטומטית במקום אחד."
+    }
+  }
+}

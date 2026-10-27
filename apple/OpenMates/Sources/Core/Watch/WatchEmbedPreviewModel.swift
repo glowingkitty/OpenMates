@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.offline.recent-cohort, apple-watch.embeds.read-only-fullscreen
 // Watch embed preview contract.
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.compact-layout, apple-watch.embeds.read-only-fullscreen
@@ -180,6 +182,7 @@ struct WatchEmbedDetailContent: Equatable, Sendable {
     var imageData: Data?
     var audioData: Data?
     var audioSource: WatchAudioSource?
+    var retainedMediaKey: String?
     var tableHeaders: [String] = []
     var tableRows: [[String]] = []
     var latitude: Double?
@@ -256,6 +259,9 @@ struct WatchEmbedDetailContent: Equatable, Sendable {
             let record = allRecords[id] ?? EmbedRecord(id: id, type: "web-website", status: .finished,
                 data: nil, parentEmbedId: embed.id, appId: "web", skillId: nil, embedIds: nil, createdAt: nil)
             return WatchEmbedPreviewMapper.makeModel(for: record, chatId: chatId)
+        }
+        if result.imageData != nil || result.imageURL != nil || result.audioSource != nil {
+            result.retainedMediaKey = WatchRetainedMedia.identity(chatID: chatId, embed: embed)
         }
         return result
     }
@@ -964,7 +970,7 @@ enum WatchMessageContentSanitizer {
         case "ice": return "ICE"
         case "ic": return "IC"
         case "ec": return "EC"
-        case "flixtrain", "flixzug": return "FlixTrain"
+        case "ExampleCoach", "ExampleCoachzug": return "ExampleCoach"
         default:
             return raw.count <= 4 ? raw.uppercased() : raw.capitalized
         }

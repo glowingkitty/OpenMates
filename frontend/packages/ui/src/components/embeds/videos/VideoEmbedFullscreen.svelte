@@ -24,7 +24,9 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
   import { text } from '@repo/ui';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -86,12 +88,12 @@
   let url = $derived(typeof dc.url === 'string' ? dc.url : (typeof attrs.url === 'string' ? attrs.url : ''));
   let title = $derived(typeof dc.title === 'string' ? dc.title : (typeof attrs.title === 'string' ? attrs.title : undefined));
   let propVideoId = $derived(typeof dc.video_id === 'string' ? dc.video_id : (typeof dc.videoId === 'string' ? dc.videoId : (typeof attrs.videoId === 'string' ? attrs.videoId : undefined)));
-  let restoreFromPip = data.restoreFromPip ?? false;
+  let restoreFromPip = $derived(data.restoreFromPip ?? false);
 
   // Build metadata object from decodedContent
-  let metadata: VideoMetadata | undefined = (() => {
+  let metadata: VideoMetadata | undefined = $derived.by(() => {
     // Check if we have enough metadata fields to construct a VideoMetadata object
-    let hasMetadata = $derived(dc.channel_name || dc.thumbnail || dc.duration_seconds || dc.view_count);
+    const hasMetadata = dc.channel_name || dc.thumbnail || dc.duration_seconds || dc.view_count;
     if (!hasMetadata) return undefined;
     return {
       title: typeof dc.title === 'string' ? dc.title : undefined,
@@ -111,7 +113,7 @@
       likeCount: typeof dc.like_count === 'number' ? dc.like_count : undefined,
       publishedAt: typeof dc.published_at === 'string' ? dc.published_at : undefined,
     } as VideoMetadata;
-  })();
+  });
   
   // ===========================================
   // State: Video Information
@@ -436,19 +438,42 @@
   }
 
   $effect(() => {
-    if (!isVideoPlaying) {
-      return;
-    }
-
-    const syncAnchor = () => {
-      updateFullscreenAnchor();
+    if (!isVideoPlaying) return;
+    const slot = videoPlayingSpacerEl || videoThumbnailWrapperEl;
+    if (!slot) return;
+    const overlay = slot.closest('.unified-embed-fullscreen-overlay');
+    const scrollport = slot.closest('.content-area');
+    let frame: number | undefined;
+    const syncAnchor = () => { updateFullscreenAnchor(); };
+    const scheduleAnchorSync = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = undefined; syncAnchor(); });
+    };
+    const afterShellMotion = (event: Event) => {
+      if (event.target === overlay && (event as TransitionEvent).propertyName === 'transform') syncAnchor();
     };
 
+    // The sibling iframe survives fullscreen remounts. Its anchor must follow
+    // the slot after the shell's opening translation, not retain a transient
+    // offscreen rect captured while restoring from PiP.
     syncAnchor();
-    window.addEventListener('resize', syncAnchor);
+    const resizeObserver = new ResizeObserver(scheduleAnchorSync);
+    resizeObserver.observe(slot);
+    const shellObserver = new MutationObserver(scheduleAnchorSync);
+    if (overlay) {
+      shellObserver.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+      overlay.addEventListener('transitionend', afterShellMotion);
+    }
+    scrollport?.addEventListener('scroll', scheduleAnchorSync, { passive: true });
+    window.addEventListener('resize', scheduleAnchorSync);
 
     return () => {
-      window.removeEventListener('resize', syncAnchor);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      shellObserver.disconnect();
+      overlay?.removeEventListener('transitionend', afterShellMotion);
+      scrollport?.removeEventListener('scroll', scheduleAnchorSync);
+      window.removeEventListener('resize', scheduleAnchorSync);
     };
   });
   
@@ -574,7 +599,9 @@
   });
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ url, title: displayTitle, channel_name: channelName, description, published_at: publishedAt }}
+  mediaLayout="immersive"
   appId="videos"
   skillId="video"
   embedHeaderTitle={displayTitle}
@@ -589,26 +616,24 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
-  {navigateDirection}
+  navigateDirection={navigateDirection ?? undefined}
   {showChatButton}
   {onShowChat}
 >
   {#snippet embedHeaderCta()}
     <!-- Open on YouTube CTA - always visible in header when URL is available -->
     {#if url}
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="open-on-youtube-button"
-      >
-        {$text('embeds.open_on_youtube')}
-      </a>
+      <EmbedHeaderCtaButton href={url} label={$text('embeds.open_on_youtube')} />
     {/if}
   {/snippet}
 
-  {#snippet content()}
-    <div class="video-container">
+  {#snippet summary()}
+    {#if duration?.formatted}<ResultEmbedInfo icon="clock" label={duration.formatted} value={duration.formatted} />{/if}
+    {#if viewCount}<ResultEmbedInfo icon="eye" label={formatViewCount(viewCount)} value={formatViewCount(viewCount)} />{/if}
+    {#if likeCount}<ResultEmbedInfo icon="thumbs-up" label={formatLikeCount(likeCount)} value={formatLikeCount(likeCount)} />{/if}
+  {/snippet}
+  {#snippet media()}
+    <div class="video-container" class:with-playback-actions={isVideoPlaying && !!videoId && !!embedUrl}>
       <!-- Video thumbnail with play button -->
       <!-- Only show thumbnail when video is NOT playing -->
       {#if !isVideoPlaying && videoId && thumbnailUrl}
@@ -616,7 +641,7 @@
           <img 
             src={thumbnailUrl} 
             alt={displayTitle}
-            class="video-thumbnail"
+            class="result-primary-media video-thumbnail"
             loading="lazy"
             crossorigin="anonymous"
             onerror={(e) => {
@@ -693,27 +718,10 @@
         </div>
       {/if}
       
-      <!-- Views and likes - displayed below the buttons with icons -->
-      {#if (viewCount || likeCount) && !isVideoPlaying}
-        <div class="video-stats-row">
-          {#if viewCount}
-            <span class="stat-item">
-              <span class="stat-icon icon_visible"></span>
-              {formatViewCount(viewCount)}
-            </span>
-          {/if}
-          {#if viewCount && likeCount}
-            <span class="stat-separator">•</span>
-          {/if}
-          {#if likeCount}
-            <span class="stat-item">
-              <span class="stat-icon icon_thumb_up"></span>
-              {formatLikeCount(likeCount)}
-            </span>
-          {/if}
-        </div>
-      {/if}
-      
+
+    </div>
+  {/snippet}
+  {#snippet detailContent()}
       <!-- Video title - displayed prominently below stats -->
       {#if displayTitle && !isVideoPlaying}
         <div class="video-title-row">
@@ -756,9 +764,8 @@
           <p class="description-text">{description}</p>
         </div>
       {/if}
-    </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
   /* ===========================================
@@ -766,14 +773,22 @@
      =========================================== */
   
   .video-container {
+    --video-action-height: 41px;
+    --video-extra-media-height: 0px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-8);
     width: 100%;
-    margin-top: var(--spacing-10);
+    margin-top: 0;
   }
   
+  /* Budget the separately visible PiP rail as well as the actual player.
+     The shared media allowance already excludes the measured followup field. */
+  .video-container.with-playback-actions {
+    --video-extra-media-height: calc(var(--video-action-height) + var(--spacing-8) + 8px);
+  }
+
   /* ===========================================
      Video Thumbnail with Play Button
      =========================================== */
@@ -781,19 +796,19 @@
   .video-thumbnail-wrapper {
     position: relative;
     width: 100%;
-    max-width: 780px;
+    max-width: calc(max(1rem, calc(var(--result-media-max-height, max(12rem, calc(100dvh - 27rem))) - var(--video-extra-media-height))) * 16 / 9);
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-7);
     overflow: hidden;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-20);
     box-shadow: var(--shadow-md);
-    margin-top: var(--spacing-8);
+    margin-top: 0;
   }
   
   .video-thumbnail {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
   
@@ -849,7 +864,7 @@
     justify-content: center;
     gap: var(--spacing-6);
     margin: 8px 0;
-    max-width: 780px;
+    max-width: 100%;
     width: 100%;
   }
   
@@ -890,7 +905,7 @@
     font-size: var(--font-size-small);
     color: var(--color-grey-60);
     margin-top: var(--spacing-2);
-    max-width: 780px;
+    max-width: 100%;
     width: 100%;
   }
   
@@ -915,47 +930,18 @@
      Video Stats (Views/Likes) - Below Buttons
      =========================================== */
   
-  .video-stats-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-4);
-    font-size: var(--font-size-xs);
-    color: var(--color-grey-60);
-    margin-top: var(--spacing-8);
-  }
   
-  .stat-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    color: var(--color-grey-60);
-  }
   
-  .stat-icon {
-    width: 16px;
-    height: 16px;
-    background-color: var(--color-grey-60);
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-  }
   
-  .stat-separator {
-    color: var(--color-grey-40);
-  }
   
   /* ===========================================
      Video Description
      =========================================== */
   
   .video-description {
-    max-width: 780px;
+    max-width: 100%;
     width: 100%;
-    margin-top: var(--spacing-8);
+    margin-top: 0;
     padding: 0 16px;
     box-sizing: border-box;
   }
@@ -983,9 +969,9 @@
      The actual video is rendered by VideoIframe in ActiveChat. */
   .video-playing-spacer {
     width: 100%;
-    max-width: 780px;
+    max-width: calc(max(1rem, calc(var(--result-media-max-height, max(12rem, calc(100dvh - 27rem))) - var(--video-extra-media-height))) * 16 / 9);
     aspect-ratio: 16 / 9;
-    margin-top: var(--spacing-8);
+    margin-top: 0;
     /* Transparent - the actual video is shown by VideoIframe */
   }
   
@@ -1001,42 +987,13 @@
     gap: var(--spacing-5);
     flex-wrap: wrap;
     width: 100%;
-    max-width: 780px;
-    margin-top: var(--spacing-8);
+    max-width: 100%;
+    margin-top: 0;
   }
   
   /* Open on YouTube button - styled as button but is an <a> link */
-  .open-on-youtube-button {
-    /* Apply button styles from buttons.css */
-    background-color: var(--color-button-primary);
-    padding: 6px 25px;
-    border-radius: var(--radius-8);
-    border: none;
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--easing-in-out);
-    min-width: 112px;
-    height: 41px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-font-button);
-    font-family: var(--button-font-family);
-    font-size: var(--button-font-size);
-    font-weight: var(--button-font-weight);
-    text-decoration: none;
-  }
   
-  .open-on-youtube-button:hover {
-    background-color: var(--color-button-primary-hover);
-    scale: 1.02;
-  }
   
-  .open-on-youtube-button:active {
-    background-color: var(--color-button-primary-pressed);
-    scale: 0.98;
-    filter: none;
-  }
   
   /* Tip creator button - rounded button with icon only (commented out for now) */
   /*
@@ -1077,7 +1034,7 @@
     cursor: pointer;
     transition: all var(--duration-fast) var(--easing-in-out);
     width: 41px;
-    height: 41px;
+    height: var(--video-action-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;

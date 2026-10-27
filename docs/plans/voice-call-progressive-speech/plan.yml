@@ -1,0 +1,44 @@
+schema_version: 2
+profile: concise
+status: verified
+id: voice-call-progressive-speech
+title: Ephemeral progressive voice playback
+goal: "While Mistral is streaming back the audio, we must directly play it. What we store is text only."
+objective: Stream call speech immediately without storing call audio; keep explicit Speak generation and caching separate.
+authorization: The user explicitly approved streamed call playback, then explicitly clarified that voice calls store conversation text rather than generated speech audio. Later manual Speak independently generates and caches audio. This user-authored clarification supersedes the earlier replay-file proposal and authorizes implementation without another confirmation round.
+task: TASK-9275
+specification_refs:
+  - id: feature.video-call
+    version: 11
+  - id: feature.assistant-response-speech
+    version: 9
+  - id: feature.ai-model-routing
+    version: 9
+  - id: feature.chats
+    version: 7
+scope:
+  - Register or confirm an encrypted personal draft atomically before call transport starts, preserving its Project context and server deletion fences.
+  - Keep the realtime transcription connection alive through genuine microphone silence without billing synthetic audio as user input.
+  - Stream approved complete voice prose clauses and waiting confirmations from Mistral to the owning call without retaining audio.
+  - Preserve normal automatic model and thinking routing, canonical pre/main/post processing, rich output, consent, ownership and cancellation.
+  - Preserve normal generated encrypted caches for independent manual Speak; unsupported live transports fail visibly rather than wait for complete audio.
+decisions:
+  - Prime the actual shared speech element in Start and consent gestures, retain it through asynchronous setup, and recover refused silent priming without replaying old prose.
+  - Generated Speak expiry and broader storage deletion-race hardening remain separate TASK-443 follow-up work and do not gate this call repair.
+  - Voice startup uses key-only create-or-confirm under the existing account and chat deletion locks. Existing metadata and versions are never rewritten; startup awaits the correlated durable receipt.
+  - Use one provider request per claimed live execution attempt. Stream failure never silently requests another synthesis; a later explicit manual Speak uses its own generation and cache.
+  - Send bounded transient audio on a separate authenticated event scoped to the exact active call connection. Never persist or log plaintext chunks.
+  - Fence source version, execution attempt and chunk order. Only provider completion and drained buffers allow normal end-of-stream.
+  - Preserve the shared audio element, actual playback position and existing fully heard clause boundaries.
+  - Treat a completion CAS retry as recovered only after its correlated authoritative refresh and terminal receipt; unresolved conflicts and error toasts remain failures.
+  - Live completion is content-free accounting only. No call audio object, upload, generated audio embed or replay cache is created; partial failure preserves only heard-text progress.
+  - Settle exact submitted characters once after completed live synthesis. Keep failure charging and explicit manual generation separate.
+  - Keep revision reconciliation with its existing Task owner and integrate its published repair for live verification.
+required_checks:
+  - Focused transaction, metadata-handler and client bootstrap tests; isolated Project-created unsent-draft call startup with registration acknowledged before transport.
+  - Focused provider, worker, routing, playback-controller and queue unit tests plus relevant lint.
+  - Isolated GitHub backend and voice-call browser regression checks against immutable source.
+  - Deployed real-inference call with actual native audio progress, two canonical turns, a 45-second quiet gap, no unintended end and no unhandled revision conflict or error toast.
+  - Actual progressive playback begins before the same segment and attempt's provider-end event, with zero call audio assets or uploads.
+  - Record actual final-transcript-to-playback latency with automatic routing; do not equate provider readiness with audible playback.
+  - python3 scripts/plan_validate.py docs/plans/voice-call-progressive-speech/plan.yml

@@ -15,6 +15,9 @@
 # becomes the primary source and app.yml `focuses:` entries are removed.
 
 import hashlib
+import json
+from functools import lru_cache
+from pathlib import Path
 import logging
 import os
 import re
@@ -92,6 +95,40 @@ def parse_skill_md(file_path: str) -> Dict[str, Any]:
     return merged
 
 
+def _instruction_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and not value.strip().startswith("[T:")
+
+
+@lru_cache(maxsize=4)
+def _compiled_focus_translations(path: str, modified: int) -> Dict[str, Any]:
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle).get("focus_modes", {})
+
+
+def authored_focus_translations(app_id: str, focus_id: str) -> Dict[str, str]:
+    """Find real authored fallback text without manufacturing translation keys.
+
+    YAML is authoritative in a checkout. Deployed services can use their mounted
+    compiled English catalogue, without requiring frontend source in the image.
+    Locale-specific selection stays with the translation service/display layer.
+    """
+    root = Path(__file__).resolve().parents[3]
+    source_root = Path(os.getenv("TRANSLATIONS_SOURCES_DIR", root / "frontend/packages/ui/src/i18n/sources"))
+    source = source_root / "focus_modes" / f"{app_id}_{focus_id}.yml"
+    if source.is_file():
+        with source.open(encoding="utf-8") as handle:
+            data = yaml.load(handle, Loader=UniqueFocusYamlLoader) or {}
+        return {field: row["en"].strip() for field in ("systemprompt", "process")
+                if isinstance(row := data.get(field), dict) and _instruction_text(row.get("en"))}
+    locale_root = Path(os.getenv("TRANSLATIONS_DIR", root / "frontend/packages/ui/src/i18n/locales"))
+    catalogue = locale_root / "en.json"
+    if not catalogue.is_file():
+        return {}
+    data = _compiled_focus_translations(str(catalogue), catalogue.stat().st_mtime_ns).get(f"{app_id}_{focus_id}", {})
+    return {field: row["text"].strip() for field in ("systemprompt", "process")
+            if isinstance(row := data.get(field), dict) and _instruction_text(row.get("text"))}
+
+
 def load_focus_mode_from_skill_md(file_path: str, app_id: str) -> Dict[str, Any]:
     """
     Parse a SKILL.md file into a dict shaped for AppFocusDefinition.
@@ -128,9 +165,13 @@ def load_focus_mode_from_skill_md(file_path: str, app_id: str) -> Dict[str, Any]
         "id": focus_id,
         "name_translation_key": name_translation_key,
         "description_translation_key": description_translation_key,
-        "process_translation_key": process_translation_key,
-        "systemprompt_translation_key": systemprompt_translation_key,
     }
+
+    translations = authored_focus_translations(app_id, focus_id)
+    if "process" in translations:
+        result["process_translation_key"] = process_translation_key
+    if "systemprompt" in translations:
+        result["systemprompt_translation_key"] = systemprompt_translation_key
 
     # Pass-through fields that map 1:1 from frontmatter to AppFocusDefinition.
     _copy_if_present(raw, result, "default_enabled")

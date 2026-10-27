@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -7,7 +8,7 @@ function renderedProviderName(providerName: string): string {
 	const aliases: Record<string, string> = {
 		BFL: 'Black Forest Labs',
 		Brave: 'Brave Search',
-		'FlixBus / FlixTrain': 'Flix',
+		'ExampleCoach / ExampleCoach': 'ExampleCoach',
 		Mistral: 'Mistral AI',
 		ProtonMail: 'Proton Mail'
 	};

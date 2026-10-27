@@ -92,10 +92,25 @@ test.use({
 test.describe.serial('Audio recording and assistant speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,message-input.audio.editable-transcript,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
+	// contract-test: direct surface=gui.web assertions=message-input.audio.realtime-voxtral3,assistant-speech.preference.chat-scoped-default-off,message-input.audio.editable-transcript,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
 	test('sends corrected transcript text and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
+		// The isolated replay has no paid-provider credentials. Model only the
+		// runtime capability response here; speech storage and delivery stay real.
+		let speechProviderAvailable = true;
+		const metadataUrl = /\/v1\/apps\/metadata(?:\?.*)?$/;
+		await page.route(metadataUrl, async (route: any) => {
+			const response = await route.fetch();
+			const data = await response.json();
+			data.assistant_speech_available = speechProviderAvailable;
+			const audio = data.apps?.audio ?? {};
+			const otherSkills = (audio.skills ?? []).filter((skill: { id: string }) => skill.id !== 'speak');
+			data.apps = { ...data.apps, audio: { ...audio, skills: speechProviderAvailable
+				? [...otherSkills, { id: 'speak', providers: [{ name: 'ElevenLabs' }] }]
+				: otherSkills } };
+			await route.fulfill({ response, json: data });
+		});
 		await page.addInitScript(() => {
 			let nextElementId = 1;
 			const elementIds = new WeakMap<HTMLMediaElement, number>();
@@ -118,6 +133,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
         const generationRequests: number[] = [];
         const registeredSpeechSegments = new Set<string>();
         let cancelledSpeechRequests = 0;
+		const speechRejections: string[] = [];
 		const sentChatProtocolEvents: Array<{ type: string; chatId?: string }> = [];
         page.on('websocket', (socket: any) => {
             socket.on('framesent', (event: { payload: string | Buffer }) => {
@@ -143,6 +159,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
             socket.on('framereceived', (event: { payload: string | Buffer }) => {
                 try {
                     const frame = JSON.parse(String(event.payload));
+                    if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'error') {
+                        speechRejections.push(frame.payload.error);
+                    }
                     if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'accepted') {
                         acceptedSpeechSegments = frame.payload.segments.map((segment: { request_sequence: number; status: string }) => ({
                             request_sequence: segment.request_sequence, status: segment.status,
@@ -172,7 +191,8 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptions++;
 		});
 		await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
-			socket.send(JSON.stringify({ type: 'session.ready' }));
+			socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-3-0' }));
+            socket.send(JSON.stringify({ type: 'transcription.text.delta', text: 'Live preview while speaking.' }));
 			socket.onMessage((payload: string) => {
 				if (JSON.parse(payload).type !== 'input_audio.end') return;
 				socket.send(JSON.stringify({ type: 'transcription.done', transcript: TRANSCRIPTION_TEXT, model: 'test-realtime' }));
@@ -234,7 +254,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await mic.dispatchEvent('mousedown');
 		const recording = page.getByTestId('record-overlay');
 		await expect(recording).toBeVisible({ timeout: 10_000 });
-		await page.waitForTimeout(700);
+		await expect(recording.getByTestId('recording-live-transcript')).toContainText('Live preview while speaking.');
 		await recording.getByTestId('record-finish-button').click();
 		await expect(editor).toHaveText(TRANSCRIPTION_TEXT, { timeout: 30_000 });
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');
@@ -366,6 +386,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			await selectNextParagraph();
 		}
 		await expect(waveform).not.toHaveAttribute('data-segment-id', firstSegmentId || '');
+		// Moving from a short clip to prose must reach playable audio, even when
+		// the preceding request registered many deferred paragraph identities.
+		await expect(player).toHaveAttribute('data-status', 'playing', { timeout: SPEECH_TIMEOUT_MS });
+		expect(speechRejections).not.toContain('rate_limited');
 		await expect(player.locator('[data-testid="assistant-speech-waveform-region"][data-position="current"]')).toHaveCount(1);
 		await expect(player.getByTestId('assistant-speech-previous-chapter')).toBeVisible();
 		await expectNoPlayerOverlap(page, player);
@@ -407,6 +431,16 @@ test.describe.serial('Audio recording and assistant speech', () => {
 
 		await expect(player).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false');
+		await player.getByTestId('assistant-speech-close').click();
+		// Reload the actual owned chat to prove provider availability controls
+		// private generation, including when the sidebar is closed.
+		speechProviderAvailable = false;
+		await page.reload();
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
+		speechProviderAvailable = true;
+		await page.reload();
+		await expect(page.getByTestId('assistant-message-speak').last()).toBeVisible({ timeout: 30_000 });
 		await deleteActiveChat(page, log);
 	});
 });

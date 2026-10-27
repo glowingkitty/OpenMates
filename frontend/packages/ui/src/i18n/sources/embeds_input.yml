@@ -1,0 +1,10 @@
+image_used:
+  context: Label beside source image thumbnails on a skill result
+  en: Image used
+  de: Verwendetes Bild
+  verified_by_human: []
+open_image:
+  context: Accessible button label opening an input image at full size
+  en: Open source image
+  de: Quellbild öffnen
+  verified_by_human: []

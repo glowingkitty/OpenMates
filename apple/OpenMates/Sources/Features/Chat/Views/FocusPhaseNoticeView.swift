@@ -65,6 +65,8 @@ struct AgentContextNoticeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             switch event {
+            case .memoriesLoaded(let receipt):
+                LoadedMemoryPillsView(memories: receipt.memories)
             case .rulesLoaded(_, let guides):
                 disclosure(LocalizationManager.shared.text("rules.loaded", replacements: ["count": String(guides.count)]),
                            identifier: "loaded-rules-details")

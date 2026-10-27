@@ -36,22 +36,22 @@ search.description:
   ru: Ищите встречи, конференции и местные мероприятия.
   ja: ミートアップ、会議、地域イベントを探す。
   ko: 밋업, 컨퍼런스, 로컬 이벤트를 찾아보세요.
-  it: Trova meetup, conferenze ed eventi locali.
-  tr: Meetup, konferans ve yerel etkinlikleri bulun.
-  vi: Tìm meetup, hội nghị và sự kiện địa phương.
-  id: Temukan meetup, konferensi, dan acara lokal.
+  it: Trova Gathering, conferenze ed eventi locali.
+  tr: Gathering, konferans ve yerel etkinlikleri bulun.
+  vi: Tìm Gathering, hội nghị và sự kiện địa phương.
+  id: Temukan Gathering, konferensi, dan acara lokal.
   pl: Znajdź meetupy, konferencje i lokalne wydarzenia.
   nl: Vind meetups, conferenties en lokale evenementen.
   ar: ابحث عن لقاءات ومؤتمرات وأحداث محلية.
   hi: मीटअप, कॉन्फ्रेंस और स्थानीय इवेंट खोजें।
-  th: ค้นหา meetup การประชุม และกิจกรรมท้องถิ่น
+  th: ค้นหา Gathering การประชุม และกิจกรรมท้องถิ่น
   cs: Najděte meetupy, konference a místní akce.
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.
   verified_by_human: []
 
 search.how_to_use.1:
-  context: Example instruction for events search skill - topic-based meetup
+  context: Example instruction for events search skill - topic-based Gathering
   en: "Find **AI meetups** in Berlin this weekend"
   de: Finde KI-Meetups in Berlin dieses Wochenende
   zh: 查找本周末柏林的AI聚会
@@ -61,15 +61,15 @@ search.how_to_use.1:
   ru: Найди AI-митапы в Берлине в эти выходные
   ja: 今週末ベルリンのAIミートアップを探して
   ko: 이번 주말 베를린의 AI 밋업 찾아줘
-  it: Trova meetup sull'IA a Berlino questo weekend
+  it: Trova Gathering sull'IA a Berlino questo weekend
   tr: Bu hafta sonu Berlin'deki yapay zeka buluşmalarını bul
-  vi: Tìm meetup AI ở Berlin cuối tuần này
-  id: Temukan meetup AI di Berlin akhir pekan ini
+  vi: Tìm Gathering AI ở Berlin cuối tuần này
+  id: Temukan Gathering AI di Berlin akhir pekan ini
   pl: Znajdź meetupy AI w Berlinie w ten weekend
   nl: Vind AI-meetups in Berlijn dit weekend
   ar: ابحث عن لقاءات الذكاء الاصطناعي في برلين هذا الأسبوع
   hi: इस सप्ताहांत बर्लिन में AI मीटअप खोजें
-  th: ค้นหา meetup AI ในเบอร์ลินสุดสัปดาห์นี้
+  th: ค้นหา Gathering AI ในเบอร์ลินสุดสัปดาห์นี้
   cs: Najdi AI meetupy v Berlíně tento víkend
   sv: Hitta AI-meetups i Berlin den här helgen
   he: "מצא **מפגשי AI** בברלין בסוף השבוע הזה"

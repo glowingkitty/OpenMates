@@ -56,3 +56,18 @@ async def test_registry_lease_loss_fails_closed() -> None:
         await renew_active_call(cache, **base)
     with pytest.raises(ValueError, match="not authorized"):
         await require_active_call(cache, **base, message_id="anything", role="user")
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.privacy
+@pytest.mark.asyncio
+async def test_status_session_lookup_requires_active_owner_chat_binding():
+    from backend.shared.python_utils.voice_call_registry import active_call_session
+    cache = Cache()
+    base = dict(user_id="owner", session_id="call-session", chat_id="call-chat", call_id=uuid.uuid4().hex)
+    await register_active_call(cache, **base)
+    lookup = {key: base[key] for key in ("user_id", "chat_id", "call_id")}
+    assert await active_call_session(cache, **lookup) == "call-session"
+    for changed in ({"user_id": "other"}, {"chat_id": "different"}, {"call_id": "malformed"}, {"call_id": uuid.uuid4().hex}):
+        assert await active_call_session(cache, **{**lookup, **changed}) is None
+    await finalize_active_call(cache, **base)
+    assert await active_call_session(cache, **lookup) is None

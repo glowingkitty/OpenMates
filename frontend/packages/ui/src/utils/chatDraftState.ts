@@ -44,6 +44,32 @@ export function isPersistedDraftOnlyChat(
   return isDraftOnlyChatSurface(chat);
 }
 
+/** Keep a pending lookup on its composer, including its first durable draft ID. */
+export function isComposerLookupChatCurrent(input: {
+  openingChatId: string | null;
+  openingDraftChatId: string | null;
+  openingLoadGeneration: number;
+  currentChat: Chat | null | undefined;
+  currentDraftChatId: string | null;
+  currentLoadGeneration: number;
+}): boolean {
+  const currentChatId = input.currentChat?.chat_id ?? null;
+  if (currentChatId === input.openingChatId) {
+    return !!input.openingChatId || (
+      input.currentLoadGeneration === input.openingLoadGeneration &&
+      input.currentDraftChatId === input.openingDraftChatId
+    );
+  }
+  // Adoption advances the load generation once; a different reserved ID,
+  // established chat or intervening navigation cannot inherit this lookup.
+  return !input.openingChatId && !!input.openingDraftChatId
+    && currentChatId === input.openingDraftChatId
+    && input.currentDraftChatId === input.openingDraftChatId
+    && isPersistedDraftOnlyChat(input.currentChat)
+    && input.currentLoadGeneration >= input.openingLoadGeneration
+    && input.currentLoadGeneration <= input.openingLoadGeneration + 1;
+}
+
 /** First-turn send proof independent of welcome/draft presentation transitions. */
 export type FirstTurnComposerReason = 'eligible_shell' | 'eligible_draft' | 'unauthenticated' |
   'team' | 'no_chat' | 'draft_mismatch' | 'owner_mismatch' | 'chat_scope' |
@@ -110,4 +136,18 @@ export function canBindUnclaimedFreshShell(input: {
 export function isFirstTurnComposerContext(input: Parameters<typeof classifyFirstTurnComposerContext>[0]): boolean {
   const reason = classifyFirstTurnComposerContext(input);
   return reason === 'eligible_shell' || reason === 'eligible_draft';
+}
+
+/** A late draft save may activate only the composer that still owns that ID. */
+export function canActivatePersistedComposerDraft(input: {
+  persistedChatId: string;
+  selectedChatId: string | null;
+  currentChatId: string | null;
+  temporaryChatId: string | null;
+  draftChatId: string | null;
+}): boolean {
+  const owner = input.currentChatId ?? input.temporaryChatId;
+  return input.draftChatId === input.persistedChatId &&
+    owner === input.persistedChatId &&
+    (!input.selectedChatId || input.selectedChatId === input.persistedChatId);
 }

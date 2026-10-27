@@ -10,6 +10,8 @@
 const defaultProps = {
   id: "preview-image-embed-1",
   filename: "golden-gate-sunset.jpg",
+  src: "/images/examples/group1.jpg",
+  localOnly: true,
   status: "finished" as const,
   isMobile: false,
   onFullscreen: () => {},
@@ -39,6 +41,8 @@ export const variants = {
   legacyEncrypted: {
     ...defaultProps,
     id: "preview-image-embed-legacy-encrypted",
+    src: undefined,
+    localOnly: false,
     filename: "legacy-encrypted.png",
     s3BaseUrl: "https://fixture.invalid",
     s3Files: {
@@ -55,6 +59,8 @@ export const variants = {
   v2Encrypted: {
     ...defaultProps,
     id: "preview-image-embed-v2-encrypted",
+    src: undefined,
+    localOnly: false,
     filename: "v2-encrypted.png",
     s3BaseUrl: "https://fixture.invalid",
     s3Files: {

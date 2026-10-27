@@ -13,6 +13,7 @@ vite.config.ts.timestamp-*
 # Generated documentation data (regenerated on build)
 src/lib/generated/docs-manifest.json
 static/generated/
+static/pii-runtime/
 
 # Generated PWA service worker files (legacy @vite-pwa/sveltekit output)
 # static/sw.js is intentionally tracked as an unregister-only migration endpoint.

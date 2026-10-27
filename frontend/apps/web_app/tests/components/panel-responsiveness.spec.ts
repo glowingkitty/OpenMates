@@ -4,7 +4,7 @@ import { expect, test } from '../helpers/cookie-audit';
 // contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
 test('settings and history opening do not resize the chat on every animation frame', async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto('/#chat-id=example-ai-workshops-meetups-berlin');
+  await page.goto('/#chat-id=example-gigantic-airplanes');
   await expect(page.getByTestId('chat-history-container')).toBeVisible();
   for (const name of ['Open settings menu', 'Toggle menu']) {
     const button = page.getByRole('button', { name, exact: true });
@@ -81,7 +81,7 @@ test('unresolved fullscreen identity never renders a generic orb banner', async 
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('inline links forward their badge identity and mount into the already-open pane', async ({ page }) => {
-  await page.goto('/#chat-id=example-ai-workshops-meetups-berlin');
+  await page.goto('/#chat-id=example-gigantic-airplanes');
   const link = page.getByRole('link', { name: 'Event Details & RSVP', exact: true }).first();
   await expect(link).toBeVisible();
   const identity = page.evaluate(() => new Promise<{ appId?: string; title?: string }>((resolve) => {

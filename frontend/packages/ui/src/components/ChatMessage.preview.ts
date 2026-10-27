@@ -9,7 +9,15 @@
  */
 
 import { embedStore } from '../services/embedStore';
+import { chatSyncService } from '../services/chatSyncService';
 import { createAssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
+import { parse as parseYaml } from 'yaml';
+import { communityGardenWelcomeMelodyChat as mediaMusic } from '../demo_chats/data/example_chats/community-garden-welcome-melody';
+import { communityGardenVolunteerChimeChat as mediaAudio } from '../demo_chats/data/example_chats/community-garden-volunteer-chime';
+import { communityGardenSunflowerIllustrationChat as mediaImage } from '../demo_chats/data/example_chats/community-garden-sunflower-illustration';
+import musicSource from '../i18n/sources/example_chats/community_garden_welcome_melody.yml?raw';
+import audioSource from '../i18n/sources/example_chats/community_garden_volunteer_chime.yml?raw';
+import imageSource from '../i18n/sources/example_chats/community_garden_sunflower_illustration.yml?raw';
 import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
 
 // Preview-only navigation observation for focused click tests.
@@ -27,9 +35,9 @@ embedStore.registerStaticEmbed({
 	appId: 'events',
 	content: JSON.stringify({
 		type: 'event_result',
-		title: 'Local founders meetup',
-		provider: 'eventbrite',
-		url: 'https://example.org/meetup',
+		title: 'Local founders Gathering',
+		provider: 'ExampleTickets',
+		url: 'https://example.com/fixture',
 		date_start: '2026-10-06T18:30:00+02:00',
 		date_end: '2026-10-06T20:00:00+02:00',
 		timezone: 'Europe/Berlin',
@@ -110,6 +118,29 @@ if (typeof document !== 'undefined') {
   document.addEventListener('preview:finish-second-skill', () => seedLiveSkill('preview-live-second', 'finished'));
 }
 
+// A persisted call artifact is a durable message while its skill still runs.
+const voiceArtifactSkillId = 'preview-voice-artifact-skill';
+const voiceArtifactSourceId = 'preview-voice-artifact-source';
+embedStore.registerStaticEmbed({ embedId: voiceArtifactSourceId, type: 'images-image', appId: 'images', skillId: 'upload',
+  content: JSON.stringify({ type: 'image', filename: 'saved-call-source.jpg', previewImageUrl: '/images/examples/group1.jpg' }) });
+function seedVoiceArtifact(status: 'processing' | 'finished') {
+  embedStore.setInMemoryOnly(`embed:${voiceArtifactSkillId}`, {
+    embed_id: voiceArtifactSkillId, type: 'app-skill-use', app_id: 'web', skill_id: 'search', status,
+    content: JSON.stringify({ type: 'app_skill_use', app_id: 'web', skill_id: 'search', status,
+      query: 'Identify this saved camera frame', input_embed_ids: [voiceArtifactSourceId], results: [] }),
+  });
+  if (typeof document !== 'undefined') chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: voiceArtifactSkillId, status, chat_id: 'preview-chat', isProcessing: status === 'processing' },
+  }));
+}
+seedVoiceArtifact('processing');
+if (typeof document !== 'undefined') {
+  document.addEventListener('preview:finish-voice-artifact', () => seedVoiceArtifact('finished'));
+}
+const voiceArtifactDocument = createAssistantRenderPlan([
+  '```json', JSON.stringify({ type: 'app_skill_use', embed_id: voiceArtifactSkillId, app_id: 'web', skill_id: 'search' }), '```',
+].join('\n'), { phase: 'final' }).document;
+
 /** Default props — shows a user message */
 const defaultProps = {
 	role: 'user' as const,
@@ -126,8 +157,52 @@ const defaultProps = {
 
 export default defaultProps;
 
+// Real retained generation fixtures, including an echoed parent link from older
+// saved/live responses. The result child must stay inline after deduplication.
+function generatedMediaPreview(fixture: typeof mediaMusic, source: string, streaming = false) {
+  const parent = fixture.embeds.find(embed => !embed.parent_embed_id)!;
+  for (const embed of fixture.embeds) embedStore.registerStaticEmbed({
+    embedId: embed.embed_id, type: embed.type, content: embed.content,
+    parentEmbedId: embed.parent_embed_id, embedIds: embed.embed_ids,
+  });
+  const markdown = `${parseYaml(source).message_2.en}\n\n[!](embed:${parent.embed_id})`;
+  return { ...defaultProps, role: 'assistant' as const,
+    content: createAssistantRenderPlan(markdown, { phase: streaming ? 'streaming' : 'final', chatId: fixture.chat_id }).document,
+    status: streaming ? 'streaming' as const : 'synced' as const,
+    original_message: { chat_id: fixture.chat_id, created_at: 1, role: 'assistant', content: markdown } };
+}
+
+const lostImagePreview = generatedMediaPreview(mediaImage, imageSource);
+const lostImageParent = mediaImage.embeds.find(embed => !embed.parent_embed_id)!;
+const retainedImageInvocation = { type: 'paragraph', content: [{ type: 'embed', attrs: {
+  type: 'app-skill-use', id: lostImageParent.embed_id, contentRef: `embed:${lostImageParent.embed_id}`,
+  app_id: 'images', skill_id: 'generate', status: 'finished',
+} }] };
+const lostImageContent = { type: 'doc', content: [retainedImageInvocation,
+  { type: 'paragraph', content: [{ type: 'text', text: 'The saved illustration follows.' }] },
+  { type: 'paragraph', content: [{ type: 'text', text: '!' }] },
+] };
+
 /** Named variants for different message types and states */
 export const variants = {
+  speechAvailable: {
+    ...defaultProps, role: 'assistant' as const, content: 'A response ready to speak.',
+    onSpeak: () => { document.documentElement.dataset.previewSpeechRequested = 'true'; },
+  },
+  speechUnavailable: {
+    ...defaultProps, role: 'assistant' as const, content: 'A response ready to speak.',
+  },
+  voiceCallProcessingArtifact: { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+    content: voiceArtifactDocument, currentChatId: 'preview-chat',
+    original_message: { message_id: 'voice-artifact-assistant', chat_id: 'preview-chat', role: 'assistant' as const,
+      status: 'synced' as const, call_persistence_v1: { call_id: 'preview-call-artifact', entries: [] } } },
+  durableProcessingArtifact: { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+    content: voiceArtifactDocument, currentChatId: 'preview-chat' },
+  generatedMusic: generatedMediaPreview(mediaMusic, musicSource),
+  generatedAudio: generatedMediaPreview(mediaAudio, audioSource),
+  generatedImage: generatedMediaPreview(mediaImage, imageSource),
+  generatedImageLostReferences: { ...lostImagePreview, content: lostImageContent },
+  generatedMusicStreaming: generatedMediaPreview(mediaMusic, musicSource, true),
   voiceUserSending: {
     ...defaultProps, content: 'Spoken words', status: 'sending' as const,
     original_message: { message_id: 'voice-user', chat_id: 'preview-chat', role: 'user' as const,
@@ -170,7 +245,7 @@ export const variants = {
     content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'embed', attrs: {
       type: 'focus-mode-activation', id: 'preview-legacy-focus', app_id: 'web', focus_id: 'web-research', focus_mode_name: 'Deep research', status: 'finished',
     } }] }, { type: 'paragraph', content: [{ type: 'text', text: 'A concise research answer.' }] }] },
-    original_message: { chat_id: 'example-us-egg-prices-deep', created_at: 1781095355, role: 'assistant', content: '' },
+    original_message: { chat_id: 'demo-activity-parent', created_at: 1781095355, role: 'assistant', content: '' },
   },
 	anonymousFeatureNotice: {
 		...defaultProps,

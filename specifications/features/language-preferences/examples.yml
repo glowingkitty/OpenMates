@@ -1,0 +1,46 @@
+schema_version: 1
+specification: feature.language-preferences@1
+resolution:
+  - id: german-browser
+    given: A first-time visitor prefers German (de-DE) in their browser and has no saved language choice.
+    when: They open the website or web app.
+    then: German is selected automatically wherever supported.
+    assertion_ids: [language-preferences.resolution]
+  - id: english-override
+    given: A German-browser visitor previously chose English explicitly.
+    when: They reload or navigate between website and app.
+    then: English remains selected until they change it or choose Automatic.
+    assertion_ids: [language-preferences.resolution]
+startup:
+  - id: slow-german-dictionary
+    given: A visitor has selected German and the app translation download is slow.
+    when: They reload the app.
+    then: A neutral loading shell precedes German interface text; English interface text never flashes.
+    assertion_ids: [language-preferences.first-paint]
+  - id: german-server-html
+    given: A German-browser visitor opens the public website with JavaScript disabled.
+    when: The server returns the landing page.
+    then: The heading, navigation and metadata are already German, and the cache cannot substitute an English visitor's page.
+    assertion_ids: [language-preferences.first-paint]
+controls:
+  - id: choose-deutsch
+    given: The interface is English and the browser prefers German.
+    when: The visitor opens Language from Account and selects Deutsch.
+    then: The interface changes to German, the control shows the actual selection, and a reload retains German.
+    assertion_ids: [language-preferences.manual-choice]
+  - id: automatic-and-links
+    given: A visitor previously chose English in a German browser.
+    when: They choose Automatic and open Privacy from settings.
+    then: German becomes active and the German privacy page opens; failed account persistence is shown without losing the local choice.
+    assertion_ids: [language-preferences.manual-choice]
+content:
+  - id: german-legal
+    given: German is active.
+    when: The visitor reads terms and privacy sections about storage, audio or retention.
+    then: The prose is German and the legal links preserve German.
+    assertion_ids: [language-preferences.content-language]
+  - id: german-inspirations
+    given: German is active but the German inspiration pool is sparse or a saved inspiration set is English.
+    when: The visitor loads or switches to German inspirations.
+    then: German fallback content is shown without English filler, and previously opened chats remain available.
+    assertion_ids: [language-preferences.content-language]

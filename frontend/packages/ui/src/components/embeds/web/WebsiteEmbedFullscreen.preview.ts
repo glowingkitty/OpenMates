@@ -11,7 +11,7 @@ const decodedContent = {
   description:
     "Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.",
   favicon: "https://svelte.dev/favicon.png",
-  image: "",
+  image: "/store-examples/events-1.webp",
 };
 
 /** Default props — shows a fullscreen website view with metadata */

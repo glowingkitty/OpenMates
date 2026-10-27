@@ -14,6 +14,17 @@
 -->
 
 <script lang="ts">
+  import { saveAppsSearchWithNotice } from '../../../services/appsWorkspaceLibraryService';
+  import { getContext } from 'svelte';
+  import AppsRequestComposer from '../../apps/AppsRequestComposer.svelte';
+  import { get } from 'svelte/store';
+  import { activeTeamContext } from '../../../stores/teamStore';
+  import { authStore } from '../../../stores/authState';
+  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+  import { APPS_RESULTS_ACTIONS_CONTEXT, runAppsWorkspaceRequest, type AppsResultsActionsContext, type AppsRequestContext } from '../../../services/appsWorkspaceRequestService';
+  import { queueAppsWorkspaceChatHandoff, queueAppsWorkspaceWorkflowHandoff, captureAppsWorkspaceHandoffGuard } from '../../../services/appsWorkspaceChatHandoffService';
+  import { setCanonicalFullscreenRoute } from '../../../services/embedFullscreenController';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedsMapView from '../EmbedsMapView.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -108,6 +119,45 @@
   let mapViewSourceRefs = $derived(embedId ? [embedId] : []);
   let mapViewHighlightRefs = $derived(initialChildEmbedId ? [initialChildEmbedId] : []);
 
+  const resultOwnerCurrent = captureAppsWorkspaceHandoffGuard();
+  const actions = getContext<AppsResultsActionsContext | undefined>(APPS_RESULTS_ACTIONS_CONTEXT);
+  const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  let submittingRequest = $state(false);
+  let requestError = $state(false);
+  async function context(): Promise<AppsRequestContext> {
+    if (!resultOwnerCurrent()) throw new Error('account_context_changed');
+    const current = captureAppsWorkspaceHandoffGuard();
+    const children = await Promise.all(stringArray(embedIds).flatMap(value => value.split('|')).map(async id => {
+      try { const embed = await resolveEmbed(id);
+        return embed ? { embed_id: id, ...await decodeToonContent(embed.content) } : { embed_id: id };
+      } catch { return { embed_id: id }; }
+    }));
+    if (!current()) throw new Error('account_context_changed');
+    return { skill_id: 'search', embed_id: embedId, chat_id: sourceChat?.chatId ?? (typeof decodedContent.chat_id === 'string' ? decodedContent.chat_id : undefined),
+      input: asRecord(decodedContent.input) ?? { query }, result: { ...decodedContent, children } };
+  }
+  async function toolbarAction(kind: 'save' | 'workflow'): Promise<void> {
+    requestError = false;
+    try {
+      const saved = await context();
+      if (kind === 'save') { if (actions?.onSaveSearch) await actions.onSaveSearch(saved); else await saveAppsSearchWithNotice('maps', saved, undefined, get(activeTeamContext).teamId ?? undefined); }
+      else if (actions?.onCreateWorkflow) await actions.onCreateWorkflow(saved);
+      else await queueAppsWorkspaceWorkflowHandoff({ text: $text('apps_workspace.create_workflow'), context: saved });
+    } catch { requestError = true; }
+  }
+  async function submitFollowup(text: string, attachments: File[]): Promise<boolean> {
+    submittingRequest = true; requestError = false;
+    try {
+      const savedContext = await context();
+      if (actions) return (await actions.onSubmit(text, attachments, savedContext)) !== false;
+      const result = await runAppsWorkspaceRequest({ appId: 'maps', text, attachments, guest: !$authStore.isAuthenticated, teamId: get(activeTeamContext).teamId ?? undefined, context: savedContext,
+        onAccepted: ({ embedId }) => { setCanonicalFullscreenRoute(embedId); },
+        onChat: queueAppsWorkspaceChatHandoff, onWorkflow: queueAppsWorkspaceWorkflowHandoff });
+      if (result.action !== 'execute') onClose();
+      return true;
+    } catch { requestError = true; return false; }
+    finally { submittingRequest = false; }
+  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -126,8 +176,16 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet fixedBottom()}
+    <AppsRequestComposer appId="maps" submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
+    {#if requestError}<p role="alert">{$text('apps_workspace.request_error')}</p>{/if}
+  {/snippet}
   {#snippet content()}
     <div class="maps-search-fullscreen-body">
+      <div class="maps-search-actions">
+        <button type="button" onclick={() => toolbarAction('save')}>{$text('apps_workspace.save_search')}</button>
+        <button type="button" onclick={() => toolbarAction('workflow')}>{$text('apps_workspace.create_workflow')}</button>
+      </div>
       {#if hasChildEmbeds}
         <EmbedsMapView
           id={`${embedId || 'maps-search'}-fullscreen-map-view`}
@@ -135,6 +193,7 @@
           sourceRefs={mapViewSourceRefs}
           highlightRefs={mapViewHighlightRefs}
           interactionMode="select"
+          fullscreen={true}
         />
       {:else}
         <div class="no-results" data-testid="maps-no-results">
@@ -176,13 +235,12 @@
 </UnifiedEmbedFullscreen>
 
 <style>
+  .maps-search-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 8px; }
+  .maps-search-actions button { border:0; border-radius:12px; padding:10px; color:var(--color-font-primary); background:var(--color-grey-10); cursor:pointer; }
   .maps-search-fullscreen-body {
-    --maps-search-fullscreen-header-height: 240px;
-    --maps-search-fullscreen-body-height: calc(100% - var(--maps-search-fullscreen-header-height));
-
     display: flex;
     flex-direction: column;
-    height: var(--maps-search-fullscreen-body-height);
+    height: auto;
     min-height: 360px;
     background: var(--color-bg-secondary);
   }

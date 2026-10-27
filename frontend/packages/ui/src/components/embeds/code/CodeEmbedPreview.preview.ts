@@ -36,6 +36,8 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  shortContent: { ...defaultProps, id: 'legacy-short-code-preview', filename: 'hello.py', language: 'python', lineCount: 1, codeContent: 'print("Hello")', onFullscreen: () => console.info('[Preview] specialized expanded') },
+  tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Editor-only fenced code uses inline content while its embed record is pending. */
 	localFencedCode: {
 		id: 'preview:code-code:local-fenced-code',

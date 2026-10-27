@@ -9,9 +9,9 @@ range:
   to_ref: origin/main
   assume_released: false
 summary:
-  total_commits: 37
+  total_commits: 36
   section_counts:
-    features: 4
+    features: 3
     bug_fixes: 15
     improvements: 0
     docs: 0
@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -171,8 +151,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -196,43 +174,6 @@ sections:
     user_facing: true
     related_features: []
     feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat: use Reddit JSON for social media posts'
-    section: features
-    commits:
-    - 490da3dbd
-    authored_at: '2026-05-21T13:29:46+00:00'
-    changed_paths:
-    - backend/apps/ai/processing/external_result_sanitizer.py
-    - backend/apps/social_media/app.yml
-    - backend/apps/social_media/collection.py
-    - backend/apps/social_media/search_collection.py
-    - backend/apps/social_media/skills/get_posts.py
-    - backend/apps/social_media/skills/search.py
-    - backend/apps/social_media/tasks/get_posts_task.py
-    - backend/apps/social_media/tasks/search_task.py
-    - backend/shared/providers/reddit/__init__.py
-    - backend/shared/providers/reddit/json.py
-    - backend/shared/providers/reddit/rss.py
-    - backend/tests/test_external_result_sanitizer.py
-    - backend/tests/test_reddit_json_provider.py
-    - backend/tests/test_social_media_get_posts_async.py
-    - backend/tests/test_social_media_search_skill.py
-    - docs/architecture/apps/social-media.md
-    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
@@ -287,8 +228,6 @@ sections:
     - backend/shared/providers/bluesky/public.py
     - backend/shared/providers/mastodon/__init__.py
     - backend/shared/providers/mastodon/public.py
-    - backend/shared/providers/reddit/json.py
-    - backend/shared/providers/reddit/rss.py
     - backend/tests/test_async_skill_continuation.py
     - backend/tests/test_bluesky_public_provider.py
     - backend/tests/test_mastodon_public_provider.py
@@ -514,15 +453,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -884,13 +819,6 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'feat: use Reddit JSON for social media posts'
-    commits:
-    - 490da3dbd
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
 marketing_candidates:
   newsletter:
   - title: 'feat: add music generation skill'
@@ -959,13 +887,6 @@ marketing_candidates:
   - title: 'feat: add code output follow-up action'
     commits:
     - 413b7e3ec
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat: use Reddit JSON for social media posts'
-    commits:
-    - 490da3dbd
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1066,8 +987,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: suppress focus same-turn placeholders'
@@ -1089,14 +1008,6 @@ marketing_candidates:
   - title: 'feat: add code output follow-up action'
     commits:
     - 413b7e3ec
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'feat: use Reddit JSON for social media posts'
-    commits:
-    - 490da3dbd
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1129,15 +1040,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: stabilize focus mode reload errors'
@@ -1235,8 +1142,6 @@ sources:
     - backend/shared/providers/bluesky/public.py
     - backend/shared/providers/mastodon/__init__.py
     - backend/shared/providers/mastodon/public.py
-    - backend/shared/providers/reddit/json.py
-    - backend/shared/providers/reddit/rss.py
     - backend/tests/test_async_skill_continuation.py
     - backend/tests/test_bluesky_public_provider.py
     - backend/tests/test_mastodon_public_provider.py
@@ -1408,7 +1313,6 @@ sources:
   - sha: 490da3dbd1a925ac427cfc76f2eb610d6cfc1dc9
     short_sha: 490da3dbd
     authored_at: '2026-05-21T13:29:46+00:00'
-    subject: 'feat: use Reddit JSON for social media posts'
     in_main: true
     in_dev: true
     changed_paths:
@@ -1420,11 +1324,7 @@ sources:
     - backend/apps/social_media/skills/search.py
     - backend/apps/social_media/tasks/get_posts_task.py
     - backend/apps/social_media/tasks/search_task.py
-    - backend/shared/providers/reddit/__init__.py
-    - backend/shared/providers/reddit/json.py
-    - backend/shared/providers/reddit/rss.py
     - backend/tests/test_external_result_sanitizer.py
-    - backend/tests/test_reddit_json_provider.py
     - backend/tests/test_social_media_get_posts_async.py
     - backend/tests/test_social_media_search_skill.py
     - docs/architecture/apps/social-media.md
@@ -1624,8 +1524,6 @@ sources:
     - backend/core/api/app/routes/share.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates introduced a new music generation skill and significantly stabilized Focus Mode. The update also includes
-    improved social media data handling via Reddit JSON and security enhancements for encrypted chat responses.
   released_changes:
   - text: A music generation skill was added, allowing users to create audio content directly within the app. This includes
       new preview and fullscreen embeds.
@@ -1634,8 +1532,7 @@ llm_summary:
       - f5e9f99ac
       - 123abbf19
     release_status: released_main
-  - text: Social media skills now utilize Reddit JSON for more reliable post retrieval and rendering.
-    evidence:
+  - evidence:
       commits:
       - 490da3dbd
     release_status: released_main
@@ -1729,8 +1626,7 @@ llm_summary:
         commits:
         - f5e9f99ac
       reason: A major new creative capability for the platform.
-    - text: Reddit JSON integration for social media posts.
-      evidence:
+    - evidence:
         commits:
         - 490da3dbd
       reason: Improves the reliability and data quality of social media integrations.
@@ -1750,9 +1646,6 @@ llm_summary:
         commits:
         - c610a080c
       reason: This update affects iOS and macOS platforms which are currently disabled.
-    rationale: The music generation skill and Reddit integration represent significant user-facing value, while Focus Mode
-      fixes ensure a stable core experience. Platform-specific work for iOS, macOS, and Tasks remains excluded per feature
-      availability rules.
   social_video_recommendations:
   - idea: Showcase the new music generation skill by prompting for a specific genre and showing the resulting audio embed.
     priority: high

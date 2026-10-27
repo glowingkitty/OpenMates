@@ -585,7 +585,7 @@ struct EmbedFullscreenContainer: View {
 
     private func headerCTA(for embed: EmbedRecord) -> EmbedHeaderCTA? {
         if HostingEmbedKind.isDomain(embed), let url = HostingDomainModel(embed).providerURL {
-            return EmbedHeaderCTA(title: AppStrings.hosting(.openOnGandi), accessibilityIdentifier: "hosting-open-gandi") {
+            return EmbedHeaderCTA(title: AppStrings.openOnProvider(HostingDomainModel(embed).provider), accessibilityIdentifier: "hosting-open-provider") {
                 openExternalURL(url.absoluteString)
             }
         }
@@ -657,8 +657,8 @@ struct EmbedFullscreenContainer: View {
 
         case .fitnessClass:
             guard let url = firstString(["detail_url"], in: data) else { return nil }
-            return EmbedHeaderCTA(title: AppStrings.fitnessOpenProvider("Urban Sports"),
-                                  accessibilityIdentifier: "fitness-open-urban-sports") {
+            return EmbedHeaderCTA(title: AppStrings.fitnessOpenProvider(firstString(["provider_name", "provider"], in: data) ?? host(from: url)),
+                                  accessibilityIdentifier: "fitness-open-provider") {
                 openExternalURL(url)
             }
 
@@ -666,16 +666,7 @@ struct EmbedFullscreenContainer: View {
             guard let url = firstString(["url", "booking_url"], in: data) else { return nil }
             let event = EventResultSummary(embedId: embed.id, data: data)
             let provider = event.providerLabel ?? host(from: url)
-            let normalizedProvider = event.provider?.lowercased() ?? ""
-            let title: String
-            if ["luma", "eventbrite", "meetup"].contains(normalizedProvider) {
-                title = AppStrings.registerOnProvider(provider)
-            } else if ["classictic", "berlin_philharmonic", "bachtrack", "ticketmaster", "eventim", "dice"].contains(normalizedProvider) {
-                title = AppStrings.bookOnProvider(provider)
-            } else {
-                title = AppStrings.openOnProvider(provider)
-            }
-            return EmbedHeaderCTA(title: title) {
+            return EmbedHeaderCTA(title: AppStrings.openOnProvider(provider)) {
                 openExternalURL(url)
             }
 

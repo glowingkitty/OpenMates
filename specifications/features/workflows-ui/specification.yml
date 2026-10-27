@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 10
+version: 11
 status: draft
 title: Workflows Web UI
 summary: 'The Workflows web workspace lets signed-out visitors inspect built-in templates. Authenticated owners
@@ -129,6 +129,7 @@ models:
         route_transition_duration_ms: 320
         route_transition_easing: cubic-bezier(0.32, 0, 0.2, 1)
         route_transition_fades: true
+        route_transition_scales: false
         reduced_motion_disables_nonessential_motion: true
   WorkflowCanonicalControls:
     icons:
@@ -879,13 +880,16 @@ assertions:
     overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show
     only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and
     schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow
-    category gradient. Mobile keeps the same hierarchy with the composer above the safe area.
+    category gradient. Authenticated visitors see the localized heading What do you want to automate next?
+    above their cards, without a redundant Continue where you left off label. Workflows use the shared Chats
+    start geometry and compact-card fit threshold. Mobile keeps the same hierarchy with the composer above the safe area.
   depends_on:
   - models.WorkflowWorkspaceStart
   - examples.workspace_start_layout
 - id: workflows-ui.workspace.continue-priority
   type: behavior
-  must: Continue where you left off shows only owned Workflows, ordered by the first matching priority group — created
+  must: Authenticated owned Workflow cards appear below What do you want to automate next? without a redundant
+    Continue where you left off label, ordered by the first matching priority group — created
     or updated in the last 30 minutes; enabled Workflows scheduled in the next 30 minutes; created or updated in
     the last 24 hours; enabled Workflows scheduled in the next 24 hours; all others. Recent groups and the remaining
     group use the later of creation and update time descending; scheduled groups use their next future run ascending.
@@ -908,16 +912,21 @@ assertions:
   - examples.workflow_library_templates
 - id: workflows-ui.workspace.guest-template-preview
   type: behavior
-  must: "When Workflows are enabled, a signed-out visitor can open the Workflows workspace from the header, browse\
-    \ the built-in template catalog, and inspect a template's readable graph without creating an owned Workflow.\
-    \ The guest surface offers a sign-in/create action and does not request owned Workflow data or expose save,\
-    \ import, enable, run, schedule, or other mutating controls. The existing built-in scheduled and chat-delivery\
-    \ templates cannot execute anonymously. Authentication retains the existing behavior in which selecting a template\
-    \ creates a disabled owned copy for review.\n Inspecting a guest template uses the same node-editor header,\
-    \ request fields and schema layout as the signed-in editor, with a visible working close control. Save is replaced\
-    \ with Signup to customize workflow and an orange Signup button opening the existing signup flow. Guest fields\
-    \ remain read-only without a dropdown-style replacement or faded whole-editor layout; inspecting nodes never\
-    \ enables writes or execution."
+  must: >-
+    When Workflows are enabled, a signed-out visitor can open the Workflows workspace from the header,
+    browse the built-in template catalog, and inspect a template's readable graph without creating an
+    owned Workflow. The guest surface offers a sign-in/create action and does not request owned Workflow
+    data or expose save, import, enable, run, schedule, or other mutating controls. The existing built-in
+    scheduled and chat-delivery templates cannot execute anonymously. Authentication retains the existing
+    behavior in which selecting a template creates a disabled owned copy for review.  Inspecting a guest
+    template uses the same node-editor header, request fields and schema layout as the signed-in editor,
+    with a visible working close control. Save is replaced with Signup to customize workflow and an orange
+    Signup button opening the existing signup flow. Guest fields remain read-only without a dropdown-style
+    replacement or faded whole-editor layout; inspecting nodes never enables writes or execution. The
+    guest start heading is the localized “Explore the workflow automations:”. The bottom composer stays
+    visible; activating it opens the existing signup flow without creating a Workflow. The header settings
+    control remains visible and usable for signed-out visitors. No redundant Continue where you left off
+    label appears.
   depends_on:
   - examples.guest_template_preview
 - id: workflows-ui.workspace.title-first-draft
@@ -992,7 +1001,8 @@ assertions:
 - id: workflows-ui.detail.fullscreen-route-motion
   type: behavior
   must: Opening a Workflow moves it upward from the bottom with a fade, and closing reverses that motion, using
-    the same 320ms cubic-bezier(0.32, 0, 0.2, 1) timing as fullscreen embeds. Reduced-motion preferences disable
+    the same 320ms cubic-bezier(0.32, 0, 0.2, 1) timing as chat detail and fullscreen embeds, without scale.
+    Reduced-motion preferences disable
     the nonessential movement. Temporary animation transforms and compositor hints are released when the movement
     finishes, so a settled or closed Workflow does not retain a permanent animated graphics surface.
   depends_on:
@@ -1319,3 +1329,9 @@ implementation_amendment:
   - jev_workflow_relevance_preprocessing
   - start_ai_chat
   - apple_native_implementation_until_web_confirmation
+
+approval_source:
+  instruction: >-
+    User directly instructed implementation of these October 16 corrections under the existing landing
+    implementation authorization and explicitly said not to repeat landing Specification confirmation. This
+    records the directed scope; no new exact-fingerprint or PDF review is claimed.

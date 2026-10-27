@@ -70,6 +70,8 @@ test('keeps alternative login methods available while passkey login is pending',
 	await page.goto(getE2EDebugUrl('/'));
 	await openSignupInterface(page);
 	await page.getByTestId('tab-login').click();
+	await expect(page.getByTestId('login-email-input')).toBeVisible();
+	await expect(page.getByTestId('tab-signup')).toBeVisible();
 	await page.getByTestId('login-passkey-button').click();
 
 	const useEmailButton = page.getByTestId('login-use-email-button');
@@ -93,6 +95,8 @@ test('keeps alternative login methods available while passkey login is pending',
 	await page.goto(getE2EDebugUrl('/'));
 	await openSignupInterface(page);
 	await page.getByTestId('tab-login').click();
+	await expect(page.getByTestId('login-email-input')).toBeVisible();
+	await expect(page.getByTestId('tab-signup')).toBeVisible();
 	await page.getByTestId('login-passkey-button').click();
 	await expect(useEmailButton).toBeInViewport();
 	await expect(pairLoginButton).toBeInViewport();

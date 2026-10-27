@@ -19,6 +19,7 @@ from backend.shared.python_utils.volatile_embed_authority import (
 
 
 PROTECTED_EMBED_TASK_NAMES = frozenset({
+    "apps.web.tasks.skill_browse",
     "apps.audio.tasks.skill_generate", "apps.audio.tasks.skill_speak",
     "apps.code.tasks.skill_image_to_html", "apps.docs.tasks.generate_docx",
     "apps.images.tasks.skill_generate", "apps.images.tasks.skill_generate_draft",

@@ -29,7 +29,6 @@ import {
   isExampleChat,
   getExampleChatEmbed,
   INTRO_CHATS,
-  LEGAL_CHATS,
 } from "../demo_chats";
 import { extractEmbedReferences } from "./embedResolver";
 
@@ -1029,7 +1028,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
     if (isPublicChat(chatId)) {
       // Public chats (demo, legal, example, newsletter) have messages in-memory, NOT in chatDB
       // getDemoMessages handles all four cases (including newsletter via ALL_NEWSLETTER_CHATS)
-      messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
+      messages = getDemoMessages(chatId, INTRO_CHATS);
     } else {
       // Authenticated user chats — decrypt from IndexedDB
       messages = await chatDB.getMessagesForChat(chatId);

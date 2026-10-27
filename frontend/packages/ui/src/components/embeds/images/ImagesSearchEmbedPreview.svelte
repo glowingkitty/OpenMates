@@ -40,7 +40,7 @@
     id: string;
     /** Search query */
     query: string;
-    /** Search provider (e.g., 'Brave', 'SerpAPI Google Lens') */
+    /** Search provider attribution supplied by the result. */
     provider: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';

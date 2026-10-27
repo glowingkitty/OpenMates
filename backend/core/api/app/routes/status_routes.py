@@ -49,14 +49,13 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("Google", ["google"]),
         ("Cerebras", ["cerebras"]),
         ("Together", ["together"]),
+        ("Inception", ["inception"]),
         ("OpenRouter", ["openrouter"]),
         ("AWS Bedrock", ["aws_bedrock"]),
     ]),
     ("Search & Data", [
         # brave is a provider key; the rest are external service keys
         ("Brave Search", ["brave"]),
-        ("SerpAPI", ["serpapi"]),
-        ("Firecrawl", ["firecrawl"]),
         ("YouTube", ["youtube"]),
         ("Google Maps", ["google_maps"]),
     ]),
@@ -64,14 +63,8 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("FAL (Flux)", ["fal"]),
         ("Recraft", ["recraft"]),
     ]),
-    ("Events & Health", [
-        ("Doctolib", ["doctolib"]),
-        ("Meetup", ["meetup"]),
-        ("Luma Events", ["luma"]),
-    ]),
     ("Travel", [
         ("Travelpayouts", ["travelpayouts"]),
-        ("Transitous", ["transitous"]),
         ("FlightRadar24", ["flightradar24"]),
     ]),
     ("Payment", [

@@ -3,6 +3,7 @@
 // Specification: specifications/architecture/sync/specification.yml
 // Assertions: sync.surface.semantic-parity
 import XCTest
+import Combine
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -12,6 +13,87 @@ import AppKit
 
 @MainActor
 final class WebSocketReconnectTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,sync.surface.semantic-parity
+    func testRealSessionValidationAuthorityObserverPreservesRetryAfterServerFailure() async throws {
+        try await assertAuthorityObserverRecovery(verificationRequired: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testRealSessionVerificationRequirementTerminatesAuthoritySuspendedRetry() async throws {
+        try await assertAuthorityObserverRecovery(verificationRequired: true)
+    }
+
+    private func assertAuthorityObserverRecovery(verificationRequired: Bool) async throws {
+        var validations = 0
+        let accepted = try JSONDecoder().decode(SessionResponse.self, from: Data(
+            #"{"success":true,"user":{"id":"recovery-owner","username":"Fixture"},"wsToken":"current-token"}"#.utf8))
+        let blocked = try JSONDecoder().decode(SessionResponse.self, from: Data(
+            #"{"success":true,"needsDeviceVerification":true}"#.utf8))
+        let auth = AuthManager(sessionValidator: { _, _ in
+            validations += 1
+            if validations == 2 {
+                XCTAssertThrowsError(try AuthManager.requireNetworkAuthority(profile: ServerProfile.current()))
+                if verificationRequired { return blocked }
+                throw APIError.httpError(status: 502, message: "Temporary outage")
+            }
+            return accepted
+        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true },
+            sessionScopeActivator: { _ in })
+        auth.currentUser = accepted.user
+        auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        let originalAuthority = try XCTUnwrap(auth.networkAuthority)
+        let manager = WebSocketManager()
+        defer { manager.disconnect() }
+        manager.debugReconnectDelay = 0
+        var attempts = 0
+        let finished = expectation(description: "bounded real authentication recovery completes")
+        manager.debugConnectionAttempt = {
+            attempts += 1
+            if attempts == 2 { finished.fulfill() }
+        }
+        var suspensions = 0
+        let observer = auth.$networkAuthority.dropFirst().sink { authority in
+            guard authority == nil else { return }
+            suspensions += 1
+            let generation = manager.transportGeneration
+            manager.suspendNetworkAuthority(for: originalAuthority, currentContext: auth.sessionRecoveryContext)
+            XCTAssertEqual(manager.transportGeneration, generation,
+                "The authority observer must preserve the in-flight recovery owner")
+        }
+        defer { observer.cancel() }
+        manager.configureSessionRecovery {
+            guard let context = auth.sessionRecoveryContext else { return .rejected }
+            await auth.recoverSession(expected: context)
+            switch auth.sessionValidationState {
+            case .onlineAuthenticated:
+                return .authenticated(sessionID: context.sessionID, token: auth.webSocketToken)
+            case .requiresReauthentication:
+                finished.fulfill()
+                return .rejected
+            default:
+                return .unavailable
+            }
+        }
+        manager.connect(sessionId: originalAuthority.sessionID, token: auth.webSocketToken)
+        manager.debugFailCurrentConnection()
+        await fulfillment(of: [finished], timeout: 2)
+        await Task.yield()
+        XCTAssertGreaterThanOrEqual(suspensions, 1)
+        XCTAssertEqual(auth.currentUser?.id, "recovery-owner", "Cached encrypted account remains available")
+        if verificationRequired {
+            XCTAssertEqual(validations, 2)
+            XCTAssertEqual(attempts, 1)
+            XCTAssertEqual(manager.connectionState, .disconnected)
+            XCTAssertFalse(auth.hasNetworkAuthority)
+        } else {
+            XCTAssertEqual(validations, 3, "The transient failure must retain validation's retry owner")
+            XCTAssertEqual(attempts, 2)
+            XCTAssertTrue(auth.hasNetworkAuthority)
+            XCTAssertEqual(manager.connectionState, .connecting)
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
     func testBlockedCachedIdentityCannotReconnectOnRepeatedForegroundAttempts() async throws {
         let auth = AuthManager(sessionValidator: { _, _ in

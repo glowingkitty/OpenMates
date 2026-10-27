@@ -196,7 +196,7 @@ async def _finish_revision(directus_service: Any, cache_service: Any, user_id: s
 
 async def _persist_encrypted_call_message(
     *, directus_service: Any, cache_service: Any, user_id: str,
-    user_id_hash: str, session_hash: str, message: dict[str, Any], encryption_service: Any = None,
+    user_id_hash: str, session_hash: str, message: dict[str, Any],
 ) -> tuple[str, int, int, dict[str, Any] | None]:
     """Return outcome, message revision, canonical chat version, and newly settled row."""
     if not session_hash:
@@ -208,15 +208,7 @@ async def _persist_encrypted_call_message(
             message_id=message["message_id"], role=message["role"],
         )
     except ValueError as exc:
-        if encryption_service is None:
-            raise CallMessageError("call_message_not_authorized") from exc
-        from backend.shared.python_utils.voice_action_receipts import require_committed_voice_action
-        try:
-            await require_committed_voice_action(cache_service=cache_service,
-                directus_service=directus_service, encryption_service=encryption_service,
-                user_id=user_id, user_hash=user_id_hash, session_id=session_hash, message=message)
-        except ValueError as receipt_exc:
-            raise CallMessageError("call_message_not_authorized") from receipt_exc
+        raise CallMessageError("call_message_not_authorized") from exc
 
     chat = await directus_service.chat.get_chat_metadata(message["chat_id"])
     if (not chat or chat.get("hashed_user_id") != user_id_hash
@@ -352,13 +344,12 @@ async def _persist_encrypted_call_message(
 
 async def persist_encrypted_call_message(
     *, directus_service: Any, cache_service: Any, user_id: str,
-    user_id_hash: str, session_hash: str, message: dict[str, Any], encryption_service: Any = None,
+    user_id_hash: str, session_hash: str, message: dict[str, Any],
 ) -> tuple[str, int]:
     """Return the existing outcome/message-revision pair for persistence callers."""
     outcome, revision, _messages_v, _changed = await _persist_encrypted_call_message(
         directus_service=directus_service, cache_service=cache_service, user_id=user_id,
         user_id_hash=user_id_hash, session_hash=session_hash, message=message,
-        encryption_service=encryption_service,
     )
     return outcome, revision
 
@@ -366,15 +357,14 @@ async def persist_encrypted_call_message(
 async def handle_call_message_completed(*, manager: Any, cache_service: Any,
                                         directus_service: Any, user_id: str,
                                         user_id_hash: str, session_hash: str,
-                                        device_fingerprint_hash: str, payload: Any,
-                                        encryption_service: Any = None) -> None:
+                                        device_fingerprint_hash: str, payload: Any) -> None:
     request_id = payload.get("request_id") if isinstance(payload, dict) else None
     try:
         message = _validated_message(payload)
         outcome, revision, messages_v, changed = await _persist_encrypted_call_message(
             directus_service=directus_service, cache_service=cache_service,
             user_id=user_id, user_id_hash=user_id_hash,
-            session_hash=session_hash, message=message, encryption_service=encryption_service,
+            session_hash=session_hash, message=message,
         )
         await manager.send_personal_message({"type": "call_message_confirmed", "payload": {
             "request_id": message["request_id"], "chat_id": message["chat_id"],

@@ -1,0 +1,21 @@
+browser_runs:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Opaque immutable run identity; idempotent result recovery."
+    session_id:
+      type: uuid
+      note: "[Indexed] OpenMates session identity; never a provider ID."
+    owner_hash:
+      type: string
+      note: "[Indexed] Owner authorization before result decryption."
+    vault_key_id:
+      type: string
+      note: "User Vault key identifier; no key material."
+    encrypted_payload:
+      type: text
+      note: "[Encrypted] Scanned result, safe screenshot and usage counters."
+    expires_at:
+      type: integer
+      note: "[Indexed] Transient job-result expiry; saved encrypted chat embeds have independent retention."

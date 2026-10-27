@@ -6,6 +6,8 @@ import hashlib
 import json
 import logging
 import re
+import time
+import uuid
 from pathlib import PurePath
 from typing import Any, Mapping, Optional
 
@@ -15,11 +17,15 @@ logger = logging.getLogger(__name__)
 ARTIFACT_LEDGER_VERSION = 1
 MAX_ARTIFACT_REFERENCES = 256
 MAX_ARTIFACT_REF_CHARS = 512
+MAX_IMAGE_ALIAS_EMBEDS = 32
 MAX_HYDRATED_ARTIFACTS = 2
 MAX_HYDRATED_ARTIFACT_CHARS = 32_000
 _SAFE_EMBED_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
 _UPLOAD_REF_SUFFIX = re.compile(r"^(?P<name>.+)-[0-9a-f]{8}-[0-9a-f-]{12,}$", re.IGNORECASE)
+_CLI_UPLOAD_REF = re.compile(r"^[a-z0-9-]{1,40}-[a-f0-9]{6}$")
+_HISTORY_EMBED_FENCE = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
 _INLINE_EMBED_REF = re.compile(r"\(embed:([^\s)#]+)(?:#[^)]*)?\)", re.IGNORECASE)
+_GENERATED_IMAGE_REF = re.compile(r"^generated-images-([0-9a-f]{12})$", re.IGNORECASE)
 _UUID_PREFIX_IN_REF = re.compile(r"(?:^|-)([0-9a-f]{8})(?:-|$)", re.IGNORECASE)
 _DEICTIC_ARTIFACT_REQUEST = re.compile(
     r"\b(?:attach(?:ed|ment)?|upload(?:ed)?|file|document|artifact|image|photo|pdf)\b",
@@ -131,6 +137,15 @@ async def recover_inline_upload_artifacts(
         if not isinstance(content, str):
             continue
         inline_refs.extend(match.group(1) for match in _INLINE_EMBED_REF.finditer(content))
+        for fence in _HISTORY_EMBED_FENCE.finditer(content):
+            try:
+                descriptor = json.loads(fence.group(1))
+            except (ValueError, TypeError):
+                continue
+            if isinstance(descriptor, dict) and descriptor.get("type") == "app_skill_use":
+                embed_id = descriptor.get("embed_id")
+                if isinstance(embed_id, str):
+                    inline_refs.append(embed_id)
     if not inline_refs:
         return {}
 
@@ -147,11 +162,16 @@ async def recover_inline_upload_artifacts(
     ]
     recovered: dict[str, str] = {}
     for artifact_ref in inline_refs:
-        prefix_match = _UUID_PREFIX_IN_REF.search(artifact_ref)
+        if artifact_ref in safe_ids:
+            recovered[artifact_ref] = artifact_ref
+            continue
+        generated_match = _GENERATED_IMAGE_REF.fullmatch(artifact_ref)
+        prefix_match = generated_match or _UUID_PREFIX_IN_REF.search(artifact_ref)
         if not prefix_match:
             continue
         prefix = prefix_match.group(1).casefold()
-        matches = [embed_id for embed_id in safe_ids if embed_id.casefold().startswith(prefix)]
+        matches = [embed_id for embed_id in safe_ids
+                   if (embed_id.replace("-", "") if generated_match else embed_id).casefold().startswith(prefix)]
         if len(matches) == 1:
             recovered[artifact_ref] = matches[0]
     return sanitize_artifact_index(recovered)
@@ -164,6 +184,184 @@ def _normalized_artifact_name(value: str) -> str:
 def _artifact_ref_alias(artifact_ref: str) -> str:
     match = _UPLOAD_REF_SUFFIX.fullmatch(artifact_ref)
     return match.group("name") if match else artifact_ref
+
+
+def _could_alias_image_filename(artifact_ref: str, filename: str) -> bool:
+    """Identify competitors conservatively; never derive an embed ID from a ref."""
+    plain_ref = re.sub(r" \([0-9]+\)$", "", artifact_ref)
+    if _normalized_artifact_name(_artifact_ref_alias(plain_ref)) == _normalized_artifact_name(filename):
+        return True
+    # CLI refs truncate filename:client-UUID to 40 slug characters. Long
+    # filenames can hide the UUID entirely; a matching prefix still vetoes aliases.
+    if _CLI_UPLOAD_REF.fullmatch(artifact_ref):
+        filename_slug = re.sub(r"[^a-z0-9]+", "-", filename.casefold()).strip("-")
+        ref_prefix = artifact_ref.rsplit("-", 1)[0]
+        return bool(filename_slug) and (
+            ref_prefix == filename_slug[:40]
+            if len(filename_slug) >= 40
+            else ref_prefix.startswith(f"{filename_slug}-")
+        )
+    return False
+
+
+async def enrich_historical_image_aliases(
+    *,
+    artifact_index: Optional[Mapping[str, Any]],
+    cache_service: Any,
+    directus_service: Any,
+    encryption_service: Any,
+    user_vault_key_id: Optional[str],
+    user_id: str,
+    user_id_hash: str,
+) -> dict[str, str]:
+    """Add unique original image filenames using only authorized upload metadata.
+
+    IDs come exclusively from the bounded conversation index. Canonical upload
+    slugs are retained verbatim: their client UUIDs need not match server IDs.
+    Unverifiable competing slugs veto an alias, rather than selecting whichever
+    upload remains readable. No image bytes or cache writes are involved.
+    """
+    index = sanitize_artifact_index(artifact_index)
+    if not index or not user_vault_key_id or not user_id or not user_id_hash:
+        return index
+
+    refs_by_id: dict[str, list[str]] = {}
+    for artifact_ref, embed_id in index.items():
+        refs_by_id.setdefault(embed_id, []).append(artifact_ref)
+    filenames: dict[str, set[str]] = {}
+    unresolved_refs: list[str] = []
+    # Newest references first; overflow remains unresolved and can veto aliases.
+    pending = list(reversed(list(refs_by_id.items())))
+    queued_ids = set(refs_by_id)
+    for position, (embed_id, refs) in enumerate(pending):
+        if position >= MAX_IMAGE_ALIAS_EMBEDS:
+            unresolved_refs.extend(refs)
+            continue
+        try:
+            try:
+                record = await cache_service.get_embed_from_cache(embed_id)
+            except Exception as exc:
+                logger.warning("Image alias cache read unavailable (%s)", type(exc).__name__)
+                record = None
+            if record is None:
+                record = await directus_service.embed.get_embed_by_id(embed_id)
+            if not isinstance(record, dict):
+                unresolved_refs.extend(refs)
+                continue
+            # Never bypass a foreign or expired cache entry through DB fallback.
+            if (
+                not (record.get("user_id") == user_id or record.get("hashed_user_id") == user_id_hash)
+                or (record.get("user_id") and record["user_id"] != user_id)
+                or (record.get("hashed_user_id") and record["hashed_user_id"] != user_id_hash)
+                or (record.get("embed_id") and record["embed_id"] != embed_id)
+            ):
+                unresolved_refs.extend(refs)
+                continue
+            expiry = record.get("expires_at")
+            if expiry is not None and (type(expiry) is not int or expiry <= time.time()):
+                unresolved_refs.extend(refs)
+                continue
+            ciphertext = record.get("encrypted_content")
+            fresh_upload = not ciphertext
+            if fresh_upload:
+                # Fresh-upload records are already owner-scoped metadata, not
+                # image bytes. Keep their original absolute processing window.
+                from backend.shared.python_utils.fresh_upload_images import FRESH_UPLOAD_WINDOW_SECONDS
+
+                created_at = record.get("created_at")
+                if (
+                    record.get("user_id") != user_id
+                    or type(created_at) is not int
+                    or type(expiry) is not int
+                    or expiry != created_at + FRESH_UPLOAD_WINDOW_SECONDS
+                    or not 0 <= time.time() - created_at < FRESH_UPLOAD_WINDOW_SECONDS
+                    or not str(record.get("content_type") or "").startswith("image/")
+                    or not isinstance(record.get("files"), dict)
+                    or not record.get("files")
+                    or not isinstance(record.get("vault_wrapped_aes_key"), str)
+                    or not record.get("vault_wrapped_aes_key")
+                ):
+                    unresolved_refs.extend(refs)
+                    continue
+                content = record
+            else:
+                if not isinstance(ciphertext, str):
+                    unresolved_refs.extend(refs)
+                    continue
+                plaintext = await encryption_service.decrypt_with_user_key(ciphertext, user_vault_key_id)
+                from toon_format import decode
+
+                content = decode(plaintext) if plaintext else None
+            if not isinstance(content, dict):
+                unresolved_refs.extend(refs)
+                continue
+            # A terminal generated-image parent is an authenticated manifest,
+            # including when a saved answer has lost every inline child link.
+            # Discover only its explicit children; each child must independently
+            # pass the owner, expiry, decryption and image-content checks above.
+            if (not fresh_upload and content.get("app_id") == "images"
+                    and content.get("skill_id") in {"generate", "generate_draft", "vectorize"}
+                    and content.get("status") == "finished"
+                    and isinstance(content.get("embed_ids"), list)):
+                for child_id in content["embed_ids"][:MAX_IMAGE_ALIAS_EMBEDS]:
+                    try:
+                        child_id = str(uuid.UUID(child_id))
+                    except (ValueError, TypeError, AttributeError):
+                        continue
+                    if child_id not in queued_ids and len(pending) < MAX_IMAGE_ALIAS_EMBEDS:
+                        child_ref = f"generated-images-{child_id.replace('-', '')[:12]}"
+                        pending.append((child_id, [child_ref]))
+                        queued_ids.add(child_id)
+                continue
+            if not fresh_upload and (
+                content.get("app_id") != "images"
+                or content.get("skill_id") not in {"upload", "generate", "generate_draft", "vectorize"}
+                or content.get("type") not in {"image", "generated_image"}
+            ):
+                continue
+            filename = content.get("filename")
+            if not filename and not fresh_upload and content.get("skill_id") != "upload":
+                original = (content.get("files") or {}).get("original") or {}
+                extension = original.get("format") or content.get("output_filetype")
+                if extension in {"svg", "png", "jpg", "jpeg", "webp"}:
+                    filename = f"openmates_generated_image_{embed_id[:8]}.{extension}"
+            if (
+                not isinstance(filename, str)
+                or filename != filename.strip()
+                or not sanitize_artifact_index({filename: embed_id})
+            ):
+                unresolved_refs.extend(refs)
+                continue
+            for artifact_ref in refs:
+                if artifact_ref not in index and len(index) < MAX_ARTIFACT_REFERENCES:
+                    index[artifact_ref] = embed_id
+            filenames.setdefault(filename, set()).add(embed_id)
+        except Exception as exc:
+            logger.warning("Historical image alias metadata unavailable (%s)", type(exc).__name__)
+            unresolved_refs.extend(refs)
+
+    for filename, embed_ids in filenames.items():
+        ambiguous = len(embed_ids) != 1 or any(
+            _could_alias_image_filename(ref, filename)
+            for ref in unresolved_refs
+        )
+        existing = index.get(filename)
+        if existing is not None and (
+            _CLI_UPLOAD_REF.fullmatch(filename)
+            or _UPLOAD_REF_SUFFIX.fullmatch(filename)
+        ):
+            # A user filename can itself equal a different upload's canonical
+            # slug. Never remove or rebind that existing canonical reference.
+            continue
+        if ambiguous:
+            # Bare names from a prior reader are aliases too; do not retain a
+            # latest-wins binding once duplicate uploads make that name unsafe.
+            index.pop(filename, None)
+        elif existing is not None and existing not in embed_ids:
+            continue
+        elif existing is not None or len(index) < MAX_ARTIFACT_REFERENCES:
+            index[filename] = next(iter(embed_ids))
+    return index
 
 
 def _looks_like_file_artifact(artifact_ref: str) -> bool:

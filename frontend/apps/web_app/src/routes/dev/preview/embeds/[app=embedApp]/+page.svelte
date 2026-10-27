@@ -29,6 +29,8 @@
 	import { page } from '$app/state';
 	import { EMBED_APP_SLUGS } from '$lib/devPreviewEmbedApps';
 	import { Icon, theme } from '@repo/ui';
+	import ResolvedEmbedPreview from '@repo/ui/components/embeds/ResolvedEmbedPreview.svelte';
+	import { getComponentPreviewPresentation } from '@repo/ui/types/embedPreviewPresentation';
 
 	// ─── App Registry ─────────────────────────────────────────────────
 
@@ -310,8 +312,8 @@
 				appId: 'events',
 				previewPath: 'embeds/events/EventEmbedPreview',
 				fullscreenPath: 'embeds/events/EventEmbedFullscreen',
-				inlineLinkText: 'AI & ML Berlin Meetup',
-				quoteText: 'AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin.'
+				inlineLinkText: 'AI & ML Berlin Gathering',
+				quoteText: 'AI & Machine Learning Berlin Gathering. March 15, 19:00 at Factory Berlin.'
 			},
 			{
 				skillLabel: 'Search',
@@ -489,7 +491,7 @@
 				previewPath: 'embeds/hosting/HostingDomainEmbedPreview',
 				fullscreenPath: 'embeds/hosting/HostingDomainEmbedFullscreen',
 				inlineLinkText: 'cedarcomet.com',
-				quoteText: 'cedarcomet.com is available via Gandi.'
+				quoteText: 'cedarcomet.com is available via ExampleRegistrar.'
 			}
 		],
 		fitness: [
@@ -499,7 +501,7 @@
 				previewPath: 'embeds/fitness/FitnessSearchEmbedPreview',
 				fullscreenPath: 'embeds/fitness/FitnessSearchEmbedFullscreen',
 				inlineLinkText: 'Yoga classes near Sorauer Str. 12',
-				quoteText: 'Found 3 Urban Sports classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg.',
+				quoteText: 'Found 3 fitness source classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg.',
 				isAppSkill: true
 			}
 		],
@@ -510,7 +512,7 @@
 				previewPath: 'embeds/electronics/ElectronicsSearchEmbedPreview',
 				fullscreenPath: 'embeds/electronics/ElectronicsSearchEmbedFullscreen',
 				inlineLinkText: '12V to 3.3V buck converter',
-				quoteText: 'Found 10 TI WEBENCH buck converter designs. Top pick: TPS564257DRLR.',
+				quoteText: 'Found 10 ExampleComponents buck converter designs. Top pick: TPS564257DRLR.',
 				isAppSkill: true
 			},
 			{
@@ -690,6 +692,17 @@
 	let currentApp = $derived(page.params.app || 'code');
 	let sections = $derived(APP_REGISTRY[currentApp] ?? []);
 	let isUnknownApp = $derived(!(currentApp in APP_REGISTRY));
+	// Bare capture exercises this grouped-showcase mounting path itself, rather
+	// than relying on the separate component route's presentation provider.
+	let captureMode = $derived(page.url.searchParams.get('chrome') === '0');
+	let captureSection = $derived(Number(page.url.searchParams.get('section') || 0));
+	let captureVariant = $derived(page.url.searchParams.get('variant') || 'default');
+	let captureLarge = $derived(page.url.searchParams.get('size') === 'large');
+	let captureContext = $derived(page.url.searchParams.get('context') === 'results' ? 'results' : 'chat');
+	$effect(() => {
+		const requestedTheme = page.url.searchParams.get('theme');
+		if (captureMode && (requestedTheme === 'light' || requestedTheme === 'dark')) theme.set(requestedTheme);
+	});
 
 	// ─── Global toolbar ───────────────────────────────────────────────
 
@@ -1025,8 +1038,9 @@
 	}
 </script>
 
-<div class="showcase-page">
+<div class="showcase-page" class:bare-capture={captureMode}>
 	<!-- App switcher bar -->
+	{#if !captureMode}
 	<header class="app-switcher">
 		<a href="/dev/preview" class="back-link">&#8592; All</a>
 		<nav class="app-pills" aria-label="Switch embed app">
@@ -1056,10 +1070,25 @@
 			</div>
 		</div>
 	</header>
+	{/if}
 
 	<!-- Scrollable content -->
 	<div class="showcase-body" data-testid="showcase-body" style={backgroundStyle}>
-		{#if isUnknownApp}
+		{#if captureMode}
+			{@const section = sections[captureSection]}
+			{@const state = loadedSections[captureSection]}
+			{#if section && state?.PreviewComponent && !state.isLoading && !state.loadError}
+				{@const dataVariants = getDataVariants(state)}
+				{@const [, props] = dataVariants.find(([name]) => name === captureVariant) || dataVariants[0]}
+				<div class="capture-host" class:large-container={captureLarge}
+					data-embed-result-context={section.isAppSkill ? undefined : captureContext}
+					data-testid="showcase-bare-preview">
+					<ResolvedEmbedPreview __previewComponent={state.PreviewComponent}
+						__previewPresentation={getComponentPreviewPresentation(section.previewPath)} {...props} isMobile={false} />
+				</div>
+			{:else if state?.loadError}<p role="alert">{state.loadError}</p>
+			{:else}<p>Loading preview...</p>{/if}
+		{:else if isUnknownApp}
 			<div class="unknown-app" data-testid="unknown-app">
 				<h2>Unknown app: "{currentApp}"</h2>
 				<p>Available: {ALL_APPS.join(', ')}</p>
@@ -1214,11 +1243,11 @@
 										>
 									</h3>
 									<div class="dt-body dt-body--flush dt-body--group-small">
-										<div class="group-scroll-row">
+										<div class="group-scroll-row" data-embed-result-context={section.isAppSkill ? undefined : 'chat'}>
 											{#each dataVars as [vname, vprops]}
 												<div class="group-scroll-item">
 													<div class="group-variant-label">{vname}</div>
-													<Preview {...vprops} isMobile={false} />
+													<ResolvedEmbedPreview __previewComponent={Preview} __previewPresentation={getComponentPreviewPresentation(section.previewPath)} {...vprops} isMobile={false} />
 												</div>
 											{/each}
 										</div>
@@ -1267,7 +1296,7 @@
 												</button>
 											</div>
 											<div class="large-container">
-												<Preview {...slideProps} isMobile={false} />
+												<ResolvedEmbedPreview __previewComponent={Preview} __previewPresentation={getComponentPreviewPresentation(section.previewPath)} {...slideProps} isMobile={false} />
 											</div>
 										</div>
 									</div>
@@ -1335,6 +1364,9 @@
 </div>
 
 <style>
+	.bare-capture .showcase-body { display: flex; align-items: center; justify-content: center; padding: 32px; }
+	.capture-host { max-width: 100%; }
+	.capture-host.large-container { width: 100%; min-width: 0; border: 0; }
 	.showcase-page {
 		display: flex;
 		flex-direction: column;
@@ -1714,8 +1746,8 @@
 		container-name: embed-preview;
 		width: 100%;
 		min-width: 320px;
-		/* 425px ensures preview-large BasicInfosBar is fully visible (card 400px + 15px protrusion + buffer) */
-		min-height: 425px;
+		/* The active assistant result owns its natural height within the shared cap. */
+		min-height: 0;
 		border-radius: 12px;
 		overflow: visible;
 		border: 1px solid var(--color-grey-25);

@@ -24,6 +24,12 @@ const emit = (type: string, payload: Record<string, unknown>) => {
   for (const handler of Array.from(state.handlers.get(type) ?? [])) handler(payload);
 };
 
+// Keep the public barrel real while isolating its unrelated sender domains.
+vi.mock("../sendersChatMessages", () => ({}));
+vi.mock("../sendersChatManagement", () => ({}));
+vi.mock("../sendersDrafts", () => ({}));
+vi.mock("../sendersSync", () => ({}));
+
 vi.mock("../embedStore", () => ({ embedStore: {
   getRawEntry: vi.fn(async () => state.catalogEntry),
   getCatalogContext: vi.fn(async () => {
@@ -48,6 +54,11 @@ vi.mock("../db", () => ({ chatDB: {
 } }));
 vi.mock("../../message_parsing/utils", () => ({ computeSHA256: vi.fn(async (value: string) => `digest:${value}`) }));
 vi.mock("../websocketService", () => ({ webSocketService: {
+  ownEmbedProtocolRequest: vi.fn((_requestId: string, listener: (payload: unknown) => void) => {
+    const listeners = state.handlers.get("error") ?? new Set();
+    listeners.add(listener); state.handlers.set("error", listeners);
+    return () => { listeners.delete(listener); };
+  }),
   on: vi.fn((type: string, handler: (payload: unknown) => void) => {
     const group = state.handlers.get(type) ?? new Set();
     group.add(handler);
@@ -90,7 +101,10 @@ vi.mock("../websocketService", () => ({ webSocketService: {
 import { sendStoreEmbedImpl, flushPendingEmbedOperations } from "../embedSenders";
 import { withCanonicalEmbedWrite } from "../canonicalEmbedWriteCoordinator";
 
-const payload = { embed_id: "embed-1", encrypted_content: "ciphertext" } as StoreEmbedPayload;
+const payload = { embed_id: "embed-1", encrypted_content: "ciphertext", encrypted_type: "encrypted-type",
+  chat_id: "chat-1", hashed_chat_id: "digest:chat-1", hashed_user_id: "digest:owner",
+  app_id: "web", skill_id: "search", version_number: 1, status: "finished",
+} as StoreEmbedPayload;
 const keys = { keys: [{ key_type: "master" }, { key_type: "chat" }] };
 
 beforeEach(() => {
@@ -108,9 +122,12 @@ beforeEach(() => {
   state.catalogEntry = null;
   state.decodedCatalog = undefined;
   state.catalogReads = 0;
-  state.chats = [];
+  state.chats = [{ chat_id: "chat-1", team_id: null }];
   state.pageReads = 0;
   state.rawReads = 0;
+  vi.stubGlobal("fetch", vi.fn(async (_url: string, options: { body: string }) => ({
+    ok: true, status: 200, json: async () => ({ results: JSON.parse(options.body).embed_ids.map((embed_id: string) => ({ embed_id, state: "missing" })) }),
+  })));
 });
 
 describe("canonical embed sender receipts", () => {
@@ -184,6 +201,7 @@ describe("canonical embed sender receipts", () => {
     await sendStoreEmbedImpl({ webSocketConnected_FOR_SENDERS_ONLY: true } as never, payload, keys);
     expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed", "store_embed_keys"]);
     expect(state.queued.size).toBe(1);
+    const durableId = Array.from(state.queued.values())[0].operation_id;
     expect(Array.from(state.queued.values())[0].store_embed_keys_payload).toEqual(keys);
     state.keyFailure = false;
     await flushPendingEmbedOperations();
@@ -191,6 +209,10 @@ describe("canonical embed sender receipts", () => {
       "store_embed", "store_embed_keys", "store_embed", "store_embed_keys",
     ]);
     expect(state.queued.size).toBe(0);
+    const attempts = state.sent.filter((entry) => entry.type === "store_embed");
+    expect(attempts.map((entry) => entry.payload.operation_id)).toEqual([durableId, durableId]);
+    expect(attempts[0].payload.request_id).not.toBe(attempts[1].payload.request_id);
+    expect(attempts[0].payload.canonical_precondition).toEqual({ version: null, ciphertext_sha256: null });
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
@@ -256,7 +278,8 @@ describe("canonical embed sender receipts", () => {
 
 describe("legacy embed catalog context", () => {
   const legacyPayload = {
-    ...payload, hashed_chat_id: "digest:chat-1", encrypted_content: "preview-ciphertext",
+    embed_id: payload.embed_id, encrypted_type: payload.encrypted_type, hashed_user_id: payload.hashed_user_id,
+    hashed_chat_id: "digest:chat-1", encrypted_content: "preview-ciphertext",
   } as StoreEmbedPayload;
   const service = { webSocketConnected_FOR_SENDERS_ONLY: true } as never;
 
@@ -324,14 +347,12 @@ describe("legacy embed catalog context", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
-  it("keeps the original protocol for successfully decoded non-catalog embeds", async () => {
+  it("defers non-catalog legacy embeds without authenticated chat routing", async () => {
     state.catalogEntry = { has_encrypted_content: true };
     state.decodedCatalog = {};
     await sendStoreEmbedImpl(service, legacyPayload);
-    expect(state.sent[0].payload).toMatchObject(legacyPayload);
-    expect(state.sent[0].payload).not.toHaveProperty("app_id");
-    expect(state.sent[0].payload).not.toHaveProperty("chat_id");
-    expect(state.queued.size).toBe(0);
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
@@ -377,7 +398,7 @@ describe("legacy embed catalog context", () => {
     await sendStoreEmbedImpl({ webSocketConnected_FOR_SENDERS_ONLY: false } as never, batchPayload);
     await flushPendingEmbedOperations();
     expect(state.pageReads).toBe(2);
-    expect(state.rawReads).toBe(1);
+    expect(state.rawReads).toBe(3);
     expect(state.queued.size).toBe(0);
     state.chats[2].team_id = "team-after";
     await sendStoreEmbedImpl(service, batchPayload);
@@ -386,9 +407,22 @@ describe("legacy embed catalog context", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
-  it("leaves explicit catalog and authorization context for the server to validate", async () => {
+  it("defers explicit catalog context until its local authorization scope is hydrated", async () => {
     const explicit = { ...legacyPayload, app_id: "images", skill_id: "search", chat_id: "explicit-chat", team_id: "explicit-team" };
     await sendStoreEmbedImpl(service, explicit);
-    expect(state.sent[0].payload).toMatchObject(explicit);
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(1);
+  });
+});
+
+
+describe("public embed sender barrel", () => {
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("exposes the lazy operation result through the actual chat sync sender namespace", async () => {
+    const senders = await import("../chatSyncServiceSenders");
+    const result = await senders.sendStoreEmbedOperationImpl({ webSocketConnected_FOR_SENDERS_ONLY: false } as never, payload);
+    expect(result).toMatchObject({ status: "waiting" });
+    expect(Array.from(state.queued.values())[0]).toMatchObject({ operation_id: result.operation_id, store_embed_payload: payload });
+    expect(state.sent).toEqual([]);
   });
 });

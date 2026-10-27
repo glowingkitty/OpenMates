@@ -35,6 +35,7 @@ test.describe('CLI TUI workflows', () => {
 			'tests/tuiCancellation.test.ts',
 			'tests/tuiWorkflowVersion.test.ts',
 			'tests/tuiAppsWorkspace.test.ts',
+			'tests/tuiAppsRequests.test.ts',
 			'tests/tuiHome.test.ts',
 			'tests/embedRenderers.test.ts',
 			'tests/tuiChatSidebar.test.ts',

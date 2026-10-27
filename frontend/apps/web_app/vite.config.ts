@@ -2,9 +2,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import path from 'path';
 import { docsPlugin } from './scripts/vite-plugin-docs.js';
+import { piiRuntimePlugin } from './scripts/prepare-pii-runtime.mjs';
 
 export default defineConfig({
-	plugins: [sveltekit(), docsPlugin()],
+	plugins: [sveltekit(), docsPlugin(), piiRuntimePlugin()],
 	ssr: {
 		// This workspace package ships TS sources with .js specifiers; Vite must resolve them before Node runs SSR.
 		noExternal: ['@repo/upload-privacy']

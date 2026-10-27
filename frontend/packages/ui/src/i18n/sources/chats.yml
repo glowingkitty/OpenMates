@@ -2127,28 +2127,54 @@ latest_news:
 
 resume_last_chat.title:
   context: Title shown above the resume chat card prompting user to continue their last chat
-  en: Continue where you left off
-  de: Dort fortfahren, wo du aufgehört hast
-  zh: 继续上次的对话
-  es: Continúa donde lo dejaste
-  fr: Reprendre là où vous vous êtes arrêté
-  pt: Continue de onde parou
-  ru: Продолжить с того места, где остановились
-  ja: 前回の続きから
-  ko: 마지막 대화 이어가기
-  it: Riprendi da dove avevi lasciato
-  tr: Kaldığınız yerden devam edin
-  vi: Tiếp tục cuộc trò chuyện
-  id: Lanjutkan dari yang terakhir
-  pl: Kontynuuj od miejsca, w którym skończyłeś
-  nl: Ga verder waar je gebleven was
-  ar: تابع من حيث توقفت
-  hi: जहाँ छोड़ा था वहाँ से जारी रखें
-  th: ดำเนินการต่อจากจุดที่คุณค้างไว้
-  cs: Pokračujte tam, kde jste skončili
-  sv: Fortsätt där du slutade
-  he: להמשיך מהמקום שבו הפסקת
+  en: "Continue where you left off:"
+  de: "Dort fortfahren, wo du aufgehört hast:"
+  zh: "继续上次的对话："
+  es: "Continúa donde lo dejaste:"
+  fr: "Reprendre là où vous vous êtes arrêté:"
+  pt: "Continue de onde parou:"
+  ru: "Продолжить с того места, где остановились:"
+  ja: "前回の続きから："
+  ko: "마지막 대화 이어가기:"
+  it: "Riprendi da dove avevi lasciato:"
+  tr: "Kaldığınız yerden devam edin:"
+  vi: "Tiếp tục cuộc trò chuyện:"
+  id: "Lanjutkan dari yang terakhir:"
+  pl: "Kontynuuj od miejsca, w którym skończyłeś:"
+  nl: "Ga verder waar je gebleven was:"
+  ar: "تابع من حيث توقفت:"
+  hi: "जहाँ छोड़ा था वहाँ से जारी रखें:"
+  th: "ดำเนินการต่อจากจุดที่คุณค้างไว้:"
+  cs: "Pokračujte tam, kde jste skončili:"
+  sv: "Fortsätt där du slutade:"
+  he: "להמשיך מהמקום שבו הפסקת:"
   verified_by_human: []
+
+resume_last_chat.guest_title:
+  context: Label above example chats for signed-out visitors
+  en: "Explore some example chats:"
+  de: "Entdecke einige Beispiel-Chats:"
+  zh: "探索一些示例对话："
+  es: "Explora algunos chats de ejemplo:"
+  fr: "Découvrez quelques exemples de conversations :"
+  pt: "Explore algumas conversas de exemplo:"
+  ru: "Посмотрите примеры чатов:"
+  ja: "チャットの例を見てみましょう："
+  ko: "예시 대화를 살펴보세요:"
+  it: "Esplora alcune chat di esempio:"
+  tr: "Bazı örnek sohbetleri keşfedin:"
+  vi: "Khám phá một số cuộc trò chuyện mẫu:"
+  id: "Jelajahi beberapa contoh percakapan:"
+  pl: "Odkryj przykładowe czaty:"
+  nl: "Ontdek enkele voorbeeldchats:"
+  ar: "استكشف بعض أمثلة المحادثات:"
+  hi: "कुछ उदाहरण चैट देखें:"
+  th: "สำรวจตัวอย่างแชต:"
+  cs: "Prozkoumejte ukázkové chaty:"
+  sv: "Utforska några exempelchattar:"
+  he: "גלו כמה שיחות לדוגמה:"
+  verified_by_human: []
+
 
 resume_last_chat.decrypting:
   context: Animated loading text shown while encrypted recent chats are syncing and decrypting after login
@@ -3831,4 +3857,79 @@ watch_newer_messages:
   context: Watch chat action loading the next bounded page of newer messages
   en: Newer messages
   de: Neuere Nachrichten
+  verified_by_human: []
+
+embed_sync.conflict:
+  context: Retained saved result revision conflict warning without private content.
+  en: "A saved result has a conflicting revision. Review the chat before saving changes again."
+  de: "Ein gespeichertes Ergebnis hat einen Versionskonflikt. Prüfe den Chat, bevor du Änderungen erneut speicherst."
+  zh: "已保存的结果存在版本冲突。请先查看聊天，再次保存更改。"
+  es: "Un resultado guardado tiene una revisión en conflicto. Revisa el chat antes de volver a guardar los cambios."
+  fr: "Une révision d’un résultat enregistré est en conflit. Consultez le chat avant d’enregistrer à nouveau vos modifications."
+  pt: "Um resultado salvo tem uma revisão em conflito. Revise a conversa antes de salvar as alterações novamente."
+  ru: "Версии сохранённого результата конфликтуют. Проверьте чат, прежде чем снова сохранять изменения."
+  ja: "保存した結果のリビジョンが競合しています。変更を再度保存する前にチャットを確認してください。"
+  ko: "저장된 결과의 버전이 충돌합니다. 변경 사항을 다시 저장하기 전에 채팅을 확인하세요."
+  it: "Una revisione di un risultato salvato è in conflitto. Controlla la chat prima di salvare di nuovo le modifiche."
+  tr: "Kaydedilen bir sonucun sürümü çakışıyor. Değişiklikleri yeniden kaydetmeden önce sohbeti inceleyin."
+  vi: "Một kết quả đã lưu có phiên bản xung đột. Hãy xem lại cuộc trò chuyện trước khi lưu thay đổi lần nữa."
+  id: "Revisi hasil tersimpan mengalami konflik. Periksa percakapan sebelum menyimpan perubahan lagi."
+  pl: "Wersje zapisanego wyniku są sprzeczne. Sprawdź czat przed ponownym zapisaniem zmian."
+  nl: "Een opgeslagen resultaat heeft een versieconflict. Bekijk de chat voordat je wijzigingen opnieuw opslaat."
+  ar: "هناك تعارض بين إصدارات نتيجة محفوظة. راجع المحادثة قبل حفظ التغييرات مجددًا."
+  hi: "सहेजे गए परिणाम के संस्करणों में टकराव है। बदलाव दोबारा सहेजने से पहले चैट की समीक्षा करें।"
+  th: "เวอร์ชันของผลลัพธ์ที่บันทึกไว้ขัดแย้งกัน โปรดตรวจสอบแชทก่อนบันทึกการเปลี่ยนแปลงอีกครั้ง"
+  cs: "Revize uloženého výsledku jsou v konfliktu. Před opětovným uložením změn zkontrolujte chat."
+  sv: "Ett sparat resultat har en versionskonflikt. Granska chatten innan du sparar ändringarna igen."
+  he: "יש התנגשות בין גרסאות של תוצאה שמורה. יש לבדוק את הצ׳אט לפני שמירת השינויים שוב."
+  verified_by_human: []
+
+embed_sync.denied:
+  context: Saved result synchronization was denied. User should review chat access.
+  en: "This saved result could not be synchronized. Review its chat access."
+  de: "Dieses gespeicherte Ergebnis konnte nicht synchronisiert werden. Prüfe den Zugriff auf seinen Chat."
+  zh: "无法同步此已保存的结果。请检查其聊天访问权限。"
+  es: "No se pudo sincronizar este resultado guardado. Revisa el acceso a su chat."
+  fr: "Ce résultat enregistré n’a pas pu être synchronisé. Vérifiez l’accès à son chat."
+  pt: "Não foi possível sincronizar este resultado salvo. Verifique o acesso à conversa."
+  ru: "Не удалось синхронизировать сохранённый результат. Проверьте доступ к его чату."
+  ja: "保存した結果を同期できませんでした。チャットへのアクセス権を確認してください。"
+  ko: "저장된 결과를 동기화하지 못했습니다. 해당 채팅 접근 권한을 확인하세요."
+  it: "Impossibile sincronizzare questo risultato salvato. Controlla l’accesso alla sua chat."
+  tr: "Bu kaydedilmiş sonuç eşitlenemedi. Sohbet erişimini inceleyin."
+  vi: "Không thể đồng bộ kết quả đã lưu này. Hãy kiểm tra quyền truy cập cuộc trò chuyện."
+  id: "Hasil tersimpan ini tidak dapat disinkronkan. Periksa akses percakapannya."
+  pl: "Nie udało się zsynchronizować zapisanego wyniku. Sprawdź dostęp do jego czatu."
+  nl: "Dit opgeslagen resultaat kon niet worden gesynchroniseerd. Controleer de toegang tot de chat."
+  ar: "تعذرت مزامنة هذه النتيجة المحفوظة. راجع صلاحية الوصول إلى محادثتها."
+  hi: "यह सहेजा गया परिणाम सिंक नहीं हो सका। इसकी चैट की ऐक्सेस जाँचें।"
+  th: "ไม่สามารถซิงค์ผลลัพธ์ที่บันทึกไว้นี้ได้ โปรดตรวจสอบสิทธิ์เข้าถึงแชท"
+  cs: "Tento uložený výsledek se nepodařilo synchronizovat. Zkontrolujte přístup k jeho chatu."
+  sv: "Det sparade resultatet kunde inte synkroniseras. Kontrollera åtkomsten till chatten."
+  he: "לא ניתן היה לסנכרן את התוצאה השמורה. יש לבדוק את הרשאות הגישה לצ׳אט שלה."
+  verified_by_human: []
+
+embed_sync.review_chat:
+  context: Action on a saved result synchronization warning that opens its chat.
+  en: "Review chat"
+  de: "Chat prüfen"
+  zh: "查看聊天"
+  es: "Revisar chat"
+  fr: "Consulter le chat"
+  pt: "Revisar conversa"
+  ru: "Проверить чат"
+  ja: "チャットを確認"
+  ko: "채팅 확인"
+  it: "Controlla chat"
+  tr: "Sohbeti incele"
+  vi: "Xem lại trò chuyện"
+  id: "Periksa percakapan"
+  pl: "Sprawdź czat"
+  nl: "Chat bekijken"
+  ar: "مراجعة المحادثة"
+  hi: "चैट की समीक्षा करें"
+  th: "ตรวจสอบแชท"
+  cs: "Zkontrolovat chat"
+  sv: "Granska chatten"
+  he: "בדיקת הצ׳אט"
   verified_by_human: []

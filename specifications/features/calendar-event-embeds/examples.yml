@@ -1,0 +1,92 @@
+schema_version: 1
+specification: feature.calendar-event-embeds@1
+
+content:
+  - id: fosdem-all-day-range
+    given: FOSDEM 2027 has confirmed dates of January 30 and 31, with no published session times.
+    when: The assistant creates a FOSDEM 2027 event starting 2027-01-30 and ending exclusively on 2027-02-01.
+    then: Every viewer sees January 30–31 as a two-day all-day event, including viewers in Los Angeles and Tokyo.
+  - id: invalid-times-and-unknown-duration
+    given: A user supplies a meeting at 2027-03-15T10:00:00+01:00 with no end, and an optional context entry dated February 30.
+    when: The event payload is validated.
+    then: The meeting retains its known start and unknown end; the impossible context date is excluded. An offset-free primary timestamp or an end before its start instead makes the primary unavailable for export.
+
+assistant:
+  - id: researched-conference-suggestion
+    given: The user asks when FOSDEM 2027 is happening, and web search finds the official announcement at https://fosdem.org/2027/news/fosdem-2027-dates/ confirming January 30–31 at ULB Solbosch in Brussels.
+    when: The assistant answers the research question.
+    then: The answer cites the announcement and includes an inline FOSDEM 2027 calendar event card with those dates and location, without needing a connected calendar.
+  - id: dates-not-confirmed
+    given: A conference has announced its next edition but has not confirmed its dates.
+    when: The user asks when it will happen.
+    then: The assistant explains that the dates are unconfirmed and does not create an exportable event based on the previous year's dates.
+
+lifecycle:
+  - id: completed-stream-and-reload
+    given: The assistant streams a valid event between an introductory sentence and a source citation.
+    when: The response finishes and the user reloads the chat on another authorized client.
+    then: One event embed remains at the same message position with the same identity, primary details, and context events; raw event JSON does not replace the preview.
+  - id: interrupted-event
+    given: Event generation stops before the primary event's start date is complete.
+    when: The stream is cancelled or its final payload cannot be parsed.
+    then: The user sees an honest incomplete/error state and cannot export the unfinished event.
+
+preview:
+  - id: compact-shared-card
+    given: A completed FOSDEM 2027 event appears in a compact assistant preview.
+    when: The user views or keyboard-focuses the card controls.
+    then: Primary details occupy roughly the left third, a week calendar occupies the right two thirds, and shared Expand and More controls plus a separate Add to calendar quick action are accessible at the top right.
+  - id: responsive-large-card
+    given: A timed overnight event with a long title is shown in large and compact cards on laptop and phone containers.
+    when: The user inspects the preview in light and dark themes.
+    then: Both preview sizes retain the details/calendar split and the shared card bounds; controls stay usable, accessible details remain readable, and the calendar preserves the overnight continuation.
+
+context:
+  - id: overlapping-context
+    given: The assistant includes a primary workshop on March 15, 2027 from 10:00–12:00 +01:00 and a contextual meeting on the same day from 11:00–11:30 +01:00.
+    when: The event preview renders its starting week.
+    then: Both entries appear in their overlapping time positions; the workshop is clearly primary and the meeting has reduced opacity with a readable context label. Export contains the workshop alone.
+  - id: context-does-not-take-over
+    given: The primary conference is January 30–31, 2027, with either no context or an additional relevant event from a later week.
+    when: The preview first opens.
+    then: The initial week contains the primary conference, its identity stays unchanged, and no private calendar is fetched. Without context, the calendar contains only the primary event.
+
+fullscreen:
+  - id: complete-event-details
+    given: An event includes a title, timed interval, Europe/Brussels timezone, description, venue, and official source URL.
+    when: The user activates Expand.
+    then: The shared fullscreen displays all supplied details with safe source linking and an Add to calendar action.
+  - id: minimal-event-details
+    given: An event has only a title and an all-day start date.
+    when: The user opens fullscreen.
+    then: The title and date are complete, calendar export remains available, and missing description, location, and source do not leave empty sections.
+
+export:
+  - id: fosdem-primary-only-download
+    given: The FOSDEM 2027 embed starts on 2027-01-30, ends exclusively on 2027-02-01, and includes a contextual event.
+    when: The user activates Add to calendar in either the preview or fullscreen, then exports the same embed again.
+    then: Each download has one primary VEVENT with DTSTART;VALUE=DATE:20270130 and DTEND;VALUE=DATE:20270201, the same stable event UID, and no contextual event, invitation, attendee, or alarm.
+  - id: unicode-and-unknown-end
+    given: A timed event starts at 2027-03-15T10:00:00+01:00 without an end, and its description contains accented text, emoji, line breaks, commas, and text resembling an extra calendar property.
+    when: The user downloads the event.
+    then: The file preserves the 09:00 UTC start without inventing an end, keeps the text safely inside its description, folds lines at UTF-8 boundaries, and still contains exactly one event.
+
+privacy:
+  - id: user-controlled-export
+    given: The user has no connected calendar account and receives an event with private contextual meeting details.
+    when: They view and expand it, then explicitly select Add to calendar.
+    then: Viewing sends nothing to a calendar provider; export downloads only the primary event locally and does not claim it was inserted into a calendar.
+  - id: context-access-boundary
+    given: The assistant has authorized details for one contextual meeting but no access to the user's other calendars.
+    when: It creates a primary-event card with that context.
+    then: Only the available meeting is shown at reduced opacity; rendering neither searches private calendars nor claims there are no other conflicts.
+
+surfaces:
+  - id: cli-sdk-before-web
+    given: Real assistant generation on dev has produced a calendar event with optional context using default automatic model routing.
+    when: The native CLI and Rust, npm, and Python SDKs retrieve and export it through their actual supported paths.
+    then: They preserve the same primary/context fields, date semantics, stable identity, and primary-only export before web component work begins.
+  - id: web-acceptance
+    given: CLI and SDK evidence is green and the web implementation is available as an isolated CI candidate.
+    when: Component and chat/export checks cover compact and large cards, phone and laptop layouts, light and dark themes, missing details, overlapping context, and malformed events, followed by deployed visual review.
+    then: The shared controls, weekly split, primary/context distinction, fullscreen, and primary-only download work without clipping; Apple remains a later stage requiring user review of the verified web result.

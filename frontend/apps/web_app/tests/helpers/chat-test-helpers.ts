@@ -67,6 +67,8 @@ type TestStateDeclaration = {
 type SendMessageOptions = {
 	testMockMarker?: string;
 	preserveExistingContent?: boolean;
+	/** Pending-send tests assert server acceptance themselves after observing the visible row. */
+	waitUntil?: 'visible' | 'accepted';
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -150,16 +152,34 @@ export async function fillMessageEditor(page: any, messageEditor: any, message: 
 }
 
 export async function focusMessageEditor(messageEditor: any): Promise<void> {
-	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
-	await expect.poll(
-		async () => messageEditor.evaluate((editor: HTMLElement) => {
-			const activeElement = document.activeElement;
-			return activeElement instanceof HTMLElement
-				&& activeElement.isContentEditable
-				&& editor.contains(activeElement);
-		}),
-		{ timeout: 5000, intervals: [100, 250, 500] }
-	).toBe(true);
+	try {
+		// Tiptap mounts a role=textbox editable inside the message-editor wrapper.
+		// Native focus preserves its selection without activating an attached image.
+		await messageEditor.getByRole('textbox').focus();
+		await expect.poll(
+			async () => messageEditor.evaluate((editor: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return activeElement instanceof HTMLElement
+					&& activeElement.isContentEditable
+					&& editor.contains(activeElement);
+			}),
+			{ timeout: 5000, intervals: [100, 250, 500] }
+		).toBe(true);
+	} catch (error) {
+		const diagnostics = await messageEditor.evaluate((editor: HTMLElement) => {
+			const active = document.activeElement;
+			const selection = document.getSelection();
+			return {
+				editorConnected: editor.isConnected,
+				activeTag: active?.tagName ?? null,
+				activeRole: active?.getAttribute('role') ?? null,
+				activeEditable: active instanceof HTMLElement && active.isContentEditable,
+				activeInsideEditor: active !== null && editor.contains(active),
+				selectionInsideEditor: !!selection?.anchorNode && editor.contains(selection.anchorNode)
+			};
+		}).catch(() => ({ editorUnavailable: true }));
+		throw new Error(`Message editor focus failed; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+	}
 }
 
 async function userMessagePersisted(
@@ -996,6 +1016,28 @@ async function submitPasswordAndHandleOtp(
 	}
 }
 
+/** Use the opener when closed and the panel's visible Close control when open. */
+async function setChatSidebarOpen(
+	page: any,
+	open: boolean,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
+): Promise<void> {
+	const toggle = page.getByTestId('sidebar-toggle');
+	try {
+		if (await toggle.getAttribute('aria-expanded') !== String(open)) {
+			if (open) await toggle.click();
+			else await page.getByRole('button', { name: 'Close', exact: true }).click();
+		}
+		await expect(toggle).toHaveAttribute('aria-expanded', String(open));
+	} catch (error) {
+		logCheckpoint('Chat sidebar transition failed', {
+			requestedOpen: open,
+			expanded: await toggle.getAttribute('aria-expanded').catch(() => null)
+		});
+		throw error;
+	}
+}
+
 /**
  * Start a new chat session by clicking the new chat button.
  * Uses data-testid and data-action for stable selectors.
@@ -1205,12 +1247,12 @@ async function sendMessage(
 	await ensureEditorMessage();
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
-	const sendButton = messageField.locator('[data-action="send-message"]');
+	const sendButton = messageField.getByTestId('composer-send-button');
 	const captureSendDiagnostics = async () => {
 		return messageField.evaluate((field: HTMLElement) => {
 			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
 			const editor = field.querySelector('[data-testid="message-editor"]') as HTMLElement | null;
-			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+			const button = field.querySelector('[data-testid="composer-send-button"]') as HTMLButtonElement | null;
 			const buttonRect = button?.getBoundingClientRect();
 			const fieldRect = field.getBoundingClientRect();
 
@@ -1393,7 +1435,7 @@ async function sendMessage(
 				assistantCountBeforeSend
 			)
 		) {
-			await waitForUserMessageAcceptedByServer(
+			if (options.waitUntil !== 'visible') await waitForUserMessageAcceptedByServer(
 				page,
 				userMessages,
 				assistantMessages,
@@ -1406,14 +1448,14 @@ async function sendMessage(
 				assistantMessageIds: assistantMessageIdsBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
 			});
-			logCheckpoint('Message send accepted after synthetic send fallback.', {
+			logCheckpoint(options.waitUntil === 'visible' ? 'Message visible after synthetic send fallback.' : 'Message send accepted after synthetic send fallback.', {
 				assistantCountBeforeSend
 			});
 			return;
 		}
 		throw error;
 	}
-	await waitForUserMessageAcceptedByServer(
+	if (options.waitUntil !== 'visible') await waitForUserMessageAcceptedByServer(
 		page,
 		userMessages,
 		assistantMessages,
@@ -1426,7 +1468,7 @@ async function sendMessage(
 		assistantMessageIds: assistantMessageIdsBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
 	});
-	logCheckpoint('Message send accepted after send.', {
+	logCheckpoint(options.waitUntil === 'visible' ? 'Message visible after send.' : 'Message send accepted after send.', {
 		assistantCountBeforeSend
 	});
 }
@@ -1786,6 +1828,7 @@ module.exports = {
 	openSignupInterface,
 	isSignupInterfaceVisible,
 	startNewChat,
+	setChatSidebarOpen,
 	sendMessage,
 	deleteActiveChat,
 	waitForAssistantResponse,

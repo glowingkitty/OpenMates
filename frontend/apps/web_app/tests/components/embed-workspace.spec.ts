@@ -107,7 +107,7 @@ test('reopening during the exit restores an interactive pane', async ({ page }) 
 
 // contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
 test('vertical wheel over an embed row scrolls the chat in both directions', async ({ page }) => {
-  await page.goto('/#chat-id=example-ai-workshops-meetups-berlin');
+  await page.goto('/#chat-id=example-gigantic-airplanes');
   const history = page.getByTestId('chat-history-container');
   const row = page.getByTestId('app-skill-embed-group-scroll').first();
   await expect(row).toBeVisible({ timeout: 15000 });

@@ -52,10 +52,12 @@ The spec or inline contract must also define the phase gate for this skill:
    dev API/WebSocket path; mocked OpenMates API calls, mocked SDK clients,
    stubbed servers, direct function calls, and fixture replay do not satisfy the
    gate.
-2. Implement and test npm SDK and pip SDK parity locally against the dev server
-   for the same callable behavior when the skill is exposed programmatically.
-   After local CLI and SDK evidence is green, reproduce or wire the same coverage
-   into GitHub Actions for CI/daily tests.
+2. Implement and test Rust, npm and pip library SDK parity for the same callable
+   behavior when the skill is exposed programmatically. Update the shared capability
+   matrix and executable conformance/release gates together. Libraries must call
+   library functionality directly, never launch the CLI. Follow repository testing
+   rules: product integration uses isolated GitHub CI; real AI uses isolated dev-only
+   runs with automatic routing. Load `.claude/rules/cli-sdk.md` for these boundaries.
 3. Implement web app surfaces, embeds, and app-store examples only after CLI and
    SDK parity are green.
 4. Run deployed Playwright visual smoke for larger web/UI surfaces in both laptop

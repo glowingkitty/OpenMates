@@ -8,6 +8,9 @@
 <script lang="ts">
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
 
   interface Props {
     id: string;
@@ -23,6 +26,8 @@
     form?: string;
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     isMobile?: boolean;
+    presentationOnly?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
@@ -40,6 +45,8 @@
     form = '',
     status = 'finished',
     isMobile = false,
+    presentationOnly = false,
+    resultContext = 'auto',
     onFullscreen,
   }: Props = $props();
 
@@ -69,6 +76,9 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
+  {presentationOnly}
+  {resultContext}
   {id}
   appId="business"
   skillId="company_financial_result"
@@ -82,94 +92,18 @@
   showSkillIcon={false}
   customStatusText={subtitle || undefined}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <article class="financial-result-card" class:mobile={isMobileLayout} data-testid="business-financial-result-preview">
-      <div class="result-heading">
-        <span class="company">{title}</span>
-        <span class="period">{periodLabel}</span>
-      </div>
-      <div class="metric-grid">
-        <div>
-          <span>{$text('embeds.business.company_financials.revenue')}</span>
-          <strong>{formatMoney(revenue)}</strong>
-        </div>
-        <div>
-          <span>{$text('embeds.business.company_financials.net_income')}</span>
-          <strong>{formatMoney(netIncome)}</strong>
-        </div>
-      </div>
-      {#if filed}
-        <p>{$text('embeds.business.company_financials.filed')} {filed}</p>
-      {/if}
-    </article>
+  {#snippet details()}
+    <div data-testid="business-financial-result-preview" class="catalog-result-preview">
+      <ResultEmbedCard title={title} sourceLabel={subtitle} textFirst={true}>
+        {#snippet badge()}{#if filed}<EmbedCalendarDate date={filed} />{/if}{/snippet}
+        {#snippet facts()}{#if revenue != null}<ResultEmbedInfo icon="ChartNoAxesCombined" label={$text('embeds.business.company_financials.revenue')}>{#snippet children()}{formatMoney(revenue)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
+{#if netIncome != null}<ResultEmbedInfo icon="Banknote" label={$text('embeds.business.company_financials.net_income')}>{#snippet children()}{formatMoney(netIncome)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
+{#if filed && form}<ResultEmbedInfo icon="FileText" label="Source filing">{#snippet children()}{form}{/snippet}</ResultEmbedInfo>{/if}{/snippet}
+      </ResultEmbedCard>
+    </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .financial-result-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 148px;
-    padding: 14px;
-    border-radius: 22px;
-    background:
-      radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-app-business) 24%, transparent), transparent 46%),
-      linear-gradient(145deg, color-mix(in srgb, var(--color-app-business) 10%, var(--color-grey-0)), var(--color-grey-0));
-    border: 1px solid color-mix(in srgb, var(--color-app-business) 18%, var(--color-grey-20));
-  }
-
-  .financial-result-card.mobile { min-height: 130px; }
-
-  .result-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-  }
-
-  .company {
-    overflow: hidden;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-sm);
-    font-weight: 680;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .period,
-  p,
-  .metric-grid span {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xs);
-  }
-
-  .metric-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .metric-grid div {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    padding: 10px;
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--color-grey-0) 82%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-app-business) 14%, var(--color-grey-20));
-  }
-
-  .metric-grid strong {
-    overflow: hidden;
-    color: var(--color-font-primary);
-    font-size: 15px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  p { margin: 0; }
+  .catalog-result-preview { width: 100%; height: 100%; min-width: 0; }
 </style>

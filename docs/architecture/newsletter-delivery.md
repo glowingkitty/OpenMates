@@ -27,7 +27,7 @@ requires storage credentials. Reauthoring a logical source retains its previous
 immutable image under an archive entry so old email URLs remain valid. Changed
 asset sets invalidate existing S3 readiness until each target is published again.
 
-A historical Luma image reference requires an explicit, reviewed local source:
+An authored newsletter image reference requires an explicit, reviewed local source:
 
 ```sh
 python scripts/publish_newsletter_assets.py --remote-source 'https://images.lumacdn.com/path/image.png=/path/to/reviewed-image.png'

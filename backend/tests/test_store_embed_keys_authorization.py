@@ -46,11 +46,12 @@ def archive_token(monkeypatch):
 class FakeResponse:
     status_code = 200
 
-    def __init__(self, data):
+    def __init__(self, data, status_code=200):
         self.data = data
+        self.status_code = status_code
 
     def json(self):
-        return {"data": self.data}
+        return self.data if "error" in self.data else {"data": self.data}
 
 
 class FakeManager:
@@ -102,6 +103,10 @@ class FakeDirectus:
         self.base_url = "http://directus.test"
         self.recovery_calls = []
         self.manager = None
+        self.chat = types.SimpleNamespace(get_chat_metadata=self.get_chat_metadata)
+
+    async def get_chat_metadata(self, chat_id, **_kwargs):
+        return next((chat for chat in self.chats.values() if chat["id"] == chat_id), None)
 
     async def _make_api_request(self, method, url, *, headers, json):
         assert method == "POST"
@@ -109,6 +114,26 @@ class FakeDirectus:
             assert json["operation"] == "resolve_chat_hashes"
             return FakeResponse({"chats": [self.chats[value] for value in json["data"]["hashes"]
                                            if value in self.chats]})
+        if url.endswith("/legacy-embed-key-write"):
+            assert headers["X-Internal-Service-Token"] == "test-internal-token"
+            assert json["embed_id"] == self.head["embed_id"]
+            assert json["actor_user_hash"] == USER_HASH
+            if self.fail_collection == "embed_keys":
+                raise RuntimeError("Directus unavailable")
+            key = json["wrapper"]
+            rows = [row for row in self.wrappers if all(row.get(field) == key.get(field)
+                    for field in ("hashed_embed_id", "key_type", "hashed_chat_id"))]
+            if len(rows) > 1:
+                return FakeResponse({"error": {"code": "embed_key_ambiguous"}}, 409)
+            if rows and rows[0]["hashed_user_id"] != USER_HASH:
+                return FakeResponse({"error": {"code": "embed_key_owner_mismatch"}}, 403)
+            if rows:
+                if rows[0]["encrypted_embed_key"] != key["encrypted_embed_key"]:
+                    await self.embed.update_embed_key(rows[0]["id"],
+                        {"encrypted_embed_key": key["encrypted_embed_key"]})
+            else:
+                await self.embed.create_embed_key(key)
+            return FakeResponse({"status": "updated" if rows else "created", "embed": self.head})
         assert url.endswith("/chat-recovery-transaction")
         assert json["operation"] == "complete_authorized_direct_by_embed"
         if self.manager is not None:
@@ -253,7 +278,8 @@ async def test_owner_can_copy_wrapper_to_second_personal_chat():
 async def test_owner_created_team_chat_requires_active_writer_membership():
     directus = FakeDirectus()
     team_hash = "b" * 64
-    directus.chats[SECOND_CHAT_HASH] = {"hashed_chat_id": SECOND_CHAT_HASH,
+    directus.chats[SECOND_CHAT_HASH] = {"id": "22222222-2222-4222-8222-222222222222",
+                                       "hashed_chat_id": SECOND_CHAT_HASH,
                                        "hashed_user_id": None, "hashed_team_id": team_hash,
                                        "storage_state": "hot"}
     denied = await _send(directus, _key(hashed_chat_id=SECOND_CHAT_HASH))
@@ -299,3 +325,16 @@ async def test_missing_head_and_directus_read_failure_fail_closed():
     incomplete_scope = await _send(directus, _key())
     assert incomplete_scope["failed_count"] == 1
     assert directus.writes == []
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
+@pytest.mark.asyncio
+async def test_ambiguous_wrapper_transaction_preserves_all_rows_and_reports_failed_receipt():
+    directus = FakeDirectus()
+    directus.wrappers = [{"id": name, **_key()} for name in ("existing-1", "existing-2")]
+    before = [dict(row) for row in directus.wrappers]
+    receipt = await _send(directus, _key(encrypted_embed_key="new-cipher"))
+    assert receipt["failed_count"] == 1 and receipt["created_count"] == 0
+    assert directus.wrappers == before
+    assert directus.writes == []
+    assert directus.recovery_calls == []

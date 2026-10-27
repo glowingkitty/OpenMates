@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "offset_unit": "utf16",
+  "generator_sha256": "203a2e6de56b20ac8c61250fb24d2cca60176fbeb87783499888500e0e70cafe",
+  "rows": [
+    {
+      "id": "q:large-prose-32768",
+      "utf8_bytes": 32800,
+      "utf16_units": 32734,
+      "text_sha256": "d786a8f10b9fbd19726d1af767cd89993994b20d14db235c24edbd6c86607fcc",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-markdown-32768",
+      "utf8_bytes": 32803,
+      "utf16_units": 32737,
+      "text_sha256": "ad06ca65c60a549189dee14edd6545329ca5db1a2a13152761448183b552a03e",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-32768",
+      "utf8_bytes": 33001,
+      "utf16_units": 32935,
+      "text_sha256": "7dfca32cd27d922a6ac0e2c71bab89155513cc1f15c61dcc1ccf57162fb23bdf",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-python-config-32768",
+      "utf8_bytes": 32914,
+      "utf16_units": 32848,
+      "text_sha256": "a94e76a829d3c22761ff040ac08e992cf6c2f300b675ae3bd33b347a2f45f2f4",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-32768-negative",
+      "utf8_bytes": 32883,
+      "utf16_units": 32883,
+      "text_sha256": "8e0bb6266434e4885a058d552cd77faef746400c7dfeecf9e9b523b44d58951f",
+      "annotations": 0
+    },
+    {
+      "id": "q:large-prose-131072",
+      "utf8_bytes": 131088,
+      "utf16_units": 131022,
+      "text_sha256": "0bc9e5c203a880df5895ce9f6334ec23b95305b413d50a9e2aba7220df16d2f1",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-markdown-131072",
+      "utf8_bytes": 131112,
+      "utf16_units": 131046,
+      "text_sha256": "af07c883c4b1b57f2803116401abca88ae91d52904bcbe3891638a6da22a3663",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-131072",
+      "utf8_bytes": 131083,
+      "utf16_units": 131017,
+      "text_sha256": "71f8869ed3577b2cde0bceda00b673307611d0c57a3b42391b498c6a1b5901d5",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-python-config-131072",
+      "utf8_bytes": 131176,
+      "utf16_units": 131110,
+      "text_sha256": "6a9975aee9698ebf51125bea6d2febcadb6431e66042e737a32c76212e4673eb",
+      "annotations": 15
+    },
+    {
+      "id": "q:large-typescript-131072-negative",
+      "utf8_bytes": 131248,
+      "utf16_units": 131248,
+      "text_sha256": "09ca976283066035fb3622ba45ed72b768b1419f4c547a8564712cb400aca585",
+      "annotations": 0
+    }
+  ]
+}

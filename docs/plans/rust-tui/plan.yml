@@ -1,0 +1,1634 @@
+schema_version: 2
+profile: concise
+id: rust-tui
+title: Shared Rust essential native proof, immediate browser integration and separate full CLI parity
+status: implementing
+performance_floor_approval_2026_10_24:
+  authority: Latest explicit user instruction; no repeated approval is required.
+  user_requirement: Regression is absolutely not acceptable. Performance must at least match the TypeScript implementation, and my expectation would be that it should be noticeably faster.
+  acceptance: Hard rollout gate for matched end-to-end CLI/TUI latency and responsiveness, including cold and warm cache workflows. CPU/RAM or renderer gains do not clear slower application flows. Keep benchmark workloads unchanged and preserve security, privacy, owner/Team isolation, protected guards, recovery and durability.
+  task: 59e629da-78d5-480c-91e2-d78250a960f6
+  task_short_id: TASK-8974
+  status: OPEN_CONFIRMED_LIST_REGRESSION_AND_INCOMPLETE_TUI_COMPARISON
+  priority: Investigate and fix measured regressions before further rollout or migration acceptance; independent inactive prototype work does not waive this gate.
+pause_history:
+  requested_by: user
+  date: '2026-10-21'
+  reason: Stop here, report progress and remaining work, and continue another day.
+  workspace: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4
+  session: d1c4
+  tasks: All four linked Tasks remain open; no migration completion or retirement acceptance.
+  installed_cli: Existing npm launcher unchanged; no native profile bootstrap or global installation performed.
+  resumed: '2026-10-22'
+  resume_basis: User completed five architecture clarification rounds and authorized updating relevant Specifications before resuming client implementation.
+architecture_follow_up:
+  date: '2026-10-22'
+  status: approved_client_expansion
+  user_goal: We do want to use shared Rust components, I think as described in the document, for all the clients.
+    So all the clients use the same logic for encryption, for data storage, connecting to server, reconnecting to
+    server, synchronization, and this kind of stuff. Let's quickly clarify this and then plan out the next steps.
+  source_document: Migration_Shared_Rust_Core_Architecture_Plan.docx supplied by the user on 2026-10-22.
+  authority: Five clarification rounds explicitly settle storage adapters, CLI/TUI then web then Apple sequencing,
+    all reusable Rust application logic, Linux/macOS verification and Cargo-first distribution. User reiterates
+    updating Specifications and then implementing; the attachment remains reference material rather than an independent
+    directive.
+  implementation_state: The 2026-10-23 user-approved sequencing amendment below supersedes the earlier full-native
+    prerequisite. Prove essential native flows, then begin browser/WASM integration immediately; exhaustive CLI
+    parity remains required separately.
+  backend_boundary: Moving backend services from Python to Rust is a later stage only. Do not implement it now;
+    begin separately after all client migrations work reliably, their required verification is complete and superseded
+    client code is cleaned up and removed under acceptance gates.
+  confirmed_decisions:
+    storage: Shared Rust models, encryption, schema/migration and transactional recovery rules with thin platform
+      storage adapters; retain IndexedDB and SwiftData initially. Performance and reliability require measured evidence
+      before replacement.
+    sequence: Superseded by the approved 2026-10-23 essential-native then immediate browser/WASM sequence below.
+      Web is verified before coordinated Apple migration; full CLI parity continues separately.
+    rust_scope: All reusable headless application operations and decisions belong in Rust; web Svelte/TypeScript
+      is limited to UI/DOM and thin browser API integration such as media/WebRTC. CLI/TUI application functionality
+      remains entirely Rust.
+    testing: Required Linux dev and actual macOS CLI/TUI verification; Windows testing is explicitly waived and
+      no extra CPU-architecture test matrix is required. Existing mandatory isolated GitHub CI and self-host setup
+      verification remain required. Untested Windows support must not be claimed or silently dropped from inventory.
+    distribution: Primary CLI/TUI installation is cargo install from a published binary crate; Rust SDK is a separate
+      library crate. Versioned development prereleases precede stable publication. GitHub downloadable executable
+      assets are expressly out of scope for this work.
+    web_performance: Compare total compressed JavaScript plus WASM bytes, cold page load, first usable chat, runtime
+      responsiveness, CPU and memory with the original web baseline. Minimal download overhead is a measured target
+      rather than a guaranteed consequence of Rust.
+  scope:
+  - Evolve the existing packages/openmates-rust implementation into shared client components; do not start a competing
+    SDK or move repository trees merely to match the attachment.
+  - Share protocol/domain validation, encryption and key lifecycle policy, auth/session transitions, streaming,
+    sync/recovery, replay/conflict rules and durable repository policy across Rust CLI/TUI, web, Apple clients and
+    supported npm/Python libraries.
+  - Keep Svelte and SwiftUI interfaces native to their hosts. CLI/TUI parsing/rendering remain native Rust; supported
+    npm/Python libraries remain direct libraries with explicit credentials and no CLI subprocess.
+  - Separate portable policy/state transitions from target-specific transport, storage, secret access, timers/randomness
+    and lifecycle capabilities. Adapters execute platform operations without reimplementing sync or security policy.
+  - Preserve browser-managed Cookie/TLS behavior and native credential protection. Keychain, protected key handles,
+    browser storage access and suspension/background scheduling remain explicit host capabilities.
+  - Rust owns persistence semantics, encryption boundaries, schema/migration policy and atomic commit requirements;
+    a shared policy does not require identical physical storage APIs on every target.
+  boundaries:
+    portable_core: Domain/protocol models, audited crypto composition, privacy/consent policy, auth/sync/recovery
+      reducers, outbox and replay fences; no CLI profile discovery, UI, Unix syscalls or unconditional native event-loop
+      dependency.
+    runtime_and_repository: Execute core effects, serialize account/Team transitions and credential rotation, durably
+      commit encrypted records/cursors/outbox acknowledgements and enforce one authorized writer per context.
+    adapters_and_bindings: Rust-native executor/storage; Swift binding plus Apple secret/lifecycle adapters; WASM
+      worker plus browser fetch/WebSocket/storage adapters; existing Node-API/PyO3 bindings to the same core.
+    hosts: UI/navigation, terminal command parsing, platform login presentation, push/widgets/audio/video and OS
+      background scheduling. Hosts pass lifecycle events to the shared state machine.
+  verified_starting_points:
+  - Existing Rust SDK already supplies substantial auth/crypto/HTTP-WebSocket/stream/recovery logic and direct npm/Python
+    session bindings, but unconditional Tokio network and rustix dependencies mean it is not yet a portable browser
+    core.
+  - Current web persistence uses IndexedDB in frontend/packages/ui/src/services/db.ts; Apple OfflineStore uses SwiftData
+    and separate Watch recovery components exist.
+  - Existing 138 SDK gaps, CLI draft CI failure, self-host verification and native dev installation remain open.
+    Pure-core tests alone cannot close any platform or adapter gap.
+  implementation_details_to_validate:
+  - Exact crate/executor boundary, async ownership, cancellation, backpressure and versioned batched event/command
+    contracts; no per-frame or per-token UI callback requirement.
+  - UniFFI Swift packaging and watchOS/extension constraints; WASM worker/browser credentials, WebSocket and multi-tab
+    writer coordination.
+  - Keep existing storage through thin adapters initially; select native SQLite and any browser OPFS SQLite only
+    after compatibility, quota, private browsing, concurrency and data migration/recovery trials.
+  - No claim that Rust alone guarantees constant-time crypto, secret erasure, browser XSS protection or faster network/inference.
+    Preserve audited primitives and measure whole applications.
+  stages:
+  - id: boundary-audit
+    outcome: Preserve shared Rust ownership and explicit browser/native/Apple adapters in existing Specifications.
+    acceptance: Security, credentials, encrypted persistence, cancellation and replay/commit fences remain unchanged.
+  - id: essential-native-client
+    outcome: Prove auth, encrypted chat, streaming/cancel, persistence and sync/reconnect/recovery through the entirely
+      Rust CLI/TUI.
+    acceptance: The concrete essential-native stage below has required exact-source evidence; unsupported unrelated
+      commands do not delay browser admission.
+  - id: browser-integration
+    outcome: Start browser/WASM integration immediately after essential-native proof, retaining Svelte UI/DOM and
+      thin browser API adapters.
+    acceptance: Comparable before/after web measurements and actual essential-flow browser evidence; exhaustive
+      CLI parity continues independently.
+  - id: complete-native-parity
+    outcome: Continue all CLI/app/platform parity, SDK/security/publication and self-host requirements as separately
+      tracked work.
+    acceptance: Complete parity and reliable operation verified before explicit agent and user retirement acceptance.
+  - id: apple-after-web
+    outcome: Migrate Apple after verified web through coordinated Mac workflow.
+    acceptance: Required Apple/native platform evidence and preserved data; no automatic source removal.
+  - id: backend-later
+    outcome: Backend migration remains a separately scoped later stage.
+    acceptance: Every client migration and its explicitly accepted cleanup is complete first.
+sequencing_amendment_2026_10_23:
+  date: '2026-10-23'
+  approved_by_user: true
+  authority: Latest explicit user architecture/sequencing approval in the existing Codex conversation, relayed by
+    the root coordinator for session d1c4; supersedes only prior sequencing, parallel-command and retirement-gate
+    wording. No repeated confirmation is requested.
+  essential_first:
+  - authentication
+  - encrypted chat
+  - streaming and cancellation
+  - persistence
+  - synchronization, reconnect and recovery
+  browser_admission: Begin browser/WASM integration immediately after the essential native flows are proved; exhaustive
+    CLI commands and apps remain separately required off the web critical path.
+  daily_use: Make verified Rust available alongside the installed npm CLI early through a separate command or installation
+    path; old command and source remain until explicit retirement acceptance. No automatic global replacement or
+    installation is performed by this documentation update.
+  performance: 'Measure web before integration and after: actual download/transfer, JavaScript and WASM sizes separately
+    and combined, WASM initialization/cold startup, usable chat and core flows, CPU/RAM; no minimal-overhead assumption.
+    Preserve original TypeScript native benchmark inputs and separate renderer/full-application evidence.'
+  unchanged_requirements:
+  - Entire CLI/TUI application runtime is Rust; shared core owns reusable behavior.
+  - Svelte owns UI/DOM and thin browser APIs; explicit platform persistence adapters preserve data.
+  - SDK credentials are explicit; npm/Python are direct libraries with actual cross-language checks and release
+    blocks.
+  - Security, required isolated GitHub product/self-host checks and native Linux/macOS acceptance remain required.
+  - Full parity/security plus explicit agent and user acceptance precede retirement; backend migration remains later.
+goal: Create and test a rust version of our current TUI with a focus on improved performance, stability, and at
+  least matching the security level of the existing TUi. Then compare the performance of the two. The Rust TUI must
+  be 100% Rust. Fully migrate the existing CLI and TUI to one native Rust application, extract a headless Rust SDK,
+  and maintain synchronized library-only npm and Python SDKs. Make verified Rust available alongside the installed
+  npm CLI early for daily use and user testing without automatic global replacement. Retain npm CLI/TUI source until
+  the agent and user confirm feature completeness and reliable operation. Verify self-hosting edition setup through
+  Rust in GitHub CI. Share Rust components for all client encryption, storage policy, networking, reconnection,
+  synchronization and reusable application operations. Prove essential native auth, encrypted chat, streaming/cancel,
+  persistence and sync/reconnect/recovery first; begin browser/WASM integration immediately afterward with before/after
+  measurements. Continue exhaustive CLI command/app parity separately, then verify web before Apple. Use Cargo installation
+  first; GitHub executable distribution is out of scope. Backend migration follows reliable completion and old-code
+  cleanup of the clients.
+task: TASK-1517
+specifications:
+  - specifications/surfaces/cli/specification.yml
+  - specifications/surfaces/sdk/specification.yml
+  - specifications/features/terminal-ui/specification.yml
+  - specifications/architecture/sync/specification.yml
+  - specifications/architecture/storage-lifecycle/specification.yml
+implementation_tasks:
+  rust_sdk: TASK-9393
+  synchronized_sdks: TASK-7993
+  apple_clients_after_web: TASK-3179
+  native_essential_flows: TASK-1233
+  web_client_after_essential_native: TASK-9558
+  full_cli_command_and_app_parity: 083cfc56-4db3-43c2-85d4-325e2bb8b429
+authorization:
+  source: User architecture and scope approval in Codex chat 01a15da6-f670-7060-9abb-af2da9d0c3af, 2026-10-21.
+  quote: This message approves the architecture and expanded implementation scope; do not ask me to approve the
+    same decision again.
+  follow_up: Keep the installed npm command and source while verified Rust is tested alongside; full parity/security
+    and explicit agent plus user retirement acceptance remain required. Required GitHub self-host checks are retained.
+  clarified_2026_10_22: All five decisions above are user-confirmed; update the relevant Specifications and architecture
+    then implement, without another architecture approval round.
+  latest_sequence_2026_10_23: The user explicitly approves essential-native-first then immediate browser/WASM integration,
+    separate exhaustive parity, early side-by-side Rust daily testing and explicit retirement acceptance; no repeated
+    approval ceremony.
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    basis: explicit user architecture and scope approval
+  plan:
+    status: approved
+    basis: explicit user architecture and scope approval
+  client_architecture_2026_10_22:
+    status: approved
+    approval_id: shared-rust-clients-five-decisions-2026-10-22-final
+    fingerprint: e6b14aa562f8209eace83d41ca949966c3165cd812373a31a30dbf9572a4d04b
+    bundles:
+    - surface.cli
+    - surface.sdk
+    - architecture.sync
+    - architecture.storage-lifecycle
+    exact_hash_checks: passed
+    changed_assertions_with_readable_examples: 12
+  essential_native_browser_sequence_2026_10_23:
+    status: approved
+    approval_id: essential-native-immediate-browser-2026-10-23
+    basis: Latest explicit user request, relayed by the root coordinator in Codex conversation 01a15da6-f670-7060-9abb-af2da9d0c3af/session
+      d1c4; this exact sequencing delta is authorized without another approval prompt.
+    fingerprints:
+      surface.cli: c9c6e7e7b1e156b298d8b0e493a36acd63846dc2a8dc664358e6facf012e1d51
+      surface.sdk: c988305f550b6d25d5c2c3ecfcb98d9fb836d8ad4881d9e3d0124c3a3a71b239
+    fingerprint_manifest_sha256: 552c05eb7103dc7259e63bfcb60499d9100c3d66743da2dd6835bdd7111a77c5
+    semantic_delta: Essential-native admission, separate exhaustive parity, parallel CLI daily testing, explicit
+      retirement acceptance and measured web overhead; security/behavior/publication gates retained.
+    changed_assertions_with_readable_examples: 3
+scope:
+  - One native Rust application owns layouts, input, state, auth, encryption, storage, sync and network calls.
+  - Ratatui/Crossterm with Tokio networking; no Node/TypeScript runtime, client bridge, sidecar or delegated rendering.
+  - Preserve current Chats, Apps, Projects, Workflows, Tasks, settings and rich-message workflows.
+  - Native first-party auth and existing encrypted API/WebSocket protocols; no new server access or plaintext endpoints.
+  - Complete CLI commands, flags, scripting, JSON/output channels, exit codes, streaming, cancellation, platform behavior and self-host management.
+  - Shared headless Rust SDK owns explicit-credential auth, crypto, API/WebSocket, streaming and recovery; CLI/TUI own rendering, parsing and interactive profiles.
+  - All reusable headless client operations move to the same Rust components, with thin platform storage/network/secret/lifecycle adapters; preserve existing IndexedDB and SwiftData initially.
+  - Prove essential native auth/chat/stream/cancel/persistence/sync/recovery, then start browser/WASM immediately while full CLI parity continues separately; verify web before Apple and defer backend until accepted client cleanup.
+  - Cargo/crates.io CLI and separate SDK packages, versioned dev prereleases and source-package install proof; no GitHub executable assets.
+  - Supported npm and PyPI libraries call library functionality directly and never launch a CLI; idiomatic APIs preserve compatibility or version/document breaking changes.
+  - Maintained three-SDK capability matrix, shared schemas/protocol fixtures/crypto vectors, executable conformance and publication gates.
+  - Secure independent Rust credential store, encrypted owner-scoped caches and strict transport/session/Team fencing.
+  - Reproducible comparison of full native layout/render startup, redraw, CPU, output and memory with the current TypeScript TUI.
+decisions:
+- User explicitly rejected the earlier hybrid paint-backend approach; its code and measurements are superseded and
+  excluded.
+- Use existing product contracts and cryptographic wire formats; architecture/language changes introduce no new
+  product semantics.
+- No model/provider overrides inside OpenMates; retain automatic routing.
+- Expose a verified Rust command or explicit installation path alongside the installed npm CLI early for daily testing;
+  do not automatically replace the global command or silently fall back.
+- Developer SDK instances never automatically inherit the CLI user's stored login.
+- SDK public capabilities include matching relevant auth modes, operations, encryption, streaming, recovery and
+  typed errors in all three languages.
+- Backend services and separate test/benchmark harnesses are outside the all-Rust application runtime requirement.
+- Retiring npm CLI/TUI source requires passing replacement parity/security plus explicit agent and user confirmation;
+  this approval does not bypass that later acceptance condition.
+- The 2026-10-23 essential-native exit gate admits browser/WASM immediately; exhaustive command/app parity, full
+  release readiness and retirement acceptance remain separate requirements.
+stages:
+- id: architecture
+  outcome: Existing Specifications, architecture, canonical guidance and Tasks reflect the approved 2026-10-23 sequencing
+    amendment.
+  acceptance: New exact fingerprints and approval record validate; generated mirrors agree; security and full-parity
+    requirements remain explicit.
+- id: inventory
+  outcome: Maintain complete command/flag/platform and public SDK capability inventories without delaying browser
+    integration for unrelated command gaps.
+  acceptance: Actual mappings/evidence and remaining gaps are honest; unsupported placeholders never count as parity.
+- id: shared-core
+  task: TASK-9393
+  outcome: Preserve shared reusable Rust logic and explicit host transport/storage/lifecycle seams.
+  acceptance: Explicit credentials, no SDK profile discovery/CLI subprocess, encrypted storage and lifecycle/security
+    regressions pass.
+- id: parallel-native-daily-use
+  task: TASK-1233
+  outcome: Make a verified native Rust CLI available alongside the installed npm CLI early for daily testing.
+  acceptance: Exact-source pinned build and explicit separate command/path, version/profile/credential behavior
+    and recovery are verified. The npm command/source remain; no automatic global switch or retirement is authorized.
+  evidence:
+    preview_installation: installed; source1b2813974be468b4e37bfdebc0500abb0c82cf0a
+    command: openmates-rust
+    proof: docs/plans/rust-tui/parallel-rust-preview-install-2026-10-23.json
+    isolated_help_version_smokes: 4
+    legacy_launcher: unchanged
+    real_account_daily_testing: pending; no login or credential migration in installation
+    essential_gate: VERIFIED_LINUX_SOURCE_3A96; installed_source1b_preview_refresh_pending
+- id: essential-native-proof
+  task: TASK-1233
+  outcome: Prove essential auth, encrypted saved chat, streaming/cancel, persistence and sync/reconnect/recovery
+    via the entirely Rust CLI/TUI.
+  exit_criteria:
+  - Auth/login and paired-session restart, expiry/revocation and logout preserve explicit account/Team boundaries;
+    wrong credentials never fall back.
+  - Encrypted chat send/read persists compatible ciphertext and usable keys; a fresh process recovers the saved
+    chat without plaintext server state.
+  - Actual terminal streaming and cancellation preserve delivery/admission receipts, exit130 and no blind resend;
+    queued/waiting outcomes remain distinct.
+  - Persistence/restart, synchronization after disconnect/reconnect and uncertain-send recovery preserve ordering,
+    committed cursors and account/Team isolation.
+  - Native application launches no Node/Python/sidecar; focused unit/security checks and required exact-source isolated
+    GitHub auth/chat/terminal flows have accessible receipts and cleanup qualifications.
+  - Essential Rust/npm/Python security, protocol and crypto equivalence checks pass for the auth/chat/stream/cancel/persist/sync/recovery
+    slice; unrelated SDK capability gaps remain separately tracked and release-blocking.
+  evidence: Retain exact source/binary/input identity, focused test receipts, isolated GitHub protocol/terminal
+    evidence, privacy-safe captures, cleanup outcomes and actual side-by-side daily-use result. Real inference is
+    isolated dev-only with automatic routing.
+  acceptance: Root assesses these essential exit criteria from real evidence; immediately admit browser integration
+    when met. Exhaustive CLI/app parity and self-host command completion stay separately required, not an additional
+    browser gate.
+- id: browser-wasm-integration
+  task: TASK-9558
+  depends_on:
+  - essential-native-proof
+  outcome: Begin browser/WASM immediately after essential proof, with Svelte UI/DOM and thin browser APIs over the
+    same Rust core.
+  exit_criteria:
+  - Capture original full-web download/transfer/startup/core-flow/CPU/RAM baseline before implementation under reproducible
+    account/browser/cache/network conditions.
+  - Introduce bounded browser bindings/worker and explicit browser Cookie/WebSocket/IndexedDB/lifecycle adapters
+    without duplicating shared crypto/auth/sync/recovery policy.
+  - Verify auth, encrypted chat, streaming/cancel, persistence and reconnect/recovery in actual browser fixtures
+    and required isolated CI.
+  - 'Repeat matched after measurements: compressed JavaScript/WASM separately and combined, actual transfer, WASM
+    initialization, cold startup, usable-chat/core-flow latency, CPU/RAM; expose regressions/failed runs.'
+  acceptance: Verified web completion precedes coordinated Apple migration; minimal WASM overhead is not assumed.
+    Separate full CLI parity continues in parallel.
+- id: full-cli-parity
+  task: 083cfc56-4db3-43c2-85d4-325e2bb8b429
+  outcome: Complete every supported native CLI/TUI/app command, flag, scripting/output/exit contract, self-host
+    lifecycle and platform requirement as separately tracked work.
+  acceptance: Complete inventories, exact-source product/self-host GitHub CI and required Linux/macOS evidence pass.
+    No dependency from this stage to browser admission; full parity remains mandatory before retirement.
+- id: sdk-parity
+  task: TASK-7993
+  outcome: Rust/npm/Python retain equivalent direct-library public capabilities and typed security/error behavior.
+  acceptance: Actual shared protocol/crypto conformance and strict publication gates reject gaps or untracked public
+    additions. Browser admission does not waive SDK release blocks.
+- id: comparison
+  outcome: Preserve original TypeScript native benchmarks and repeat matched full-application comparisons as implementation
+    evolves.
+  acceptance: Renderer versus standalone whole-application measurements, source identity, repetitions, failures
+    and limits remain separate; no false global-install or performance claim.
+- id: apple-after-web
+  task: TASK-3179
+  depends_on:
+  - browser-wasm-integration
+  outcome: Migrate Apple through the coordinated Mac workflow after verified full web integration.
+  acceptance: Required native build/security/lifecycle and preserved-data evidence pass; full client cleanup remains
+    separately accepted.
+- id: retirement
+  outcome: Retire superseded CLI/client commands and source only after explicit acceptance.
+  acceptance: All full-parity/security/SDK/self-host/platform requirements pass and both agent and user explicitly
+    confirm completeness, reliable operation and retirement; architecture approval and essential proof alone do
+    not authorize removal.
+checks:
+- Locked Rust build, fmt, clippy and native unit tests for crypto, storage, protocol, cancellation and UI.
+- Deterministic crypto interoperability with existing client formats plus malicious/tamper/owner/Team/storage regressions.
+- Isolated GitHub native real-terminal and authenticated protocol tests; no Node runtime launched by the Rust binary.
+- Full parity inventory distinguishing implemented, tested and remaining behavior, without claiming unsupported
+  branches are complete.
+- Account-free paired benchmark of actual Rust and TypeScript layouts with equal workload semantics and explicit
+  limits.
+- Cross-SDK executable conformance and strict npm/PyPI/Rust publication gates, including missing capability detection.
+- Isolated GitHub self-host edition install/setup and lifecycle tests executed through the Rust CLI.
+- Standalone full-application comparison and side-by-side dev native-binary smoke, separate from renderer-only measurements;
+  keep the installed npm command.
+- Joint agent/user explicit retirement acceptance after full parity/security before npm CLI/TUI command or source
+  removal.
+- Essential-native exact-source exit criteria gate browser admission; exhaustive CLI/app parity is separately required
+  off the web critical path.
+- Full-web BEFORE and AFTER download/transfer/JavaScript/WASM/cold startup/core-flow/CPU/RAM measurements use matching
+  conditions; no assumed minimal overhead.
+evidence:
+  report: docs/plans/rust-tui/report.md
+  superseded_experiment: logs/rust-tui-superseded-hybrid/superseded-source.tar.gz
+  renderer_measurements: docs/plans/rust-tui/benchmark.json
+  complete_cli_offline_measurements: docs/plans/rust-tui/application-benchmark.json
+  command_inventory: config/cli-command-catalog.json
+  initial_native_ci: c335a2abef4c7841cdd8d56098f18ac29703f82e95257cb1d7fc6afdf347e2f7 (failed; investigation open)
+  native_cli_ci: {source: 3c00724bcda4dfdc322d2119a35bca9d6d0fad99, request: 9d568f3400bdd80fc6176f648ce98f07048f2d026c1ab0da2bdf984de8c112a3, run: 39603463206, status: failed, reason: bare PTY did not answer cursor-position query; bounded terminal responder fixed and rerun required}
+  native_selfhost_ci: {source: 3c00724bcda4dfdc322d2119a35bca9d6d0fad99, request: 66ff1576911f9299dcb9edc1674c049e3aa95d9db0a2e482d5a4c8687f8a86b7, run: 39603468852, status: failed, reason: baseline web Docker build exhausted V8 heap before native install; existing CI precompression switch now forwarded and rerun required}
+  sdk_conformance: {report: docs/plans/rust-tui/sdk-conformance.json, adapters: 27, passed: 27, vector_results: 108, declared_gaps: 135, release_eligible: false, checkpoint: typed send and Workflow delivery; session Plans/Workflows shared proof remains open}
+  verification_reruns:
+    source: 644921ece8e00b281e535d0f0a83bec5cc562120
+    native_cli: {request: 37e4a8e64b2b4e3f77ded473203f9f45f4d3f47b8ca8ffe0b3e5394262a1833c, run: 39610193080, status: cancelled, reason: source omitted new SDK modules; stopped once shared build failure was known}
+    native_selfhost: {request: 9259800fa7ad2aeb09869471b222d8f2b9fa76fac4dda11efad9854e1eca8276, run: 39610199649, status: failed, reason: new SDK module files absent from candidate caused E0583; tracking corrected and pre-publication guard added}
+  complete_source_verification:
+    source: 691c61548a5c400897ee2c426a57d3182010fe66
+    native_cli: {request: 5627bf7f0bb56e29ce176d6c271046eab09d44c7e8afc012eddcf727dc206c4b, run: 39616043435, status: failed, reason: native real-terminal render and signals passed; original TypeScript benchmark input produced no synchronized frame before deadline; auth stages did not run}
+    native_selfhost: {request: 1d85a74220b52330f56f457f4c234f081659357a0edeea713b56c8ac8d29b21b, run: 39616049643, status: failed, reason: Rust build and TypeScript source baseline passed; native source install rejected server directory ownership or permissions; focused investigation open}
+  corrected_source_verification:
+    source: 0b1f2e92bf7de99479c0c783862772982a2f7be8
+    tree: 39d1b9f9a1af3989bc8a82d7074ff8984bc9be0a
+    native_cli: {request: 60d6b7aeec043871611c03a4e5ff28ad882c0780cc3f34cc1149982191768081, run: 39624194048, status: failed, reason: login and session validation passed; workspace list returned Offline; active-connection lifecycle mismatch under correction}
+    native_selfhost: {request: a9869500f88ee8dd6a587cac5ef9032518210bc3250804a65eecf2e916e592da, run: 39624200032, status: failed, reason: native source installation startup health status update planning and stop passed; uninstall returned local_io_failed; image mode not reached}
+    dev_binary: {host: aarch64-unknown-linux-gnu, sha256: eb525cf5efc423039c68c8273e30defbc1f67036a94ba226b8be5521bd99b767, verified_source_inputs: 137, installed: false}
+  local_checkpoint:
+    native_application: {tests: 267, final_revocation_subset: 9, product_tests_ignored_locally: 2, strict_clippy: passed}
+    sdk: {tests: 180, strict_clippy: passed, source_inventory: {rust: 1248, npm: 1452, python: 1053}, capability_gaps: 135}
+    server: {tests: 61, final_source_clone_subset: 7, strict_clippy: passed, backend_digest_tests: 8}
+    installation: {installer_tests: 43, bootstrap_tests: 10, candidate_publication_tests: 15, installed: false}
+  stable_source_verification:
+    source: 6ff4ad84862a3f68ae85d0c70b0c432a29e9ca04
+    tree: ab5b265f1cf5f9a036ddb7501805692ed056fdf3
+    native_cli: {request: a8e2fc51bd9d101c98e3239cdbefdeb1b9893ff4b068eddc17e4670d33b89fa7, run: 39638075277, status: failed, reason: authenticated workspace and API-key device approval CRUD revocation stages passed; open_draft failed invalid_argument; authenticated PTY and application benchmark were not reached}
+    native_failure_evidence: {directory: /home/superdev/projects/OpenMates/test-results/ci-runs/a8e2fc51bd9d101c98e3239cdbefdeb1b9893ff4b068eddc17e4670d33b89fa7, selected_record: 4a4afc2578007985836b4dff9f740940cf6c4b3602acfad0efc2acc5f78c8d89, attempt: 1, upload: uploaded, qualification: Latest real terminal recording; overall test failed later in protocol stage}
+    native_selfhost: {request: 333965962485baedb44e473b1625b57873b2831534290d1224b07888e1a43b2f, run: 39638081331, status: failed, reason: original npm source baseline could not mount Vault data inside a read-only source directory; native lifecycle not reached; narrow source-code mounts under correction}
+    dev_binary: {host: aarch64-unknown-linux-gnu, sha256: c05e90998aaec41eecb284574340e1281636f039e8fef994f074a465d904369f, verified_source_inputs: 145, installed: false}
+  latest_sdk_checkpoint:
+    tests: 245
+    strict_clippy: passed
+    source_inventory: {rust: 1320, npm: 1454, python: 1057}
+    capability_gaps: 138
+    release_allowed: false
+    separate_actual_library_proofs:
+      - {path: docs/plans/rust-tui/sdk-conformance-plans-workflows.json, adapters: 3, vectors_each: 14}
+      - {path: docs/plans/rust-tui/sdk-conformance-aes-legacy-om.json, adapters: 3, vectors_each: 11}
+      - {path: docs/plans/rust-tui/sdk-conformance-anonymous.json, adapters: 3, vectors_each: 9}
+    qualification: The separate bounded proofs remain historical. Dated full actual-library checkpoints below record their own exact native source, artifact and fixture hashes; none establishes complete capability parity.
+    source_audit_2026_10_22: Metadata and independently discovered source inventory still agree at 1320 Rust, 1454 npm and 1057 Python symbols with 138 explicit gaps; no conformance execution or release eligibility is inferred from this check.
+    full_actual_library_checkpoint_2026_10_22:
+      report: docs/plans/rust-tui/sdk-conformance-resumed-2026-10-22.json
+      provenance: docs/plans/rust-tui/sdk-conformance-resumed-2026-10-22-inputs.json
+      adapters: 33
+      vector_executions: 201
+      status: passed
+      native_artifacts: Fresh current-source debug NAPI and PyO3 libraries; exact native sources, artifacts and three lockfiles unchanged during conformance. Report is correctness evidence, not a packaged release or performance test.
+      harness_corrections: Report process exit code/signal on failure; fix stale recovery-peer foreground expectation to the reviewed true/interactive-false contract, retaining strict identity checks and a false-foreground rejection regression. Canonical fixture bytes unchanged.
+      targeted_python_process_repeat: Five fresh native-boundary processes passed with faulthandler, zero exit codes, no signals and no lingering descendants.
+      unresolved_observation: An earlier adapter exited with blank stderr before the old gate retained its return code. It has not reproduced; neither the diagnostic pass nor five later passes establish its cause or a fix. Keep this observation open for stability acceptance without attributing it to resources.
+      release_eligible: false
+    ack_fixes_checkpoint_2026_10_22:
+      report: docs/plans/rust-tui/sdk-conformance-ack-fixes-2026-10-22.json
+      provenance: docs/plans/rust-tui/sdk-conformance-ack-fixes-2026-10-22-inputs.json
+      adapters: 33
+      vector_executions: 201
+      status: passed
+      sdk_tests: 245
+      strict_all_target_clippy: passed
+      independent_review: cleared
+      application_tests: 315
+      application_strict_all_target_clippy: passed
+      changes: Canonical delete chatId alias; strict successful nonsuperseded draft-save receipts; durable title-only rename with authoritative independent counters; mandatory TERMINAL recovery persistence receipts; echoed embed-ID fences on normal/sealed embed and diff persistence.
+      actual_backend_coverage: Native protocol smoke now seeds an encrypted saved zero-message chat through the existing metadata protocol, renames it and reads canonical versions/ciphertext back while preserving key/icon/category. This case awaits isolated CI; local execution remains forbidden.
+      source: Fresh native bindings rebuilt from final held core with before/after source/artifact verification and unchanged lockfiles. Deterministic result JSON matches the earlier 33-adapter result; the new provenance records the new source/artifacts and execution.
+      release_eligible: false
+  mac_cli_verification_route:
+    status: pending
+    constraint: Existing apple_remote native transport admits static metadata only and does not safely supervise Cargo descendants. No guard bypass, remote operation or global Mac installation was attempted.
+    next_step: Coordinate an admitted Mac-chat/operator verification route when the Cargo package is ready, or separately implement the guard prerequisite before remote Cargo execution. Neither another chat nor a relay clears a policy stop.
+  latest_native_checkpoint:
+    tests: 315
+    strict_clippy: passed
+    scoped_lint: passed
+    default_thread_stack: unchanged
+    cli_send_tests: 16
+    anonymous_identity_and_origin_tests: 4
+    actual_executable_coverage: GitHub-only synthetic SSE case compiled; execution pending.
+    product_tests_ignored_locally: 4
+  platform_source_audit:
+    macos: Darwin device identity, checked permission mode and bootstrap comparison corrections pass eleven focused Linux tests and strict Clippy; no target-native build receipt yet.
+    windows: Unix-only storage/cache/process modules prevent compilation; equivalent ACL and handle identity controls, owned process jobs and ConPTY proof remain required.
+    qualification: Source analysis only; Linux verification does not establish desktop platform parity.
+  selfhost_mount_retry:
+    source: b2413c71404c772f1ef8da22998590a8e53873cc
+    tree: 69c71be419916b362392205776155cc0de56bb45
+    request: f0b5601c98446d6864426403e65aa1284223d8b12ed22bb3e141cc288a7d78c3
+    run: 39641658005
+    status: failed
+    result: TypeScript baseline passed; native source server start failed in Compose up while CMS was unhealthy. Later native source health/update/uninstall and image lifecycle were not reached. Exact health subcheck is absent from retained diagnostics; a cold-schema race is only a hypothesis.
+    receipt: /home/superdev/projects/OpenMates/test-results/ci-runs/f0b5601c98446d6864426403e65aa1284223d8b12ed22bb3e141cc288a7d78c3
+    basis: Exact 6ff4ad84862a source plus the reviewed Vault source-mount correction and six-test packaging regression; later workspace changes are excluded.
+  post_candidate_workspace:
+    command_inventory: 722 paths and 580 registered flags; nine maintained baseline-inventory tests pass. Original multi-selector Plan/Task layouts now map to the existing delegation with correct identifier ordering; nineteen parser and eight Plan tests pass. Unsupported aliases and incomplete handlers remain explicit; inventory completeness is false.
+    browser_pairing: Native-pair-login-flow is integrated after authenticated terminal correctness and before benchmarks in cli-rust-tui-proof.spec.ts. Focused TypeScript, lint and two helper tests pass; actual isolated browser/terminal execution remains pending.
+    darwin: Five Rust source/test files plus platform inventory updated; eleven focused tests and strict Clippy pass. These edits are outside both retained CI candidates.
+    source_identity: Current workspace includes changes after 6ff4ad84862a and b2413c71404c; neither CI result validates the entire current workspace.
+  resumed_local_checkpoint:
+    sdk: {tests: 245, strict_all_target_clippy: passed, qualification: Excludes the credential-isolation subprocess's repeated test; no product protocol execution locally.}
+    native: {tests: 315, product_tests_ignored_locally: 4, strict_all_target_clippy: passed, qualification: Full checkpoint includes sealed-Vault and interrupted-bootstrap review corrections; real product verification remains isolated CI only.}
+    cargo_inputs: {canonical_copies: 14, package_guard_tests: 12, source_package_audit: passed, extracted_sdk_compile: passed, extracted_path_consumer: passed, registry_resolution: unverified, installation: unverified, publication: disabled}
+    sdk_archive_verification: {source: dc7f6a6d80316721afc6ab050d97fbd4560ed964, report: docs/plans/rust-tui/sdk-package-audit-2026-10-22.json, archive_sha256: c2e3cc6f74d83cf359bc66e574f2161cd91dd446f25b8dd113411458fc24a2b7, packaged_files: 91, canonical_inputs: 89, qualification: Offline extracted-library and separate path-consumer builds use the pinned dependency graph. Consumer crypto and explicit-client construction pass with empty HOME and no executable PATH. No network or registry resolution; no application install or macOS proof. Cargo VCS metadata remains the dirty checkout base; exact captured SDK identity is established separately by input hashes.}
+    cargo_version_staging: Paired main/dev versions derive from existing product_version authority; isolated staging preserves all third-party lock blocks and publish=false. Thirty-nine focused tests, Ruff and independent read-only review pass, including directory-swap and failed-rollback recovery cases. Live Cargo manifests/locks unchanged; full publication/registry/install pipeline remains open.
+    selfhost_review: Sealed-Vault health ordering and partial/cancelled-bootstrap classification corrected; ten focused startup tests, the full native suite, strict all-target Clippy and independent read-only review pass. Real source/image lifecycle CI remains required.
+  resumed_source_verification:
+    source: 2628325b035a8e9b6e88899b54749243e930b610
+    tree: 5bd0751ebbc7e34eaa2846aba673ad4c0524db47
+    patch_sha256: 0b5c286d3f46cd567c1817b808874551ebaff24522fe6ca383b0a0cee432a9ef
+    native_cli: {request: 6ad4d38b9827dbcf839f8a2cdee115fb94d51812f09aad713cdd4d1a4522d711, run: 39832701558, status: failed, scope: Native terminal and protocol correctness then browser pairing and signed-out full-process measurements; no inference., result: Draft opening now passed; delete_draft failed protocol because native omitted the backend-required chatId alias. Authenticated PTY/browser pairing and application benchmarks were not reached.}
+    native_failure_evidence: {directory: /home/superdev/projects/OpenMates/test-results/ci-runs/6ad4d38b9827dbcf839f8a2cdee115fb94d51812f09aad713cdd4d1a4522d711, selected_record: 9708defc7ab6d4cd7532d6c26906dd5ec55cf070801d05b2a577e0ea70c7a9ea, attempt: 1, upload: uploaded, qualification: Latest real-terminal attachment from the overall failed test; the standalone terminal stage passed before protocol deletion failed.}
+    native_selfhost: {request: d1f46420cfabe8eb55a2b8eb5adcbf1085a1740506f6932d448c3712a1a0d965, run: 39832707017, status: failed, scope: Retained TypeScript source baseline followed by native source and image lifecycle., result: Native source lifecycle passed. Native image install/start/dry-run reached; actual image update failed its API health check and worker logs show an unreadable providers directory. Cleanup verified with zero containers or volumes. Retained audit docs/plans/rust-tui/selfhost-ci-2026-10-22.json.}
+    dev_binary: {host: aarch64-unknown-linux-gnu, sha256: c345938bcc4e5b691c32548fed6ad761e536e6496df9be7fee5a1215cae9aeb1, verified_source_inputs: 147, manifest: /tmp/d1c4-native-resumed-binary-manifest.json, installed: false}
+    benchmark_limits: Help/version are full-process measurements. PTY measurements use fresh signed-out profiles with different screens and input semantics, so frame timings are descriptive rather than equal-workload speedups. Authenticated performance is not covered by that script and remains open.
+  ack_fixes_source_verification:
+    source: dc7f6a6d80316721afc6ab050d97fbd4560ed964
+    tree: 6776c44f631fb77aa6dbd3ef397374ad09fd5002
+    patch_sha256: 30946eb45ee50bfbe6b6048a4f4ac595596452e96cc547a2e00151d15b6728fe
+    native_cli: {request: 447729f730e02eca87e69665c8b157f0eee8d1c3ecc678da62b8e0c8e70e6e90, run: 39840473316, status: failed, scope: Corrected deletion and encrypted saved-chat rename readback plus prior native auth/browser pairing/performance flow., result: Draft opening passed. Server logs confirm the corrected delete request arrived; its saved-chat recovery fence then rejected the draft-only ID with chat_not_found. The existing delete_draft protocol is required for known draft-only shells. Later rename/authenticated PTY/pairing/application measurements were not reached.}
+    native_failure_evidence: {directory: /home/superdev/projects/OpenMates/test-results/ci-runs/447729f730e02eca87e69665c8b157f0eee8d1c3ecc678da62b8e0c8e70e6e90, selected_record: 2b7c649796c344c5214c92c5fd2a1a3312216b4f9f8b2e82754ffbbfc7da8c59, attempt: 1, upload: uploaded, qualification: Latest real-terminal attachment from the overall failed test; renderer stage passed before protocol failure.}
+    selfhost: Completed source/image run remains on 2628325b035a; startup modules did not change in this ACK/rename follow-up. Its source lifecycle passed and image update failed; do not claim a dc7f6a6d8031 self-host binary result from that run.
+    dev_binary: {host: aarch64-unknown-linux-gnu, sha256: d31355769083606ebdd3ec1b36528595fd21ff6ebc6763e943b0d95c8d117520, verified_source_inputs: 149, manifest: /tmp/d1c4-native-ack-fixes-binary-manifest.json, installed: false, qualification: Private pinned release build; exact inputs verified before and after compilation. Required GitHub native proof failed on draft-only deletion; no installation or signed build attestation.}
+  remaining: Full CLI parity, SDK parity, platform resolution, self-host CI, full-application benchmarks, dev installation and joint retirement acceptance remain open.
+draft_clear_and_search_checkpoint:
+  status: local_checks_passed_before_image_follow_up
+  sdk: {tests: 260, unit_tests: 246, integration_tests: 14, strict_all_target_clippy: passed, qualification: Whole SDK input hashes held before and after final test/Clippy commands. The credential-isolation subprocess's repeated test is excluded from the count.}
+  native: {library_tests: 268, protocol_smoke_compilation: passed, strict_all_target_clippy: passed, qualification: App and SDK hashes held during checks. Later image permission/health fixes require their own final checkpoint. Product tests were not run locally.}
+  draft_clear: Canonical Personal delete_draft receipts require matching successful advancing tombstones and current owner/context/cancellation fences. Saved chat metadata/history survives; known draft shells use this route without retrying saved-chat deletion. Eight new and six compatibility fixtures pass; independent review clear. Team draft clear remains unavailable.
+  search: Native Cookie metadata search uses shared Rust policy and legacy JSON shape; four focused native checks pass. Coverage remains the recent 100-chat window plus discovered drafts; older-cache/full census, API-key/example and TUI search, local-time/ANSI formatting and cross-language behavioral proof remain open. Catalog remains partial and feature_complete is false.
+  sdk_inventory: {rust: 1322, npm: 1454, python: 1057, declared_gaps: 138, source_audit: passed, final_source_actual_conformance: passed, release_eligible: false}
+  actual_conformance: {report: docs/plans/rust-tui/sdk-conformance-search-draft-clear-2026-10-22.json, provenance: docs/plans/rust-tui/sdk-conformance-search-draft-clear-2026-10-22-inputs.json, adapters: 33, vectors: 201, native_build_source_sha256: b7db9b391b9d4ae63a95ac2ce08ff5347a04d0d8132c2b85cf3a1ede77f3de2e, qualification: Fresh final SDK/binding builds and all three locks held. After the execution fence completed, only matrix gap prose changed from being added to exist; no APIs/status/fixtures/runners changed. Raw execution and provenance are retained unchanged. This is existing shared-fixture coverage, not search/draft-specific cross-language parity. Earlier unexplained Python process exit remains unresolved.}
+image_compatibility_follow_up:
+  status: local_checks_passed
+  changes: Probe canonical /v1/health directly with redirects still disabled and 2xx required. Create only new owned provider directories as 0755; existing private/custom/foreign/symlink entries refuse unchanged, and secret files retain their permissions.
+  focused_tests: {new_image_cases: 3, existing_installer_case: passed, independent_review: clear}
+  final_native_checkpoint: {tests: 322, library_tests: 271, product_cases_ignored_locally: 4, strict_all_target_clippy: passed, source_input_fence: passed, package_input_guard: passed}
+  dev_binary: {host: aarch64-unknown-linux-gnu, sha256: 5468f96a8bd7d0a734f024794587cad213371371e7c9ba369ae6bb30fd6764b2, verified_source_inputs: 154, manifest: /tmp/d1c4-image-search-draft-binary-manifest.json, installed: false, qualification: Private pinned release build with exact captured inputs verified before and after compilation. Product CI did not pass; no installation or signed build attestation.}
+  ci:
+    source: d9f419b26f6aca8a66fb82841e3227df6690be11
+    tree: 602edcdbb5cfc38b56ccdaa8f602c29e7da2031c
+    base: 25dfaf520724c693dac4d743abb20064f41c9d49
+    patch_sha256: 2cf9798d247ca3745fdbd219f819ceacd6e58a3682025b8c2e229449852fc3f2
+    preflight: passed
+    native: {request: a1f212df4a6244adbcd032c2e48c2322302181d7a1d27c0f35755902a2fe708c, run: 39848773195, status: cancelled, last_stage: Install browser, stage_seconds: 2735, product_checks_started: false, cleanup_verified: true, recording: unavailable}
+    selfhost: {request: e41bc5354b3ebc9e7526613a498ddb3082842c31bf58cd776a8ba020c2bc1bc7, run: 39848779823, status: failed, native_source_lifecycle: passed, image_update_phase: runtime-verification, cleanup_verified: true, recording: unavailable}
+    retained_audit: docs/plans/rust-tui/selfhost-ci-2026-10-22.json
+    qualification: Exact-source retained artifacts and evidence inventories retrieved. Native checks never started; browser/terminal package installation was cancelled during slow Ubuntu package downloads. Self-host image update passed canonical API health and provider discovery but lost the failing runtime subcheck identity; bounded static diagnostics are the next correction. Neither run supplies a recording or replacement acceptance.
+runtime_verification_follow_up:
+  status: local_checks_passed
+  scope: Preserve static current/completed/failed runtime check identities and sanitized failure kinds in update receipts before retrying the retained image failure. The exact failing production subcheck remains unknown.
+  focused_checks: {tests: 4, injected_subprocess_failure_positions: 7, scoped_formatting: passed, strict_lib_tests_clippy: passed, independent_review: clear}
+  final_native_checkpoint: {tests: 329, library_tests: 278, product_cases_ignored_locally: 4, strict_all_target_clippy: passed, source_input_fence: passed, package_input_guard: passed, logs: /tmp/d1c4-runtime-verification-native-final-results.json}
+  privacy: Code-owned identifiers and fixed error categories only; never include tool arguments, stdin, raw replies, error text or credentials. Receipt-write failure stops work before the next tool; read-only monitoring preserves existing update state.
+  limits: Existing preview.renderer success labeling is unchanged and provides no new readiness evidence. Product source/image lifecycle remains required; the next source capture must include these runtime changes.
+previous_verification_candidate:
+  source: 2d94b4075374884d2a746a9135ad4041d72ac65d
+  tree: 32a14c6099ad81b91643cb501c2983a0fba46eb5
+  base: 25dfaf520724c693dac4d743abb20064f41c9d49
+  patch_sha256: 9a4c9df1af3142c828bea065f07687f8453fd419527b1b02c8625c273ae29e3e
+  changed_paths: 430
+  preflight: passed
+  scope: Reviewed runtime-verification diagnostics, Project-item operations and direct SDK bindings, independent authenticated CLI readback and measured signed-in CLI reads. All four approved Specification bundles and existing parity gaps are retained.
+  native: {request: b3e65cf1342a496477cd85be4982b8c58e23eabeeeb67fa064ceb18dd274b72a, run: 39860512527, status: failed, attempt_zero_protocol_smoke: passed, failure: Current completed terminal showed Signed in but the harness searched cumulative raw ANSI fragments. Retry then hit the fixed-title workflow slug retained by the first attempt's soft-deleted fixture. Vault restart and later pairing or benchmark stages were not reached., cleanup_verified: true, latest_failed_terminal_record: 0062739bba72d72e369b1bf36ff8ca838ec2e3e65e57a6df8df480930941f636, evidence_upload: uploaded}
+  selfhost: {request: fbc5e3e1da773a8f9e4a464d2a6affe9bac5cb49a8df0e5285acc0d4b301c8b1, run: 39860517609, status: failed, native_source_lifecycle: passed, image_install_start_and_dry_run: passed, failure_check: core.worker_queue, failure_kind: subprocess_nonzero, cleanup_verified: true, recording: unavailable, retained_audit: docs/plans/rust-tui/selfhost-ci-2026-10-22.json}
+  dev_binary: {host: aarch64-unknown-linux-gnu, sha256: c368cb0ef0396b20d8ec48e8f7e7fed596baeed671a1dc4e54b34e55c3c745f1, bytes: 22749528, verified_source_inputs: 157, manifest: /tmp/d1c4-cli-metrics-runtime-diagnostics-binary-manifest.json, installed: false, qualification: Exact Git input hashes verified before and after the successful release compilation. Pin guards refused inherited group-writable cache paths; owner-only permissions were established and the retained copy was hash-verified without recompilation. No product pass or signed build attestation.}
+  qualification: Functional feedback only. This source and pinned binary contain vulnerable Tokio 1.54.0 and cannot authorize installation or publication. Later Tokio 1.54.1, Task ordering, complete-screen auth assertion, unique workflow fixture slug and authenticated TUI harness fixes require a new source capture and exact-source product verification. No global installation or npm retirement.
+patched_runtime_verification_candidate:
+  source: da67ee7ad3be48c0faa980f53d3085fa312ddd5f
+  tree: 534702c2451dd997d4b97c37148c61b9dacc40de
+  base: 25dfaf520724c693dac4d743abb20064f41c9d49
+  patch_sha256: 3f9dd1124f1217fa58a228b41360857160a08e6c2a9d63a5ceec9e0cb1d32731
+  changed_paths: 456
+  preflight: passed
+  scope: Patched Tokio1.54.1, shared three-SDK Task ordering, checked CSV Redis probes with same-connection acknowledgement gating, complete-screen auth assertion and unique workflow fixture slugs, real-line history fixtures and integrated signed-in CLI/TUI performance helpers, all approved architecture Specifications and honest parity gaps.
+  native:
+    request: 387979c876a886f557d9547b48ed2999156abade4c942a2c58fbdbbe62d904f2
+    run: 39871349634
+    status: failed
+    spec: cli-rust-tui-proof.spec.ts
+    prepared_builds: false
+    receipt_sha256: f6f4bfb8843869e1035725cee7e1380a47a7f992d0997fe54ec0c8495c57dab6
+    attempt_zero: Protocol smoke passed, followed by all fourteen authenticated terminal checks including encrypted vault restart, account isolation, logout and terminal restoration. Browser-assisted pairing then exited one with a conflict after the new-vault passphrase prompt. Source analysis locates the conflict at POST /v1/auth/pair/v2/acknowledge; the backend relay state causing rejection is not retained. The harness correctly extracts the child exit rather than the recorder exit. Benchmarks were not reached.
+    authenticated_terminal_report_sha256: 346001edbcf3b6f1cf453cd3aea5c20a18684dcae5b0614ab5bf48f376d886a6
+    retry: The Python auth terminal fixture reused a fixed-title-derived Workflow slug retained by its first attempt's tombstone. The separate native protocol fixture already has unique slugs. Retry failed before later pairing and performance checks.
+    cleanup_verified: true
+    latest_failed_terminal_record: 85ccc9efae99ea6a3fbbc0586dedd000d0f349c8e0d673def9dadaa99f479926
+    evidence_upload: uploaded_after_retry_without_test_rerun
+    evidence_upload_limit: The initial upload failed while the configured local api container was absent. After that route recovered, returned evidence uploads succeeded and the selected latest failed terminal record is retained in the receipt inventory. No alternate service or runtime restart was used.
+  selfhost:
+    request: 6cdb3de43fa00fd5ed20007d5c80c4ecc2fe4f870f99cc6567aa147781daeb49
+    run: 39871354094
+    status: failed
+    spec: selfhost-smoke.spec.ts
+    prepared_builds: false
+    receipt_sha256: a125948fc65b40ed422134ac7446c9a14f6934eb02978f342e2f0a5211bf6e92
+    native_source_lifecycle: passed
+    native_image_install_start_update: passed
+    runtime_verification: CSV same-connection acknowledgement-gated checks passed and update completed. Exact workflow completion-email and update-status assertions passed.
+    remaining_failures: Browser smoke rejects reuseCompletedSetup inside the nested coreSetupGate and the synthesized VITE_API_URL override. Passkey and recovery browser cases pass. Correct native producers against legacy contracts; preserve the browser assertions.
+    cleanup_verified: true
+    retained_audit: docs/plans/rust-tui/selfhost-ci-2026-10-22.json
+    recording: No video attachment in returned test attempts; capture may not have started. Returned screenshots uploaded successfully.
+  dev_binary: {host: aarch64-unknown-linux-gnu, sha256: cd602a84aee7fd4bc46cab9c0c5ddeb404afed0d4b6839bbf352a690037da212, bytes: 24125784, verified_source_inputs: 162, manifest: /tmp/d1c4-patched-shared-core-binary-manifest.json, installed: false, qualification: Exact captured runtime inputs held before and after successful resumed compilation and final pin verification. Content hashes and stable file identity agree; pin check excludes read-access time. No signed build attestation or product acceptance.}
+  build_history: Disk guard stopped the first compilation; completed owned compiler cache was reclaimed while actual NAPI/PyO3 artifacts and historical pinned binaries retained their hashes. Both SDK extensions load after cleanup. Resumed compilation completed; a copy guard comparing unstable read-access metadata rejected its retained full copy. Final stable identity/type/permission/size/mtime/ctime/inode and independent full-file hashes validated the copy without recompiling. Resumed build time is not a cold compile benchmark.
+  qualification: Both overall CI runs failed; successful self-host lifecycle substeps do not close later browser failures. The private patched ARM64 binary is pinned but uninstalled. Later Plan bookkeeping, Python Workflow fixture correction and new CLI/installer changes are outside this captured tree and require a new capture/build. No global installation, registry publication or npm retirement.
+current_verification_candidate:
+  source: 1b2813974be468b4e37bfdebc0500abb0c82cf0a
+  tree: 4c3dbb6a71e0f197a57b10fe5ce6da027d3c5f17
+  changed_paths: 558
+  source_preflight_and_independent_dirty_untracked_blob_census: passed
+  source_audit:
+    private_path: /tmp/d1c4-essential-preview-source-audit-20261023.json
+    sha256: 7ecf9d886ed57e1e8e82885db8bdf6e6eb9a3102abbbefbd9b4bd0277a7e3092
+    original_retained: true
+  native:
+    source: 1b2813974be468b4e37bfdebc0500abb0c82cf0a
+    request: ddc01465815219a4bc4da6636f2d042d1463e07bc6571c09554890db4cb811c3
+    status: submitted_awaiting_root_result
+    run_id: null
+    owner: root coordinator only
+    pass_claim: false
+  trusted_harness:
+    official_node_acquisition: 1edab52 published by coordinated other chat
+    cache_anchor_and_failure_envelope_candidate: 26c990
+    deployed_commit: 4a14fa15eea8a42eff490bb1723f573afb9e9335
+    changed_paths: 6
+    checks:
+      node: 11
+      python: 41
+      ruff: passed
+      specification_and_lint_gates: passed
+    world_write_guard_unchanged: true
+    raw_suppliers_unmodified: true
+    qualification: Harness deployment/local checks, not native product CI success.
+  local_parallel_preview:
+    status: installed_side_by_side_preview
+    command: ~/.local/bin/openmates-rust
+    default_state: ~/.openmates-rust
+    legacy_global: unchanged
+    source: 1b2813974be468b4e37bfdebc0500abb0c82cf0a
+    sha256: cff8f6854b97e51cbb879b7392e50f0f628d1ede5490b6f94405a546bf08af8c
+    bytes: 24453464
+    reported_version: 0.1.0
+    published_prerelease: false
+    public_smokes: 4
+    lease_granted_and_released: true
+    evidence: docs/plans/rust-tui/parallel-rust-preview-install-2026-10-23.json
+  qualification: Local source preview only. Essential live chat synchronization and fresh main/metadata takeover
+    remain OPEN; no current CI/product pass, real login, performance improvement, publication, global cutover or
+    retirement is claimed.
+preceding_034_diagnostic_retry:
+  source: 034a77d428aea2400950db8daa75c5dc56439da2
+  request_prefix: '955847'
+  run: 39989316185
+  status: failed
+  boundary: attested_Node_producer_source_mode
+  observed_node:
+    version: v24.21.0
+    architecture: x64
+    mode: '00777'
+    owner: current operator
+    nlink: 1
+    canonical_path_stable: true
+    proc_identity_verified: true
+  diagnostic_written: true
+  coordinator_retrieval_attempts: 1
+  retrieval_result: identity_mismatch
+  normal_receipt: not_approved
+  upload: not_claimed
+  cleanup: not_established
+  earlier_39986942686: Exact mode remains unknown for that separate earlier run; later diagnostics are not backfilled.
+preceding_034_verification_candidate:
+  source: 034a77d428aea2400950db8daa75c5dc56439da2
+  tree: c050f66f6eff887349b92c7df059123c42bec5ee
+  changed_paths: 546
+  native: {request: 0c801b4e82586bd3fe84be538eaa3b0111fab2c1f1075219823c9d05e08d75f7, run: 39986942686, status: failed, stage: attested_Node_producer_source_mode, candidate_build_accounts_product: not_reached}
+  failure_diagnostics: {exact_mode: unknown, uid: unknown, path: unknown, private_bounded_diagnostics_and_fix: directed}
+  evidence: {result_retrieval_attempts: 1, result_retrieval_error: Expected one unexpired, artifacts: unavailable, recording: unavailable, upload: impossible, cleanup: not_established_by_retained_evidence}
+  matching_private_release: {status: passed, manifest: docs/plans/rust-tui/native-source-authoring-release-2026-10-23.json, source_inputs: 181, runtime_inputs: 145, exact_pre_post_fences: passed, independent_pin_mode: "0700", links: 1, target: ARM64, bytes: 24191320, sha256: 292873233819aa29901d5bb465ab58dbaa9ca1ea52cc989788a40b077748334f, cache_assisted_seconds: 265.06, minimum_free_gib: 34.2378, installed: false, published: false, clean_build_benchmark: false, ci_product_proof: false, fresh_audit: pending}
+  qualification: Early producer failure provides no candidate-build or product result. Retain actual48/567 SDK and qualified405-unit checkpoints separately; no native installation, platform, global replacement or source-retirement acceptance.
+preceding_cf53_verification_candidate:
+  source_prefix: cf53
+  changed_paths: 520
+  preflight: passed
+  independent_all_dirty_and_untracked_blob_coverage: passed
+  native: {request: 81eeb41b422e6dd9f42e1687f9097aee17103e79e9dff93453f8265d34b87949, run: 39971370205, status: failed, both_attempts: file_boundary_nodeRuntime_mode after all15auth pairing and full WorkflowProjectunlink proof passed, native_cargo_staging: passed, metrics: not_reached, cleanup_verified: true, receipt_retrieved_once: true, evidence_uploader_exit: 0}
+  qualification: Current source-authoring SDK/binding work and future features are outside this capture. The later source-authoring48/567 gate is separately source-qualified and outside this capture. No native installation or complete capability acceptance is claimed. Root alone monitors CI.
+  node_producer_follow_up: {trusted_deployment: 3a910cf8ea60ea5c03f2c6d5a66d6c79c8451669, fixture_only_deployment: 2d6a3bb7be5571541f2ec302aa89d55cbd1fadc6, fixture_change: fake_fixture_chmod_umask_test_only, canonical_python_tests: 36, canonical_node_tests: 7, test_umask: "077", paths: 6, independent_source_review: clear, patch_prefix: 29521, private_candidate: 92840d8c47e64b307a2a8002d68a4a982d146c8d, base_prefix: d92d, first_deploy_prefix: 93ed, first_deploy_result: Ruff new-test failure before commit, corrected_deploy_prefix: 79626, corrected_deploy_status: succeeded_as_3a910cf8, explicit_launcher_guard: preserved, raw_supplier: untouched, github_verification: pending, failure_observation: mode_and022_only_no_exact_ci_path_or_bits}
+preceding_ff71_verification_candidate:
+  source: ff71d1125903b2920bb554c3c6d5f175f0173267
+  tree: 2dbb2c2d673838979d0f69b646870d2ed616aff6
+  base: 25dfaf520724c693dac4d743abb20064f41c9d49
+  patch_sha256: 7eb8b1cba6a34e1cc6cfa7f6e21a1fc23bb31f01fc35162593c34a300bb9b7e1
+  changed_paths: 516
+  preflight: passed
+  independent_dirty_and_untracked_blob_coverage: passed
+  native: {request: e24323c52621dad1f1624d9e9a4c8c55691e53788f863e10087fd47a974047cc, run: 39963780052, status: failed, both_attempts: Workflow removal helper expected root project_id but successful CLI returns nested project.project_id after all15 authchecks and browser pairing pass, application_preparation_file_boundary_and_metrics: not_reached, cleanup_verified: true, exact_receipt_retrieved_once: true, receipt_prefix: 1ea7a958108cbe2931a4e2415971d273bb0b600b, evidence_uploader_exit: 0}
+  matching_arm64_build: {status: passed, exact_runtime_inputs: 176, actual_dependency_files_covered: 143, bytes: 24125784, sha256: 9d07d0690b049587d59c71fb77633a15d3347df356fa5abb35c75ef934751d97, cache_assisted_seconds: 265.07, minimum_free_gib: 35.7828, installed: false, older_pins: retained}
+  qualification: Subsequent host TypeScript facade and Python harness fixes are outside this captured source; native Rust compiler inputs and artifact remain unchanged. Failed native flow is not a complete product pass, installation acceptance or cold-build performance proof. Workflow response-shape helper and required Project-delete confirmation cleanup corrections are in progress; new exact-source CI pending. Root alone monitors results.
+preceding_2bc_verification_candidate:
+  source: 2bc00c0971dba8ede7f09dd717e5cd2a6b3c2a2e
+  tree: 6e9e8a30b2773042d597b6d73fe79a30983c2a14
+  base: 25dfaf520724c693dac4d743abb20064f41c9d49
+  patch_sha256: 2278a6ff9de976b24dd9f1e9acbe23fb87ee211760e5acc550870c171993f0cd
+  changed_paths: 486
+  preflight: passed
+  independent_source_coverage: All changed and untracked inputs covered, including npm/Python privacy facades, fixture and build handoff.
+  native: {request: 189e20000b41ae9101f468fe61c03329e4bf2b9a6042e1227632be094c98b24e, spec: cli-rust-tui-proof.spec.ts, run: 39942997249, status: failed, prepared_builds: false, both_attempts: Application preparation compose_context failed after all15 authenticated-terminal checks including Personal aliases passed, receipt_retrieved_once: true, cleanup_verified: true, evidence_uploader_exit: 0, forensics: compose_context_harness_fix_deployed_as_2afdd899}
+  selfhost: {request: c80d15bc3544faf543519316f7c48e476cf20664e7f643b50b6a0aebd22b9bfe, spec: selfhost-smoke.spec.ts, run: 39943002622, status: passed, prepared_builds: false, steps_passed: 16, browser_flows_passed: 4, admin_passkey_recovery: passed, cleanup_verified: true, evidence_uploader_exit: 0, unavailable_videos: 4, uploaded_images: 7}
+  monitor: Root is the sole CI wait/result coordinator; no result claimed from submission.
+  qualification: Captured source excludes current watch, Workflow removal and staging-v2 changes plus later documentation bookkeeping. Self-host success applies to2bc only; native full proof and signed-in measurements remain open. No installation, publication or retirement acceptance.
+  matching_arm64_build: {status: passed, checked_runtime_inputs: 167, bytes: 24125784, sha256: 9db62176a53d6afe414cd01b7f5414e37014fdbf66605ea4b037933da5465f75, installed: false}
+  native_harness_rerun: {fix_deployment: 2afdd899c246d98e51c26300f483fa1cdedb2681, focused_fix_tests: 6, request: c437f06faef7abf53631796c70988998916f3f836baaa3b95ba502ec31a5a5ae, run: 39952896478, status: failed, both_attempts: All15 authenticated-terminal checks and browser pairing passed then file_boundary failed, cleanup_verified: true, evidence_uploader_exit: 0}
+  staging_v2_follow_up: {paths: 5, focused_tests: 40, independent_review: clear, design: Private tmp staging outside uploads with descriptor-anchored copy and cleanup, producer_diagnosis: Cargo release output link_count2, qualification: Failed CI inode not observed; new exact-source CI pending}
+preceding_48d2_verification_candidate:
+  source: 48d2a2de82dfcda95586106c9090f5e2974d9ccb
+  tree: d564f0c709cb1296c69e9bef67674c9c0776b27b
+  base: 25dfaf520724c693dac4d743abb20064f41c9d49
+  patch_sha256: 4c5fc6cd455b2d891816a693106404a133512dadf424a9680ca6de106a3d52c2
+  changed_paths: 464
+  preflight: passed
+  scope: All approved shared-client Specifications, prior patched Rust core and SDK conformance, Personal CLI draft clear, exact self-host JSON/environment producer parity, retry-isolated terminal Workflow fixtures, reviewed private actual-CLI draft proof after measurements and bounded secret-free pairing diagnostics.
+  native:
+    request: 520a17af165a6819c0c85c344ece9717809428b17db4b54816fa958c3c3af07b
+    run: 39925282376
+    status: failed
+    spec: cli-rust-tui-proof.spec.ts
+    prepared_builds: false
+    receipt_sha256: 68e3053f38ee8a23b1faac4f86c4d1421b5497fad70e94958283de67f1dcebc4
+    attempt_zero: Protocol/authenticated terminal and full browser pairing, vault restart, wrong-PIN and cancellation checks passed. Application preparation then refused the canonical CI app port5173 because its guards incorrectly required3000. No signed-in measurement was reached.
+    retry: Closed diagnostics show authorization200, authorizer poll401 binding-required, browser cancellation200, then native ACK conflict. Source confirms pairing used the incoming stale Cookie while authentication may resolve its successor; no actual secret/token lineage was logged or claimed.
+    cleanup_verified: true
+    latest_failed_terminal_record: ca5586c66490ded45ae0333e80258558ccb3aa41b6d6056b03d867285e16b5a7
+    evidence_upload: uploaded
+  selfhost:
+    request: 9598fa99f130a2df7b4b487bcfdf3dd699e8adccdf7c6ad0da46e45c98c69cdc
+    run: 39925355788
+    status: failed
+    spec: selfhost-smoke.spec.ts
+    prepared_builds: false
+    receipt_sha256: 6812fca9a41df4ccb7a0bf67114ebbb0dc7ebbfa4da78f3b35e051c4bb28de55
+    native_source_and_image_install_start_update: passed
+    browser_update_order_passkey_and_recovery: passed
+    remaining_failure: Normal signup succeeded; native server make-admin then returned generic subprocess failure. Source definitively uses nonexistent users SQL relation instead of canonical directus_users; retained stderr does not independently prove that SQL diagnostic.
+    cleanup_verified: true
+  local_native: {tests: 349, library_tests: 297, ignored_local_product_tests: 4, strict_all_target_clippy: passed, package_input_guard: passed, source_fence: passed, report: docs/plans/rust-tui/native-local-checks-2026-10-23.json}
+  dev_binary: {state: privately_pinned, host: aarch64-unknown-linux-gnu, sha256: ce0bd23350fb02f68515bcf94171d944aa7b7c7ec64bced52ef7335370978179, bytes: 24125784, verified_runtime_inputs: 163, manifest: /tmp/d1c4-client-compat-2026-10-23-binary-manifest.json, installed: false}
+  build_qualification: Successful cached release compilation held exact captured runtime inputs before and after. The first copy guard refused Cargo's inherited group-writable output before copying bytes; the empty copy is retained. Owner-private mode was established by no-follow descriptor and the completed copy passed stable-identity, independent full-file hash and ARM64 ELF validation without recompilation. Read-access time is excluded from identity checks. No cold compile benchmark or signed attestation.
+  qualification: Both overall runs failed. Later bookkeeping, command/journal/privacy implementation and the corrected backend/installer/endpoint sources are outside this captured tree and binary. Full command and SDK parity, required repair verification, current performance measurements, Linux dev installation, macOS and release acceptance remain open. No npm retirement.
+implementation_follow_up_2026_10_23:
+  state: implementing_user_requested_continuation
+  decision: Continue the existing approved migration; architecture documentation was a checkpoint, not permission
+    to stop implementation.
+  personal_draft_clear: Actual native CLI now calls existing shared Client.clear_draft, preserves unconditional
+    legacy JSON acknowledgement, Personal Cookie-only scope, receipt validation, rotated credentials and cancellation.
+    Five focused tests and the full native checkpoint pass. Command remains partial until required integration and
+    platform proof.
+  local_checkpoint:
+    report: docs/plans/rust-tui/native-local-checks-2026-10-23.json
+    tests: 376
+    library_tests: 324
+    other_tests: 52
+    sdk_library_tests: 267
+    ignored_local_product_tests: 4
+    final_focused_privacy_tests: 7
+    strict_all_target_clippy: passed
+    package_input_guard: passed
+    source_fence: passed
+    final_static_source_sha256: b74c10bff376036418313a6c57e5c4f4cf9453548ed7282f73f5cb201a9693b6
+    qualification: Whole suites precede the mechanical privacy.rs Clippy let-chain edit; final static source passes
+      focused privacy and both Clippy checks plus package guard. No repeated whole-suite or product pass is claimed.
+  catalog:
+    patterns: 722
+    flags: 580
+    partial_handlers: 442
+    unsupported: 278
+    implemented_status_rows: 2
+    feature_complete: false
+    qualification: Working implementation inventory; newest handlers still require final checks and isolated verification.
+  selfhost_contract_corrections: Place reuseCompletedSetup at top-level beside the legacy four-field coreSetupGate.
+    Do not synthesize an absent VITE_API_URL; retain explicit overrides and the existing installed local API fallback.
+    Focused producer tests and independent read-only review cover both corrections; browser assertions are unchanged.
+  pairing: Retained conflict has no established payload or sequence mismatch against the canonical TypeScript client.
+    Add bounded secret-free stage and closed state/error categories to existing browser/backend diagnostics without
+    changing responses, transitions, retries or credential behavior, then use isolated CI to establish the cause.
+  pairing_diagnostics:
+    report: docs/plans/rust-tui/pairing-diagnostics-local-checks-2026-10-23.json
+    backend_mock_tests: 16
+    browser_helper_and_pty_tests: 7
+    strict_focused_typescript: passed
+    eslint: passed
+    ruff: passed
+    specification_metadata: passed
+    independent_review: clear
+    qualification: Backend relay state is a bounded read after rejection and does not establish atomic rejection
+      state. No SDK or Rust runtime change and no product-cause claim.
+  e2e: The existing independently paired fixture now exercises actual Rust draft clearing after measurements, with
+    original CLI forced draft refresh and full saved-history/title/key-usability readback. Ten Python mocks, eighteen
+    integration-harness cases, Ruff, focused TypeScript, ESLint and independent review pass. Preserve explicit cache-fallback
+    versus online freshness limits. Actual isolated-CI execution remains required; no live inference or local product
+    execution.
+  next_command_slices: Chat-scoped Task/Plan delegation adapters and chat-to-Project unlinking reuse the existing
+    shared SDK. Full UUID and supported scope limitations remain explicit until complete legacy selector resolution
+    exists; no recent-list search may masquerade as a full selector census.
+  foreground_install_gate: A native foreground Task cache must authorize explicit Project/source subscriptions,
+    durably commit contiguous batches/cursors, retain rotated credentials, revoke plaintext/keys and recover safely.
+    Existing remote-access also hosts files, executes approved commands and processes Codex events; a task-cache
+    directory option is not authorization to silently implement cache-only remote-access. No Python adapter fallback.
+  queued_replay_foundation: Before broad foreground replay, seal the original caller and FIFO metadata inside encrypted
+    durable intents. Retain ambiguous legacy records for explicit reconciliation rather than treating them as human
+    or adopting the current foreground caller. Typed subscription/source/key binding and direct npm/Python conformance
+    remain required before that SDK capability ships.
+  focused_adapter_replay_checkpoint:
+    source_aggregate_sha256: 0e8bbcbe35f74845f08df85d398a344e4f0767267492f0352cdfe3360fcd2aa1
+    journal_tests: 11
+    chat_work_tests: 5
+    chat_project_tests: 6
+    task_queue_tests: passed
+    source_fence: passed
+    minimum_free_gib: 33.019
+    qualification: Before subsequent positional-title
+    context: null
+    boolean: null
+    admin and privacy refinements; not current aggregate acceptance.: null
+  runtime_repairs:
+    pairing: Pair binding and both proof consumers use the server-authenticated effective refresh credential; a
+      present invalid or unbound successor cannot fall back to the stale Cookie. Thirty-two focused backend tests,
+      Ruff, metadata and independent review pass. New isolated verification required.
+    selfhost_admin: All three SQL account references now use canonical directus_users; preserve transaction, normalized
+      hash-only stdin, UUID receipt and targeted cache/event ordering. Two focused native regressions and independent
+      source review; full local native checkpoint and the exact-source2bc self-host admin/browser flow now pass.
+    application_prerequisite: Flow and shared Python guard now require canonical isolated APP5173/API8000 only.
+      Tests read the actual runner constants and cover all four Python consumers. Fifty-nine Python mocks, twenty-two
+      flow cases, TypeScript/lint and independent review pass; actual measurement remains open.
+  additional_cli_parity: Personal aliases preserve legacy output through the shared client; parser/dispatcher and
+    real isolated auth proof coverage are added. Outer offline local-switch parity remains open. Dark-mode parsing
+    now accepts exactly the six legacy literals. Create aliases preserve variadic positional titles, with the review
+    regression crossing the real parser.
+  local_privacy_sdk: Checked Rust prepare/restore APIs and direct npm/Python facades share bounds and thirty-nine
+    vectors; both output expansion and quadratic range scanning were corrected under independent review. Legacy
+    low-level semantics are retained. Fresh locked/offline NAPI/PyO3 builds and actual 42-adapter/417-result conformance
+    pass on the retained exact source, with source/artifact/three-lockfile fences and minimum32.512GiB free. Later
+    seventeen comment-only annotations and a subsequent reviewed explicit-credential constructor-policy fix are
+    separately qualified; the separate explicit-credential final gate now passes42adapters/417results with source/artifact/three-lockfile
+    fences and minimum37.587GiB free. SDK267 and native376 whole-suite tests precede a mechanical Clippy let-chain
+    edit; final b74c10 source passes privacy7, both strict Clippy checks and package guard. Broader privacy policy
+    and all141 SDK gaps remain open; releaseEligible remains false.
+  watch_implementation: Applied typed authorized Project Task watch with source authority, reducer stage/commit/discard
+    and explicit durable-publication receipts. SDK/native/binding focused checks and Rust public25 pass; fresh NAPI/PyO3
+    artifacts are available, actual Rust and corrected npm public25 each pass; all three watch25 and the actual45/492
+    aggregate pass with recorded source/artifact/three-lock fences; the capability remains partial. No complete
+    foreground host or broader sync parity claim.
+  workflow_project_removal:
+    focused_tests: 12
+    strict_all_target_clippy: passed
+    product_proof: passed_in_cf53_before_later_Node_boundary_failure
+    remaining: Project addition and YAML parity open
+  workflow_ask:
+    focused_tests: 51
+    new_cases: 13
+    strict_clippy: passed
+    status: partial
+    complete_parity: false
+  private_source_host_and_goal_drafts:
+    source_host: SDK prerequisite locally admitted with316full library tests including14host regressions plus strictalltargetClippy/fmt;
+      parked off essential critical path; noFFI/facade/all3conformance/product proof
+    goal: integrated35focused native regressions plus strictClippy/fmt/assets/inventory
+    full_parity_claim: false
+watch_working_tree_checkpoint_2026_10_23:
+  status: bounded_three_library_conformance_passed
+  outside_retained_application_source: 2bc00c0971dba8ede7f09dd717e5cd2a6b3c2a2e
+  sdk: {library_tests: 289, focused_watch_tests: 35, stronger_preawait_tests: 1, strict_clippy: passed}
+  native: {focused_tests: 36, strict_clippy: passed}
+  binding_actor: {tests: 9, strict_clippy: passed, checkpoint: 6b19}
+  actual_rust_public_watch: {cases: 25, status: passed, fixture_sha256: 183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2}
+  foreign_artifacts: {status: freshly_built, held_inputs: 204, three_lockfiles: held, minimum_free_gib: 36.67, node_sha256: 7b113370f41597fbf45dbbf591e684e618a4d4c8a69a46f3f32e35c34e453618, python_sha256: 0dcdba902f4edfd15868a710a0342dbfe700864c71a1f32a7a9a98502200632f}
+  actual_npm_public_watch: {cases: 25, status: passed, corrected_facade_sha256: 4bfd0511d851dec3c6f43f4bdde97fc2a214f8f0f49e2d66707f9c04ae51ba39, import_availability_and_lint: passed}
+  actual_python_public_watch: {cases: 25, status: passed, initial_failure: Missing explicit allow_private_operations keyword before first scenario now corrected, cleanup_mock_tests: 6}
+  combined_45_adapter_492_result_gate: passed
+  first_combined_attempt: {status: failed, stage: npm_generated_skills, cause: New TypeScript parameter property not erasable before method invocation, correction: Exact facade plus contract header and documented GC catch, native_inputs_and_artifact: unchanged}
+  corrected_combined_attempt: {status: interrupted_by_root, cause: Accidental Cargo ownership overlap, assertion_failure: false, artifact_mutation: false}
+  host_follow_up_source: Corrected facade and Python harness are noncompiled changes outside ff71 and are explicitly recorded in the successful whole-gate provenance. Native compiler inputs/artifacts stay unchanged; no complete SDK/command parity is claimed.
+  actual_combined_report: docs/plans/rust-tui/sdk-conformance-project-task-watch-2026-10-23.json
+  actual_combined_provenance: docs/plans/rust-tui/sdk-conformance-project-task-watch-2026-10-23-inputs.json
+  actual_combined_handoff: docs/plans/rust-tui/sdk-conformance-project-task-watch-2026-10-23-handoff.json
+  source_aggregate_sha256: 57ac1347e740485cdac1559662b7bc9c9e23faa051f3b864ed10a52426d96836
+  adapters: 45
+  vector_results: 492
+  minimum_free_gib: 34.31427764892578
+  source_native_artifact_and_three_lockfile_fences: passed
+  postbuild_correction_checks: {python_cleanup_mocks: 6, direct_typescript_lint: passed}
+  later_capacity_guard_interruption: {below_reserve_gib: 30.75, assertion_failure: false, source_held: true}
+  source_inventory: {rust: 1373, npm: 1474, python: 1083, gate_unit_tests: 53, inventory_unit_tests: 3, status: passed}
+  open_sdk_gaps: 144
+  release_eligible: false
+  scope: Facet remains partial. Narrow public observable cases do not replace precise internal queue-pressure, pre-await and serializer-join regressions; full foreground host, live backend and platform equivalence remain open.
+team_plan_protocol_prerequisite:
+  classification: existing_shared_api_protocol_gap_not_rust_migration_regression
+  code: [backend/core/api/app/routes/user_plans.py, backend/core/api/app/services/user_plan_service.py, backend/core/api/app/services/directus/user_plan_methods.py, backend/core/api/app/services/team_workspace_service.py]
+  finding: Route KeyWrapperType permits master/chat/project with no Team create context; writes and linked-Project admission resolve Personal. Persistence requires a master wrapper and requesting-user wrapper filters prevent another member reading the creator wrapper. Workspace moves change owner/slug without establishing Team Plan wrappers; npm Team wrapper move is Project-only.
+  existing_clients: npm/Python/web full Plan authoring is master-only; partial Team query reads do not establish a complete authoring contract.
+  native_goal_boundary: Keep Team refusal before inference; no Personal fallback, no guard removal and no API-key Team-key unlock.
+  prerequisite_contract: Team roles, key wrappers, links, slugs and cross-member reads must be agreed before Team authoring and then covered by all three SDKs.
+  current_conformance: Personal Plans; the Team vector in the Plans/Workflows fixture exercises Workflows.
+  authorization_limit: Records an existing capability prerequisite only; no unsolicited implementation, Specification change or backend Rust rewrite is authorized by this finding.
+project_source_authoring_integration_2026_10_23:
+  status: bounded_actual_three_library_conformance_passed
+  original_private_registration: docs/plans/rust-tui/sdk-conformance-project-source-authoring-registration-2026-10-23.json
+  actual_integration_provenance: docs/plans/rust-tui/sdk-conformance-project-source-authoring-integration-2026-10-23.json
+  source_inventory: {rust: 1414, npm: 1485, python: 1098, status: passed, actual_adapter_executions: 0}
+  actual_gate_policy: {unit_tests: 67, ruff: passed, repeated_after_source_audit: false}
+  facet: {id: session.project-source-authoring.v1, status: partial, registered_conformance: true, vectors_per_language: 25, nested_cases_per_language: 60, new_runtime_vector_results: 75_passed, actual_combined_adapters: 48, actual_combined_results: 567}
+  initial_sdk_unit_attempt: {focused_tests: 28, passed: 26, failed: 2, fixes: URL path space percent20 encoding and initially valid expiry fixture, qualification: Retained initial result not relabeled; actual complete gate now passes}
+  native_binding_source_authoring_proof: passed_in_recorded_three_library_gate
+  actual_combined_report: docs/plans/rust-tui/sdk-conformance-project-source-authoring-2026-10-23.json
+  actual_combined_provenance: docs/plans/rust-tui/sdk-conformance-project-source-authoring-2026-10-23-inputs.json
+  actual_combined_handoff: docs/plans/rust-tui/sdk-conformance-project-source-authoring-2026-10-23-handoff.json
+  source_aggregate_sha256: 2b0a18bd4fd9c93fa28f716f5a29de651dd25b069801fc6dcc6892e3070600bc
+  minimum_free_gib: 34.45725631713867
+  source_artifact_and_three_lockfile_fences: passed
+  fresh_native_inputs: 218
+  qualified_postbuild_noncompiled_corrections: 7
+  corrected_old_work_vectors: {per_language: 10, actual_all_three: passed, first_error: cancelled, retained_http_credentials_queue_fresh_revision_network_write_assertions: true}
+  python_type_checks: {source_vectors: 25, pure: 4, type_contract: 2, actual_local_310: unavailable, minimum_310_ci_step: added_not_run, model_routing_and_default_values: unchanged}
+  original_prepared_core_patch: c83155942a705205386143461c96396cdb9b5910dbf9dfef75a32aea08462a0c
+  current_body_qualification: Actual core body/test hashes differ after narrow integration fixes with the same public API shape. Original private snapshot is retained; actual hashes are recorded after the source-only audit without claiming a whole-source runtime fence.
+  open_sdk_gaps: 147
+  release_eligible: false
+  scope: Explicit encrypted Cookie Personal/Team create and capability-only updates; complete metadata preservation and typed API-key refusal are registered, not a full source host/filesystem/terminal capability. All75 new runtime vector results pass in the separately recorded gate; full source host and broader capability remain incomplete. Outside cf53 CI; no complete SDK or CLI functionality claim.
+generic_work_return_fence_checkpoint:
+  status: known_critical_fixed_and_verified
+  production_source_prefixes: [ca05, 82c7]
+  independent_review: clear
+  actual_test_functions: 8
+  lifecycle_matrix: 16_all_four_work_families_by_four_actions
+  additional: Source4 lifecycle plus bounded32 admission, released Client access, registry/wipe and distinct replacement-account usability
+  strict_clippy_and_both_features: passed
+  qualification: Resolves the known generic detached-work return defect. Broader lifecycle, target and complete SDK security acceptance remain ordinary required verification.
+current_native_whole_unit_checkpoint:
+  summary: /tmp/d1c4-native-current-full-unit-2026-10-23-summary.json
+  all_targets_passed: 405
+  failed: 0
+  product_cases_ignored: 4
+  sdk_and_library_fence: passed
+  native_source_at_command_start_snapshot: absent
+  supplemental_prior_compiler_and_final_owned_source_comparison: passed
+  qualification: Actual full native unit pass; no stronger complete native start/end source fence or product proof is claimed.
+cache_capacity_follow_up_2026_10_23:
+  user_authorization: Ongoing safe cache cleanup is authorized without routine clarification; preserve active runtime, tagged or needed artifacts, source, evidence and recovery authority.
+  prior_approved_68_image_cleanup: retained_passed_evidence
+  additional_unused_images: 35
+  status: completed_under_admitted_coordinator_operations
+  image_cleanup: {revalidated_unused_untagged_images_removed: 35, container_identities_unchanged: true, immediate_free_gib: 0.02}
+  unused_builder_cache: {prune_exit: 0, available_before_gib: 30.6, available_after_gib: 36.856, containers_and_images_unchanged: true}
+  bounded_watch_completion: {status: finished_cleanly, duration: under_60_minutes, operations: 2, freshly_unused_images: 34, unused_cache: cleaned, last_free_gib: 35.19, daemon: none}
+  qualification: Sanitized counts and invariant outcomes only; no private IDs or engine output. Fresh SDK binding libraries and the recorded45/492 gate now pass. Later unused-builder cleanup freed about3.35GiB; eighteen revalidated unused untagged images removed with zero retained and unchanged container/image mappings, available29.149to35.666GiB. Safe pnpm-store prune removed metadata4118files/four packages; no editor-server or user-data cleanup.
+privacy_combined_sdk_checkpoint_2026_10_23:
+  status: passed_for_retained_source
+  report: docs/plans/rust-tui/sdk-conformance-privacy-2026-10-23.json
+  provenance: docs/plans/rust-tui/sdk-conformance-privacy-2026-10-23-inputs.json
+  sanitized_build: docs/plans/rust-tui/sdk-conformance-privacy-2026-10-23-build-handoff.json
+  source_aggregate_sha256: c9ba7450d325866f6c9389c23f3436afd37d89c38008d0269e11e6697e68c0ee
+  adapters: 42
+  vectors: 417
+  local_privacy_cases_per_language: 39
+  local_privacy_fixture_sha256: ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968
+  source_artifact_and_three_lockfile_fences: passed
+  minimum_free_gib: 32.512
+  open_sdk_gaps: 141
+  release_eligible: false
+  post_gate_comments: {receipt: docs/plans/rust-tui/sdk-conformance-privacy-2026-10-23-post-gate-metadata.json, files: 7, annotations: 17, runtime_or_fixture_change: false}
+  later_source: Reviewed explicit-credential constructor-policy fix is outside this exact-source pass. Fifty npm and136 Python tests plus Ruff/ESLint pass. The separate explicit-credential final gate now passes42/417 with its own source/artifact provenance, retained below. No publication, global installation or complete SDK parity acceptance.
+  constructor_typescript: {status: qualified_failure, errors: 3, baseline_and_dev_reproduced: true, outside_eight_file_fix: true, details: Missing DecryptedMemoryEntry fields in projectFileExecutor and two BufferSource mismatches in projectIgnoredReadGrant; no unrelated repair or complete typecheck pass.}
+  interrupted_final_gate: {reason: disk_reserve, assertion_failure: false, completed_npm_tests: 2, completed_python_tests: 8, completed_rust_privacy_tests: 5, source_held: true}
+  disposable_cache_cleanup: {receipt: /tmp/d1c4-disposable-debug-cache-cleanup-20261023.json, removed_gib: 4.6, scope: Task-owned unused Cargo debug output only, open_users: 0, protected_sdk_libraries_and_pinned_binaries: unchanged}
+  resumed_final_gate: {report: docs/plans/rust-tui/sdk-conformance-privacy-explicit-2026-10-23.json, provenance: docs/plans/rust-tui/sdk-conformance-privacy-explicit-2026-10-23-inputs.json, status: passed, adapters: 42, vectors: 417, minimum_free_gib: 37.587, identical_source_and_artifacts: true, three_lockfiles_unchanged: true, gaps: 141, release_eligible: false}
+
+explicit_credential_final_checkpoint_2026_10_23:
+  status: passed_for_retained_source
+  report: docs/plans/rust-tui/sdk-conformance-privacy-explicit-2026-10-23.json
+  provenance: docs/plans/rust-tui/sdk-conformance-privacy-explicit-2026-10-23-inputs.json
+  sanitized_handoff: docs/plans/rust-tui/sdk-conformance-privacy-explicit-2026-10-23-handoff.json
+  source_aggregate_sha256: f5515446b3697929b4555facf2602530eff67cc170de18d6395ea5e559b664bd
+  adapters: 42
+  vectors: 417
+  source_native_artifact_and_three_lockfile_fences: passed
+  minimum_free_gib: 37.587
+  host_credential_tests: {npm: 50, python: 136, total: 186, ruff: passed, eslint: passed, independent_review: clear, strict_typescript: qualified_three_unchanged_baseline_errors}
+  approved_capacity_recovery: {operation: docker-74760684, unused_untagged_images_removed: 68, available_before_gib: 25.2, available_after_gib: 39.5, container_ids_and_images_unchanged: true, tagged_images_volumes_sources_evidence: retained}
+  open_sdk_gaps: 141
+  release_eligible: false
+  qualification: Earlier417 source and artifact evidence remains unchanged. This new pass does not include private watch drafts or authorize registry publication, installation or complete client/SDK acceptance.
+native_ci_fixture_follow_up:
+  source_capture: da67ee7ad3be48c0faa980f53d3085fa312ddd5f
+  status: retry_fixture_corrected_locally_pairing_acknowledgement_conflict_unresolved
+  change: Actual Python authenticated terminal Workflow creation now supplies a fresh explicit canonical UUID4 slug per invocation, retaining its fixed title, inert graph and all lifecycle, privacy and cleanup assertions.
+  local_checks: {pure_tests: 11, ruff: passed, independent_read_only_review: clear}
+  source_sha256: {auth_pty_proof_py: 33eda2fc9c8401defbe5693e175dd199ea207e948f9e0ddb7ce351d2f3044889, test_auth_pty_proof_py: 536f40b40ee6e8290cb77a9e85723f080ee1b4942b2971ed3eb374b1b6e10819}
+  qualification: Separate test harness only, no application-runtime change or new product proof. Do not reinterpret the first attempt's later pairing failure as a fixture collision.
+  pairing_next_step: Correlate or collect bounded secret-free pairing acknowledgement stage/state evidence in isolated GitHub CI before changing behavior. Retained browser context also shows Current session verification required, but its causal ordering is unproved. Do not add blind acknowledgement retries, remap conflicts to success or weaken vault persistence assertions.
+  task_activity_delivery: Initial outcome write failed with HTTP 502. After sync recovered, the new pairing-acknowledgement finding was acknowledged on TASK-1233 at 2026-10-22T23:53:19Z. No queued operation was resubmitted or claimed as delivered.
+tokio_security_follow_up:
+  status: patched_and_all_three_lockfiles_audited
+  advisory: RUSTSEC-2026-0384
+  affected_version: 1.54.0
+  patched_version: 1.54.1
+  change: All three manifests pin the patch exactly; only Tokio changes for this security correction in each lockfile. No advisory ignore, target filter or claim that this caused any earlier unexplained Python process exit.
+  audit: {report: docs/plans/rust-tui/dependency-audit.json, database_commit: 640bf5a9f06e66d8721e8772766531fe77c8630d, advisories: 1349, native_packages: 428, sdk_packages: 227, binding_packages: 247, vulnerabilities: 0, unsound_warnings: 0, yanked_warnings: 0, native_unmaintained_notices: 3, database_and_lock_fences: passed}
+  adoption: All earlier candidates containing 1.54.0 are retained historical evidence only. A fresh patched source build and successful required product checks must precede dev installation or publication.
+native_harness_follow_up:
+  status: focused_checks_and_independent_review_passed
+  auth_pty: {pure_tests: 10, ruff: passed, review: clear, change: Require the current complete terminal grid to contain nonempty owner greeting and Signed in together without the login form or Signed out; reject partial paints and stale screens rather than searching cumulative ANSI bytes.}
+  workflow_fixture: {pure_tests: 1, formatting: passed, change: Each actual create payload has a fresh explicit canonical UUID slug while fixed title and cleanup remain unchanged. Backend soft-delete uniqueness and error behavior are not changed.}
+  required: New isolated native execution; these pure regressions do not establish complete authenticated terminal or product parity.
+task_order_whole_suite_checkpoint:
+  status: passed
+  evidence: docs/plans/rust-tui/task-order-local-checks-2026-10-22.json
+  sdk: {unit_tests: 260, integration_tests: 14, total: 274, repeated_credential_isolation_subprocess_test_excluded: 1, strict_all_target_clippy: passed}
+  native: {library_tests: 281, total: 333, product_tests_ignored_locally: 4, strict_all_target_clippy: passed}
+  package_input_guard: passed
+  source_aggregate_sha256: bb2ef7c67edfb799a23049a797c65d99e29aacf3268fdc6dc86179897782a24d
+  minimum_free_gib: 31.424
+  qualification: Final native/SDK production, tests, standalone fixtures, manifests and locks held before and after all commands. Includes patched Tokio, Task ordering and the pure unique-workflow fixture regression. No product E2E was run locally; no completed migration or installation claim.
+task_order_combined_sdk_checkpoint:
+  status: passed
+  report: docs/plans/rust-tui/sdk-conformance-task-order-2026-10-22.json
+  provenance: docs/plans/rust-tui/sdk-conformance-task-order-2026-10-22-inputs.json
+  binding_build_handoff: docs/plans/rust-tui/sdk-conformance-task-order-2026-10-22-build-handoff.json
+  adapters: 39
+  vectors: 300
+  capabilities_with_shared_vectors: 13
+  open_gaps: 141
+  release_eligible: false
+  source_and_native_artifact_fences: passed
+  patched_tokio_lock_fences: passed
+  binding_prebuild_inputs: 102
+  minimum_free_gib: 31.248
+  environment_failure: Preserved in sdk-conformance-task-order-python-import-2026-10-22 reports. System Python lacked toon_format and failed SDK import before AES vectors; the successful run uses the retained dependency-complete SDK venv. No cryptographic or product failure was reproduced, and the older unexplained blank-stderr native-boundary child failure remains unresolved.
+  release_workflow_coverage: Both existing SDK workflows now invoke the npm Task-order facade contracts in addition to shared vectors; Python host tests are discovered by its existing suite. Both workflows parse. Twelve workflow-scope tests pass; the thirteenth fails its pre-existing unchanged isolated-tests.yml option-order assertion. Neither that test nor its target workflow changed; no unrelated repair or weakening was made.
+redis_probe_compatibility_follow_up:
+  status: full_local_checks_and_refreshed_review_passed
+  retained_ci: docs/plans/rust-tui/selfhost-ci-2026-10-22.json
+  scope: Remove the Redis7-only JSON-mode assumption with one argv-only CSV capability probe before credentials or enqueue and strict scalar framing. Keep all application control in Rust, existing cancellation/timeout/process-group cleanup and zeroized stdin credentials. No generic-error fallback, shell application control, backend rewrite or new dependency.
+  initial_focused_checks: {probe_tests: 9, diagnostic_tests: 4, injected_tool_positions: 8, existing_health_permission_tests: 3, existing_install_secret_mode_test: passed, strict_lib_tests_clippy: passed, qualification: These tests precede the acknowledgement-gating correction and are not final-source acceptance.}
+  full_native_attempt: {status: failed, source_fence: passed, library_passed: 286, library_failed: 1, log: /tmp/d1c4-redis-csv-native-aggregate-native-all-targets.log, failure: Existing operational digest fake omitted the added capability invocation; preserve its receipt/privacy assertions while adding the real preflight expectation.}
+  independent_review_blocker: Resolved by same-connection Rust acknowledgement gating. The intermediate batched SELECT source could send LPUSH or DEL to DB0 after rejected selection and remains excluded from capture/adoption. AUTH now validates before SELECT and each subsequent command waits for exactly one validated reply; a separate SELECT connection is not used.
+  final_focused_checks: {probe_tests: 12, flat_operation_tests: 4, operational_receipt_tests: 3, diagnostic_tests: 4, strict_lib_tests_clippy: passed, scoped_formatting: passed, independent_review: clear, qualification: Actual probe stage construction drives a synthetic child journal; rejected/wrong/extra/partial/missing/EOF setup replies permit no later LPUSH or DEL. A successful DB2 session and cancellation with child reaping pass. No product calls or actual Redis success are claimed.}
+  staged_io: Optional zeroized InputStages extend the existing bounded nonblocking Rust runner; flat command behavior stays covered. Each line waits for exact LF-framed typed acknowledgement before the next is written; surplus rejects, and cancellation/deadline/output limits retain existing process-group kill/reap protections.
+  final_native_checkpoint: {report: docs/plans/rust-tui/redis-probe-local-checks-2026-10-22.json, total_tests: 342, library_tests: 290, product_tests_ignored_locally: 4, strict_all_target_clippy: passed, package_input_guard: passed, source_fence: passed, source_aggregate_sha256: 724a778195de8fb0882054b2875bcea866b31914b3640f5dd48cfddc9bf885ab, minimum_free_gib: 31.384}
+  remaining: New patched-source isolated native and full source/image self-host runs; masked signed-in TUI proof and application measurements remain required. SDK source and locks are unchanged since the 274-test and 39-adapter/300-vector checkpoint. No dev installation or publication.
+  required_evidence: Deterministic synthetic tool command journal proves no later mutation after rejected/missing/wrong/extra AUTH or SELECT reply; successful nonzero DB and cancellation/deadline cleanup; full native suite, strict Clippy, refreshed independent review and new exact-source isolated source/image lifecycle.
+project_items_follow_up:
+  status: local_checks_passed
+  scope: Shared Rust Project item listing and confirmed unlinking, with existing encrypted detail projection and authoritative permissions. Preserve scripting output and underlying objects; API-key unlink refuses before network because its backend route does not support that credential mode.
+  focused_sdk_tests: {passed: 9, coverage: Encrypted projections and owner/Project/Team/key/target binding; confirmed and viewer refusals; API-key authorization; cancellation and retained Cookie rotation; canonical positive/zero receipts and uncertain mutations without retries.}
+  final_sdk_checkpoint: {tests: 269, unit_tests: 255, integration_tests: 14, strict_all_target_clippy: passed, source_input_fence: passed, logs: /tmp/d1c4-project-items-sdk-final-results.json, qualification: Excludes the credential-isolation subprocess's repeated test; all product protocol execution remains isolated CI only.}
+  native_focused_checks: {item_tests: 3, existing_parser_regression: passed, formatting: passed, qualification: Projects --confirm accepts the legacy optional value while handlers distinguish boolean item confirmation from exact-ID Project deletion.}
+  final_native_checkpoint: {tests: 325, library_tests: 274, product_cases_ignored_locally: 4, strict_all_target_clippy: passed, source_input_fence: passed, logs: /tmp/d1c4-project-items-native-final-results.json}
+  review: {item_core_and_projection: clear, parser_follow_up: clear}
+  source_audit: {rust_apis: 1328, npm_apis: 1454, python_apis: 1057, declared_gaps: 138, status: passed, real_conformance_runs: 0, report: /tmp/d1c4-project-items-sdk-source-audit.json, release_eligible: false}
+  synchronized_bindings: {capability: session.project-items.v1, vectors_per_language: 11, actual_adapters: 3, focused_bridge_tests: 3, npm_host_tests: 5, python_host_tests: 4, strict_binding_clippy: passed, npm_sdk_declarations: passed, independent_review: clear, fixture_sha256: 4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867, handoff: docs/plans/rust-tui/sdk-conformance-project-items-2026-10-22-build-handoff.json, qualification: Fresh actual Rust/NAPI/PyO3 synthetic-peer results; no actual nonempty backend link or platform proof. Public input types are exported. Worker build timeline is retained without retroactive pre-build hash claims.}
+  actual_combined_conformance: {report: docs/plans/rust-tui/sdk-conformance-project-items-2026-10-22.json, provenance: docs/plans/rust-tui/sdk-conformance-project-items-2026-10-22-inputs.json, adapters: 36, vectors: 234, status: passed, source_input_fence: passed, native_artifact_fence: passed, minimum_free_gib: 31.008, release_eligible: false, qualification: Current SDK and actual NAPI/PyO3 artifacts held throughout the combined gate; all three locks unchanged. Reuses documented fresh worker builds. Earlier unexplained Python process exit remains unresolved; this successful run establishes no historical cause or fix.}
+  synchronized_source_audit: {rust_apis: 1328, npm_apis: 1458, python_apis: 1062, declared_gaps: 141, status: passed, release_eligible: false, qualification: Three explicit new Project-item limits are added to the prior 138 gaps.}
+  captured_verification_source: {source: 6e5018ab0c70cacc1ec8943ab7ba1c42999952b0, tree: 945b4ebf74d99663e90061c371b9a81670882698, base: 25dfaf520724c693dac4d743abb20064f41c9d49, patch_sha256: cc5e9581597a293b1f13ac92f4fd5c8afd6dda2f41be4d9207c05fb7a642af13, changed_paths: 428, preflight: passed, product_ci_submitted: false, qualification: Includes Project items and independent signed-in preparation/readback integration. Its 157 application inputs matched before and after the pinned build. Later runtime-verification diagnostics and measurement-harness changes are outside this snapshot and require a new source capture and build.}
+  dev_binary: {host: aarch64-unknown-linux-gnu, sha256: ff8e9a54477848bf228c554a505c97acac5fbe6d30426fe7766ab0c2b0de6a3d, verified_source_inputs: 157, manifest: /tmp/d1c4-project-items-auth-preparation-binary-manifest.json, installed: false, qualification: Private pinned release build with captured Git blobs checked before and after compilation. No product CI pass, installation or signed build attestation.}
+  remaining: The 2d94b407 attempt-zero protocol smoke passed actual-server empty listing, confirmed zero-delete and API-key read coverage. Positive unlink with preserved underlying object, Team-member ownership behavior and complete family parity remain open. Interactive TTY confirmation is explicitly unported; scripting requires --confirm. The overall native run failed later and its affected Tokio binary cannot authorize adoption.
+  qualification: Later workspace changes are outside the d9f419b26f6a CI source and pinned binary. Focused tests, independent review, capability classification and relevant isolated product verification remain required.
+authenticated_performance_follow_up:
+  status: isolated_cli_measurement_integrated
+  scope: One fixed Linux terminal size, five alternating full-process samples per implementation, the same disposable Personal account and synthetic encrypted Chats/history/Tasks; no inference or extra platform/CPU matrix.
+  setup: Build and authenticate outside measurement using independent private profiles. Preserve each profile's latest rotating credentials; never replay snapshots or copy keys between implementations. The administrative dev-profile bootstrap is not a CI seeder.
+  storage_policy: Verify equivalent actual storage protection before comparing. A common owner-restricted-file lane is valid only if both existing clients explicitly support that new-profile mode; do not add a downgrade or fake keyring to obtain benchmark numbers. Otherwise provision a real isolated common SecretService. Report native encrypted-vault prompt and unlock costs separately because the retained TypeScript client has no equivalent passphrase vault.
+  prerequisites: Seed canonical synthetic encrypted message rows and wrappers without account-import inference/compression, then read back the same IDs/content/roles/counts/Task versions through both clients. Existing protocol fixtures only seed draft-only or saved empty chats and cannot establish equivalent history performance.
+  fixture_follow_up: Bounded isolated-CI-only helper seeds owner-scoped encrypted messages and validates exact rows before cleanup. Ten tests, focused TypeScript/lint and independent review pass, including executing the actual fixture child with an inert SDK and decrypting all twelve messages. Current fixtures use thirteen real Markdown lines and complete sixteen-cell ASCII titles suitable for both terminal layouts; older literal-backslash-n fixtures retain their original source qualification. No actual both-client readback or authenticated timing is claimed yet.
+  preparation_helper: {path: frontend/packages/openmates-tui-native/scripts/authenticated-application-prepare.py, pure_tests: 40, ruff: passed, independent_review: clear, qualification: Independently pairs each actual CLI using private browser callback IPC and validates original source/artifacts plus native binary identity; owner and exact seeded history readback; actual selected owner-only file policies before and after commands. No credential/profile copying, timing or actual CI execution yet.}
+  browser_integration: The bounded Playwright helper creates a separate explicit disposable preparation SDK profile, seeds synthetic history, privately approves both actual CLI pair requests and validates the sanitized prerequisite receipt. Signed-in CLI measurement follows successful preparation, then the TUI helper follows all thirty successful CLI metrics, before cleanup. Fifteen focused helper tests, TypeScript/lint and independent review pass. A possible TUI spawn arms private recovery-root retention; only exact successful cleanup and an absent pending Task journal allow deletion. Uncertain outcomes retain latest rotating profiles and journal for the runner lifetime. Actual isolated execution remains open; 2d94b407 includes only the earlier CLI integration.
+  cli_measurement: {path: frontend/packages/openmates-tui-native/scripts/authenticated-application-benchmark.py, mocked_tests: 33, ruff: passed, independent_review: clear, repetitions_per_backend_flow: 5, flows: [whoami, chats_list, chats_show], timed_actual_processes: 30, qualification: Alternating original TypeScript and native Rust cold processes with warm independent profiles and unflushed OS caches. Untimed owner/history/storage checks and source/artifact fences; actual-child CPU/RSS and bounded executable/descendant observations. Preserves failed samples without retries or omission. Linux isolated execution and authenticated TUI measurements remain open.}
+  tui_preparation: {status: helper_integrated_and_reviewed, path: frontend/packages/openmates-tui-native/scripts/authenticated-tui-benchmark.py, terminal: 120x38, pure_tests: 52, ruff: passed, independent_review: clear, timed_processes: 10, actual_execution: none, workload: Current complete-screen owner and full chat-title readiness; matching history marker; Unicode draft editing without sending; two real Tasks whose positions oppose UUID order; settled idle CPU/RSS; clean signal and terminal restoration., recovery: Untimed owner checks before each process; atomic owner-only pending Task journal and literal confirmed deletion receipts preserve cleanup authority. Uncertain outcomes retain private profiles and journal through runner lifetime. Masked actual terminal video remains open.}
+  task_ordering_follow_up: {status: focused_checks_review_and_three_library_vectors_passed, capability: local.task-order.v1, fixture_vectors_per_language: 22, actual_vector_results: 66, focused_sdk_tests: 5, focused_native_tests: 3, focused_bridge_tests: 2, npm_host_tests: 3, python_host_tests: 12, strict_sdk_native_binding_clippy: passed, independent_review: clear, scope: Explicit-locale pure-Rust ICU ordering with stable finite JSON number positions and canonical title fallbacks; direct stateless npm/Python access preserving caller rows; native TUI and human-board reuse with selected-ID retention. CLI JSON/list/status and transport pagination remain wire ordered., qualification: Source/API audit passes with 1333 Rust 1459 npm and 1064 Python symbols and the same 141 existing gaps. All three patched locks and 102 binding prebuild inputs held. The source-fenced 39-adapter/300-vector gate and whole SDK/native checkpoints above pass; exact-source product execution remains required. ICU data and qualified Node24 oracle versions differ; no universal cross-version collation, macOS locale preference or release/WASM size claim.}
+  storage_audit: The retained TypeScript file policy stores the master key in an owner-only session file; native restricted_local_file uses encrypted data plus an owner-only local wrapping key. Both rely on the same OS-account/filesystem boundary but have different formats and local crypto costs. Verify actual selected modes and label those differences. A genuine common OS keyring service is not established on the runner.
+  measurements: Read-only matching CLI commands plus actual authenticated TUI readiness, opening the same chat/history marker, Unicode draft editing without sending, Task selection, settled idle and clean exit. Reuse the actual-child process meter and timestamp semantic visible checkpoints rather than any next ANSI frame.
+  evidence: Record source/toolchain/fixture digests and counts, elapsed CPU and actual-process RSS with descendant limits, explicit cold/warm state and storage modes. Publish masked synthetic frames and metrics only; reject mismatched state or errors rather than dropping failed samples.
+resume_order:
+- Retain verified source3a96 Linux essential native proof and continue browser/WASM now (TASK-9558 in_progress).
+  TASK-9393 is done; TASK-1233 remains open for preview refresh and macOS acceptance. Keep exhaustive CLI parity,
+  SDK publication gaps and selfhost readiness separate, with web-before-Apple and backend-after-accepted-client-cleanup boundaries.
+- Retain successful2bc self-host CI with16steps and4browser flows including admin/passkey/recovery plus cleanup.
+  All4videos unavailable and7images uploaded; historical earlier failures stay source-qualified.
+- Retain root-owned current1b native CI request ddc01465815219a4bc4da6636f2d042d1463e07bc6571c09554890db4cb811c3,
+  run39992845748. Repaired Node startup passes; both attempts fail preparation_child_failed before metrics.
+  Exact child refusal is unknown; bounded closed-code diagnostics are now integrated for later execution.
+  Diagnostic-only source5128b2bd167d3704c5984df5f22b31d6803e346b failed run40014172598 under root request
+  48f4fb7fa6a5b31def11b27d123b92581f217d11a0ecceb297c9c1429582eca4. Only two helper files differ
+  from1b; application compile inputs are unchanged. Both attempts retain actual_cli_exited_before_prompt inline;
+  backend/wait/exit status/cause remain unknown. Cleanup and20video/2image uploads pass; no metrics.
+  Separately proven PTY buffered-exit race fixed with47inert checks; CI causation remains unproved.
+  Normal guarded retrieval retry and evidence upload pass; cleanup proves zero containers/volumes and removed private accounts.
+  Trusted acquisition/FD-cache-anchor/closed early-failure envelope fix is deployed4a14fa15.
+  Retain034 retry39989316185 observed Nodev24.21.0 x64mode00777 and failed identity retrieval without normalreceipt/upload/cleanup;
+  older39986942686 mode remains unknown.
+- Retain the actual source-authoring48/567 gate with147gaps and qualified seven noncompiled corrections, without
+  relabeling prior45/492 or earlier evidence. Retain the successful exact-source privacy39 gate with 42 actual adapters
+  and417 results. The separate explicit-credential gate passes42/417; the separate watch gate passes45/492 with
+  its historical partial-facet144 gaps; do not relabel the retained pass as later-source verification. Historical39/300
+  stays unchanged and historical141/watch144 and current source-authoring147 gap counts remain source-qualified
+  and block release.
+- Preserve verified source3a96 authenticated terminal, cancellation and recovery proof. Compile and verify the new
+  working SDK portability/binding foundation separately; continue full-application performance checks and required
+  full source/image self-host lifecycle acceptance.
+- Retain the installed source1b side-by-side Cargo preview openmates-rust with default~/.openmates-rust and unchanged
+  npm global command. Four empty-state help/version smokes and exact source/dependency/12pin-library/legacy fences
+  pass; actual personal-account daily testing is still pending. Do not automatically replace or retire the old command.
+- Preserve the native pre-inference Team Plan refusal until the existing shared API wrapper/role/link/slug/cross-member-read
+  contract is settled and all three SDKs have matching vectors. Treat this as an existing protocol prerequisite,
+  not a guard-removal migration fix.
+- Continue all original CLI grammar/flags/handlers and SDK capabilities as separate required work; strict publication
+  stays blocked by explicit capability gaps. This does not delay browser integration after essential-native proof;
+  catalog recognition is not behavior evidence.
+- Retain the verified generic workspace return-fence correction across all four work families and sixteen lifecycle
+  races, including distinct replacement-account usability. Continue broader normal lifecycle/platform/security acceptance;
+  the known detached-work critical defect is fixed, not an open blocker.
+- Retain the locally admitted Rust source-host SDK prerequisite316/14tests+strictClippy/fmt, parked off the essential
+  critical path. Foreground filesystem/terminal host, FFI/all3 conformance, subscriptions/cache/outbox lifecycle
+  and persistent Codex integration remain separate full-parity work; no CLI/runtime delegation to Python or Node.
+- Verify macOS on the actual Mac through an admitted remote operation or explicit Mac-chat handoff. Windows tests
+  and additional architecture matrices are waived by the user; retain unverified Windows implementation/support
+  gaps without presenting them as release evidence.
+- Finish signed-in application measurements and user testing, then obtain explicit agent AND user completeness/reliability
+  acceptance before removing npm CLI/TUI source.
+essential_gate_status_2026_10_23:
+  updated: '2026-10-24'
+  status: VERIFIED_LINUX_BROWSER_ADMITTED
+  source: 3a962e77b1277e8a64c36af3fefbd72859c1bb8e
+  tree: db2be0ac83cb484f43aacf22f6bb1fe12a110d07
+  request: 0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c
+  run: 40065596506
+  result: All12essentialnativegatesPASS;467nativeunitsPASS;4intentionalintegrationignores;retrieval0_upload0.
+  cleanup: Ownedcontainers0_volumes0_privateaccountfilesremoved.
+  recordings: Two actual terminal videos uploaded; no reconstruction.
+  admission: Linux essential native admission achieved. TASK-9558 is in_progress; browser/WASM proceeds now without waiting for exhaustive CLI parity,156 SDK gaps,selfhost or macOS.
+  task_status:
+    TASK-9393: done
+    TASK-1233: open; installed preview refresh and actual macOS acceptance remain
+    TASK-9558: in_progress
+  sdk_evidence: Exactsourcef96 passes396SDK36bindingtests54adapters615outcomes including48essential;156gaps still block publication.
+  working_sdk: New27fileportability plus10filebindingfoundation UNCOMPILED_UNVERIFIED; oldf96execution does not cover these edits.
+  installed_preview: Source1b remains installed alongside npm; no automatic replacement or retirement.
+  macos: Actual Mac verification remains required and open; Linux milestone does not establish macOS acceptance.
+  evidence: docs/plans/rust-tui/essential-native-stage-status-2026-10-23.json
+local_preview_stage_checkpoint_2026_10_23:
+  evidence: docs/plans/rust-tui/parallel-rust-preview-install-2026-10-23.json
+  current_stage_status: docs/plans/rust-tui/essential-native-stage-status-2026-10-23.json
+  security: clipboard-win5.4.1yank resolved narrowly to5.4.3; native lock309a5e50729a0bb15689a44f39800b17d449affece7167faebb7704ba31e3de6.
+    Fresh all3 audits0vulnerabilities/0unsound/0yanked,3native maintenance notices retained.
+  sdk: Full RustSDK316including14host regressions+strictClippy/fmt pass; host prerequisite parked, no FFI/all3 gate
+    proof.
+  release: Current59row matrix declares156language gaps after reviewed essential bindings source integration;
+    historical48/567 checkpoint and147gaps are not current proof for added Rust host/monitor/recovery APIs.
+    New48shared outcomes and10internal tests remain uncompiled/unrun; combined static API inventory passes with
+    1555Rust/1515npm/1126Python APIs,156gaps and0real conformance runs.
+  scope: Documentation/progress evidence only; approved Specification fingerprints and existing approval unchanged.
+
+integrated_essential_ci_checkpoint_2026_10_23:
+  source: c6504bc4912c91971ae7e8b66cac0474e9eebab7
+  tree: b55b1e82869c6667a1cb1c8c8fc24563514c8232
+  changed_paths: 598
+  preflight_and_independent_all_dirty_blob_mode_census: passed
+  essential_request: a67c3f4c860a43308b92598bdc184f0d8538160311205c10d9972629f3d9192f
+  status: failed_native_unit_tests_before_product
+  native_run: 40029480804
+  native_result: Release compilation reached library execution;385passed7failed all new saved-read recovery fixtures. Product gates and binary actor tests not reached; cleanup and evidence upload verified.
+  fixture_fix: Reviewed2test-only files repair explicit0700fixture directory, exact ordinary socket capabilities and JS-UTC-millisecond lease timestamps; no production guard change. Rust rerun pending.
+  current_selfhost_request: 72acdeb267872ff21e82344785075a2b2e87ac2efbd8fbdb2644595fbfcf4219
+  current_selfhost_status: failed_published_npm_cli_PATH_before_installation
+  current_selfhost_run: 40032082045
+  current_selfhost_result: CurrentTypeScriptandRustCLIbuilds pass; publishednpm installation succeeds then openmates is absent onPATH. Exact prefix unmeasured. Cleanup/upload verified; explicit-bin correction preparing.
+  current_selfhost_qualification: Repeat preserved install/update/admin/passkey/recovery coverage against the integrated source; historical2bc success remains source-qualified.
+  native_unit_stage: Reviewed21inert cases; one18minute absolute attempt with60second reserve and retries0,
+    under unchanged20minute runner/60minute job. Native tests precede warm product build; all12gates retained.
+  baseline_requests:
+  - {id: 6064d0e93ef87fda8d4d18c69bb7af679c45372143fac24387e760b4e14d3dc3, spec: chat-streaming-render-performance.spec.ts, status: success_on_retry, run: 40030055784}
+  - {id: 3894c11352bb0bc0d884eeab1da51d5131d6b6234bf5078ef66384d53d37ffab, spec: page-load-performance.spec.ts, status: success, run: 40030060535}
+  baseline_qualification: Legacy browser load/renderer and source-bound production inventory only; wider controlled
+    CPU/RAM/auth/sync/recovery/cold-warm and WASM initialization comparisons remain required. Curated partial evidence
+    is docs/plans/rust-tui/web-before-performance-2026-10-23.json; renderer61.7msmax operation fails first attempt then
+    retry passes11msmax. ResourceTiming250-entry default saturation makes observed bytes lower bounds; bounded capture
+    correction and9inert regressions pass in source, real rerun pending.
+  sdk_ci: Private candidate lacks existing actual all3 conformance route; narrow isolated-framework capability is
+    implementing. Foreign runtime48new outcomes and156release gaps remain open.
+
+corrected_essential_ci_checkpoint_2026_10_23:
+  source: b1e24c099161b709509f463e6e3f65cb2da201f5
+  tree: 83698a6e07d531de4282e1ca52977bb1f2943bce
+  all_dirty_untracked_blob_mode_census: passed602paths
+  essential_request: 3613eea506674230a5d8aa44852efe6074e4de76efb5618083240ccb819e869a
+  selfhost_request: dfc1d857430d2671f5c4e56da91f022078fff36350c69c196bbf64466b22269e
+  status: queued_no_new_product_pass
+  corrections: Reviewed saved-read fixture contracts, published npm executable lookup, bounded resource capture and startup timing windows; all original functional assertions and security guards retained.
+  focused_checks: Native fixture pure checks,9selfhost cases and17web collector cases pass; actual native/browser reruns pending.
+  web_before:
+  - {spec: chat-streaming-render-performance.spec.ts, request: e456ebf6620c2420c3ae22ad1c8c955f03a42d41e887eabea16aca06b026b15f, status: queued}
+  - {spec: page-load-performance.spec.ts, request: aceceb62de3e71b91eec1fdb3357757caf0cf7c8a67a27449f0aa20b85c922a3, status: queued}
+  - {spec: startup-sync-contract.spec.ts, request: f6bfef4af244511ecfdf1a77f5722560a44d07c1c8d5d83cbfaef6182acadc5d, status: queued}
+  qualification: No full web performance comparison or essential acceptance; installed preview remains source1b.
+
+sdk_isolated_lane_checkpoint_2026_10_23:
+  deployed: 8377dc49badcecddb70471dda9a3e7556b555fae
+  reviewed_candidate: f61076a1d366cb54778364f329b39084d81dfcfd
+  reviewed_patch_sha256: 39b54e610b6a2d1540f89a03a061d749caf866351c51c7d44fd6e482b6764cc2
+  verification: IndependentCLEAR;42inerttests;materializedSpecification/lintgates;all8deployedblobhashesheld.
+  application_source: fbaff6293a42ac41916951bba030b05fafced6e6
+  application_census: passed603paths;productionSDK/bindings/nativecompilerinputsunchangedfromb1.
+  request: 1eb2478d18f3d245312bcc6500a7d7399c177db5e750ccc175810914e6223e02
+  status: queued_no_actual_build_or_conformance_pass
+  forecast: 54adapterruns615vectoroutcomes;notexecutionproof.
+  open_release_gaps: 156
+  diagnostics: Private rawfailurelogs are excluded from upload and expire with runner; bounded closed compiler locations, trusted adapter/vector identities and stream counts/hashes survive in the receipt.
+web_before_result_checkpoint_2026_10_23:
+  evidence: docs/plans/rust-tui/web-before-performance-2026-10-23.json
+  corrected_navigation: b1run40034466423passesall3checks;284to414entriesunder4096capacityand0bufferfullevents;source/servedentry/inventorybindingsverified;cleanup/uploadpass.
+  startup_reconnect: b1run40034470877instrumented2casespass;5suitecasespassand1unmodifiedcachedreplaycasefailsbothattempts. Measurementsretained;cleanup/uploadpass.
+  required_browser_regression: Preserveandresolve recent-chats selectedwindow replay while IndexedDB reconciliation waits; legacyhistoryisloadingorhidden.
+  qualification: No WASM runtime integration or Rust speedup; broader controlled comparisons remain required.
+
+native_units_and_origin_checkpoint_2026_10_23:
+  source: b1e24c099161b709509f463e6e3f65cb2da201f5
+  run: 40034462564
+  native_units: 458passed0failed4intentionalintegrationignores;392library30main36other.
+  units_elapsed_ms: 630656
+  product: Pairinitiate403beforeanysend;harness127appOriginmismatchedcanonicalbackendlocalhostallowlist.
+  cleanup_upload: verified
+  harness_fix: 25c77456cd272747401494f749230d3a0b5eabbfce4e1a562492d21cd99e1d1c;reviewedandapplied;11JS33Pythonpass;applicationandCORSguardsunchanged.
+  acceptance: Essential12productgatesandessentialthreeSDKchecksremainopen.
+  sdk_setup_retry: {request: 4010dcd5a30c24df0888ddb0ad7d7ef3317d762791563effdcac9c01518ad02e, source: fbaff6293a42ac41916951bba030b05fafced6e6, harness_fix: cfa47ff6a69ccdce4e370b02c21c20e92cb9aef3, status: queued}
+  controlled_web_baseline: Reviewedtest-onlyHTTPcacheCPU/RSSinstrumentationapplied;8inertpass;actualmeasurementpending.
+
+actual_sdk_and_selfhost_checkpoint_2026_10_23:
+  sdk_source: fbaff6293a42ac41916951bba030b05fafced6e6
+  sdk_run: 40041975631
+  sdk_harness: b167d8959ac6217655f9cd7b05d7b3e74e7fbadc
+  sdk_result: Setup,36bindingunits,NAPI/PyO3builds,facadebuildandbothloadstagespass;Rustsession.recovery-replay.v1adapterfailsbeforefullgate.
+  sdk_qualification: No failed-vector attribution or completed final fences; full synchronization and156releasegaps remain open.
+  selfhost: {source: b1e24c099161b709509f463e6e3f65cb2da201f5, run: 40034475233, steps_passed: 16, browser_flows_passed: 4, cleanup_verified: true, evidence_upload_exit: 0}
+  selfhost_limit: Older6159427normal-flowcleanup;new998679native-onlytimeout/profileguardrunremainsrequired.
+  trusted_cleanup_request: b67a7044801228c608f30636a442fc09adaca5d19a4466b85a84ebb11bb8ba81
+  controlled_web: Sixcasespassandoneunmodifiedcachedreplaycasefailsbothattempts.ColdHTTPready5601ms,warm5334/4393ms;partialprocessCPU/RSSonly,23chats/0loadedmessages.
+
+exit_diagnostics_and_recovery_fixture_checkpoint_2026_10_24:
+  source: c15f89c51ad688f8be090eac0643a3aa6eb6bafe
+  tree: 32b8dd96833ed5f6d724b61125f444eeb4f5fe0c
+  source_census: all606dirty_untracked_blobs_and_modes_match
+  essential_request: efb58393b90233a56592f6bf68e03ad7bd221507dfcde018cdf2561458f5da1a
+  sdk_request: 1aee964b522ce0620dc1213ac4b6f566da1d62f56b628f22283fc1ffa54126fb
+  status: submitted_no_new_runtime_pass
+  native_change: Reviewed bounded first-send exit/stream diagnostics;43Python12Node pure checks pass; all12product gates retained.
+  sdk_change: Reviewed synthetic recovery payload now includes canonical nullable category/model_name;5pure tests15subtests pass; no SDK production change.
+  trusted_fixture_pins: 512de41bfe0efc49181331f73af1a602c645ea7d;deployedblobverified;materializedSpecificationandlintgatespass.
+  qualification: Earlier first-send exit and suite-only recovery failure have no proven causes. Source fixes await actual isolated runs.
+  next: Essential native and essential three-SDK acceptance then immediate WASM; remaining CLI parity and156SDK release gaps stay required separately.
+
+saved_send_scope_and_cleanup_integration_checkpoint_2026_10_24:
+  native_fix: b7292981bad3f773f016dac4ec394d8f061f0f5f2572507e98834d4df969570a
+  native_status: Reviewed and applied; inherited Personal/Team flags now reach saved send handler; anonymous/incognito scope flags remain refused.
+  native_checks: Three parsed CLI regressions added, direct rustfmt passes; Rust execution pending isolated CI.
+  obsolete_native_run: 40044944548 cancelled while building web because its actual first-send argv is source-proven to be refused; not a product result.
+  sdk_request_unchanged: 1aee964b522ce0620dc1213ac4b6f566da1d62f56b628f22283fc1ffa54126fb
+  cleanup_integration: 0b5ba9abecf3fe058d7e3b7c0d790ec0abfdfe76b868683cdbab716a0c9243cb
+  cleanup_checks: Independent CLEAR,42inert tests pass; canonical cleanup AST preserved, all9candidate cases retained plus2provenance cases.
+  qualification: No local Cargo/rustc or cache deletion. No essential acceptance, new installation or npm retirement.
+
+current_native_and_monitor_conformance_checkpoint_2026_10_24:
+  native_source: aad791fce2bba321e1857ae7bc4a8244522ca1d4
+  native_tree: d14d31f3c530d72120573cb5ab20faa8b6ce0b47
+  native_source_census: passed606blobs_and_modes
+  native_request: 46304224f96637a67336b6e36e8531b43bb4a49f4cce2ffb24df134259b552ec
+  native_status: submitted_no_new_execution_pass
+  sdk_source: c15f89c51ad688f8be090eac0643a3aa6eb6bafe
+  sdk_run: 40044941597
+  sdk_request: 1aee964b522ce0620dc1213ac4b6f566da1d62f56b628f22283fc1ffa54126fb
+  sdk_result: Builds,loads,bindingunits pass; conformance progresses past recovery replay then fails Rust live-monitor suite.
+  sdk_limits: Eight known monitor vectors,no failedvector attribution; finalsource/artifactfences not reached. Cleanup/uploadpass; no aggregate conformance claim.
+  next: Resolve essential monitor/foreground checks and native12gates, then immediate WASM. Unrelated156releasegaps and exhaustiveCLIremain separate required work.
+
+trusted_native_selfhost_success_checkpoint_2026_10_24:
+  source: f6dc7f67f700e037c3281985c43a00627d7ba277
+  harness: 998679adf9dfca82fcf276263f316a8d94e813e2
+  request: b67a7044801228c608f30636a442fc09adaca5d19a4466b85a84ebb11bb8ba81
+  run: 40041368627
+  result: Fullspecsuccess;16steps4browserflowspass,0skip0failure0flaky.
+  cleanup: Verified0containers0volumesprivateaccountfilesremoved;retrievalanduploadexit0.
+  qualification: Actualnormalflowusesstricttrustednativecleanup. Timeout/descendantedgecasesareinertunitproof;laterCLIchatflagfixanddiagnosticsoutsidethissource.
+
+monitor_failure_diagnostic_preparation_2026_10_24:
+  app_patch: cab5a2fda52d35ff85462a72686592ed46fdfa4cf031a137fe30cd6f1f2745fc
+  app_status: ReviewedCLEARandapplied;7sourceinvariantsanddirectrustfmtPASS;Rustexecutionpending.
+  trusted_projection_patch: d48ba26332388aa0fd175a74bb325a61b0a3140f49ab95c7d9e380c4128071aa
+  trusted_status: Private41inerttestsPASS;independentreviewpending;notpublished.
+  scope: Actualfailedvectorplusfiniteoperationphase/errorcodeonly;no rawerror,payload,key,path exposure andnoacceptanceweakening.
+  qualification: Monitorcauseremainsunknown;newexactsourceandtrustedpinpublicationrequiredbeforeactualretry.
+
+monitor_diagnostic_ci_checkpoint_2026_10_24:
+  source: bba55e961acb311900686358a5963b5ed04e7f47
+  tree: 448c4b9352db4a688fe15ddf511a79f65d060f4f
+  source_census: passed606blobs_and_modes
+  trusted_harness: 502d7fd932bb1b754148ad87c1326f8532f16d1c
+  trusted_candidate: ffca78f64e80f0e0b72d47af0d4bbaa7280d2fae
+  publication_checks: IndependentCLEAR,41inertPASS,Ruff_AST,materializeddeploygatesPASS,all4deployedblobsverified.
+  request: 94ca1a225d0dac1af3987e71593d30476a93d23a8c0b39dc957cb96a7944b9a5
+  status: submitted_no_new_runtime_pass
+  qualification: Failure-onlydiagnostics;actualmonitorcausestillunknown.All8vectors,operations,assertions,deadline,releasegapsretained.
+
+native_scope_regression_compile_checkpoint_2026_10_24:
+  source: aad791fce2bba321e1857ae7bc4a8244522ca1d4
+  run: 40046131637
+  request: 46304224f96637a67336b6e36e8531b43bb4a49f4cce2ffb24df134259b552ec
+  result: NewtestcompilationE0277;Result.expectrequiresDebugonexistingnonDebugCliError.No productgatesrun.
+  correction: TestassertionnowusesexistingDisplay-basedunwrap_or_else;productionanderrorprivacyunchanged;directrustfmt2024PASS.
+  cleanup_upload: verified
+  next: Newsourceisolatednativeunitand12productgatesretry;no localCargo/cachedeletion.
+
+native_corrected_test_retry_checkpoint_2026_10_24:
+  source: 8485a10fcb45c3518dd77187d33f7783baf96da2
+  tree: ca544dceea7d38d0a0b09a5022ded4297c65515e
+  census: passed606blobs_and_modes
+  request: 08675bb63aef271b662f08a4709fc1561d7139894786cc1b4239dc55ade6b90e
+  status: submitted_no_new_native_pass
+  source_change: Test-onlyDisplaypanicstylecorrection;productionPersonal/Teamscopefixunchanged.
+
+passive_monitor_security_checkpoint_2026_10_24:
+  observed_run: 40047663298
+  observed_failure: monitor-durable-opaque atstage authentication;closeddiagnosticsverified.
+  source_finding: Monitorrefreshusesordinarysyncwhichcanclaimandpersistofferedtaskjobs,workflowsandreplayoutputs.
+  backend_qualification: Capabilityonlydiscoversmetadata;claimmutateslease.No crossaccountbypassestablished.
+  rejected_approach: Peer-onlytaskcapallowancewouldhideunintendedpassivewritesandremainsunapplied.
+  implementation: Privateexplicitreadonlymonitorsyncpolicy,canonicaldatapathreused,ordinarysyncdefaultspreserved.
+  verification: Pendingofferedworkwithzeroclaim/persist/replay;retainall8vectorsandpassiveguards.AddactualSDKlibraryunitstagewithstrictreceiptvalidation.
+  acceptance: Essentialsecuritygateheld;active8485nativebinarypredatesfixandcannotcloseitalone.
+
+readonly_monitor_integration_checkpoint_2026_10_24:
+  core_patch: 0738364d23c3b07e9b0e5506498faa7cc6196c91115347bf5db5d59190ac457b
+  core_status: IndependentCLEARv2,4reviewedfilesapplied;directrustfmtPASS;3wireunitdraftsUNRUN.
+  behavior: ExplicitPassive socket+MonitorReadOnly sync suppress job/workflow/replay effects and durable active-selection writes; ordinarydefaultsunchanged.
+  peer_patch: 4c95f3be97df34c6dca86e7e1a5ef2637643da6f82a79688b4f0cb53052ba526
+  peer_status: IndependentCLEAR,2filesapplied;10puretests84subtestsPASS;all8vectorsunchanged.
+  peer_coverage: Canonicalpendingoffersrequired,zerowrites;oneexplicitCASforegroundintentonly;passivecapguardsretained.
+  trusted_ci_patch: 4f42c62a725a5c1240bb355bc5e132ffb9e240041e5156b6fa0c4b56b4e122c8
+  trusted_ci_status: PrivateunitstageindependentCLEAR;59authorand3reviewerinertPASS;exact2peerprogrampinsupdated;notpublished.
+  acceptance: NewsourceactualSDKlibraryunits,all3essentialconformanceandnative12gatesrequired;oldactive8485runpredatesfix.
+
+latest_sdk_and_native_diagnostics_checkpoint_2026_10_24:
+  trusted_harness: a05d4494b8268ea0be27e9abf3d5067e324544cc
+  trusted_verification: Reviewed4pathsdeployed;allblobhashesheld;materializedgatesPASS.
+  sdk_run: 40050078530
+  sdk_source: d6b829890e2123acda01f9f097250488f2b96e4b
+  sdk_result: NewwholeSDKstagecaughttestonlyE0308/E0369/E0277beforeexecution;productionnotclaimedverified.
+  sdk_test_fix: f08d796e48a49985da0e0be96ee6e43a7cd20879107efe68337b4cc338a3a35c;rootCLEARapplied;typedjobsandserializedqueuecomparison.
+  native_run: 40048254370
+  native_source: 8485a10fcb45c3518dd77187d33f7783baf96da2
+  native_result: All461unitsPASS4intentionalignored;3profileauthPASS;fullfirstfixturestreamsthenexit1,finalizationcauseunknown.
+  native_classifier: 1bff34c64174459a5b5aee964b789f19fbd13006e505ceddbab7bf996e97b7c7;independentCLEARapplied;111Python12NodechecksPASS.
+  qualification: Nativebinarypredatespassivefix;newcurrentSDKandnativeverificationrequired.Noacceptanceorretirement.
+
+previous_joint_verification_retry_2026_10_24:
+  source: 73b78b7e46e6522fafed8e2d28cc96f76d85e514
+  tree: 5b176697492f6bcb1b101f78998317fc089cb78e
+  census_and_protected_pins: all606blobs_modes_andcurrentprogram_contractpinsmatched
+  trusted_harness: a05d4494b8268ea0be27e9abf3d5067e324544cc
+  sdk_request: d4fa88e46184eacdcaeae3b4c944e3c435fd2e715813f21a8a8df44a9f2a426c
+  native_request: ff604190c3bc1f64b03aef30841bf84dc4599a96c91bc678ffb538c6e0727700
+  status: historical_sdk_pass_native_protocol_failure
+  acceptance: Essentialsecurity/productgatesremainopen;immediateWASMaftertheirproof;exhaustiveCLIand156releasegapsseparate.
+
+current_sdk_conformance_success_2026_10_24:
+  source: f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445
+  tree: f3b1a2ac29647e1ab6dca563837779f9a426ccaa
+  harness: d38a78af5b51c2bb39f6e308e560d621ac0af835
+  request: 584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be
+  run: 40062768021
+  result: All396SDKunits36bindingunits54registeredadapters615outcomesPASS;0unitignored/filtered.
+  wrapper_regressions: All4actualPASS;public2turncanonicalwrapper_and_recoverykeyreuse_plus_scope_conflict_negatives.
+  essential_protocol_security: All48monitor_foregroundrecoveryoutcomesPASSacrossRust_npm_Python.
+  fences: Sourceheld_2097inputsmatched_loadidentity_artifact_finalfences_cleanup_uploadPASS.
+  static_inventory: Refreshedsource-onlyaudit1555Rust1515npm1126Python;all2097currentSDKinputsheld.
+  current_report: docs/plans/rust-tui/sdk-conformance.json
+  release: Blockedby156declaredcapabilitygaps;releasefalse_no_publication.
+  remaining_gate: Essentialnativeproofstillrequired;immediateWASMafterproof;fullCLIandselfhostseparate.
+
+canonical_native_protocol_failure_checkpoint_2026_10_24:
+  source: 73b78b7e46e6522fafed8e2d28cc96f76d85e514
+  run: 40051153680
+  native_units: 461passed0failed4intentionalignored
+  product: Threeprofilesauthenticate;fullfirstfixturestreamsobserved;PendingTurnadmittedtruewithSDKProtocolthenexit1.
+  local_persistence_boundary: Postcommandprofilepersistsucceeded;reportederrororiginatesinsharedSDKsend.
+  exact_stage: Unknown;privatefinitephase/discoverystatus/finalseenhookinpreparation;noAPI/defaultoutputchanges.
+  cleanup_upload: verified
+  separate_required_gap: Canonicalbackenddiscoversbeforefinal;SDKresetsdiscoveryonfinal. Predictswait/Offline,NOTcurrentProtocolcause.
+  separate_regression: Binddiscoverytocurrentadmittedturn/job/namespace/keyanddurableACK;rejectstalemarkers.Noblindglobalmarkeracceptance.
+  acceptance: Essentialnativegateheld;SDK54/615passremainsvalidforexactsourcesdkbytes.
+
+closed_send_phase_integration_checkpoint_2026_10_24:
+  patch: dca0c5b813cfd14ccc5b8ea5f0a88b68e81945a4b547b85408dc49e4f260b1aa
+  status: IndependentCLEARand3reviewedfilesapplied;142authorPython7reviewerchecksPASS;4Rusthelpertestsnowincludedin7fd392unitPASS.
+  scope: Privateper-sendfinitephase/discoverystatus/finalseen;onlyoriginalProtocolandexplicitownedchildtestflag;best-effortone-linemarker.
+  preserved: PublicSDKAPIs,defaultoutput,features,originaloperation/result/closeorder,privacyboundsandall12productgates.
+  next: SDK7fdpassed;source94nativephaseattributedtoisolatedepoch0;currentepoch1nativeproductrerunpending.
+
+previous_send_phase_retry_2026_10_24:
+  source: 94b9f0e34336aca06a40be881b35f27618c92b5a
+  tree: 7671bff2f67d7baebd96a71ed7251116f573a2ef
+  census_and_pins: All606blobs_modes_andprotectedprogram_contractpinsmatched
+  sdk_request: 3c28bc177545534a170aeacaf969805189573ad4cc62cf0a711c8b984c0e9fcf
+  native_request: 2b5549d604c4a588ec7444d11b5b15ee69834511b06bf41e512568d652098fd5
+  status: historical_sdk_pass_native_epoch0_failure
+  scope: DefaultofffiniteProtocolphasehook;alloriginaloperation/close/result/publicSDKsemanticsand12gatespreserved.
+
+discovery_order_fix_source_checkpoint_2026_10_24:
+  patch: a5d3d2086d31a679eb68cf6e15c6c2acf27a3013d4583215f2e11f0bdd895ae4
+  status: IndependentCLEARand2reviewedfilesapplied;3wiretestfunctions15casesincludedin7fd392SDKunitPASS.
+  behavior: Globaldiscoverydoesnotauthorizemaincompletion;currentturnvalidationandunchangedclaim/seal/persistACK/canonicalrereadremainmandatory.
+  strictness: Existingmainloop/drainfailedmarkervalidationpreserved;wrongfinal/claim/key/seal/ACKnegativescovered.
+  qualification: Orderingregressioncoveredby7fdSDKunits;prior94Protocolwasisolatedepoch0;earlierrunsarenotretroactivelyattributed.
+
+native_epoch1_wrapper_failure_2026_10_24:
+  source: 7fd65b7ed3be96d254eae93fa0936dbcd5cd930d
+  tree: 9d6ff0833f15aaf96a47f3a038919dd1ef0ce740
+  harness: d38a78af5b51c2bb39f6e308e560d621ac0af835
+  request: f6047886f3fda93f935f7b46846977e648e0ac2f5678b438e88fb2c5d065d2e5
+  status: FAILED_NO_ESSENTIAL_ACCEPTANCE
+  run: 40058192303
+  runtime_state: completed_failure;root_sole_wait_owner
+  native_units: 461passed0failed4intentionalintegrationignored
+  profile_auth: all3PASS
+  passed_checks: nativeCookieAuth;cliIncrementalSavedTurn_firststream_and_canonicalpersistence
+  failure: cli_json_continuation;native_exit;native_command_failure_null
+  backend_receipt: prepare_preflight;immutable_chat_key_mismatch;409
+  cause: SDKsavedPersonalchatkeyisreencryptedwithfreshnonce;backendrequiresexactcanonicalwrapperequality.
+  cause_sources: SDKclient/send.rs287-298;Directusoperations.js2282-2283
+  wrapper_correction: Reviewedreuseintegrated;actualf96SDK4regressionsPASSandnative5aaacontinuation_readbackPASS;backendguardunchanged;remainingessentialgatesopen.
+  wrapper_patch_sha256: 0b1341330ff64bdbd8b34cc4cc713c57925a2c7af336e2622ba475abdc6a0ab3
+  wrapper_regressions: FouractualPASSinf96SDK396unitrun;publictwo-turnexactwrapper_recoverykeyplusconflict_scope_negatives.
+  wrapper_ci_source: 5aaa768a65725ef9f79ad937b7c6eae847d01f09
+  wrapper_sdk_request: 2b18860a15db0784dd89748e6ee13ed2f62e10c65233286139ce0ee89be852f4
+  wrapper_sdk_result: Run40061553941 stopped at unit compilation with E0308 in the new test plaintext argument; test-only slice conversion corrected, no unit or conformance pass claimed.
+  wrapper_native_request: 11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070
+  wrapper_native_result: Run40061556469passescontinuation_readback_liveTUI;failsreconnectexact-onepresence;remaininggatesopen.
+  submissions: 2
+  recovery: retained_true;cleanup_failed_false
+  retrieval_upload: both_exit0
+  native_tui_recording: Notreached;targetfailedbeforeZuttyphases
+  prior_native_source: 94b9f0e34336aca06a40be881b35f27618c92b5a
+  prior_native_run: 40054978679
+  prior_diagnostic: frame_validation;discovery=disabled;final_seen=true;SDKProtocol.
+  fixture_cause: Essentialtargetmissedguardedepoch1selector;isolatedbackendremaineddefault_epoch0.
+  fixture_correction: Exactcli-rust-core-essential.spec.tsselectoronly;allisolatedprofile/controller/drain/receiptguardsunchanged.
+  acceptance: FirstsavedturnpassesbutJSONcontinuationandremaining12gateproofunresolved;SDK54/615passvalid;noessentialacceptanceorWASMstart.
+
+fresh_rust_selfhost_readiness_2026_10_24:
+  task: '5702'
+  status: implemented_reviewed_ci_cancelled_no_verified_receipt
+  source: 685cb024b42e163750150a5fabe0ae0ad096df4f
+  tree: e55fc1e662408cbdc4d6cecbe419d67afce1c691
+  request: ecc2f7a574f9105280db76bc18b118836dcf5ef4962123061313a009bbf1bb6b
+  run: 40060656160
+  artifact_retrieval: Rejected_source_run_identity_mismatch;no verified subject receipt or runtime acceptance.
+  cancellation: Ninety-minute job ended during the separate epoch-preservation step; diagnostic-only completed source/image command statuses do not establish acceptance.
+  reviewed_patch_sha256: 7b9beefb48026bde9cdf6a5434cbd39b34a98d4ee0dab6cb89c397d7f0848112
+  implementation: Native install-only PostgreSQL first-PGDATA hook creates established epoch1 state in a transaction guarded by an empty user database; no existing-state update or deferred cutover marker.
+  metadata: Register only missing Directus collection/field metadata for the precreated canonical table; no schema or state rewrite.
+  acceptance: Prove source and image fresh/restart readiness, preserve isolated epoch0/paused and epoch1/paused through restart and actual update, then restore only the empty owned fixture before existing browser flows.
+  checks: Independent security review CLEAR;74inert tests plus Ruff/AST/YAML/rustfmt pass;613source paths match bytes and modes;all2096priorSDKinputs unchanged.
+  freshness_guard: Read-only exact database-volume absence is now required before both native fresh installs; no deletion or automatic repair.
+  freshness_guard_patch_sha256: aa3d3ba2da1af561fa04cb2a4a7d9b128fd899961d14c30d72eb5fb7dd59961b
+  freshness_guard_checks: Independent review CLEAR;95inert readiness tests plus Ruff/AST/YAML pass;runtime remains unverified.
+  captured_guard_source: f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445;pendingecc_source685_doesnotincludeabsenceguard;wholev2PG_DirectusacceptanceUNRUN.
+  freshness_qualification: Source685 predates this explicit absence guard; readiness1 alone is not proof of first initialization. Retained runtime evidence must distinguish both new volumes from reused state.
+  runtime: Native compilation, PostgreSQL initialization, Directus metadata reconciliation and full self-host CI remain unverified;root sole wait owner.
+  qualification: Historical16steps4browserflowsdidnottest savedchat_epoch;no current savedchat proof inferred.
+  sequencing: Separate required selfhost work adds no browserWASM gate;preserve essentialnative then immediateWASM.
+
+original_benchmark_origin_failure_2026_10_24:
+  source: 7fd65b7ed3be96d254eae93fa0936dbcd5cd930d
+  tree: 9d6ff0833f15aaf96a47f3a038919dd1ef0ce740
+  request: cac3674c16ba880b32b1953ab5b2c6f6ae92630c928e4eb8c3e9344d0d7d03df
+  spec: cli-rust-tui-proof.spec.ts
+  status: FAILED_PREPARATION_NO_BENCHMARK_METRICS
+  run: 40059428921
+  result: Both attempts stop at preparation_child_failed/actual_cli_exited_before_prompt despite the buffered-PTY change; anonymous/docs/auth/protocol/pairing/workflow-unlink proof passes before this boundary.
+  cause: Comparison helper rewrites the browser app origin from localhost to 127.0.0.1, then passes it as OPENMATES_APP_URL; retained backend logs confirm pair-init CORS403. Preserve canonical app origin while separately normalizing API loopback transport.
+  correction: Reviewed helper-only canonical-app-origin correction integrated;67Python and27Node inert checks pass, including pinned original CLI Origin derivation. Product rerun pending.
+  correction_patch_sha256: 06f86eded983651a9aa4b965b4e813ec13888ec322ad3b74355710e57f9a5e2e
+  scope: Originalcomparisontargetunchanged;currentbufferedPTYpreparationfixincluded.
+  qualification: This source7fd failure is independently evidenced; do not retroactively attribute source5128 or claim benchmark metrics. Backend CORS and original CLI source pins remain unchanged.
+  owner: root_sole_wait_owner
+
+current_wrapper_test_fix_retry_2026_10_24:
+  source: f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445
+  tree: f3b1a2ac29647e1ab6dca563837779f9a426ccaa
+  sdk_request: 584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be
+  run: 40062768021
+  status: PASSED_ACTUAL_396SDK36BINDING54ADAPTERS615OUTCOMES
+  wrapper_regressions: All4actualPASS
+  census: 614paths_byte_and_mode_match;2097SDKinputshold
+  delta_from_5aaa: SDKregressionplaintext_as_ref_only;shared_native_runtime_manifests_locks_bindings_protectedconformance_unchanged.
+  previous_sdk_failure: source5aaa_request2b18860_run40061553941_E0308_testcompilation;retrieval_upload0.
+  owner: root_sole_wait_owner
+
+current_native_wrapper_retry_2026_10_24:
+  source: 5aaa768a65725ef9f79ad937b7c6eae847d01f09
+  request: 11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070
+  run: 40061556469
+  status: FAILED_RECONNECT_PRESENCE_NO_ESSENTIAL_ACCEPTANCE
+  units: 465PASS_0failed_4intentionalintegrationignored
+  passed_checks: nativeCookieAuth_cliIncrementalSavedTurn_cliJsonContinuation_independentEncryptedReadback_liveCrossClientSync_ownedCleanupAcknowledged
+  actual_tui: Firstpaint_and_CLI_to_TUI_live_syncPASS
+  failure: monitor_reconnect_replay;one_idle_native_ws_presence;leasecount_NOTrecorded;ss-K_NOTreached.
+  qualification: Immediateexact-oneRedisassertioncanracelegitimatetransientTUIreadonlysync_recoverysockets;permanentorphan_NOTproven.
+  readiness_change: Reviewed stable-singleton readiness and finite counts integrated; the SAME20second absolute deadline covers readiness, owned cut and replacement. Runtime verification pending.
+  readiness_patch_sha256: 0cbe1cf05585deacdf7d2d25cbf64b6a001d8f6c7be94449690869a92c06d273
+  readiness_checks: 152nonnetworkinertPASS;3unchangedlistenercasesnotrunlocally;10independentfocusedcasesPASS;all12gatespreserved.
+  remaining: Reconnect_replay_cancellation_kill-recovery_remainingessentialgates
+  retrieval_upload: both_exit0
+  sequencing: Essentialgateheld;immediateWASMafterproof;noextraCLIorselfhostgate;npmheld.
+  owner: root_sole_wait_owner
+
+current_original_benchmark_retry_2026_10_24:
+  source: f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445
+  tree: f3b1a2ac29647e1ab6dca563837779f9a426ccaa
+  request: d3feae557e5fe9c57bdd54e6364837a395ba22476ec352a45c98bf969b7ba8dc
+  spec: cli-rust-tui-proof.spec.ts
+  status: FAILED_PREPARATION_MASK_READINESS_NO_BENCHMARK_METRICS
+  run: 40062770545
+  failure: Both attempts reach pair_prompt_must_be_masked; guard is preserved and metrics are not reached. Exact runtime masking state/cause is unproven.
+  correction_patch_sha256: 06f86eded983651a9aa4b965b4e813ec13888ec322ad3b74355710e57f9a5e2e
+  checks: 67Python27NodeinertPASS;independentreviewCLEAR;originalCLI_pins_targetandbackendCORSunchanged.
+  previous_failure: source7fd_requestcac367_run40059428921;bothattemptsactual_cli_exited_before_prompt;CORS403;retrieval_upload_exit0.
+  owner: root_sole_wait_owner
+defensive_server_compose_encoding_2026_10_24:
+  status: APPLIED_RUNTIME_UNVERIFIED
+  working_checkpoint: b738066d
+  patch_prefix: 882afb
+  scope: Server-onlydefensiveComposeencoding;ordinaryinstallwrite_environmentalreadyrejectsdollar;noordinaryinstallvulnerabilityclaim.
+  checks: 7inertPASS;2newescapedpathRustdraftsUNRUN;4existingbootstrapcasesactualPASSinnative5aaa465units.
+  sdk_inputs: All2097capturedf96inputsunchanged
+  pending_selfhost: ecc_source685_lacksfreshvolumeabsenceguard_and_thisencoding;wholev2PG_DirectusacceptanceUNRUN.
+  sequencing: SeparateTask5702addsnoWASMgate
+
+current_native_monitor_readiness_retry_2026_10_24:
+  source: 3a962e77b1277e8a64c36af3fefbd72859c1bb8e
+  tree: db2be0ac83cb484f43aacf22f6bb1fe12a110d07
+  request: 0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c
+  run: 40065596506
+  status: PASSED_ALL12_ESSENTIAL_NATIVE_GATES
+  units: 467PASS_0failed_4intentionalintegrationignored
+  retrieval_upload: both_exit0
+  cleanup: Verified0ownedcontainers_0volumes_privateaccountfilesremoved
+  recordings: Two real CLI/TUI terminal videos uploaded without reconstruction.
+  qualification: Linux essential admission achieved; browser TASK-9558 in_progress. TASK-9393 done; TASK-1233 stays open for preview refresh and macOS acceptance. Full parity and retirement remain open.
+
+refreshed_preview_capture_checkpoint_2026_10_24:
+  source: e20fd7162cc341cedb44fdfac9414ece8c8a938f
+  tree: 55b6bfa84c1b183b4f200db3a2bf4b554ece0714
+  request: b2ad3989cc2111094d9f57e4d917850b2de44b4d70dd9d196ee52a0bdcfb6c07
+  run: 40083361928
+  status: FAILED_TERMINAL_CAPTURE_AFTER11_FUNCTIONAL_CHECKS_PASS
+  failure: capture_tui_exit
+  qualification: RefreshedpackagecandidatepreservesverifiedRustsource;auth_chat_sync_reconnect_cancellation_recoverypass_butcurrentcellpaintrecording_andfinalownedcleanupacknowledgement_notaccepted.
+  cleanup: cleanup_failedfalse_recovery_retainedtrue_notfullfinalcleanupacceptance
+  retrieval_upload: Bothnormalretrieval_and_evidenceupload_exit0
+  next: Diagnoseexistingcapturefailure_withoutrepeatingproductreproduction;holdnewinstallationandreleasefortheseparatenewdependencyadvisory.
+
+masked_pair_prompt_readiness_2026_10_24:
+  status: REVIEWED_APPLIED_PRODUCT_UNVERIFIED
+  patch_sha256: ff2f1b94a5eac41c66cb62734fb9832b4201aa32ff6ad719c0f74fc6c7088cf9
+  behavior: Wait for exact PIN prompt and echo-off within the same45s deadline; retain immediate pre-write echo guard, post-input no-echo check and cleanup.
+  checks: 78fullinerttestsPASS;11independentfocusedcasesPASS;realinertPTYcoversdelayedmask_and_refusal;no original CLI, CORS, SDK or runtime implementation change.
+  qualification: Pinned question-before-readline order demonstrates a readiness race; the historical CI terminal transition remains unobserved and metrics remain absent.
+
+working_portability_checkpoint_2026_10_24:
+  sdk_portability_files: 27
+  binding_foundation_files: 11
+  status: NATIVE_SDK_CONFORMANCE_PASSED_BROWSER_RUNTIME_UNVERIFIED
+  source: 2236d0bcf96dd6468121ebc663db6a587033f277
+  tree: 7cf310b6df54e362d72ba070859aac57458fb010
+  sdk_request: 2bfb6afbe0e55a51ef0a5888d676e5c33526cd967dc185bebbd837f23c0056c8
+  sdk_run: 40083808463
+  sdk_result: 408library_36binding_54adapters_615outcomes_PASS_2104heldinputs_nativeartifact_loadidentity_cleanupverified
+  wasm_request: 84e8a17b762c9f5549cea473c478bed5fe29cc2be5cd87bd1efacf037407bd66
+  wasm_run: 40085423342
+  wasm_result: PASSED_compilation_artifact_sourceheld_cleanupverified_harness444dbfe
+  wasm_raw_bytes: 1466442
+  wasm_raw_sha256: d63f5b7454ae35618ef5a086e41b9fa08cf1915c58b6817e45f14020d0bf64eb
+  prior_wasm_failure: Run40083810901_compilerstagesexit0_artifactcheckfailedoutputs_normalretrievaluploadexit0;reviewedindependentcopyfixpublished444dbfe.
+  evidence_boundary: Native SDK conformance and exported rawWASM pass; generated JS package and browser runtime remain required. Raw size is not compressed download size or a web performance comparison.
+  retrieval_upload: Bothrequests_normalretrieval_exit0_evidenceupload_exit0
+  publication: Blockedby156declaredSDKgaps
+  selfhost: Matching source83 three-scope aggregate passes; see selfhost_readiness_acceptance_2026_10_24. Earlier source2b deadline failure remains historical.
+  browser: Linuxessentialadmissionachieved;noexhaustiveCLI_SDKgap_selfhost_Macblocker.
+
+dependency_security_follow_up_2026_10_24:
+  evidence: docs/plans/rust-tui/dependency-audit.json
+  evidence_key: follow_up_2026_10_24
+  status: FAILED_ALL4_LOCK_AUDITS_NEW_INSTALLATION_RELEASE_ACCEPTANCE_HELD
+  database_commit: 21d909e4c8bd4e14c7aea58bf980c881a0053ab1
+  database_fresh_clean: true
+  advisory: RUSTSEC-2026-0387
+  dependency: crypto-bigint0.5.5
+  patched: '>=0.7.6'
+  qualification: Lockfilepresenceestablishesaffectedresolution_notpracticalRistrettoexploitability;upstreamcompatibledependencychainandreachabilityreviewrequired;noignores_filters_orwarningsuppression.
+  preserved: Fourlockdigestsheld;functional408SDK_36binding_615outcomesremainsourcequalified_butnotsecurityclearance;156SDKcapabilitygapscountunchanged.
+  next: Resolvewithsupportedupstreamdependencychanges_preservewireinterop_andrerunaudit_nativecore_WASM_conformancechecks.
+
+selected_decrypted_web_before_checkpoint_2026_10_24:
+  evidence: docs/plans/rust-tui/web-before-performance-2026-10-23.json
+  evidence_key: selected_decrypted_chat_http_cache_before_2026_10_24
+  source: 5fbd6ca2a375554fba4d790227945a5489cb11c4
+  tree: 17efdbc17e480a97bb3d868c4d3fcfc21809036e
+  legacy_runtime_base: 4a73ca4d30e05030ac78bafb81ee6284f1933c17
+  request: cb42b64350ce6899d315fa1076f2865be6d3168cf7b31308c84dca70be0793d3
+  run: 40072459544
+  scope: single-case_exact_controlled_http_cache_title
+  result: passed_first_attempt_expected1_skipped0_unexpected0_flaky0_retry0
+  usable: Selected6loaded_6source_real_decrypted_message_visible_editor_usable_23chats20persistedmessages
+  login_usable_ms: 20299
+  reload_usable_ms: [7742, 6570, 6663]
+  javascript_transfer_bytes: [4414603, 300, 319]
+  reload_stable_reported_process_cpu_ms: [12460, 10720, 10870]
+  retrieval_cleanup_recording_upload: normal_retrieval_exit0_cleanup_verified_video_uploaded_object_identity_retained
+  qualification: OneHTTPcoldfill_two_warm_attempts;qualifiedRSSendpoints_notpeak;legacySvelteKitpreview_bound_but_attachment_mode_inventory_claims_unspecified;historical_zero_message_checkpoint_separate;inactiveWorkerfoundation_excluded.
+  remaining: MatchedRustWASMAFTER_WASMinitialization_streaming_cancel_sync_recovery_responsiveness_broaderCPURAM_and_required_cachedreplay_regression;no_speedup_or_minimaloverhead_claim.
+
+selfhost_readiness_acceptance_2026_10_24:
+  task: TASK-5702
+  status: DONE_MATCHING_THREE_SCOPE_AGGREGATE_PASSED
+  evidence: docs/plans/rust-tui/selfhost-ci-2026-10-22.json
+  evidence_key: three_scope_acceptance_2026_10_24
+  source: 83e6345e607ae96c4a5895cca93474e1226448b6
+  product_tree: 1044a2848f89741cbcaf359f00ae28e7ac3876b6
+  harness: e7cd917824cb9dc3dd89355b3746913adb01de1d
+  recipe_sha256: 052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef
+  input_set_sha256: 97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03
+  runs: {source: 40088488008, image: 40088490965, legacy: 40088493475}
+  result: Seven source steps, eighteen image steps plus four browser cases, and eight legacy steps pass; strict aggregate acceptance true.
+  cleanup: All three confirm zero owned containers/volumes and private account removal; normal retrieval and evidence upload exit zero.
+  boundary: Each recipe-target receipt retains coverage_complete=false; all three matching receipts establish the aggregate. Only image browser coverage is full-spec. Performance, security, SDK and retirement gates remain separate.
+
+performance_regression_investigation_2026_10_24:
+  task: TASK-8974
+  status: OPEN_FIXES_REQUIRE_MANAGED_EXECUTION_AND_MATCHED_BENCHMARK
+  evidence: docs/plans/rust-tui/application-benchmark.json
+  evidence_key: signed_in_cli_partial_2026_10_24
+  source: c07dfc028411cde9e67386c039a6427602ba61ae
+  run: 40086645265
+  result: Thirty CLI samples retained from a failed overall run; zero TUI samples. Not full-application acceptance.
+  median_wall_ms:
+    whoami: {rust: 669.516, typescript: 936.587}
+    chats_list: {rust: 4764.704, typescript: 525.729}
+    chats_show: {rust: 3301.257, typescript: 2940.231}
+  source_findings:
+  - Native CLI overwrites an existing protected ciphertext cache with its fresh empty client before restoring it.
+  - Native whoami duplicates the runtime admission validation.
+  - Saved-read recovery and final list independently synchronize the same idle inventory.
+  applied_uncompiled_fix: Reviewed five-path native cache/admission V3 restores only matching protected cache and consumes one borrowed fresh admission for whoami; preserves final credential/cache persistence, cancellation and output wiping.
+  duplicate_sync_fix: Private SDK proof proposal requires authoritative complete recovery discovery, unchanged owner/context/credentials/ciphertext, no pending effects and one-use authority; missing or stale proof uses the original fresh path.
+  hard_gate: Applied CI validators require Rust median and p95 wall latency no worse than paired TypeScript for each CLI flow and each TUI responsiveness metric. Forty-six inert checks pass; actual benchmark remains required.
+  verification: Draft runtime/integration and compile-fail guards are unrun until managed CI. Keep original workloads, limits, privacy, recovery and cleanup checks; no rollout or replacement acceptance.

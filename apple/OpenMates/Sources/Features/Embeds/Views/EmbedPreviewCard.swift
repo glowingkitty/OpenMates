@@ -282,7 +282,10 @@ struct EmbedPreviewCard: View {
     private var cardSurface: some View {
         previewLayout
             .environment(\.generatedAudioPreviewController, generatedAudioPreviewController)
-            .frame(width: cardWidth, height: cardHeight)
+            // Preserve the regular 300pt preview, accepting a narrower parent
+            // proposal so its footer and app circle share the visible bounds.
+            .frame(minWidth: 0, idealWidth: cardWidth, maxWidth: cardWidth)
+            .frame(height: cardHeight)
             .background(Color.grey25)
             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
             .background {

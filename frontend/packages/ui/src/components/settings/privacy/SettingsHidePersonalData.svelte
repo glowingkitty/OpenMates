@@ -26,6 +26,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     import SecurityAuth from '../security/SecurityAuth.svelte';
     import { personalDataStore, type PersonalDataEntry } from '../../../stores/personalDataStore';
     import { isSensitiveAuthValid, recordSensitiveAuthSuccess } from '../../../stores/sensitiveAuthStore';
+    import { isWebPIIModelEnabled } from '../../enter_message/services/webPIIDetectionService';
 
     const dispatch = createEventDispatcher();
 
@@ -257,6 +258,11 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <div class="description-section">
     <p class="description-text">
         {$text('settings.privacy.hide_personal_data.description')}
+        {#if isWebPIIModelEnabled()}
+            <a href="https://desertant.com" target="_blank" rel="noopener noreferrer"
+                data-testid="pii-model-attribution"
+                title={$text('enter_message.pii.model_usage_disclosure')}>{$text('enter_message.pii.model_credit')}</a>
+        {/if}
     </p>
 </div>
 
