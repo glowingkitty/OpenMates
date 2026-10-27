@@ -52,12 +52,13 @@ it("keeps prod and dev upload routes scoped while preserving Origin gates and tr
   const targetUpload = deployed.replaceAll("@upload_api path /v1/upload/*", "@upload_api path /v1/upload/* /v1/upload/new/*");
   validateOfficialUploadCaddy(currentUpload);
   const merged = mergeCaddyPaths({ current: currentUpload, target: targetUpload, site: null, scopeAware: true });
-  assert.deepEqual(Object.keys(merged.paths).filter(key => key.endsWith("/@upload_api")), ["@prod_origin/@upload_api", "@dev_origin/@upload_api"]);
+  assert.deepEqual(Object.keys(merged.paths).filter(key => key.endsWith("/@upload_api")), ["@prod_app_origin/@upload_api", "@prod_origin/@upload_api", "@dev_origin/@upload_api"]);
   assert.match(merged.content, /@upload_api path \/v1\/upload\/\* \/v1\/upload\/new\/\* \/operator\/\*/);
-  assert.equal((merged.content.match(/@upload_api path \/v1\/upload\/\* \/v1\/upload\/new\/\*/g) ?? []).length, 2);
-  assert.equal((merged.content.match(/header_up X-Target-Env "prod"/g) ?? []).length, 2);
+  assert.equal((merged.content.match(/@upload_api path \/v1\/upload\/\* \/v1\/upload\/new\/\*/g) ?? []).length, 3);
+  assert.equal((merged.content.match(/header_up X-Target-Env "prod"/g) ?? []).length, 4);
   assert.equal((merged.content.match(/header_up X-Target-Env "dev"/g) ?? []).length, 2);
   assert.match(merged.content, /@prod_origin expression \{header\.Origin\}/);
+  assert.match(merged.content, /@prod_app_origin expression \{header\.Origin\} == "https:\/\/app\.openmates\.org"/);
   assert.match(merged.content, /@dev_origin expression \{header\.Origin\}/);
   assert.throws(() => mergeCaddyPaths({ current: currentUpload, target: targetUpload, site: null }), /caddy_ambiguous_path_matcher/);
   assert.throws(() => validateOfficialUploadCaddy(currentUpload.replaceAll('header_up X-Target-Env "dev"', 'header_up X-Target-Env "prod"')), /structure_missing/);
