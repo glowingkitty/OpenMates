@@ -597,7 +597,7 @@ assertions:
       surface: rest_api
     - &id069
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 289
+      line: 308
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     tests:
@@ -26350,12 +26350,12 @@ assertions:
       surface: rest_api
     - &id3414
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 289
+      line: 308
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     - &id3415
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 341
+      line: 360
       name: real Auto image objective counts and text-only history
       surface: gui.web
     - &id3416
@@ -27201,7 +27201,7 @@ assertions:
       surface: gui.web
     - &id3520
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 289
+      line: 308
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     - &id3521
@@ -27366,7 +27366,7 @@ assertions:
       surface: gui.apple
     - &id3533
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 289
+      line: 308
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     - &id3540
@@ -36385,7 +36385,7 @@ assertions:
       surface: rest_api
     - &id4575
       path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 289
+      line: 308
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     tests:

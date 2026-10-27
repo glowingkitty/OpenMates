@@ -25,6 +25,7 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	deleteActiveChat,
+	focusMessageEditor,
 	waitForChatReady,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
@@ -201,7 +202,8 @@ async function attachImage(
 	await expect(editorPreview.first()).toHaveAttribute('data-status', 'finished', { timeout: 120000 });
 	await closeEmbedFullscreenIfOpen(page, log);
 	await page.keyboard.press('Escape');
-	await editor.press('End');
+	await focusMessageEditor(editor);
+	await editor.locator('[contenteditable="true"]').press('ControlOrMeta+End');
 	log('Image upload finished and editor cursor moved after embed.');
 }
 
@@ -231,8 +233,15 @@ async function typePromptAndSendAfterAttachment(
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 10000 });
 	await page.keyboard.press('Escape');
-	await editor.press('End');
-	await page.keyboard.type(message);
+	const editable = editor.locator('[contenteditable="true"]');
+	await focusMessageEditor(editor);
+	await editable.press('ControlOrMeta+End');
+	await editable.press('ArrowRight');
+	await editable.press('Enter');
+	await page.keyboard.insertText(message);
+	await expect(editable).toContainText(message);
+	await expect(editor.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]').first())
+		.toHaveAttribute('data-status', 'finished');
 	log(`Typed message after image embed: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
@@ -257,23 +266,33 @@ async function typePromptAndSendAfterAttachment(
 			{ timeout: 60000, intervals: [1000, 2000, 5000] }
 		)
 		.toBeTruthy();
+	await expect(userMessages.last()).toContainText(message);
+	await expect(userMessages.last().locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]').first())
+		.toHaveAttribute('data-status', 'finished');
 	log('Message send accepted after attachment-preserving send.', { assistantCountBeforeSend });
 }
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
-	// An uploaded-image preview also advertises skill=view; require the assistant's
-	// completed tool embed so attachment display cannot stand in for inspection.
-	const imageViewEmbed = page.getByTestId('message-assistant').locator('[data-app-id="images"][data-skill-id="view"]').last();
-	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
-	await expect(imageViewEmbed).toHaveAttribute('data-status', 'finished', { timeout: IMAGE_VIEW_TIMEOUT_MS });
-	log('images.view embed is visible.');
-
 	const assistantMessage = await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: DESIGN_FEEDBACK_PATTERN,
 		timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
 		logCheckpoint: log
 	});
+	// Completed activity collapses and unmounts its embeds. Expand the assistant's
+	// Images activity before requiring the specific successful view result.
+	const imageActivity = assistantMessage.getByTestId('assistant-activity-group').filter({
+		has: page.locator('[data-testid="assistant-skill-app-icon"][data-app-id="images"]')
+	}).last();
+	const activityToggle = imageActivity.getByTestId('assistant-activity-toggle');
+	await expect(activityToggle).toHaveAttribute('aria-expanded', 'false', { timeout: IMAGE_VIEW_TIMEOUT_MS });
+	await activityToggle.click();
+	await expect(activityToggle).toHaveAttribute('aria-expanded', 'true');
+	const imageViewEmbed = imageActivity.getByTestId('assistant-activity-body')
+		.locator('[data-app-id="images"][data-skill-id="view"]').last();
+	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
+	await expect(imageViewEmbed).toHaveAttribute('data-status', 'finished', { timeout: IMAGE_VIEW_TIMEOUT_MS });
+	log('Completed images.view result is visible in expanded assistant activity.');
 	const generatedBy = assistantMessage.getByTestId('generated-by');
 	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
 	const generatedByText = (await generatedBy.textContent()) || '';
