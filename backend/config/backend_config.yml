@@ -19,6 +19,9 @@ feature_overrides:
   enabled:
     - "platform:workflows"
   disabled:
+    # Browse is still in development; search and public page reading remain enabled.
+    - "skill:web:browse"
+    - "embed:web:browse"
     # Unreleased product surfaces remain available through backend_config.dev.yml.
     - "platform:teams"
     - "platform:projects"
