@@ -7,6 +7,7 @@ candidate bucket, presigner, expiry, URL validation and bounded HTTPS transport.
 from __future__ import annotations
 
 import datetime as dt
+import errno
 import json
 import math
 import os
@@ -134,7 +135,34 @@ def context_require(value, reason):
         raise ContextRefused(reason)
 
 
-def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None):
+SETUP_SUBSTAGES = frozenset({
+    "output-disk-usage", "tmp-disk-usage", "reserve-check", "runner-temp-input",
+    "private-parent-create", "private-parent-mode", "tmp-boundary-stat",
+    "tmp-boundary-check", "sandbox-create", "source-directory-create",
+    "source-read", "source-check", "source-parent-create", "source-write",
+    "private-home-create", "private-tmp-create", "rustup-locate", "rustup-check",
+    "environment-build", "manifest-check", "command-runner-create",
+})
+SETUP_ERRNOS = frozenset({"ENOENT", "EACCES", "ENOSPC", "EROFS", "EDQUOT", "EIO",
+                          "ENOTDIR", "EEXIST", "EMFILE", "ENFILE", "EINVAL", "EPERM"})
+
+
+def setup_exception(error):
+    # Never derive public fields from exception text, arbitrary class names,
+    # filenames, env values or raw args. Only finite literals leave this boundary.
+    if isinstance(error, sdk.Refused):
+        return {"exceptionCategory": "policy-refused"}
+    if isinstance(error, OSError):
+        code = errno.errorcode.get(error.errno)
+        return {"exceptionCategory": "os-error", "osCode": code if code in SETUP_ERRNOS else "other"}
+    for kind, label in ((KeyError, "key-error"), (AttributeError, "attribute-error"),
+                        (TypeError, "type-error"), (ValueError, "value-error")):
+        if isinstance(error, kind):
+            return {"exceptionCategory": label}
+    return {"exceptionCategory": "other"}
+
+
+def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_substage=None):
     if isinstance(error, ContextRefused) and str(error) in DIAGNOSTIC_REASONS:
         reason = str(error)
     elif phase == "identity":
@@ -154,6 +182,8 @@ def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None):
     else:
         reason = "operation_failed"
     result = {"stage": phase if phase in FAILURES else "unclassified", "reason": reason}
+    if phase == "disk" and setup_substage in SETUP_SUBSTAGES:
+        result.update(setupSubstage=setup_substage, **setup_exception(error))
     if recipe_stage in STAGES:
         result["recipeStage"] = recipe_stage
     if phase == "package" and isinstance(error, package.PackageInputError):
@@ -675,6 +705,7 @@ def run(root, results, *, environ=None):
     source = tree = None
     phase = "admission"
     export = None
+    setup_substage = None
     try:
         sdk.require(
             ambient.get("GITHUB_ACTIONS") == "true"
@@ -761,40 +792,56 @@ def run(root, results, *, environ=None):
             toolchain=VERSION,
         )
         phase = "disk"
-        sdk.require(
-            shutil.disk_usage(output).free >= sdk.RESERVE
-            and shutil.disk_usage("/tmp").free >= sdk.RESERVE,
-            "disk",
-        )
-        private = Path(
-            tempfile.mkdtemp(
-                prefix="native-dev-parent-", dir=Path(ambient["RUNNER_TEMP"])
-            )
-        )
+        setup_substage = "output-disk-usage"
+        output_free = shutil.disk_usage(output).free
+        setup_substage = "reserve-check"
+        sdk.require(output_free >= sdk.RESERVE, "disk")
+        setup_substage = "tmp-disk-usage"
+        tmp_free = shutil.disk_usage("/tmp").free
+        setup_substage = "reserve-check"
+        sdk.require(tmp_free >= sdk.RESERVE, "disk")
+        setup_substage = "runner-temp-input"
+        runner_temp = Path(ambient["RUNNER_TEMP"])
+        setup_substage = "private-parent-create"
+        private = Path(tempfile.mkdtemp(prefix="native-dev-parent-", dir=runner_temp))
+        setup_substage = "private-parent-mode"
         private.chmod(0o700)
         # The sticky, root-owned /tmp parent prevents build UID rename attacks.
+        setup_substage = "tmp-boundary-stat"
         tmp_info = Path("/tmp").lstat()
+        setup_substage = "tmp-boundary-check"
         sdk.require(
             stat.S_ISDIR(tmp_info.st_mode)
             and tmp_info.st_uid == 0
             and tmp_info.st_mode & stat.S_ISVTX,
             "admission",
         )
+        setup_substage = "sandbox-create"
         sandbox = Path("/tmp/openmates-native-dev-" + uuid.uuid4().hex)
         sandbox.mkdir(mode=0o700)
         work = sandbox / "source"
+        setup_substage = "source-directory-create"
         work.mkdir(mode=0o700)
         for name, digest in before.items():
+            setup_substage = "source-read"
             data = sdk.regular(root / name)
+            setup_substage = "source-check"
             sdk.require(sdk.sha(data) == digest, "source")
             destination = work / name
+            setup_substage = "source-parent-create"
             destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            setup_substage = "source-write"
             destination.write_bytes(data)
         home, temp = private / "home", private / "tmp"
+        setup_substage = "private-home-create"
         home.mkdir(mode=0o700)
+        setup_substage = "private-tmp-create"
         temp.mkdir(mode=0o700)
+        setup_substage = "rustup-locate"
         rustup = shutil.which("rustup")
+        setup_substage = "rustup-check"
         sdk.require(rustup, "toolchain")
+        setup_substage = "environment-build"
         env = {
             "PATH": os.pathsep.join(
                 [str(Path(rustup).parent), *os.defpath.split(os.pathsep)]
@@ -807,7 +854,9 @@ def run(root, results, *, environ=None):
             "RUSTUP_TOOLCHAIN": VERSION,
             "CARGO_HOME": str(private / "cargo"),
         }
+        setup_substage = "manifest-check"
         validate_manifests(work)
+        setup_substage = "command-runner-create"
         runner = NativeCommands(work, private, env, deadline)
         phase = "toolchain"
         runner.run(
@@ -949,6 +998,7 @@ def run(root, results, *, environ=None):
                 if runner and runner.steps
                 else None,
                 source_inputs=before,
+                setup_substage=setup_substage,
             ),
         )
     finally:
