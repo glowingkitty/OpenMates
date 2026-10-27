@@ -264,7 +264,7 @@ export function mergeCaddyRelease(current: string, previous: string, target: str
     const files = ["current", "previous", "target"].map(name => join(directory, name));
     [current, previous, target].forEach((content, i) => writeFileSync(files[i], content, { mode: 0o600 }));
     try {
-      return execFileSync("diff3", ["-m", ...files], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10_000 });
+      return execFileSync("diff3", ["-m", "-E", ...files], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10_000 });
     } catch (error) {
       throw new Error((error as { status?: number }).status === 1 ? "caddy_local_config_conflict" : "caddy_merge_tool_unavailable");
     }

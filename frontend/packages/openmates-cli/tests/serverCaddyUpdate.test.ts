@@ -331,3 +331,12 @@ for (const failure of ["aborted", "status201", "status403", "origin", "credentia
     } finally { globalThis.fetch = oldFetch; }
   });
 }
+
+it("accepts release changes already incorporated in a reviewed host resolution", () => {
+  const base = "{\n\temail admin@example.test\n}\napi.example.test {\n\trespond 200\n}\n";
+  const target = base.replace("respond 200", "respond 204");
+  const resolved = target.replace("admin@example.test", "operator@example.test");
+  assert.equal(mergeCaddyRelease(target, base, target), target);
+  assert.equal(mergeCaddyRelease(resolved, base, target), resolved);
+  assert.throws(() => mergeCaddyRelease(base.replace("respond 200", "respond 403"), base, target), /caddy_local_config_conflict/);
+});
