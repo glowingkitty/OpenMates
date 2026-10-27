@@ -7757,10 +7757,6 @@
         {/if}
     </div>
 
-    {#if callOwnsComposer}
-        <p class="voice-call-composer-hint" data-testid="voice-call-composer-hint">{$text('voicecall.text_only_hint')}</p>
-    {/if}
-
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
     <MentionDropdown
@@ -7780,8 +7776,6 @@
     @import './composerPresentation.css';
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
-
-    .voice-call-composer-hint { margin:var(--spacing-2) var(--spacing-6) 0; color:var(--color-font-tertiary); font-size:var(--font-size-xs); line-height:1.4; }
 
     .ideabucket-pill {
         background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;

@@ -48,6 +48,15 @@ for (const { width, direction } of [
     await expect(fixture).toHaveAttribute('data-start-target', 'new-chat');
     await expect(fixture).toHaveAttribute('data-call-status', 'connecting');
     await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+    await expect(page.getByTestId('chat-top-actions')).toBeHidden();
+    await expect(page.getByTestId('chat-top-actions')).toHaveAttribute('inert', '');
+    await expect(page.getByTestId('voice-call-composer-hint')).toHaveCount(0);
+    await expect.poll(async () => {
+      const [bar, chat] = await Promise.all([
+        page.getByTestId('voice-call-bar').boundingBox(), page.getByTestId('chat-side').boundingBox(),
+      ]);
+      return bar && chat ? Math.abs(bar.y - chat.y) : Infinity;
+    }, { message: 'Connecting controls must start at the top of the new chat' }).toBeLessThanOrEqual(1);
     await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
     await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
     const cancel = page.getByTestId('voice-call-hangup');

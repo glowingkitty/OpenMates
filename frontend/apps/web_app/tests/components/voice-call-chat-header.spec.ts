@@ -29,7 +29,7 @@ for (const { width, reducedMotion } of [
     await expect.poll(async () => {
       const [callBounds, historyBounds] = await Promise.all([strip.boundingBox(), history.boundingBox()]);
       return Math.abs(callBounds!.y - historyBounds!.y);
-    }, { message: 'No hidden banner height may precede the initial calling UI' }).toBeLessThanOrEqual(12);
+    }, { message: 'The initial calling UI must sit flush with the chat top' }).toBeLessThanOrEqual(1);
     await mute.click();
     await expect(mute).toHaveAttribute('aria-pressed', 'true');
     await page.screenshot({ path: testInfo.outputPath('voice-call-before-title.png') });

@@ -3273,7 +3273,7 @@ import { storageArchiveFetch } from "../config/api";
 
     {#if voiceCallBridge}
       <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>
-      <div class="voice-call-strip" class:stuck={callStripStuck} data-testid="voice-call-strip">
+      <div class="voice-call-strip" class:stuck={callStripStuck} class:without-header={!showChatHeader} data-testid="voice-call-strip">
         {@render voiceCallBridge.controls(callStripStuck)}
       </div>
     {/if}
@@ -3746,6 +3746,10 @@ import { storageArchiveFetch } from "../config/api";
     width: calc(100% + 2 * var(--spacing-5));
   }
   .voice-call-strip.stuck { top: calc(-1 * var(--spacing-5)); }
+  .voice-call-strip.without-header {
+    margin-top: calc(-1 * var(--spacing-5));
+    top: calc(-1 * var(--spacing-5));
+  }
 
   /* Hide scrollbar and prevent any content height when chat is empty */
   .chat-history-container.empty {

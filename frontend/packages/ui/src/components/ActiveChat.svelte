@@ -8252,9 +8252,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Keep welcome content out of this pane's call controls without hiding
     // welcome screens used while a call is shown elsewhere.
     const hideWelcomeContent = $derived(hideWelcomeForKeyboard || (showWelcome && showVoiceCallBarHere));
-    const callControlsReplaceToolbar = $derived(
-        voiceCallStripStuck || (showVoiceCallBarHere && isActiveDraftOnlyChat)
-    );
+    // Until the chat has a real header, the call owns the top action surface.
+    const voiceCallAtTop = $derived(showVoiceCallBarHere &&
+        (showWelcome || isActiveDraftOnlyChat || !activeChatDecryptedTitle.trim() || isNewChatGeneratingTitle));
+    const callControlsReplaceToolbar = $derived(voiceCallStripStuck || voiceCallAtTop);
     $effect(() => { if (!showVoiceCallBarHere) voiceCallStripStuck = false; });
     const voiceCallLaunchEligible = $derived(
         $authStore.isAuthenticated && !voiceCallOwnsAudio &&
@@ -15165,7 +15166,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
 
                     {#snippet boundCallControls(fixed: boolean)}
-                        <VoiceCallBar fixed={fixed || isActiveDraftOnlyChat} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
+                        <VoiceCallBar fixed={fixed || voiceCallAtTop} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
                             {#snippet moreActions()}
                                 <VoiceCallMoreMenu
                                     {report} {share} {priorityAction} {actions}
@@ -17515,8 +17516,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         display: flex;
         flex-direction: column;
         position: absolute;
-        /* Keep pending/error controls below the welcome chat toolbar. */
-        inset-block-start: var(--spacing-32);
+        inset-block-start: 0;
         inset-inline-start: 0;
         width: 100%;
         box-sizing: border-box;
@@ -17683,7 +17683,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         width: 100%;
     }
 
-    .top-buttons.call-strip-stuck:not(.top-buttons-flow) {
+    .top-buttons.call-strip-stuck {
         visibility: hidden;
         pointer-events: none;
     }

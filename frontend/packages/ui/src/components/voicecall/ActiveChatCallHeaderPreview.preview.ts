@@ -2,8 +2,8 @@
 export const layout = 'fill';
 export default { direction: 'ltr' as const };
 export const variants = {
-  focusedDraft: { direction: 'ltr' as const, viewportAligned: true },
-  focusedDraftRtl: { direction: 'rtl' as const, viewportAligned: true },
+  focusedDraft: { direction: 'ltr' as const, withHeader: true, viewportAligned: true },
+  focusedDraftRtl: { direction: 'rtl' as const, withHeader: true, viewportAligned: true },
   rtl: { direction: 'rtl' as const },
   header: { direction: 'ltr' as const, withHeader: true },
   headerViewport: { direction: 'ltr' as const, withHeader: true, viewportAligned: true },
