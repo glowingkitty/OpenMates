@@ -111880,7 +111880,7 @@ assertions:
       surface: gui.web
     - &id14338
       path: frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
-      line: 85
+      line: 104
       name: keeps composer controls contained at ${fieldWidth}px inside a ${viewportWidth}px
         viewport
       surface: gui.web
@@ -112084,7 +112084,7 @@ assertions:
     direct_tests:
     - &id14348
       path: frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
-      line: 14
+      line: 16
       name: opens the correct picker without opening text entry and preserves a cancelled
         draft
       surface: gui.web
@@ -112767,7 +112767,7 @@ assertions:
       surface: gui.web
     - &id14543
       path: frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
-      line: 14
+      line: 16
       name: opens the correct picker without opening text entry and preserves a cancelled
         draft
       surface: gui.web
@@ -116966,7 +116966,7 @@ assertions:
       surface: gui.web
     - &id15064
       path: frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
-      line: 85
+      line: 104
       name: keeps composer controls contained at ${fieldWidth}px inside a ${viewportWidth}px
         viewport
       surface: gui.web

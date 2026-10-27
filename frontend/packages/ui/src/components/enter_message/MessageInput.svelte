@@ -7827,10 +7827,6 @@
         color: var(--color-grey-60);
     }
 
-    .message-input-wrapper.guest-cta-mode .empty-input-attachment-button span {
-        background: var(--color-grey-60);
-    }
-
 	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
@@ -7914,7 +7910,7 @@
     .empty-input-attachment-button span {
         width: 24px;
         height: 24px;
-        background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
+        /* Use the shared clickable-icon gradient, matching the microphone. */
     }
 
     .empty-input-attachment-button:hover {

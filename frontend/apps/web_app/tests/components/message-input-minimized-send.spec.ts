@@ -4,8 +4,10 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 
 for (const device of [
   { name: 'phone', width: 390, touch: true, camera: true },
+  { name: 'phone light', width: 390, touch: true, camera: true, theme: 'light' },
   { name: 'iPad desktop viewport', width: 1024, touch: true, camera: true },
   { name: 'desktop', width: 1280, touch: false, camera: false },
+  { name: 'desktop dark', width: 1280, touch: false, camera: false, theme: 'dark' },
 ]) {
   test.describe(`Attachment shortcut on ${device.name}`, () => {
     test.use({ viewport: { width: device.width, height: 844 }, hasTouch: device.touch });
@@ -18,7 +20,7 @@ for (const device of [
           Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
         });
       }
-      const params = new URLSearchParams({ theme: device.camera ? 'dark' : 'light', background: '#dbeafe', width: String(Math.min(device.width - 40, 680)), chrome: '0' });
+      const params = new URLSearchParams({ theme: device.theme ?? (device.camera ? 'dark' : 'light'), background: '#dbeafe', width: String(Math.min(device.width - 40, 680)), chrome: '0' });
       await page.goto(`/dev/preview/enter_message/MessageInput?${params}`);
       await waitForComponentPreview(page);
       const field = page.getByTestId('message-field');
@@ -26,7 +28,16 @@ for (const device of [
       const shortcut = page.getByTestId('composer-attachment-shortcut');
       await expect(shortcut).toBeVisible();
       await expect(shortcut).toHaveAccessibleName(device.camera ? /photo/i : /^files$/i);
-      await expect(shortcut.locator(device.camera ? '.icon_camera' : '.icon_files')).toBeVisible();
+      const shortcutIcon = shortcut.locator(device.camera ? '.icon_camera' : '.icon_files');
+      await expect(shortcutIcon).toBeVisible();
+      const expectMatchingGradient = async () => {
+        const microphone = page.getByTestId('guest-cta-mic-button');
+        await expect(microphone).toBeVisible();
+        const gradient = await microphone.evaluate((element) => getComputedStyle(element).backgroundImage);
+        expect(gradient).toContain('linear-gradient(');
+        await expect(shortcutIcon).toHaveCSS('background-image', gradient);
+      };
+      await expectMatchingGradient();
       await expect(shortcut).toHaveCSS('width', '40px');
       await expect(shortcut).toHaveCSS('height', '40px');
       const bounds = await shortcut.boundingBox();
@@ -37,6 +48,7 @@ for (const device of [
         await shortcut.hover();
         await shortcut.focus();
         await expect(shortcut).toBeFocused();
+        await expectMatchingGradient();
       }
       const chooserEvent = page.waitForEvent('filechooser');
       if (device.touch) await shortcut.tap(); else await shortcut.press('Enter');
@@ -49,6 +61,13 @@ for (const device of [
       await chooser.element().dispatchEvent('cancel');
       await expect(editor).toBeEmpty();
       await expect(shortcut).toBeVisible();
+
+      // Guest styling must preserve the same clickable-icon gradient.
+      params.set('props', JSON.stringify({ guestCtaMode: true }));
+      await page.goto(`/dev/preview/enter_message/MessageInput?${params}`);
+      await waitForComponentPreview(page);
+      await expect(shortcut).toBeVisible();
+      await expectMatchingGradient();
 
       await field.click();
       await editor.fill('Keep this draft when cancelling an attachment.');
