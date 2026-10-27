@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "web_browse_embed_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare Browse preview/fullscreen and browser viewer fixtures. Synthetic local page images and typed in-memory session controls prove component behavior without backend, E2B, account credentials or AI inference. Actual owner HTTP and deployed provider flows are verified separately.",
+      "specs": [
+        "components/web-browse-embeds.spec.ts"
+      ]
+    },
     "web_pii_local_trial": {
       "execution": "e2e",
       "enabling_work": "Account-free runner-local bare composer with the normal notification deck. Download pinned public Redact model/runtime assets and run only on-device token classification with synthetic text, including full regex fallback, one-time notice, network-disabled warm inference and download failure/retry. The vendor SDK may send required content-free licensing metadata. No OpenMates chat inference, paid model provider, backend, signup, account or provider credential is required.",
@@ -1067,6 +1074,9 @@
     }
   },
   "holds": {
+    "web-browse-real.spec.ts": {
+      "next_action": "Real Jev/text-helper inference and E2B sessions: run only against dev with automatic chat routing, the isolated personal test profile, explicit shared-runtime lease and exact owned-source check. Account authentication is excluded from recordings; demo website credentials are public training fixtures. Never submit this provider-billed flow to isolated CI. Deterministic component and HTTP boundaries run in CI separately."
+    },
     "anonymous-cli-skill.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Run the public anonymous skill boundary against an isolated official-cloud billing profile. The portable self-host runner intentionally returns 404 for this cloud-only route.",

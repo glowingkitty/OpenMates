@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "ابحث عن إعلانات الوظائف العامة في السويد باستخدام JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "الحصول على النص",
         "description": {
-          "text": "احصل على نص فيديو YouTube / media.ccc.de."
+          "text": "احصل على الترجمات النصية المنشورة لمحاضرات media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "اقرأ صفحة ويكيبيديا عن الإمبراطورية الرومانية وأعطني الحقائق الرئيسية"
           }
+        }
+      },
+      "browse": {
+        "text": "تصفّح",
+        "description": {
+          "text": "تصفّح المواقع وأعد المعلومات المرصودة بصيغة JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "الاستضافة",
       "description": {
-        "text": "اعثر على أسماء النطاقات وتحقق من توفرها وأسعارها."
+        "text": "البحث عن أسماء النطاقات غير متاح حاليًا."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "البريد",
       "description": {
-        "text": "أرسل وأدر واكتب رسائل البريد."
+        "text": "اكتب مسودات رسائل إلكترونية وتعامل مع البريد."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "مقاطع فيديو",
       "description": {
-        "text": "ابحث عن فيديو واحصل على النصوص."
+        "text": "ابحث عن مقاطع الفيديو وأنشئها."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "السفر",
       "description": {
-        "text": "ابحث عن إقامات ووسائل نقل وخطط."
+        "text": "خطط للرحلات واحتفظ بمعلومات السفر المحفوظة."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "البحث عن المكونات الإلكترونية غير متاح حاليًا."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "سكن",
       "description": {
-        "text": "ابحث عن منزل جديد والمزيد."
+        "text": "احتفظ بمعلومات السكن المحفوظة."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "الأحداث",
       "description": {
-        "text": "اكتشف اللقاءات والمؤتمرات والفعاليات المحلية."
+        "text": "احتفظ بمعلومات الفعاليات المحفوظة."
       },
       "search": {
         "text": "بحث",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "اعرض النماذج ثلاثية الأبعاد المحفوظة."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "التسوق",
       "description": {
-        "text": "قارن أسعار السوبر ماركت واعثر على العروض."
+        "text": "البحث عن المنتجات غير متاح حاليًا."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "تصفّح"
+      },
+      "running": {
+        "text": "جارٍ التصفّح"
+      },
+      "user_control": {
+        "text": "أنت تتحكم"
+      },
+      "paused": {
+        "text": "متوقف مؤقتًا"
+      },
+      "completed": {
+        "text": "مكتمل"
+      },
+      "no_results": {
+        "text": "لا توجد نتائج"
+      },
+      "needs_user": {
+        "text": "يلزم إدخالك"
+      },
+      "blocked": {
+        "text": "محظور"
+      },
+      "failed": {
+        "text": "فشل"
+      },
+      "cancelled": {
+        "text": "أُلغي"
+      },
+      "budget_exceeded": {
+        "text": "تم بلوغ حد الإنفاق"
+      },
+      "closed": {
+        "text": "أُغلق المتصفح"
+      },
+      "expired": {
+        "text": "انتهت الجلسة"
+      },
+      "unavailable": {
+        "text": "المتصفح غير متاح"
+      },
+      "watch": {
+        "text": "مشاهدة المتصفح"
+      },
+      "take_control": {
+        "text": "تولّي التحكم"
+      },
+      "continue": {
+        "text": "السماح للذكاء الاصطناعي بالمتابعة"
+      },
+      "pause": {
+        "text": "إيقاف مؤقت"
+      },
+      "close": {
+        "text": "إغلاق المتصفح"
+      },
+      "sign_in_title": {
+        "text": "قبل تسجيل الدخول"
+      },
+      "sign_in_confirm": {
+        "text": "متابعة تسجيل الدخول"
+      },
+      "saved_frame": {
+        "text": "لقطة متصفح محفوظة"
+      },
+      "live_frame": {
+        "text": "المتصفح المباشر"
+      },
+      "waiting_frame": {
+        "text": "في انتظار المتصفح…"
+      },
+      "text_input": {
+        "text": "نص للموقع"
+      },
+      "send_text": {
+        "text": "إرسال النص"
+      },
+      "scroll_up": {
+        "text": "تمرير لأعلى"
+      },
+      "scroll_down": {
+        "text": "تمرير لأسفل"
+      },
+      "structured_data": {
+        "text": "بيانات منظّمة"
+      },
+      "connection_error": {
+        "text": "انقطع الاتصال. حدّث قبل محاولة إجراء آخر."
+      },
+      "credits": {
+        "text": "{used} / {limit} رصيد"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "أنت تسجّل الدخول في متصفح سحابي. عند السماح للذكاء الاصطناعي بالمتابعة، يمكنه الوصول إلى معلومات هذا الحساب. قد تُرسَل محتويات الصفحات ذات الصلة إلى مزوّدي الذكاء الاصطناعي لدينا. سجّل الدخول فقط إلى حسابات تقبل منح الذكاء الاصطناعي حق الوصول إليها."
+      },
+      "manual_hint": {
+        "text": "انقر الصفحة أو استخدم Tab وEnter. يُرسل النص إلى هذا الموقع فقط ويُمسح من حقل الإدخال بعد الإرسال."
+      },
+      "paused_hint": {
+        "text": "المتصفح متوقف مؤقتًا ولا توجد رسوم حوسبة. تولَّ التحكم للاستئناف. تُحذف الجلسة بعد 24 ساعة دون تفاعل."
+      },
+      "watch_hint": {
+        "text": "أنت تشاهد فقط. تولَّ التحكم للتفاعل مع الموقع. المشاهدة لا تُبقي الجلسة نشطة."
+      },
+      "stopping": {
+        "text": "جارٍ الإيقاف…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "قارن بين المسؤوليات اليومية ومسارات النمو لكلا الدورين"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "مقارنة القلايات الهوائية في ألمانيا"
-      },
-      "summary": {
-        "text": "مقارنة لأفضل القلايات الهوائية على أمازون ألمانيا من حيث السعر والسعة والتقييمات، مع التوصية بـ Philips Airfryer 2000 Series لأسرة مكونة من شخصين."
-      },
-      "message_1": {
-        "text": "ابحث عن قلايات هوائية يمكنني شراؤها عبر الإنترنت في ألمانيا، بما في ذلك قوائم أمازون. قارن بين الأسعار الحالية والسعات وتقييمات المراجعات، ثم رشح واحدة لأسرة مكونة من شخصين مع روابط المصادر."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nإليك مقارنة بين أفضل المقالي الهوائية المتاحة حاليًا على أمازون ألمانيا، مع مقارنة السعر والسعة وتقييمات العملاء.\n\n---\n\n### مقارنة بين الموديلات الشهيرة في ألمانيا\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### أفضل توصية لمنزل مكون من شخصين\n\n#### **الاختيار الأساسي: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **لماذا تناسب شخصين بشكل أفضل:**\n  * **سعة مثالية (6.2 لتر):** السلال الأصغر من 4.5-5 لتر تتطلب الطهي على دفعات متعددة حتى لشخصين. تتيح لك السلة بسعة 6.2 لتر وضع شريحتين من السلمون مع كمية كاملة من الخضار أو البطاطس المقلية في طبقة واحدة للحصول على قرمشة متساوية.\n  * **المساحة في المطبخ:** الأجهزة ذات المنطقتين (مثل Ninja أو Russell Hobbs) تشغل مساحة كبيرة على سطح العمل. توفر السلة الواحدة بسعة 6 لتر حجمًا وافرًا مع الحفاظ على حجم مدمج مناسب لأسطح عمل المطابخ الألمانية التقليدية.\n  * **نافذة شفافة:** تسمح بالتحقق من درجة التحمير دون فتح الدرج وفقدان الحرارة.\n  * **القيمة:** بسعر 99.99 يورو، توفر ثباتًا موثوقًا في درجة الحرارة من [Philips](wiki:Philips) بسعر معقول.\n\n#### **بديل (إذا كنت تطهو طبقين بانتظام بدرجات حرارة مختلفة): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nإذا كنت تفضل أنت وشريكك تحضير البروتينات والخضروات الجانبية في وقت واحد بدرجات حرارة وتوقيتات مختلفة (مثل صدور الدجاج عند 180 درجة مئوية والبطاطس المقرمشة عند 200 درجة مئوية)، فإن هذا الموديل مخفض حاليًا إلى 119.99 يورو ويتميز بأوقات طهي متزامنة.\n\n---\n\n### عوامل رئيسية يجب مراعاتها قبل الشراء\n1. **شكل الدرج:** السلال المربعة (مثل Cosori وPhilips) تستوعب الأطعمة المسطحة (شرائح اللحم، صواني الخبز، الأسياخ) بشكل أفضل بكثير من السلال المستديرة ذات السعة اللترية المماثلة.\n2. **مساحة غسالة الأطباق:** تأكد من أن غسالة الأطباق لديك بها ارتفاع كافٍ للرف لدرج واحد سعة 6 لتر، أو فكر في غسل الطبقات غير اللاصقة يدويًا لإطالة عمرها الافتراضي."
-      },
-      "follow_up_1": {
-        "text": "ابحث عن وصفات مصممة خصيصاً للقلايات الهوائية"
-      },
-      "follow_up_2": {
-        "text": "اشرح الفروق الرئيسية بين القلايات الهوائية ذات السلة الواحدة والمزدوجة"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن ملحقات خبز متوافقة لهذه القلاية الهوائية"
-      },
-      "follow_up_4": {
-        "text": "أدرج وصفات عشاء سهلة للمبتدئين في القلاية الهوائية"
-      },
-      "follow_up_5": {
-        "text": "تحقق من تقييمات استهلاك الطاقة الحالية لهذه الموديلات"
-      },
-      "follow_up_6": {
-        "text": "قارن بين متطلبات التنظيف والصيانة لطلاء السيراميك مقابل التيفلون"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "أبرز أحداث واستكشافات مهمة Artemis II"
@@ -8894,38 +8967,6 @@
         "text": "[code] أنشئ قالباً مشابهاً ولكن بجمالية تصميم مختلفة"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "دروس يوغا للمبتدئين في برلين"
-      },
-      "summary": {
-        "text": "ابحث عن ثلاث حصص يوغا مناسبة للمبتدئين في برلين مع المواعيد والأسعار وروابط الحجز."
-      },
-      "message_1": {
-        "text": "أنا مبتدئ في اليوغا وأرغب في حضور حصة مناسبة للمبتدئين في برلين الأسبوع القادم. هل يمكنك العثور على بعض الحصص مع المواعيد والأسعار وروابط الحجز؟"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nإليك دروس [اليوغا](wiki:Yoga) المناسبة للمبتدئين والتي ستقام في أنحاء برلين الأسبوع القادم:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [يوغا للتواصل مع الأرض (Yoga for Grounding)](embed:yoga-for-grounding-TB2) (كرويتسبرغ)\n- **ما هي:** جلسة واعية توازن بين الحركة الموجهة بالتنفس ووضعيات الثبات لاستكشاف التوازن والهدوء. مصممة خصيصاً لتكون مناسبة للمبتدئين (تُقدم باللغة الإنجليزية).\n- **التاريخ والوقت:** الأربعاء، 14 أكتوبر 2026، 18:00 – 19:00 بتوقيت وسط أوروبا الصيفي (يرجى الوصول قبل الموعد بـ 10 دقائق)\n- **الموقع:** Art OM, Wrangelstraße 54, 10997 Berlin ([كرويتسبرغ](wiki:Kreuzberg))\n- **السعر:** 11.83€ – 22.49€\n- **الحجز:** [احجز التذاكر على ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [يوغا المرونة وتسلّق الصخور الاختياري](embed:mobility-yoga-optional-qv3) (فريدريشسهاين)\n- **ما هي:** جلسة يوغا ومرونة غير رسمية ومريحة لجميع المستويات، حيث يتم شرح الحركات خطوة بخطوة بوتيرة هادئة. لا تتطلب مرونة أو خبرة سابقة.\n- **التاريخ والوقت:** الثلاثاء، 13 أكتوبر 2026، 19:00 – 19:45 بتوقيت وسط أوروبا الصيفي (يرجى الوصول قبل الموعد بـ 15 دقيقة)\n- **الموقع:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([فريدريشسهاين](wiki:Friedrichshain))\n- **السعر:** 5€ (دخول مجاني مع ExampleFitness / Wellpass إذا كنت ستمارس التسلق أيضاً)\n- **الحجز:** [عرض التفاصيل ورابط الحجز](embed:mobility-yoga-optional-qv3)\n\n### 3. [فينيازا فلو (Vinyasa Flow)](embed:vinyasa-flow-in-a8l) (فادينغ / ميتة)\n- **ما هي:** جلسة فينيازا ديناميكية ولطيفة في آن واحد، توفر تعديلات للمبتدئين، مع التركيز على الوعي بالتنفس، وتوازن الجسم، وتخفيف التوتر.\n- **التاريخ والوقت:** الأربعاء، 14 أكتوبر 2026، 19:30 – 21:00 بتوقيت وسط أوروبا الصيفي\n- **الموقع:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ميتة](wiki:Mitte))\n- **السعر:** 10€ لأول جلسة تجريبية (باقة البداية: 3 جلسات مقابل 20€)\n- **الحجز:** [سجل حضورك عبر Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### نصائح لأول جلسة يوغا لك\n* **الملابس:** ملابس مريحة ومرنة تسمح لك بالتحرك والانحناء بسهولة. عادة ما تُمارس اليوغا حافي القدمين.\n* **شرب الماء والوجبات:** تجنب الوجبات الثقيلة قبل الجلسة بمدة تتراوح بين ساعة ونصف إلى ساعتين.\n* **استمع لجسدك:** أخبر المعلم قبل الجلسة أنها مرتك الأولى؛ سيسعدهم إرشادك للتعديلات واستخدام الأدوات المساعدة (المكعبات، الأغطية، أو الأحزمة). إذا كنت تعاني من مشاكل سابقة في المفاصل أو الظهر، استشر طبيباً أو معالجاً طبيعياً قبل تجربة الحركات الديناميكية.\n\nهل تود الحصول على توصيات أقرب إلى حي معين (مثل نويكولن، برينزلاور بيرغ، شارلوتنبورغ)، أو التركيز على أسلوب هادئ مثل [هاثا يوغا](wiki:Hatha_yoga) أو [ين يوغا](wiki:Yin_yoga)؟\n---\n*⚠️ هذه معلومات تعليمية فقط وليست نصيحة طبية. استشر طبيبك لاتخاذ القرارات الطبية.*"
-      },
-      "follow_up_1": {
-        "text": "ابحث عن دروس يوغا في نويكولن ببرلين"
-      },
-      "follow_up_2": {
-        "text": "اشرح ما يمكن توقعه خلال أول درس يوغا"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن ورش عمل يوغا الهاثا في عطلة نهاية الأسبوع القادمة"
-      },
-      "follow_up_4": {
-        "text": "قارن بين أسلوبي يوغا الفينياسا والهاثا"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن استوديوهات يوغا الين في منطقة ميتة (Mitte)"
-      },
-      "follow_up_6": {
-        "text": "اذكر نصائح للمبتدئين عند شراء بساط يوغا"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "ابحث عن طبيب عام يتحدث الإنجليزية في برلين"
-      },
-      "summary": {
-        "text": "ابحث عن خيارات المواعيد مع تفاصيل دقيقة عن التأمين وروابط العيادات."
-      },
-      "message_1": {
-        "text": "أحتاج إلى موعد مع طبيب عام يتحدث الإنجليزية في برلين الأسبوع المقبل. يرجى مقارنة أقرب الخيارات المتاحة، وعرض بطاقات المواعيد الخاصة بها، وذكر تغطية التأمين فقط عندما تؤكدها قائمة الحجز. إذا كانت التغطية غير واضحة، يرجى ذكر ذلك."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nإليك أقرب المواعيد المتاحة لدى أطباء عامين يتحدثون الإنجليزية في برلين خلال الأيام السبعة القادمة التي وجدتها. لقد ذكرت التغطية التأمينية فقط في الحالات التي توضحها قائمة الحجز نفسها.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**أقرب الخيارات المتاحة الأسبوع القادم**\n1. **الاثنين 12 أكتوبر، 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - العنوان: Albert-Einstein-Straße 2, 12489 Berlin\n   - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)\n   - اللغات المذكورة: الألمانية، الإنجليزية\n   - **التأمين:** خاص *(مؤكد في القائمة)*\n\n2. **الاثنين 12 أكتوبر، 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - العنوان: Kapweg 5, 13405 Berlin\n   - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)\n   - اللغات المذكورة: الإنجليزية\n   - **التأمين:** خاص *(مؤكد في القائمة)*\n\n3. **الاثنين 12 أكتوبر، 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - العنوان: Stargarder Straße 69, 10437 Berlin\n   - نوع الزيارة: استشارة للحالات العاجلة (Akutsprechstunde)\n   - اللغات المذكورة: الألمانية، الإنجليزية\n   - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*\n\n4. **الاثنين 12 أكتوبر، 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - العنوان: Müllerstraße 36, 13353 Berlin\n   - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)\n   - اللغات المذكورة: الألمانية، الإنجليزية\n   - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*\n\n5. **الاثنين 12 أكتوبر، 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - العنوان: Wallstraße 16, 10179 Berlin\n   - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)\n   - اللغات المذكورة: الألمانية، الإنجليزية\n   - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*\n\nملاحظتان:\n- لقد استبعدت الخيارين الأبكر في **9–10 أكتوبر** من المقارنة أعلاه لأنك طلبت **الأسبوع القادم** تحديداً.\n- يبدو أن هذه النتائج مستمدة من قوائم ExampleClinicA؛ لم تكن تغطية ExampleClinicB مدعومة في مجموعة نتائج البحث هذه.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nإذا أردت، يمكنني بعد ذلك:\n- حصر هذه النتائج في **التأمين العام فقط** حيثما تم تأكيده، أو\n- إنشاء قائمة مختصرة حسب **المنطقة / المسافة من موقعك**.\n---\n*⚠️ هذه معلومات تثقيفية فقط وليست نصيحة طبية. استشر طبيبك لاتخاذ القرارات الطبية.*"
-      },
-      "follow_up_1": {
-        "text": "ابحث عن مواعيد أطباء عامين للتأمين العام في ميتي (Mitte)"
-      },
-      "follow_up_2": {
-        "text": "قم بتصفية المواعيد لإظهار التأمين العام فقط"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن أطباء يتحدثون الإنجليزية بالقرب من منطقة برينزلاور بيرغ (Prenzlauer Berg)"
-      },
-      "follow_up_4": {
-        "text": "ضيّق الخيارات حسب الحي والمسافة"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن مواعيد أطباء متخصصين في برلين"
-      },
-      "follow_up_6": {
-        "text": "اشرح كيفية حجز مواعيد هؤلاء الأطباء عبر الإنترنت"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "قارن بين البيولوجيا الفضائية لسكان غيثين (Gethenians) والأونكالي (Oankali)"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "اشرح كيفية تحسين ملفات SVG لأداء الويب"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "البحث عن اسم علامة تجارية ونطاق"
-      },
-      "summary": {
-        "text": "محادثة موجزة حول التسمية: عصف ذهني لسبعة مرشحين، ثم مقارنة بين اسمين نهائيين مع أدلة حول النطاق والويب والعلامات التجارية الأمريكية الأولية."
-      },
-      "message_1": {
-        "text": "ساعدني في العثور على اسم لمنتجي الجديد."
-      },
-      "message_2": {
-        "text": "للبدء، ماذا يفعل منتجك، ومن هو جمهورك المستهدف، وما هو الانطباع أو الشعور الذي يجب أن ينقله الاسم (مثلاً: مرح، فاخر، تقني)؟"
-      },
-      "message_3": {
-        "text": "إنه تطبيق ميزانية هادئ للمستقلين في الولايات المتحدة، باللغة الإنجليزية. أريد أسماءً قصيرة وسهلة التذكر ونطاق .com بسعر يصل إلى 20 يورو سنوياً. يرجى إجراء عصف ذهني لقائمة مختصرة متنوعة أولاً."
-      },
-      "message_4": {
-        "text": "إليك قائمة مختصرة أولية لأسماء متنوعة وسهلة النطق مصممة لتجربة ميزانية هادئة للمستقلين:\n\n- [ ] **Serenito**: يوحي بالسكينة والوتيرة اللطيفة للدخل الفردي المتقلب.\n- [ ] **Solowell**: يوحي بالعافية المالية وراحة البال لرواد الأعمال المنفردين.\n- [ ] **Equafy**: يركز على موازنة دورات التدفق النقدي غير المنتظمة بين الوفرة والندرة.\n- [ ] **StillLedger**: يجمع بين هيكل المحاسبة الكلاسيكي والهدوء الواعي الخالي من التوتر.\n- [ ] **Cadenceo**: يشير إلى بناء إيقاع ثابت ويمكن التنبؤ به من مدفوعات العمل الحر.\n- [ ] **HavenFin**: يصور إدارة الأموال كملاذ آمن ومطمئن.\n- [ ] **Placidly**: نبرة ناعمة ومطمئنة تبدد القلق المالي.\n\n*(ملاحظة: لم يتم التحقق من توفر النطاق أو التخليص القانوني لهذه القائمة المختصرة.)*\n\nأي 2-3 أسماء تود إجراء فحوصات مباشرة عليها؟ يمكنك اختيار الأسماء المفضلة لديك أو اطلب مني اختيار الأسماء النهائية للتحقق من أسعار .com، وتضارب العلامات التجارية، والعلامات التجارية الأمريكية.\n\n- [تحقق من Serenito وSolowell وEquafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [اختر أفضل 3 لي وتحقق منها](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "يرجى التحقق من Equafy وCadenceo: توفر نطاق .com والأسعار المعروضة، والعلامات التجارية الموجودة على الويب، والعلامات التجارية الأمريكية. اجعل المقارنة مقتضبة، مع توصيتك وأي فحوصات لا تزال مفقودة."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nإليك المقارنة بناءً على الفحوصات التي أجريت في ١٢ أكتوبر ٢٠٢٦:\n\n### Equafy\n- **النطاق**: `equafy.com` غير متاح حالياً على ExampleRegistrar؛ لا يتوفر سعر تسجيل قياسي، لذا فهو لا يلبي ميزانية ٢٠ يورو/سنة.\n- **مشهد الويب والعلامات التجارية**: لا توجد برمجيات ميزانية بارزة تستخدم هذا الاسم بالضبط، لكن عمليات البحث على الويب تظهر تشابهاً صوتياً كبيراً وارتباكاً في البحث مع [خدمات Equifax للتمويل الشخصي](embed:equifax.com-TrW).\n- **العلامات التجارية الأمريكية (ExampleTrademarks)**: أظهر البحث الأولي ٥ من أصل ١,٦٤٠ سجلاً مشابهاً (نتائج مختصرة؛ لا يمكن الجزم بعدم وجود الاسم المطابق تماماً). تشمل المطابقات النشطة `EQUIFY` في الفئة ٣٦ (خدمات مالية وقيم مخزنة قيد الانتظار) والفئة ٣٥ (خدمات مزاد مسجلة).\n\n### Cadenceo\n- **النطاق**: `cadenceo.com` غير متاح حالياً على ExampleRegistrar؛ لا يتوفر سعر تسجيل قياسي، مما يعني فشله في تلبية ميزانية ٢٠ يورو/سنة.\n- **مشهد الويب والعلامات التجارية**: يتداخل مباشرة مع [Cadence Money](embed:cadencemoney.com-IcE)، وهو تطبيق مالي شخصي وتتبع ميزانية معروف يعمل في الولايات المتحدة وكندا عبر أنظمة iOS وأندرويد والويب.\n- **العلامات التجارية الأمريكية (ExampleTrademarks)**: أظهر البحث الأولي ٥ من أصل ٢٢٧ سجلاً مشابهاً (نتائج مختصرة؛ لا يمكن الجزم بعدم وجود الاسم المطابق تماماً). تشمل المطابقات النشطة لـ `CADENCE` سجلات برمجيات قابلة للتنزيل في الفئة ٩.\n\n---\n\n### التوصية والمقايضات\n- **التوجه**: صرف النظر عن كليهما. بينما يحتوي **Equafy** على تعارضات أقل مع التطبيقات المباشرة مقارنة بـ **Cadenceo** (الذي يتعارض مباشرة مع *Cadence Money*)، لا يقدم أي منهما نطاق `.com` متاحاً ضمن حد ٢٠ يورو/سنة، كما يحمل Equafy ارتباكاً صوتياً مع علامات مالية موجودة مثل *Equify* و*Equifax*.\n- **الفحوصات المفقودة**: لم يتم فحص سجلات العلامات التجارية الدولية خارج الولايات المتحدة، أو إيداعات العلامات التجارية في الولايات بموجب القانون العام، أو تقييمات شراء النطاقات من السوق الثانوية.\n\nهل ترغب في اختبار توفر النطاق والتخليص لخيارات القائمة المختصرة الأخرى (مثل **Solowell** أو **StillLedger**)، أو استكشاف متغيرات مركبة طفيفة للعثور على نطاق `.com` متاح ضمن الميزانية؟\n\n- [التحقق من Solowell وStillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [عصف ذهني لأسماء مركبة مع نطاقات .com متاحة بأقل من ٢٠ يورو](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "تحقق من توفر النطاق والعلامات التجارية لـ Solowell و StillLedger"
-      },
-      "follow_up_2": {
-        "text": "ابتكر أسماء مركبة مع نطاقات dot com متاحة بأقل من عشرين يورو"
-      },
-      "follow_up_3": {
-        "text": "ابحث في سجلات العلامات التجارية عن أفكار أسماء لتطبيقات ميزانية قادمة"
-      },
-      "follow_up_4": {
-        "text": "قارن بين استراتيجيات العلامة التجارية والتسمية لتطبيقات رواد الأعمال المنفردين"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن امتدادات النطاقات المتاحة لتطبيقات التمويل للعمل الحر (freelance)"
-      },
-      "follow_up_6": {
-        "text": "أدرج مسجلي نطاقات بديلين لنطاقات الشركات الناشئة بأسعار معقولة"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "رحلات من برلين إلى بانكوك"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] التوصية بأماكن إقامة مناسبة للميزانية في بانكوك"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "شقق برلين مع شرفات"
-      },
-      "summary": {
-        "text": "قارن بين قوائم شقق حقيقية في برلين، مع معارض صور كاملة، وأدلة على وجود شرفات ومواقع على الخريطة، مع تمييز التكاليف غير المؤكدة والوصول إلى المياه بوضوح."
-      },
-      "message_1": {
-        "text": "أبحث عن شقة للإيجار في برلين مع شرفة، ويفضل أن تكون بالقرب من نهر أو بحيرة، بسعر يصل إلى 1800 يورو شهرياً وغرفتين على الأقل. هل يمكنك مقارنة بعض القوائم مع معارض صورها ومواقعها على الخريطة؟ يرجى التمييز بين ما تؤكده القوائم فعلياً وما هو غير معروف، بما في ذلك الإيجار وتواريخ عقد الإيجار والوصول إلى المياه. إذا كان المزود يقدم فقط موقعاً تقريبياً أو صوراً غير مكتملة، فيرجى ذكر ذلك. نرحب بالاحتمالات الموضحة بوضوح عندما تكون بعض التفاصيل مفقودة."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nإليك تحليل مقارن لشقق للإيجار مكونة من غرفتين في برلين بسعر أقل من 1,800 يورو شهرياً، مع إثبات وجود شرفة والقرب من المسطحات المائية أو الادعاء بذلك، مع تسليط الضوء على الحقائق المؤكدة مقابل النقاط الغامضة:\n\nشقق للإيجار مكونة من غرفتين مع شرفات في برلين\n\n---\n\n### مقارنة ملخصة\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### ملفات القوائم التفصيلية\n\n#### 1. [شقة لوفت من غرفتين مع شرفة، بالقرب من Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **الإيجار والتكاليف**: تم تحديد إجمالي الإيجار الشامل (warm rent) صراحةً بمبلغ **1,350 يورو شهرياً**، ويتكون من إيجار أساسي (cold rent) قدره 1,200 يورو و150 يورو تكاليف إضافية غير محددة. لم يتم تفصيل شمول تكاليف التدفئة بشكل صريح. التأمين هو 2,000 يورو.\n* **شروط الإيجار**: تأجير من الباطن لفترة محددة. تشير البيانات المنظمة إلى الفترة من 01.11.2026 إلى 01.04.2027، لكن وصف القائمة يوضح أن الفترة الثابتة المضمونة هي من **1 نوفمبر إلى 28 ديسمبر 2026**، مع تمديدات شهرية مرنة حتى 1 أبريل 2027 تخضع لاتفاق الطرفين.\n* **إثبات وجود شرفة**: مؤكد. مذكورة صراحةً في الميزات والنص (\"شرفة مشمسة مع إطلالة على Fennpfuhlpark\"). فحص التقييم البصري 3 من أصل 14 صورة متاحة، وأكد وجود شرفة مرئية في الصورة رقم 0.\n* **الوصول إلى المياه والموقع**: تقع في Anton-Saefkow-Platz في Lichtenberg. تمت مطابقة التحديد الجغرافي على مستوى الشارع (بدون رقم مبنى محدد). تؤكد بيانات OpenStreetMap وجود مسطح مائي (**Fennpfuhl**، بحيرة منتزه)، ولكن فقط كإحداثية نقطية تمثيلية؛ ولم يتم حساب المسافة الدقيقة للشاطئ ودقائق المشي، وبالتالي لم يتم التحقق منها.\n\n---\n\n#### 2. [شقة مفروشة من غرفتين مع شرفتين في Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **الإيجار والتكاليف**: معلن عنها بسعر ثابت قدره **1,800 يورو شهرياً** شاملة بالكامل (تم إدخال كل من الإيجار الأساسي والشامل بمبلغ 1,800 يورو). لم يتم تفصيل المرافق وتكاليف التدفئة والكهرباء. التأمين هو 1,000 يورو.\n* **شروط الإيجار وتعارضات النطاق**:\n  * *تعارض التواريخ*: تظهر الحقول المنظمة التوفر من 21.10.2026 إلى 03.05.2027. ومع ذلك، ينص النص الألماني صراحةً على التوفر بدءاً من 11 نوفمبر لمدة شهرين، بينما تنص الترجمة الإنجليزية في أسفل القائمة على \"من 6 نوفمبر، لمدة 4-6 أشهر\".\n  * *قيود الغرف*: تشير القائمة إلى أن غرفة المالك الداخلية (*Sperrraum*) تظل مغلقة ومستبعدة من الإيجار، على الرغم من وصف المساحة المتبقية المتاحة بأنها غرفتان بمساحة 85 متراً مربعاً.\n* **إثبات وجود شرفة**: مؤكد. معلن عنها بشرفتين (واحدة تطل على الفناء، والأخرى تطل على المياه). أكدت الصور التي تم فحصها (3 من أصل 15) وجود شرفات في الصورتين 0 و14.\n* **الوصول إلى المياه والموقع**: العنوان مدرج كـ Maybachufer في [Neukölln](wiki:Neukölln). أعاد التحديد الجغرافي نتيجة غامضة واعتمد إحداثيات مدينة برلين العامة. بينما يدعي نص القائمة صراحةً وجود إطلالة مباشرة على [قناة Landwehr](wiki:Landwehr_Canal)، لم يتسنَّ التحقق من مسافة الحي ومسارات المشي هندسياً بسبب الاعتماد على الإحداثيات العامة.\n\n---\n\n#### 3. [شقق من غرفتين مع مساحات مشتركة حصرية (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **الإيجار والتكاليف**: الإيجار الشامل يبدأ من **1,372 يورو شهرياً**، مع تفصيل 130 يورو تكاليف تشغيل و105 يورو تكاليف تدفئة. تم حذف الإيجار الأساسي، ويشير الوصف إلى أن هذا هو الحد الأدنى لسعر البدء لفئة ترويجية. يجب على المستأجر التعاقد على الكهرباء بشكل مستقل.\n* **شروط الإيجار**: معلن عنها من قبل مشغل تجاري لمجمع سكني جديد (*أول سكن* 2026). تتطلب **مدة إيجار لا تقل عن 12 شهراً** (*Mindestmietdauer*). تواريخ البدء مفتوحة (معاينات دورية كل أربعاء/خميس).\n* **إثبات وجود شرفة**: مؤكد في مواصفات الوصف (\"einen Balkon\") والسمات المعلن عنها. أكد الفحص البصري لـ 3 من أصل 27 صورة وجود هيكل شرفة خارجي في الصورة رقم 26.\n* **الوصول إلى المياه والموقع**: تقع في Buschkrugallee 64 في Neukölln/[Britz](wiki:Britz). يعتمد الموقع على الإحداثيات المقدمة من المزود دون تحقق مستقل من الشارع. يذكر الوصف أن المجمع يحد قناة (قناة Neukölln للسفن)، ولكن لم يتم حساب المسافة الدقيقة للشاطئ ونقاط الوصول سيراً على الأقدام هندسياً.\n\n---\n\n#### 4. [شقة من غرفتين في Charlottenburg للإيجار من الباطن](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **الإيجار والتكاليف**: الإيجار الشامل المعلن عنه هو **980 يورو شهرياً**. يذكر الوصف \"تكاليف إضافية: 270 يورو شهرياً\"، لكنه لا يوضح ما إذا كان هذا المبلغ مشمولاً بالفعل في الـ 980 يورو أم يتم تحصيله بشكل إضافي. التأمين هو 1,500 يورو.\n* **غموض جوهري: شقة كاملة أم غرفة**: ينص العنوان على \"شقة من غرفتين... للإيجار من الباطن\"، لكن النص يبدأ بـ: *\"نحن نؤجر غرفتنا الجميلة والهادئة والمفروشة مع شرفة...\"*. من غير الواضح ما إذا كان يتم تأجير الشقة المكونة من غرفتين بمساحة 50 متراً مربعاً بالكامل من الباطن أم مجرد غرفة فردية داخلها.\n* **إثبات وجود شرفة**: غير مؤكد بصرياً. على الرغم من الإعلان عن وجود شرفة في العنوان والنص، إلا أن المعلن قدم صورة واحدة فقط، ولا تظهر فيها أي شرفة.\n* **الوصول إلى المياه والموقع**: تقع في 14057 [Charlottenburg](wiki:Charlottenburg). لم يحدد المزود اسم شارع أو رقم منزل (الدقة على مستوى الرمز البريدي فقط). يشير الوصف إلى القرب سيراً على الأقدام من Lietzenseepark (الذي يضم بحيرة Lietzensee)، ولكن لا يمكن حساب وقت المسار الدقيق وأمتار الشاطئ بدون عنوان شارع.\n* **شروط الإيجار**: تأجير من الباطن لفترة محددة من 01.11.2026 إلى 01.11.2027 كحد أقصى (الفترات الأقصر قابلة للتفاوض).\n\n---\n\n### النقاط الرئيسية قبل الاستفسار\n1. **التحقق من المياه**: شقة Maybachufer هي الوحيدة التي تطل صراحةً على ممر مائي مفتوح من الشقة نفسها، لكن تحديدها الجغرافي تقريبي وتواريخها متعارضة. شقة Anton-Saefkow-Platz لديها قرب مؤكد من منتزه Fennpfuhl، رغم أن المسافة الدقيقة للشاطئ غير مقاسة.\n2. **أنواع عقود الإيجار**: لا تقدم أي من قوائم ExampleHousingC عقود إيجار غير محددة المدة (*unbefristet*)؛ فجميعها عقود تأجير من الباطن لفترات محددة. تقدم Momento Berlin عقود إيجار طويلة الأجل تبدأ بحد أدنى 12 شهراً.\n3. **قيود فحص الصور**: فحص التقييم البصري عينة محدودة من 1 إلى 3 صور لكل قائمة. قد تظهر ميزات إضافية في المعارض الكاملة التي يمكن الوصول إليها عبر بطاقة كل قائمة.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**تحديد معايير البحث عن شقة**\n\nأقوم الآن بالتركيز على تحديد معايير البحث الدقيقة للإيجارات في برلين. لقد حددت برلين كمدينة، وقصرت نوع القائمة على \"إيجار\" ونوع العقار على \"شقة\". الشرفة هي مطلب أساسي، وسأحرص على تضمينها في معايير البحث.\n\n\n**تحسين معايير البحث**\n\nلقد قمت للتو بتحسين معايير البحث بشكل أكبر. لقد ترجمت \"من الناحية المثالية بالقرب من نهر أو بحيرة\" إلى تفضيل للقرب من المياه، وصنفتها كـ \"neighborhood_categories: ['water']\". الميزانية التي تصل إلى \"1,800 يورو شهرياً\" محددة الآن كـ `max_warm_rent_eur: 1800` ، حيث أفترض أن هذا هو الإيجار الشامل (warm rent). علاوة على ذلك، وبما أنه قيل لي \"الاحتمالات المصنفة بوضوح مرحب بها عند فقدان بعض التفاصيل\"، سأقوم الآن بتضمين القوائم غير المؤكدة صراحةً باستخدام `include_unconfirmed: true`.\n\n\n**تحليل متطلبات البحث**\n\nأقوم الآن بتحليل إرشادات أداة البحث عن المنازل هذه بعناية. أركز على أفضل السبل لترجمة تفضيلاتي إلى مرشحات منظمة صحيحة و `relevance_criteria`. أحتاج إلى التأكد من أن متطلباتي المتعلقة بالقرب من المياه، ووجود شرفة، وقيود الميزانية كلها مشفرة بشكل صحيح. كما أحرص على التمييز بين ما هو \"مطلوب\" و\"مستبعد\" و\"مفضل\" في بحثي.\n\n\n**تقييم سلامة بيانات القوائم**\n\nأنا الآن مهتم بشدة بسلامة البيانات. يجب أن أتجنب المبالغة في ادعاء الأدلة المرئية وتحديد القيود لكل مزود. يجب أن يكون القرب من المياه مبنياً بشكل قوي على الأدلة، مع الإبلاغ عنه كـ \"غير مؤكد\" عندما يكون الإثراء غير متاح أو انتهت مهلته. يجب أن يكون واضحاً أن الشرفة المرئية لا تضمن أنها تابعة للشقة، ولا يمكنني الإبلاغ عن تفاصيل عقد الإيجار إلا عندما يتم ذكرها صراحةً.\n\n\n**تحليل بيانات القوائم**\n\nأنا الآن غارق في القوائم المسترجعة، وأقوم بمطابقتها بدقة مع القواعد المقدمة. ينصب تركيزي على التمييز بوضوح بين نقاط البيانات المؤكدة والشكوك. أولي اهتماماً وثيقاً لتفاصيل مثل الإيجار وتواريخ الإيجار والوصول إلى المياه، مع وضع علامة على أي غموض. الهدف هو الدقة المتناهية.\n\n\n**توضيح معايير القرب**\n\nأقوم الآن بدمج متطلبات القرب الدقيقة. أقوم بتوثيق أي قيود في الأدلة بعناية. أركز على الفصل الشفاف بين الادعاءات الموثقة والمعلومات غير المؤكدة. أعطي الأولوية للدقة في توثيقي. أنا واضح بشأن ما يشكل وصولاً موثقاً للمياه وما لا يشكل ذلك. أؤكد على الحاجة إلى التصنيف الصريح للبيانات غير المؤكدة.\n\n\n**تحسين قواعد الغموض**\n\nأركز الآن على تحسين القواعد المتعلقة بنقاط البيانات غير المؤكدة. إذا لم يكن هناك ذكر لميزة مائية، فسأبلغ عنها كغير معروفة؛ ولن أستنتج القرب. سأفصل بين رؤية الشرفة في الصور والتأكيد النصي. يتم الإبلاغ عن شروط عقد الإيجار صراحةً فقط عند ذكرها. يتم إعطاء الأولوية للتناقضات في التواريخ وتفاصيل الإيجار. سأستخدم بطاقات معاينة التضمين كعرض.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**تفسير تنسيق النتائج**\n\nأركز الآن على هيكل استجابة \"embeds\\_results\\_view\". لاحظت غياب \"source\\_ref\"، مما يؤثر على الاستخدام الصحيح لـ \"sources\" أو \"embeds\". سأحرص على استخدام حقل \"embeds\" عندما لا يتوفر source\\_ref، مع الإشارة تحديداً إلى قيم embed\\_ref الفرعية المسترجعة. أيضاً، سأهتم بحقل \"title\" كعنصر وصفي.\n\n\n**فحص تفاصيل القوائم**\n\nأقوم الآن بفحص القوائم الفردية عن كثب، مع التركيز بشكل خاص على \"شقة لوفت من غرفتين مع شرفة، بالقرب من Ringbahn\". أقوم بمطابقة هذه القائمة مع بيانات التضمين. ألاحظ القرب غير المؤكد من المياه بسبب المسافات والوصول غير المعروفين، على الرغم من ذكر إطلالة على البحيرة. ينصب تركيزي على تدوين ما هو مؤكد مقابل ما هو غير مؤكد بوضوح. أقوم بتوثيق جميع الشكوك بعناية.\n\n\n**تقييم تفاصيل القوائم**\n\nلقد انتهيت للتو من تقييم قائمة أخرى. أكدت رؤية الشرفة من خلال تحليل الصور. يقدم عقد الإيجار فترة ثابتة تليها تمديدات مرنة، وهو ما قمت بتوثيقه. أنا أركز على التفاصيل. الآن، أعمل على فهم جميع معلومات القائمة ذات الصلة بشكل كامل.\n```\n```\n\n**تفصيل سمات محددة**\n\nأقوم الآن بتفصيل هذه القائمة المحددة. الموقع الجغرافي للشارع غامض؛ ألاحظ أن هذا يؤثر على التحقق من القرب من المياه. الادعاء النصي بوجود إطلالة على قناة Landwehrkanal لا يمكن التحقق منه هندسياً. أؤكد وجود الشرفة عبر الفحوصات النصية والمرئية. أقوم صراحةً بالإشارة إلى تعارض تاريخ عقد الإيجار بين البيانات المنظمة والنص الوصفي.\n\n\n**تقييم بيانات القوائم**\n\nأغوص الآن في أحدث قائمة. لقد أشرت إلى فقدان الإيجار الأساسي (cold rent) وتفاصيل الإيجار غير الدقيقة. الإيجار المعلن هو نقطة بداية، لذا لاحظت الحد الأدنى غير المعروف. تتطلب مجموعة أحجام الشقق داخل المشروع وضوحاً، حيث يقع حجم القائمة ضمن هذا النطاق. لقد أشرت إلى القرب غير المؤكد من القناة بسبب دقة الموقع غير المؤكدة.\n\n\n**تفسير تفاصيل عقد الإيجار**\n\nأركز الآن على معلومات عقد الإيجار والتحقق من الشرفة في أحدث قائمة. أكدت رؤية الشرفة عبر النص والصور المختارة. لاحظت وجود حد أدنى لعقد الإيجار لمدة 12 شهراً وغياب تواريخ انتهاء واضحة في البيانات. القائمة لغرفة مفروشة مع شرفة، لكن العنوان يقول شقة من غرفتين، لذا أحقق في الغموض المحتمل بين كونها غرفة أو شقة. أولي اهتماماً وثيقاً لجميع التفاصيل.\n\n\n**تحليل تفاصيل القوائم**\n\nأقوم الآن بتحليل قائمة جديدة بعناية، والتي تنص على غرفة مفروشة مع شرفة. عبارة \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" تضيف غموضاً حاسماً؛ تفتقر الصورة الوحيدة للقائمة المقدمة إلى تأكيد وجود الشرفة، وهو ما أشرت إليه. العنوان، والموقع الجغرافي على مستوى المنطقة يجعل القرب من المياه غامضاً. يمتد عقد الإيجار من 1 نوفمبر 2026 إلى 1 نوفمبر 2027.\n\n\n**مقارنة ذكر المياه**\n\nأقوم الآن بمقارنة القوائم التي تذكر ميزات مائية مثل Maybachufer وغيرها لتمييز دقة ادعاءاتهم وأي تمايزات متأصلة في البيانات. أراجع أدلتهم وتغطيتهم. أنا أركز على التفاصيل الدقيقة التي طلبها المستخدم. سأشير إلى أي شكوك وقيود في البيانات.\n\n\n**التحقق من تفاصيل الإيجار**\n\nأركز الآن على التناقضات في أرقام الإيجار. أعطي الأولوية لتسوية الأرقام المتناقضة، والإبلاغ عن التكاليف غير المفصلة، والإشارة صراحةً إلى شمولية التدفئة غير المعروفة. أيضاً، أقوم بفحص مراجع التضمين المضمنة للتأكد من أن نص العرض ليس هو embed\\_ref أبداً. علاوة على ذلك، سأستخدم فقط البطاقات الكبيرة أو الصغيرة لمراجع التضمين، بناءً على الصيغة. أخيراً، سأقوم بإرفاق رسالة متابعة مقترحة في نهاية هذا التحديث مباشرةً."
-      },
-      "message_3": {
-        "text": "أنا مهتم بشكل أساسي بشقة اللوفت وشقة مايباخوفر. بناءً على القوائم المحفوظة، هل إيجار الـ 1,800 يورو شامل حقاً لكل شيء، أم أن هناك بعض الفواتير لا تزال غير معروفة؟ أيضاً، هل يمكنك توضيح عدد الصور التي أظهرها البحث مقابل عدد الصور التي تم فحصها بالفعل، وأي تفاصيل تتعلق بالشرفة والمياه مدعومة مباشرة من القوائم؟ أفضل إبقاء التفاصيل غير المؤكدة مصنفة كغير معروفة."
-      },
-      "message_4": {
-        "text": "إليك تفصيل دقيق لما تؤكده بيانات الإعلان فعلياً مقابل ما يظل غير مؤكد أو مجهول لشقة **Maybachufer** ولوفت **Anton-Saefkow-Platz**.\n\n---\n\n### 1. إيجار Maybachufer: هل مبلغ الـ 1,800 يورو شامل حقاً لكل شيء؟\n\n* **ما يحدده الإعلان**: تم إدخال كل من الإيجار الأساسي (*Kaltmiete*) والإجمالي (*Warmmiete*) كمبلغ مقطوع قدره **1,800 يورو**. تم تحديد مبلغ التأمين بـ 1,000 يورو.\n* **ما يظل مجهولاً**:\n  * **تفصيل المرافق**: لا يقدم الإعلان **أي تفصيل لبنود التكاليف** الخاصة بتكاليف التشغيل (*Betriebskosten/Nebenkosten*) أو التدفئة (*Heizkosten*).\n  * **الكهرباء والإنترنت**: لا يؤكد المضيف صراحةً في الحقول المنظمة ما إذا كانت كهرباء المنزل (*Haushaltsstrom*) أو شبكة الواي فاي مشمولة في مبلغ الـ 1,800 يورو أو ما إذا كانت هناك حدود قصوى للاستخدام.\n  * **رسوم البث**: لم يذكر ما إذا كانت رسوم البث الألمانية الإلزامية (*Rundfunkbeitrag*) مشمولة أم يجب التسجيل فيها بشكل منفصل.\n* **الخلاصة**: على الرغم من تسويقه كمبلغ شهري مقطوع وهو أمر معتاد في عقود الإيجار المفروش قصيرة الأجل، إلا أنه **لا يمكن التحقق من كونه شاملاً تماماً** حتى يقدم المضيف تفصيلاً مكتوباً يؤكد تغطية الكهرباء وتجاوزات التدفئة والإنترنت.\n\n---\n\n### 2. نطاق معرض الصور: المسترجع مقابل المفحوص\n\nاسترجعت أداة البحث البيانات الوصفية للإعلان مع عدد الصور الكامل، لكن التحليل البصري الآلي قام بتقييم عينة مستهدفة فقط من الصور لكل إعلان لتحديد الميزات الأساسية:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*ملاحظة: يمكنك فتح بطاقات الإعلانات مباشرةً لتصفح جميع الصور الـ 14–15 عالية الدقة يدوياً.*\n\n---\n\n### 3. تفاصيل الشرفة والمياه: المؤكد مقابل المجهول\n\n#### شقة Maybachufer\n* **الشرفة**:\n  * *مؤكد من نص الإعلان*: تتميز بوجود **شرفتين** — واحدة تطل على الفناء الداخلي (*Innenhof*) والأخرى تطل على القناة/الشارع.\n  * *مؤكد من فحص الصور*: تم تأكيد وجود هياكل شرفات مرئية في فهارس الصور المفحوصة 0 و14.\n  * *مجهول*: أبعاد الشرفة الدقيقة، والاتجاه/ساعات التعرض للشمس، وما إذا كان يتم توفير أثاث خارجي.\n* **الوصول إلى المياه**:\n  * *مؤكد من نص الإعلان*: تقع مباشرة على Maybachufer على طول [قناة لاندويهر](wiki:Landwehr_Canal) في [نويكولن](wiki:Neukölln). يؤكد الوصف صراحةً وجود إطلالات على المياه.\n  * *مجهول / لم يتم التحقق منه بواسطة الأداة*: حدد نظام الترميز الجغرافي استعلام عنوان الشارع على أنه غامض واعتمد نقطة مركزية على مستوى برلين بدلاً من موقع دقيق. نتيجة لذلك، لم يتسنَّ قياس المسافة الدقيقة للإعلان عن معابر القناة للمشاة أو الوصول إلى الرصيف بشكل مستقل عن بيانات الإعلان.\n\n#### لوفت Anton-Saefkow-Platz\n* **الشرفة**:\n  * *مؤكد من نص الإعلان*: يعلن صراحةً عن \"شرفة مشمسة مع إطلالة على منتزه Fennpfuhlpark\".\n  * *مؤكد من فحص الصور*: تم تأكيد وجود هيكل شرفة في فهرس الصور المفحوص 0.\n  * *مجهول*: مساحة الشرفة ورقم الطابق (يحدد الإعلان نمط اللوفت في الطوابق العليا، ولكن ليس الطابق المحدد).\n* **الوصول إلى المياه**:\n  * *مؤكد من نص الإعلان وOpenStreetMap*: يقع في Anton-Saefkow-Platz في ليشتنبرغ، بجوار منتزه Fennpfuhlpark، الذي يحتوي على **Fennpfuhl** (بحيرة تاريخية).\n  * *مجهول / لم يتم التحقق منه بواسطة الأداة*: الإعلان **لا** يقع مباشرة على ضفة نهر أو قناة؛ الميزة المائية هي بحيرة داخل المنتزه. علاوة على ذلك، في حين أن المنتزه نفسه يقع عبر الشارع، فإن وقت المشي الدقيق للمشاة إلى حافة المياه وما إذا كانت المياه مرئية مباشرة فوق رؤوس الأشجار من الشرفة يظل غير مؤكد.\n\n---\n\n### أسئلة يجب طرحها على المضيفين قبل المعاينة\n\n1. **لشقة Maybachufer**:\n   * *\"هل يغطي المبلغ الشهري المقطوع البالغ 1,800 يورو التدفئة والكهرباء والإنترنت بالكامل، أم أن هناك تسوية منفصلة للمرافق (Nebenkostenabrechnung) في نهاية الإقامة؟\"*\n   * *\"هل يمكنك تأكيد تواريخ التأجير من الباطن الدقيقة (يقول الملخص شهرين، لكن الوصف باللغة الإنجليزية يذكر 4–6 أشهر)؟\"*\n2. **للوفت**:\n   * *\"هل الرسوم الإضافية البالغة 150 يورو ثابتة (Pauschale) وتشمل التدفئة والإنترنت، أم أنها دفعة مقدمة (Vorauszahlung)؟\"*\n   * *\"هل تمديد الإقامة بعد 28 ديسمبر 2026 مضمون في العقد إذا لزم الأمر؟\"*"
-      },
-      "message_4_thinking": {
-        "text": "**توضيح تفاصيل العقار**\n\nأركز حالياً على أسئلة المستخدم المتعلقة بشقة \"اللوفت\" (the loft) وشقة \"مايباخ أوفر\" (Maybachufer). وبشكل أكثر تحديداً، أبحث بعمق في قيمة الإيجار البالغة 1,800 يورو لشقة \"مايباخ أوفر\". أحتاج إلى تحديد ما إذا كان الإيجار شاملاً لكافة التكاليف حقاً، أو ما إذا كانت هناك تكاليف إضافية محتملة. كما أقوم حالياً بتوضيح عدد الصور المتاحة للبحث.\n\n\n**التحقق من تفاصيل ما هو مشمول**\n\nأقوم الآن بالتعمق في تفاصيل إيجار شقة \"مايباخ أوفر\"، لا سيما الادعاء بأنه \"شامل لكافة التكاليف\". هدفي هو استخراج التفاصيل الدقيقة لما هو مشمول وما هو مستثنى. أحتاج إلى التمييز ما إذا كان مبلغ الـ 1800 يورو يغطي المرافق، والإنترنت، والتدفئة، ورسوم البث. تظهر البيانات الأولية معلومات متضاربة، لذا يجب عليّ تحديد ما تؤكده البيانات *فعلياً*.\n\n\n**تحديد الثغرات فيما هو مشمول**\n\nأقوم الآن بتوضيح التفاصيل المتعلقة بالمرافق. لم تؤكد البيانات الأولية بعد ما إذا كانت رسوم GEZ، أو الكهرباء، أو تجاوزات استهلاك التدفئة مشمولة. أحتاج إلى تحديد العدد الإجمالي للصور بوضوح وضمان تحليل جميع الصور ذات الصلة لكل عقار. تحتوي شقة \"مايباخ أوفر\" على شرفتين، بينما تحتوي شقة \"اللوفت\" على شرفة واحدة، رغم أن المساحات لا تزال غير محددة. كما أنني أتحقق من موقع عقار \"مايباخ أوفر\"."
-      },
-      "follow_up_1": {
-        "text": "ابحث عن شقق أخرى من غرفتين بالقرب من المياه في برلين"
-      },
-      "follow_up_2": {
-        "text": "صياغة رسالة استفسار باللغة الألمانية لمالك شقة \"مايباخ أوفر\" (Maybachufer)"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن مسارات النقل العام من \"أنتون-سيفكو-بلاتز\" إلى \"ألكسندر بلاتز\""
-      },
-      "follow_up_4": {
-        "text": "قارن بين مبالغ التأمين وشروط الإلغاء لكلتا الشقتين"
-      },
-      "follow_up_5": {
-        "text": "تحقق من توقعات الطقس الحالية لمنطقة \"ليشتنبرغ\" في برلين"
-      },
-      "follow_up_6": {
-        "text": "قائمة بالأسئلة الرئيسية لطرحها على الملاك أثناء معاينة الشقق في برلين"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "اشرح كيف يستجيب عرض سوق الإسكان للتحكم في الأسعار"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "وظائف ذات مغزى في ألمانيا"
-      },
-      "summary": {
-        "text": "ابحث في أربع منصات توظيف عن وظائف شاغرة في ألمانيا، ثم قارن بين أدوار التصميم وجهّز أسئلة لأصحاب العمل."
-      },
-      "message_1": {
-        "text": "أبحث عن عمل ذي مغزى في ألمانيا، خاصة في مجالات البحث أو التصميم أو هندسة البرمجيات. يرجى العثور على بعض الوظائف الشاغرة الحالية باستخدام ExampleJobsB وExampleJobsC بالإضافة إلى ExampleJobsD ووكالة التوظيف الفيدرالية. أنا منفتح على أي مكان في ألمانيا. أعطني قائمة مختصرة تتضمن صاحب العمل والموقع والمصدر ورابط التقديم، ولا تفترض وجود عمل عن بعد أو راتب معين إذا لم يذكر الإعلان ذلك."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nإليك قائمة مختصرة بالوظائف الشاغرة الحالية في ألمانيا في مجالات البحث والتصميم وهندسة البرمجيات من ExampleJobsB، و**ExampleJobsC**، و**ExampleJobsD**، و**Example Employment Board**.\n\n---\n\n### التصميم\n\n* **مصمم منتجات أول (Senior Product Designer)**\n  * **صاحب العمل:** voize (تطوير ذكاء اصطناعي للتعرف على الكلام لتبسيط التوثيق في التمريض والرعاية السريرية)\n  * **الموقع:** برلين، ألمانيا (مُدرجة كقابلة للعمل عن بُعد)\n  * **المصدر:** ExampleJobsC\n  * **الراتب:** غير محدد\n  * **التقديم:** [تقدم عبر voize](embed:senior-product-designer-Wid)\n\n* **تصميم واجهة وتجربة المستخدم (UI/UX Design) (ذكر/أنثى/متنوع)**\n  * **صاحب العمل:** stiftung ear (السجل الوطني لتنسيق التخلص من النفايات الإلكترونية واستعادتها وتتبع الاقتصاد الدائري)\n  * **الموقع:** نورنبرغ، بافاريا\n  * **المصدر:** وكالة التوظيف الفيدرالية\n  * **نظام العمل والراتب:** ذُكرت خيارات عمل مرنة/متنقلة في وصف الإعلان، ولكن لا يوجد تصنيف رسمي للعمل عن بُعد بالكامل؛ الراتب غير محدد\n  * **التقديم:** [تقدم عبر وكالة التوظيف الفيدرالية](embed:ui-ux-design-1Bm)\n\n---\n\n### البحث\n\n* **برنامج زمالة مشترك (سياسة السلام والأمن)**\n  * **صاحب العمل:** [جامعة هامبورغ](wiki:University_of_Hamburg) ومعهد أبحاث السلام وسياسة الأمن (IFSH)\n  * **الموقع:** هامبورغ، ألمانيا\n  * **المصدر:** ExampleJobsB\n  * **نظام العمل والراتب:** غير محدد\n  * **التقديم:** [تقدم عبر IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **باحث مشارك (ذكر/أنثى/متنوع) – تعلم الآلة واتخاذ القرار في ظل عدم اليقين**\n  * **صاحب العمل:** [جامعة الرور في بوخوم](wiki:Ruhr_University_Bochum)\n  * **الموقع:** بوخوم، شمال الراين-وستفاليا\n  * **المصدر:** وكالة التوظيف الفيدرالية\n  * **نظام العمل والراتب:** دوام كامل (39.83 ساعة/أسبوع)؛ لم يتم تحديد ترتيبات العمل عن بُعد؛ الأجر وفقاً لسلم الرواتب العام TV-L E13 (المبلغ الدقيق غير منشور في الإعلان)\n  * **التقديم:** [تقدم عبر وكالة التوظيف الفيدرالية](embed:research-associate-m-79L)\n\n* **مهندس أبحاث (أنثى/ذكر/متنوع) – إزالة الكربون من الشبكة والتكنولوجيا الأساسية**\n  * **صاحب العمل:** [سيمنز للطاقة](wiki:Siemens_Energy)\n  * **الموقع:** برلين\n  * **المصدر:** وكالة التوظيف الفيدرالية\n  * **نظام العمل والراتب:** ذُكرت خيارات مرنة/متنقلة في النص، ولكن لم يتم ذكر حالة عمل عن بُعد ثابتة؛ الراتب غير محدد\n  * **التقديم:** [تقدم عبر وكالة التوظيف الفيدرالية](embed:research-engineer-f-7ao)\n\n---\n\n### هندسة البرمجيات\n\n* **مهندس خلفية أول (ذكر/أنثى/متنوع) – Java/Kotlin, AWS, Kafka**\n  * **صاحب العمل:** idealo internet GmbH\n  * **الموقع:** برلين، ألمانيا\n  * **المصدر:** ExampleJobsD\n  * **نظام العمل والراتب:** في الموقع/بيئة مكتبية هجينة؛ الراتب غير محدد\n  * **التقديم:** [تقدم عبر ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **طالب متدرب – هندسة البرمجيات (الرؤية الحاسوبية / الأنظمة المستقلة)**\n  * **صاحب العمل:** Quantum-Systems GmbH (المنصات الجوية المستقلة والإدراك الروبوتي)\n  * **الموقع:** غيلشينغ، بافاريا\n  * **المصدر:** ExampleJobsD\n  * **نظام العمل والراتب:** في الموقع/هجين؛ الراتب غير محدد\n  * **التقديم:** [تقدم عبر ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**تحديد الفرص في ألمانيا**\n\nأركز حالياً على تحديد فرص العمل ذات الصلة في ألمانيا. لقد بدأت بتجميع قائمة بالمصادر الواعدة: `ExampleJobsB` و `ExampleJobsC` و `ExampleJobsD` و `وكالة التوظيف الفيدرالية`. ينصب اهتمامي الرئيسي على أدوار البحث والتصميم وهندسة البرمجيات، وسأولي اهتماماً وثيقاً لموقع العمل.\n\n\n**تحسين معايير البحث**\n\nأقوم الآن بتحسين نهجي لاستخدام أداة `jobs-search` بفعالية. أركز على مصفوفة `requests` لإجراء سلسلة من الاستعلامات وتحديد مقدمي الخدمة مباشرة، نظراً للحد الأقصى البالغ 5 طلبات. أتحقق من تعريف الوظيفة للتأكد من كيفية توفير مقدمي الخدمة صراحةً كقائمة، وكيفية تحديد معايير الصلة. سيساعد هذا في إنشاء قائمة مختصرة تتضمن صاحب العمل والموقع والمصدر ورابط التقديم. هدفي هو تجنب الافتراضات بشأن العمل عن بعد أو الراتب ما لم يتم ذكر ذلك صراحةً.\n\n\n**فحص نتائج مقدمي الخدمة**\n\nحسناً، لقد ألقيت نظرة أولى على مقدمي الخدمة الذين ظهروا في النتائج. يبدو أن لدينا \"ExampleJobsC\" واثنين من ExampleJobsD؛ أحدهما دور سينيور في هندسة الباك إند (Java/Kotlin)، والآخر دور طالب متدرب. أقوم بتدوين الانطباعات الأولية وتقييم التأثير المحتمل لكل إعلان.\n\n\n**تحليل الفرص الحالية**\n\nأركز حالياً على تقييم فرصتين واعدتين. الأولى هي \"برنامج زمالة مشترك\" في معهد أبحاث السلام وسياسة الأمن بجامعة هامبورغ، والثانية هي وظيفة \"مساعد طالب\" ضمن برنامج واجهة الأمن السيبراني. أدرس بعناية مزايا كل منهما في سياق أبحاث السلام والأمن والأمن السيبراني على التوالي.\n\n\n**تحديد أولويات الفرص الجديدة**\n\nلقد نقلت اهتمامي إلى تنسيق قائمة مختصرة متوازنة. أعطي الأولوية للفرص في مجالي التصميم والبحث، مع التركيز على الصلة بالموضوع وحداثة الإعلانات. حالياً، أقوم بفحص دور مصمم منتجات سينيور في voize في برلين، ووظيفة تصميم واجهة المستخدم وتجربة المستخدم (UI/UX) في stiftung ear. بالنسبة للبحث، أراجع دوراً في جامعة الرور في بوخوم، إلى جانب برنامج الزمالة المشترك في هامبورغ.\n\n\n**تقييم الإمكانيات الجديدة**\n\nأقوم الآن بموازنة الفرص الجديدة في ضوء معاييري. لقد اكتشفت خيارات، مثل دور مهندس أبحاث في Siemens Energy ببرلين، عبر وكالة التوظيف الفيدرالية، والذي يركز على الأبحاث الأساسية. أفكر أيضاً في أدوار مهندس باك إند سينيور ومطور برمجيات C++ جونيور في idealo internet GmbH (برلين، ExampleJobsD) و CT Software Engineering (إنغولشتات، وكالة التوظيف الفيدرالية) على التوالي. هذه الوظائف تناسب اهتماماتي في هندسة البرمجيات.\n\n\n**تحسين معايير التقديم**\n\nأقوم الآن بتوضيح كيفية التعامل مع روابط التقديم. يجب أن أتذكر إعطاء الأولوية لعمليات التقديم الواضحة، والتحقق من استخدام `[نص العرض](embed:embed_ref)` أو الروابط القياسية. علاوة على ذلك، يجب أن أتجنب افتراض العمل عن بعد أو الكشف عن الراتب ما لم يتم ذكره صراحةً في الإعلان.\n\n\n**توضيح بروتوكولات التقديم**\n\nأركز الآن على تنسيقات روابط التقديم. أهتم بضمان دمج الروابط المباشرة أو استخدام تنسيق `(embed:embed_ref)`، مع التأكد من عدم تقديم كليهما. أراجع بعناية عناوين URL الواردة من مهارات التطبيق لضمان الامتثال. أهدف إلى الالتزام بقاعدة استخدام نمط رابط واحد فقط لكل رابط تقديم وظيفة.\n\n\n**توحيد روابط التقديم**\n\nأقوم الآن بتنفيذ استراتيجية روابط التقديم. هدفي هو توحيد التنسيق لإعلانات الوظائف. سأستخدم مرجع التضمين (embed ref) فقط لروابط التقديم. سأقوم أيضاً بتضمين الدور وصاحب العمل والموقع والمصدر لكل وظيفة شاغرة، واستخدام رابط مضمن. سأحرص دائماً على استخدام رابط واحد لكل وظيفة شاغرة.\n\n\n**تجميع بيانات الفرص**\n\nأقوم الآن بجمع التفاصيل لعدة فرص. لدي معلومات عن دور مصمم منتجات سينيور في voize، ووظيفة تصميم UI/UX في stiftung ear، وبرنامج الزمالة المشترك في جامعة هامبورغ. أدون الدور وصاحب العمل والموقع والمصدر لكل منها، بالإضافة إلى مواصفات العمل عن بعد والراتب. أركز على ضمان تنسيقات روابط متسقة باستخدام التضمينات لكل طلب تقديم.\n\n\n**دمج الإعلانات الجديدة**\n\nأقوم الآن بدمج إعلانات جديدة في مجموعة البيانات. لقد أضفت وظيفة باحث مشارك في جامعة الرور في بوخوم، مستمداً إياها من وكالة التوظيف الفيدرالية ومدوناً تفاصيل العمل عن بعد والراتب الخاصة بها. كما قمت بتجميع معلومات حول دور مهندس أبحاث في Siemens Energy، بما في ذلك الخيارات المرنة. أضمن الاتساق في تنسيقات الروابط، باستخدام التضمينات لروابط التقديم.\n\n\n**إضافة إعلانات جديدة**\n\nلقد أضفت للتو إعلانين جديدين، دور مهندس باك إند سينيور في موقع غير محدد ووظيفة طالب متدرب في Quantum-Systems GmbH في جيلشينج. أركز على تسجيل جميع التفاصيل بدقة، بما في ذلك الموقع وخيارات العمل عن بعد ومعلومات الراتب (حيثما توفرت) وروابط التقديم بالتنسيق الموحد. أستخدم تنسيق `(embed:embed_ref)` لرابط التقديم."
-      },
-      "message_3": {
-        "text": "يبدو أن دوري التصميم هما الأكثر إثارة للاهتمام. هل يمكنك مقارنة ما تنص عليه القوائم المحفوظة باختصار واقتراح ما يجب أن أسأله لكل صاحب عمل قبل التقديم؟"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nإليك مقارنة مباشرة لما ورد في كل إعلان، تليها أسئلة محددة يمكنك طرحها على كل صاحب عمل قبل أو أثناء عملية التقديم.\n\n---\n\n### مقارنة بين الإعلانات\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### ماذا تسأل قبل التقديم\n\n#### لشركة voize:\n1. **الوصول إلى أبحاث المستخدمين:** *\"كم مرة ومن خلال أي قنوات يقوم المصممون بإجراء أبحاث ميدانية أو اختبارات مع الممرضين وطاقم الرعاية في الخطوط الأمامية في بيئتهم السريرية اليومية؟\"*\n2. **نضج الفريق ونطاق العمل:** *\"كيف يتم هيكلة فريق المنتج، وما هي النسبة الحالية للمصممين مقارنة بمديري المنتجات والمهندسين، وهل هذا الدور هو منصب مساهم فردي أم من المتوقع أن يقوم بإنشاء أنظمة التصميم؟\"*\n3. **التعويض ونظام العمل عن بُعد:** *\"ما هو نطاق التعويض المستهدف لهذا المستوى الوظيفي، وهل هناك اجتماعات فريق إلزامية في الموقع أو ساعات عمل أساسية رغم سياسة العمل عن بُعد؟\"*\n\n#### لمؤسسة stiftung ear:\n1. **توقعات التواجد في الموقع في نورنبرغ:** *\"كيف يتم تنظيم العمل المتنقل من الناحية العملية—هل هناك متطلبات أسبوعية أو شهرية ثابتة للتواجد في مكتب نورنبرغ؟\"*\n2. **التوازن بين التصميم وضمان الجودة:** *\"يذكر الإعلان تنفيذ اختبارات البرمجيات إلى جانب تصميم تجربة المستخدم وواجهة المستخدم (UX/UI). ما هي النسبة المئوية للدور التي تركز على أبحاث المستخدمين/النماذج الأولية مقابل التحقق التقني من البرمجيات وضمان الجودة؟\"*\n3. **أدوات التصميم وتسليم التطوير:** *\"ما هي أنظمة التصميم وأدوات النماذج الأولية المستخدمة حالياً، وهل تعملون مع فريق تطوير داخلي أم مع مزودي خدمات تقنية خارجيين؟\"*\n4. **معيار التعويض:** *\"بما أن مؤسسة stiftung ear تعمل بصفة قانونية للمصلحة العامة، هل يتبع التعويض سلماً جماعياً عاماً محدداً (مثل TVöD/TV-L) أم هيكل درجات داخلي؟\"*"
-      },
-      "message_4_thinking": {
-        "text": "**تحليل محتوى قوائم الوظائف**\n\nحسنًا، لقد بدأت في مقارنة أوصاف الوظائف. أركز حاليًا على المسؤوليات الرئيسية والمهارات المطلوبة لدور \"مصمم منتجات أول\" (Senior Product Designer) في Voize ومنصب \"تصميم واجهة وتجربة المستخدم\" (UI/UX Design) في Stiftung EAR. أقوم الآن بإعداد ملخص للمسؤوليات الأساسية والمهارات المطلوبة لكل من القائمتين، ثم سأحدد المعلومات الإضافية التي قد أحتاجها.\n\n\n**تحليل أوصاف الوظائف**\n\nحسنًا، أنا أتعمق الآن في تفاصيل كل قائمة. ينصب تركيزي على تحليل اللغة الفعلية المستخدمة في الأوصاف. أحاول تحديد الأسئلة الرئيسية التي تحتاج إلى إجابة من أجل الاستعداد لكل صاحب عمل. على سبيل المثال، في قائمة voize، أحتاج إلى معرفة المزيد عن منتج المساعد الذكي الخاص بهم.\n\n\n**تقييم التفاصيل الرئيسية**\n\nأركز الآن على قائمة voize وأستخلص الاستنتاجات الرئيسية. إنه دور قيادي يتطلب قدرًا كبيرًا من المسؤولية، ويحتاج إلى شخص يمكنه تحدي مديري المنتجات. نظام العمل مرن، مع وجود مكتب في برلين وخيارات للعمل عن بُعد. لم يتم ذكر الراتب، لكن المزايا تشمل وقت إجازة جيد وعضوية في نادٍ رياضي. اللغة الإنجليزية هي اللغة الأساسية، على الرغم من أن السياق هو الرعاية الصحية الألمانية.\n\n\n**تحديد المتطلبات المحددة**\n\nأركز الآن على الدور الوظيفي الموجود في نورنبرغ. لقد قمت بتقسيم المجالات الرئيسية: يركز جانب الامتثال القانوني على لوائح ElektroG. يشمل عملي تطوير تطبيقات الويب وأنشطة تجربة المستخدم، وتقديم المشورة لأصحاب المصلحة. إتقان اللغة الألمانية (مستوى C1 كحد أدنى) إلزامي، والخبرة في البرمجيات التنظيمية تعتبر ميزة إضافية. المنصب دائم مع مرونة كبيرة في العمل عن بُعد، والتعويض يعتمد على الأداء.\n\n\n**مقارنة سمات الوظائف**\n\nأقوم الآن بإجراء مقارنات مباشرة بين الأدوار. لقد قمت بتقسيمها حسب المجال، والثقافة، والمهارات المطلوبة، وموقع العمل. على وجه التحديد، أقارن بين voize ودور stiftung ear. أركز على التباين في بيئات العمل والأولويات، من الرعاية الصحية في الخطوط الأمامية إلى الامتثال للنفايات الإلكترونية. أسجل الاختلافات الرئيسية مثل متطلبات اللغة ومستوى الخبرة، كما أقوم بتقييم الاختلافات في سياسات العمل عن بُعد الخاصة بكل منهما."
-      },
-      "follow_up_1": {
-        "text": "ابحث عن المزيد من وظائف تصميم UI/UX في برلين"
-      },
-      "follow_up_2": {
-        "text": "صُغ مسودة بريد إلكتروني للتواصل مع مدير التوظيف في voize"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن وظائف تقنية مماثلة في مجال الرعاية الصحية في ألمانيا"
-      },
-      "follow_up_4": {
-        "text": "قارن بين إيجابيات وسلبيات العمل في الشركات الناشئة للرعاية الصحية مقابل الهيئات العامة"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن وظائف تقنية في القطاع العام في نورنبرغ"
-      },
-      "follow_up_6": {
-        "text": "اذكر الخطوات الأساسية للتحضير لمقابلة وظيفة مصمم منتجات أول"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "نماذج Benchy وحوامل هواتف قابلة للطباعة"
-      },
-      "summary": {
-        "text": "ابحث في ExampleModels عن نماذج Benchy وحوامل هواتف شهيرة قابلة للطباعة ثلاثية الأبعاد مع بطاقات معاينة وروابط المصدر."
-      },
-      "message_1": {
-        "text": "ابحث عن نماذج Benchy وحوامل هواتف قابلة للطباعة ثلاثية الأبعاد على ExampleModels. اعرض أفضل الخيارات مع بطاقات معاينة وروابط المصدر."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nلمشاريع الطباعة ثلاثية الأبعاد القادمة، وجدتُ لك بعضاً من أكثر النماذج شعبية وإبداعاً على ExampleModels. سواء كنت تبحث عن قاطرة [المعايرة](wiki:Calibration_(statistics)) الكلاسيكية أو ملحق [هاتف](wiki:Smartphone) عملي، فإن هذه الخيارات تعد نقاط انطلاق ممتازة.\n\n### مجموعة 3DBenchy\nيُعد [3DBenchy](wiki:3DBenchy) المعيار الذهبي لاختبار قدرات [طابعتك ثلاثية الأبعاد](wiki:3D_printing). وبالإضافة إلى النموذج الأصلي، هناك العديد من \"التعديلات\" (remixes) التي تضفي طابعاً خاصاً على طاولة عملك.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **3DBenchy الأصلي**: الأفضل [لقياس أداء](wiki:Benchmark_(computing)) [البروزات](wiki:3D_printing#Support_structures)، و[التجسير](wiki:3D_printing#Support_structures)، وتشطيب السطح.\n*   **Assault Benchy**: نسخة [آلية (mecha)](wiki:Mecha) قابلة للتحريك لمن يريدون لمسة من التميز.\n*   **Floating BEN**: مصمم خصيصاً بهيكل مجوف ليطفو بالفعل—مثالي لحوض الاستحمام!\n\n### مساند هاتف عملية\nيُعد مسند الهاتف نموذجاً عملياً رائعاً للطباعة. تتنوع هذه التصاميم بين البسيطة والتروس الميكانيكية المعقدة.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **مسند قرص العسل (Honeycomb)**: يحظى بشعبية كبيرة بسبب [نسبة القوة إلى الوزن](wiki:Specific_strength) العالية ومظهره العصري.\n*   **المسند المسنن (Geared)**: أعجوبة ميكانيكية تُطبع كقطعة واحدة (print-in-place) وتسمح بزوايا مشاهدة قابلة للتعديل.\n*   **المنحني العصري**: تصميم أنيق من قطعة واحدة يناسب تماماً المكاتب ذات الطابع البسيط.\n\n**نصيحة احترافية:** عند طباعة [مسند الهاتف المسنن](embed:geared-phone-stand-3Bl)، تأكد من معايرة [مضاعف البثق](wiki:3D_printing#Fused_deposition_modeling) جيداً لمنع الأجزاء المتحركة من الالتصاق ببعضها.\n\nما نوع [خيوط الطباعة (filament)](wiki:3D_printing_filament) (PLA، PETG، إلخ) التي تخطط لاستخدامها؟ يمكنني تزويدك ببعض نصائح التقطيع (slicing) المحددة بناءً على المادة المستخدمة!\n\n**ماذا تود أن تفعل بعد ذلك؟**\n- [البحث عن المزيد من النماذج ثلاثية الأبعاد](/#settings/apps/models3d)\n- [الحصول على نصائح للطباعة ثلاثية الأبعاد](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "علمني مبادئ التصميم المتجاوب"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "أسماء تطبيقات اجتماعية مع نطاقات مفحوصة"
-      },
-      "summary": {
-        "text": "قارن بين أسماء التطبيقات الاجتماعية بناءً على توفر النطاقات المفحوصة، وأسعار التسجيل والتجديد، وشروط التسجيل."
-      },
-      "message_1": {
-        "text": "أقوم بتسمية تطبيق اجتماعي يساعد الأشخاص على البقاء على تواصل بعد اللقاء شخصياً والتعرف على أشخاص جدد. اقترح فكرتين لاسمين مميزين. لكل فكرة، يرجى التحقق من نطاقات .com و .net و .app الخاصة بها مباشرة، ثم التوصية فقط بالنطاقات الدقيقة التي يظهر توفرها وسعر تسجيلها وسعر تجديدها وقيودها في تلك الفحوصات. لا تخمن بشأن النطاقات غير المفحوصة. اختر الاسم الأقوى بناءً على النتائج المفحوصة."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nإليك فكرتان مميزتان لأسماء تطبيقات تركز على تعزيز الروابط الشخصية وتوسيع الدوائر الاجتماعية، مع التحقق المباشر من النطاقات لكل اسم بامتدادات `.com` و `.net` و `.app`.\n\n---\n\n### الفكرة 1: Kinloop\n* **المفهوم:** يجمع بين \"kin\" (المجتمع، الألفة الشخصية، الروابط الموثوقة) و \"loop\" (إغلاق الحلقة بعد اللقاء الأول والحفاظ على استمرارية الروابط في دائرة مستمرة).\n* **التحقق المباشر من النطاق:**\n  * **`kinloop.com`**: **غير متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **غير متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **غير متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-XJX))\n* **التوصية:** لا يوجد. جميع النطاقات الثلاثة المستهدفة مسجلة حالياً أو غير متاحة، لذا لا يمكن التوصية بنطاق مطابق لهذا الاسم.\n\n---\n\n### الفكرة 2: Orbitfolk\n* **المفهوم:** يوحي بفكرة إبقاء المعارف في الحياة الواقعية ضمن مدارك الشخصي مع اكتشاف أشخاص جدد (\"folk\") والترحيب بهم باستمرار في عالمك.\n* **التحقق المباشر من النطاق:**\n  * **`orbitfolk.com`**: **غير متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-cex))\n    * **سعر التسجيل:** 12.99 دولاراً للسنة الأولى غير شامل الضريبة (15.46 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19%؛ السعر العادي لمدة سنة 18.78 دولاراً)\n    * **سعر التجديد:** 39.98 دولاراً سنوياً غير شامل الضريبة (47.58 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19% لمدد السنة الواحدة؛ 35.98 دولاراً سنوياً قبل الضريبة لمدد تتراوح بين 2-9 سنوات)\n    * **القيود:** لا توجد قيود مسجلة\n  * **`orbitfolk.app`**: **متاح** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-U3Z))\n    * **سعر التسجيل:** 9.99 دولاراً للسنة الأولى غير شامل الضريبة (11.89 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19%؛ السعر العادي لمدة سنة 23.29 دولاراً)\n    * **سعر التجديد:** 47.98 دولاراً سنوياً غير شامل الضريبة (57.10 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19% لمدد السنة الواحدة؛ 43.18 دولاراً سنوياً قبل الضريبة لمدد تتراوح بين 2-9 سنوات)\n    * **القيود:** لا توجد قيود مسجلة\n\n---\n\n### المقارنة والاختيار الأفضل\n\nيعتبر **Orbitfolk** هو الخيار الأقوى:\n\n1. **التوفر المباشر:** بينما اسم `Kinloop` محجوز في جميع الامتدادات الثلاثة، يتوفر اسم `Orbitfolk` في إصداري `.app` و `.net` للتسجيل الفوري.\n2. **ملاءمة المنتج:** بما أن هذا المنتج اجتماعي مخصص للهواتف المحمولة، فإن **`orbitfolk.app`** يوفر امتداد نطاق نظيفاً ومخصصاً يوضح نوع المنتج للمستخدمين مباشرة.\n\n---\n\n### الخطوات التالية\n\n* [استكشاف المزيد من تنويعات الأسماء حول المدارات الاجتماعية](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [صياغة تدفق التهيئة للقاءات الشخصية](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "ابحث عن أسماء نطاقات متاحة لفكرة تطبيق اجتماعي آخر"
-      },
-      "follow_up_2": {
-        "text": "اشرح لماذا يعد امتداد النطاق ‎.app فعالاً لتطبيقات الجوال"
-      },
-      "follow_up_3": {
-        "text": "تحقق من توفر النطاق لثلاثة أسماء علامات تجارية بديلة"
-      },
-      "follow_up_4": {
-        "text": "قارن بين امتدادات النطاقات ‎.net و ‎.app للتطبيقات الاستهلاكية"
-      },
-      "follow_up_5": {
-        "text": "تحقق من أسعار النطاقات وتوفرها لاسم AppFolk"
-      },
-      "follow_up_6": {
-        "text": "اقترح ثلاث زوايا إضافية للعلامة التجارية لتطبيق التواصل الاجتماعي هذا"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "تحليل خطاب \"تيد\" الساخر لويل ستيفن"
-      },
-      "summary": {
-        "text": "تلخيص خطاب \"تيدكس\" الساخر لويل ستيفن حول الخطابة العامة في خمس حجج كوميدية أساسية."
-      },
-      "message_1": {
-        "text": "احصل على النص المكتوب لخطاب \"تيد\" هذا ولخص الحجة الأساسية في خمس نقاط: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nالفيديو هو عرض TEDx الساخر لويل ستيفن، *\"How to sound smart in your TEDx Talk\"* (مشاهدة الحديث).\n\nبدلاً من تقديم محاضرة معلوماتية، يستخدم ستيفن الفكاهة الميتا لتفكيك تقاليد [الخطابة العامة](wiki:Public_speaking) الرئيسية. إليك الحجة الأساسية ملخصة في خمس نقاط:\n\n* **طريقة الإلقاء تخلق وهم الجوهر:** يمكن لوتيرة الحديث، وإيماءات اليد المتعمدة، والتواصل البصري الدرامي، والأدوات المادية (مثل النظارات غير الطبية) أن تقنع الجمهور بأن المتحدث عبقري حتى عندما لا يكون لديه ما يقوله.\n* **التآلف على المسرح نمطي للغاية:** الاستعارات التفاعلية المألوفة - مثل طرح الأسئلة البلاغية، وطلب رفع الأيدي، وتقديم حكايات ساخرة من الذات - هي مهارات مسرحية محسوبة مصممة لخلق دفء ومصداقية مصطنعة.\n* **المرئيات البيانية تمنح سلطة غير مستحقة:** إن عرض أرقام عشوائية، وحسابات بسيطة، ورسوم بيانية بلا سياق يستغل التحيز البصري، مما يجعل العرض التقديمي يبدو وكأنه بحث دقيق حتى عندما تكون البيانات غير ذات صلة تمامًا.\n* **يسقط الجمهور معنى على الهراء:** من خلال الجمع بين نبرة صوت جادة وصور تعبيرية مع كلام غير مفهوم حرفيًا، يمكن للمتحدثين دفع المستمعين للبحث لا شعوريًا عن - وتخيل - روابط عميقة حيث لا يوجد أي منها.\n* **يمكن تصنيع الذروة العاطفية:** إن بناء كثافة صوتية، والتباطؤ إلى الهمس، والتوقف بشكل درامي يحاكي إيقاع التجلي، مما يثبت مدى سهولة هندسة الشعور بالإلهام دون أي بصيرة أساسية."
-      },
-      "follow_up_1": {
-        "text": "ابحث عن عروض تقديمية ساخرة مشهورة أخرى على YouTube"
-      },
-      "follow_up_2": {
-        "text": "اشرح تاريخ تنسيق TEDx وتأثيره الثقافي"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن دروس تعليمية متقدمة في الخطابة العامة عبر الإنترنت"
-      },
-      "follow_up_4": {
-        "text": "حلل تقنيات لغة الجسد المحددة التي يستخدمها المتحدثون الرئيسيون المشهورون"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن فيديوهات تحليلية حول التقنيات البلاغية"
-      },
-      "follow_up_6": {
-        "text": "اذكر نصائح للتغلب على رهبة المسرح أثناء الخطابة العامة"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "أنت خبير في البرمجة."
       }
     },
-    "health_health_insights": {
-      "text": "رؤى صحية",
-      "description": {
-        "text": "احصل على رؤى صحية وابحث عن الطبيب المناسب."
-      },
-      "systemprompt": {
-        "text": "أنت خبير في الصحة."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "إعداد موعد الطبيب",
-      "description": {
-        "text": "جهّز ما ستناقشه في موعدك القادم."
-      },
-      "process": {
-        "text": "- يناقش الأعراض التي ظهرت خلال الأسابيع والأشهر الأخيرة، حتى لو لم تبدُ مترابطة\n- يناقش نتائج الفحوصات/الوثائق التي يجب جمعها قبل الموعد القادم"
-      },
-      "systemprompt": {
-        "text": "أنت خبير في الصحة."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "إعداد تقرير الطبيب",
-      "description": {
-        "text": "أنشئ تقريرًا لموعد طبيبك القادم."
-      }
-    },
     "jobs_career_insights": {
       "text": "رؤى مهنية",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "التحدث عن المستقبل",
       "description": {
         "text": "تقنية قوية للتدريب على الحياة."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "إعداد تقرير الطبيب",
+      "description": {
+        "text": "أنشئ تقريرًا لموعد طبيبك القادم."
+      }
+    },
+    "health_health_insights": {
+      "text": "رؤى صحية",
+      "description": {
+        "text": "احصل على رؤى صحية وابحث عن الطبيب المناسب."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "إعداد موعد الطبيب",
+      "description": {
+        "text": "جهّز ما ستناقشه في موعدك القادم."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "استراتيجي تقويم المحتوى",
       "description": {
         "text": "أنشئ خطة محتوى لوسائل التواصل لـ 30 يومًا."
+      },
+      "systemprompt": {
+        "text": "تصرف كمتخصص في استراتيجيات التواصل الاجتماعي محترف. باستخدام المدخلات أدناه، أنشئ تقويم محتوى لمدة 30 يومًا يركز على تحقيق الهدف الرئيسي.\n\nأولاً، قم بخطوة بحث واستراتيجية داخلية موجزة باستخدام معرفتك الحالية وبيانات الويب المباشرة إن توفرت لهذا الموضوع/المجال والجمهور المستهدف. وضّح نقاط الألم والرغبات الرئيسية للجمهور، وأنواع المنشورات والخطافات التي تحقق أداءً جيدًا في هذا المجال، وأي اتجاهات حالية ذات صلة. استخدم هذه الرؤى فقط لتوجيه التقويم، ولا تُخرجها بشكل منفصل.\n\nيجب أن يكون المخرج جدول Markdown بهذه الأعمدة تحديداً (ولا شيء آخر): اليوم #، التاريخ، الموضوع/الركيزة، المنصة، فكرة المحتوى، الدعوة إلى اتخاذ إجراء (CTA).\n\nإرشادات التقويم:\n- أنشئ 30 صفًا تحديداً، واحداً لكل يوم تقويمي متتالٍ بدءًا من تاريخ البدء، مع تواريخ حقيقية بترتيب تصاعدي.\n- يجب أن يكون الموضوع/الركيزة في كل صف واحدًا من ركائز المحتوى المقدمة، مع توزيع متوازن بشكل معقول على مدار 30 يومًا.\n- يجب أن يتبع عمود المنصة جدول النشر. إذا تم تحديد منصات متعددة ليوم معين، أنشئ صفًا واحدًا لكل منصة.\n\nإرشادات المحتوى:\n- يجب أن تحدد كل فكرة محتوى نوع المنشور (مثل: Reel، دوّامة، منشور ثابت، قصة، بث مباشر، استطلاع، منشور نصي على LinkedIn) وتتضمن خطافًا واضحًا يوقف التمرير ومصممًا خصيصًا للجمهور المستهدف.\n- يجب أن يكون كل CTA محددًا وموجهًا نحو الفعل ويدعم الهدف الرئيسي مباشرةً (مثل: \"حمّل الدليل المجاني\"، \"احجز مكالمة\"، \"انضم إلى النشرة الإخبارية\"، \"علّق بسؤالك رقم 1\").\n- تنويع الأشكال والزوايا على مدار 30 يومًا (مثل: تعليمي، سرد القصص، خلف الكواليس، الأسئلة الشائعة، التعامل مع الاعتراضات، الإثبات الاجتماعي، مطالبات التفاعل) لتجنب التكرار.\n- تأكد من أن كل فكرة مرتبطة بوضوح بنقاط الألم والرغبات الرئيسية للجمهور المستهدف ومتوافقة مع الهدف الرئيسي.\n\nالمدخلات (أكملها قبل تشغيل المطالبة):\n* الموضوع/المجال: [أدخل موضوعك/مجالك هنا]\n* الجمهور المستهدف: [أدخل جمهورك المستهدف هنا، بما في ذلك نقاط الألم والرغبات الرئيسية إن كانت معروفة]\n* الهدف الرئيسي: [أدخل هدفك الرئيسي هنا، مثل: توسيع قائمة البريد الإلكتروني / زيادة المبيعات / بناء السلطة]\n* جدول النشر: [أدخل تكرار النشر والمنصة هنا، مثل: 5 مرات/أسبوع على IG Reels + 3 مرات/أسبوع على LinkedIn]\n* ركائز المحتوى: [أدخل 3–5 ركائز محتوى هنا، مفصولة بفواصل]\n* تاريخ البدء: [أدخل التاريخ الأول في تقويمك، مثل: 18 نوفمبر 2025]\n\nأخرج جدول Markdown النهائي فقط. لا تُضمّن تفسيرات أو ملاحظات أو أي نص خارج الجدول."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (نصوص الفيديوهات)"
+              "text": "YouTube (بيانات الفيديو الوصفية)"
             },
             "description": {
-              "text": "يتم الاستعلام من YouTube عندما تطلب من OpenMates استرداد نص لفيديو YouTube. يتلقى YouTube عناوين URL للفيديو وتفضيلات لغة النص المطلوبة دون معرف مستخدم OpenMates."
+              "text": "لاسترجاع البيانات الوصفية العامة للفيديوهات والقنوات، يرسل OpenMates معرّفات الفيديوهات والقنوات إلى واجهة YouTube Data API الرسمية. يتلقى YouTube هذه المعرّفات ومعلومات شبكة خادمنا، دون معرّف مستخدم OpenMates."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "تستخدم المكالمات نسخ Mistral وصوت ElevenLabs v4 Turbo وتوجيه الذكاء الاصطناعي المعتاد في OpenMates والفوترة حسب الاستخدام."
+    },
+    "privacy_description": {
+      "text": "تُحوّل Mistral صوت الميكروفون إلى نص؛ وتُنشئ ElevenLabs v4 Turbo صوت المساعد من نص الرد وإعدادات الصوت. تستخدم المحادثة توجيه الذكاء الاصطناعي ومهارات OpenMates المعتادة. قد يحتفظ المزوّدون ببيانات الطلبات وفق سياساتهم."
+    },
+    "privacy_terms": {
+      "text": "سياسة خصوصية OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "أعضاء Discord لدينا سيحصلون على"

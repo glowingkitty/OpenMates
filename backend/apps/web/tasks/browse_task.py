@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -112,7 +113,10 @@ async def execute_browser_job(
                 embed_id=arguments["embed_id"],
                 app_id="web",
                 skill_id="browse",
-                results=[payload],
+                # The shared TOON table flattens dictionaries. Keep arbitrary
+                # structured output lossless (underscores, nulls, empty arrays)
+                # for saved embeds without trying to reverse that flattening.
+                results=[{**payload, "data_json": json.dumps(payload["data"], ensure_ascii=False)}],
                 chat_id=chat_id,
                 message_id=message_id,
                 user_id=user_id,

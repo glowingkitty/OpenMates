@@ -12660,3 +12660,936 @@ jobs.search.result.details_unavailable:
   sv: Ytterligare information saknas. Öppna ansökningssidan för aktuell information.
   he: פרטים נוספים אינם זמינים. פתחו את עמוד הגשת המועמדות למידע העדכני ביותר.
   verified_by_human: []
+
+browse.title:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Browse
+  de: Browsen
+  zh: 浏览
+  es: Navegar
+  fr: Naviguer
+  pt: Navegar
+  ru: Просмотр
+  ja: ブラウズ
+  ko: 탐색
+  it: Naviga
+  tr: Göz at
+  vi: Duyệt
+  id: Jelajahi
+  pl: Przeglądaj
+  nl: Bladeren
+  ar: تصفّح
+  hi: ब्राउज़ करें
+  th: เรียกดู
+  cs: Procházet
+  sv: Bläddra
+  he: גלישה
+browse.running:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Browsing
+  de: Browser arbeitet
+  zh: 正在浏览
+  es: Navegando
+  fr: Navigation en cours
+  pt: A navegar
+  ru: Просмотр сайтов
+  ja: 閲覧中
+  ko: 탐색 중
+  it: Navigazione in corso
+  tr: Geziniliyor
+  vi: Đang duyệt
+  id: Sedang menjelajah
+  pl: Przeglądanie
+  nl: Bezig met bladeren
+  ar: جارٍ التصفّح
+  hi: ब्राउज़ हो रहा है
+  th: กำลังเรียกดู
+  cs: Procházení
+  sv: Bläddrar
+  he: גולש
+browse.user_control:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: You have control
+  de: Du hast die Kontrolle
+  zh: 你拥有控制权
+  es: Tienes el control
+  fr: Vous avez le contrôle
+  pt: Tens o controlo
+  ru: Вы управляете
+  ja: 操作できます
+  ko: 직접 제어 중
+  it: Hai il controllo
+  tr: Kontrol sizde
+  vi: Bạn đang điều khiển
+  id: Anda memegang kendali
+  pl: Masz kontrolę
+  nl: Je hebt de controle
+  ar: أنت تتحكم
+  hi: नियंत्रण आपके पास है
+  th: คุณเป็นผู้ควบคุม
+  cs: Máte kontrolu
+  sv: Du har kontrollen
+  he: השליטה אצלך
+browse.paused:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Paused
+  de: Pausiert
+  zh: 已暂停
+  es: En pausa
+  fr: En pause
+  pt: Em pausa
+  ru: Приостановлено
+  ja: 一時停止中
+  ko: 일시 중지됨
+  it: In pausa
+  tr: Duraklatıldı
+  vi: Đã tạm dừng
+  id: Dijeda
+  pl: Wstrzymano
+  nl: Gepauzeerd
+  ar: متوقف مؤقتًا
+  hi: रोका गया
+  th: หยุดชั่วคราว
+  cs: Pozastaveno
+  sv: Pausad
+  he: מושהה
+browse.completed:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Completed
+  de: Abgeschlossen
+  zh: 已完成
+  es: Completado
+  fr: Terminé
+  pt: Concluído
+  ru: Завершено
+  ja: 完了
+  ko: 완료
+  it: Completato
+  tr: Tamamlandı
+  vi: Hoàn tất
+  id: Selesai
+  pl: Ukończono
+  nl: Voltooid
+  ar: مكتمل
+  hi: पूरा हुआ
+  th: เสร็จสิ้น
+  cs: Dokončeno
+  sv: Slutförd
+  he: הושלם
+browse.no_results:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: No results
+  de: Keine Ergebnisse
+  zh: 无结果
+  es: Sin resultados
+  fr: Aucun résultat
+  pt: Sem resultados
+  ru: Нет результатов
+  ja: 結果なし
+  ko: 결과 없음
+  it: Nessun risultato
+  tr: Sonuç yok
+  vi: Không có kết quả
+  id: Tidak ada hasil
+  pl: Brak wyników
+  nl: Geen resultaten
+  ar: لا توجد نتائج
+  hi: कोई परिणाम नहीं
+  th: ไม่พบผลลัพธ์
+  cs: Žádné výsledky
+  sv: Inga resultat
+  he: אין תוצאות
+browse.needs_user:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Needs your input
+  de: Deine Eingabe erforderlich
+  zh: 需要你的输入
+  es: Necesita tu intervención
+  fr: Votre intervention est nécessaire
+  pt: Precisa da tua intervenção
+  ru: Требуется ваше участие
+  ja: 入力が必要です
+  ko: 입력이 필요합니다
+  it: Serve il tuo intervento
+  tr: Girişiniz gerekiyor
+  vi: Cần bạn nhập
+  id: Perlu masukan Anda
+  pl: Potrzebne jest Twoje działanie
+  nl: Jouw invoer nodig
+  ar: يلزم إدخالك
+  hi: आपके इनपुट की ज़रूरत है
+  th: ต้องการข้อมูลจากคุณ
+  cs: Je potřeba váš vstup
+  sv: Din inmatning behövs
+  he: נדרש קלט ממך
+browse.blocked:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Blocked
+  de: Blockiert
+  zh: 已阻止
+  es: Bloqueado
+  fr: Bloqué
+  pt: Bloqueado
+  ru: Заблокировано
+  ja: ブロックされました
+  ko: 차단됨
+  it: Bloccato
+  tr: Engellendi
+  vi: Bị chặn
+  id: Diblokir
+  pl: Zablokowano
+  nl: Geblokkeerd
+  ar: محظور
+  hi: अवरुद्ध
+  th: ถูกบล็อก
+  cs: Zablokováno
+  sv: Blockerad
+  he: חסום
+browse.failed:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Failed
+  de: Fehlgeschlagen
+  zh: 失败
+  es: Falló
+  fr: Échec
+  pt: Falhou
+  ru: Ошибка
+  ja: 失敗
+  ko: 실패
+  it: Non riuscito
+  tr: Başarısız
+  vi: Thất bại
+  id: Gagal
+  pl: Niepowodzenie
+  nl: Mislukt
+  ar: فشل
+  hi: विफल
+  th: ล้มเหลว
+  cs: Selhalo
+  sv: Misslyckades
+  he: נכשל
+browse.cancelled:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Cancelled
+  de: Abgebrochen
+  zh: 已取消
+  es: Cancelado
+  fr: Annulé
+  pt: Cancelado
+  ru: Отменено
+  ja: キャンセル済み
+  ko: 취소됨
+  it: Annullato
+  tr: İptal edildi
+  vi: Đã hủy
+  id: Dibatalkan
+  pl: Anulowano
+  nl: Geannuleerd
+  ar: أُلغي
+  hi: रद्द
+  th: ยกเลิกแล้ว
+  cs: Zrušeno
+  sv: Avbruten
+  he: בוטל
+browse.budget_exceeded:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Spending limit reached
+  de: Ausgabenlimit erreicht
+  zh: 已达消费上限
+  es: Límite de gasto alcanzado
+  fr: Limite de dépenses atteinte
+  pt: Limite de gastos atingido
+  ru: Достигнут лимит расходов
+  ja: 利用上限に達しました
+  ko: 지출 한도 도달
+  it: Limite di spesa raggiunto
+  tr: Harcama sınırına ulaşıldı
+  vi: Đạt giới hạn chi tiêu
+  id: Batas pengeluaran tercapai
+  pl: Osiągnięto limit wydatków
+  nl: Bestedingslimiet bereikt
+  ar: تم بلوغ حد الإنفاق
+  hi: खर्च सीमा पूरी हुई
+  th: ถึงวงเงินใช้จ่ายแล้ว
+  cs: Dosažen limit útraty
+  sv: Utgiftsgränsen nådd
+  he: הגעת למגבלת ההוצאה
+browse.closed:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Browser closed
+  de: Browser geschlossen
+  zh: 浏览器已关闭
+  es: Navegador cerrado
+  fr: Navigateur fermé
+  pt: Navegador fechado
+  ru: Браузер закрыт
+  ja: ブラウザーを閉じました
+  ko: 브라우저 닫힘
+  it: Browser chiuso
+  tr: Tarayıcı kapatıldı
+  vi: Đã đóng trình duyệt
+  id: Browser ditutup
+  pl: Przeglądarka zamknięta
+  nl: Browser gesloten
+  ar: أُغلق المتصفح
+  hi: ब्राउज़र बंद
+  th: ปิดเบราว์เซอร์แล้ว
+  cs: Prohlížeč zavřen
+  sv: Webbläsaren stängd
+  he: הדפדפן נסגר
+browse.expired:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Session expired
+  de: Sitzung abgelaufen
+  zh: 会话已过期
+  es: Sesión caducada
+  fr: Session expirée
+  pt: Sessão expirada
+  ru: Сеанс истёк
+  ja: セッションの有効期限切れ
+  ko: 세션 만료
+  it: Sessione scaduta
+  tr: Oturumun süresi doldu
+  vi: Phiên đã hết hạn
+  id: Sesi kedaluwarsa
+  pl: Sesja wygasła
+  nl: Sessie verlopen
+  ar: انتهت الجلسة
+  hi: सत्र समाप्त
+  th: เซสชันหมดอายุ
+  cs: Relace vypršela
+  sv: Sessionen har gått ut
+  he: פג תוקף ההפעלה
+browse.unavailable:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Browser unavailable
+  de: Browser nicht verfügbar
+  zh: 浏览器不可用
+  es: Navegador no disponible
+  fr: Navigateur indisponible
+  pt: Navegador indisponível
+  ru: Браузер недоступен
+  ja: ブラウザーを利用できません
+  ko: 브라우저 사용 불가
+  it: Browser non disponibile
+  tr: Tarayıcı kullanılamıyor
+  vi: Trình duyệt không khả dụng
+  id: Browser tidak tersedia
+  pl: Przeglądarka niedostępna
+  nl: Browser niet beschikbaar
+  ar: المتصفح غير متاح
+  hi: ब्राउज़र उपलब्ध नहीं
+  th: เบราว์เซอร์ไม่พร้อมใช้งาน
+  cs: Prohlížeč není dostupný
+  sv: Webbläsaren är inte tillgänglig
+  he: הדפדפן לא זמין
+browse.watch:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Watch browser
+  de: Browser ansehen
+  zh: 查看浏览器
+  es: Ver navegador
+  fr: Voir le navigateur
+  pt: Ver navegador
+  ru: Смотреть браузер
+  ja: ブラウザーを見る
+  ko: 브라우저 보기
+  it: Guarda il browser
+  tr: Tarayıcıyı izle
+  vi: Xem trình duyệt
+  id: Lihat browser
+  pl: Obserwuj przeglądarkę
+  nl: Browser bekijken
+  ar: مشاهدة المتصفح
+  hi: ब्राउज़र देखें
+  th: ดูเบราว์เซอร์
+  cs: Sledovat prohlížeč
+  sv: Se webbläsaren
+  he: צפייה בדפדפן
+browse.take_control:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Take control
+  de: Kontrolle übernehmen
+  zh: 接管控制
+  es: Tomar el control
+  fr: Prendre le contrôle
+  pt: Assumir o controlo
+  ru: Взять управление
+  ja: 操作を引き継ぐ
+  ko: 제어권 가져오기
+  it: Prendi il controllo
+  tr: Kontrolü al
+  vi: Nắm quyền điều khiển
+  id: Ambil kendali
+  pl: Przejmij kontrolę
+  nl: Controle overnemen
+  ar: تولّي التحكم
+  hi: नियंत्रण लें
+  th: เข้าควบคุม
+  cs: Převzít kontrolu
+  sv: Ta kontroll
+  he: קבלת שליטה
+browse.continue:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Let AI continue
+  de: KI fortfahren lassen
+  zh: 让 AI 继续
+  es: Dejar que la IA continúe
+  fr: Laisser l’IA continuer
+  pt: Deixar a IA continuar
+  ru: Продолжить с ИИ
+  ja: AI に続行させる
+  ko: AI가 계속하도록 허용
+  it: Lascia continuare l’IA
+  tr: Yapay zekâ devam etsin
+  vi: Để AI tiếp tục
+  id: Biarkan AI melanjutkan
+  pl: Pozwól AI kontynuować
+  nl: AI laten doorgaan
+  ar: السماح للذكاء الاصطناعي بالمتابعة
+  hi: AI को जारी रखने दें
+  th: ให้ AI ทำต่อ
+  cs: Nechat AI pokračovat
+  sv: Låt AI fortsätta
+  he: לאפשר ל-AI להמשיך
+browse.pause:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Pause
+  de: Pausieren
+  zh: 暂停
+  es: Pausar
+  fr: Mettre en pause
+  pt: Pausar
+  ru: Приостановить
+  ja: 一時停止
+  ko: 일시 중지
+  it: Pausa
+  tr: Duraklat
+  vi: Tạm dừng
+  id: Jeda
+  pl: Wstrzymaj
+  nl: Pauzeren
+  ar: إيقاف مؤقت
+  hi: रोकें
+  th: หยุดชั่วคราว
+  cs: Pozastavit
+  sv: Pausa
+  he: השהיה
+browse.close:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Close browser
+  de: Browser schließen
+  zh: 关闭浏览器
+  es: Cerrar navegador
+  fr: Fermer le navigateur
+  pt: Fechar navegador
+  ru: Закрыть браузер
+  ja: ブラウザーを閉じる
+  ko: 브라우저 닫기
+  it: Chiudi browser
+  tr: Tarayıcıyı kapat
+  vi: Đóng trình duyệt
+  id: Tutup browser
+  pl: Zamknij przeglądarkę
+  nl: Browser sluiten
+  ar: إغلاق المتصفح
+  hi: ब्राउज़र बंद करें
+  th: ปิดเบราว์เซอร์
+  cs: Zavřít prohlížeč
+  sv: Stäng webbläsaren
+  he: סגירת הדפדפן
+browse.sign_in_title:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Before you sign in
+  de: Vor der Anmeldung
+  zh: 登录前须知
+  es: Antes de iniciar sesión
+  fr: Avant de vous connecter
+  pt: Antes de iniciar sessão
+  ru: Перед входом
+  ja: ログインする前に
+  ko: 로그인하기 전에
+  it: Prima di accedere
+  tr: Giriş yapmadan önce
+  vi: Trước khi đăng nhập
+  id: Sebelum masuk
+  pl: Przed zalogowaniem
+  nl: Voordat je inlogt
+  ar: قبل تسجيل الدخول
+  hi: साइन इन करने से पहले
+  th: ก่อนเข้าสู่ระบบ
+  cs: Před přihlášením
+  sv: Innan du loggar in
+  he: לפני הכניסה לחשבון
+browse.sign_in_confirm:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Continue to sign in
+  de: Zur Anmeldung fortfahren
+  zh: 继续登录
+  es: Continuar para iniciar sesión
+  fr: Continuer la connexion
+  pt: Continuar para iniciar sessão
+  ru: Продолжить вход
+  ja: ログインを続ける
+  ko: 로그인 계속
+  it: Continua ad accedere
+  tr: Giriş yapmaya devam et
+  vi: Tiếp tục đăng nhập
+  id: Lanjutkan masuk
+  pl: Kontynuuj logowanie
+  nl: Doorgaan met inloggen
+  ar: متابعة تسجيل الدخول
+  hi: साइन इन जारी रखें
+  th: เข้าสู่ระบบต่อ
+  cs: Pokračovat k přihlášení
+  sv: Fortsätt att logga in
+  he: המשך לכניסה לחשבון
+browse.saved_frame:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Saved browser screenshot
+  de: Gespeicherter Browser-Screenshot
+  zh: 已保存的浏览器截图
+  es: Captura guardada del navegador
+  fr: Capture enregistrée du navigateur
+  pt: Captura guardada do navegador
+  ru: Сохранённый снимок браузера
+  ja: 保存されたブラウザー画像
+  ko: 저장된 브라우저 화면
+  it: Schermata del browser salvata
+  tr: Kayıtlı tarayıcı görüntüsü
+  vi: Ảnh trình duyệt đã lưu
+  id: Tangkapan browser tersimpan
+  pl: Zapisany zrzut przeglądarki
+  nl: Opgeslagen browserafbeelding
+  ar: لقطة متصفح محفوظة
+  hi: सहेजा गया ब्राउज़र चित्र
+  th: ภาพเบราว์เซอร์ที่บันทึกไว้
+  cs: Uložený snímek prohlížeče
+  sv: Sparad webbläsarbild
+  he: צילום דפדפן שמור
+browse.live_frame:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Live browser
+  de: Live-Browser
+  zh: 实时浏览器
+  es: Navegador en directo
+  fr: Navigateur en direct
+  pt: Navegador em direto
+  ru: Браузер в реальном времени
+  ja: ライブブラウザー
+  ko: 실시간 브라우저
+  it: Browser in diretta
+  tr: Canlı tarayıcı
+  vi: Trình duyệt trực tiếp
+  id: Browser langsung
+  pl: Przeglądarka na żywo
+  nl: Livebrowser
+  ar: المتصفح المباشر
+  hi: लाइव ब्राउज़र
+  th: เบราว์เซอร์สด
+  cs: Živý prohlížeč
+  sv: Webbläsare i realtid
+  he: דפדפן בזמן אמת
+browse.waiting_frame:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Waiting for the browser…
+  de: Warten auf den Browser…
+  zh: 正在等待浏览器…
+  es: Esperando al navegador…
+  fr: En attente du navigateur…
+  pt: À espera do navegador…
+  ru: Ожидание браузера…
+  ja: ブラウザーを待っています…
+  ko: 브라우저를 기다리는 중…
+  it: In attesa del browser…
+  tr: Tarayıcı bekleniyor…
+  vi: Đang chờ trình duyệt…
+  id: Menunggu browser…
+  pl: Oczekiwanie na przeglądarkę…
+  nl: Wachten op de browser…
+  ar: في انتظار المتصفح…
+  hi: ब्राउज़र की प्रतीक्षा…
+  th: กำลังรอเบราว์เซอร์…
+  cs: Čekání na prohlížeč…
+  sv: Väntar på webbläsaren…
+  he: בהמתנה לדפדפן…
+browse.text_input:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Text for the website
+  de: Text für die Website
+  zh: 发送到网站的文字
+  es: Texto para el sitio web
+  fr: Texte pour le site
+  pt: Texto para o site
+  ru: Текст для сайта
+  ja: サイトに入力するテキスト
+  ko: 웹사이트에 입력할 텍스트
+  it: Testo per il sito
+  tr: Web sitesi için metin
+  vi: Văn bản cho trang web
+  id: Teks untuk situs web
+  pl: Tekst dla strony
+  nl: Tekst voor de website
+  ar: نص للموقع
+  hi: वेबसाइट के लिए टेक्स्ट
+  th: ข้อความสำหรับเว็บไซต์
+  cs: Text pro web
+  sv: Text till webbplatsen
+  he: טקסט לאתר
+browse.send_text:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Send text
+  de: Text senden
+  zh: 发送文字
+  es: Enviar texto
+  fr: Envoyer le texte
+  pt: Enviar texto
+  ru: Отправить текст
+  ja: テキストを送信
+  ko: 텍스트 보내기
+  it: Invia testo
+  tr: Metni gönder
+  vi: Gửi văn bản
+  id: Kirim teks
+  pl: Wyślij tekst
+  nl: Tekst verzenden
+  ar: إرسال النص
+  hi: टेक्स्ट भेजें
+  th: ส่งข้อความ
+  cs: Odeslat text
+  sv: Skicka text
+  he: שליחת טקסט
+browse.scroll_up:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Scroll up
+  de: Nach oben scrollen
+  zh: 向上滚动
+  es: Desplazar arriba
+  fr: Défiler vers le haut
+  pt: Deslocar para cima
+  ru: Прокрутить вверх
+  ja: 上にスクロール
+  ko: 위로 스크롤
+  it: Scorri su
+  tr: Yukarı kaydır
+  vi: Cuộn lên
+  id: Gulir ke atas
+  pl: Przewiń w górę
+  nl: Omhoog scrollen
+  ar: تمرير لأعلى
+  hi: ऊपर स्क्रॉल करें
+  th: เลื่อนขึ้น
+  cs: Posunout nahoru
+  sv: Rulla uppåt
+  he: גלילה למעלה
+browse.scroll_down:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Scroll down
+  de: Nach unten scrollen
+  zh: 向下滚动
+  es: Desplazar abajo
+  fr: Défiler vers le bas
+  pt: Deslocar para baixo
+  ru: Прокрутить вниз
+  ja: 下にスクロール
+  ko: 아래로 스크롤
+  it: Scorri giù
+  tr: Aşağı kaydır
+  vi: Cuộn xuống
+  id: Gulir ke bawah
+  pl: Przewiń w dół
+  nl: Omlaag scrollen
+  ar: تمرير لأسفل
+  hi: नीचे स्क्रॉल करें
+  th: เลื่อนลง
+  cs: Posunout dolů
+  sv: Rulla nedåt
+  he: גלילה למטה
+browse.structured_data:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Structured data
+  de: Strukturierte Daten
+  zh: 结构化数据
+  es: Datos estructurados
+  fr: Données structurées
+  pt: Dados estruturados
+  ru: Структурированные данные
+  ja: 構造化データ
+  ko: 구조화된 데이터
+  it: Dati strutturati
+  tr: Yapılandırılmış veri
+  vi: Dữ liệu có cấu trúc
+  id: Data terstruktur
+  pl: Dane strukturalne
+  nl: Gestructureerde gegevens
+  ar: بيانات منظّمة
+  hi: संरचित डेटा
+  th: ข้อมูลแบบมีโครงสร้าง
+  cs: Strukturovaná data
+  sv: Strukturerade data
+  he: נתונים מובנים
+browse.connection_error:
+  context: Browse browser embed status or control
+  verified_by_human: []
+  en: Connection interrupted. Refresh before trying another action.
+  de: Verbindung unterbrochen. Vor der nächsten Aktion aktualisieren.
+  zh: 连接中断。请刷新后再进行操作。
+  es: Conexión interrumpida. Actualiza antes de intentar otra acción.
+  fr: Connexion interrompue. Actualisez avant toute autre action.
+  pt: Ligação interrompida. Atualiza antes de outra ação.
+  ru: Соединение прервано. Обновите перед следующим действием.
+  ja: 接続が中断されました。次の操作の前に更新してください。
+  ko: 연결이 끊겼습니다. 다음 동작 전에 새로 고치세요.
+  it: Connessione interrotta. Aggiorna prima di un’altra azione.
+  tr: Bağlantı kesildi. Başka bir işlemden önce yenileyin.
+  vi: Kết nối bị gián đoạn. Hãy làm mới trước thao tác khác.
+  id: Koneksi terputus. Segarkan sebelum tindakan berikutnya.
+  pl: Połączenie przerwane. Odśwież przed kolejną czynnością.
+  nl: Verbinding onderbroken. Vernieuw vóór een volgende actie.
+  ar: انقطع الاتصال. حدّث قبل محاولة إجراء آخر.
+  hi: कनेक्शन टूट गया। अगली कार्रवाई से पहले रीफ़्रेश करें।
+  th: การเชื่อมต่อขัดข้อง โปรดรีเฟรชก่อนดำเนินการอื่น
+  cs: Spojení přerušeno. Před další akcí obnovte stránku.
+  sv: Anslutningen avbröts. Uppdatera före nästa åtgärd.
+  he: החיבור נקטע. יש לרענן לפני פעולה נוספת.
+browse.credits:
+  context: Browse privacy, lifecycle or usage help
+  en: '{used} / {limit} credits'
+  verified_by_human: []
+  de: '{used} / {limit} Credits'
+  zh: '{used} / {limit} 积分'
+  es: '{used} / {limit} créditos'
+  fr: '{used} / {limit} crédits'
+  pt: '{used} / {limit} créditos'
+  ru: '{used} / {limit} кредитов'
+  ja: '{used} / {limit} クレジット'
+  ko: '{used} / {limit} 크레딧'
+  it: '{used} / {limit} crediti'
+  tr: '{used} / {limit} kredi'
+  vi: '{used} / {limit} tín dụng'
+  id: '{used} / {limit} kredit'
+  pl: '{used} / {limit} kredytów'
+  nl: '{used} / {limit} credits'
+  ar: '{used} / {limit} رصيد'
+  hi: '{used} / {limit} क्रेडिट'
+  th: '{used} / {limit} เครดิต'
+  cs: '{used} / {limit} kreditů'
+  sv: '{used} / {limit} krediter'
+  he: '{used} / {limit} קרדיטים'
+browse.continue_message:
+  context: Browse privacy or lifecycle help; English fallback pending locale review
+  en: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  verified_by_human: []
+  de: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  zh: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  es: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  fr: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  pt: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  ru: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  ja: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  ko: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  it: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  tr: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  vi: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  id: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  pl: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  nl: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  ar: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  hi: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  th: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  cs: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  sv: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+  he: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+    create a new browser session.
+browse.sign_in_notice:
+  context: Browse privacy, lifecycle or usage help
+  en: You’re signing in to a cloud browser. When you let AI continue, it can access information in this account. Relevant page content may be
+    sent to our AI providers. Only sign in to accounts you’re comfortable giving AI access to.
+  verified_by_human: []
+  de: Du meldest dich in einem Cloud-Browser an. Wenn du die KI fortfahren lässt, kann sie auf Informationen in diesem Konto zugreifen. Relevante
+    Seiteninhalte können an unsere KI-Anbieter gesendet werden. Melde dich nur bei Konten an, auf die du der KI Zugriff geben möchtest.
+  zh: 你正在登录云端浏览器。允许 AI 继续后，它可以访问此账户中的信息。相关页面内容可能会发送给我们的 AI 服务商。请仅登录你愿意允许 AI 访问的账户。
+  es: Vas a iniciar sesión en un navegador en la nube. Si dejas que la IA continúe, podrá acceder a la información de esta cuenta. El contenido
+    relevante de la página puede enviarse a nuestros proveedores de IA. Accede solo a cuentas que quieras poner al alcance de la IA.
+  fr: Vous vous connectez dans un navigateur cloud. En laissant l’IA continuer, vous lui permettez d’accéder aux informations de ce compte. Le
+    contenu pertinent des pages peut être envoyé à nos fournisseurs d’IA. Connectez-vous uniquement aux comptes auxquels vous souhaitez donner
+    accès à l’IA.
+  pt: Vais iniciar sessão num navegador na nuvem. Ao deixares a IA continuar, ela poderá aceder às informações desta conta. Conteúdo relevante
+    da página poderá ser enviado aos nossos fornecedores de IA. Usa apenas contas às quais aceitas dar acesso à IA.
+  ru: Вы входите в аккаунт в облачном браузере. Когда вы разрешите ИИ продолжить, он сможет получить доступ к данным этого аккаунта. Соответствующее
+    содержимое страниц может передаваться нашим поставщикам ИИ. Входите только в аккаунты, доступ к которым вы готовы предоставить ИИ.
+  ja: クラウドブラウザーでログインします。AI に続行させると、このアカウントの情報にアクセスできるようになります。関連するページの内容は AI 提供事業者に送信される場合があります。AI にアクセスを許可できるアカウントだけでログインしてください。
+  ko: 클라우드 브라우저에 로그인합니다. AI가 계속하도록 허용하면 이 계정의 정보에 접근할 수 있습니다. 관련 페이지 내용이 AI 제공업체에 전송될 수 있습니다. AI에 접근을 허용할 수 있는 계정으로만 로그인하세요.
+  it: Stai accedendo in un browser cloud. Lasciando continuare l’IA, le permetti di accedere alle informazioni di questo account. I contenuti
+    pertinenti delle pagine possono essere inviati ai nostri fornitori di IA. Accedi solo ad account a cui vuoi dare accesso all’IA.
+  tr: Bulut tarayıcısında giriş yapıyorsunuz. Yapay zekânın devam etmesine izin verirseniz bu hesaptaki bilgilere erişebilir. İlgili sayfa içeriği
+    yapay zekâ sağlayıcılarımıza gönderilebilir. Yalnızca yapay zekâya erişim vermek istediğiniz hesaplara giriş yapın.
+  vi: Bạn đang đăng nhập trong trình duyệt đám mây. Khi cho AI tiếp tục, AI có thể truy cập thông tin trong tài khoản này. Nội dung trang liên
+    quan có thể được gửi đến nhà cung cấp AI của chúng tôi. Chỉ đăng nhập tài khoản mà bạn sẵn sàng cho AI truy cập.
+  id: Anda masuk melalui browser cloud. Saat mengizinkan AI melanjutkan, AI dapat mengakses informasi akun ini. Konten halaman yang relevan dapat
+    dikirim ke penyedia AI kami. Masuk hanya ke akun yang Anda izinkan untuk diakses AI.
+  pl: Logujesz się w przeglądarce w chmurze. Gdy pozwolisz AI kontynuować, będzie mogła uzyskać dostęp do informacji na tym koncie. Odpowiednia
+    treść stron może być wysyłana do naszych dostawców AI. Loguj się tylko na konta, do których chcesz dać AI dostęp.
+  nl: Je logt in via een cloudbrowser. Als je AI laat doorgaan, kan die informatie in dit account bekijken. Relevante pagina-inhoud kan naar onze
+    AI-aanbieders worden gestuurd. Log alleen in op accounts waartoe je AI toegang wilt geven.
+  ar: أنت تسجّل الدخول في متصفح سحابي. عند السماح للذكاء الاصطناعي بالمتابعة، يمكنه الوصول إلى معلومات هذا الحساب. قد تُرسَل محتويات الصفحات ذات
+    الصلة إلى مزوّدي الذكاء الاصطناعي لدينا. سجّل الدخول فقط إلى حسابات تقبل منح الذكاء الاصطناعي حق الوصول إليها.
+  hi: आप क्लाउड ब्राउज़र में साइन इन कर रहे हैं। AI को जारी रखने देने पर वह इस खाते की जानकारी देख सकता है। संबंधित पेज सामग्री हमारे AI प्रदाताओं
+    को भेजी जा सकती है। केवल उन्हीं खातों में साइन इन करें जिनकी पहुँच आप AI को देना चाहते हैं।
+  th: คุณกำลังเข้าสู่ระบบในเบราว์เซอร์คลาวด์ เมื่อให้ AI ทำต่อ AI จะเข้าถึงข้อมูลในบัญชีนี้ได้ เนื้อหาหน้าเว็บที่เกี่ยวข้องอาจถูกส่งไปยังผู้ให้บริการ
+    AI ของเรา โปรดเข้าสู่ระบบเฉพาะบัญชีที่คุณยินยอมให้ AI เข้าถึง
+  cs: Přihlašujete se v cloudovém prohlížeči. Když necháte AI pokračovat, může přistupovat k údajům tohoto účtu. Relevantní obsah stránek může
+    být odeslán našim poskytovatelům AI. Přihlašujte se jen k účtům, ke kterým chcete dát AI přístup.
+  sv: Du loggar in i en molnwebbläsare. När du låter AI fortsätta kan den läsa information i kontot. Relevant sidinnehåll kan skickas till våra
+    AI-leverantörer. Logga bara in på konton som du vill ge AI åtkomst till.
+  he: הכניסה מתבצעת בדפדפן בענן. כשמאפשרים ל-AI להמשיך, הוא יכול לגשת למידע בחשבון הזה. תוכן רלוונטי מהדף עשוי להישלח לספקי ה-AI שלנו. יש להיכנס
+    רק לחשבונות שנוח לך לתת ל-AI גישה אליהם.
+browse.manual_hint:
+  context: Browse privacy, lifecycle or usage help
+  en: Click the page, or use Tab and Enter to navigate. Text is sent only to this website and cleared from this input after sending.
+  verified_by_human: []
+  de: Klicke auf die Seite oder navigiere mit Tab und Enter. Text wird nur an diese Website gesendet und danach aus diesem Eingabefeld entfernt.
+  zh: 点击页面，或使用 Tab 和 Enter 导航。文字只发送到此网站，发送后会从此输入框清除。
+  es: Haz clic en la página o navega con Tab y Enter. El texto se envía solo a este sitio y se borra de este campo al enviarlo.
+  fr: Cliquez sur la page ou naviguez avec Tab et Entrée. Le texte est envoyé uniquement à ce site, puis effacé de ce champ.
+  pt: Clica na página ou navega com Tab e Enter. O texto é enviado apenas a este site e apagado deste campo após o envio.
+  ru: Нажмите на страницу или используйте Tab и Enter. Текст отправляется только этому сайту и затем удаляется из поля.
+  ja: ページをクリックするか、Tab と Enter で操作してください。テキストはこのサイトだけに送信され、送信後にこの入力欄から消去されます。
+  ko: 페이지를 클릭하거나 Tab과 Enter로 이동하세요. 텍스트는 이 사이트에만 전송되며 전송 후 입력란에서 지워집니다.
+  it: Fai clic sulla pagina o usa Tab e Invio. Il testo viene inviato solo a questo sito e poi cancellato da questo campo.
+  tr: Sayfaya tıklayın veya Tab ve Enter ile gezinin. Metin yalnızca bu siteye gönderilir ve gönderildikten sonra bu alandan silinir.
+  vi: Nhấp vào trang hoặc dùng Tab và Enter. Văn bản chỉ được gửi đến trang này và bị xóa khỏi ô nhập sau khi gửi.
+  id: Klik halaman atau gunakan Tab dan Enter. Teks hanya dikirim ke situs ini dan dihapus dari kolom setelah dikirim.
+  pl: Kliknij stronę lub użyj Tab i Enter. Tekst trafia tylko do tej witryny i po wysłaniu jest usuwany z pola.
+  nl: Klik op de pagina of gebruik Tab en Enter. Tekst wordt alleen naar deze website gestuurd en daarna uit dit invoerveld gewist.
+  ar: انقر الصفحة أو استخدم Tab وEnter. يُرسل النص إلى هذا الموقع فقط ويُمسح من حقل الإدخال بعد الإرسال.
+  hi: पेज पर क्लिक करें या Tab और Enter इस्तेमाल करें। टेक्स्ट सिर्फ इस वेबसाइट को भेजा जाता है और भेजने के बाद इनपुट से मिटा दिया जाता है।
+  th: คลิกหน้าเว็บหรือใช้ Tab และ Enter ข้อความจะถูกส่งไปยังเว็บไซต์นี้เท่านั้นและล้างออกจากช่องหลังส่ง
+  cs: Klikněte na stránku nebo použijte Tab a Enter. Text se odešle jen tomuto webu a poté se z pole vymaže.
+  sv: Klicka på sidan eller använd Tab och Enter. Text skickas bara till den här webbplatsen och rensas från fältet efteråt.
+  he: אפשר ללחוץ בדף או לנווט עם Tab ו-Enter. הטקסט נשלח רק לאתר הזה ונמחק משדה הקלט לאחר השליחה.
+browse.paused_hint:
+  context: Browse privacy, lifecycle or usage help
+  en: The browser is paused and compute is free. Take control to resume. The session is deleted after 24 hours without interaction.
+  verified_by_human: []
+  de: Der Browser ist pausiert; Rechenleistung ist kostenlos. Übernimm die Kontrolle zum Fortfahren. Nach 24 Stunden ohne Interaktion wird die
+    Sitzung gelöscht.
+  zh: 浏览器已暂停，不产生计算费用。接管控制以继续。24 小时无交互后，会话将被删除。
+  es: El navegador está en pausa y no consume recursos de pago. Toma el control para reanudar. La sesión se elimina tras 24 horas sin interacción.
+  fr: Le navigateur est en pause, sans frais de calcul. Prenez le contrôle pour reprendre. La session est supprimée après 24 heures sans interaction.
+  pt: O navegador está em pausa, sem custos de computação. Assume o controlo para retomar. A sessão é eliminada após 24 horas sem interação.
+  ru: Браузер приостановлен, вычисления не оплачиваются. Возьмите управление для продолжения. Через 24 часа без взаимодействия сеанс удаляется.
+  ja: ブラウザーは一時停止中で、計算料金はかかりません。操作を引き継ぐと再開します。24 時間操作がないとセッションは削除されます。
+  ko: 브라우저가 일시 중지되어 컴퓨팅 요금이 없습니다. 제어권을 가져오면 재개됩니다. 24시간 동안 상호작용이 없으면 세션이 삭제됩니다.
+  it: Il browser è in pausa e non ci sono costi di calcolo. Prendi il controllo per riprendere. La sessione viene eliminata dopo 24 ore senza
+    interazioni.
+  tr: Tarayıcı duraklatıldı ve işlem ücreti yok. Devam etmek için kontrolü alın. Oturum 24 saat etkileşim olmadığında silinir.
+  vi: Trình duyệt đã tạm dừng, không tính phí xử lý. Nắm quyền điều khiển để tiếp tục. Phiên bị xóa sau 24 giờ không tương tác.
+  id: Browser dijeda tanpa biaya komputasi. Ambil kendali untuk melanjutkan. Sesi dihapus setelah 24 jam tanpa interaksi.
+  pl: Przeglądarka jest wstrzymana i nie nalicza kosztów obliczeń. Przejmij kontrolę, aby wznowić. Sesja jest usuwana po 24 godzinach bez interakcji.
+  nl: De browser is gepauzeerd en er zijn geen computerkosten. Neem de controle om te hervatten. Na 24 uur zonder interactie wordt de sessie verwijderd.
+  ar: المتصفح متوقف مؤقتًا ولا توجد رسوم حوسبة. تولَّ التحكم للاستئناف. تُحذف الجلسة بعد 24 ساعة دون تفاعل.
+  hi: ब्राउज़र रुका है और कंप्यूटिंग शुल्क नहीं लगता। फिर से शुरू करने के लिए नियंत्रण लें। 24 घंटे कोई इंटरैक्शन न होने पर सत्र मिटा दिया जाता
+    है।
+  th: เบราว์เซอร์หยุดชั่วคราวและไม่มีค่าประมวลผล เข้าควบคุมเพื่อทำต่อ เซสชันจะถูกลบหลังไม่มีการโต้ตอบ 24 ชั่วโมง
+  cs: Prohlížeč je pozastaven a neúčtují se výpočty. Převezměte kontrolu pro obnovení. Po 24 hodinách bez interakce se relace smaže.
+  sv: Webbläsaren är pausad utan beräkningskostnad. Ta kontroll för att fortsätta. Sessionen tas bort efter 24 timmar utan interaktion.
+  he: הדפדפן מושהה ואין עלות חישוב. יש לקבל שליטה כדי להמשיך. ההפעלה נמחקת אחרי 24 שעות ללא אינטראקציה.
+browse.watch_hint:
+  context: Browse privacy, lifecycle or usage help
+  en: You are watching. Take control to interact with the website. Watching does not keep the session active.
+  verified_by_human: []
+  de: Du siehst zu. Übernimm die Kontrolle, um mit der Website zu interagieren. Zuschauen hält die Sitzung nicht aktiv.
+  zh: 你正在观看。接管控制后可与网站交互。观看不会延长会话活动时间。
+  es: Estás observando. Toma el control para interactuar con el sitio. Observar no mantiene activa la sesión.
+  fr: Vous regardez. Prenez le contrôle pour interagir avec le site. Le visionnage ne maintient pas la session active.
+  pt: Estás a observar. Assume o controlo para interagir com o site. Observar não mantém a sessão ativa.
+  ru: Вы наблюдаете. Возьмите управление для взаимодействия с сайтом. Просмотр не продлевает активность сеанса.
+  ja: 表示のみです。サイトを操作するには操作を引き継いでください。閲覧だけではセッションの有効期間は延長されません。
+  ko: 보기 모드입니다. 사이트를 조작하려면 제어권을 가져오세요. 보는 것만으로 세션이 연장되지 않습니다.
+  it: Stai osservando. Prendi il controllo per interagire con il sito. Guardare non mantiene attiva la sessione.
+  tr: İzliyorsunuz. Siteyle etkileşim için kontrolü alın. İzlemek oturumu etkin tutmaz.
+  vi: Bạn đang xem. Nắm quyền điều khiển để thao tác với trang. Việc xem không giữ phiên hoạt động.
+  id: Anda sedang menonton. Ambil kendali untuk berinteraksi dengan situs. Menonton tidak mempertahankan sesi aktif.
+  pl: Obserwujesz. Przejmij kontrolę, aby korzystać z witryny. Obserwowanie nie utrzymuje aktywnej sesji.
+  nl: Je kijkt mee. Neem de controle om de website te bedienen. Meekijken houdt de sessie niet actief.
+  ar: أنت تشاهد فقط. تولَّ التحكم للتفاعل مع الموقع. المشاهدة لا تُبقي الجلسة نشطة.
+  hi: आप देख रहे हैं। वेबसाइट चलाने के लिए नियंत्रण लें। देखने से सत्र सक्रिय नहीं रहता।
+  th: คุณกำลังดูอยู่ เข้าควบคุมเพื่อใช้งานเว็บไซต์ การดูจะไม่ทำให้เซสชันทำงานต่อ
+  cs: Pouze sledujete. Pro ovládání webu převezměte kontrolu. Sledování neudržuje relaci aktivní.
+  sv: Du tittar. Ta kontroll för att använda webbplatsen. Tittande håller inte sessionen aktiv.
+  he: זו צפייה בלבד. יש לקבל שליטה כדי להשתמש באתר. צפייה לא שומרת על ההפעלה פעילה.
+
+browse.stopping:
+  context: Browse Stop requested; awaiting owned server acknowledgement
+  en: Stopping…
+  de: Wird angehalten…
+  zh: 正在停止…
+  es: Deteniendo…
+  fr: Arrêt en cours…
+  pt: A parar…
+  ru: Остановка…
+  ja: 停止しています…
+  ko: 중지 중…
+  it: Arresto in corso…
+  tr: Durduruluyor…
+  vi: Đang dừng…
+  id: Menghentikan…
+  pl: Zatrzymywanie…
+  nl: Bezig met stoppen…
+  ar: جارٍ الإيقاف…
+  hi: रोका जा रहा है…
+  th: กำลังหยุด…
+  cs: Zastavování…
+  sv: Stoppar…
+  he: בתהליך עצירה…
+  verified_by_human: []

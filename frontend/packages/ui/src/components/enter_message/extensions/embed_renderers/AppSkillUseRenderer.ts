@@ -43,6 +43,7 @@ import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
+import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
@@ -572,6 +573,23 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+      if (appId === "web" && skillId === "browse") {
+        const existing = mountedComponents.get(content);
+        if (existing) unmount(existing);
+        disposeEmbedTree(content, false);
+        content.innerHTML = "";
+        const component = mount(BrowseEmbedPreview, {
+          target: content,
+          props: {
+            id: attrs.contentRef?.replace("embed:", "") || "",
+            content: decodedContent ?? {},
+            status,
+            onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+          },
+        });
+        mountedComponents.set(content, component);
+        return;
       }
       if (appId === "hosting" && skillId === "search_domains") {
         const existingComponent = mountedComponents.get(content);

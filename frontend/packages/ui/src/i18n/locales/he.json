@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "חפשו מודעות דרושים ציבוריות בשוודיה באמצעות JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "קבלת תמלול",
         "description": {
-          "text": "קבלת התמלול של סרטון YouTube / media.ccc.de."
+          "text": "קבלו כתוביות שפורסמו להרצאות ב־media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "**קרא** את דף הוויקיפדיה על האימפריה הרומית ותן לי עובדות מרכזיות"
           }
+        }
+      },
+      "browse": {
+        "text": "גלישה",
+        "description": {
+          "text": "גלישה באתרים והחזרת מידע שנצפה בפורמט JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "אחסון אתרים",
       "description": {
-        "text": "מצא שמות דומיין ובדוק זמינות ומחירים."
+        "text": "חיפוש דומיינים אינו זמין כרגע."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "דואר",
       "description": {
-        "text": "שלח, נהל וכתוב הודעות אימייל."
+        "text": "כתבו טיוטות הודעות דוא״ל ועבדו עם דואר."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "סרטונים",
       "description": {
-        "text": "חפש סרטונים, קבל תמלולים ועוד."
+        "text": "מצאו וצרו סרטונים."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "נסיעות",
       "description": {
-        "text": "חפש מקומות לינה, דרכי הגעה ותכנן טיולים."
+        "text": "תכננו נסיעות ושמרו מידע שמור על נסיעות."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "חיפוש רכיבים אלקטרוניים אינו זמין כרגע."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "דיור",
       "description": {
-        "text": "חפש בית חדש ועוד."
+        "text": "שמרו מידע שמור על דיור."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "אירועים",
       "description": {
-        "text": "גלה מיטאפים, כנסים ואירועים מקומיים."
+        "text": "שמרו מידע שמור על אירועים."
       },
       "search": {
         "text": "חיפוש",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "צפו במודלים תלת־ממדיים שמורים."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "קניות",
       "description": {
-        "text": "השוואת מחירי סופרמרקטים ומציאת מבצעים."
+        "text": "חיפוש מוצרים אינו זמין כרגע."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "גלישה"
+      },
+      "running": {
+        "text": "גולש"
+      },
+      "user_control": {
+        "text": "השליטה אצלך"
+      },
+      "paused": {
+        "text": "מושהה"
+      },
+      "completed": {
+        "text": "הושלם"
+      },
+      "no_results": {
+        "text": "אין תוצאות"
+      },
+      "needs_user": {
+        "text": "נדרש קלט ממך"
+      },
+      "blocked": {
+        "text": "חסום"
+      },
+      "failed": {
+        "text": "נכשל"
+      },
+      "cancelled": {
+        "text": "בוטל"
+      },
+      "budget_exceeded": {
+        "text": "הגעת למגבלת ההוצאה"
+      },
+      "closed": {
+        "text": "הדפדפן נסגר"
+      },
+      "expired": {
+        "text": "פג תוקף ההפעלה"
+      },
+      "unavailable": {
+        "text": "הדפדפן לא זמין"
+      },
+      "watch": {
+        "text": "צפייה בדפדפן"
+      },
+      "take_control": {
+        "text": "קבלת שליטה"
+      },
+      "continue": {
+        "text": "לאפשר ל-AI להמשיך"
+      },
+      "pause": {
+        "text": "השהיה"
+      },
+      "close": {
+        "text": "סגירת הדפדפן"
+      },
+      "sign_in_title": {
+        "text": "לפני הכניסה לחשבון"
+      },
+      "sign_in_confirm": {
+        "text": "המשך לכניסה לחשבון"
+      },
+      "saved_frame": {
+        "text": "צילום דפדפן שמור"
+      },
+      "live_frame": {
+        "text": "דפדפן בזמן אמת"
+      },
+      "waiting_frame": {
+        "text": "בהמתנה לדפדפן…"
+      },
+      "text_input": {
+        "text": "טקסט לאתר"
+      },
+      "send_text": {
+        "text": "שליחת טקסט"
+      },
+      "scroll_up": {
+        "text": "גלילה למעלה"
+      },
+      "scroll_down": {
+        "text": "גלילה למטה"
+      },
+      "structured_data": {
+        "text": "נתונים מובנים"
+      },
+      "connection_error": {
+        "text": "החיבור נקטע. יש לרענן לפני פעולה נוספת."
+      },
+      "credits": {
+        "text": "{used} / {limit} קרדיטים"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "הכניסה מתבצעת בדפדפן בענן. כשמאפשרים ל-AI להמשיך, הוא יכול לגשת למידע בחשבון הזה. תוכן רלוונטי מהדף עשוי להישלח לספקי ה-AI שלנו. יש להיכנס רק לחשבונות שנוח לך לתת ל-AI גישה אליהם."
+      },
+      "manual_hint": {
+        "text": "אפשר ללחוץ בדף או לנווט עם Tab ו-Enter. הטקסט נשלח רק לאתר הזה ונמחק משדה הקלט לאחר השליחה."
+      },
+      "paused_hint": {
+        "text": "הדפדפן מושהה ואין עלות חישוב. יש לקבל שליטה כדי להמשיך. ההפעלה נמחקת אחרי 24 שעות ללא אינטראקציה."
+      },
+      "watch_hint": {
+        "text": "זו צפייה בלבד. יש לקבל שליטה כדי להשתמש באתר. צפייה לא שומרת על ההפעלה פעילה."
+      },
+      "stopping": {
+        "text": "בתהליך עצירה…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "השוואה בין תחומי האחריות היומיומיים ומסלולי הצמיחה של שני התפקידים"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "השוואת סירי טיגון באוויר חם בגרמניה"
-      },
-      "summary": {
-        "text": "השוואת סירי הטיגון המובילים באמזון גרמניה לפי מחיר, קיבולת ודירוגים, והמלצה על Philips Airfryer 2000 Series למשק בית של שני אנשים."
-      },
-      "message_1": {
-        "text": "מצא סירי טיגון באוויר חם שאפשר לקנות אונליין בגרמניה, כולל רישומים מאמזון. השווה מחירים עדכניים, קיבולות ודירוגי ביקורות, ולאחר מכן המלץ על אחד שמתאים למשק בית של שני אנשים עם קישורים למקורות."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nהנה השוואה של מכשירי הטיגון באוויר (air fryers) בעלי הדירוג הגבוה ביותר הזמינים כעת באמזון גרמניה, תוך השוואת מחיר, קיבולת ודירוגי לקוחות.\n\n---\n\n### השוואה בין דגמים פופולריים בגרמניה\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### המלצה מובילה למשק בית של 2 נפשות\n\n#### **בחירה עיקרית: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **למה הוא הכי מתאים לשני אנשים:**\n  * **קיבולת אופטימלית (6.2 ליטר):** סלסלות קטנות מ-4.5–5 ליטר דורשות בישול בכמה סבבים אפילו עבור שני אנשים. סלסלה של 6.2 ליטר מאפשרת להניח שני פילטים של סלמון ותוספת מלאה של ירקות או צ'יפס בשכבה אחת לקבלת פריכות אחידה.\n  * **שטח פנים במטבח:** מכשירים בעלי אזור כפול (כמו Ninja או Russell Hobbs) תופסים מקום משמעותי על השיש. סלסלה בודדת של 6 ליטר מספקת נפח רב תוך שמירה על שטח פנים קומפקטי המתאים למשטחי עבודה טיפוסיים במטבחים גרמניים.\n  * **חלון שקוף:** מאפשר לבדוק את מידת ההשחמה מבלי לפתוח את המגירה ולאבד חום.\n  * **ערך:** במחיר של €99.99, הוא מציע עקביות טמפרטורה אמינה מבית [Philips](wiki:Philips) במחיר סביר.\n\n#### **חלופה (אם אתם מבשלים לעיתים קרובות שתי מנות בטמפרטורות שונות): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nאם אתם ובני זוגכם מעדיפים להכין חלבונים ותוספות ירקות בו-זמנית בטמפרטורות וזמנים שונים (למשל, חזה עוף ב-180 מעלות צלזיוס וצ'יפס פריך ב-200 מעלות צלזיוס), דגם זה נמצא כעת בהנחה ל-€119.99 וכולל זמני בישול מסונכרנים.\n\n---\n\n### גורמים מרכזיים שיש לקחת בחשבון לפני הקנייה\n1. **צורת המגירה:** סלסלות מרובעות (כמו של Cosori ו-Philips) מתאימות לפריטים שטוחים (סטייקים, תבניות אפייה, שיפודים) הרבה יותר טוב מסלסלות עגולות בעלות קיבולת ליטר זהה.\n2. **מקום במדיח הכלים:** ודאו שבמדיח הכלים שלכם יש מספיק גובה במדף עבור מגירה בודדת של 6 ליטר, או שקלו לשטוף ידנית ציפויים מונעי הידבקות כדי להאריך את חייהם."
-      },
-      "follow_up_1": {
-        "text": "חיפוש מתכונים שתוכננו במיוחד עבור סירי טיגון באוויר חם (Air Fryers)"
-      },
-      "follow_up_2": {
-        "text": "הסבר על ההבדלים העיקריים בין סירי טיגון עם סלסילה אחת לסלסילה כפולה"
-      },
-      "follow_up_3": {
-        "text": "מציאת אביזרי אפייה תואמים לסיר טיגון זה"
-      },
-      "follow_up_4": {
-        "text": "רשימת מתכונים ידידותיים למתחילים להכנת ארוחת ערב בסיר טיגון באוויר חם"
-      },
-      "follow_up_5": {
-        "text": "בדיקת דירוגי צריכת האנרגיה הנוכחיים עבור דגמים אלו"
-      },
-      "follow_up_6": {
-        "text": "השוואת דרישות הניקוי והתחזוקה עבור ציפוי קרמי לעומת ציפוי טפלון"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "נקודות עיקריות וחקירה של משימת Artemis II"
@@ -8894,38 +8967,6 @@
         "text": "[code] צור תבנית דומה אבל עם אסתטיקת עיצוב שונה"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "שיעורי יוגה למתחילים בברלין"
-      },
-      "summary": {
-        "text": "מצא שלושה שיעורי יוגה למתחילים בברלין עם זמנים, מחירים וקישורים להזמנה."
-      },
-      "message_1": {
-        "text": "אני חדש ביוגה ומחפש שיעור למתחילים בברלין בשבוע הבא. תוכל למצוא כמה שיעורים עם זמנים, מחירים וקישורים להזמנה?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nהנה שיעורי [יוגה](wiki:Yoga) המתאימים למתחילים שיתקיימו ברחבי ברלין בשבוע הבא:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [יוגה לקרקוע](embed:yoga-for-grounding-TB2) (קרויצברג)\n- **מה זה:** שיעור קשוב המאזן בין תנועה מונחית נשימה לבין שהייה בתנוחות כדי לחקור יישור ושקט. תוכנן במיוחד כדי להיות נגיש למתחילים (מתקיים באנגלית).\n- **תאריך ושעה:** יום רביעי, 14 באוקטובר 2026, 18:00 – 19:00 CEST (הגיעו 10 דקות לפני)\n- **מיקום:** Art OM, Wrangelstraße 54, 10997 Berlin ([קרויצברג](wiki:Kreuzberg))\n- **מחיר:** €11.83 – €22.49\n- **הרשמה:** [הזמנת כרטיסים ב-ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [יוגה לניידות ובולדרינג אופציונלי](embed:mobility-yoga-optional-qv3) (פרידריכסהיין)\n- **מה זה:** מפגש יוגה וניידות לא רשמי ורגוע לכל הרמות, שבו הרצפים מוסברים צעד אחר צעד בקצב נינוח. אין צורך בגמישות או בניסיון קודם.\n- **תאריך ושעה:** יום שלישי, 13 באוקטובר 2026, 19:00 – 19:45 CEST (הגיעו 15 דקות מוקדם יותר)\n- **מיקום:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([פרידריכסהיין](wiki:Friedrichshain))\n- **מחיר:** €5 (כניסה חינם עם ExampleFitness / Wellpass אם אתם גם עושים בולדרינג)\n- **הרשמה:** [צפו בפרטים ובקישור להרשמה](embed:mobility-yoga-optional-qv3)\n\n### 3. [ויניאסה פלואו](embed:vinyasa-flow-in-a8l) (וודינג / מיטה)\n- **מה זה:** שיעור ויניאסה דינמי אך עדין המציע התאמות למתחילים, ומתמקד במודעות לנשימה, יישור הגוף ושחרור מתחים.\n- **תאריך ושעה:** יום רביעי, 14 באוקטובר, 2026, 19:30 – 21:00 CEST\n- **מיקום:** YOGA at Lobe Block UG, Böttgerstraße 16, ברלין (Gesundbrunnen / [מיטה](wiki:Mitte))\n- **מחיר:** €10 לשיעור ניסיון ראשון (חבילת התחלה: 3 שיעורים ב-€20)\n- **הרשמה:** [אישור הגעה (RSVP) דרך Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### טיפים לשיעור היוגה הראשון שלך\n* **לבוש:** בגדים נוחים ואלסטיים שניתן לזוז ולהתכופף בהם בקלות. יוגה מתרגלים בדרך כלל יחפים.\n* **שתייה וארוחות:** הימנעו מארוחות כבדות בטווח של 1.5–2 שעות לפני השיעור.\n* **הקשיבו לגוף שלכם:** עדכנו את המורה לפני השיעור שזו הפעם הראשונה שלכם; הם ישמחו להראות לכם התאמות ואביזרים (בלוקים, שמיכות או רצועות). אם יש לכם בעיות קודמות במפרקים או בגב, התייעצו עם רופא או פיזיותרפיסט לפני שתנסו רצפים דינמיים.\n\nהאם תרצה/י המלצות הקרובות יותר לשכונה ספציפית (למשל, נויקלן, פרנצלאואר ברג, שרלוטנבורג), או כאלו המתמקדות בסגנון עדין כמו [האטה יוגה](wiki:Hatha_yoga) או [יין יוגה](wiki:Yin_yoga)?\n---\n*⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ רפואי. יש להתייעץ עם רופא לצורך קבלת החלטות רפואיות.*"
-      },
-      "follow_up_1": {
-        "text": "חיפוש שיעורי יוגה בנויקלן, ברלין"
-      },
-      "follow_up_2": {
-        "text": "הסבר למה לצפות בשיעור היוגה הראשון"
-      },
-      "follow_up_3": {
-        "text": "מציאת סדנאות האטה יוגה בסוף השבוע הקרוב"
-      },
-      "follow_up_4": {
-        "text": "השוואה בין סגנונות ויניאסה והאטה יוגה"
-      },
-      "follow_up_5": {
-        "text": "חיפוש סטודיו ליין יוגה במיטה (Mitte)"
-      },
-      "follow_up_6": {
-        "text": "טיפים למתחילים לקניית מזרן יוגה"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "מצא רופא משפחה דובר אנגלית בברלין"
-      },
-      "summary": {
-        "text": "מצא אפשרויות לתורים עם פרטי ביטוח אמינים וקישורים למרפאות."
-      },
-      "message_1": {
-        "text": "אני צריך תור לרופא משפחה דובר אנגלית בברלין בשבוע הבא. אנא השווה בין האפשרויות המוקדמות ביותר, הצג את כרטיסי התור שלהן, וציין את הכיסוי הביטוחי רק כאשר רישום ההזמנה מאשר זאת. אם הכיסוי אינו ברור, ציין זאת."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```הנה האפשרויות המוקדמות ביותר שמצאתי לרופאי משפחה דוברי אנגלית בברלין ב-7 הימים הקרובים. אני מציין כיסוי ביטוחי רק במקומות שבהם דף ההזמנה עצמו מציין זאת.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**האפשרויות המוקדמות ביותר בשבוע הבא**\n1. **יום ב', 12 באוקטובר, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - כתובת: Albert-Einstein-Straße 2, 12489 Berlin\n   - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)\n   - שפות מוצגות: גרמנית, אנגלית\n   - **ביטוח:** פרטי *(מאושר לפי דף ההזמנה)*\n\n2. **יום ב', 12 באוקטובר, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - כתובת: Kapweg 5, 13405 Berlin\n   - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)\n   - שפות מוצגות: אנגלית\n   - **ביטוח:** פרטי *(מאושר לפי דף ההזמנה)*\n\n3. **יום ב', 12 באוקטובר, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - כתובת: Stargarder Straße 69, 10437 Berlin\n   - סוג ביקור: שעות קבלה למקרים דחופים (Akutsprechstunde)\n   - שפות מוצגות: גרמנית, אנגלית\n   - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*\n\n4. **יום ב', 12 באוקטובר, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - כתובת: Müllerstraße 36, 13353 Berlin\n   - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)\n   - שפות מוצגות: גרמנית, אנגלית\n   - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*\n\n5. **יום ב', 12 באוקטובר, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - כתובת: Wallstraße 16, 10179 Berlin\n   - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)\n   - שפות מוצגות: גרמנית, אנגלית\n   - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*\n\nכמה הערות:\n- השמטתי מההשוואה למעלה את שתי האפשרויות המוקדמות יותר ב-**9–10 באוקטובר**, כי ביקשת ספציפית את **שבוע הבא**.\n- נראה שהתוצאות האלו מגיעות מהרישומים של ExampleClinicA; לא הייתה תמיכה בתוצאות מ-ExampleClinicB במערך תוצאות החיפוש הזה.```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```אם תרצה/י, אני יכול בשלב הבא:\n- לצמצם את זה ל**ביטוח ציבורי בלבד** היכן שזה מאושר, או\n- ליצור רשימה קצרה לפי **רובע / מרחק מהאזור שלך**.\n---\n*⚠️ מידע זה נועד למטרות לימודיות בלבד ואינו מהווה ייעוץ רפואי. יש להתייעץ עם הרופא שלכם לצורך קבלת החלטות רפואיות.*"
-      },
-      "follow_up_1": {
-        "text": "חיפוש תורים לרופא משפחה עם ביטוח ציבורי במיטה (Mitte)"
-      },
-      "follow_up_2": {
-        "text": "סינון התורים להצגת ביטוח ציבורי בלבד"
-      },
-      "follow_up_3": {
-        "text": "מציאת רופאים דוברי אנגלית ליד רובע פרנצלאואר ברג (Prenzlauer Berg)"
-      },
-      "follow_up_4": {
-        "text": "צמצום האפשרויות לפי שכונה ומרחק"
-      },
-      "follow_up_5": {
-        "text": "חיפוש תורים לרופאים מומחים בברלין"
-      },
-      "follow_up_6": {
-        "text": "הסבר איך להזמין את התורים האלה לרופא באינטרנט"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "השוואה בין הביולוגיה החייזרית של הגת'נים והאונקאלי"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "הסבר כיצד לבצע אופטימיזציה לקובצי SVG עבור ביצועי אינטרנט"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "מציאת שם מותג ודומיין"
-      },
-      "summary": {
-        "text": "שיחת מיתוג תמציתית: סיעור מוחות לשבעה מועמדים, ולאחר מכן השוואה בין שני פיינליסטים עם נתונים על דומיין, נוכחות ברשת ומידע ראשוני על סימני מסחר בארה\"ב."
-      },
-      "message_1": {
-        "text": "עזור לי למצוא שם למוצר החדש שלי."
-      },
-      "message_2": {
-        "text": "כדי להתחיל, מה המוצר עושה, מי קהל היעד שלו, ואיזה טון או תחושה השם צריך לשדר (למשל: משעשע, יוקרתי, טכני)?"
-      },
-      "message_3": {
-        "text": "זו אפליקציית ניהול תקציב רגועה לפרילנסרים בארה\"ב, באנגלית. אני רוצה שמות קצרים וזכירים ודומיין .com בעלות של עד 20 אירו לשנה. אשמח לסיעור מוחות לרשימה ראשונית מגוונת."
-      },
-      "message_4": {
-        "text": "הנה רשימה ראשונית של שמות מגוונים וקליטים, המותאמים לחוויית ניהול תקציב רגועה לפרילנסרים:\n\n- [ ] **Serenito**: מעורר תחושת שלווה וקצב נינוח עבור הכנסה משתנה של עצמאיים.\n- [ ] **Solowell**: מרמז על רווחה כלכלית ושקט נפשי ליזמי סולו.\n- [ ] **Equafy**: מתמקד באיזון מחזורי תזרים מזומנים לא סדירים.\n- [ ] **StillLedger**: משלב מבנה חשבונאי קלאסי עם שלווה מודעת ונטולת מתח.\n- [ ] **Cadenceo**: מרמז על יצירת קצב יציב וצפוי מתשלומים מזדמנים.\n- [ ] **HavenFin**: מציג ניהול כספים כנמל מבטחים מרגיע.\n- [ ] **Placidly**: טון רך ומרגיע שמפיג חרדה כלכלית.\n\n*(הערה: רשימה זו לא נבדקה לזמינות דומיינים בזמן אמת או לאישור משפטי.)*\n\nעל אילו 2–3 שמות תרצה להריץ בדיקות חיות? תוכל לבחור את המועדפים עליך או לבקש ממני לבחור פיינליסטים כדי לבדוק מחירי .com, התנגשויות מותג וסימני מסחר בארה\"ב.\n\n- [בדוק את Serenito, Solowell ו-Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [בחר עבורי את 3 השמות הטובים ביותר ובדוק אותם](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "אנא בדוק את Equafy ו-Cadenceo: זמינות .com ומחירים, מותגים קיימים ברשת וסימני מסחר בארה\"ב. שמור על השוואה תמציתית, כולל ההמלצה שלך ובדיקות שעדיין חסרות."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nלהלן ההשוואה המבוססת על בדיקות שנערכו ב-12 באוקטובר 2026:\n\n### Equafy\n- **דומיין**: `equafy.com` אינו זמין כרגע ב-ExampleRegistrar; אין מחיר רישום סטנדרטי זמין, ולכן הוא אינו עומד בתקציב של €20 לשנה.\n- **נוף המותגים והאינטרנט**: אין תוכנת תקציב בולטת המשתמשת בשם המדויק הזה, אך חיפושים באינטרנט מראים דמיון פונטי גבוה ובלבול בחיפוש עם [שירותי הפיננסים האישיים של Equifax](embed:equifax.com-TrW).\n- **סימנים מסחריים בארה\"ב (ExampleTrademarks)**: חיפוש ראשוני החזיר 5 מתוך 1,640 רשומות דומות (חלקי; לא ניתן לקבוע היעדר שם מדויק). התאמות פעילות כוללות את `EQUIFY` בסיווג 36 (שירותים פיננסיים ושירותי ערך צבור בהמתנה) ובסיווג 35 (שירותי מכירות פומביות רשומים).\n\n### Cadenceo\n- **דומיין**: `cadenceo.com` אינו זמין כרגע ב-ExampleRegistrar; אין מחיר רישום סטנדרטי זמין, מה שמהווה חריגה מהתקציב של €20 לשנה.\n- **נוף המותגים והאינטרנט**: חפיפה ישירה עם [Cadence Money](embed:cadencemoney.com-IcE), אפליקציה מבוססת לניהול פיננסים אישיים ומעקב אחר תקציב הפועלת בארה\"ב ובקנדה ב-iOS, אנדרואיד ובאינטרנט.\n- **סימנים מסחריים בארה\"ב (ExampleTrademarks)**: חיפוש ראשוני החזיר 5 מתוך 227 רשומות דומות (חלקי; לא ניתן לקבוע היעדר שם מדויק). התאמות פעילות עבור `CADENCE` כוללות רשומות של תוכנות להורדה בסיווג 9.\n\n---\n\n### המלצה ופשרות\n- **כיוון**: לוותר על שניהם. בעוד של-**Equafy** יש פחות קונפליקטים ישירים עם אפליקציות מאשר ל-**Cadenceo** (שמתנגש ישירות עם *Cadence Money*), אף אחד מהם לא מציע דומיין `.com` פנוי במסגרת מגבלת ה-€20 לשנה שלך, ו-Equafy נושא בלבול פונטי עם סימנים פיננסיים קיימים כמו *Equify* ו-*Equifax*.\n- **בדיקות חסרות**: לא נבדקו מרשמי סימנים מסחריים בינלאומיים מחוץ לארה\"ב, רישומי סימנים מסחריים של מדינות לפי המשפט המקובל (common-law), והערכות שווי לרכישת דומיינים בשוק המשני.\n\nהאם תרצה לבדוק זמינות דומיינים ואישור על אפשרויות אחרות מהרשימה (כגון **Solowell** או **StillLedger**), או לחקור וריאציות מורכבות קלות כדי למצוא דומיין `.com` פנוי במסגרת התקציב?\n\n- [בדוק את Solowell ו-StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [סיעור מוחות לשמות מורכבים עם דומיינים .com פנויים מתחת ל-€20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "בדיקת זמינות דומיין וסימנים מסחריים עבור Solowell ו-StillLedger"
-      },
-      "follow_up_2": {
-        "text": "סיעור מוחות לשמות מורכבים עם דומיינים פנויים בסיומת com. בפחות מעשרים אירו"
-      },
-      "follow_up_3": {
-        "text": "חיפוש ברישומי סימנים מסחריים עבור רעיונות לשמות לאפליקציית תקציב חדשה"
-      },
-      "follow_up_4": {
-        "text": "השוואת אסטרטגיות מיתוג ומתן שמות לאפליקציות של יזמים בודדים (Solo Entrepreneurs)"
-      },
-      "follow_up_5": {
-        "text": "חיפוש סיומות דומיין זמינות עבור אפליקציות פיננסים לפרילנסרים"
-      },
-      "follow_up_6": {
-        "text": "רשימת רשמי דומיינים חלופיים עבור דומיינים משתלמים לסטארט-אפים"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "טיסות מברלין לבנגקוק"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] המלץ על לינה ידידותית לתקציב בבנגקוק"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "דירות בברלין עם מרפסות"
-      },
-      "summary": {
-        "text": "השוואת מודעות אמיתיות לדירות בברלין, גלריות תמונות מלאות, הוכחות לקיום מרפסת ומיקומים על המפה, עם סימון ברור של עלויות לא מאושרות וגישה למים."
-      },
-      "message_1": {
-        "text": "אני מחפש דירה להשכרה בברלין עם מרפסת, רצוי ליד נהר או אגם, עד 1,800 אירו לחודש ולפחות שני חדרים. האם תוכל להשוות בין כמה מודעות עם גלריות התמונות והמיקומים שלהן על המפה? אנא הבחן בין מה שהמודעות מאשרות בפועל לבין מה שלא ידוע, כולל שכר דירה, תאריכי שכירות וגישה למים. אם ספק נותן רק מיקום משוער או תמונות חלקיות, ציין זאת. אפשרויות המסומנות בבירור יתקבלו בברכה כאשר חלק מהפרטים חסרים."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nלהלן פירוט השוואתי של דירות 2 חדרים להשכרה בברלין בפחות מ-1,800 אירו לחודש עם עדות למרפסת וקרבה או טענות למקור מים סמוך, תוך הדגשת עובדות מאומתות לעומת אי-בהירויות:\n\nדירות 2 חדרים להשכרה בברלין עם מרפסות\n\n---\n\n### השוואה תמציתית\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### פרופיל מפורט של המודעות\n\n#### 1. [דירת לופט 2 חדרים עם מרפסת, ליד ה-Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **שכירות ועלויות**: שכר הדירה הכולל (Warm rent) מצוין במפורש כ-**1,350 אירו לחודש**, המורכב משכירות בסיס (Cold rent) של 1,200 אירו ו-150 אירו עלויות נוספות לא מפורטות. הכללת עלויות החימום אינה מפורטת במפורש. הפיקדון הוא 2,000 אירו.\n* **תנאי שכירות**: סאב-לט לתקופה קצובה. הנתונים המובנים מציינים את התקופה שבין 01.11.2026 ל-01.04.2027, אך תיאור המודעה מבהיר כי התקופה הקצובה המובטחת היא **מ-1 בנובמבר עד 28 בדצמבר 2026**, עם אפשרות להארכות חודשיות גמישות עד 1 באפריל 2027 בכפוף להסכמה הדדית.\n* **עדות למרפסת**: מאומת. מופיע במפורש במאפיינים ובטקסט (\"מרפסת שמש עם נוף ל-Fennpfuhlpark\"). הערכה חזותית של 3 מתוך 14 התמונות בגלריה אישרה מרפסת גלויה בתמונה מספר 0.\n* **גישה למים ומיקום**: ממוקמת ב-Anton-Saefkow-Platz בליכטנברג (Lichtenberg). המיקום הגיאוגרפי (Geocoding) הותאם ברמת הרחוב (ללא מספר בניין ספציפי). נתוני OpenStreetMap מאשרים מקור מים (**Fennpfuhl**, אגם בפארק), אך רק כנקודת ציון מייצגת; המרחק המדויק לקו המים וזמן ההליכה ברגל לא חושבו ולכן אינם מאומתים.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **שכירות ועלויות**: מפורסמת במחיר גלובלי של **1,800 אירו לחודש** הכל-כלול (גם שכירות הבסיס וגם השכירות הכוללת הוזנו כ-1,800 אירו). תשלומי ועד בית, עלויות חימום וחשמל אינם מפורטים. הפיקדון הוא 1,000 אירו.\n* **תנאי שכירות וסתירות בהיקף**:\n  * *סתירה בתאריכים*: השדות המובנים מראים זמינות מ-21.10.2026 עד 03.05.2027. עם זאת, הטקסט בגרמנית מציין במפורש זמינות החל מה-11 בנובמבר למשך חודשיים, בעוד שהתרגום לאנגלית בהמשך המודעה מציין \"מ-6 בנובמבר, 4–6 חודשים\".\n  * *הגבלת חדרים*: המודעה מציינת כי חדר פנימי של בעל הבית (*Sperrraum*) נשאר נעול ואינו כלול בשכירות, אם כי השטח הנגיש הנותר מתואר כשני חדרים על פני 85 מ\"ר.\n* **עדות למרפסת**: מאומת. מפורסמת עם שתי מרפסות (אחת פונה לחצר, אחת פונה למים). דגימת תמונות (3 מתוך 15) אישרה מרפסות בתמונות 0 ו-14.\n* **גישה למים ומיקום**: הכתובת רשומה כ-Maybachufer ב-[Neukölln](wiki:Neukölln). המיקום הגיאוגרפי החזיר תוצאה מעורפלת וחזר לקואורדינטות כלליות של העיר ברלין. למרות שטקסט המודעה טוען במפורש לנוף ישיר ל-[Landwehr Canal](wiki:Landwehr_Canal), לא ניתן היה לאמת גיאומטרית את המרחק מהשכונה ומסלולי ההליכה בשל היעדר קואורדינטות מדויקות.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **שכירות ועלויות**: שכר הדירה הכולל (Warm rent) רשום החל מ-**1,372 אירו לחודש**, עם פירוט של 130 אירו עלויות תפעול ו-105 אירו עלויות חימום. שכירות הבסיס (Cold rent) הושמטה, והתיאור מציין כי מדובר בשכירות מינימום התחלתית למבצע. על השוכר להתקשר עצמאית מול חברת החשמל.\n* **תנאי שכירות**: מפורסם על ידי מפעיל מסחרי עבור רובע מגורים חדש (*Erstbezug* 2026). נדרשת **תקופת שכירות מינימלית של 12 חודשים** (*Mindestmietdauer*). תאריכי ההתחלה פתוחים (סיורים מתקיימים מדי ימי רביעי/חמישי).\n* **עדות למרפסת**: מאומת במפרט התיאור (\"einen Balkon\") ובמאפיינים המפורסמים. דגימה חזותית של 3 מתוך 27 תמונות אישרה מבנה מרפסת חיצוני בתמונה מספר 26.\n* **גישה למים ומיקום**: ממוקמת ב-Buschkrugallee 64 ב-Neukölln/[Britz](wiki:Britz). המיקום מבוסס על קואורדינטות שסיפק המפרסם ללא אימות רחוב עצמאי. התיאור מציין שהמתחם גובל בתעלה (Neukölln Ship Canal), אך המרחק המדויק לקו המים ונקודות הגישה להליכה לא חושבו גיאומטרית.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **שכירות ועלויות**: שכר הדירה הכולל (Warm rent) מפורסם ב-**980 אירו לחודש**. התיאור מזכיר \"Nebenkosten: 270 € pro Monat\", אך לא ברור אם סכום זה כבר כלול ב-980 אירו או נגבה בנוסף. הפיקדון הוא 1,500 אירו.\n* **אי-בהירות קריטית: דירה שלמה לעומת חדר**: הכותרת מציינת \"2-Zimmer Wohnung... zur Untermiete\" (דירת 2 חדרים לסאב-לט), אך הטקסט מתחיל ב: *\"אנחנו משכירים את החדר היפה, השקט והמרוהט שלנו עם מרפסת...\"*. לא ברור אם כל הדירה בת 2 החדרים (50 מ\"ר) מושכרת בסאב-לט או רק חדר בודד בתוכה.\n* **עדות למרפסת**: לא מאומת חזותית. למרות שהיא מפורסמת כבעלת מרפסת בכותרת ובטקסט, המפרסם סיפק רק תמונה אחת, ולא נראית בה מרפסת.\n* **גישה למים ומיקום**: ממוקמת ב-14057 [Charlottenburg](wiki:Charlottenburg). המפרסם לא ציין שם רחוב או מספר בית (דיוק ברמת מיקוד בלבד). התיאור מציין קרבת הליכה ל-Lietzenseepark (הכולל את אגם Lietzensee), אך לא ניתן לחשב זמן מסלול מדויק ומרחק לקו המים ללא כתובת רחוב.\n* **תנאי שכירות**: סאב-לט לתקופה קצובה מ-01.11.2026 עד לכל המאוחר 01.11.2027 (ניתן למשא ומתן על תקופות קצרות יותר).\n\n---\n\n### נקודות מרכזיות לפני פנייה למפרסמים\n1. **אימות קרבה למים**: רק הדירה ב-Maybachufer משקיפה במפורש על נתיב מים פתוח מהדירה עצמה, אך המיקום הגיאוגרפי שלה משוער והתאריכים סותרים. לדירה ב-Anton-Saefkow-Platz יש קרבה מאומתת לפארק עם אגם (Fennpfuhl), אם כי המרחק המדויק לקו המים לא נמדד.\n2. **סוגי חוזים**: אף אחת מהמודעות ב-ExampleHousingC אינה מציעה חוזה ללא הגבלת זמן (*unbefristet*); כולן סאב-לט לתקופה קצובה. Momento Berlin מציעה שכירות לטווח ארוך יותר המתחילה במינימום של 12 חודשים.\n3. **מגבלות דגימת התמונות**: ההערכה החזותית בחנה מדגם מוגבל של 1 עד 3 תמונות לכל מודעה. מאפיינים נוספים עשויים להופיע בגלריות המלאות הנגישות דרך כרטיסיית המודעה.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**הגדרת פרמטרים לחיפוש דירה**\n\nאני מתמקד כעת בהגדרת פרמטרי החיפוש המדויקים להשכרות בברלין. הגדרתי את ברלין כעיר, והגבלתי את סוג המודעה ל\"השכרה\" ואת סוג הנכס ל\"דירה\". מרפסת היא דרישה מחייבת, ואני אוודא שהיא נכללת בקריטריוני החיפוש.\n\n\n**דיוק קריטריוני החיפוש**\n\nדייקתי כעת את פרמטרי החיפוש עוד יותר. תרגמתי את \"באופן אידיאלי ליד נהר או אגם\" להעדפה לקרבה למים, תחת הקטגוריה \"neighborhood_categories: ['water']\". התקציב של \"עד 1,800 אירו לחודש\" מוגדר כעת כ-`max_warm_rent_eur: 1800`, בהנחה שמדובר בשכר דירה כולל (warm rent). בנוסף, מכיוון שנאמר לי ש\"אפשרויות המסומנות בבירור יתקבלו בברכה כאשר חסרים פרטים מסוימים\", אכלול כעת במפורש מודעות לא מאומתות עם `include_unconfirmed: true`.\n\n\n**ניתוח דרישות החיפוש**\n\nאני מנתח כעת בקפידה את ההנחיות של כלי חיפוש הדירות הזה. אני מתמקד בדרך הטובה ביותר לתרגם את ההעדפות שלי למסננים מובנים נכונים ול-`relevance_criteria`. עלי לוודא שהדרישות שלי לקרבה למים, הוכחה לקיום מרפסת ומגבלות תקציב מקודדות כראוי. אני גם מוודא שאני מבחין בין מה ש\"נדרש\", \"מוחרג\" ו\"מועדף\" בחיפוש שלי.\n\n\n**הערכת שלמות נתוני המודעות**\n\nאני מודאג כעת עמוקות משלמות הנתונים. עלי להימנע מהצהרות יתר על ראיות חזותיות ולציין מגבלות של כל ספק. קרבה למים חייבת להיות מבוססת היטב על ראיות, ולדווח כ\"לא מאומת\" כאשר העשרת הנתונים אינה זמינה או שהזמן הקצוב פג. חייב להיות ברור שמרפסת גלויה אינה מבטיחה שהיא שייכת לדירה, ואני יכול לדווח על פרטי חוזה השכירות רק כאשר הם מצוינים במפורש.\n\n\n**ניתוח נתוני המודעות**\n\nאני שקוע כעת במודעות שהתקבלו, ומצליב אותן בקפידה מול הכללים שסופקו. המיקוד שלי הוא בהפרדה ברורה בין נקודות נתונים מאושרות לבין אי-ודאויות. אני מקדיש תשומת לב רבה לפרטים כמו שכר דירה, תאריכי שכירות וגישה למים, ומסמן כל עמימות. המטרה היא דיוק מרבי.\n\n\n**הבהרת קריטריוני קרבה**\n\nאני משלב כעת את דרישות הקרבה המורכבות. אני מתעד בקפידה כל מגבלה בראיות. אני מתמקד בהפרדה שקופה בין טענות מאומתות למידע לא מאומת. אני נותן עדיפות לדיוק בתיעוד שלי. אני מבהיר מה מהווה גישה מאומתת למים ומה לא. אני מדגיש את הצורך בסימון מפורש של נתונים לא ודאיים.\n\n\n**דיוק כללי העמימות**\n\nאני מתמקד כעת בדיוק הכללים סביב נקודות נתונים לא ודאיות. אם אין אזכור של מקור מים, אדווח על כך כלא ידוע; לא אסיק קרבה באופן עצמאי. אפריד בין נראות של מרפסת בתמונה לבין אישור בטקסט. תנאי שכירות מדווחים במפורש רק כאשר הם מצוינים. סתירות בתאריכים ובפירוט שכר הדירה מקבלות עדיפות. אשתמש בכרטיסי תצוגה מקדימה מוטמעים כתצוגה.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**פירוש פורמט התוצאות**\n\nאני מתמקד כעת במבנה של תגובת ה-\"embeds_results_view\". שמתי לב להיעדר \"source_ref\", מה שמשפיע על השימוש הנכון ב-\"sources\" או ב-\"embeds\". אקפיד להשתמש בשדה \"embeds\" כאשר אין source_ref זמין, תוך התייחסות ספציפית לערכי ה-embed_ref הצאצאים שהוחזרו. כמו כן, אשים לב לשדה ה-\"title\" כאלמנט תיאורי.\n\n\n**בחינת פרטי המודעות**\n\nאני בוחן כעת מקרוב מודעות בודדות, ובמיוחד מתמקד ב\"דירת לופט בת 2 חדרים עם מרפסת, ליד ה-Ringbahn\". אני מצליב את המודעה הזו עם נתוני ההטמעה. אני מציין את הקרבה הלא מאומתת למים עקב מרחקים וגישה לא ידועים, למרות שמוזכר נוף לאגם. המיקוד שלי הוא בציון ברור של מה שמאומת לעומת מה שלא מאומת. אני מתעד בקפידה את כל אי-הוודאויות.\n\n\n**הערכת פרטי המודעות**\n\nסיימתי כעת להעריך מודעה נוספת. אישרתי נראות של מרפסת באמצעות ניתוח תמונות. תקופת השכירות מציעה תקופה קבועה ולאחריה הארכות גמישות, אותן תיעדתי. אני מתמקד בפרטים הספציפיים. כעת, אני פועל להבנה מלאה של כל המידע הרלוונטי במודעה.\n```\n```\n\n**פירוט מאפיינים ספציפיים**\n\nאני מפרט כעת את המודעה הספציפית הזו. המיקום הגיאוגרפי של הרחוב מעורפל; אני מציין שזה משפיע על אימות הקרבה למים. לא ניתן לאמת גיאומטרית את הטענה בטקסט לנוף ל-Landwehrkanal. אני מאשר נוכחות מרפסת באמצעות בדיקות טקסטואליות וחזותיות. אני מסמן במפורש את הסתירה בתאריך השכירות בין הנתונים המובנים לטקסט התיאורי.\n\n\n**הערכת נתוני המודעות**\n\nאני צולל כעת למודעה האחרונה. סימנתי את שכר הדירה הבסיסי (cold rent) החסר ואת פירוט שכר הדירה הלא מדויק. שכר הדירה המפורסם הוא נקודת התחלה, ולכן ציינתי שמינימום שכר הדירה אינו ידוע. טווח גדלי הדירות בפרויקט דורש הבהרה, שכן גודל הדירה במודעה נופל בתוך הטווח הזה. סימנתי את הקרבה הלא ודאית לתעלה עקב דיוק מיקום לא מאומת.\n\n\n**פירוש פרטי השכירות**\n\nאני מתמקד כעת במידע על השכירות ובאימות המרפסת במודעה האחרונה. אישרתי נראות של מרפסת באמצעות טקסט ודגימת תמונות. ציינתי תקופת שכירות מינימלית של 12 חודשים והיעדר תאריכי סיום ברורים בנתונים. המודעה היא לחדר מרוהט עם מרפסת, אך הכותרת אומרת דירת 2 חדרים, ולכן אני בודק את העמימות הפוטנציאלית בין חדר לדירה. אני מקדיש תשומת לב רבה לכל הפרטים.\n\n\n**ניתוח פרטי המודעות**\n\nאני מנתח כעת בקפידה מודעה חדשה, המציינת חדר מרוהט עם מרפסת. הביטוי \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" מוסיף עמימות קריטית; בתמונה היחידה של המודעה חסר אישור למרפסת, מה שסימנתי. הכתובת, ברמת הרובע, הופכת את הקרבה למים למעורפלת. השכירות נמשכת מה-1 בנובמבר 2026 ועד ה-1 בנובמבר 2027.\n\n\n**השוואת אזכורי מים**\n\nאני משווה כעת בין מודעות המזכירות מאפייני מים כמו Maybachufer ואחרים כדי להבחין בדיוק הטענות שלהן ובכל הבחנה מהותית בנתונים. אני סוקר את הראיות והכיסוי שלהן. אני מתמקד בפרטים המדויקים שביקש המשתמש. אסמן כל אי-ודאות ומגבלה בנתונים.\n\n\n**אימות פירוט שכר הדירה**\n\nאני מתמקד כעת באי-התאמות בנתוני שכר הדירה. אני נותן עדיפות ליישוב נתונים סותרים, דיווח על עלויות לא מפורטות וציון מפורש של הכללת חימום לא ידועה. כמו כן, אני בוחן הפניות מוטמעות בגוף הטקסט כדי לוודא שטקסט התצוגה לעולם אינו ה-embed_ref. יתרה מכך, אשתמש רק בכרטיסים גדולים או קטנים עבור הפניות מוטמעות, בהתבסס על התחביר. לבסוף, אוסיף הודעת המשך מוצעת בסוף עדכון זה."
-      },
-      "message_3": {
-        "text": "אני הכי מתעניין בלופט ובדירה במייבאכופר. על סמך המודעות השמורות, האם שכר הדירה בסך 1,800 אירו הוא באמת \"הכל כלול\", או שיש חשבונות שעדיין אינם ידועים? כמו כן, האם תוכל להבהיר כמה תמונות החיפוש החזיר לעומת כמה נבדקו בפועל, ואילו פרטים לגבי המרפסת והמים נתמכים ישירות על ידי המודעות? אני מעדיף להשאיר פרטים לא מאומתים מסומנים כ\"לא ידוע\"."
-      },
-      "message_4": {
-        "text": "להלן פירוט מדויק של מה שנתוני המודעה מאשרים בפועל לעומת מה שנותר לא מאומת או לא ידוע עבור ה**דירה ב-Maybachufer** וה**לופט ב-Anton-Saefkow-Platz**.\n\n---\n\n### 1. שכר הדירה ב-Maybachufer: האם 1,800 אירו הם באמת \"הכל כלול\"?\n\n* **מה שהמודעה מציינת**: גם שכר הדירה הבסיסי (*Kaltmiete*) וגם שכר הדירה הכולל (*Warmmiete*) הוזנו כסכום קבוע של **1,800 אירו**. הפיקדון נקבע על 1,000 אירו.\n* **מה שנותר לא ידוע**:\n  * **פירוט חשבונות**: המודעה **אינה מספקת פירוט עלויות** עבור הוצאות תפעול (*Betriebskosten/Nebenkosten*) או חימום (*Heizkosten*).\n  * **חשמל ואינטרנט**: המארח אינו מאשר במפורש בשדות המובנים האם חשמל ביתי (*Haushaltsstrom*) או Wi-Fi כלולים ב-1,800 אירו או האם חלות מגבלות שימוש.\n  * **אגרת שידור**: לא מצוין האם אגרת השידור הגרמנית המנדטורית (*Rundfunkbeitrag*) כלולה או שיש להירשם אליה בנפרד.\n* **סיכום**: למרות שהדירה משווקת בסכום חודשי גלובלי האופייני לסאב-לט מרוהט לטווח קצר, **לא ניתן לאמת שהיא אכן \"הכל כלול\"** עד שהמארח יספק פירוט בכתב המאשר את כיסוי החשמל, חריגות בחימום ואינטרנט.\n\n---\n\n### 2. היקף גלריית התמונות: מה שהתקבל לעומת מה שנבדק\n\nכלי החיפוש אחזר מטא-דאטה של המודעות עם ספירת תמונות מלאה, אך הניתוח הוויזואלי האוטומטי בדק רק מדגם ממוקד של תמונות לכל מודעה כדי לזהות מאפיינים עיקריים:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*הערה: ניתן לפתוח את כרטיסי המודעות ישירות כדי לעיין ידנית בכל 14–15 התמונות ברזולוציה גבוהה.*\n\n---\n\n### 3. פרטי מרפסת וקרבה למים: מאומת לעומת לא ידוע\n\n#### הדירה ב-Maybachufer\n* **מרפסת**:\n  * *מאומת לפי טקסט המודעה*: כוללת **שתי מרפסות** — אחת פונה לחצר הפנימית (*Innenhof*) ואחת פונה לתעלה/לרחוב.\n  * *מאומת לפי בדיקת תמונות*: מבני מרפסת נראים לעין אומתו בתמונות מספר 0 ו-14 שנבדקו.\n  * *לא ידוע*: מידות מדויקות של המרפסות, כיווני אוויר/שעות חשיפה לשמש, והאם מסופק ריהוט חוץ.\n* **גישה למים**:\n  * *מאומת לפי טקסט המודעה*: ממוקמת ישירות על Maybachufer לאורך [תעלת לנדווהר](wiki:Landwehr_Canal) ב[נויקלן](wiki:Neukölln). התיאור מציין במפורש נוף למים.\n  * *לא ידוע / לא מאומת על ידי הכלי*: מערכת המיקום (geocoding) סימנה את כתובת הרחוב כמעורפלת והגדירה כברירת מחדל נקודת מרכז כללית בברלין במקום מיקום מדויק. כתוצאה מכך, לא ניתן היה למדוד באופן עצמאי את המרחק המדויק של הדירה למעברי חצייה להולכי רגל מעל התעלה או לגישה למזח.\n\n#### הלופט ב-Anton-Saefkow-Platz\n* **מרפסת**:\n  * *מאומת לפי טקסט המודעה*: מפרסם במפורש \"מרפסת שטופת שמש עם נוף לפארק פנפול\" (Fennpfuhlpark).\n  * *מאומת לפי בדיקת תמונות*: מבנה מרפסת אומת בתמונה מספר 0 שנבדקה.\n  * *לא ידוע*: שטח המרפסת וקומה מדויקת (המודעה מציינת סגנון לופט בקומות העליונות, אך לא את הקומה המדויקת).\n* **גישה למים**:\n  * *מאומת לפי טקסט המודעה ו-OpenStreetMap*: ממוקם ב-Anton-Saefkow-Platz בליכטנברג, בסמוך לפארק פנפול, המכיל את ה-**Fennpfuhl** (אגם היסטורי).\n  * *לא ידוע / לא מאומת על ידי הכלי*: המודעה **אינה** שוכנת ישירות על גדת נהר או תעלה; מקור המים הוא אגם בתוך פארק. יתרה מכך, בעוד שהפארק עצמו נמצא מעבר לרחוב, זמן ההליכה המדויק לקו המים והשאלה האם המים נראים ישירות מהמרפסת מעל צמרות העצים נותרו ללא אימות.\n\n---\n\n### שאלות שכדאי לשאול את המארחים לפני הביקור\n\n1. **עבור Maybachufer**:\n   * *\"האם המחיר החודשי הקבוע של 1,800 אירו מכסה חימום, חשמל ואינטרנט במלואם, או שישנו הסדר חשבונות נפרד (*Nebenkostenabrechnung*) בסוף השהות?\"*\n   * *\"האם תוכלו לאשר את תאריכי הסאב-לט המדויקים (הסיכום אומר חודשיים, אך התיאור באנגלית מציין 4–6 חודשים)?\"*\n2. **עבור הלופט**:\n   * *\"האם התשלום הנוסף של 150 אירו הוא סכום קבוע (*Pauschale*) הכולל חימום ואינטרנט, או שמדובר בתשלום מקדמה (*Vorauszahlung*)?\"*\n   * *\"האם מובטחת בחוזה אפשרות להארכה מעבר ל-28 בדצמבר 2026 במידת הצורך?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**הבהרת פרטי הנכסים**\n\nאני מתמקד כעת בשאלות המשתמש בנוגע ל\"לופט\" ול\"דירה ב-Maybachufer\". באופן ספציפי, אני בודק לעומק את שכר הדירה בסך 1,800 אירו עבור הנכס ב-Maybachufer. עלי לקבוע בוודאות אם המחיר באמת כולל הכל (all-inclusive), או אם ישנן עלויות נוספות פוטנציאליות. כמו כן, אני מבהיר כעת את מספר התמונות הזמינות לחיפוש.\n\n\n**אימות פרטי הכללה**\n\nאני צולל כעת לפרטים הספציפיים של שכר הדירה ב-Maybachufer, במיוחד לטענה שהמחיר \"כולל הכל\". המטרה שלי היא לחלץ את הפירוט המדויק של מה כלול ומה לא. עלי להבחין אם ה-1,800 אירו מכסים חשבונות, אינטרנט, חימום ואת אגרת השידור (broadcasting fee). הנתונים הראשוניים מציגים מידע סותר, ולכן עלי לאתר מה הנתונים *באמת* מאשרים.\n\n\n**איתור פערים בפרטים הכלולים**\n\nאני מבהיר כעת את הפרטים הספציפיים בנוגע לחשבונות. הנתונים הראשוניים אינם מאשרים אם אגרות GEZ, חשמל או חריגות בחימום כלולים. עלי להגדיר בבירור את ספירת התמונות הכוללת ולוודא שכל התמונות הרלוונטיות מנותחות עבור כל נכס. לדירה ב-Maybachufer יש שתי מרפסות, וללופט יש אחת, אם כי הממדים נותרו לא ידועים. כמו כן, אני מאמת את המיקום של הנכס ב-Maybachufer."
-      },
-      "follow_up_1": {
-        "text": "חיפוש דירות 2 חדרים נוספות ליד מקור מים בברלין"
-      },
-      "follow_up_2": {
-        "text": "ניסוח הודעת פנייה בגרמנית לבעל הדירה ב-Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "חיפוש מסלולי תחבורה ציבורית מ-Anton-Saefkow-Platz ל-Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "השוואת הפיקדונות ותנאי הביטול של שתי הדירות"
-      },
-      "follow_up_5": {
-        "text": "בדיקת תחזית מזג האוויר הנוכחית בברלין ליכטנברג (Lichtenberg)"
-      },
-      "follow_up_6": {
-        "text": "רשימת שאלות מפתח לשאול בעלי דירות במהלך סיור בדירה בברלין"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "הסבר כיצד היצע שוק הדיור מגיב לפיקוח על מחירים"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "משרות בעלות משמעות בגרמניה"
-      },
-      "summary": {
-        "text": "חיפוש משרות פנויות בגרמניה בארבע פלטפורמות דרושים, השוואה בין תפקידי עיצוב והכנת שאלות למעסיקים."
-      },
-      "message_1": {
-        "text": "אני מחפש עבודה בעלת משמעות בגרמניה, במיוחד במחקר, עיצוב או הנדסת תוכנה. אנא מצא כמה משרות פנויות עדכניות באמצעות ExampleJobsB ו-ExampleJobsC, וגם ExampleJobsD וסוכנות התעסוקה הפדרלית. אני פתוח לכל מקום בגרמניה. תן לי רשימה קצרה הכוללת את המעסיק, המיקום, המקור וקישור להגשת מועמדות, ואל תניח שמדובר בעבודה מרחוק או בשכר מסוים אם זה לא מצוין במודעה."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nלהלן רשימה מצומצמת של משרות פנויות כעת בגרמניה בתחומי המחקר, העיצוב והנדסת התוכנה, מתוך ExampleJobsB, **ExampleJobsC**, **ExampleJobsD** ו**Example Employment Board**.\n\n---\n\n### עיצוב\n\n* **מעצב/ת מוצר בכיר/ה**\n  * **מעסיק:** voize (מפתחת בינה מלאכותית לזיהוי דיבור כדי לייעל את התיעוד בסיעוד ובטיפול קליני)\n  * **מיקום:** ברלין, גרמניה (המשרה מוצגת כמתאימה לעבודה מרחוק)\n  * **מקור:** ExampleJobsC\n  * **שכר:** לא צוין\n  * **הגשת מועמדות:** [הגשת מועמדות דרך voize](embed:senior-product-designer-Wid)\n\n* **עיצוב ממשק וחוויית משתמש (m/w/d)**\n  * **מעסיק:** stiftung ear (מרשם לאומי המתאם את פינוי הפסולת האלקטרונית, החזרתה ומעקב אחריה במסגרת הכלכלה המעגלית)\n  * **מיקום:** נירנברג, בוואריה\n  * **מקור:** סוכנות התעסוקה הפדרלית\n  * **מתכונת עבודה ושכר:** בתיאור המשרה מוזכרות אפשרויות עבודה גמישות/ניידות, אך אין סיווג רשמי כעבודה מלאה מרחוק; השכר לא צוין\n  * **הגשת מועמדות:** [הגשת מועמדות דרך Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### מחקר\n\n* **תוכנית עמיתים משותפת (מדיניות שלום וביטחון)**\n  * **מעסיק:** [אוניברסיטת המבורג](wiki:University_of_Hamburg) והמכון לחקר השלום ומדיניות הביטחון (IFSH)\n  * **מיקום:** המבורג, גרמניה\n  * **מקור:** ExampleJobsB\n  * **מתכונת עבודה ושכר:** לא צוינו\n  * **הגשת מועמדות:** [הגשת מועמדות דרך IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **עמית/ת מחקר (m/f/x) – למידת מכונה וקבלת החלטות בתנאי אי־ודאות**\n  * **מעסיק:** [אוניברסיטת רוהר בבוכום](wiki:Ruhr_University_Bochum)\n  * **מיקום:** בוכום, נורדריין־וסטפאליה\n  * **מקור:** סוכנות התעסוקה הפדרלית\n  * **מתכונת עבודה ושכר:** משרה מלאה (39.83 שעות בשבוע); לא צוין הסדר עבודה מרחוק; שכר לפי דרגה E13 בהסכם הקיבוצי הציבורי TV-L (הסכום המדויק לא פורסם במודעה)\n  * **הגשת מועמדות:** [הגשת מועמדות דרך Example Employment Board](embed:research-associate-m-79L)\n\n* **מהנדס/ת מחקר (f/m/d) – הפחתת פליטות פחמן ברשת החשמל וטכנולוגיה בסיסית**\n  * **מעסיק:** [Siemens Energy](wiki:Siemens_Energy)\n  * **מיקום:** ברלין\n  * **מקור:** סוכנות התעסוקה הפדרלית\n  * **מתכונת עבודה ושכר:** בטקסט מוזכרות אפשרויות עבודה גמישות/ניידות, אך לא צוין הסדר קבוע לעבודה מרחוק; השכר לא צוין\n  * **הגשת מועמדות:** [הגשת מועמדות דרך Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### הנדסת תוכנה\n\n* **מהנדס/ת Backend בכיר/ה (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **מעסיק:** idealo internet GmbH\n  * **מיקום:** ברלין, גרמניה\n  * **מקור:** ExampleJobsD\n  * **מתכונת עבודה ושכר:** עבודה מהמשרד/בסביבה היברידית; השכר לא צוין\n  * **הגשת מועמדות:** [הגשת מועמדות דרך ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **משרת סטודנט/ית – הנדסת תוכנה (ראייה ממוחשבת / מערכות אוטונומיות)**\n  * **מעסיק:** Quantum-Systems GmbH (פלטפורמות אוויריות אוטונומיות ותפיסה רובוטית)\n  * **מיקום:** גילכינג, בוואריה\n  * **מקור:** ExampleJobsD\n  * **מתכונת עבודה ושכר:** עבודה מהמשרד/במתכונת היברידית; השכר לא צוין\n  * **הגשת מועמדות:** [הגשת מועמדות דרך ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**זיהוי הזדמנויות בגרמניה**\n\nאני מתמקד כרגע באיתור משרות רלוונטיות בגרמניה. התחלתי באיסוף רשימה של מקורות מבטיחים: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` וסוכנות התעסוקה הפדרלית (`Example Employment Board`). תחומי העניין העיקריים שלי הם תפקידי מחקר, עיצוב והנדסת תוכנה, ואני אשים דגש מיוחד על נושא המיקום.\n\n\n**זיקוק פרמטרי החיפוש**\n\nאני משפר כעת את הגישה שלי לשימוש יעיל בכלי ה-`jobs-search`. אני מתמקד במערך ה-`requests` כדי לבצע סדרה של שאילתות ולציין את הספקים ישירות, בהינתן המגבלה של 5 בקשות. אני בודק את הגדרת הפונקציה כדי לאשר כיצד לספק ספקים במפורש כרשימה, וכיצד להגדיר קריטריונים לרלוונטיות. זה יעזור ביצירת רשימה קצרה הכוללת מעסיק, מיקום, מקור וקישור להגשת מועמדות. המטרה שלי היא להימנע מהנחות לגבי עבודה מרחוק או שכר כאשר אלו לא צוינו במפורש.\n\n\n**בחינת תוצאות הספקים**\n\nאוקיי, קיבלתי מבט ראשון על הספקים שחזרו. נראה שיש לנו את \"ExampleJobsC\" וכמה מ-ExampleJobsD; אחד הוא תפקיד בכיר בהנדסת בקאנד (Java/Kotlin), והשני הוא תפקיד לסטודנט (Working Student). אני רושם לעצמי את ההתרשמויות הראשוניות ומעריך את ההשפעה הפוטנציאלית של כל משרה.\n\n\n**ניתוח הזדמנויות נוכחיות**\n\nאני מתמקד כרגע בהערכת שתי הזדמנויות מבטיחות. הראשונה היא \"Joint Fellowship Program\" במכון לחקר שלום ומדיניות ביטחון של אוניברסיטת המבורג, והשנייה היא משרת \"עוזר סטודנט\" (Student Assistant) בתוכנית Interface Cybersecurity. אני שוקל בזהירות את היתרונות של כל אחת מהן בהקשר של מחקר שלום וביטחון ואבטחת סייבר, בהתאמה.\n\n\n**תיעדוף לידים חדשים**\n\nהעברתי את תשומת הלב שלי לאוצרות של רשימה קצרה ומאוזנת. אני מתעדף הזדמנויות בעיצוב ומחקר, תוך התמקדות ברלוונטיות ובפרסומים אחרונים. כרגע, אני בוחן תפקיד Senior Product Designer ב-voize בברלין, ותפקיד UI/UX Design ב-stiftung ear. עבור מחקר, אני סוקר תפקיד ב-Ruhr-Universität Bochum, לצד תוכנית ה-Joint Fellowship בהמבורג.\n\n\n**הערכת אפשרויות חדשות**\n\nאני שוקל כעת לידים חדשים לאור הקריטריונים שלי. חשפתי אפשרויות כמו תפקיד Research Engineer ב-Siemens Energy, ברלין, דרך סוכנות התעסוקה הפדרלית, המתמקד במחקר בסיסי. אני שוקל גם תפקידי Senior Backend ו-Junior C++ Software Developer ב-idealo internet GmbH (ברלין, ExampleJobsD) וב-CT Software Engineering (אינגולשטאדט, סוכנות התעסוקה הפדרלית) בהתאמה. אלו מתאימים לתחומי העניין שלי בהנדסת תוכנה.\n\n\n**זיקוק קריטריונים להגשת מועמדות**\n\nאני מבהיר כעת כיצד לטפל בקישורים להגשת מועמדות. עלי לזכור לתת עדיפות לתהליכי הגשה ברורים, ולבדוק את השימוש ב-`[טקסט לתצוגה](embed:embed_ref)` או בקישורים סטנדרטיים. יתרה מכך, עלי להימנע מהנחת עבודה מרחוק או חשיפת שכר אלא אם כן הדבר צוין במפורש במודעה.\n\n\n**הבהרת פרוטוקולי הגשת מועמדות**\n\nאני מתמקד כעת בפורמטים של קישורים להגשת מועמדות. אני מוודא שילוב קישורים ישיר או שימוש בפורמט `(embed:embed_ref)`, תוך הקפדה שלא לספק את שניהם. אני סוקר בזהירות כתובות URL שחזרו מהמיומנויות (skills) כדי להבטיח תאימות. המטרה שלי היא להיצמד לכלל של שימוש בסגנון קישור אחד בלבד לכל קישור להגשת מועמדות למשרה.\n\n\n**סטנדרטיזציה של קישורים להגשת מועמדות**\n\nאני מיישם כעת את אסטרטגיית הקישורים להגשת מועמדות. המטרה שלי היא להפוך את הפורמט של מודעות הדרושים לסטנדרטי. אשתמש רק ב-embed ref עבור קישורים להגשת מועמדות. אכלול גם תפקיד, מעסיק, מיקום ומקור עבור כל משרה פנויה, ואשתמש בקישור מוטמע (embedded). אקפיד להשתמש תמיד בקישור אחד לכל משרה.\n\n\n**איסוף נתוני הזדמנויות**\n\nאני מרכז כעת פרטים עבור מספר הזדמנויות. יש לי מידע על תפקיד Senior Product Designer ב-voize, תפקיד UI/UX Design ב-stiftung ear ותוכנית ה-Joint Fellowship באוניברסיטת המבורג. אני מציין את התפקיד, המעסיק, המיקום והמקור עבור כל אחד מהם, כמו גם את פרטי העבודה מרחוק והשכר. אני מתמקד בהבטחת פורמטים עקביים של קישורים על ידי שימוש ב-embeds עבור כל הגשת מועמדות.\n\n\n**שילוב מודעות חדשות**\n\nאני משלב כעת מודעות חדשות במערך הנתונים. הוספתי משרת Research Associate ב-Ruhr-Universität Bochum, ממקור סוכנות התעסוקה הפדרלית, וציינתי את פרטי העבודה מרחוק והשכר שלה. כמו כן, אספתי מידע על תפקיד Research Engineer ב-Siemens Energy, כולל אפשרויות גמישות. אני מבטיח עקביות בפורמטים של קישורים, תוך שימוש ב-embeds עבור קישורים להגשת מועמדות.\n\n\n**הוספת מודעות חדשות**\n\nזה עתה הוספתי שתי מודעות חדשות, תפקיד Senior Backend Engineer במיקום לא מצוין ומשרת סטודנט (Working Student) ב-Quantum-Systems GmbH בגילכינג. אני מתמקד בתיעוד מדויק של כל הפרטים, כולל מיקום, אפשרויות עבודה מרחוק, מידע על שכר (במידה וקיים) וקישורים להגשת מועמדות בפורמט הסטנדרטי. אני משתמש בפורמט `(embed:embed_ref)` עבור הקישור להגשת המועמדות."
-      },
-      "message_3": {
-        "text": "שני תפקידי העיצוב נשמעים הכי מעניינים. תוכל להשוות בקצרה מה כתוב בפועל במשרות השמורות ולהציע מה כדאי לי לשאול כל מעסיק לפני שאגיש מועמדות?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nלהלן השוואה ישירה בין מה שכל משרה מציעה, ולאחריה שאלות ממוקדות שתוכל לשאול כל מעסיק לפני או במהלך תהליך הגשת המועמדות.\n\n---\n\n### השוואה בין המשרות\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### מה כדאי לשאול לפני הגשת המועמדות\n\n#### עבור voize:\n1. **גישה למחקר משתמשים:** *\"באיזו תדירות ובאילו ערוצים מעצבים מבצעים עבודת שטח או בדיקות עם אחיות וצוותי טיפול בקו הראשון בסביבה הקלינית היומיומית שלהם?\"*\n2. **בשלות הצוות והיקף התפקיד:** *\"איך בנוי צוות המוצר, מהו היחס הנוכחי בין מעצבים למנהלי מוצר (PMs) ומהנדסים, והאם התפקיד הזה הוא תפקיד של תורם אישי (individual contributor) או שהוא צפוי להקים מערכות עיצוב (design systems)?\"*\n3. **שכר ותדירות עבודה מרחוק:** *\"מהו טווח השכר המיועד לרמת בכירות זו, והאם ישנם מפגשי צוות (offsites) חובה באתר החברה או שעות ליבה למרות מדיניות העבודה מרחוק?\"*\n\n#### עבור stiftung ear:\n1. **ציפיות לעבודה מהמשרד בנירנברג:** *\"איך מובנית העבודה הניידת (mobile working) בפועל – האם יש דרישה קבועה שבועית או חודשית לנוכחות במשרד בנירנברג?\"*\n2. **איזון בין עיצוב לבין הבטחת איכות (QA):** *\"תיאור המשרה מציין הטמעת בדיקות תוכנה לצד עיצוב UX/UI. איזה אחוז מהתפקיד מתמקד במחקר משתמשים/יצירת אבות טיפוס לעומת אימות תוכנה טכני והבטחת איכות?\"*\n3. **כלי עיצוב והעברה לפיתוח:** *\"באילו מערכות עיצוב וכלי אבות טיפוס אתם משתמשים כיום, והאם אתם עובדים עם צוות פיתוח פנימי או עם ספקי שירותי IT חיצוניים?\"*\n4. **מדד שכר:** *\"בהתחשב בכך ש-stiftung ear פועלת כגוף סטטוטורי לטובת הציבור, האם השכר נקבע לפי סולם שכר קיבוצי ציבורי ספציפי (כמו TVöD/TV-L) או לפי מבנה דירוג פנימי?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**ניתוח תוכן מודעות הדרושים**\n\nאוקיי, התחלתי להשוות בין תיאורי המשרות. אני מתמקד בתחומי האחריות העיקריים ובכישורים הנדרשים לתפקיד Senior Product Designer ב-Voize ולתפקיד UI/UX Design ב-Stiftung EAR. כעת אני מכין סיכום של תחומי האחריות המרכזיים והכישורים הנדרשים בשתי המשרות. לאחר מכן, אבין איזה מידע נוסף עשוי להיות דרוש לי.\n\n\n**ניתוח תיאורי משרות**\n\nאוקיי, אני מעמיק כעת בפרטים הספציפיים של כל משרה. המיקוד שלי הוא בניתוח השפה המדויקת שבה נעשה שימוש בתיאורים. אני מנסה לקבוע אילו שאלות מפתח דורשות מענה כדי להתכונן לכל מעסיק. לדוגמה, במשרה של voize, אני צריך לדעת על מוצר ה-AI companion שלהם.\n\n\n**הערכת פרטים מרכזיים**\n\nאני מתמקד כעת במשרה של voize ומחלץ תובנות מרכזיות. זהו תפקיד בכיר עם אחריות משמעותית, הדורש מישהו שיכול לאתגר מנהלי מוצר. המבנה גמיש, עם משרד בברלין ואפשרויות לעבודה מרחוק. השכר לא צוין, אך ההטבות כוללות ימי חופשה הולמים וחברות במועדון ספורט. אנגלית היא השפה העיקרית, למרות שההקשר הוא מערכת הבריאות הגרמנית.\n\n\n**איתור דרישות ספציפיות**\n\nאני מתמקד כעת בתפקיד הממוקם בנירנברג. פירקתי את תחומי המפתח: היבט הציות המשפטי מתמקד בתקנות ElektroG. העבודה כוללת פיתוח אפליקציות ווב ופעילויות UX, תוך ייעוץ למחזיקי עניין. שליטה בגרמנית (רמת C1 לפחות) היא חובה, ניסיון בתוכנה רגולטורית הוא יתרון. המשרה היא קבועה עם גמישות משמעותית לעבודה מרחוק. השכר מבוסס ביצועים.\n\n\n**השוואת מאפייני משרה**\n\nאני עורך כעת השוואות ישירות בין התפקידים. פירקתי זאת לפי תחום, תרבות, כישורים נדרשים ומיקום העבודה. ספציפית, אני בוחן את voize מול התפקיד ב-stiftung ear. אני מתמקד בהצבת סביבות העבודה והעדויות שלהן זו מול זו, החל משירותי בריאות בקו הראשון ועד לציות בנושא פסולת אלקטרונית. אני מציין הבדלים מרכזיים כמו דרישות השפה ורמת הניסיון. כמו כן, אני מעריך את ההבדלים במדיניות העבודה מרחוק שלהם."
-      },
-      "follow_up_1": {
-        "text": "חיפוש משרות נוספות בעיצוב UI/UX בברלין"
-      },
-      "follow_up_2": {
-        "text": "ניסוח אימייל פנייה למנהל הגיוס ב-voize"
-      },
-      "follow_up_3": {
-        "text": "מציאת תפקידים דומים בטכנולוגיה רפואית בגרמניה"
-      },
-      "follow_up_4": {
-        "text": "השוואת יתרונות וחסרונות של עבודה בסטארט-אפים בתחום הבריאות לעומת גופים ציבוריים"
-      },
-      "follow_up_5": {
-        "text": "חיפוש משרות טכנולוגיות במגזר הציבורי בנירנברג"
-      },
-      "follow_up_6": {
-        "text": "פירוט שלבי הכנה מרכזיים לראיון לתפקיד Senior Product Design"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "דגמי Benchy ומעמדי טלפון להדפסה"
-      },
-      "summary": {
-        "text": "חיפוש ב-ExampleModels אחר דגמי Benchy ומעמדי טלפון פופולריים להדפסה בתלת-ממד, עם כרטיסי תצוגה מקדימה וקישורים למקור."
-      },
-      "message_1": {
-        "text": "מצא דגמי Benchy ומעמדי טלפון להדפסה בתלת-ממד ב-ExampleModels. הצג את האפשרויות הטובות ביותר עם כרטיסי תצוגה מקדימה וקישורים למקור."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nעבור פרויקטי ההדפסה בתלת-ממד הבאים שלך, מצאתי כמה מהדגמים הפופולריים והיצירתיים ביותר ב-ExampleModels. בין אם מדובר בסירת הגרירה הקלאסית ל[כיול](wiki:Calibration_(statistics)) או באביזר שימושי ל[טלפון](wiki:Smartphone), האפשרויות האלו הן נקודות פתיחה מצוינות.\n\n### אוסף ה-3DBenchy\nה-[3DBenchy](wiki:3DBenchy) הוא תקן הזהב לבדיקת היכולות של [מדפסת התלת-ממד](wiki:3D_printing) שלך. מעבר למקור, ישנם כמה \"רמיקסים\" שיוסיפו אופי לשולחן העבודה שלך.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **3DBenchy מקורי**: הכי טוב ל[בדיקת ביצועים](wiki:Benchmark_(computing)) של [בליטות (overhangs)](wiki:3D_printing#Support_structures), [גישור (bridging)](wiki:3D_printing#Support_structures) וגימור פני השטח.\n*   **Assault Benchy**: גרסת [מכה (mecha)](wiki:Mecha) ניתנת להעמדה למי שרוצה קצת סטייל.\n*   **Floating BEN**: עוצב במיוחד עם גוף חלול כך שהוא באמת צף — מושלם לאמבטיה!\n\n### מעמדים פונקציונליים לטלפון\nמעמד לטלפון הוא הדפסה פרקטית נהדרת. העיצובים האלו נעים בין מינימליסטיים לגלגלי שיניים מכניים מורכבים.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **מעמד חלונית (Honeycomb)**: פופולרי מאוד בזכות [יחס חוזק-משקל](wiki:Specific_strength) גבוה ומראה מודרני.\n*   **מעמד עם גלגלי שיניים**: פלא מכני מסוג \"הדפסה במקום\" (print-in-place) המאפשר זוויות צפייה מתכווננות.\n*   **מעמד מעוקל מודרני**: עיצוב חלק מקשה אחת שמתאים בצורה מושלמת לסביבת עבודה מינימליסטית.\n\n**טיפ מקצועי:** כשמדפיסים את ה-[מעמד עם גלגלי שיניים](embed:geared-phone-stand-3Bl), ודאו ש[מכפיל ההזרקה (extrusion multiplier)](wiki:3D_printing#Fused_deposition_modeling) שלכם מכויל היטב כדי למנוע מהחלקים הנעים להתמזג זה עם זה.\n\nבאיזה סוג [פילמנט](wiki:3D_printing_filament) (PLA, PETG וכו') את/ה מתכנן/ת להשתמש עבורם? אוכל לתת לך טיפים ספציפיים לפריסה (slicing) בהתאם לחומר שלך!\n\n**מה תרצה/י לעשות עכשיו?**\n- [חיפוש דגמי תלת-ממד נוספים](/#settings/apps/models3d)\n- [קבלת טיפים להדפסה בתלת-ממד](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "למד אותי עקרונות של עיצוב רספונסיבי"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "שמות לאפליקציות חברתיות עם דומיינים שנבדקו"
-      },
-      "summary": {
-        "text": "השוואת שמות לאפליקציות חברתיות באמצעות זמינות דומיינים שנבדקה, מחירי רישום וחידוש ותנאי רישום."
-      },
-      "message_1": {
-        "text": "אני מחפש שם לאפליקציה חברתית שעוזרת לאנשים לשמור על קשר אחרי פגישה פנים אל פנים ולהכיר אנשים חדשים. המלץ על שני רעיונות לשמות ייחודיים. עבור כל רעיון, בדוק בשידור חי את הדומיינים המדויקים בסיומות .com, .net ו-.app, ולאחר מכן המלץ רק על דומיינים מדויקים שהזמינות, מחיר הרישום, מחיר החידוש וההגבלות שלהם מופיעים בבדיקות אלו. אל תנחש לגבי דומיינים שלא נבדקו. בחר את השם החזק יותר על סמך התוצאות שנבדקו."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nלהלן שני רעיונות לשמות ייחודיים המותאמים לאפליקציה המתמקדת בטיפוח קשרים אישיים והרחבת מעגלים חברתיים, יחד עם בדיקות דומיין בזמן אמת עבור הסיומות המדויקות `.com`, `.net` ו-`.app` של כל שם.\n\n---\n\n### רעיון 1: Kinloop\n* **קונספט:** משלב בין \"kin\" (קהילה, זיקה אישית, קשרים מהימנים) לבין \"loop\" (סגירת המעגל לאחר פגישה ראשונית ושמירה על קשרים פעילים בתוך מעגל מתמשך).\n* **אימות דומיין בזמן אמת:**\n  * **`kinloop.com`**: **לא זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **לא זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **לא זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-XJX))\n* **המלצה:** אין. כל שלושת דומייני היעד המדויקים רשומים כרגע/אינם זמינים, ולכן לא ניתן להמליץ על דומיין מדויק עבור שם זה.\n\n---\n\n### רעיון 2: Orbitfolk\n* **קונספט:** מעורר את הרעיון של שמירה על מכרים מהחיים האמיתיים במסלול האישי שלך (orbit) תוך גילוי וקבלת פנים מתמשכת לאנשים חדשים (\"folk\") לתוך עולמך.\n* **אימות דומיין בזמן אמת:**\n  * **`orbitfolk.com`**: **לא זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-cex))\n    * **מחיר רישום:** $12.99 / שנה ראשונה לפני מס ($15.46 כולל 19% מע\"מ; תעריף רגיל לשנה אחת $18.78)\n    * **מחיר חידוש:** $39.98 / שנה לפני מס ($47.58 כולל 19% מע\"מ לתקופות של שנה אחת; $35.98 לשנה לפני מס לתקופות של 2–9 שנים)\n    * **הגבלות:** לא דווחו\n  * **`orbitfolk.app`**: **זמין** ([בדיקת ExampleRegistrar](embed:shop.ExampleRegistrar.net-U3Z))\n    * **מחיר רישום:** $9.99 / שנה ראשונה לפני מס ($11.89 כולל 19% מע\"מ; תעריף רגיל לשנה אחת $23.29)\n    * **מחיר חידוש:** $47.98 / שנה לפני מס ($57.10 כולל 19% מע\"מ לתקופות של שנה אחת; $43.18 לשנה לפני מס לתקופות של 2–9 שנים)\n    * **הגבלות:** לא דווחו\n\n---\n\n### השוואה והבחירה המועדפת\n\n**Orbitfolk** הוא הבחירה החזקה יותר:\n\n1. **זמינות ישירה:** בעוד ש-`Kinloop` תפוס בכל שלוש הסיומות, ל-`Orbitfolk` יש גם את גרסת ה-`.app` וגם את גרסת ה-`.net` זמינות לרישום מיידי.\n2. **התאמה למוצר:** מכיוון שמדובר במוצר חברתי למובייל, **`orbitfolk.app`** מציע סיומת דומיין נקייה וייעודית שמתקשרת את סוג המוצר ישירות למשתמשים.\n\n---\n\n### הצעדים הבאים\n\n* [גלה וריאציות נוספות לשמות סביב מסלולים חברתיים](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [נסח את תהליך ההצטרפות (onboarding) למפגשים אישיים](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "חיפוש שמות דומיין זמינים לרעיון נוסף לאפליקציה חברתית"
-      },
-      "follow_up_2": {
-        "text": "הסבר למה סיומת הדומיין ‎.app יעילה לאפליקציות מובייל"
-      },
-      "follow_up_3": {
-        "text": "בדיקת זמינות דומיין לשלושה שמות מותג חלופיים"
-      },
-      "follow_up_4": {
-        "text": "השוואה בין סיומות הדומיין ‎.net ו-‎.app לאפליקציות צרכניות"
-      },
-      "follow_up_5": {
-        "text": "בדיקת מחיר וזמינות דומיין עבור השם AppFolk"
-      },
-      "follow_up_6": {
-        "text": "הצעת שלוש זוויות מיתוג נוספות לאפליקציית הקשרים החברתיים הזו"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "ניתוח הרצאת ה-TED הסאטירית של וויל סטיבן"
-      },
-      "summary": {
-        "text": "סיכום הרצאת ה-TEDx הסאטירית של וויל סטיבן על עמידה מול קהל לחמישה טיעונים קומיים מרכזיים."
-      },
-      "message_1": {
-        "text": "השג את התמליל של הרצאת ה-TED הזו וסכם את הטיעון המרכזי בחמש נקודות: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nהסרטון הוא הרצאת ה-TEDx הסאטירית של ויל סטיבן, *\"How to sound smart in your TEDx Talk\"* (צפו בהרצאה).\n\nבמקום להעביר הרצאה אינפורמטיבית, סטיבן משתמש במטא-הומור כדי לפרק את המוסכמות של [דיבור מול קהל](wiki:Public_speaking). להלן הטיעון המרכזי מסוכם בחמש נקודות:\n\n* **ההגשה יוצרת אשליה של תוכן:** קצב הדיבור, מחוות ידיים מכוונות, קשר עין דרמטי ואביזרים פיזיים (כמו משקפיים ללא מספר) יכולים לשכנע את הקהל שהדובר מבריק גם כשאין לו שום דבר בעל ערך לומר.\n* **החיבור עם הקהל על הבמה הוא נוסחתי ביותר:** טרופים אינטראקטיביים מוכרים – כמו שאילת שאלות רטוריות, בקשה להרמת ידיים וסיפור אנקדוטות של הלקאה עצמית – הם אמצעי במה מחושבים שנועדו לייצר חמימות ואמינות מלאכותיות.\n* **עזרים חזותיים של נתונים מעניקים סמכות לא מוצדקת:** הצגת מספרים אקראיים, פעולות חשבון בסיסיות ותרשימים ללא הקשר מנצלת הטיות חזותיות, וגורמת למצגת להיראות ככזו שנחקרה לעומק גם כשהנתונים אינם רלוונטיים לחלוטין.\n* **הקהל משליך משמעות על שטויות:** על ידי שילוב של קצב דיבור רציני ותמונות אווירה עם ג'יבריש מוחלט, דוברים יכולים לגרום למאזינים לחפש בתת-מודע – ולדמיין – קשרים עמוקים במקום שבו הם אינם קיימים.\n* **ניתן לייצר שיאים רגשיים באופן מלאכותי:** בניית עוצמה קולית, האטה ללחישה ועצירה דרמטית מחקים את הקצב של הארה, ומוכיחים באיזו קלות ניתן להנדס את תחושת ההשראה ללא כל תובנה מהותית."
-      },
-      "follow_up_1": {
-        "text": "חפש מצגות סאטיריות פופולריות אחרות ב-YouTube"
-      },
-      "follow_up_2": {
-        "text": "הסבר את ההיסטוריה של פורמט TEDx ואת ההשפעה התרבותית שלו"
-      },
-      "follow_up_3": {
-        "text": "מצא מדריכי מאסטר-קלאס לדיבור מול קהל באינטרנט"
-      },
-      "follow_up_4": {
-        "text": "נתח טכניקות ספציפיות של שפת גוף המשמשות נואמים מפורסמים"
-      },
-      "follow_up_5": {
-        "text": "חפש סרטוני ניתוח על טכניקות רטוריות"
-      },
-      "follow_up_6": {
-        "text": "פרט טיפים להתגברות על פחד במה במהלך דיבור מול קהל"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "אתה מומחה בתכנות."
       }
     },
-    "health_health_insights": {
-      "text": "תובנות בריאותיות",
-      "description": {
-        "text": "קבל תובנות בריאותיות ומצא את הרופא המתאים."
-      },
-      "systemprompt": {
-        "text": "אתה מומחה לבריאות."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "הכנה לתור אצל הרופא",
-      "description": {
-        "text": "הכנה למה שחשוב לדון בו בביקור הבא."
-      },
-      "process": {
-        "text": "- פירוט התסמינים שהופיעו בשבועות ובחודשים האחרונים, גם אם לא נראה שיש ביניהם קשר\n- פירוט תוצאות בדיקות או מסמכים שכדאי לאסוף לקראת התור הבא"
-      },
-      "systemprompt": {
-        "text": "אתה מומחה לבריאות."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "הכנת דוח לרופא",
-      "description": {
-        "text": "צור דוח לביקור הבא אצל הרופא."
-      }
-    },
     "jobs_career_insights": {
       "text": "תובנות קריירה",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "דיבור אל העתיד",
       "description": {
         "text": "טכניקת אימון אישי עוצמתית."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "הכנת דוח לרופא",
+      "description": {
+        "text": "צור דוח לביקור הבא אצל הרופא."
+      }
+    },
+    "health_health_insights": {
+      "text": "תובנות בריאותיות",
+      "description": {
+        "text": "קבל תובנות בריאותיות ומצא את הרופא המתאים."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "הכנה לתור אצל הרופא",
+      "description": {
+        "text": "הכנה למה שחשוב לדון בו בביקור הבא."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "אסטרטג לוח שנה לתוכן",
       "description": {
         "text": "צור תוכנית תוכן לרשתות חברתיות ל-30 יום."
+      },
+      "systemprompt": {
+        "text": "פעל כאסטרטג מדיה חברתית מקצועי. באמצעות הקלטים להלן, צור לוח תוכן ל-30 יום המתמקד בהשגת המטרה העיקרית.\n\nראשית, בצע שלב מחקר ואסטרטגיה פנימי קצר תוך שימוש בידע הקיים שלך, ובמידת האפשר, בנתוני אינטרנט חיים עבור נושא/נישה וקהל יעד אלו. הבהר את נקודות הכאב והרצונות העיקריים של הקהל, את סוגי הפוסטים וה\"הוקים\" (hooks) שעובדים היטב בנישה זו, וכל מגמה רלוונטית כיום. השתמש בתובנות אלו רק כדי להנחות את לוח התוכן, אל תציג אותן בנפרד.\n\nהפלט חייב להיות טבלת Markdown עם העמודות המדויקות הללו (ולא שום דבר אחר): יום #, תאריך, נושא/עמוד תוכן, פלטפורמה, רעיון לתוכן, הנעה לפעולה (CTA).\n\nהנחיות ללוח התוכן:\n- צור בדיוק 30 שורות, אחת לכל יום קלנדרי עוקב החל מתאריך ההתחלה, עם תאריכים אמיתיים בסדר עולה.\n- ה\"נושא/עמוד תוכן\" בכל שורה חייב להיות אחד מעמודי התוכן שסופקו, עם שילוב מאוזן לאורך 30 הימים.\n- עמודת הפלטפורמה חייבת לעקוב אחר לוח הזמנים לפרסום. אם צוינו מספר פלטפורמות ליום מסוים, צור שורה אחת לכל פלטפורמה.\n\nהנחיות לתוכן:\n- כל רעיון לתוכן חייב לציין את סוג הפוסט (למשל, Reel, קרוסלה, פוסט סטטי, סטורי, לייב, סקר, פוסט טקסט בלינקדאין) ולכלול \"הוק\" (hook) ברור ועוצר גלילה המותאם לקהל היעד.\n- כל CTA חייב להיות ספציפי, מכוון פעולה ותומך ישירות במטרה העיקרית (למשל, \"הורידו את המדריך החינמי\", \"קבעו שיחה\", \"הצטרפו לניוזלטר\", \"הגיבו עם השאלה מספר 1 שלכם\").\n- גוון בפורמטים ובזוויות לאורך 30 הימים (למשל, תוכן חינוכי, סטוריטלינג, מאחורי הקלעים, שאלות נפוצות, טיפול בהתנגדויות, הוכחה חברתית, הנעות למעורבות) כדי למנוע חזרתיות.\n- ודא שכל רעיון מחובר בבירור לנקודות הכאב והרצונות המרכזיים של קהל היעד ותואם למטרה העיקרית, בהנחיית שלב המחקר שלעיל.\n\nקלטים (מלא אותם לפני הרצת הפרומפט):\n* נושא/נישה: [הכנס את הנושא/הנישה שלך כאן]\n* קהל יעד: [הכנס את קהל היעד שלך כאן, כולל נקודות כאב ורצונות עיקריים אם ידועים]\n* מטרה עיקרית: [הכנס את המטרה העיקרית שלך כאן, למשל, הגדלת רשימת תפוצה / הנעת מכירות / בניית סמכות]\n* לוח זמנים לפרסום: [הכנס את תדירות הפרסום והפלטפורמה שלך כאן, למשל, 5 פעמים בשבוע ב-IG Reels + 3 פעמים בשבוע בלינקדאין]\n* עמודי תוכן: [הכנס כאן 3–5 עמודי תוכן, מופרדים בפסיקים]\n* תאריך התחלה: [הכנס את התאריך הראשון של לוח התוכן שלך, למשל, 18 בנובמבר 2025]\n\nפלוט רק את טבלת ה-Markdown הסופית. אל תכלול הסברים, הערות או כל טקסט מחוץ לטבלה."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (תמלולי סרטונים)"
+              "text": "YouTube (מטא-נתונים של סרטונים)"
             },
             "description": {
-              "text": "מתבצעת פנייה ל-YouTube כאשר אתה מבקש מ-OpenMates לאחזר תמלול עבור סרטון YouTube. YouTube מקבלת כתובות URL של סרטונים והעדפות שפת תמלול מבוקשות ללא מזהה משתמש של OpenMates."
+              "text": "כדי לאחזר מטא-נתונים ציבוריים של סרטונים וערוצים, OpenMates שולח את מזהי הסרטונים והערוצים אל YouTube Data API הרשמי. YouTube מקבל מזהים אלה ואת פרטי הרשת של השרת שלנו, ללא מזהה משתמש של OpenMates."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."
+    },
+    "privacy_description": {
+      "text": "Mistral מתמללת את שמע המיקרופון; ElevenLabs v4 Turbo יוצרת את קול העוזר מטקסט התשובה ומהגדרות הקול. השיחה משתמשת בניתוב ה-AI ובמיומנויות הרגילים של OpenMates. ספקים עשויים לשמור נתוני בקשות בהתאם למדיניות שלהם."
+    },
+    "privacy_terms": {
+      "text": "מדיניות הפרטיות של OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "חברים בדיסקורד שלנו"

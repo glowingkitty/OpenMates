@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "Cari lowongan pekerjaan publik di Swedia dengan JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Dapatkan transkrip",
         "description": {
-          "text": "Dapatkan transkrip video YouTube / media.ccc.de."
+          "text": "Dapatkan takarir yang dipublikasikan untuk ceramah di media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Baca halaman Wikipedia tentang Kekaisaran Romawi dan beri saya fakta utama"
           }
+        }
+      },
+      "browse": {
+        "text": "Jelajahi",
+        "description": {
+          "text": "Jelajahi situs web dan kembalikan informasi yang diamati sebagai JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Hosting",
       "description": {
-        "text": "Temukan nama domain dan periksa ketersediaan serta harganya."
+        "text": "Pencarian domain saat ini tidak tersedia."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Pos",
       "description": {
-        "text": "Kirim, kelola, dan tulis email."
+        "text": "Buat draf email dan kelola surat."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Video",
       "description": {
-        "text": "Cari video, dapatkan transkrip."
+        "text": "Temukan dan buat video."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Perjalanan",
       "description": {
-        "text": "Cari penginapan, transportasi dan rencana."
+        "text": "Rencanakan perjalanan dan simpan informasi perjalanan yang telah disimpan."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "Pencarian komponen elektronik saat ini tidak tersedia."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Rumah",
       "description": {
-        "text": "Cari rumah baru dan lainnya."
+        "text": "Simpan informasi hunian yang telah disimpan."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Acara",
       "description": {
-        "text": "Temukan Gathering, konferensi & acara lokal."
+        "text": "Simpan informasi acara yang telah disimpan."
       },
       "search": {
         "text": "Cari",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Lihat model 3D yang disimpan."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Belanja",
       "description": {
-        "text": "Bandingkan harga supermarket dan temukan penawaran."
+        "text": "Pencarian produk saat ini tidak tersedia."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Jelajahi"
+      },
+      "running": {
+        "text": "Sedang menjelajah"
+      },
+      "user_control": {
+        "text": "Anda memegang kendali"
+      },
+      "paused": {
+        "text": "Dijeda"
+      },
+      "completed": {
+        "text": "Selesai"
+      },
+      "no_results": {
+        "text": "Tidak ada hasil"
+      },
+      "needs_user": {
+        "text": "Perlu masukan Anda"
+      },
+      "blocked": {
+        "text": "Diblokir"
+      },
+      "failed": {
+        "text": "Gagal"
+      },
+      "cancelled": {
+        "text": "Dibatalkan"
+      },
+      "budget_exceeded": {
+        "text": "Batas pengeluaran tercapai"
+      },
+      "closed": {
+        "text": "Browser ditutup"
+      },
+      "expired": {
+        "text": "Sesi kedaluwarsa"
+      },
+      "unavailable": {
+        "text": "Browser tidak tersedia"
+      },
+      "watch": {
+        "text": "Lihat browser"
+      },
+      "take_control": {
+        "text": "Ambil kendali"
+      },
+      "continue": {
+        "text": "Biarkan AI melanjutkan"
+      },
+      "pause": {
+        "text": "Jeda"
+      },
+      "close": {
+        "text": "Tutup browser"
+      },
+      "sign_in_title": {
+        "text": "Sebelum masuk"
+      },
+      "sign_in_confirm": {
+        "text": "Lanjutkan masuk"
+      },
+      "saved_frame": {
+        "text": "Tangkapan browser tersimpan"
+      },
+      "live_frame": {
+        "text": "Browser langsung"
+      },
+      "waiting_frame": {
+        "text": "Menunggu browser…"
+      },
+      "text_input": {
+        "text": "Teks untuk situs web"
+      },
+      "send_text": {
+        "text": "Kirim teks"
+      },
+      "scroll_up": {
+        "text": "Gulir ke atas"
+      },
+      "scroll_down": {
+        "text": "Gulir ke bawah"
+      },
+      "structured_data": {
+        "text": "Data terstruktur"
+      },
+      "connection_error": {
+        "text": "Koneksi terputus. Segarkan sebelum tindakan berikutnya."
+      },
+      "credits": {
+        "text": "{used} / {limit} kredit"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Anda masuk melalui browser cloud. Saat mengizinkan AI melanjutkan, AI dapat mengakses informasi akun ini. Konten halaman yang relevan dapat dikirim ke penyedia AI kami. Masuk hanya ke akun yang Anda izinkan untuk diakses AI."
+      },
+      "manual_hint": {
+        "text": "Klik halaman atau gunakan Tab dan Enter. Teks hanya dikirim ke situs ini dan dihapus dari kolom setelah dikirim."
+      },
+      "paused_hint": {
+        "text": "Browser dijeda tanpa biaya komputasi. Ambil kendali untuk melanjutkan. Sesi dihapus setelah 24 jam tanpa interaksi."
+      },
+      "watch_hint": {
+        "text": "Anda sedang menonton. Ambil kendali untuk berinteraksi dengan situs. Menonton tidak mempertahankan sesi aktif."
+      },
+      "stopping": {
+        "text": "Menghentikan…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "Bandingkan tanggung jawab harian dan jalur pertumbuhan kedua peran tersebut"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "Membandingkan Air Fryer di Jerman"
-      },
-      "summary": {
-        "text": "Membandingkan air fryer teratas di ExampleRetail Jerman berdasarkan harga, kapasitas, dan rating, serta merekomendasikan Philips Airfryer 2000 Series untuk rumah tangga dengan dua orang."
-      },
-      "message_1": {
-        "text": "Cari air fryer yang bisa saya beli secara online di Jerman, termasuk daftar di ExampleRetail. Bandingkan harga saat ini, kapasitas, dan rating ulasan, lalu rekomendasikan satu untuk rumah tangga dengan dua orang beserta tautan sumbernya."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nBerikut adalah perbandingan air fryer berperingkat teratas yang saat ini tersedia di ExampleRetail Jerman, membandingkan harga, kapasitas, dan peringkat pelanggan.\n\n---\n\n### Perbandingan Model Populer di Jerman\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Rekomendasi Utama untuk Rumah Tangga 2 Orang\n\n#### **Pilihan Utama: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Mengapa ini paling cocok untuk dua orang:**\n  * **Kapasitas Optimal (6,2 L):** Keranjang yang lebih kecil dari 4,5–5 L memerlukan memasak dalam beberapa tahap bahkan untuk dua orang. Keranjang 6,2 L memungkinkan kamu meletakkan dua filet salmon dan seporsi penuh sayuran atau kentang goreng secara merata dalam satu lapisan agar garingnya merata.\n  * **Ukuran di Dapur:** Mesin zona ganda (seperti Ninja atau Russell Hobbs) memakan banyak ruang meja. Keranjang tunggal 6 L memberikan volume yang cukup sambil tetap mempertahankan ukuran ringkas yang cocok untuk meja dapur khas Jerman.\n  * **Jendela Transparan:** Memungkinkan pengecekan tingkat kematangan tanpa harus membuka laci dan membuang panas.\n  * **Nilai:** Dengan harga €99,99, alat ini menawarkan konsistensi suhu yang andal dari [Philips](wiki:Philips) dengan harga yang terjangkau.\n\n#### **Alternatif (Jika Kamu Sering Memasak Dua Hidangan dengan Suhu Berbeda): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nJika kamu dan pasangan lebih suka menyiapkan protein dan sayuran pendamping secara bersamaan dengan suhu dan waktu yang berbeda (misalnya, dada ayam pada suhu 180 °C dan kentang goreng renyah pada suhu 200 °C), model ini saat ini sedang diskon menjadi €119,99 dan memiliki fitur waktu memasak yang disinkronkan.\n\n---\n\n### Faktor Kunci yang Perlu Diperhatikan Sebelum Membeli\n1. **Bentuk Laci:** Keranjang persegi (seperti Cosori dan Philips) menampung item datar (steak, loyang kue, sate) jauh lebih baik daripada keranjang bulat dengan kapasitas liter yang sama.\n2. **Ruang Mesin Cuci Piring:** Pastikan mesin cuci piringmu memiliki tinggi rak yang cukup untuk laci tunggal 6 L atau pertimbangkan untuk mencuci lapisan anti-lengket dengan tangan untuk memperpanjang masa pakainya."
-      },
-      "follow_up_1": {
-        "text": "Cari resep yang dirancang khusus untuk air fryer"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan perbedaan utama antara air fryer keranjang tunggal dan ganda"
-      },
-      "follow_up_3": {
-        "text": "Temukan aksesori memanggang yang kompatibel untuk air fryer ini"
-      },
-      "follow_up_4": {
-        "text": "Daftar resep ramah pemula untuk memasak makan malam di air fryer"
-      },
-      "follow_up_5": {
-        "text": "Periksa peringkat konsumsi energi saat ini untuk model-model ini"
-      },
-      "follow_up_6": {
-        "text": "Bandingkan persyaratan pembersihan dan perawatan untuk lapisan keramik versus teflon"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Sorotan dan Eksplorasi Misi Artemis II"
@@ -8894,38 +8967,6 @@
         "text": "[code] Buat template serupa tapi dengan estetika desain yang berbeda"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Kelas Yoga Pemula di Berlin"
-      },
-      "summary": {
-        "text": "Temukan tiga kelas yoga ramah pemula di Berlin lengkap dengan waktu, harga, dan tautan pemesanan."
-      },
-      "message_1": {
-        "text": "Saya baru dalam yoga dan ingin mencari kelas yang ramah pemula di Berlin minggu depan. Bisakah kamu mencarikan beberapa kelas beserta waktu, harga, dan tautan pemesanannya?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nBerikut adalah kelas [yoga](wiki:Yoga) ramah pemula yang berlangsung di seluruh Berlin minggu depan:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Apa itu:** Kelas penuh kesadaran yang menyeimbangkan gerakan berbasis napas dengan menahan postur untuk mengeksplorasi penyelarasan dan ketenangan. Dirancang khusus agar mudah diakses oleh pemula (disampaikan dalam bahasa Inggris).\n- **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 18:00 – 19:00 CEST (datang 10 menit lebih awal)\n- **Lokasi:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Harga:** €11,83 – €22,49\n- **Pemesanan:** [Pesan tiket di ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Apa itu:** Sesi mobilitas dan yoga santai untuk semua tingkatan di mana alur gerakannya dijelaskan langkah demi langkah dengan tempo yang lembut. Tidak memerlukan kelenturan atau pengalaman sebelumnya.\n- **Tanggal & Waktu:** Selasa, 13 Oktober 2026, 19:00 – 19:45 CEST (datang 15 menit lebih awal)\n- **Lokasi:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Harga:** €5 (gratis masuk dengan ExampleFitness / Wellpass jika kamu juga melakukan bouldering)\n- **Pemesanan:** [Lihat detail dan tautan pemesanan](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Apa itu:** Sesi Vinyasa yang dinamis namun lembut yang menawarkan modifikasi untuk pemula, berfokus pada kesadaran napas, penyelarasan tubuh, dan pelepasan stres.\n- **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 19:30 – 21:00 CEST\n- **Lokasi:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Harga:** €10 untuk kelas percobaan pertama kamu (starter pack: 3 kelas seharga €20)\n- **Pemesanan:** [RSVP melalui Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tips untuk kelas yoga pertama kamu\n* **Pakaian:** Pakaian yang nyaman dan elastis agar kamu bisa bergerak dan membungkuk dengan mudah. Yoga biasanya dilakukan tanpa alas kaki.\n* **Hidrasi & Makanan:** Hindari makan berat dalam waktu 1,5–2 jam sebelum kelas.\n* **Dengarkan tubuhmu:** Beri tahu pengajar sebelum kelas bahwa ini adalah pertama kalinya kamu; mereka akan dengan senang hati menunjukkan penyesuaian dan alat bantu (balok, selimut, atau tali). Jika kamu memiliki masalah sendi atau punggung sebelumnya, konsultasikan dengan dokter atau terapis fisik sebelum mencoba urutan gerakan yang dinamis.\n\nApakah kamu ingin rekomendasi yang lebih dekat dengan lingkungan tertentu (misalnya, Neukölln, Prenzlauer Berg, Charlottenburg), atau fokus pada gaya yang lembut seperti [Hatha yoga](wiki:Hatha_yoga) atau [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Ini hanya informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*"
-      },
-      "follow_up_1": {
-        "text": "Cari kelas yoga di Neukölln Berlin"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan apa yang diharapkan saat kelas yoga pertama"
-      },
-      "follow_up_3": {
-        "text": "Cari lokakarya yoga Hatha akhir pekan depan"
-      },
-      "follow_up_4": {
-        "text": "Bandingkan gaya yoga Vinyasa dan Hatha"
-      },
-      "follow_up_5": {
-        "text": "Cari studio yoga Yin di Mitte"
-      },
-      "follow_up_6": {
-        "text": "Daftar tips pemula untuk membeli matras yoga"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Cari dokter umum berbahasa Inggris di Berlin"
-      },
-      "summary": {
-        "text": "Temukan opsi janji temu dengan detail asuransi yang jujur dan tautan praktik dokter."
-      },
-      "message_1": {
-        "text": "Aku butuh janji temu dokter umum berbahasa Inggris di Berlin minggu depan. Tolong bandingkan opsi tercepat, tunjukkan kartu janji temunya, dan hanya sebutkan cakupan asuransi jika daftar pemesanan mengonfirmasinya. Jika cakupannya tidak jelas, katakan saja."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```Ini adalah pilihan dokter umum (GP) berbahasa Inggris tercepat di Berlin dalam 7 hari ke depan yang saya temukan. Saya hanya mencantumkan cakupan asuransi jika daftar pemesanannya sendiri menunjukkannya.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Pilihan tercepat minggu depan**\n1. **Senin 12 Okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Alamat: Albert-Einstein-Straße 2, 12489 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*\n\n2. **Senin 12 Okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Alamat: Kapweg 5, 13405 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Inggris\n   - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*\n\n3. **Senin 12 Okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Alamat: Stargarder Straße 69, 10437 Berlin\n   - Jenis kunjungan: Konsultasi akut\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\n4. **Senin 12 Okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Alamat: Müllerstraße 36, 13353 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\n5. **Senin 12 Okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Alamat: Wallstraße 16, 10179 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\nBeberapa catatan:\n- Saya mengecualikan dua pilihan sebelumnya pada **9–10 Okt** dari perbandingan di atas karena kamu meminta khusus untuk **minggu depan**.\n- Hasil ini tampaknya berasal dari daftar ExampleClinicA; cakupan ExampleClinicB tidak didukung dalam kumpulan hasil pencarian ini.```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```Kalau mau, selanjutnya aku bisa:\n- mempersempit ini ke **asuransi publik saja** yang sudah dikonfirmasi, atau\n- bikin daftar singkat berdasarkan **distrik / jarak dari lokasimu**.\n---\n*⚠️ Ini cuma informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*"
-      },
-      "follow_up_1": {
-        "text": "Cari janji temu dokter umum asuransi publik di Mitte"
-      },
-      "follow_up_2": {
-        "text": "Filter janji temu untuk menampilkan asuransi publik saja"
-      },
-      "follow_up_3": {
-        "text": "Cari dokter berbahasa Inggris di dekat distrik Prenzlauer Berg"
-      },
-      "follow_up_4": {
-        "text": "Persempit pilihan berdasarkan lingkungan dan jarak"
-      },
-      "follow_up_5": {
-        "text": "Cari janji temu dokter spesialis di Berlin"
-      },
-      "follow_up_6": {
-        "text": "Jelaskan cara memesan janji temu dokter ini secara online"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "Bandingkan biologi alien Gethenian dan Oankali"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "Jelaskan cara mengoptimalkan file SVG untuk performa web"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Cari nama merek dan domain"
-      },
-      "summary": {
-        "text": "Percakapan penamaan yang ringkas: curah pendapat tujuh kandidat, lalu bandingkan dua finalis dengan bukti domain, web, dan merek dagang AS awal."
-      },
-      "message_1": {
-        "text": "Bantu saya mencari nama untuk produk baru saya."
-      },
-      "message_2": {
-        "text": "Untuk memulai, apa fungsi produkmu, siapa target audiensmu, dan nada atau kesan apa yang ingin disampaikan oleh nama tersebut (misalnya, ceria, premium, teknis)?"
-      },
-      "message_3": {
-        "text": "Ini adalah aplikasi penganggaran yang menenangkan untuk pekerja lepas AS, dalam bahasa Inggris. Saya ingin nama yang pendek, mudah diingat, dan domain .com hingga €20 per tahun. Tolong buatkan daftar pendek yang bervariasi terlebih dahulu."
-      },
-      "message_4": {
-        "text": "Berikut adalah daftar pendek awal dari nama-nama yang bervariasi dan mudah diucapkan, yang disesuaikan untuk pengalaman penganggaran freelance yang tenang:\n\n- [ ] **Serenito**: Membangkitkan ketenangan dan ritme yang lembut untuk pendapatan solo yang fluktuatif.\n- [ ] **Solowell**: Menyarankan kesehatan finansial dan ketenangan pikiran bagi solopreneur.\n- [ ] **Equafy**: Berfokus pada penyeimbangan siklus arus kas yang tidak teratur antara masa berlimpah dan kekurangan.\n- [ ] **StillLedger**: Memadukan struktur akuntansi klasik dengan ketenangan yang penuh kesadaran dan rendah stres.\n- [ ] **Cadenceo**: Menyiratkan pembangunan ritme yang stabil dan terprediksi dari pembayaran proyek.\n- [ ] **HavenFin**: Membingkai pengelolaan uang sebagai pelabuhan yang aman dan menenangkan.\n- [ ] **Placidly**: Nada yang lembut dan menenangkan yang meredakan kecemasan finansial.\n\n*(Catatan: Daftar pendek ini belum diperiksa ketersediaan domain langsung atau izin hukumnya.)*\n\nMana 2–3 nama yang ingin kamu periksa secara langsung? Kamu bisa memilih favoritmu atau memintaku memilih finalis untuk memverifikasi harga .com, konflik merek, dan merek dagang AS.\n\n- [Periksa Serenito, Solowell, dan Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Pilihkan 3 terbaik untukku dan periksa](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Silakan periksa Equafy dan Cadenceo: ketersediaan .com dan harga yang ditawarkan, merek yang sudah ada di web, serta merek dagang AS. Buat perbandingannya tetap ringkas, sertakan rekomendasi kamu dan pemeriksaan apa pun yang masih kurang."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nBerikut adalah perbandingan berdasarkan pemeriksaan yang dilakukan pada 12 Oktober 2026:\n\n### Equafy\n- **Domain**: `equafy.com` saat ini tidak tersedia di ExampleRegistrar; tidak ada harga pendaftaran standar yang tersedia, sehingga tidak memenuhi anggaran €20/tahun.\n- **Lanskap web & merek**: Tidak ada perangkat lunak penganggaran terkemuka yang menggunakan nama persis ini, tetapi pencarian web menunjukkan kemiripan fonetik yang tinggi dan kebingungan pencarian dengan [layanan keuangan pribadi Equifax](embed:equifax.com-TrW).\n- **Merek dagang AS (ExampleTrademarks)**: Pencarian awal mengembalikan 5 dari 1.640 catatan serupa (dipotong; ketiadaan nama yang persis tidak dapat dipastikan). Kecocokan aktif mencakup `EQUIFY` di Kelas 36 (layanan keuangan dan nilai tersimpan yang tertunda) dan Kelas 35 (layanan lelang terdaftar).\n\n### Cadenceo\n- **Domain**: `cadenceo.com` saat ini tidak tersedia di ExampleRegistrar; tidak ada harga pendaftaran standar yang tersedia, gagal memenuhi anggaran €20/tahun.\n- **Lanskap web & merek**: Tumpang tindih langsung dengan [Cadence Money](embed:cadencemoney.com-IcE), aplikasi pelacak anggaran dan keuangan pribadi mapan yang beroperasi di AS dan Kanada di iOS, Android, dan web.\n- **Merek dagang AS (ExampleTrademarks)**: Pencarian awal mengembalikan 5 dari 227 catatan serupa (dipotong; ketiadaan nama yang persis tidak dapat dipastikan). Kecocokan aktif untuk `CADENCE` mencakup catatan perangkat lunak yang dapat diunduh Kelas 9.\n\n---\n\n### Rekomendasi & Pertimbangan\n- **Arah**: Lewati keduanya. Meskipun **Equafy** memiliki lebih sedikit konflik aplikasi langsung daripada **Cadenceo** (yang bertabrakan langsung dengan *Cadence Money*), tidak ada yang menawarkan `.com` yang tersedia di bawah batas €20/tahun Anda, dan Equafy membawa kebingungan fonetik dengan merek keuangan yang ada seperti *Equify* dan *Equifax*.\n- **Pemeriksaan yang terlewat**: Pendaftaran merek dagang internasional di luar AS, pengajuan merek dagang negara bagian hukum umum (common-law), dan valuasi pembelian domain pasar sekunder tidak diperiksa.\n\nApakah Anda ingin menguji ketersediaan domain dan pemeriksaan ketersediaan pada opsi daftar pendek lainnya (seperti **Solowell** atau **StillLedger**), atau menjelajahi sedikit variasi kata majemuk untuk menemukan `.com` yang tersedia sesuai anggaran?\n\n- [Periksa Solowell dan StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Cari ide nama majemuk dengan .com tersedia di bawah €20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Cek ketersediaan domain dan merek dagang untuk Solowell dan StillLedger"
-      },
-      "follow_up_2": {
-        "text": "Cari ide nama gabungan dengan domain dot com yang tersedia di bawah dua puluh euro"
-      },
-      "follow_up_3": {
-        "text": "Cari catatan merek dagang untuk ide nama aplikasi penganggaran mendatang"
-      },
-      "follow_up_4": {
-        "text": "Bandingkan strategi branding dan penamaan untuk aplikasi wirausahawan solo"
-      },
-      "follow_up_5": {
-        "text": "Cari ekstensi domain yang tersedia untuk aplikasi keuangan freelance"
-      },
-      "follow_up_6": {
-        "text": "Daftar registrar domain alternatif untuk domain startup yang terjangkau"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Penerbangan dari Berlin ke Bangkok"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Rekomendasikan akomodasi ramah anggaran di Bangkok"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Apartemen Berlin dengan balkon"
-      },
-      "summary": {
-        "text": "Bandingkan daftar apartemen Berlin asli, galeri foto lengkap, bukti balkon, dan lokasi peta, dengan biaya yang belum dikonfirmasi serta akses air yang diberi label dengan jelas."
-      },
-      "message_1": {
-        "text": "Saya sedang mencari apartemen untuk disewa di Berlin dengan balkon, idealnya di dekat sungai atau danau, dengan harga hingga 1.800 EUR per bulan dan setidaknya dua kamar. Bisakah kamu membandingkan beberapa listing dengan galeri foto dan lokasi petanya? Tolong bedakan apa yang benar-benar dikonfirmasi oleh listing tersebut dari apa yang tidak diketahui, termasuk harga sewa, tanggal sewa, dan akses air. Jika penyedia hanya memberikan lokasi perkiraan atau foto yang tidak lengkap, sampaikan hal itu. Kemungkinan yang diberi label dengan jelas sangat diharapkan jika beberapa detail tidak ada."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nBerikut adalah rincian perbandingan apartemen sewa 2 kamar di Berlin dengan harga di bawah €1.800/bulan dengan bukti balkon dan kedekatan atau klaim dekat dengan air, menyoroti fakta yang dikonfirmasi versus ambiguitas:\n\nApartemen sewa 2 kamar di Berlin dengan balkon\n\n---\n\n### Ringkasan Perbandingan\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Profil Daftar Terperinci\n\n#### 1. [Apartemen loft 2 kamar dengan balkon, dekat Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Sewa & Biaya**: Total sewa hangat dinyatakan secara eksplisit sebesar **€1.350/bulan**, terdiri dari sewa dingin €1.200 dan €150 biaya tambahan yang tidak ditentukan. Rincian biaya pemanas tidak disebutkan secara eksplisit. Deposit adalah €2.000.\n* **Ketentuan Sewa**: Sub-sewa jangka waktu tetap. Data terstruktur mencantumkan 01.11.2026 hingga 01.04.2027, tetapi deskripsi daftar menjelaskan bahwa periode tetap yang dijamin adalah **1 November hingga 28 Desember 2026**, dengan perpanjangan bulanan yang fleksibel hingga 1 April 2027 tergantung kesepakatan bersama.\n* **Bukti Balkon**: Terkonfirmasi. Tercantum secara eksplisit dalam fitur dan teks (\"Balkon cerah dengan pemandangan Fennpfuhlpark\"). Penilaian visual mengambil sampel 3 dari 14 foto galeri yang tersedia, mengonfirmasi balkon yang terlihat pada indeks foto 0.\n* **Akses Air & Lokasi**: Terletak di Anton-Saefkow-Platz di Lichtenberg. Geocoding cocok di tingkat jalan (tidak ada nomor gedung spesifik). Data OpenStreetMap mengonfirmasi adanya fitur air (**Fennpfuhl**, sebuah danau taman), tetapi hanya sebagai koordinat titik representatif; jarak garis pantai yang tepat dan menit berjalan kaki pejalan kaki tidak dihitung dan oleh karena itu tidak diverifikasi.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Sewa & Biaya**: Diiklankan sebagai flat **€1.800/bulan** all-inclusive (baik sewa dingin maupun hangat dimasukkan sebagai €1.800). Utilitas, biaya pemanas, dan listrik tidak diperinci. Deposit adalah €1.000.\n* **Ketentuan Sewa & Perbedaan Cakupan**:\n  * *Konflik tanggal*: Bidang terstruktur menunjukkan ketersediaan dari 21.10.2026 hingga 03.05.2027. Namun, teks bahasa Jerman secara eksplisit menyatakan ketersediaan mulai 11 November selama 2 bulan, sedangkan terjemahan bahasa Inggris di bagian bawah daftar menyatakan \"dari 6 November, 4–6 bulan\".\n  * *Pembatasan kamar*: Daftar tersebut mencatat bahwa kamar internal pemilik (*Sperrraum*) tetap terkunci dan tidak termasuk dalam sewa, meskipun ruang yang tersisa yang dapat diakses digambarkan sebagai dua kamar seluas 85 m².\n* **Bukti Balkon**: Terkonfirmasi. Diiklankan dengan dua balkon (satu menghadap halaman, satu menghadap air). Sampel foto (3 dari 15) mengonfirmasi balkon di foto 0 dan 14.\n* **Akses Air & Lokasi**: Alamat terdaftar sebagai Maybachufer di [Neukölln](wiki:Neukölln). Geocoding memberikan hasil yang ambigu dan kembali ke koordinat umum kota Berlin. Meskipun teks daftar secara eksplisit mengklaim pemandangan langsung ke [Kanal Landwehr](wiki:Landwehr_Canal), jarak lingkungan dan rute jalan kaki tidak dapat diverifikasi secara geometris karena fallback koordinat.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Sewa & Biaya**: Sewa hangat terdaftar mulai dari **€1.372/bulan**, dengan biaya operasional €130 dan biaya pemanas €105 yang diperinci. Sewa dasar dingin diabaikan, dan deskripsi mencatat bahwa ini adalah sewa awal minimum untuk tingkat promosi. Listrik harus dikontrak secara mandiri oleh penyewa.\n* **Ketentuan Sewa**: Diiklankan oleh operator komersial untuk kawasan hunian baru (*Erstbezug* 2026). Memerlukan **durasi sewa minimum 12 bulan** (*Mindestmietdauer*). Tanggal mulai terbuka (peninjauan bergulir setiap Rabu/Kamis).\n* **Bukti Balkon**: Terkonfirmasi dalam spesifikasi deskripsi (\"einen Balkon\") dan atribut yang diiklankan. Pengambilan sampel visual dari 3 dari 27 foto mengonfirmasi struktur balkon eksterior pada indeks foto 26.\n* **Akses Air & Lokasi**: Terletak di Buschkrugallee 64 di Neukölln/[Britz](wiki:Britz). Posisi didasarkan pada koordinat yang disediakan penyedia tanpa verifikasi jalan independen. Deskripsi menyatakan kompleks tersebut berbatasan dengan kanal (Kanal Kapal Neukölln), tetapi jarak garis pantai yang tepat dan titik akses jalan kaki tidak dihitung secara geometris.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Sewa & Biaya**: Sewa hangat diiklankan sebesar **€980/month**. Deskripsi menyebutkan \"Nebenkosten: 270 € pro Monat\", tetapi tidak menjelaskan apakah ini sudah termasuk dalam €980 atau dibebankan di atasnya. Deposit adalah €1.500.\n* **Ambiguitas Penting Seluruh Flat vs. Kamar**: Judul menyatakan \"2-Zimmer Wohnung... zur Untermiete\", tetapi teks dimulai dengan: *\"Kami menyewakan kamar kami yang indah, tenang, dan berperabot dengan balkon...\"*. Tidak jelas apakah seluruh flat 2 kamar seluas 50 m² yang disewakan atau hanya satu kamar di dalamnya.\n* **Bukti Balkon**: Tidak terkonfirmasi secara visual. Meskipun diiklankan memiliki balkon di judul dan teks, hanya 1 foto yang disediakan oleh pemasang, dan tidak ada balkon yang terlihat di foto tersebut.\n* **Akses Air & Lokasi**: Terletak di 14057 [Charlottenburg](wiki:Charlottenburg). Penyedia tidak menentukan nama jalan atau nomor rumah (hanya presisi tingkat kode pos). Deskripsi mencatat kedekatan berjalan kaki ke Lietzenseepark (yang berisi danau Lietzensee), tetapi waktu rute yang tepat dan meter garis pantai tidak dapat dihitung tanpa alamat jalan.\n* **Ketentuan Sewa**: Sub-sewa jangka waktu tetap dari 01.11.2026 hingga maksimum 01.11.2027 (periode yang lebih pendek dapat dinegosiasikan).\n\n---\n\n### Poin Penting Sebelum Bertanya\n1. **Verifikasi Air**: Hanya flat Maybachufer yang secara eksplisit menghadap ke perairan terbuka dari apartemen itu sendiri, tetapi geocode-nya perkiraan dan tanggalnya berkonflik. Flat Anton-Saefkow-Platz telah mengonfirmasi kedekatan taman dengan Fennpfuhl, meskipun jarak garis pantai yang tepat tidak diukur.\n2. **Jenis Sewa**: Tidak ada daftar ExampleHousingC yang menawarkan sewa terbuka (*unbefristet*); semuanya adalah sub-sewa jangka waktu tetap. Momento Berlin menawarkan masa sewa jangka panjang mulai dengan minimum 12 bulan.\n3. **Batasan Pengambilan Sampel Foto**: Penilaian visual memeriksa sampel terbatas 1 hingga 3 gambar per daftar. Fitur tambahan mungkin muncul di galeri lengkap yang dapat diakses melalui setiap kartu daftar.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Menentukan Parameter Pencarian Apartemen**\n\nSaya sekarang sedang memfokuskan diri untuk menentukan parameter pencarian yang tepat untuk penyewaan di Berlin. Saya telah menetapkan Berlin sebagai kotanya, dan membatasi jenis iklan ke \"sewa\" serta jenis properti ke \"apartemen\". Balkon adalah persyaratan mutlak, yang akan saya pastikan disertakan dalam kriteria pencarian.\n\n\n**Menyempurnakan Kriteria Pencarian**\n\nSaya baru saja menyempurnakan parameter pencarian lebih lanjut. Saya telah menerjemahkan \"idealnya di dekat sungai atau danau\" menjadi preferensi untuk kedekatan dengan air, yang dikategorikan sebagai \"neighborhood_categories: ['water']\". Anggaran \"hingga 1.800 EUR per bulan\" sekarang ditentukan sebagai `max_warm_rent_eur: 1800`, karena saya berasumsi bahwa itu adalah biaya sewa total (warm rent). Selain itu, karena saya diberitahu bahwa \"Kemungkinan yang diberi label dengan jelas dipersilakan ketika beberapa detail hilang\", saya sekarang akan secara eksplisit menyertakan iklan yang belum dikonfirmasi dengan `include_unconfirmed: true`.\n\n\n**Menganalisis Persyaratan Pencarian**\n\nSaya sekarang sedang menganalisis panduan alat pencarian rumah ini dengan cermat. Saya berfokus pada cara terbaik untuk menerjemahkan preferensi saya ke dalam filter terstruktur dan `relevance_criteria` yang benar. Saya perlu memastikan persyaratan saya untuk kedekatan dengan air, bukti balkon, dan batasan anggaran semuanya dikodekan dengan benar. Saya juga memastikan bahwa saya membedakan antara apa yang \"diperlukan\", \"dikecualikan\", dan \"disukai\" dalam pencarian saya.\n\n\n**Menilai Integritas Data Iklan**\n\nSaya sekarang sangat memperhatikan integritas data. Saya harus menghindari klaim berlebihan terhadap bukti visual dan menentukan batasan dari setiap penyedia. Kedekatan dengan air harus didasarkan pada bukti yang kuat, dilaporkan sebagai \"tidak terverifikasi\" ketika pengayaan data tidak tersedia atau waktu habis. Harus jelas bahwa balkon yang terlihat tidak menjamin bahwa itu milik apartemen tersebut, dan saya hanya dapat melaporkan rincian sewa jika dinyatakan secara eksplisit.\n\n\n**Menganalisis Data Iklan**\n\nSaya sekarang sedang mendalami iklan yang dikembalikan, dengan cermat mencocokkannya dengan aturan yang diberikan. Fokus saya adalah membedakan dengan jelas poin data yang dikonfirmasi dari ketidakpastian. Saya memberikan perhatian khusus pada hal-hal spesifik seperti biaya sewa, tanggal sewa, dan akses air, serta menandai ambiguitas apa pun. Tujuannya adalah presisi yang tepat.\n\n\n**Mengklarifikasi Kriteria Kedekatan**\n\nSaya sekarang mengintegrasikan persyaratan kedekatan yang bernuansa. Saya mendokumentasikan setiap batasan dalam bukti dengan cermat. Saya berfokus pada pemisahan klaim yang divalidasi dari informasi yang tidak terverifikasi secara transparan. Saya memprioritaskan akurasi dalam dokumentasi saya. Saya bersikap jelas tentang apa yang merupakan akses air terverifikasi dan apa yang tidak. Saya menekankan perlunya pelabelan eksplisit untuk data yang tidak pasti.\n\n\n**Menyempurnakan Aturan Ambiguitas**\n\nSaya sekarang berfokus pada penyempurnaan aturan seputar poin data yang tidak pasti. Jika tidak ada penyebutan fitur air, saya akan melaporkannya sebagai tidak diketahui; saya tidak akan menyimpulkan kedekatan. Saya akan memisahkan visibilitas balkon di foto dari konfirmasi teks. Syarat sewa dilaporkan secara eksplisit hanya jika dinyatakan. Konflik dalam tanggal dan rincian sewa diprioritaskan. Saya akan menggunakan kartu pratinjau sematan sebagai tampilan.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Menafsirkan Format Hasil**\n\nSaya sekarang berfokus pada struktur respons \"embeds\\_results\\_view\". Saya memperhatikan tidak adanya \"source\\_ref,\" yang memengaruhi penggunaan yang benar antara \"sources\" atau \"embeds.\" Saya akan memastikan untuk menggunakan kolom \"embeds\" ketika tidak ada source\\_ref yang tersedia, secara khusus merujuk pada nilai child embed\\_ref yang dikembalikan. Selain itu, saya akan memperhatikan kolom \"title\" sebagai elemen deskriptif.\n\n\n**Memeriksa Detail Iklan**\n\nSaya sekarang sedang memeriksa iklan individu secara cermat, khususnya berfokus pada \"apartemen loft 2 kamar dengan balkon, dekat Ringbahn.\" Saya mencocokkan iklan ini dengan data sematan. Saya mencatat kedekatan air yang tidak terverifikasi karena jarak dan akses yang tidak diketahui, meskipun pemandangan danau disebutkan. Fokus saya adalah mencatat dengan jelas apa yang dikonfirmasi vs tidak terverifikasi. Saya mendokumentasikan semua ketidakpastian dengan cermat.\n\n\n**Mengevaluasi Detail Iklan**\n\nSaya baru saja selesai mengevaluasi iklan lainnya. Saya mengonfirmasi visibilitas balkon melalui analisis foto. Syarat sewa menawarkan periode tetap yang diikuti oleh perpanjangan fleksibel, yang telah saya dokumentasikan. Saya berfokus pada hal-hal spesifik. Sekarang, saya sedang bekerja untuk memahami sepenuhnya semua informasi iklan yang relevan.\n```\n```\n\n**Merinci Atribut Spesifik**\n\nSaya sekarang merinci iklan spesifik ini. Geocode jalan tidak jelas; saya mencatat hal ini berdampak pada verifikasi kedekatan air. Klaim tekstual tentang pemandangan Landwehrkanal tidak dapat divalidasi secara geometris. Saya mengonfirmasi keberadaan balkon melalui pemeriksaan tekstual dan visual. Saya secara eksplisit menandai konflik tanggal sewa antara data terstruktur dan teks deskriptif.\n\n\n**Menilai Data Iklan**\n\nSaya sekarang mendalami iklan terbaru. Saya telah menandai biaya sewa dasar (cold rent) yang hilang dan rincian sewa yang tidak tepat. Sewa yang diiklankan adalah titik awal, jadi saya telah mencatat nilai minimum yang tidak diketahui. Rentang ukuran apartemen dalam proyek tersebut memerlukan kejelasan, karena ukuran iklan berada dalam rentang ini. Saya telah menandai kedekatan kanal yang tidak pasti karena presisi lokasi yang tidak terverifikasi.\n\n\n**Menafsirkan Detail Sewa**\n\nSaya sekarang berfokus pada informasi sewa dan verifikasi balkon pada iklan terbaru. Saya mengonfirmasi visibilitas balkon melalui teks dan sampel visual. Saya telah mencatat sewa minimum 12 bulan dan tidak adanya tanggal berakhir yang jelas dalam data. Iklan tersebut adalah untuk kamar berperabot dengan balkon, tetapi judulnya mengatakan apartemen 2 kamar, jadi saya sedang menyelidiki potensi ambiguitas antara kamar versus apartemen. Saya memperhatikan semua detail dengan cermat.\n\n\n**Menganalisis Detail Iklan**\n\nSaya sekarang menganalisis iklan baru dengan cermat, yang menyatakan kamar berperabot dengan balkon. Frasa \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" menambah ambiguitas krusial; satu-satunya foto iklan yang disediakan tidak memiliki konfirmasi balkon, yang telah saya tandai. Alamat dengan geocode tingkat distrik membuat kedekatan air menjadi tidak jelas. Masa sewa berlangsung dari 1 November 2026 hingga 1 November 2027.\n\n\n**Membandingkan Penyebutan Air**\n\nSaya sekarang membandingkan iklan yang menyebutkan fitur air seperti Maybachufer dan lainnya untuk melihat ketepatan klaim mereka dan perbedaan data yang melekat. Saya meninjau bukti dan cakupannya. Saya berfokus pada detail tepat yang diminta oleh pengguna. Saya akan menandai ketidakpastian dan batasan apa pun dalam data.\n\n\n**Memverifikasi Rincian Sewa**\n\nSaya sekarang berfokus pada perbedaan dalam angka sewa. Saya memprioritaskan rekonsiliasi angka-angka yang kontradiktif, melaporkan biaya yang tidak diperinci, dan secara eksplisit mencatat biaya pemanas yang tidak diketahui. Selain itu, saya memeriksa referensi sematan sebaris untuk memastikan bahwa teks tampilan tidak pernah berupa embed\\_ref. Lebih lanjut, saya hanya akan menggunakan kartu besar atau kecil untuk referensi sematan, berdasarkan sintaksisnya. Terakhir, saya akan menambahkan saran pesan tindak lanjut di bagian paling akhir pembaruan ini."
-      },
-      "message_3": {
-        "text": "Saya paling tertarik dengan loft dan apartemen Maybachufer. Berdasarkan listing yang disimpan, apakah biaya sewa 1.800 EUR benar-benar all-inclusive, atau masih ada tagihan yang belum diketahui? Selain itu, bisakah kamu menjelaskan berapa banyak foto yang dihasilkan pencarian dibandingkan dengan berapa banyak yang benar-benar diperiksa, dan detail balkon serta air mana yang didukung langsung oleh listing tersebut? Saya lebih suka membiarkan detail yang tidak terverifikasi ditandai sebagai tidak diketahui."
-      },
-      "message_4": {
-        "text": "Berikut adalah rincian tepat mengenai apa yang sebenarnya dikonfirmasi oleh data iklan dibandingkan dengan apa yang masih belum terverifikasi atau tidak diketahui untuk **apartemen Maybachufer** dan **loft Anton-Saefkow-Platz**.\n\n---\n\n### 1. Sewa Maybachufer: Apakah €1.800 Benar-benar All-Inclusive?\n\n* **Apa yang ditentukan dalam iklan**: Baik sewa bersih (*Kaltmiete*) maupun sewa total (*Warmmiete*) dimasukkan sebagai tarif tetap **€1.800**. Uang jaminan ditetapkan sebesar €1.000.\n* **Apa yang tetap TIDAK DIKETAHUI**:\n  * **Rincian Utilitas**: Iklan tersebut **tidak memberikan rincian biaya terperinci** untuk biaya operasional (*Betriebskosten/Nebenkosten*) atau pemanas (*Heizkosten*).\n  * **Listrik & Internet**: Tuan rumah tidak secara eksplisit mengonfirmasi dalam kolom terstruktur apakah listrik rumah tangga (*Haushaltsstrom*) atau Wi-Fi sudah termasuk dalam €1.800 atau apakah berlaku batas penggunaan.\n  * **Biaya Penyiaran**: Apakah biaya penyiaran Jerman yang wajib (*Rundfunkbeitrag*) sudah termasuk atau harus didaftarkan secara terpisah tidak disebutkan.\n* **Kesimpulan**: Meskipun dipasarkan sebagai jumlah bulanan borongan yang umum untuk subsewa jangka pendek berperabot, hal ini **tidak dapat diverifikasi sebagai benar-benar all-inclusive** sampai tuan rumah memberikan rincian tertulis yang mengonfirmasi cakupan listrik, kelebihan biaya pemanas, dan internet.\n\n---\n\n### 2. Cakupan Galeri Foto: Yang Dikembalikan vs. Yang Diperiksa\n\nAlat pencarian mengambil metadata iklan dengan jumlah galeri lengkap, tetapi analisis visual otomatis hanya mengevaluasi sampel foto yang ditargetkan per iklan untuk mengidentifikasi fitur inti:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Catatan: Kamu dapat membuka kartu iklan secara langsung untuk menelusuri ke-14–15 foto beresolusi tinggi secara manual.*\n\n---\n\n### 3. Detail Balkon & Air: Dikonfirmasi vs. Tidak Diketahui\n\n#### Apartemen Maybachufer\n* **Balkon**:\n  * *Dikonfirmasi oleh teks iklan*: Memiliki **dua balkon** — satu diklaim menghadap halaman dalam (*Innenhof*) dan satu diklaim menghadap kanal/jalan.\n  * *Dikonfirmasi oleh pemeriksaan foto*: Struktur balkon yang terlihat dikonfirmasi dalam indeks foto yang diperiksa 0 dan 14.\n  * *Tidak diketahui*: Dimensi balkon yang tepat, orientasi/jam paparan sinar matahari, dan apakah disediakan furnitur luar ruangan.\n* **Akses Air**:\n  * *Dikonfirmasi oleh teks iklan*: Terletak langsung di Maybachufer di sepanjang [Landwehr Canal](wiki:Landwehr_Canal) di [Neukölln](wiki:Neukölln). Deskripsi tersebut secara eksplisit menyatakan pemandangan menghadap air.\n  * *Tidak diketahui / Tidak terverifikasi oleh alat*: Sistem geocoding menandai kueri alamat jalan sebagai ambigu dan secara default menggunakan titik pusat seluruh Berlin, bukan pin lokasi persis. Akibatnya, jarak tepat iklan ke penyeberangan kanal pejalan kaki atau akses dermaga tidak dapat diukur secara independen dari payload data.\n\n#### Loft Anton-Saefkow-Platz\n* **Balkon**:\n  * *Dikonfirmasi oleh teks iklan*: Secara eksplisit mengiklankan \"balkon cerah dengan pemandangan ke arah Fennpfuhlpark\".\n  * *Dikonfirmasi oleh pemeriksaan foto*: Struktur balkon dikonfirmasi dalam indeks foto yang diperiksa 0.\n  * *Tidak diketahui*: Luas balkon dan tingkat lantai (iklan menentukan gaya loft di lantai atas, tetapi bukan lantai pastinya).\n* **Akses Air**:\n  * *Dikonfirmasi oleh teks iklan & OpenStreetMap*: Terletak di Anton-Saefkow-Platz di Lichtenberg, berdekatan dengan Fennpfuhlpark, yang berisi **Fennpfuhl** (danau bersejarah).\n  * *Tidak diketahui / Tidak terverifikasi oleh alat*: Iklan tersebut **tidak** terletak langsung di tepi sungai atau kanal; fitur airnya adalah danau taman di daratan. Selain itu, meskipun tamannya sendiri berada di seberang jalan, waktu berjalan kaki yang tepat ke tepi air dan apakah air terlihat langsung di atas tajuk pohon dari balkon tetap tidak terverifikasi.\n\n---\n\n### Pertanyaan untuk Diajukan kepada Tuan Rumah Sebelum Berkunjung\n\n1. **Untuk Maybachufer**:\n   * *\"Apakah tarif tetap bulanan sebesar €1.800 mencakup pemanas, listrik, dan internet secara penuh, atau apakah ada penyelesaian utilitas terpisah (*Nebenkostenabrechnung*) di akhir masa inap?\"*\n   * *\"Bisakah kamu mengonfirmasi tanggal subsewa yang tepat (ringkasan menyebutkan 2 bulan, tetapi deskripsi bahasa Inggris menyebutkan 4–6 bulan)?\"*\n2. **Untuk Loft**:\n   * *\"Apakah biaya tambahan sebesar €150 bersifat tetap (*Pauschale*) termasuk pemanas dan internet, atau merupakan pembayaran di muka (*Vorauszahlung*)?\"*\n   * *\"Apakah perpanjangan setelah 28 Desember 2026 dijamin dalam kontrak jika diperlukan?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Mengklarifikasi Detail Properti**\n\nSaat ini saya berfokus pada pertanyaan pengguna mengenai \"the loft\" dan \"flat Maybachufer\". Secara khusus, saya mendalami lebih lanjut tentang sewa 1.800 EUR untuk properti Maybachufer. Saya perlu menentukan secara pasti apakah harga tersebut benar-benar sudah termasuk semua (all-inclusive), atau apakah ada potensi biaya tambahan. Selain itu, saya sekarang sedang mengklarifikasi jumlah foto yang tersedia untuk pencarian tersebut.\n\n\n**Memverifikasi Detail Cakupan Biaya**\n\nSaya sekarang mendalami rincian sewa flat Maybachufer, terutama klaim \"all-inclusive\". Tujuan saya adalah mengekstrak rincian tepat tentang apa yang sudah termasuk dan apa yang tidak. Saya perlu membedakan apakah 1.800 EUR tersebut mencakup utilitas, internet, pemanas, dan biaya penyiaran (broadcasting fee). Data awal menunjukkan informasi yang bertentangan, jadi saya harus memastikan apa yang *sebenarnya* dikonfirmasi oleh data tersebut.\n\n\n**Mengidentifikasi Celah Informasi Biaya**\n\nSaya sekarang mengklarifikasi rincian mengenai utilitas. Data awal belum mengonfirmasi apakah biaya GEZ, listrik, atau kelebihan pemakaian pemanas sudah termasuk. Saya perlu menentukan dengan jelas jumlah total foto dan memastikan semua foto yang relevan dianalisis untuk setiap properti. Maybachufer memiliki dua balkon, dan loft memiliki satu, meskipun dimensinya belum disebutkan. Selain itu, saya sedang memverifikasi lokasi properti Maybachufer."
-      },
-      "follow_up_1": {
-        "text": "Cari apartemen 2 kamar lainnya di dekat perairan di Berlin"
-      },
-      "follow_up_2": {
-        "text": "Buat draf pesan pertanyaan dalam bahasa Jerman untuk pemilik properti Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "Cari rute transportasi umum dari Anton-Saefkow-Platz ke Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "Bandingkan uang jaminan dan ketentuan pembatalan kedua apartemen"
-      },
-      "follow_up_5": {
-        "text": "Cek prakiraan cuaca saat ini untuk Berlin Lichtenberg"
-      },
-      "follow_up_6": {
-        "text": "Daftar pertanyaan kunci untuk diajukan kepada pemilik properti saat survei apartemen di Berlin"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "Jelaskan bagaimana pasokan pasar perumahan merespons pengendalian harga"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Pekerjaan Bermakna di Jerman"
-      },
-      "summary": {
-        "text": "Cari di empat platform lowongan kerja untuk lowongan di Jerman, lalu bandingkan peran desain dan siapkan pertanyaan untuk pemberi kerja."
-      },
-      "message_1": {
-        "text": "Saya sedang mencari pekerjaan yang bermakna di Jerman, terutama di bidang riset, desain, atau rekayasa perangkat lunak. Tolong carikan beberapa lowongan terbaru menggunakan ExampleJobsB dan ExampleJobsC serta ExampleJobsD dan Example Employment Board. Saya terbuka untuk lokasi mana pun di Jerman. Berikan daftar pendek berisi pemberi kerja, lokasi, sumber, dan tautan lamaran, serta jangan berasumsi tentang kerja jarak jauh atau gaji jika tidak disebutkan dalam iklan lowongan."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nBerikut adalah daftar singkat lowongan kerja saat ini di Jerman di bidang riset, desain, dan rekayasa perangkat lunak dari ExampleJobsB, **ExampleJobsC**, **ExampleJobsD**, dan **Example Employment Board**.\n\n---\n\n### Desain\n\n* **Senior Product Designer**\n  * **Pemberi Kerja:** voize (mengembangkan AI pengenalan suara untuk merampingkan dokumentasi bagi perawatan keperawatan dan klinis)\n  * **Lokasi:** Berlin, Jerman (terdaftar sebagai memenuhi syarat kerja jarak jauh)\n  * **Sumber:** ExampleJobsC\n  * **Gaji:** Tidak ditentukan\n  * **Lamaran:** [Lamar melalui voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **Pemberi Kerja:** stiftung ear (pendaftaran nasional yang mengoordinasikan pembuangan, pengambilan kembali, dan pelacakan ekonomi sirkular limbah elektronik)\n  * **Lokasi:** Nürnberg, Bayern\n  * **Sumber:** Badan Tenaga Kerja Federal\n  * **Pengaturan Kerja & Gaji:** Opsi kerja fleksibel/mobile disebutkan dalam deskripsi lowongan, tetapi tidak ada klasifikasi kerja jarak jauh penuh secara formal; gaji tidak ditentukan\n  * **Lamaran:** [Lamar melalui Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### Riset\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **Pemberi Kerja:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Lokasi:** Hamburg, Jerman\n  * **Sumber:** ExampleJobsB\n  * **Pengaturan Kerja & Gaji:** Tidak ditentukan\n  * **Lamaran:** [Lamar melalui IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **Pemberi Kerja:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Lokasi:** Bochum, Nordrhein-Westfalen\n  * **Sumber:** Badan Tenaga Kerja Federal\n  * **Pengaturan Kerja & Gaji:** Penuh waktu (39,83 jam/minggu); pengaturan jarak jauh tidak ditentukan; remunerasi sesuai dengan skala kolektif publik TV-L E13 (jumlah pasti tidak dipublikasikan dalam lowongan)\n  * **Lamaran:** [Lamar melalui Example Employment Board](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **Pemberi Kerja:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Lokasi:** Berlin\n  * **Sumber:** Badan Tenaga Kerja Federal\n  * **Pengaturan Kerja & Gaji:** Opsi fleksibel/mobile disebutkan dalam teks, tetapi tidak ada status jarak jauh tetap yang dinyatakan; gaji tidak ditentukan\n  * **Lamaran:** [Lamar melalui Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### Rekayasa Perangkat Lunak\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Pemberi Kerja:** idealo internet GmbH\n  * **Lokasi:** Berlin, Jerman\n  * **Sumber:** ExampleJobsD\n  * **Pengaturan Kerja & Gaji:** Lingkungan kantor di lokasi/hibrida; gaji tidak ditentukan\n  * **Lamaran:** [Lamar melalui ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **Pemberi Kerja:** Quantum-Systems GmbH (platform udara otonom dan persepsi robotik)\n  * **Lokasi:** Gilching, Bayern\n  * **Sumber:** ExampleJobsD\n  * **Pengaturan Kerja & Gaji:** Di lokasi/hibrida; gaji tidak ditentukan\n  * **Lamaran:** [Lamar melalui ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Mengidentifikasi Peluang di Jerman**\n\nSaat ini saya sedang berfokus untuk menemukan lowongan kerja yang relevan di Jerman. Saya telah memulai dengan menyusun daftar sumber yang menjanjikan: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD`, dan `Example Employment Board`. Minat utama saya terletak pada peran riset, desain, dan rekayasa perangkat lunak, dan saya akan memperhatikan aspek lokasi dengan saksama.\n\n\n**Menyempurnakan Parameter Pencarian**\n\nSaya sekarang menyempurnakan pendekatan saya untuk menggunakan alat `jobs-search` secara efektif. Saya berfokus pada array `requests` untuk membuat serangkaian kueri dan menentukan penyedia secara langsung, mengingat batas 5 permintaan. Saya sedang memeriksa definisi fungsi untuk mengonfirmasi cara memberikan penyedia secara eksplisit sebagai daftar, dan cara menentukan kriteria relevansi. Ini akan membantu dalam membuat daftar pendek berisi pemberi kerja, lokasi, sumber, dan tautan lamaran. Tujuan saya adalah menghindari asumsi tentang kerja jarak jauh atau gaji jika tidak dinyatakan secara eksplisit.\n\n\n**Memeriksa Hasil dari Penyedia**\n\nOke, saya sudah melihat sekilas penyedia yang dikembalikan. Tampaknya kita memiliki \"ExampleJobsC\" dan beberapa dari ExampleJobsD; satu adalah peran senior di bidang rekayasa backend (Java/Kotlin), dan yang lainnya adalah peran mahasiswa magang (working student). Saya mencatat kesan awal dan menilai potensi dampak dari setiap lowongan.\n\n\n**Menganalisis Peluang Saat Ini**\n\nSaat ini saya berfokus pada mengevaluasi dua peluang yang menjanjikan. Yang pertama adalah \"Joint Fellowship Program\" di Institute for Peace Research and Security Policy, Universitas Hamburg, dan yang kedua adalah posisi \"Student Assistant\" dalam Interface Cybersecurity Programme. Saya sedang mempertimbangkan dengan cermat keunggulan masing-masing dalam konteks riset perdamaian dan keamanan, serta keamanan siber.\n\n\n**Memprioritaskan Prospek Baru**\n\nSaya telah mengalihkan perhatian saya untuk menyusun daftar pendek yang seimbang. Saya memprioritaskan peluang di bidang desain dan riset, dengan fokus pada relevansi dan postingan terbaru. Saat ini, saya sedang memeriksa peran Senior Product Designer di voize di Berlin, dan posisi UI/UX Design di stiftung ear. Untuk riset, saya sedang meninjau peran di Ruhr-Universität Bochum, bersama dengan Joint Fellowship Program di Hamburg.\n\n\n**Mengevaluasi Kemungkinan Baru**\n\nSaya sekarang menimbang prospek baru berdasarkan kriteria saya. Saya telah menemukan opsi, seperti peran Research Engineer di Siemens Energy, Berlin, melalui Example Employment Board, yang berfokus pada riset fundamental. Saya juga mempertimbangkan peran Senior Backend dan Junior C++ Software Developer masing-masing di idealo internet GmbH (Berlin, ExampleJobsD) dan CT Software Engineering (Ingolstadt, Example Employment Board). Ini sesuai dengan minat saya dalam rekayasa perangkat lunak.\n\n\n**Menyempurnakan Kriteria Lamaran**\n\nSaya sekarang mengklarifikasi cara menangani tautan lamaran. Saya harus ingat untuk memprioritaskan proses lamaran yang jelas, memeriksa penggunaan `[teks tampilan](embed:embed_ref)` atau tautan standar. Selain itu, saya harus menghindari asumsi kerja jarak jauh atau mengungkapkan gaji kecuali jika dinyatakan secara eksplisit dalam lowongan tersebut.\n\n\n**Mengklarifikasi Protokol Lamaran**\n\nSaya sekarang berfokus pada format tautan lamaran. Saya berfokus untuk memastikan integrasi tautan langsung atau penggunaan format `(embed:embed_ref)`, memastikan saya tidak memberikan keduanya. Saya meninjau URL yang dikembalikan dari keterampilan aplikasi dengan cermat untuk memastikan kepatuhan. Saya bertujuan untuk mematuhi aturan penggunaan hanya satu gaya tautan per tautan lamaran kerja.\n\n\n**Menstandarisasi Tautan Lamaran**\n\nSaya sekarang menerapkan strategi tautan lamaran. Tujuan saya adalah menstandarisasi format untuk postingan pekerjaan. Saya hanya akan menggunakan referensi sematan (embed ref) untuk tautan lamaran. Saya juga akan menyertakan peran, pemberi kerja, lokasi, dan sumber untuk setiap lowongan, serta menggunakan tautan sematan. Saya akan memastikan untuk selalu menggunakan satu tautan per lowongan.\n\n\n**Menyusun Data Peluang**\n\nSaya sekarang mengumpulkan detail untuk beberapa peluang. Saya memiliki informasi untuk peran Senior Product Designer di voize, posisi UI/UX Design di stiftung ear, dan Joint Fellowship Program di Universitas Hamburg. Saya mencatat peran, pemberi kerja, lokasi, dan sumber untuk masing-masing, serta spesifikasi kerja jarak jauh dan gaji. Saya berfokus untuk memastikan format tautan yang konsisten dengan menggunakan sematan untuk setiap lamaran.\n\n\n**Mengintegrasikan Lowongan Baru**\n\nSaya sekarang mengintegrasikan lowongan baru ke dalam kumpulan data. Saya telah menambahkan posisi Research Associate di Ruhr-Universität Bochum, mengambil sumbernya dari Example Employment Board dan mencatat detail kerja jarak jauh serta gajinya. Selain itu, saya telah menyusun informasi tentang peran Research Engineer di Siemens Energy, termasuk opsi fleksibel. Saya memastikan konsistensi dalam format tautan, menggunakan sematan untuk tautan lamaran.\n\n\n**Menambahkan Lowongan Baru**\n\nSaya baru saja menambahkan dua lowongan baru, peran Senior Backend Engineer di lokasi yang tidak ditentukan dan posisi Working Student di Quantum-Systems GmbH di Gilching. Saya berfokus untuk menangkap semua detail secara akurat, termasuk lokasi, opsi kerja jarak jauh, informasi gaji (jika tersedia), dan tautan lamaran dalam format standar. Saya menggunakan format `(embed:embed_ref)` untuk tautan lamaran."
-      },
-      "message_3": {
-        "text": "Dua peran desain tersebut terdengar paling menarik. Bisakah kamu membandingkan secara singkat apa yang sebenarnya tertulis di lowongan yang disimpan dan menyarankan apa yang sebaiknya aku tanyakan kepada masing-masing pemberi kerja sebelum melamar?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nBerikut adalah perbandingan langsung dari apa yang dinyatakan dalam setiap lowongan, diikuti dengan pertanyaan terarah yang dapat kamu ajukan kepada setiap pemberi kerja sebelum atau selama proses lamaran.\n\n---\n\n### Perbandingan Lowongan\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Apa yang Perlu Ditanyakan Sebelum Melamar\n\n#### Untuk voize:\n1. **Akses riset pengguna:** *\"Seberapa sering dan melalui saluran apa desainer melakukan kerja lapangan atau pengujian dengan perawat lini depan dan staf perawatan dalam pengaturan klinis harian mereka?\"*\n2. **Kematangan dan cakupan tim:** *\"Bagaimana struktur tim produk, berapa rasio desainer terhadap PM dan engineer saat ini, dan apakah peran ini merupakan posisi kontributor individual atau diharapkan untuk membangun sistem desain?\"*\n3. **Kompensasi dan ritme kerja jarak jauh:** *\"Berapa kisaran kompensasi yang ditargetkan untuk tingkat senioritas ini, dan apakah ada pertemuan tim tatap muka wajib atau jam kerja inti meskipun ada kebijakan kerja jarak jauh?\"*\n\n#### Untuk stiftung ear:\n1. **Ekspektasi kehadiran di Nürnberg:** *\"Bagaimana struktur kerja mobile dalam praktiknya—apakah ada persyaratan mingguan atau bulanan tetap untuk hadir di kantor Nürnberg?\"*\n2. **Keseimbangan Desain vs. QA:** *\"Lowongan tersebut menyebutkan implementasi pengujian perangkat lunak bersamaan dengan desain UX/UI. Berapa persentase peran yang difokuskan pada riset pengguna/prototyping dibandingkan dengan validasi perangkat lunak teknis dan penjaminan kualitas (QA)?\"*\n3. **Alat desain dan serah terima pengembangan:** *\"Sistem desain dan alat prototyping apa yang saat ini digunakan, dan apakah kamu bekerja dengan tim pengembangan internal atau penyedia layanan IT eksternal?\"*\n4. **Tolok ukur kompensasi:** *\"Mengingat stiftung ear beroperasi dalam kapasitas hukum kepentingan publik, apakah kompensasi mengikuti skala kolektif publik tertentu (seperti TVöD/TV-L) atau struktur penilaian internal?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Menganalisis Konten Lowongan Kerja**\n\nOke, saya sudah mulai membandingkan deskripsi pekerjaan tersebut. Saya berfokus pada tanggung jawab utama dan keterampilan yang dibutuhkan untuk peran Senior Product Designer di Voize dan posisi UI/UX Design di Stiftung EAR. Sekarang saya sedang menyiapkan ringkasan tanggung jawab utama dan keterampilan yang dibutuhkan dari kedua lowongan kerja tersebut. Kemudian, saya akan mencari tahu informasi lebih lanjut apa yang mungkin saya butuhkan.\n\n\n**Menganalisis Deskripsi Pekerjaan**\n\nOke, sekarang saya sedang mendalami spesifikasi dari masing-masing lowongan. Fokus saya adalah membedah bahasa yang digunakan dalam deskripsi tersebut. Saya mencoba menentukan pertanyaan kunci apa yang perlu dijawab, guna mempersiapkan diri untuk masing-masing pemberi kerja. Misalnya, dalam lowongan voize, saya perlu tahu tentang produk pendamping AI mereka.\n\n\n**Menilai Detail Utama**\n\nSekarang saya memfokuskan perhatian pada lowongan voize dan menarik poin-poin penting. Ini adalah peran senior dengan tanggung jawab yang signifikan, membutuhkan seseorang yang dapat menantang manajer produk. Pengaturannya fleksibel, dengan kantor di Berlin dan opsi jarak jauh (remote). Kompensasi tidak disebutkan, tetapi tunjangannya mencakup waktu cuti yang layak dan keanggotaan klub olahraga. Bahasa Inggris adalah bahasa utama, meskipun konteksnya adalah layanan kesehatan Jerman.\n\n\n**Menentukan Persyaratan Spesifik**\n\nSekarang saya memfokuskan perhatian pada peran yang berbasis di Nürnberg. Saya telah merinci area-area utamanya: aspek kepatuhan hukum berfokus pada regulasi ElektroG. Pekerjaan saya mencakup pengembangan aplikasi web dan aktivitas UX, memberikan saran kepada para pemangku kepentingan. Kefasihan bahasa Jerman (minimal C1) adalah wajib, pengalaman dalam perangkat lunak regulasi merupakan nilai tambah. Posisi ini permanen dengan fleksibilitas kerja jarak jauh yang signifikan. Kompensasi didasarkan pada kinerja.\n\n\n**Membandingkan Atribut Pekerjaan**\n\nSekarang saya membuat perbandingan langsung di seluruh peran tersebut. Saya telah merincinya berdasarkan domain, budaya, keterampilan yang dibutuhkan, dan lokasi kerja. Secara khusus, saya membandingkan voize dengan peran di stiftung ear. Saya berfokus pada membedakan lingkungan dan prioritas mereka, dari layanan kesehatan garis depan hingga kepatuhan limbah elektronik. Saya mencatat perbedaan utama seperti persyaratan bahasa dan tingkat pengalaman. Selain itu, saya menilai perbedaan dalam kebijakan kerja jarak jauh mereka."
-      },
-      "follow_up_1": {
-        "text": "Cari lebih banyak lowongan desain UI/UX di Berlin"
-      },
-      "follow_up_2": {
-        "text": "Buat draf email penjangkauan untuk manajer perekrutan di voize"
-      },
-      "follow_up_3": {
-        "text": "Cari peran teknologi kesehatan serupa di Jerman"
-      },
-      "follow_up_4": {
-        "text": "Bandingkan kelebihan dan kekurangan bekerja di startup kesehatan versus lembaga publik"
-      },
-      "follow_up_5": {
-        "text": "Cari lowongan teknologi sektor publik di Nuremberg"
-      },
-      "follow_up_6": {
-        "text": "Daftar langkah persiapan wawancara utama untuk wawancara desain produk senior"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Model Benchy dan Dudukan Ponsel yang Dapat Dicetak"
-      },
-      "summary": {
-        "text": "Cari model Benchy dan dudukan ponsel cetak 3D populer di ExampleModels dengan kartu pratinjau dan tautan sumber."
-      },
-      "message_1": {
-        "text": "Temukan model Benchy dan dudukan ponsel cetak 3D di ExampleModels. Tampilkan opsi terbaik dengan kartu pratinjau dan tautan sumber."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nUntuk proyek pencetakan 3D kamu berikutnya, aku telah menemukan beberapa model paling populer dan kreatif di ExampleModels. Baik kamu sedang mencari kapal tunda [kalibrasi](wiki:Calibration_(statistics)) klasik atau aksesori [ponsel](wiki:Smartphone) fungsional, opsi-opsi ini adalah titik awal yang sangat baik.\n\n### Koleksi 3DBenchy\n[3DBenchy](wiki:3DBenchy) adalah standar emas untuk menguji kemampuan [printer 3D](wiki:3D_printing) kamu. Selain versi aslinya, ada beberapa \"remix\" yang menambah karakter pada meja kerja kamu.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **Original 3DBenchy**: Terbaik untuk [benchmarking](wiki:Benchmark_(computing)) [overhang](wiki:3D_printing#Support_structures), [bridging](wiki:3D_printing#Support_structures), dan penyelesaian permukaan.\n*   **Assault Benchy**: Versi [mecha](wiki:Mecha) yang dapat diposekan bagi mereka yang menginginkan sedikit gaya.\n*   **Floating BEN**: Dirancang khusus dengan lambung berongga sehingga benar-benar mengapung—cocok untuk di kamar mandi!\n\n### Dudukan Ponsel Fungsional\nDudukan ponsel adalah hasil cetakan praktis yang bagus. Desain-desain ini bervariasi dari yang minimalis hingga roda gigi mekanis yang kompleks.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Honeycomb Stand**: Sangat populer karena [rasio kekuatan terhadap berat](wiki:Specific_strength) yang tinggi dan tampilan modernnya.\n*   **Geared Stand**: Keajaiban mekanis \"print-in-place\" yang memungkinkan sudut pandang yang dapat disesuaikan.\n*   **Modern Curved**: Desain satu bagian yang ramping dan sangat cocok untuk pengaturan kantor minimalis.\n\n**Tips Pro:** Saat mencetak [Geared Phone stand](embed:geared-phone-stand-3Bl), pastikan [pengganda ekstrusi](wiki:3D_printing#Fused_deposition_modeling) kamu terkalibrasi dengan baik untuk mencegah bagian yang bergerak menyatu.\n\nJenis [filamen](wiki:3D_printing_filament) (PLA, PETG, dll.) apa yang berencana kamu gunakan untuk ini? Aku bisa memberimu beberapa tips slicing khusus berdasarkan bahanmu!\n\n**Apa yang ingin kamu lakukan selanjutnya?**\n- [Cari lebih banyak model 3D](/#settings/apps/models3d)\n- [Dapatkan tips pencetakan 3D](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "Ajari saya prinsip desain responsif"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Nama Aplikasi Sosial dengan Domain yang Diperiksa"
-      },
-      "summary": {
-        "text": "Bandingkan nama aplikasi sosial menggunakan ketersediaan domain yang diperiksa, harga pendaftaran dan perpanjangan, serta ketentuan pendaftaran."
-      },
-      "message_1": {
-        "text": "Saya sedang menamai aplikasi sosial yang membantu orang tetap terhubung setelah bertemu langsung dan bertemu orang baru. Rekomendasikan dua ide nama yang unik. Untuk setiap ide, harap periksa domain .com, .net, dan .app yang persis secara langsung, lalu rekomendasikan hanya domain persis yang ketersediaan, harga pendaftaran, harga perpanjangan, dan batasannya muncul dalam pemeriksaan tersebut. Jangan menebak tentang domain yang tidak diperiksa. Pilih nama yang lebih kuat berdasarkan hasil pemeriksaan."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nBerikut adalah dua ide nama unik yang disesuaikan untuk aplikasi yang berfokus pada membina hubungan tatap muka dan memperluas lingkaran sosial, beserta pemeriksaan domain langsung untuk ekstensi `.com`, `.net`, dan `.app` yang tepat dari masing-masing nama.\n\n---\n\n### Ide 1: Kinloop\n* **Konsep:** Menggabungkan \"kin\" (komunitas, afinitas pribadi, ikatan tepercaya) dengan \"loop\" (menutup lingkaran setelah pertemuan awal dan menjaga koneksi tetap hidup dalam lingkaran yang berkelanjutan).\n* **Verifikasi Domain Langsung:**\n  * **`kinloop.com`**: **Tidak Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Tidak Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Tidak Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-XJX))\n* **Rekomendasi:** Tidak ada. Ketiga domain target yang tepat saat ini sudah terdaftar/tidak tersedia, sehingga tidak ada domain tepat yang dapat direkomendasikan untuk nama ini.\n\n---\n\n### Ide 2: Orbitfolk\n* **Konsep:** Membangkitkan ide untuk menjaga kenalan di dunia nyata tetap berada dalam orbit pribadimu sambil terus menemukan dan menyambut orang-orang baru (\"folk\") ke dalam duniamu.\n* **Verifikasi Domain Langsung:**\n  * **`orbitfolk.com`**: **Tidak Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-cex))\n    * **Harga Pendaftaran:** $12.99 / tahun pertama tidak termasuk pajak ($15.46 termasuk PPN 19%; tarif reguler 1 tahun $18.78)\n    * **Harga Perpanjangan:** $39.98 / tahun tidak termasuk pajak ($47.58 termasuk PPN 19% untuk jangka waktu 1 tahun; $35.98/tahun sebelum pajak untuk jangka waktu 2–9 tahun)\n    * **Batasan:** Tidak ada yang dilaporkan\n  * **`orbitfolk.app`**: **Tersedia** ([Cek ExampleRegistrar](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Harga Pendaftaran:** $9.99 / tahun pertama tidak termasuk pajak ($11.89 termasuk PPN 19%; tarif reguler 1 tahun $23.29)\n    * **Harga Perpanjangan:** $47.98 / tahun tidak termasuk pajak ($57.10 termasuk PPN 19% untuk jangka waktu 1 tahun; $43.18/tahun sebelum pajak untuk jangka waktu 2–9 tahun)\n    * **Batasan:** Tidak ada yang dilaporkan\n\n---\n\n### Perbandingan & Pilihan yang Lebih Kuat\n\n**Orbitfolk** adalah pilihan yang lebih kuat:\n\n1. **Ketersediaan Langsung:** Meskipun `Kinloop` sudah diambil di ketiga ekstensi, `Orbitfolk` memiliki versi `.app` dan `.net` yang tersedia segera untuk didaftarkan.\n2. **Kesesuaian Produk:** Karena ini adalah produk sosial seluler, **`orbitfolk.app`** menawarkan ekstensi domain yang bersih dan dibuat khusus yang mengomunikasikan jenis produk secara langsung kepada pengguna.\n\n---\n\n### Langkah Selanjutnya\n\n* [Jelajahi lebih banyak variasi nama seputar orbit sosial](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Buat draf alur onboarding untuk bertemu secara langsung](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Cari nama domain yang tersedia untuk ide aplikasi sosial lainnya"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan mengapa ekstensi domain .app efektif untuk aplikasi seluler"
-      },
-      "follow_up_3": {
-        "text": "Cek ketersediaan domain untuk tiga nama merek alternatif"
-      },
-      "follow_up_4": {
-        "text": "Bandingkan ekstensi domain .net dan .app untuk aplikasi konsumen"
-      },
-      "follow_up_5": {
-        "text": "Cek harga dan ketersediaan domain untuk nama AppFolk"
-      },
-      "follow_up_6": {
-        "text": "Sarankan tiga sudut pandang branding tambahan untuk aplikasi koneksi sosial ini"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Menganalisis TED Talk Satir Will Stephen"
-      },
-      "summary": {
-        "text": "Merangkum TEDx talk satir Will Stephen tentang public speaking menjadi lima argumen komedi utama."
-      },
-      "message_1": {
-        "text": "Dapatkan transkrip untuk TED talk ini dan rangkum argumen utamanya dalam lima poin: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo ini adalah presentasi TEDx satir Will Stephen, *\"How to sound smart in your TEDx Talk\"* (tonton ceramah).\n\nAlih-alih menyampaikan kuliah informatif, Stephen menggunakan humor meta untuk mendekonstruksi konvensi [public speaking](wiki:Public_speaking) utama. Berikut adalah argumen inti yang diringkas dalam lima poin:\n\n* **Penyampaian Menciptakan Ilusi Substansi:** Kecepatan bicara, gerakan tangan yang disengaja, kontak mata yang dramatis, dan properti fisik (seperti kacamata tanpa resep) dapat meyakinkan audiens bahwa seorang pembicara itu brilian bahkan ketika mereka tidak memiliki sesuatu yang berharga untuk dikatakan.\n* **Hubungan di Atas Panggung Sangatlah Berpola:** Kiasan interaktif yang akrab—seperti mengajukan pertanyaan retoris, meminta angkat tangan, dan menawarkan anekdot yang merendahkan diri sendiri—adalah seni panggung yang diperhitungkan yang dirancang untuk menciptakan kehangatan dan kredibilitas buatan.\n* **Visual Data Memberikan Otoritas yang Tidak Layak:** Menampilkan angka acak, aritmatika dasar, dan bagan tanpa konteks mengeksploitasi bias visual, membuat presentasi terlihat diteliti secara ketat bahkan ketika datanya sama sekali tidak relevan.\n* **Audiens Memproyeksikan Makna pada Omong Kosong:** Dengan memadukan irama vokal yang sungguh-sungguh dan gambar stok yang menggugah dengan omong kosong literal, pembicara dapat memicu pendengar untuk secara tidak sadar mencari—dan membayangkan—hubungan yang mendalam di mana sebenarnya tidak ada.\n* **Crescendo Emosional Dapat Direkayasa:** Membangun intensitas vokal, melambat untuk berbisik, dan berhenti sejenak secara dramatis meniru ritme pencerahan, membuktikan betapa mudahnya sensasi inspirasi dapat direkayasa tanpa wawasan mendasar apa pun."
-      },
-      "follow_up_1": {
-        "text": "Cari presentasi satir populer lainnya di YouTube"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan sejarah format TEDx dan dampak budayanya"
-      },
-      "follow_up_3": {
-        "text": "Cari tutorial masterclass berbicara di depan umum secara daring"
-      },
-      "follow_up_4": {
-        "text": "Analisis teknik bahasa tubuh spesifik yang digunakan oleh pembicara utama terkenal"
-      },
-      "follow_up_5": {
-        "text": "Cari video analisis tentang teknik retorika"
-      },
-      "follow_up_6": {
-        "text": "Daftar tips untuk mengatasi demam panggung saat berbicara di depan umum"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "Anda adalah ahli pemrograman."
       }
     },
-    "health_health_insights": {
-      "text": "Wawasan kesehatan",
-      "description": {
-        "text": "Dapatkan wawasan kesehatan dan temukan dokter tepat."
-      },
-      "systemprompt": {
-        "text": "Anda adalah seorang ahli kesehatan."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Siapkan janji temu dokter",
-      "description": {
-        "text": "Siapkan topik untuk kunjungan dokter berikutnya."
-      },
-      "process": {
-        "text": "- mendiskusikan gejala yang dialami dalam beberapa minggu dan bulan terakhir, meski tidak terlihat kaitannya\n- mendiskusikan hasil tes/dokumen yang perlu dikumpulkan sebelum janji temu berikutnya"
-      },
-      "systemprompt": {
-        "text": "Anda adalah ahli kesehatan."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Siapkan laporan dokter",
-      "description": {
-        "text": "Buat laporan untuk kunjungan dokter berikutnya."
-      }
-    },
     "jobs_career_insights": {
       "text": "Wawasan karier",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "Berbicara masa depan",
       "description": {
         "text": "Teknik bimbingan hidup yang kuat."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Siapkan laporan dokter",
+      "description": {
+        "text": "Buat laporan untuk kunjungan dokter berikutnya."
+      }
+    },
+    "health_health_insights": {
+      "text": "Wawasan kesehatan",
+      "description": {
+        "text": "Dapatkan wawasan kesehatan dan temukan dokter tepat."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Siapkan janji temu dokter",
+      "description": {
+        "text": "Siapkan topik untuk kunjungan dokter berikutnya."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "Strategi Kalender Konten",
       "description": {
         "text": "Buat rencana konten media sosial 30 hari."
+      },
+      "systemprompt": {
+        "text": "Bertindak sebagai Ahli Strategi Media Sosial profesional. Menggunakan input di bawah ini, buat kalender konten 30 hari yang berfokus pada pencapaian Tujuan Utama.\n\nPertama, lakukan langkah riset dan strategi internal singkat menggunakan pengetahuan yang ada dan, jika tersedia, data web langsung untuk Topik/Niche dan Audiens Target ini. Klarifikasi poin-poin utama yang menjadi masalah dan keinginan audiens, jenis posting dan hook yang berkinerja baik di niche ini, serta tren terkini yang relevan. Gunakan wawasan ini hanya untuk memandu kalender, JANGAN keluarkan secara terpisah.\n\nOutput HARUS berupa tabel Markdown dengan kolom-kolom persis ini (dan tidak ada yang lain): Hari #, Tanggal, Tema/Pilar, Platform, Ide Konten, Ajakan Bertindak (CTA).\n\nPanduan kalender:\n- Buat tepat 30 baris, satu untuk setiap hari kalender berurutan mulai dari Tanggal Mulai, dengan tanggal nyata dalam urutan menaik.\n- Tema/Pilar di setiap baris harus merupakan salah satu Pilar Konten yang disediakan, dengan campuran yang cukup seimbang selama 30 hari.\n- Kolom Platform harus mengikuti Jadwal Posting. Jika beberapa platform ditentukan untuk hari tertentu, buat satu baris per platform.\n\nPanduan konten:\n- Setiap Ide Konten harus menyatakan jenis postingan (mis. Reel, korsel, postingan statis, cerita, live, polling, postingan teks LinkedIn) dan menyertakan hook yang jelas dan menghentikan scroll yang disesuaikan untuk Audiens Target.\n- Setiap CTA harus spesifik, berorientasi tindakan, dan secara langsung mendukung Tujuan Utama (mis. \"Unduh panduan gratis\", \"Pesan panggilan\", \"Bergabung dengan newsletter\", \"Komentar dengan pertanyaan #1 Anda\").\n- Variasikan format dan sudut pandang selama 30 hari (mis. edukatif, bercerita, di balik layar, FAQ, keberatan, bukti sosial, prompt keterlibatan) untuk menghindari pengulangan.\n- Pastikan setiap ide terhubung jelas dengan poin-poin utama yang menjadi masalah dan keinginan Audiens Target serta selaras dengan Tujuan Utama.\n\nInput (isi ini sebelum menjalankan prompt):\n* Topik/Niche: [Masukkan Topik/Niche Anda di sini]\n* Audiens Target: [Masukkan Audiens Target Anda di sini, termasuk poin masalah utama & keinginan jika diketahui]\n* Tujuan Utama: [Masukkan Tujuan Utama Anda di sini, mis. kembangkan daftar email / dorong penjualan / bangun otoritas]\n* Jadwal Posting: [Masukkan Frekuensi Posting & Platform Anda di sini, mis. 5x/minggu di IG Reels + 3x/minggu di LinkedIn]\n* Pilar Konten: [Masukkan 3–5 Pilar Konten Anda di sini, dipisahkan dengan koma]\n* Tanggal Mulai: [Masukkan tanggal pertama kalender Anda, mis. 18 November 2025]\n\nHanya keluarkan tabel Markdown akhir. JANGAN sertakan penjelasan, catatan, atau teks apa pun di luar tabel."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (transkrip video)"
+              "text": "YouTube (metadata video)"
             },
             "description": {
-              "text": "YouTube dikueri saat kamu meminta OpenMates untuk mengambil transkrip video YouTube. YouTube menerima URL video dan preferensi bahasa transkrip yang diminta tanpa pengenal pengguna OpenMates."
+              "text": "Untuk mengambil metadata publik video dan kanal, OpenMates mengirim pengenal video dan kanal ke YouTube Data API resmi. YouTube menerima pengenal tersebut dan informasi jaringan server kami, tanpa pengenal pengguna OpenMates."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."
+    },
+    "privacy_description": {
+      "text": "Mistral mentranskripsikan audio mikrofonmu; ElevenLabs v4 Turbo menghasilkan suara asisten dari teks balasan dan pengaturan suara. Percakapan memakai perutean AI dan keterampilan OpenMates seperti biasa. Penyedia dapat menyimpan data permintaan sesuai kebijakan mereka."
+    },
+    "privacy_terms": {
+      "text": "Kebijakan privasi OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Anggota di Discord kami akan"

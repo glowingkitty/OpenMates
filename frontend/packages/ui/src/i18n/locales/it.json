@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "Cerca offerte di lavoro pubbliche in Svezia con JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Ottieni trascrizione",
         "description": {
-          "text": "Ottieni la trascrizione di un video YouTube / media.ccc.de."
+          "text": "Ottieni i sottotitoli pubblicati degli interventi su media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Leggi la pagina Wikipedia sull'Impero Romano e dammi i fatti principali"
           }
+        }
+      },
+      "browse": {
+        "text": "Navigare",
+        "description": {
+          "text": "Naviga nei siti e restituisci le informazioni osservate in JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Hosting",
       "description": {
-        "text": "Trova nomi di dominio e verifica disponibilità e prezzi."
+        "text": "La ricerca di domini non è attualmente disponibile."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Posta",
       "description": {
-        "text": "Invia, gestisci e componi e-mail."
+        "text": "Scrivi bozze di email e lavora con la posta."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Video",
       "description": {
-        "text": "Cerca video, ottieni trascrizioni."
+        "text": "Trova e crea video."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Viaggi",
       "description": {
-        "text": "Cerca alloggi, trasporti e pianifica."
+        "text": "Pianifica viaggi e conserva le informazioni salvate."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "La ricerca di componenti elettronici non è attualmente disponibile."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Casa",
       "description": {
-        "text": "Cerca una nuova casa e altro."
+        "text": "Conserva le informazioni salvate sugli alloggi."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Eventi",
       "description": {
-        "text": "Scopri Gathering, conferenze ed eventi locali."
+        "text": "Conserva le informazioni salvate sugli eventi."
       },
       "search": {
         "text": "Cerca",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Visualizza i modelli 3D salvati."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Spesa",
       "description": {
-        "text": "Confronta prezzi del supermercato e trova offerte."
+        "text": "La ricerca di prodotti non è attualmente disponibile."
       }
     },
     "weather": {
@@ -8167,6 +8173,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Naviga"
+      },
+      "running": {
+        "text": "Navigazione in corso"
+      },
+      "user_control": {
+        "text": "Hai il controllo"
+      },
+      "paused": {
+        "text": "In pausa"
+      },
+      "completed": {
+        "text": "Completato"
+      },
+      "no_results": {
+        "text": "Nessun risultato"
+      },
+      "needs_user": {
+        "text": "Serve il tuo intervento"
+      },
+      "blocked": {
+        "text": "Bloccato"
+      },
+      "failed": {
+        "text": "Non riuscito"
+      },
+      "cancelled": {
+        "text": "Annullato"
+      },
+      "budget_exceeded": {
+        "text": "Limite di spesa raggiunto"
+      },
+      "closed": {
+        "text": "Browser chiuso"
+      },
+      "expired": {
+        "text": "Sessione scaduta"
+      },
+      "unavailable": {
+        "text": "Browser non disponibile"
+      },
+      "watch": {
+        "text": "Guarda il browser"
+      },
+      "take_control": {
+        "text": "Prendi il controllo"
+      },
+      "continue": {
+        "text": "Lascia continuare l’IA"
+      },
+      "pause": {
+        "text": "Pausa"
+      },
+      "close": {
+        "text": "Chiudi browser"
+      },
+      "sign_in_title": {
+        "text": "Prima di accedere"
+      },
+      "sign_in_confirm": {
+        "text": "Continua ad accedere"
+      },
+      "saved_frame": {
+        "text": "Schermata del browser salvata"
+      },
+      "live_frame": {
+        "text": "Browser in diretta"
+      },
+      "waiting_frame": {
+        "text": "In attesa del browser…"
+      },
+      "text_input": {
+        "text": "Testo per il sito"
+      },
+      "send_text": {
+        "text": "Invia testo"
+      },
+      "scroll_up": {
+        "text": "Scorri su"
+      },
+      "scroll_down": {
+        "text": "Scorri giù"
+      },
+      "structured_data": {
+        "text": "Dati strutturati"
+      },
+      "connection_error": {
+        "text": "Connessione interrotta. Aggiorna prima di un’altra azione."
+      },
+      "credits": {
+        "text": "{used} / {limit} crediti"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Stai accedendo in un browser cloud. Lasciando continuare l’IA, le permetti di accedere alle informazioni di questo account. I contenuti pertinenti delle pagine possono essere inviati ai nostri fornitori di IA. Accedi solo ad account a cui vuoi dare accesso all’IA."
+      },
+      "manual_hint": {
+        "text": "Fai clic sulla pagina o usa Tab e Invio. Il testo viene inviato solo a questo sito e poi cancellato da questo campo."
+      },
+      "paused_hint": {
+        "text": "Il browser è in pausa e non ci sono costi di calcolo. Prendi il controllo per riprendere. La sessione viene eliminata dopo 24 ore senza interazioni."
+      },
+      "watch_hint": {
+        "text": "Stai osservando. Prendi il controllo per interagire con il sito. Guardare non mantiene attiva la sessione."
+      },
+      "stopping": {
+        "text": "Arresto in corso…"
+      }
     }
   },
   "embeds_input": {},
@@ -8719,52 +8838,6 @@
         "text": "Confronta le responsabilità quotidiane e i percorsi di crescita di entrambi i ruoli"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "Confronto tra friggitrici ad aria in Germania"
-      },
-      "summary": {
-        "text": "Confronto delle migliori friggitrici ad aria su ExampleRetail Germania per prezzo, capacità e valutazioni, con raccomandazione della Philips Airfryer Serie 2000 per un nucleo di due persone."
-      },
-      "message_1": {
-        "text": "Trova friggitrici ad aria che posso acquistare online in Germania, inclusi i risultati di ExampleRetail. Confronta prezzi attuali, capacità e valutazioni, quindi consigliane una per un nucleo di due persone con i link alle fonti."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nEcco un confronto delle friggitrici ad aria più votate attualmente disponibili su ExampleRetail Germania, mettendo a confronto prezzo, capacità e valutazioni dei clienti.\n\n---\n\n### Confronto dei modelli popolari in Germania\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Migliore raccomandazione per un nucleo familiare di 2 persone\n\n#### **Scelta principale: [Philips Airfryer Serie 2000 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Perché è la più adatta per due persone:**\n  * **Capacità ottimale (6,2 L):** I cestelli più piccoli di 4,5–5 L richiedono la cottura in più lotti anche per due persone. Un cestello da 6,2 L ti consente di adagiare due filetti di salmone e un contorno completo di verdure o patatine su un unico strato per una croccantezza uniforme.\n  * **Ingombro in cucina:** Le macchine a doppia zona (come Ninja o Russell Hobbs) occupano molto spazio sul bancone. Un singolo cestello da 6 L offre un volume ampio mantenendo un ingombro compatto adatto ai tipici piani di lavoro delle cucine tedesche.\n  * **Finestra trasparente:** Consente di controllare la doratura senza dover aprire il cassetto e disperdere calore.\n  * **Rapporto qualità-prezzo:** A 99,99 €, offre l'affidabilità della costanza di temperatura di [Philips](wiki:Philips) a un prezzo ragionevole.\n\n#### **Alternativa (se cucini spesso due piatti a temperature diverse): [Philips Dual Basket Serie 3000 (9,0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e il tuo partner preferite preparare proteine e contorni di verdure contemporaneamente a temperature e tempi diversi (ad esempio, petti di pollo a 180 °C e patate croccanti a 200 °C), questo modello è attualmente scontato a 119,99 € e dispone di tempi di cottura sincronizzati.\n\n---\n\n### Fattori chiave da tenere a mente prima dell'acquisto\n1. **Forma del cassetto:** I cestelli quadrati (come Cosori e Philips) accolgono cibi piatti (bistecche, teglie, spiedini) molto meglio dei cestelli rotondi di identica capacità in litri.\n2. **Spazio in lavastoviglie:** Assicurati che la tua lavastoviglie abbia un'altezza del cestello sufficiente per un cassetto singolo da 6 L o considera il lavaggio a mano dei rivestimenti antiaderenti per prolungarne la durata."
-      },
-      "follow_up_1": {
-        "text": "Cerca ricette specifiche per friggitrici ad aria"
-      },
-      "follow_up_2": {
-        "text": "Spiega le differenze principali tra friggitrici ad aria a cestello singolo e doppio"
-      },
-      "follow_up_3": {
-        "text": "Trova accessori da forno compatibili per questa friggitrice ad aria"
-      },
-      "follow_up_4": {
-        "text": "Elenca ricette facili per principianti per cucinare la cena in una friggitrice ad aria"
-      },
-      "follow_up_5": {
-        "text": "Controlla le attuali classi di consumo energetico per questi modelli"
-      },
-      "follow_up_6": {
-        "text": "Confronta i requisiti di pulizia e manutenzione per i rivestimenti in ceramica rispetto al teflon"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Punti salienti ed esplorazione della missione Artemis II"
@@ -8921,38 +8994,6 @@
         "text": "[code] Crea un modello simile ma con un'estetica di design diversa"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Corsi di yoga per principianti a Berlino"
-      },
-      "summary": {
-        "text": "Trova tre corsi di yoga per principianti a Berlino con orari, prezzi e link per la prenotazione."
-      },
-      "message_1": {
-        "text": "Sono un principiante e vorrei un corso di yoga adatto a chi inizia a Berlino la prossima settimana. Puoi trovarmi alcuni corsi con orari, prezzi e link per la prenotazione?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nEcco alcune lezioni di [yoga](wiki:Yoga) per principianti a Berlino la prossima settimana:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Cos'è:** Una lezione consapevole che alterna movimenti guidati dal respiro a posizioni mantenute per esplorare l'allineamento e la quiete. Pensata appositamente per essere accessibile ai principianti (si tiene in inglese).\n- **Data e ora:** Mercoledì 14 ottobre 2026, 18:00 – 19:00 CEST (arrivare 10 minuti prima)\n- **Luogo:** Art OM, Wrangelstraße 54, 10997 Berlino ([Kreuzberg](wiki:Kreuzberg))\n- **Prezzo:** 11,83 € – 22,49 €\n- **Prenotazione:** [Prenota i biglietti su ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Cos'è:** Una sessione informale e rilassata di mobilità e yoga per tutti i livelli, in cui i flussi vengono spiegati passo dopo passo con un ritmo dolce. Non è richiesta alcuna flessibilità o esperienza precedente.\n- **Data e ora:** Martedì 13 ottobre 2026, 19:00 – 19:45 CEST (arrivare 15 minuti prima)\n- **Luogo:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlino ([Friedrichshain](wiki:Friedrichshain))\n- **Prezzo:** 5 € (ingresso gratuito con ExampleFitness / Wellpass se fai anche bouldering)\n- **Prenotazione:** [Visualizza i dettagli e il link di prenotazione](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Cos'è:** Una sessione di Vinyasa dinamica ma dolce che offre varianti per principianti, concentrandosi sulla consapevolezza del respiro, l'allineamento del corpo e il rilascio dello stress.\n- **Data e ora:** Mercoledì 14 ottobre 2026, 19:30 – 21:00 CEST\n- **Luogo:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlino (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Prezzo:** 10 € per la prima lezione di prova (starter pack: 3 lezioni a 20 €)\n- **Prenotazione:** [Partecipa tramite il Gathering del Berlin Yoga Club](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Consigli per la tua prima lezione di yoga\n* **Abbigliamento:** Vestiti comodi ed elastici che ti permettano di muoverti e piegarti facilmente. Lo yoga si pratica solitamente a piedi nudi.\n* **Idratazione e pasti:** Evita pasti pesanti nelle 1,5–2 ore precedenti la lezione.\n* **Ascolta il tuo corpo:** Avvisa l'insegnante prima della lezione che è la tua prima volta; ti mostrerà volentieri come usare i supporti (blocchi, coperte o cinghie). Se hai problemi preesistenti alle articolazioni o alla schiena, consulta un medico o un fisioterapista prima di provare sequenze dinamiche.\n\nVorresti dei consigli più vicini a un quartiere specifico (ad es. Neukölln, Prenzlauer Berg, Charlottenburg) o preferiresti uno stile più dolce come l'[Hatha yoga](wiki:Hatha_yoga) o lo [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Queste informazioni hanno scopo puramente didattico e non costituiscono un parere medico. Consulta il tuo medico per decisioni di carattere sanitario.*"
-      },
-      "follow_up_1": {
-        "text": "Cerca lezioni di yoga a Neukölln, Berlino"
-      },
-      "follow_up_2": {
-        "text": "Spiega cosa aspettarsi durante la prima lezione di yoga"
-      },
-      "follow_up_3": {
-        "text": "Trova workshop di Hatha yoga per il prossimo fine settimana"
-      },
-      "follow_up_4": {
-        "text": "Confronta gli stili di yoga Vinyasa e Hatha"
-      },
-      "follow_up_5": {
-        "text": "Cerca studi di Yin yoga a Mitte"
-      },
-      "follow_up_6": {
-        "text": "Elenca consigli per principianti sull'acquisto di un tappetino da yoga"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8965,38 +9006,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Trova un medico di base anglofono a Berlino"
-      },
-      "summary": {
-        "text": "Trova opzioni di appuntamento con dettagli assicurativi trasparenti e link agli studi medici."
-      },
-      "message_1": {
-        "text": "Ho bisogno di un appuntamento con un medico di base che parli inglese a Berlino la prossima settimana. Per favore, confronta le prime disponibilità, mostra le loro schede appuntamento e indica la copertura assicurativa solo quando confermata dall'annuncio di prenotazione. Se la copertura non è chiara, dillo."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nEcco le prime opzioni disponibili per medici di base che parlano inglese a Berlino nei prossimi 7 giorni che ho trovato. Indico la copertura assicurativa solo dove specificato nell'annuncio di prenotazione.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Prime opzioni per la prossima settimana**\n1. **Lun 12 ott, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Indirizzo: Albert-Einstein-Straße 2, 12489 Berlin\n   - Tipo di visita: Erstuntersuchung Neupatient:in\n   - Lingue indicate: Tedesco, inglese\n   - **Assicurazione:** privata *(confermata dall'annuncio)*\n\n2. **Lun 12 ott, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Indirizzo: Kapweg 5, 13405 Berlin\n   - Tipo di visita: Erstuntersuchung Neupatient:in\n   - Lingue indicate: Inglese\n   - **Assicurazione:** privata *(confermata dall'annuncio)*\n\n3. **Lun 12 ott, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Indirizzo: Stargarder Straße 69, 10437 Berlin\n   - Tipo di visita: Akutsprechstunde\n   - Lingue indicate: Tedesco, inglese\n   - **Assicurazione:** non chiara *(l'annuncio non la conferma)*\n\n4. **Lun 12 ott, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Indirizzo: Müllerstraße 36, 13353 Berlin\n   - Tipo di visita: Erstuntersuchung Neupatient:in\n   - Lingue indicate: Tedesco, inglese\n   - **Assicurazione:** non chiara *(l'annuncio non la conferma)*\n\n5. **Lun 12 ott, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Indirizzo: Wallstraße 16, 10179 Berlin\n   - Tipo di visita: Erstuntersuchung Neupatient:in\n   - Lingue indicate: Tedesco, inglese\n   - **Assicurazione:** non chiara *(l'annuncio non la conferma)*\n\nAlcune note:\n- Ho escluso le due opzioni precedenti del **9–10 ott** dal confronto qui sopra perché hai chiesto specificamente per la **prossima settimana**.\n- Questi risultati sembrano provenire da annunci su ExampleClinicA; la copertura di ExampleClinicB non era supportata in questo set di risultati di ricerca.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nSe vuoi, posso:\n- limitare la ricerca alla sola **assicurazione pubblica** dove confermato, oppure\n- creare una breve selezione per **quartiere / distanza dalla tua zona**.\n---\n*⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono un parere medico. Consulta il tuo medico per decisioni di natura medica.*"
-      },
-      "follow_up_1": {
-        "text": "Cerca appuntamenti con medici di base (assicurazione pubblica) a Mitte"
-      },
-      "follow_up_2": {
-        "text": "Filtra gli appuntamenti per mostrare solo l'assicurazione pubblica"
-      },
-      "follow_up_3": {
-        "text": "Trova medici che parlano inglese vicino al quartiere Prenzlauer Berg"
-      },
-      "follow_up_4": {
-        "text": "Restringi le opzioni per quartiere e distanza"
-      },
-      "follow_up_5": {
-        "text": "Cerca appuntamenti per visite specialistiche a Berlino"
-      },
-      "follow_up_6": {
-        "text": "Spiega come prenotare online questi appuntamenti medici"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9107,20 +9116,6 @@
       },
       "follow_up_6": {
         "text": "Confronta la biologia aliena dei Getheniani e degli Oankali"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9527,38 +9522,6 @@
         "text": "Spiega come ottimizzare i file SVG per le prestazioni web"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9655,50 +9618,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Trova un nome per il brand e un dominio"
-      },
-      "summary": {
-        "text": "Una conversazione sintetica sul naming: fai brainstorming su sette candidati, poi confronta due finalisti con prove su dominio, web e marchi registrati preliminari negli Stati Uniti."
-      },
-      "message_1": {
-        "text": "Aiutami a trovare un nome per il mio nuovo prodotto."
-      },
-      "message_2": {
-        "text": "Per iniziare, cosa fa il tuo prodotto, qual è il tuo pubblico di riferimento e quale tono o sensazione dovrebbe trasmettere il nome (ad esempio, giocoso, premium, tecnico)?"
-      },
-      "message_3": {
-        "text": "È un'app di budgeting rilassante per freelance negli Stati Uniti, in inglese. Vorrei nomi brevi e facili da ricordare e un dominio .com fino a 20 € all'anno. Per favore, fai prima un brainstorming per una lista ristretta e variegata."
-      },
-      "message_4": {
-        "text": "Ecco una lista iniziale di nomi vari e pronunciabili, pensati per un'esperienza di budgeting rilassante per freelance:\n\n- [ ] **Serenito**: Evoca serenità e un ritmo pacato per le entrate variabili dei lavoratori autonomi.\n- [ ] **Solowell**: Suggerisce benessere finanziario e tranquillità per i solopreneur.\n- [ ] **Equafy**: Si concentra sul bilanciamento dei cicli irregolari di flussi di cassa.\n- [ ] **StillLedger**: Unisce la classica struttura contabile a una calma consapevole e senza stress.\n- [ ] **Cadenceo**: Implica la creazione di un ritmo costante e prevedibile dai pagamenti dei singoli lavori.\n- [ ] **HavenFin**: Inquadra la gestione del denaro come un porto sicuro e rassicurante.\n- [ ] **Placidly**: Tono morbido e rassicurante che attenua l'ansia finanziaria.\n\n*(Nota: questa lista non è stata verificata per la disponibilità del dominio in tempo reale o per l'autorizzazione legale.)*\n\nSu quali 2-3 nomi vorresti effettuare dei controlli in tempo reale? Puoi scegliere i tuoi preferiti o chiedermi di selezionare i finalisti per verificare i prezzi dei .com, i conflitti tra brand e i marchi registrati negli Stati Uniti.\n\n- [Controlla Serenito, Solowell ed Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Scegli i 3 migliori per me e controllali](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Per favore, controlla Equafy e Cadenceo: la disponibilità dei .com e i prezzi indicati, i brand esistenti sul web e i marchi registrati negli Stati Uniti. Mantieni il confronto compatto, con la tua raccomandazione e gli eventuali controlli ancora mancanti."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nEcco il confronto basato sui controlli effettuati il 12 ottobre 2026:\n\n### Equafy\n- **Dominio**: `equafy.com` non è attualmente disponibile su ExampleRegistrar; non è disponibile un prezzo di registrazione standard, quindi non rientra nel budget di 20 €/anno.\n- **Panorama web e brand**: Nessun software di budgeting di rilievo utilizza esattamente questo nome, ma le ricerche sul web mostrano un'elevata somiglianza fonetica e confusione di ricerca con i [servizi di finanza personale Equifax](embed:equifax.com-TrW).\n- **Marchi USA (ExampleTrademarks)**: La ricerca preliminare ha restituito 5 record simili su 1.640 (troncati; l'assenza del nome esatto non può essere stabilita). Le corrispondenze attive includono `EQUIFY` nella Classe 36 (servizi finanziari e di valore memorizzato in attesa) e nella Classe 35 (servizi di aste registrati).\n\n### Cadenceo\n- **Dominio**: `cadenceo.com` non è attualmente disponibile su ExampleRegistrar; non è disponibile un prezzo di registrazione standard, non rispettando il budget di 20 €/anno.\n- **Panorama web e brand**: Si sovrappone direttamente a [Cadence Money](embed:cadencemoney.com-IcE), un'app consolidata per la finanza personale e il monitoraggio del budget che opera negli Stati Uniti e in Canada su iOS, Android e web.\n- **Marchi USA (ExampleTrademarks)**: La ricerca preliminare ha restituito 5 record simili su 227 (troncati; l'assenza del nome esatto non può essere stabilita). Le corrispondenze attive per `CADENCE` includono record di software scaricabili della Classe 9.\n\n---\n\n### Raccomandazioni e compromessi\n- **Direzione**: Scartali entrambi. Sebbene **Equafy** presenti meno conflitti diretti con altre app rispetto a **Cadenceo** (che collide direttamente con *Cadence Money*), nessuno dei due offre un `.com` disponibile entro il tuo limite di 20 €/anno, ed Equafy comporta una confusione fonetica con marchi finanziari esistenti come *Equify* ed *Equifax*.\n- **Controlli mancanti**: Non sono stati controllati i registri internazionali dei marchi al di fuori degli Stati Uniti, i depositi di marchi statali di common-law e le valutazioni di acquisto di domini sul mercato secondario.\n\nDesideri testare la disponibilità del dominio e l'autorizzazione su altre opzioni della lista (come **Solowell** o **StillLedger**), o esplorare varianti composte per trovare un `.com` disponibile entro il budget?\n\n- [Controlla Solowell e StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Idee per nomi composti con .com disponibili sotto i 20 €](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Verifica la disponibilità del dominio e i marchi per Solowell e StillLedger"
-      },
-      "follow_up_2": {
-        "text": "Fai brainstorming di nomi composti con domini .com disponibili a meno di venti euro"
-      },
-      "follow_up_3": {
-        "text": "Cerca nei registri dei marchi idee per nomi di app di budgeting in arrivo"
-      },
-      "follow_up_4": {
-        "text": "Confronta le strategie di branding e naming per app di imprenditori solisti"
-      },
-      "follow_up_5": {
-        "text": "Cerca estensioni di dominio disponibili per app di finanza per freelance"
-      },
-      "follow_up_6": {
-        "text": "Elenca registrar di domini alternativi per domini di startup convenienti"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Voli da Berlino a Bangkok"
@@ -9729,50 +9648,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Consiglia sistemazioni economiche a Bangkok"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Appartamenti a Berlino con balcone"
-      },
-      "summary": {
-        "text": "Confronta annunci reali di appartamenti a Berlino, gallerie fotografiche complete, prove della presenza del balcone e posizioni sulla mappa, con costi non confermati e accesso all'acqua chiaramente indicati."
-      },
-      "message_1": {
-        "text": "Sto cercando un appartamento in affitto a Berlino con balcone, idealmente vicino a un fiume o a un lago, per un massimo di 1.800 EUR al mese e con almeno due stanze. Puoi confrontare alcuni annunci con le relative gallerie fotografiche e posizioni sulla mappa? Per favore, distingui ciò che gli annunci confermano effettivamente da ciò che è sconosciuto, inclusi affitto, date del contratto e accesso all'acqua. Se un fornitore fornisce solo una posizione approssimativa o foto incomplete, segnalalo. Le possibilità chiaramente etichettate sono benvenute quando mancano alcuni dettagli."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nEcco un confronto dettagliato di appartamenti in affitto di 2 stanze a Berlino sotto i 1.800 €/mese con balcone e vicinanza o dichiarata prossimità all'acqua, evidenziando i fatti confermati rispetto alle ambiguità:\n\nAppartamenti di 2 stanze in affitto a Berlino con balcone\n\n---\n\n### Sintesi comparativa\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Profili dettagliati degli annunci\n\n#### 1. [Loft di 2 stanze con balcone, vicino alla Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Affitto e costi**: L'affitto totale (warm) è esplicitamente indicato come **1.350 €/mese**, composto da un affitto base (kalt) di 1.200 € e 150 € di costi aggiuntivi non specificati. L'inclusione del riscaldamento non è dettagliata esplicitamente. Il deposito è di 2.000 €.\n* **Termini del contratto**: Subaffitto a tempo determinato. I dati strutturati indicano dal 01.11.2026 al 01.04.2027, ma la descrizione dell'annuncio chiarisce che il periodo fisso garantito è dal **1° novembre al 28 dicembre 2026**, con estensioni mensili flessibili fino al 1° aprile 2027 soggette a reciproco accordo.\n* **Presenza del balcone**: Confermata. Elencato esplicitamente tra le caratteristiche e nel testo (\"Balcone soleggiato con vista sul Fennpfuhlpark\"). La valutazione visiva ha campionato 3 delle 14 foto disponibili, confermando un balcone visibile nella foto indice 0.\n* **Accesso all'acqua e posizione**: Situato in Anton-Saefkow-Platz a Lichtenberg. La geocodifica corrisponde al livello stradale (senza numero civico specifico). I dati di OpenStreetMap confermano la presenza di uno specchio d'acqua (**Fennpfuhl**, un lago nel parco), ma solo come coordinata rappresentativa; la distanza esatta dalla riva e i minuti a piedi non sono calcolati e quindi non verificati.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Affitto e costi**: Pubblicizzato come forfettario a **1.800 €/mese** tutto incluso (sia l'affitto base che quello totale sono inseriti come 1.800 €). Utenze, costi di riscaldamento ed elettricità non sono dettagliati. Il deposito è di 1.000 €.\n* **Termini del contratto e discrepanze**:\n  * *Conflitto di date*: I campi strutturati mostrano disponibilità dal 21.10.2026 al 03.05.2027. Tuttavia, il testo in tedesco dichiara esplicitamente la disponibilità a partire dall'11 novembre per 2 mesi, mentre la traduzione inglese più in basso indica \"dal 6 novembre, 4–6 mesi\".\n  * *Restrizione stanze*: L'annuncio nota che una stanza interna del proprietario (*Sperrraum*) rimane chiusa a chiave ed esclusa dall'affitto, sebbene lo spazio rimanente accessibile sia descritto come due stanze su 85 m².\n* **Presenza del balcone**: Confermata. Pubblicizzato con due balconi (uno verso il cortile, uno verso l'acqua). Le foto campionate (3 su 15) hanno confermato i balconi nelle foto 0 e 14.\n* **Accesso all'acqua e posizione**: L'indirizzo è indicato come Maybachufer a [Neukölln](wiki:Neukölln). La geocodifica ha restituito un risultato ambiguo ed è tornata alle coordinate generali della città di Berlino. Sebbene il testo dell'annuncio dichiari esplicitamente una vista diretta sul [Landwehr Canal](wiki:Landwehr_Canal), la distanza dal quartiere e i percorsi a piedi non hanno potuto essere verificati geometricamente a causa del fallback delle coordinate.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Affitto e costi**: L'affitto totale parte da **1.372 €/mese**, con 130 € di costi operativi e 105 € di costi di riscaldamento dettagliati. L'affitto base è omesso e la descrizione nota che si tratta di un affitto minimo di partenza per una fascia promozionale. L'elettricità deve essere contrattata autonomamente dall'inquilino.\n* **Termini del contratto**: Pubblicizzato da un operatore commerciale per un nuovo quartiere residenziale (*Erstbezug* 2026). Richiede una **durata minima del contratto di 12 mesi** (*Mindestmietdauer*). Le date di inizio sono aperte (visite ricorrenti ogni mercoledì/giovedì).\n* **Presenza del balcone**: Confermata nelle specifiche della descrizione (\"einen Balkon\") e negli attributi pubblicizzati. Il campionamento visivo di 3 foto su 27 ha confermato una struttura esterna del balcone nella foto indice 26.\n* **Accesso all'acqua e posizione**: Situato in Buschkrugallee 64 a Neukölln/[Britz](wiki:Britz). La posizione si basa sulle coordinate fornite dal fornitore senza verifica stradale indipendente. La descrizione afferma che il complesso confina con un canale (il canale navigabile di Neukölln), ma la distanza precisa dalla riva e i punti di accesso a piedi non sono stati calcolati geometricamente.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Affitto e costi**: L'affitto totale è pubblicizzato a **980 €/mese**. La descrizione menziona \"Nebenkosten: 270 € pro Monat\", ma non chiarisce se questi siano già inclusi nei 980 € o addebitati in aggiunta. Il deposito è di 1.500 €.\n* **Ambiguità cruciale intero appartamento vs stanza**: Il titolo recita \"2-Zimmer Wohnung... zur Untermiete\", ma il testo inizia con: *\"Affittiamo la nostra bella, tranquilla e arredata stanza con balcone...\"*. Non è chiaro se venga subaffittato l'intero appartamento di 2 stanze e 50 m² o solo una singola stanza al suo interno.\n* **Presenza del balcone**: Non confermata visivamente. Sebbene pubblicizzato come dotato di balcone nel titolo e nel testo, è stata fornita solo 1 foto dall'inserzionista e in quella foto non è visibile alcun balcone.\n* **Accesso all'acqua e posizione**: Situato nel 14057 [Charlottenburg](wiki:Charlottenburg). Il fornitore non ha specificato il nome della via o il numero civico (precisione solo a livello di codice postale). La descrizione nota la vicinanza a piedi al Lietzenseepark (che contiene il lago Lietzensee), ma il tempo esatto del percorso e i metri dalla riva non possono essere calcolati senza un indirizzo stradale.\n* **Termini del contratto**: Subaffitto a tempo determinato dal 01.11.2026 al massimo 01.11.2027 (periodi più brevi negoziabili).\n\n---\n\n### Considerazioni chiave prima di procedere\n1. **Verifica acqua**: Solo l'appartamento di Maybachufer si affaccia esplicitamente su un corso d'acqua aperto dall'appartamento stesso, ma la sua geocodifica è approssimativa e le date sono in conflitto. L'appartamento di Anton-Saefkow-Platz ha una vicinanza confermata al parco Fennpfuhl, sebbene la distanza esatta dalla riva non sia misurata.\n2. **Tipi di contratto**: Nessuno degli annunci di ExampleHousingC offre contratti a tempo indeterminato (*unbefristet*); sono tutti subaffitti a tempo determinato. Momento Berlin offre locazioni a lungo termine a partire da un minimo di 12 mesi.\n3. **Limitazioni del campionamento fotografico**: La valutazione visiva ha esaminato un campione limitato da 1 a 3 immagini per annuncio. Ulteriori caratteristiche potrebbero apparire nelle gallerie complete accessibili tramite ogni scheda dell'annuncio.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Definizione dei parametri di ricerca dell'appartamento**\n\nOra mi sto concentrando sulla definizione dei parametri di ricerca precisi per gli affitti a Berlino. Ho specificato Berlino come città e ho limitato il tipo di annuncio a \"affitto\" e il tipo di proprietà a \"appartamento\". Il balcone è un requisito fondamentale, che mi assicurerò di includere nei criteri di ricerca.\n\n\n**Perfezionamento dei criteri di ricerca**\n\nHo appena perfezionato ulteriormente i parametri di ricerca. Ho tradotto \"idealmente vicino a un fiume o a un lago\" in una preferenza per la vicinanza all'acqua, categorizzata come \"neighborhood_categories: ['water']\". Il budget di \"fino a 1.800 EUR al mese\" è ora specificato come `max_warm_rent_eur: 1800`, poiché presumo che si tratti dell'affitto comprensivo di spese (warm rent). Inoltre, poiché mi è stato detto che \"le possibilità chiaramente etichettate sono benvenute quando mancano alcuni dettagli\", ora includerò esplicitamente gli annunci non confermati con `include_unconfirmed: true`.\n\n\n**Analisi dei requisiti di ricerca**\n\nSto analizzando attentamente le linee guida di questo strumento di ricerca immobiliare. Mi sto concentrando su come tradurre al meglio le mie preferenze nei filtri strutturati corretti e nei `relevance_criteria`. Devo assicurarmi che i miei requisiti relativi alla vicinanza all'acqua, alla prova della presenza di un balcone e ai vincoli di budget siano tutti codificati correttamente. Mi sto anche assicurando di distinguere tra ciò che è \"richiesto\", \"escluso\" e \"preferito\" nella mia ricerca.\n\n\n**Valutazione dell'integrità dei dati degli annunci**\n\nOra mi sto occupando seriamente dell'integrità dei dati. Devo evitare di sovrastimare le prove visive e specificare le limitazioni di ogni fornitore. La vicinanza all'acqua deve essere solidamente basata su prove, segnalandola come \"non verificata\" quando l'arricchimento dei dati non è disponibile o è andato in timeout. Deve essere chiaro che un balcone visibile non garantisce che appartenga all'appartamento, e posso riportare le specifiche del contratto di locazione solo quando esplicitamente dichiarato.\n\n\n**Analisi dei dati degli annunci**\n\nSono immerso negli annunci restituiti, incrociandoli meticolosamente con le regole fornite. Il mio obiettivo è delineare chiaramente i punti dati confermati dalle incertezze. Sto prestando molta attenzione a dettagli come l'affitto, le date di locazione e l'accesso all'acqua, segnalando eventuali ambiguità. L'obiettivo è la precisione millimetrica.\n\n\n**Chiarimento dei criteri di prossimità**\n\nSto integrando i requisiti di prossimità sfumati. Sto documentando attentamente ogni limitazione nelle prove. Mi sto concentrando sulla separazione trasparente delle affermazioni convalidate dalle informazioni non verificate. Sto dando priorità all'accuratezza nella mia documentazione. Sono chiaro su cosa costituisce un accesso all'acqua verificato e cosa no. Sto sottolineando la necessità di un'etichettatura esplicita dei dati incerti.\n\n\n**Perfezionamento delle regole sull'ambiguità**\n\nMi sto concentrando sul perfezionamento delle regole relative ai punti dati incerti. Se non c'è menzione di una caratteristica idrica, la riporterò come sconosciuta; non dedurrò la vicinanza. Separerò la visibilità fotografica di un balcone dalla conferma testuale. I termini di locazione vengono riportati esplicitamente solo se dichiarati. I conflitti nelle date e nelle ripartizioni dell'affitto hanno la priorità. Userò le schede di anteprima incorporate come visualizzazione.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Interpretazione del formato dei risultati**\n\nMi sto concentrando sulla struttura della risposta \"embeds\\_results\\_view\". Ho notato l'assenza di un \"source\\_ref\", il che influenza l'uso corretto di \"sources\" o \"embeds\". Mi assicurerò di usare il campo \"embeds\" quando non è disponibile alcun source\\_ref, facendo riferimento specificamente ai valori child embed\\_ref restituiti. Inoltre, presterò attenzione al campo \"title\" come elemento descrittivo.\n\n\n**Esame dei dettagli dell'annuncio**\n\nSto esaminando da vicino i singoli annunci, concentrandomi specificamente sul \"Loft di 2 stanze con balcone, vicino alla Ringbahn\". Sto incrociando questo annuncio con i dati incorporati. Sto notando la vicinanza all'acqua non verificata a causa di distanze e accessi sconosciuti, anche se viene menzionata una vista sul lago. Il mio obiettivo è annotare chiaramente ciò che è confermato rispetto a ciò che non è verificato. Sto documentando attentamente tutte le incertezze.\n\n\n**Valutazione dei dettagli dell'annuncio**\n\nHo appena finito di valutare un altro annuncio. Ho confermato la visibilità di un balcone tramite l'analisi delle foto. Il termine di locazione offre un periodo fisso seguito da estensioni flessibili, che ho documentato. Sono concentrato sui dettagli. Ora sto lavorando per comprendere appieno tutte le informazioni rilevanti dell'annuncio.\n```\n```\n\n**Dettaglio di attributi specifici**\n\nSto descrivendo in dettaglio questo annuncio specifico. Il geocode della strada è vago; noto che questo influisce sulla verifica della vicinanza all'acqua. L'affermazione testuale di una vista sul Landwehrkanal non può essere convalidata geometricamente. Confermo la presenza del balcone tramite controlli testuali e visivi. Sto segnalando esplicitamente il conflitto della data di locazione tra i dati strutturati e il testo descrittivo.\n\n\n**Valutazione dei dati dell'annuncio**\n\nMi sto immergendo nell'ultimo annuncio. Ho segnalato la mancanza dell'affitto a freddo (cold rent) e l'imprecisa ripartizione dell'affitto. L'affitto pubblicizzato è un punto di partenza, quindi ho annotato il minimo sconosciuto. La gamma di dimensioni degli appartamenti all'interno del progetto richiede chiarezza, poiché la dimensione dell'annuncio rientra in questa. Ho segnalato l'incerta vicinanza al canale a causa della precisione della posizione non verificata.\n\n\n**Interpretazione dei dettagli della locazione**\n\nMi sto concentrando sulle informazioni di locazione dell'ultimo annuncio e sulla verifica del balcone. Ho confermato la visibilità del balcone tramite testo e campioni visivi. Ho notato un contratto di locazione minimo di 12 mesi e l'assenza di date di fine chiare nei dati. L'annuncio riguarda una stanza arredata con balcone, ma il titolo dice appartamento di 2 stanze, quindi sto indagando sulla potenziale ambiguità tra stanza e appartamento. Sto prestando molta attenzione a tutti i dettagli.\n\n\n**Analisi dei dettagli dell'annuncio**\n\nSto analizzando attentamente un nuovo annuncio, che indica una stanza arredata con balcone. La frase \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" aggiunge un'ambiguità cruciale; l'unica foto dell'annuncio fornito manca della conferma del balcone, che ho segnalato. L'indirizzo, con geocode a livello di distretto, rende vaga la vicinanza all'acqua. La locazione va dal 1° novembre 2026 al 1° novembre 2027.\n\n\n**Confronto delle menzioni dell'acqua**\n\nSto confrontando gli annunci che menzionano caratteristiche idriche come Maybachufer e altri per discernere la precisione delle loro affermazioni e ogni distinzione intrinseca dei dati. Sto rivedendo le loro prove e la loro copertura. Sono concentrato sui dettagli precisi richiesti dall'utente. Segnalerò eventuali incertezze e limitazioni nei dati.\n\n\n**Verifica delle ripartizioni dell'affitto**\n\nMi sto concentrando sulle discrepanze nelle cifre dell'affitto. Sto dando priorità alla riconciliazione delle cifre contraddittorie, riportando i costi non dettagliati e annotando esplicitamente le inclusioni di riscaldamento sconosciute. Inoltre, sto esaminando i riferimenti incorporati in linea per assicurarmi che il testo visualizzato non sia mai l'embed\\_ref. Inoltre, userò solo schede grandi o piccole per i riferimenti incorporati, in base alla sintassi. Infine, aggiungerò un messaggio di follow-up suggerito alla fine di questo aggiornamento."
-      },
-      "message_3": {
-        "text": "Mi interessano soprattutto il loft e l'appartamento a Maybachufer. In base agli annunci salvati, l'affitto di 1.800 EUR è davvero tutto incluso o ci sono spese ancora sconosciute? Inoltre, puoi chiarire quante foto ha restituito la ricerca rispetto a quante ne sono state effettivamente controllate, e quali dettagli sul balcone e sull'acqua sono confermati direttamente dagli annunci? Preferirei che i dettagli non verificati rimanessero contrassegnati come sconosciuti."
-      },
-      "message_4": {
-        "text": "Ecco un'analisi dettagliata di ciò che i dati dell'annuncio confermano effettivamente rispetto a ciò che rimane non verificato o sconosciuto per l'**appartamento in Maybachufer** e il **loft in Anton-Saefkow-Platz**.\n\n---\n\n### 1. Affitto Maybachufer: 1.800 € è davvero tutto incluso?\n\n* **Cosa specifica l'annuncio**: Sia l'affitto base (*Kaltmiete*) che l'affitto totale (*Warmmiete*) sono indicati come un importo fisso di **1.800 €**. Il deposito cauzionale è fissato a 1.000 €.\n* **Cosa rimane SCONOSCIUTO**:\n  * **Dettaglio delle utenze**: L'annuncio non fornisce **alcun dettaglio analitico dei costi** per le spese accessorie (*Betriebskosten/Nebenkosten*) o il riscaldamento (*Heizkosten*).\n  * **Elettricità e Internet**: L'host non conferma esplicitamente nei campi strutturati se l'elettricità domestica (*Haushaltsstrom*) o il Wi-Fi siano inclusi nei 1.800 € o se si applichino limiti di consumo.\n  * **Canone radiotelevisivo**: Non è specificato se il canone radiotelevisivo tedesco obbligatorio (*Rundfunkbeitrag*) sia incluso o debba essere registrato separatamente.\n* **Conclusione**: Sebbene sia commercializzato come un importo mensile forfettario tipico dei subaffitti arredati a breve termine, **non può essere verificato come rigorosamente tutto incluso** finché l'host non fornisce un prospetto scritto che confermi la copertura di elettricità, eventuali eccedenze di riscaldamento e internet.\n\n---\n\n### 2. Ambito della galleria fotografica: Risultati vs. Analisi\n\nLo strumento di ricerca ha recuperato i metadati dell'annuncio con il numero totale di foto, ma l'analisi visiva automatizzata ha valutato solo un campione mirato di foto per annuncio per identificare le caratteristiche principali:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Nota: puoi aprire le schede degli annunci direttamente per sfogliare manualmente tutte le 14–15 foto ad alta risoluzione.*\n\n---\n\n### 3. Dettagli su balcone e acqua: Confermato vs. Sconosciuto\n\n#### Appartamento Maybachufer\n* **Balcone**:\n  * *Confermato dal testo dell'annuncio*: Dispone di **due balconi** — uno dichiarato verso il cortile interno (*Innenhof*) e uno verso il canale/strada.\n  * *Confermato dal controllo fotografico*: Strutture di balconi visibili sono state confermate negli indici fotografici ispezionati 0 e 14.\n  * *Sconosciuto*: Dimensioni esatte del balcone, orientamento/ore di esposizione al sole e se viene fornito arredamento da esterno.\n* **Accesso all'acqua**:\n  * *Confermato dal testo dell'annuncio*: Situato direttamente su Maybachufer lungo il [Landwehr Canal](wiki:Landwehr_Canal) a [Neukölln](wiki:Neukölln). La descrizione afferma esplicitamente la presenza di viste sull'acqua.\n  * *Sconosciuto / Non verificato dallo strumento*: Il sistema di geocodifica ha segnalato la ricerca dell'indirizzo come ambigua e ha impostato come predefinito un punto centrale di Berlino anziché un punto esatto sulla mappa. Di conseguenza, la distanza esatta dell'annuncio dai passaggi pedonali del canale o dall'accesso al molo non ha potuto essere misurata indipendentemente dai dati forniti.\n\n#### Loft in Anton-Saefkow-Platz\n* **Balcone**:\n  * *Confermato dal testo dell'annuncio*: Pubblicizza esplicitamente un \"balcone soleggiato con vista sul Fennpfuhlpark\".\n  * *Confermato dal controllo fotografico*: Una struttura di balcone è stata confermata nell'indice fotografico ispezionato 0.\n  * *Sconosciuto*: Metratura del balcone e piano (l'annuncio specifica lo stile loft ai piani superiori, ma non il piano esatto).\n* **Accesso all'acqua**:\n  * *Confermato dal testo dell'annuncio e OpenStreetMap*: Situato in Anton-Saefkow-Platz a Lichtenberg, adiacente al Fennpfuhlpark, che contiene il **Fennpfuhl** (un lago storico).\n  * *Sconosciuto / Non verificato dallo strumento*: L'annuncio **non** si trova direttamente sulla riva di un fiume o di un canale; lo specchio d'acqua è un lago all'interno di un parco. Inoltre, sebbene il parco stesso sia dall'altra parte della strada, il tempo preciso di percorrenza a piedi fino a riva e se l'acqua sia direttamente visibile dal balcone oltre le chiome degli alberi rimangono non verificati.\n\n---\n\n### Domande da porre ai proprietari prima della visita\n\n1. **Per Maybachufer**:\n   * *\"La tariffa forfettaria mensile di 1.800 € copre interamente riscaldamento, elettricità e internet, o è previsto un conguaglio delle utenze (*Nebenkostenabrechnung*) alla fine del soggiorno?\"*\n   * *\"Potrebbe confermare le date esatte del subaffitto (il riepilogo indica 2 mesi, ma la descrizione in inglese menziona 4–6 mesi)?\"*\n2. **Per il Loft**:\n   * *\"Il supplemento di 150 € è un importo fisso (*Pauschale*) che include riscaldamento e internet, o un acconto (*Vorauszahlung*)?\"*\n   * *\"È garantita nel contratto un'eventuale estensione oltre il 28 dicembre 2026, se necessaria?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Chiarimento dei dettagli dell'immobile**\n\nMi sto concentrando sulle domande dell'utente riguardanti \"il loft\" e \"l'appartamento in Maybachufer\". Nello specifico, sto approfondendo l'affitto di 1.800 EUR per l'immobile in Maybachufer. Devo determinare con certezza se sia davvero tutto incluso o se ci siano potenziali costi aggiuntivi. Inoltre, sto chiarendo il numero di foto disponibili per la ricerca.\n\n\n**Verifica dei dettagli inclusi**\n\nSto esaminando i dettagli dell'affitto dell'appartamento in Maybachufer, in particolare la dicitura \"tutto incluso\". Il mio obiettivo è estrarre la ripartizione esatta di ciò che è incluso ed escluso. Devo distinguere se i 1800 EUR coprono utenze, internet, riscaldamento e il canone radiotelevisivo. I dati iniziali mostrano informazioni contrastanti, quindi devo individuare ciò che i dati confermano *effettivamente*.\n\n\n**Individuazione delle lacune nelle inclusioni**\n\nSto chiarendo i dettagli relativi alle utenze. Dai dati iniziali non è confermato se siano inclusi il canone GEZ, l'elettricità o i conguagli per il riscaldamento. Devo definire chiaramente il numero totale di foto e assicurarmi che tutte quelle pertinenti siano analizzate per ogni immobile. L'appartamento in Maybachufer ha due balconi e il loft ne ha uno, sebbene le dimensioni rimangano non specificate. Inoltre, sto verificando l'ubicazione dell'immobile in Maybachufer.\n\n\n---"
-      },
-      "follow_up_1": {
-        "text": "Cerca altri bilocali vicino all'acqua a Berlino"
-      },
-      "follow_up_2": {
-        "text": "Scrivi una bozza di messaggio di richiesta in tedesco per il proprietario di Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "Cerca percorsi di trasporto pubblico da Anton-Saefkow-Platz ad Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "Confronta i depositi cauzionali e i termini di cancellazione di entrambi gli appartamenti"
-      },
-      "follow_up_5": {
-        "text": "Controlla le previsioni meteo attuali per Berlino Lichtenberg"
-      },
-      "follow_up_6": {
-        "text": "Elenca le domande chiave da porre ai proprietari durante le visite agli appartamenti a Berlino"
       }
     },
     "germany_historic_film_industry": {
@@ -9907,50 +9782,6 @@
       },
       "follow_up_6": {
         "text": "Spiega come l'offerta del mercato immobiliare risponde al controllo dei prezzi"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Lavori significativi in Germania"
-      },
-      "summary": {
-        "text": "Cerca offerte di lavoro in Germania su quattro piattaforme, poi confronta i ruoli di design e prepara delle domande per i datori di lavoro."
-      },
-      "message_1": {
-        "text": "Sto cercando un lavoro significativo in Germania, specialmente nell'ambito della ricerca, del design o dell'ingegneria del software. Per favore, trova alcune offerte attuali utilizzando ExampleJobsB e ExampleJobsC, oltre ad ExampleJobsD e all'Agenzia Federale per l'Impiego. Sono aperto a qualsiasi località in Germania. Forniscimi una breve lista con datore di lavoro, località, fonte e link per la candidatura, e non dare per scontato il lavoro da remoto o lo stipendio se l'annuncio non lo specifica."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nEcco una breve lista delle attuali posizioni aperte in Germania nei settori della ricerca, del design e dell'ingegneria del software da ExampleJobsB, **ExampleJobsC**, **ExampleJobsD** e l'**Example Employment Board**.\n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Datore di lavoro:** voize (sviluppa IA di riconoscimento vocale per snellire la documentazione nell'assistenza infermieristica e clinica)\n  * **Sede:** Berlino, Germania (indicata come idonea al lavoro da remoto)\n  * **Fonte:** ExampleJobsC\n  * **Stipendio:** Non specificato\n  * **Candidatura:** [Candidati tramite voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **Datore di lavoro:** stiftung ear (registro nazionale che coordina lo smaltimento, il ritiro e il tracciamento dell'economia circolare dei rifiuti elettronici)\n  * **Sede:** Norimberga, Baviera\n  * **Fonte:** Agenzia Federale per il Lavoro\n  * **Modalità di lavoro e stipendio:** Opzioni di lavoro flessibile/mobile menzionate nella descrizione dell'annuncio, ma nessuna classificazione formale di full-remote; stipendio non specificato\n  * **Candidatura:** [Candidati tramite Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### Ricerca\n\n* **Joint Fellowship Program (Politiche di Pace e Sicurezza)**\n  * **Datore di lavoro:** [Università di Amburgo](wiki:University_of_Hamburg) e Institute for Peace Research and Security Policy (IFSH)\n  * **Sede:** Amburgo, Germania\n  * **Fonte:** ExampleJobsB\n  * **Modalità di lavoro e stipendio:** Non specificati\n  * **Candidatura:** [Candidati tramite IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **Ricercatore associato (m/f/x) – Machine Learning e Processi Decisionali in Condizioni di Incertezza**\n  * **Datore di lavoro:** [Università della Ruhr a Bochum](wiki:Ruhr_University_Bochum)\n  * **Sede:** Bochum, Renania Settentrionale-Vestfalia\n  * **Fonte:** Agenzia Federale per il Lavoro\n  * **Modalità di lavoro e stipendio:** Full-time (39,83 ore/settimana); modalità da remoto non specificata; retribuito secondo il contratto collettivo pubblico TV-L E13 (importo esatto non pubblicato nell'annuncio)\n  * **Candidatura:** [Candidati tramite Example Employment Board](embed:research-associate-m-79L)\n\n* **Ingegnere di ricerca (f/m/d) – Decarbonizzazione della Rete e Tecnologia di Base**\n  * **Datore di lavoro:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Sede:** Berlino\n  * **Fonte:** Agenzia Federale per il Lavoro\n  * **Modalità di lavoro e stipendio:** Opzioni flessibili/mobili menzionate nel testo, ma nessuno stato di lavoro da remoto fisso dichiarato; stipendio non specificato\n  * **Candidatura:** [Candidati tramite Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### Ingegneria del Software\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Datore di lavoro:** idealo internet GmbH\n  * **Sede:** Berlino, Germania\n  * **Fonte:** ExampleJobsD\n  * **Modalità di lavoro e stipendio:** Ambiente d'ufficio in sede/ibrido; stipendio non specificato\n  * **Candidatura:** [Candidati tramite ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **Studente lavoratore – Ingegneria del Software (Computer Vision / Sistemi Autonomi)**\n  * **Datore di lavoro:** Quantum-Systems GmbH (piattaforme aeree autonome e percezione robotica)\n  * **Sede:** Gilching, Baviera\n  * **Fonte:** ExampleJobsD\n  * **Modalità di lavoro e stipendio:** In sede/ibrido; stipendio non specificato\n  * **Candidatura:** [Candidati tramite ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Identificazione delle opportunità in Germania**\n\nAl momento mi sto concentrando sull'individuazione di offerte di lavoro pertinenti in Germania. Ho iniziato compilando un elenco di fonti promettenti: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` e l'Agenzia federale per l'impiego (`Example Employment Board`). Il mio interesse principale riguarda i ruoli di ricerca, design e ingegneria del software, e terrò d'occhio l'aspetto relativo alla posizione geografica.\n\n\n**Perfezionamento dei parametri di ricerca**\n\nSto affinando il mio approccio per utilizzare lo strumento `jobs-search` in modo efficace. Mi sto concentrando sull'array `requests` per effettuare una serie di query e specificare direttamente i provider, dato il limite di 5 richieste. Sto controllando la definizione della funzione per confermare come fornire esplicitamente i provider come elenco e come definire i criteri di pertinenza. Questo aiuterà a creare una lista ristretta con datore di lavoro, posizione, fonte e link per la candidatura. Il mio obiettivo è evitare supposizioni sul lavoro da remoto o sullo stipendio dove non esplicitamente indicato.\n\n\n**Esame dei risultati dei provider**\n\nBene, ho dato un'occhiata iniziale ai provider restituiti. Sembra che abbiamo \"ExampleJobsC\" e un paio da ExampleJobsD; uno è un ruolo senior in ingegneria backend (Java/Kotlin) e l'altro è un ruolo per studenti lavoratori. Sto annotando le prime impressioni e valutando il potenziale impatto di ogni annuncio.\n\n\n**Analisi delle opportunità attuali**\n\nAl momento mi sto concentrando sulla valutazione di due opportunità promettenti. La prima è un \"Joint Fellowship Program\" presso l'Istituto per la ricerca sulla pace e la politica di sicurezza dell'Università di Amburgo, e la seconda è una posizione di \"Assistente studentesco\" all'interno dell'Interface Cybersecurity Programme. Sto considerando attentamente i rispettivi meriti nel contesto della ricerca sulla pace e la sicurezza e della cybersicurezza.\n\n\n**Assegnazione delle priorità ai nuovi contatti**\n\nHo spostato la mia attenzione sulla cura di una lista ristretta equilibrata. Sto dando priorità alle opportunità nel design e nella ricerca, concentrandomi sulla pertinenza e sui post recenti. Attualmente, sto esaminando un ruolo di Senior Product Designer presso voize a Berlino e una posizione di UI/UX Design presso stiftung ear. Per la ricerca, sto esaminando un ruolo presso la Ruhr-Universität Bochum, insieme al Joint Fellowship Program ad Amburgo.\n\n\n**Valutazione di nuove possibilità**\n\nSto ora soppesando nuovi contatti alla luce dei miei criteri. Ho scoperto opzioni come un ruolo di Research Engineer presso Siemens Energy, Berlino, tramite l'Agenzia federale per l'impiego, che si concentra sulla ricerca fondamentale. Sto anche considerando i ruoli di Senior Backend e Junior C++ Software Developer rispettivamente presso idealo internet GmbH (Berlino, ExampleJobsD) e CT Software Engineering (Ingolstadt, Agenzia federale per l'impiego). Questi si adattano ai miei interessi nell'ingegneria del software.\n\n\n**Perfezionamento dei criteri di candidatura**\n\nSto ora chiarendo come gestire i link per la candidatura. Devo ricordarmi di dare priorità a processi di candidatura chiari, controllando l'uso di `[testo visualizzato](embed:embed_ref)` o link standard. Inoltre, dovrei evitare di presumere il lavoro da remoto o di rivelare lo stipendio a meno che non sia esplicitamente indicato nell'annuncio.\n\n\n**Chiarimento dei protocolli di candidatura**\n\nMi sto ora concentrando sui formati dei link per la candidatura. Mi sto assicurando l'integrazione diretta dei link o l'uso del formato `(embed:embed_ref)`, garantendo di non fornire entrambi. Sto esaminando attentamente gli URL restituiti dalle app skill per garantirne la conformità. Punto a rispettare la regola di utilizzare un solo stile di link per ogni link di candidatura.\n\n\n**Standardizzazione dei link di candidatura**\n\nSto ora implementando la strategia per i link di candidatura. Il mio obiettivo è standardizzare il formato per gli annunci di lavoro. Utilizzerò solo il riferimento embed per i link di candidatura. Includerò anche ruolo, datore di lavoro, posizione e fonte per ogni posto vacante e utilizzerò un link incorporato. Mi assicurerò di utilizzare sempre un solo link per ogni posizione.\n\n\n**Compilazione dei dati sulle opportunità**\n\nSto ora raccogliendo i dettagli per più opportunità. Ho informazioni per un ruolo di Senior Product Designer presso voize, una posizione di UI/UX Design presso stiftung ear e il Joint Fellowship Program presso l'Università di Amburgo. Sto annotando il ruolo, il datore di lavoro, la posizione e la fonte per ciascuno, nonché le specifiche su remoto e stipendio. Mi sto concentrando sulla garanzia di formati di link coerenti utilizzando gli embed per ogni candidatura.\n\n\n**Integrazione di nuovi annunci**\n\nSto ora integrando nuovi annunci nel set di dati. Ho aggiunto una posizione di ricercatore associato presso la Ruhr-Universität Bochum, reperendola dall'Agenzia federale per l'impiego e annotando i dettagli relativi al lavoro da remoto e allo stipendio. Inoltre, ho raccolto informazioni su un ruolo di Research Engineer presso Siemens Energy, incluse le opzioni flessibili. Sto garantendo la coerenza nei formati dei link, utilizzando gli embed per i link di candidatura.\n\n\n**Aggiunta di nuovi annunci**\n\nHo appena aggiunto due nuovi annunci: un ruolo di Senior Backend Engineer in una posizione non specificata e una posizione di studente lavoratore presso Quantum-Systems GmbH a Gilching. Mi sto concentrando sull'acquisizione accurata di tutti i dettagli, inclusi posizione, opzioni di lavoro da remoto, informazioni sullo stipendio (ove disponibili) e link di candidatura nel formato standardizzato. Sto utilizzando il formato `(embed:embed_ref)` per il link di candidatura."
-      },
-      "message_3": {
-        "text": "I due ruoli di design sembrano i più interessanti. Puoi confrontare brevemente cosa dicono effettivamente gli annunci salvati e suggerirmi cosa dovrei chiedere a ciascun datore di lavoro prima di candidarmi?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nEcco un confronto diretto di ciò che indica ogni annuncio, seguito da domande mirate che puoi porre a ciascun datore di lavoro prima o durante il processo di candidatura.\n\n---\n\n### Confronto degli annunci\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Cosa chiedere prima di candidarsi\n\n#### Per voize:\n1. **Accesso alla ricerca sugli utenti:** *\"Con quale frequenza e attraverso quali canali i designer conducono ricerche sul campo o test con gli infermieri e il personale sanitario nel loro ambiente clinico quotidiano?\"*\n2. **Maturità e ambito del team:** *\"Com'è strutturato il team di prodotto, qual è l'attuale rapporto tra designer, PM e ingegneri, e questo ruolo è una posizione da individual contributor o è previsto che stabilisca dei design system?\"*\n3. **Retribuzione e frequenza del lavoro da remoto:** *\"Qual è la fascia retributiva prevista per questo livello di seniority e sono previsti offsite di team in sede obbligatori o orari centrali nonostante la politica di lavoro da remoto?\"*\n\n#### Per stiftung ear:\n1. **Aspettative di presenza a Norimberga:** *\"Come è strutturato in pratica il lavoro agile? C'è un requisito fisso settimanale o mensile di presenza presso l'ufficio di Norimberga?\"*\n2. **Equilibrio tra Design e QA:** *\"L'annuncio menziona l'implementazione di test software insieme al design UX/UI. Quale percentuale del ruolo è focalizzata sulla ricerca utenti/prototipazione rispetto alla validazione tecnica del software e alla garanzia di qualità?\"*\n3. **Strumenti di design e passaggio allo sviluppo:** *\"Quali strumenti di design system e prototipazione sono attualmente in uso, e lavorate con un team di sviluppo interno o con fornitori di servizi IT esterni?\"*\n4. **Parametro retributivo:** *\"Dato che stiftung ear opera con una funzione statutaria di interesse pubblico, la retribuzione segue una specifica scala collettiva pubblica (come TVöD/TV-L) o una struttura di inquadramento interna?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Analisi del contenuto degli annunci di lavoro**\n\nBene, ho iniziato a confrontare le descrizioni delle posizioni. Mi sto concentrando sulle responsabilità principali e sulle competenze richieste per il ruolo di Senior Product Designer presso Voize e per la posizione di UI/UX Design presso Stiftung EAR. Ora sto preparando un riepilogo delle responsabilità chiave e delle competenze richieste per entrambi gli annunci. Successivamente, individuerò quali ulteriori informazioni potrebbero servirmi.\n\n\n**Analisi delle descrizioni delle posizioni**\n\nOk, ora sto approfondendo i dettagli di ogni annuncio. Il mio obiettivo è analizzare il linguaggio specifico utilizzato nelle descrizioni. Sto cercando di determinare quali domande fondamentali richiedano una risposta, al fine di prepararmi per ogni datore di lavoro. Ad esempio, nell'annuncio di voize, ho bisogno di saperne di più sul loro prodotto basato sull'IA.\n\n\n**Valutazione dei dettagli chiave**\n\nMi sto concentrando sull'annuncio di voize per estrapolare i punti salienti. Si tratta di un ruolo senior con una responsabilità significativa, che richiede qualcuno in grado di confrontarsi con i product manager. L'organizzazione è flessibile, con un ufficio a Berlino e opzioni di lavoro da remoto. La retribuzione non è indicata, ma i benefit includono un buon numero di giorni di ferie e l'iscrizione a un club sportivo. L'inglese è la lingua principale, nonostante il contesto sia quello della sanità tedesca.\n\n\n**Individuazione dei requisiti specifici**\n\nOra mi sto focalizzando sul ruolo con sede a Norimberga. Ho suddiviso le aree chiave: l'aspetto della conformità legale si concentra sulle normative ElektroG. Il lavoro include lo sviluppo di web app e attività UX, fornendo consulenza agli stakeholder. La padronanza del tedesco (minimo C1) è obbligatoria, l'esperienza in software normativi è un plus. La posizione è a tempo indeterminato con un'ampia flessibilità per il lavoro da remoto. La retribuzione è basata sulle prestazioni.\n\n\n**Confronto delle caratteristiche del lavoro**\n\nSto effettuando dei confronti diretti tra i ruoli. Li ho suddivisi per settore, cultura, competenze richieste e sede di lavoro. Nello specifico, sto mettendo a confronto voize con il ruolo presso stiftung ear. Mi sto concentrando sulle differenze tra i loro ambienti e le loro priorità, dall'assistenza sanitaria in prima linea alla conformità sui rifiuti elettronici. Sto annotando le differenze principali, come i requisiti linguistici e il livello di esperienza. Inoltre, sto valutando le differenze nelle loro politiche di lavoro da remoto."
-      },
-      "follow_up_1": {
-        "text": "Cerca altri lavori come UI/UX designer a Berlino"
-      },
-      "follow_up_2": {
-        "text": "Scrivi una bozza di email di contatto per il responsabile delle assunzioni di voize"
-      },
-      "follow_up_3": {
-        "text": "Trova ruoli simili nel settore tech sanitario in Germania"
-      },
-      "follow_up_4": {
-        "text": "Confronta i pro e i contro del lavoro nelle startup sanitarie rispetto agli enti pubblici"
-      },
-      "follow_up_5": {
-        "text": "Cerca lavori nel settore tech pubblico a Norimberga"
-      },
-      "follow_up_6": {
-        "text": "Elenca i passaggi chiave per prepararsi a un colloquio come senior product designer"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10543,20 +10374,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Modelli di Benchy e supporti per telefono stampabili"
-      },
-      "summary": {
-        "text": "Cerca su ExampleModels modelli popolari di Benchy e supporti per telefono stampabili in 3D con schede di anteprima e link alla fonte."
-      },
-      "message_1": {
-        "text": "Trova modelli di Benchy e supporti per telefono stampabili in 3D su ExampleModels. Mostra le opzioni migliori con schede di anteprima e link alla fonte."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nPer i tuoi prossimi progetti di stampa 3D, ho trovato alcuni dei modelli più popolari e creativi su ExampleModels. Che tu stia cercando il classico rimorchiatore di [calibrazione](wiki:Calibration_(statistics)) o un accessorio funzionale per il [telefono](wiki:Smartphone), queste opzioni sono ottimi punti di partenza.\n\n### La collezione 3DBenchy\nIl [3DBenchy](wiki:3DBenchy) è lo standard di riferimento per testare le capacità della tua [stampante 3D](wiki:3D_printing). Oltre all'originale, esistono diversi \"remix\" che aggiungono carattere al tuo banco da lavoro.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **3DBenchy originale**: Ideale per il [benchmarking](wiki:Benchmark_(computing)) di [sporgenze](wiki:3D_printing#Support_structures), [ponti](wiki:3D_printing#Support_structures) e finitura superficiale.\n*   **Assault Benchy**: Una versione [mecha](wiki:Mecha) snodabile per chi vuole un tocco di stile.\n*   **Floating BEN**: Progettato appositamente con uno scafo cavo in modo che galleggi davvero: perfetto per il bagno!\n\n### Supporti per telefono funzionali\nUn supporto per telefono è un'ottima stampa pratica. Questi design variano dal minimalista a complessi ingranaggi meccanici.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Supporto a nido d'ape**: Molto popolare per il suo elevato [rapporto resistenza/peso](wiki:Specific_strength) e il look moderno.\n*   **Supporto a ingranaggi**: Una meraviglia meccanica \"print-in-place\" che consente angoli di visione regolabili.\n*   **Moderno curvo**: Un design elegante in un unico pezzo che si adatta perfettamente a un ufficio minimalista.\n\n**Suggerimento:** Quando stampi il [supporto per telefono a ingranaggi](embed:geared-phone-stand-3Bl), assicurati che il tuo [moltiplicatore di estrusione](wiki:3D_printing#Fused_deposition_modeling) sia ben calibrato per evitare che le parti mobili si fondano tra loro.\n\nChe tipo di [filamento](wiki:3D_printing_filament) (PLA, PETG, ecc.) hai intenzione di usare per questi? Posso darti alcuni consigli specifici per lo slicing in base al tuo materiale!\n\n**Cosa vorresti fare ora?**\n- [Cerca altri modelli 3D](/#settings/apps/models3d)\n- [Ottieni consigli sulla stampa 3D](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10785,38 +10602,6 @@
         "text": "Insegnami i principi del responsive design"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Nomi per app social con domini verificati"
-      },
-      "summary": {
-        "text": "Confronta i nomi per app social utilizzando la disponibilità dei domini verificata, i prezzi di registrazione e rinnovo e i termini di registrazione."
-      },
-      "message_1": {
-        "text": "Sto scegliendo il nome per un'app social che aiuta le persone a tenersi in contatto dopo essersi incontrate di persona e a conoscere nuove persone. Consigliami due idee di nomi distintivi. Per ogni idea, controlla in tempo reale i domini esatti .com, .net e .app, quindi consiglia solo i domini esatti la cui disponibilità, prezzo di registrazione, prezzo di rinnovo e restrizioni appaiono in tali controlli. Non fare supposizioni su domini non verificati. Scegli il nome migliore in base ai risultati verificati."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nEcco due idee di nomi distintivi pensate per un'app focalizzata sul coltivare connessioni dal vivo e ampliare le cerchie sociali, insieme ai controlli dei domini in tempo reale per le estensioni esatte `.com`, `.net` e `.app` di ogni nome.\n\n---\n\n### Idea 1: Kinloop\n* **Concetto:** Combina \"kin\" (comunità, affinità personale, legami di fiducia) con \"loop\" (chiudere il cerchio dopo un primo incontro e mantenere vive le connessioni in una cerchia continua).\n* **Verifica del dominio in tempo reale:**\n  * **`kinloop.com`**: **Non disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Non disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Non disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-XJX))\n* **Raccomandazione:** Nessuna. Tutti e tre i domini esatti di destinazione sono attualmente registrati/non disponibili, quindi non è possibile consigliare alcun dominio esatto per questo nome.\n\n---\n\n### Idea 2: Orbitfolk\n* **Concetto:** Evoca l'idea di mantenere i conoscenti della vita reale nella tua orbita personale, scoprendo e accogliendo continuamente nuove persone (\"folk\") nel tuo mondo.\n* **Verifica del dominio in tempo reale:**\n  * **`orbitfolk.com`**: **Non disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-cex))\n    * **Prezzo di registrazione:** 12,99 $ / 1° anno tasse escluse (15,46 $ inclusa IVA al 19%; tariffa regolare per 1 anno 18,78 $)\n    * **Prezzo di rinnovo:** 39,98 $ / anno tasse escluse (47,58 $ inclusa IVA al 19% per termini di 1 anno; 35,98 $/anno tasse escluse per termini di 2–9 anni)\n    * **Restrizioni:** Nessuna segnalata\n  * **`orbitfolk.app`**: **Disponibile** ([Controllo ExampleRegistrar](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Prezzo di registrazione:** 9,99 $ / 1° anno tasse escluse (11,89 $ inclusa IVA al 19%; tariffa regolare per 1 anno 23,29 $)\n    * **Prezzo di rinnovo:** 47,98 $ / anno tasse escluse (57,10 $ inclusa IVA al 19% per termini di 1 anno; 43,18 $/anno tasse escluse per termini di 2–9 anni)\n    * **Restrizioni:** Nessuna segnalata\n\n---\n\n### Confronto e scelta migliore\n\n**Orbitfolk** è la scelta migliore:\n\n1. **Disponibilità diretta:** Mentre `Kinloop` è occupato in tutte e tre le estensioni, `Orbitfolk` ha sia la versione `.app` che quella `.net` immediatamente disponibili per la registrazione.\n2. **Idoneità del prodotto:** Trattandosi di un prodotto social per dispositivi mobili, **`orbitfolk.app`** offre un'estensione di dominio pulita e specifica che comunica direttamente il tipo di prodotto agli utenti.\n\n---\n\n### Passaggi successivi\n\n* [Esplora altre varianti di nomi basate sulle orbite sociali](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Bozza del flusso di onboarding per incontrarsi di persona](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Cerca nomi di dominio disponibili per un'altra idea di app social"
-      },
-      "follow_up_2": {
-        "text": "Spiega perché l'estensione di dominio .app è efficace per le app mobili"
-      },
-      "follow_up_3": {
-        "text": "Verifica la disponibilità del dominio per tre nomi di brand alternativi"
-      },
-      "follow_up_4": {
-        "text": "Confronta le estensioni di dominio .net e .app per le applicazioni consumer"
-      },
-      "follow_up_5": {
-        "text": "Controlla prezzi e disponibilità del dominio per il nome AppFolk"
-      },
-      "follow_up_6": {
-        "text": "Suggerisci tre ulteriori angolazioni di branding per questa app di connessione social"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10829,38 +10614,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Analisi del TED Talk satirico di Will Stephen"
-      },
-      "summary": {
-        "text": "Riassunto del TEDx talk satirico di Will Stephen sul parlare in pubblico in cinque argomenti comici principali."
-      },
-      "message_1": {
-        "text": "Ottieni la trascrizione di questo TED talk e riassumi l'argomento principale in cinque punti: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nIl video è la presentazione satirica di Will Stephen al TEDx, *\"How to sound smart in your TEDx Talk\"* (guarda il talk).\n\nInvece di tenere una lezione informativa, Stephen usa il meta-umorismo per decostruire le convenzioni del [parlare in pubblico](wiki:Public_speaking). Ecco l'argomento centrale riassunto in cinque punti:\n\n* **L'esposizione crea l'illusione della sostanza:** Il ritmo, i gesti deliberati delle mani, il contatto visivo drammatico e gli oggetti di scena (come gli occhiali non graduati) possono convincere il pubblico che un oratore sia brillante anche quando non ha nulla di valore da dire.\n* **Il rapporto con il pubblico sul palco è estremamente stereotipato:** I classici espedienti interattivi — come porre domande retoriche, chiedere di alzare la mano e offrire aneddoti autoironici — sono tecniche sceniche calcolate per creare calore e credibilità artificiali.\n* **I dati visivi conferiscono un'autorità immeritata:** Mostrare numeri casuali, aritmetica elementare e grafici privi di contesto sfrutta i pregiudizi visivi, facendo apparire una presentazione rigorosamente documentata anche quando i dati sono del tutto irrilevanti.\n* **Il pubblico proietta significati sul non-senso:** Abbinando una cadenza vocale seria e immagini d'archivio evocative a parole letteralmente senza senso, gli oratori possono spingere gli ascoltatori a cercare — e immaginare — inconsciamente connessioni profonde dove non ne esistono.\n* **I crescendo emotivi possono essere fabbricati a tavolino:** Aumentare l'intensità vocale, rallentare fino a sussurrare e fare pause drammatiche imita il ritmo di un'epifania, dimostrando quanto sia facile costruire artificialmente la sensazione di ispirazione senza alcuna intuizione di base."
-      },
-      "follow_up_1": {
-        "text": "Cerca altre presentazioni satiriche popolari su YouTube"
-      },
-      "follow_up_2": {
-        "text": "Spiega la storia del formato TEDx e il suo impatto culturale"
-      },
-      "follow_up_3": {
-        "text": "Trova tutorial di masterclass sul parlare in pubblico online"
-      },
-      "follow_up_4": {
-        "text": "Analizza le tecniche specifiche del linguaggio del corpo utilizzate da famosi relatori principali"
-      },
-      "follow_up_5": {
-        "text": "Cerca video di analisi sulle tecniche retoriche"
-      },
-      "follow_up_6": {
-        "text": "Elenca consigli per superare la paura del palcoscenico quando si parla in pubblico"
       }
     },
     "urban_heat_island_at_night": {
@@ -11178,33 +10931,6 @@
         "text": "Sei un esperto di programmazione."
       }
     },
-    "health_health_insights": {
-      "text": "Approfondimenti sulla salute",
-      "description": {
-        "text": "Ottieni informazioni sulla salute e trova un medico."
-      },
-      "systemprompt": {
-        "text": "Sei un esperto di salute."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Prepara appuntamento medico",
-      "description": {
-        "text": "Prepara cosa discutere alla prossima visita."
-      },
-      "process": {
-        "text": "- discute i sintomi avuti nelle ultime settimane e mesi, anche se non si vedono connessioni\n- discute quali risultati di esami/documenti raccogliere prima della prossima visita"
-      },
-      "systemprompt": {
-        "text": "Sei un esperto di salute."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Prepara rapporto medico",
-      "description": {
-        "text": "Crea un rapporto per la prossima visita medica."
-      }
-    },
     "jobs_career_insights": {
       "text": "Approfondimenti sulla carriera",
       "description": {
@@ -11227,6 +10953,24 @@
       "text": "Parlare del futuro",
       "description": {
         "text": "Una potente tecnica di life coaching."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Prepara rapporto medico",
+      "description": {
+        "text": "Crea un rapporto per la prossima visita medica."
+      }
+    },
+    "health_health_insights": {
+      "text": "Approfondimenti sulla salute",
+      "description": {
+        "text": "Ottieni informazioni sulla salute e trova un medico."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Prepara appuntamento medico",
+      "description": {
+        "text": "Prepara cosa discutere alla prossima visita."
       }
     },
     "news_understand_the_news": {
@@ -11278,6 +11022,9 @@
       "text": "Stratega del calendario dei contenuti",
       "description": {
         "text": "Crea un piano contenuti social di 30 giorni."
+      },
+      "systemprompt": {
+        "text": "Agisci come Stratega dei Social Media professionista. Usando gli input riportati di seguito, genera un calendario di contenuti di 30 giorni focalizzato sul raggiungimento dell'Obiettivo Principale.\n\nPrima di tutto, esegui un breve passaggio interno di ricerca e strategia usando le tue conoscenze esistenti e, se disponibili, dati web in tempo reale per questo Argomento/Nicchia e Pubblico Target. Chiarisci i principali punti dolenti e desideri del pubblico, i tipi di post e hook che funzionano bene in questa nicchia, e le tendenze attuali rilevanti. Usa questi insight solo per guidare il calendario, NON produrli separatamente.\n\nL'output DEVE essere una tabella Markdown con queste esatte colonne (e nient'altro): Giorno #, Data, Tema/Pilastro, Piattaforma, Idea di Contenuto, Chiamata all'Azione (CTA).\n\nLinee guida per il calendario:\n- Crea esattamente 30 righe, una per ogni giorno consecutivo del calendario a partire dalla Data di Inizio, con date reali in ordine crescente.\n- Il Tema/Pilastro in ogni riga deve essere uno dei Pilastri di Contenuto forniti, con una distribuzione ragionevolmente equilibrata nei 30 giorni.\n- La colonna Piattaforma deve seguire il Programma di Pubblicazione. Se vengono specificate più piattaforme per un dato giorno, crea una riga per piattaforma.\n\nLinee guida per i contenuti:\n- Ogni Idea di Contenuto deve indicare il tipo di post (es. Reel, carosello, post statico, storia, live, sondaggio, post di testo LinkedIn) e includere un hook chiaro e in grado di fermare lo scroll, adattato al Pubblico Target.\n- Ogni CTA deve essere specifico, orientato all'azione e supportare direttamente l'Obiettivo Principale (es. \"Scarica la guida gratuita\", \"Prenota una chiamata\", \"Iscriviti alla newsletter\", \"Commenta con la tua domanda #1\").\n- Varia formati e angolazioni nei 30 giorni (es. educativo, storytelling, dietro le quinte, FAQ, obiezioni, prove sociali, inviti all'engagement) per evitare ripetizioni.\n- Assicurati che ogni idea sia chiaramente connessa ai principali punti dolenti e desideri del Pubblico Target e allineata con l'Obiettivo Principale.\n\nInput (da compilare prima di eseguire il prompt):\n* Argomento/Nicchia: [Inserisci il tuo Argomento/Nicchia qui]\n* Pubblico Target: [Inserisci il tuo Pubblico Target qui, includendo principali punti dolenti e desideri se noti]\n* Obiettivo Principale: [Inserisci il tuo Obiettivo Principale qui, es. aumentare la lista email / incrementare le vendite / costruire autorità]\n* Programma di Pubblicazione: [Inserisci la tua Frequenza di Pubblicazione e Piattaforma qui, es. 5x/settimana su IG Reels + 3x/settimana su LinkedIn]\n* Pilastri di Contenuto: [Inserisci i tuoi 3–5 Pilastri di Contenuto qui, separati da virgole]\n* Data di Inizio: [Inserisci la prima data del tuo calendario, es. 18 novembre 2025]\n\nProduci solo la tabella Markdown finale. NON includere spiegazioni, note o testo fuori dalla tabella."
       }
     },
     "study_learn_topic": {
@@ -12390,14 +12137,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12498,10 +12245,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (trascrizioni video)"
+              "text": "YouTube (metadati video)"
             },
             "description": {
-              "text": "YouTube viene consultato quando chiedi a OpenMates di recuperare la trascrizione di un video di YouTube. YouTube riceve gli URL dei video e le preferenze sulla lingua della trascrizione richiesta senza un identificativo utente OpenMates."
+              "text": "Per recuperare metadati pubblici di video e canali, OpenMates invia i relativi identificativi alla API ufficiale YouTube Data API. YouTube riceve questi identificativi e le informazioni di rete del nostro server, senza un identificativo utente OpenMates."
             }
           }
         },
@@ -21822,7 +21569,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Le chiamate usano trascrizione Mistral, voce ElevenLabs v4 Turbo, normale instradamento IA di OpenMates e fatturazione a consumo."
+    },
+    "privacy_description": {
+      "text": "Mistral trascrive l’audio del microfono; ElevenLabs v4 Turbo genera la voce dell’assistente dal testo della risposta e dalle impostazioni vocali. La conversazione usa il normale instradamento IA e le funzionalità di OpenMates. I fornitori possono conservare i dati delle richieste secondo le proprie politiche."
+    },
+    "privacy_terms": {
+      "text": "Informativa sulla privacy di OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "I membri del nostro Discord riceveranno"

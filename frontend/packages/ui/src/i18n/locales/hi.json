@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "JobTech से स्वीडन की सार्वजनिक नौकरी सूचियां खोजें।"
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "प्रतिलिपि प्राप्त करें",
         "description": {
-          "text": "YouTube / media.ccc.de वीडियो का प्रतिलिपि प्राप्त करें।"
+          "text": "media.ccc.de वार्ताओं के प्रकाशित उपशीर्षक प्राप्त करें।"
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "रोमन साम्राज्य के बारे में विकिपीडिया पेज पढ़ें और मुझे मुख्य तथ्य बताएं"
           }
+        }
+      },
+      "browse": {
+        "text": "ब्राउज़ करें",
+        "description": {
+          "text": "वेबसाइट ब्राउज़ करें और देखी गई जानकारी JSON में लौटाएं।"
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "होस्टिंग",
       "description": {
-        "text": "डोमेन नाम खोजें और उनकी उपलब्धता और कीमतें जाँचें।"
+        "text": "डोमेन खोज अभी उपलब्ध नहीं है।"
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "डाक",
       "description": {
-        "text": "ईमेल भेजें, प्रबंधित करें और लिखें।"
+        "text": "ईमेल के मसौदे तैयार करें और डाक से जुड़े काम करें।"
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "वीडियो",
       "description": {
-        "text": "वीडियो खोजें, ट्रांसक्रिप्ट पाएं।"
+        "text": "वीडियो खोजें और बनाएं।"
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "यात्रा",
       "description": {
-        "text": "आवास, कनेक्शन खोजें और योजना बनाएं।"
+        "text": "यात्राओं की योजना बनाएं और सहेजी गई यात्रा जानकारी रखें।"
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "इलेक्ट्रॉनिक पुर्जों की खोज अभी उपलब्ध नहीं है।"
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "आवास",
       "description": {
-        "text": "एक नया घर खोजें और बहुत कुछ।"
+        "text": "सहेजी गई आवास जानकारी रखें।"
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "इवेंट्स",
       "description": {
-        "text": "मीटअप, सम्मेलन और स्थानीय इवेंट खोजें।"
+        "text": "सहेजी गई कार्यक्रम जानकारी रखें।"
       },
       "search": {
         "text": "खोजें",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "सहेजे गए 3D मॉडल देखें।"
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "खरीदारी",
       "description": {
-        "text": "सुपरमार्केट कीमतें तुलना करें और डील खोजें।"
+        "text": "उत्पाद खोज अभी उपलब्ध नहीं है।"
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "ब्राउज़ करें"
+      },
+      "running": {
+        "text": "ब्राउज़ हो रहा है"
+      },
+      "user_control": {
+        "text": "नियंत्रण आपके पास है"
+      },
+      "paused": {
+        "text": "रोका गया"
+      },
+      "completed": {
+        "text": "पूरा हुआ"
+      },
+      "no_results": {
+        "text": "कोई परिणाम नहीं"
+      },
+      "needs_user": {
+        "text": "आपके इनपुट की ज़रूरत है"
+      },
+      "blocked": {
+        "text": "अवरुद्ध"
+      },
+      "failed": {
+        "text": "विफल"
+      },
+      "cancelled": {
+        "text": "रद्द"
+      },
+      "budget_exceeded": {
+        "text": "खर्च सीमा पूरी हुई"
+      },
+      "closed": {
+        "text": "ब्राउज़र बंद"
+      },
+      "expired": {
+        "text": "सत्र समाप्त"
+      },
+      "unavailable": {
+        "text": "ब्राउज़र उपलब्ध नहीं"
+      },
+      "watch": {
+        "text": "ब्राउज़र देखें"
+      },
+      "take_control": {
+        "text": "नियंत्रण लें"
+      },
+      "continue": {
+        "text": "AI को जारी रखने दें"
+      },
+      "pause": {
+        "text": "रोकें"
+      },
+      "close": {
+        "text": "ब्राउज़र बंद करें"
+      },
+      "sign_in_title": {
+        "text": "साइन इन करने से पहले"
+      },
+      "sign_in_confirm": {
+        "text": "साइन इन जारी रखें"
+      },
+      "saved_frame": {
+        "text": "सहेजा गया ब्राउज़र चित्र"
+      },
+      "live_frame": {
+        "text": "लाइव ब्राउज़र"
+      },
+      "waiting_frame": {
+        "text": "ब्राउज़र की प्रतीक्षा…"
+      },
+      "text_input": {
+        "text": "वेबसाइट के लिए टेक्स्ट"
+      },
+      "send_text": {
+        "text": "टेक्स्ट भेजें"
+      },
+      "scroll_up": {
+        "text": "ऊपर स्क्रॉल करें"
+      },
+      "scroll_down": {
+        "text": "नीचे स्क्रॉल करें"
+      },
+      "structured_data": {
+        "text": "संरचित डेटा"
+      },
+      "connection_error": {
+        "text": "कनेक्शन टूट गया। अगली कार्रवाई से पहले रीफ़्रेश करें।"
+      },
+      "credits": {
+        "text": "{used} / {limit} क्रेडिट"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "आप क्लाउड ब्राउज़र में साइन इन कर रहे हैं। AI को जारी रखने देने पर वह इस खाते की जानकारी देख सकता है। संबंधित पेज सामग्री हमारे AI प्रदाताओं को भेजी जा सकती है। केवल उन्हीं खातों में साइन इन करें जिनकी पहुँच आप AI को देना चाहते हैं।"
+      },
+      "manual_hint": {
+        "text": "पेज पर क्लिक करें या Tab और Enter इस्तेमाल करें। टेक्स्ट सिर्फ इस वेबसाइट को भेजा जाता है और भेजने के बाद इनपुट से मिटा दिया जाता है।"
+      },
+      "paused_hint": {
+        "text": "ब्राउज़र रुका है और कंप्यूटिंग शुल्क नहीं लगता। फिर से शुरू करने के लिए नियंत्रण लें। 24 घंटे कोई इंटरैक्शन न होने पर सत्र मिटा दिया जाता है।"
+      },
+      "watch_hint": {
+        "text": "आप देख रहे हैं। वेबसाइट चलाने के लिए नियंत्रण लें। देखने से सत्र सक्रिय नहीं रहता।"
+      },
+      "stopping": {
+        "text": "रोका जा रहा है…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "दोनों भूमिकाओं की दैनिक जिम्मेदारियों और विकास पथों की तुलना करें"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "जर्मनी में एयर फ्रायर्स की तुलना"
-      },
-      "summary": {
-        "text": "कीमत, क्षमता और रेटिंग के आधार पर ExampleRetail जर्मनी के टॉप एयर फ्रायर्स की तुलना की गई, और दो लोगों के परिवार के लिए Philips Airfryer 2000 Series का सुझाव दिया गया।"
-      },
-      "message_1": {
-        "text": "जर्मनी में ऑनलाइन खरीदे जा सकने वाले एयर फ्रायर खोजें, जिनमें ExampleRetail लिस्टिंग भी शामिल हों। मौजूदा कीमतों, क्षमता और रिव्यू रेटिंग की तुलना करें, फिर सोर्स लिंक के साथ दो लोगों के परिवार के लिए किसी एक का सुझाव दें।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nअमेज़न जर्मनी पर वर्तमान में उपलब्ध टॉप-रेटेड एयर फ्रायर की तुलना यहाँ दी गई है, जिसमें कीमत, क्षमता और ग्राहक रेटिंग की तुलना की गई है।\n\n---\n\n### जर्मनी में लोकप्रिय मॉडलों की तुलना\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2-व्यक्तियों वाले परिवार के लिए शीर्ष अनुशंसा\n\n#### **प्राथमिक विकल्प: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **यह दो लोगों के लिए सबसे उपयुक्त क्यों है:**\n  * **इष्टतम क्षमता (6.2 L):** 4.5–5 L से छोटी बास्केट में दो लोगों के लिए भी कई बार में खाना पकाना पड़ता है। 6.2 L की बास्केट आपको दो सैल्मन फिलेट्स और सब्जियों या फ्राइज़ की पूरी साइड को एक ही परत में सपाट रखने की अनुमति देती है ताकि वे समान रूप से क्रिस्पी हो सकें।\n  * **किचन फुटप्रिंट:** डुअल-ज़ोन मशीनें (जैसे Ninja या Russell Hobbs) काउंटर पर काफी जगह घेरती हैं। एक सिंगल 6 L बास्केट पर्याप्त वॉल्यूम प्रदान करती है और साथ ही इसका आकार कॉम्पैक्ट रहता है जो सामान्य जर्मन किचन वर्कटॉप के लिए उपयुक्त है।\n  * **पारदर्शी खिड़की:** दराज को खोले बिना और गर्मी को कम किए बिना खाना कितना पका है, यह देखने की अनुमति देती है।\n  * **वैल्यू:** €99.99 पर, यह [Philips](wiki:Philips) से उचित कीमत पर विश्वसनीय तापमान स्थिरता प्रदान करता है।\n\n#### **विकल्प (यदि आप अक्सर अलग-अलग तापमान पर दो व्यंजन पकाते हैं): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nयदि आप और आपके साथी अलग-अलग तापमान और समय पर प्रोटीन और साइड सब्जियां एक साथ तैयार करना पसंद करते हैं (जैसे, 180 °C पर चिकन ब्रेस्ट और 200 °C पर क्रिस्पी आलू), तो इस मॉडल पर वर्तमान में छूट है और यह €119.99 में उपलब्ध है और इसमें सिंक्रोनाइज़्ड कुकिंग टाइम की सुविधा है।\n\n---\n\n### खरीदने से पहले ध्यान रखने योग्य मुख्य बातें\n1. **दराज का आकार:** चौकोर बास्केट (जैसे Cosori और Philips) समान लीटर क्षमता वाली गोल बास्केट की तुलना में सपाट वस्तुओं (स्टेक, बेकिंग टिन, सीख) को बहुत बेहतर तरीके से समाहित करती हैं।\n2. **डिशवॉशर क्लीयरेंस:** सुनिश्चित करें कि आपके डिशवॉशर में 6 L की सिंगल दराज के लिए पर्याप्त रैक ऊंचाई है या नॉन-स्टिक कोटिंग के जीवन को बढ़ाने के लिए उन्हें हाथ से धोने पर विचार करें।"
-      },
-      "follow_up_1": {
-        "text": "एयर फ्रायर के लिए विशेष रूप से तैयार की गई रेसिपी खोजें"
-      },
-      "follow_up_2": {
-        "text": "सिंगल और डुअल बास्केट एयर फ्रायर के बीच मुख्य अंतर बताएं"
-      },
-      "follow_up_3": {
-        "text": "इस एयर फ्रायर के लिए संगत बेकिंग एक्सेसरीज खोजें"
-      },
-      "follow_up_4": {
-        "text": "एयर फ्रायर में रात का खाना बनाने के लिए शुरुआती लोगों के अनुकूल रेसिपी की सूची बनाएं"
-      },
-      "follow_up_5": {
-        "text": "इन मॉडलों के लिए वर्तमान ऊर्जा खपत रेटिंग की जांच करें"
-      },
-      "follow_up_6": {
-        "text": "सिरेमिक बनाम टेफ्लॉन कोटिंग्स के लिए सफाई और रखरखाव की आवश्यकताओं की तुलना करें"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II मिशन की मुख्य बातें और अन्वेषण"
@@ -8894,38 +8967,6 @@
         "text": "[code] एक समान टेम्पलेट बनाओ लेकिन अलग डिज़ाइन सौंदर्य के साथ"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "बर्लिन में बिगिनर योग क्लासेज"
-      },
-      "summary": {
-        "text": "बर्लिन में शुरुआती लोगों के लिए तीन योग कक्षाएं खोजें, जिनमें समय, कीमतें और बुकिंग लिंक दिए गए हों।"
-      },
-      "message_1": {
-        "text": "मैं योग में नया हूँ और अगले हफ्ते बर्लिन में शुरुआती लोगों के लिए कोई क्लास लेना चाहता हूँ। क्या आप समय, कीमतों और बुकिंग लिंक के साथ कुछ क्लासेज ढूंढ सकते हैं?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nअगले सप्ताह बर्लिन में होने वाली शुरुआती लोगों के लिए अनुकूल [योग](wiki:Yoga) कक्षाएं यहाँ दी गई हैं:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (क्रुज़बर्ग)\n- **यह क्या है:** संरेखण और स्थिरता का पता लगाने के लिए सांस-आधारित गतिविधियों और मुद्राओं को संतुलित करने वाली एक सचेत कक्षा। विशेष रूप से शुरुआती लोगों के लिए सुलभ होने के लिए डिज़ाइन की गई (अंग्रेजी में आयोजित)।\n- **दिनांक और समय:** बुधवार, 14 अक्टूबर, 2026, 18:00 – 19:00 CEST (10 मिनट पहले पहुंचें)\n- **स्थान:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **कीमत:** €11.83 – €22.49\n- **बुकिंग:** [ExampleTickets पर टिकट बुक करें](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (फ्रीड्रिचशैन)\n- **यह क्या है:** एक अनौपचारिक, तनावमुक्त सभी स्तरों के लिए गतिशीलता और योग सत्र जहाँ प्रवाह को धीमी गति से चरण-दर-चरण समझाया जाता है। किसी पूर्व लचीलेपन या अनुभव की आवश्यकता नहीं है।\n- **दिनांक और समय:** मंगलवार, 13 अक्टूबर, 2026, 19:00 – 19:45 CEST (15 मिनट पहले पहुंचें)\n- **स्थान:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **कीमत:** €5 (यदि आप बोल्डरिंग भी करते हैं तो ExampleFitness / Wellpass के साथ निःशुल्क प्रवेश)\n- **बुकिंग:** [विवरण और बुकिंग लिंक देखें](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (वेडिंग / मिट्टे)\n- **यह क्या है:** एक गतिशील लेकिन सौम्य विन्यास सत्र जो शुरुआती लोगों के लिए बदलाव (modifications) प्रदान करता है, जो सांस की जागरूकता, शरीर के संरेखण और तनाव मुक्ति पर केंद्रित है।\n- **दिनांक और समय:** बुधवार, 14 अक्टूबर, 2026, 19:30 – 21:00 CEST\n- **स्थान:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **कीमत:** आपकी पहली ट्रायल क्लास के लिए €10 (स्टार्टर पैक: €20 में 3 क्लास)\n- **बुकिंग:** [Berlin Yoga Club Gathering के माध्यम से RSVP करें](embed:vinyasa-flow-in-a8l)\n\n---\n\n### आपकी पहली योग कक्षा के लिए सुझाव\n* **पोशाक:** आरामदायक, स्ट्रेचेबल कपड़े जिनमें आप आसानी से हिल-डुल और झुक सकें। योग आमतौर पर नंगे पैर किया जाता है।\n* **हाइड्रेशन और भोजन:** कक्षा से 1.5-2 घंटे पहले भारी भोजन से बचें।\n* **अपने शरीर की सुनें:** कक्षा से पहले शिक्षक को बताएं कि यह आपकी पहली बार है; वे खुशी-खुशी आपको समायोजन और प्रॉप्स (ब्लॉक, कंबल या स्ट्रैप) दिखाएंगे। यदि आपको पहले से जोड़ों या पीठ की समस्या है, तो गतिशील अनुक्रमों को आज़माने से पहले डॉक्टर या फिजियोथेरेपिस्ट से सलाह लें।\n\nक्या तुम किसी विशिष्ट पड़ोस (जैसे, नॉयकोलन, प्रेन्ज़लाउर बर्ग, चार्लोटनबर्ग) के करीब सिफारिशें चाहोगे, या [हठ योग](wiki:Hatha_yoga) या [यिन योग](wiki:Yin_yoga) जैसी सौम्य शैली पर ध्यान केंद्रित करना चाहोगे?\n---\n*⚠️ यह केवल शैक्षिक जानकारी है और चिकित्सा सलाह नहीं है। चिकित्सा संबंधी निर्णयों के लिए अपने डॉक्टर से परामर्श करें।*"
-      },
-      "follow_up_1": {
-        "text": "नॉयकॉलन बर्लिन में योग कक्षाओं के लिए खोजें"
-      },
-      "follow_up_2": {
-        "text": "समझाएं कि पहली योग कक्षा के दौरान क्या उम्मीद की जाए"
-      },
-      "follow_up_3": {
-        "text": "अगले सप्ताहांत के लिए हठ योग कार्यशालाएं खोजें"
-      },
-      "follow_up_4": {
-        "text": "विन्यास और हठ योग शैलियों की तुलना करें"
-      },
-      "follow_up_5": {
-        "text": "मिट्टे में यिन योग स्टूडियो खोजें"
-      },
-      "follow_up_6": {
-        "text": "योग मैट खरीदने के लिए शुरुआती टिप्स की सूची बनाएं"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "बर्लिन में अंग्रेजी बोलने वाले GP खोजें"
-      },
-      "summary": {
-        "text": "बीमा की सटीक जानकारी और प्रैक्टिस लिंक के साथ अपॉइंटमेंट के विकल्प खोजें।"
-      },
-      "message_1": {
-        "text": "मुझे अगले हफ्ते बर्लिन में अंग्रेजी बोलने वाले GP के साथ अपॉइंटमेंट चाहिए। कृपया सबसे जल्दी उपलब्ध विकल्पों की तुलना करें, उनके अपॉइंटमेंट कार्ड दिखाएं, और बीमा कवरेज के बारे में केवल तभी बताएं जब बुकिंग लिस्टिंग इसकी पुष्टि करती हो। यदि कवरेज स्पष्ट नहीं है, तो वैसा ही कहें।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nअगले 7 दिनों के भीतर बर्लिन में अंग्रेज़ी बोलने वाले GP के शुरुआती विकल्प यहाँ दिए गए हैं जो मुझे मिले हैं। मैं केवल वहीं बीमा कवरेज बता रहा हूँ जहाँ बुकिंग लिस्टिंग में इसका संकेत दिया गया है।\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**अगले सप्ताह के शुरुआती विकल्प**\n1. **सोम 12 अक्टूबर, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - पता: Albert-Einstein-Straße 2, 12489 Berlin\n   - विज़िट का प्रकार: Erstuntersuchung Neupatient:in\n   - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी\n   - **बीमा:** निजी *(लिस्टिंग द्वारा पुष्टि की गई)*\n\n2. **सोम 12 अक्टूबर, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - पता: Kapweg 5, 13405 Berlin\n   - विज़िट का प्रकार: Erstuntersuchung Neupatient:in\n   - दिखाई गई भाषाएँ: अंग्रेज़ी\n   - **बीमा:** निजी *(लिस्टिंग द्वारा पुष्टि की गई)*\n\n3. **सोम 12 अक्टूबर, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - पता: Stargarder Straße 69, 10437 Berlin\n   - विज़िट का प्रकार: Akutsprechstunde\n   - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी\n   - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*\n\n4. **सोम 12 अक्टूबर, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - पता: Müllerstraße 36, 13353 Berlin\n   - विज़िट का प्रकार: Erstuntersuchung Neupatient:in\n   - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी\n   - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*\n\n5. **सोम 12 अक्टूबर, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - पता: Wallstraße 16, 10179 Berlin\n   - विज़िट का प्रकार: Erstuntersuchung Neupatient:in\n   - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी\n   - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*\n\nकुछ बातें:\n- मैंने उपरोक्त तुलना से **9–10 अक्टूबर** के दो पहले के विकल्पों को बाहर कर दिया है क्योंकि आपने विशेष रूप से **अगले सप्ताह** के लिए पूछा था।\n- ये परिणाम ExampleClinicA लिस्टिंग से आए प्रतीत होते हैं; इस खोज परिणाम सेट में ExampleClinicB कवरेज समर्थित नहीं था।\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nयदि तुम चाहो, तो मैं आगे यह कर सकता हूँ:\n- इसे केवल **सार्वजनिक बीमा** तक सीमित कर सकता हूँ जहाँ पुष्टि की गई हो, या\n- **ज़िले / तुम्हारे क्षेत्र से दूरी** के आधार पर एक छोटी सूची बना सकता हूँ।\n---\n*⚠️ यह केवल शैक्षिक जानकारी है और चिकित्सा सलाह नहीं है। चिकित्सा निर्णयों के लिए अपने डॉक्टर से परामर्श करें।*"
-      },
-      "follow_up_1": {
-        "text": "Mitte में सार्वजनिक बीमा वाले GP अपॉइंटमेंट खोजें"
-      },
-      "follow_up_2": {
-        "text": "केवल सार्वजनिक बीमा दिखाने के लिए अपॉइंटमेंट को फ़िल्टर करें"
-      },
-      "follow_up_3": {
-        "text": "Prenzlauer Berg जिले के पास अंग्रेजी बोलने वाले डॉक्टरों को खोजें"
-      },
-      "follow_up_4": {
-        "text": "पड़ोस और दूरी के आधार पर विकल्पों को सीमित करें"
-      },
-      "follow_up_5": {
-        "text": "बर्लिन में विशेषज्ञ चिकित्सा अपॉइंटमेंट खोजें"
-      },
-      "follow_up_6": {
-        "text": "बताएं कि इन डॉक्टर अपॉइंटमेंट को ऑनलाइन कैसे बुक करें"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "गेथेनियंस और ओन्काली के परग्रही जीव विज्ञान की तुलना करें"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "वेब परफॉरमेंस के लिए SVG फ़ाइलों को ऑप्टिमाइज़ करने का तरीका बताएं"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "ब्रांड का नाम और डोमेन खोजें"
-      },
-      "summary": {
-        "text": "नामकरण के लिए एक संक्षिप्त बातचीत: सात संभावित नामों पर विचार करें, फिर डोमेन, वेब और प्रारंभिक अमेरिकी ट्रेडमार्क साक्ष्यों के साथ दो फाइनलिस्टों की तुलना करें।"
-      },
-      "message_1": {
-        "text": "मेरे नए उत्पाद के लिए नाम खोजने में मेरी मदद करें।"
-      },
-      "message_2": {
-        "text": "शुरू करने के लिए, आपका उत्पाद क्या करता है, आपके लक्षित दर्शक कौन हैं, और नाम से किस तरह का भाव या अनुभव मिलना चाहिए (जैसे, चंचल, प्रीमियम, तकनीकी)?"
-      },
-      "message_3": {
-        "text": "यह अमेरिकी फ्रीलांसरों के लिए अंग्रेजी में एक शांत बजटिंग ऐप है। मुझे छोटे, यादगार नाम और €20 प्रति वर्ष तक का .com डोमेन चाहिए। कृपया पहले विविध नामों की एक संक्षिप्त सूची तैयार करें।"
-      },
-      "message_4": {
-        "text": "यहाँ एक शांत फ्रीलांस बजटिंग अनुभव के लिए तैयार किए गए विविध, उच्चारण योग्य नामों की प्रारंभिक सूची दी गई है:\n\n- [ ] **Serenito**: उतार-चढ़ाव वाली सोलो इनकम के लिए शांति और सौम्य गति का अहसास कराता है।\n- [ ] **Solowell**: सोलोप्रीनर्स के लिए वित्तीय कल्याण और मन की शांति का सुझाव देता है।\n- [ ] **Equafy**: अनियमित उतार-चढ़ाव वाले कैश फ्लो चक्रों को संतुलित करने पर केंद्रित है।\n- [ ] **StillLedger**: क्लासिक अकाउंटिंग संरचना को सचेत, कम तनाव वाली स्थिरता के साथ जोड़ता है।\n- [ ] **Cadenceo**: गिग पेमेंट्स से एक स्थिर, अनुमानित लय बनाने का संकेत देता है।\n- [ ] **HavenFin**: मनी मैनेजमेंट को एक सुरक्षित, आश्वस्त करने वाले आश्रय के रूप में पेश करता है।\n- [ ] **Placidly**: कोमल, आश्वस्त करने वाला स्वर जो वित्तीय चिंता को कम करता है।\n\n*(नोट: इस सूची में लाइव डोमेन उपलब्धता या कानूनी मंजूरी की जाँच नहीं की गई है।)*\n\nआप किन 2–3 नामों की लाइव जाँच करना चाहेंगे? आप अपने पसंदीदा नाम चुन सकते हैं या मुझसे .com मूल्य निर्धारण, ब्रांड संघर्ष और अमेरिकी ट्रेडमार्क के सत्यापन के लिए फाइनलिस्ट चुनने के लिए कह सकते हैं।\n\n- [Serenito, Solowell, और Equafy की जाँच करें](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [मेरे लिए सर्वश्रेष्ठ 3 चुनें और उनकी जाँच करें](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "कृपया Equafy और Cadenceo की जाँच करें: उनकी .com उपलब्धता और उद्धृत कीमतें, वेब पर मौजूद ब्रांड और अमेरिकी ट्रेडमार्क। तुलना को संक्षिप्त रखें, साथ ही अपनी सिफारिश और कोई भी जाँच जो अभी बाकी है, उसे भी शामिल करें।"
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nयहाँ 12 अक्टूबर, 2026 को की गई जाँचों के आधार पर तुलना दी गई है:\n\n### Equafy\n- **डोमेन**: `equafy.com` वर्तमान में ExampleRegistrar पर अनुपलब्ध है; कोई मानक पंजीकरण मूल्य उपलब्ध नहीं है, इसलिए यह €20/वर्ष के बजट को पूरा नहीं करता है।\n- **वेब और ब्रांड परिदृश्य**: कोई भी प्रमुख बजटिंग सॉफ़्टवेयर इस सटीक नाम का उपयोग नहीं करता है, लेकिन वेब खोजें [Equifax व्यक्तिगत वित्त सेवाओं](embed:equifax.com-TrW) के साथ उच्च ध्वन्यात्मक समानता और खोज भ्रम दिखाती हैं।\n- **अमेरिकी ट्रेडमार्क (ExampleTrademarks)**: प्रारंभिक खोज में 1,640 समान रिकॉर्ड में से 5 मिले (अधूरे; सटीक-नाम की अनुपस्थिति स्थापित नहीं की जा सकती)। सक्रिय मिलानों में क्लास 36 (लंबित वित्तीय और संग्रहीत-मूल्य सेवाएं) और क्लास 35 (पंजीकृत नीलामी सेवाएं) में `EQUIFY` शामिल है।\n\n### Cadenceo\n- **डोमेन**: `cadenceo.com` वर्तमान में ExampleRegistrar पर अनुपलब्ध है; कोई मानक पंजीकरण मूल्य उपलब्ध नहीं है, जो €20/वर्ष के बजट में विफल रहता है।\n- **वेब और ब्रांड परिदृश्य**: यह सीधे [Cadence Money](embed:cadencemoney.com-IcE) के साथ ओवरलैप होता है, जो iOS, Android और वेब पर अमेरिका और कनाडा में संचालित एक स्थापित व्यक्तिगत वित्त और बजट ट्रैकर ऐप है।\n- **अमेरिकी ट्रेडमार्क (ExampleTrademarks)**: प्रारंभिक खोज में 227 समान रिकॉर्ड में से 5 मिले (अधूरे; सटीक-नाम की अनुपस्थिति स्थापित नहीं की जा सकती)। `CADENCE` के सक्रिय मिलानों में क्लास 9 डाउनलोड करने योग्य सॉफ़्टवेयर रिकॉर्ड शामिल हैं।\n\n---\n\n### अनुशंसा और समझौते (Tradeoffs)\n- **दिशा**: दोनों को छोड़ दें। हालांकि **Equafy** में **Cadenceo** (जो सीधे *Cadence Money* से टकराता है) की तुलना में कम प्रत्यक्ष ऐप संघर्ष हैं, लेकिन दोनों में से कोई भी आपकी €20/वर्ष की सीमा के तहत उपलब्ध `.com` की पेशकश नहीं करता है, और Equafy मौजूदा वित्तीय चिह्नों जैसे *Equify* और *Equifax* के साथ ध्वन्यात्मक भ्रम पैदा करता है।\n- **छूटी हुई जाँचें**: अमेरिका के बाहर के अंतर्राष्ट्रीय ट्रेडमार्क रजिस्टर, सामान्य-कानून राज्य ट्रेडमार्क फाइलिंग और आफ्टरमार्केट डोमेन बायआउट मूल्यांकन की जाँच नहीं की गई थी।\n\nक्या आप अन्य शॉर्टलिस्ट विकल्पों (जैसे **Solowell** या **StillLedger**) पर डोमेन उपलब्धता और क्लीयरेंस का परीक्षण करना चाहेंगे, या बजट के भीतर उपलब्ध `.com` खोजने के लिए थोड़े मिश्रित वेरिएंट तलाशना चाहेंगे?\n\n- [Solowell और StillLedger की जाँच करें](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [€20 से कम में उपलब्ध .com के साथ मिश्रित नामों पर विचार करें](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Solowell और StillLedger के लिए डोमेन उपलब्धता और ट्रेडमार्क की जाँच करें"
-      },
-      "follow_up_2": {
-        "text": "बीस यूरो से कम में उपलब्ध डॉट कॉम डोमेन वाले संयुक्त नामों पर विचार करें"
-      },
-      "follow_up_3": {
-        "text": "आगामी बजटिंग ऐप नाम के विचारों के लिए ट्रेडमार्क रिकॉर्ड खोजें"
-      },
-      "follow_up_4": {
-        "text": "सोलो एंटरप्रेन्योर ऐप्स के लिए ब्रांडिंग और नामकरण रणनीतियों की तुलना करें"
-      },
-      "follow_up_5": {
-        "text": "फ्रीलांस फाइनेंस ऐप्स के लिए उपलब्ध डोमेन एक्सटेंशन खोजें"
-      },
-      "follow_up_6": {
-        "text": "किफायती स्टार्टअप डोमेन के लिए वैकल्पिक डोमेन रजिस्ट्रार की सूची बनाएं"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "बर्लिन से बैंकॉक तक उड़ानें"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] बैंकॉक में बजट-अनुकूल आवास की सिफारिश करें"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "बर्लिन में बालकनी वाले अपार्टमेंट"
-      },
-      "summary": {
-        "text": "बर्लिन के असली अपार्टमेंट लिस्टिंग, पूरी फोटो गैलरी, बालकनी के प्रमाण और मैप लोकेशन की तुलना करें, जिसमें अनिश्चित लागत और पानी की सुविधा को स्पष्ट रूप से लेबल किया गया हो।"
-      },
-      "message_1": {
-        "text": "मैं बर्लिन में किराए पर बालकनी वाला एक अपार्टमेंट ढूंढ रहा हूँ, जो आदर्श रूप से किसी नदी या झील के पास हो, जिसका किराया 1,800 EUR प्रति माह तक हो और जिसमें कम से कम दो कमरे हों। क्या तुम उनकी फोटो गैलरी और मैप लोकेशन के साथ कुछ लिस्टिंग की तुलना कर सकते हो? कृपया स्पष्ट करें कि लिस्टिंग में वास्तव में क्या पक्का है और क्या अज्ञात है, जिसमें किराया, लीज की तारीखें और पानी की सुविधा शामिल है। अगर कोई प्रदाता केवल अनुमानित लोकेशन या अधूरी फोटो देता है, तो वैसा बताएं। जब कुछ विवरण गायब हों, तो स्पष्ट रूप से लेबल की गई संभावनाओं का स्वागत है।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nयहाँ बर्लिन में €1,800/माह से कम के 2-कमरों वाले किराए के अपार्टमेंट का तुलनात्मक विवरण दिया गया है, जिसमें बालकनी के प्रमाण और पास में पानी होने की निकटता या दावों के साथ-साथ पुष्टि किए गए तथ्यों बनाम अस्पष्टताओं पर प्रकाश डाला गया है:\n\nबालकनी वाले बर्लिन के 2-कमरों के किराए के अपार्टमेंट\n\n---\n\n### संक्षिप्त तुलना\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### विस्तृत लिस्टिंग प्रोफाइल\n\n#### 1. [रिंगबान (Ringbahn) के पास बालकनी वाला 2-कमरों का लॉफ्ट अपार्टमेंट](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **किराया और लागत**: कुल वार्म रेंट (warm rent) स्पष्ट रूप से **€1,350/माह** बताया गया है, जिसमें €1,200 का कोल्ड रेंट और €150 के अनिर्दिष्ट अतिरिक्त खर्च शामिल हैं। हीटिंग शामिल होने का स्पष्ट विवरण नहीं दिया गया है। सिक्योरिटी डिपॉजिट €2,000 है।\n* **लीज की शर्तें**: निश्चित अवधि का सबलेट (sublet)। स्ट्रक्चर्ड डेटा में 01.11.2026 से 01.04.2027 तक की सूची है, लेकिन लिस्टिंग विवरण स्पष्ट करता है कि गारंटीकृत निश्चित अवधि **1 नवंबर से 28 दिसंबर, 2026** तक है, जिसमें आपसी सहमति के आधार पर 1 अप्रैल, 2027 तक लचीला मासिक विस्तार संभव है।\n* **बालकनी के प्रमाण**: पुष्टि की गई। सुविधाओं और टेक्स्ट (\"Fennpfuhlpark व्यू के साथ सनी बालकनी\") में स्पष्ट रूप से सूचीबद्ध है। विजुअल असेसमेंट में उपलब्ध 14 गैलरी तस्वीरों में से 3 का नमूना लिया गया, जिससे फोटो इंडेक्स 0 में एक बालकनी दिखने की पुष्टि हुई।\n* **पानी तक पहुंच और स्थान**: लिक्टेनबर्ग (Lichtenberg) में एंटोन-सेफको-प्लात्ज़ (Anton-Saefkow-Platz) पर स्थित। जियोकोडिंग सड़क स्तर पर मेल खाती है (कोई विशिष्ट बिल्डिंग नंबर नहीं)। OpenStreetMap डेटा पानी की विशेषता (**Fennpfuhl**, एक पार्क झील) की पुष्टि करता है, लेकिन केवल एक प्रतिनिधि बिंदु निर्देशांक के रूप में; तटरेखा की सटीक दूरी और पैदल चलने के मिनटों की गणना नहीं की गई है और इसलिए वे असत्यापित हैं।\n\n---\n\n#### 2. [मायबाखुफर (Maybachufer) पर दो बालकनी वाला सुसज्जित 2-कमरों का अपार्टमेंट](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **किराया और लागत**: फ्लैट **€1,800/माह** ऑल-इंक्लूसिव के रूप में विज्ञापित (कोल्ड और वार्म रेंट दोनों €1,800 दर्ज किए गए हैं)। उपयोगिताओं (utilities), हीटिंग लागत और बिजली का विवरण नहीं दिया गया है। सिक्योरिटी डिपॉजिट €1,000 है।\n* **लीज की शर्तें और दायरे में विसंगतियां**:\n  * *तारीख का टकराव*: स्ट्रक्चर्ड फ़ील्ड 21.10.2026 से 03.05.2027 तक की उपलब्धता दिखाते हैं। हालांकि, जर्मन टेक्स्ट स्पष्ट रूप से 11 नवंबर से 2 महीने के लिए उपलब्धता बताता है, जबकि लिस्टिंग के नीचे अंग्रेजी अनुवाद में \"6 नवंबर से, 4–6 महीने\" लिखा है।\n  * *कमरे का प्रतिबंध*: लिस्टिंग में उल्लेख है कि मालिक का एक आंतरिक कमरा (*Sperrraum*) बंद रहता है और किराए से बाहर है, हालांकि शेष सुलभ स्थान को 85 वर्ग मीटर में दो कमरों के रूप में वर्णित किया गया है।\n* **बालकनी के प्रमाण**: पुष्टि की गई। दो बालकनी (एक आंगन की ओर, एक पानी की ओर) के साथ विज्ञापित। नमूना तस्वीरों (15 में से 3) ने फोटो 0 और 14 में बालकनी की पुष्टि की।\n* **पानी तक पहुंच और स्थान**: पता [नॉयकॉलन (Neukölln)](wiki:Neukölln) में मायबाखुफर (Maybachufer) के रूप में सूचीबद्ध है। जियोकोडिंग ने एक अस्पष्ट परिणाम दिया और सामान्य बर्लिन शहर के निर्देशांकों पर वापस आ गया। हालांकि लिस्टिंग टेक्स्ट स्पष्ट रूप से [लैंडवेहर नहर (Landwehr Canal)](wiki:Landwehr_Canal) के सीधे दृश्य का दावा करता है, लेकिन निर्देशांक की कमी के कारण पड़ोस की दूरी और पैदल चलने के रास्तों को ज्यामितीय रूप से सत्यापित नहीं किया जा सका।\n\n---\n\n#### 3. [एक्सक्लूसिव कम्युनिटी स्पेस के साथ 2-कमरों के अपार्टमेंट (मोमेंटो बर्लिन)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **किराया और लागत**: वार्म रेंट **€1,372/माह** से शुरू है, जिसमें €130 ऑपरेटिंग लागत और €105 हीटिंग लागत का विवरण दिया गया है। कोल्ड बेस रेंट को छोड़ दिया गया है, और विवरण में उल्लेख है कि यह एक प्रमोशनल टियर के लिए न्यूनतम शुरुआती किराया है। बिजली का अनुबंध किरायेदार द्वारा स्वतंत्र रूप से किया जाना चाहिए।\n* **लीज की शर्तें**: एक कमर्शियल ऑपरेटर द्वारा एक नए आवासीय क्वार्टर (*Erstbezug* 2026) के लिए विज्ञापित। **न्यूनतम 12 महीने की लीज अवधि** (*Mindestmietdauer*) आवश्यक है। शुरू होने की तारीखें खुली हैं (हर बुधवार/गुरुवार को रोलिंग व्यूइंग)।\n* **बालकनी के प्रमाण**: विवरण विनिर्देशों (\"einen Balkon\") और विज्ञापित विशेषताओं में पुष्टि की गई। 27 में से 3 तस्वीरों के विजुअल सैंपलिंग ने फोटो इंडेक्स 26 में बाहरी बालकनी संरचना की पुष्टि की।\n* **पानी तक पहुंच और स्थान**: नॉयकॉलन/[ब्रिट्ज़ (Britz)](wiki:Britz) में बुशक्रुगैली (Buschkrugallee) 64 पर स्थित। स्थिति स्वतंत्र सड़क सत्यापन के बिना प्रदाता द्वारा आपूर्ति किए गए निर्देशांक पर आधारित है। विवरण में कहा गया है कि कॉम्प्लेक्स एक नहर (नॉयकॉलन शिप कैनाल) के किनारे है, लेकिन सटीक तटरेखा दूरी और पैदल चलने के रास्तों की ज्यामितीय गणना नहीं की गई थी।\n\n---\n\n#### 4. [शार्लोटनबर्ग (Charlottenburg) में सबलेट के लिए 2-कमरों का अपार्टमेंट](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **किराया और लागत**: वार्म रेंट **€980/माह** विज्ञापित है। विवरण में \"Nebenkosten: 270 € प्रति माह\" का उल्लेख है, लेकिन यह स्पष्ट नहीं है कि यह पहले से ही €980 में शामिल है या इसके ऊपर लिया जाएगा। सिक्योरिटी डिपॉजिट €1,500 है।\n* **पूरे फ्लैट बनाम कमरे की महत्वपूर्ण अस्पष्टता**: शीर्षक में \"2-Zimmer Wohnung... zur Untermiete\" लिखा है, लेकिन टेक्स्ट शुरू होता है: *\"हम बालकनी के साथ अपना सुंदर, शांत और सुसज्जित कमरा किराए पर दे रहे हैं...\"*। यह स्पष्ट नहीं है कि पूरा 50 वर्ग मीटर का 2-कमरों वाला फ्लैट सबलेट किया जा रहा है या केवल उसके भीतर का एक व्यक्तिगत कमरा।\n* **बालकनी के प्रमाण**: विजुअल रूप से अपुष्ट। हालांकि शीर्षक और टेक्स्ट में बालकनी होने का विज्ञापन दिया गया है, लेकिन पोस्टर द्वारा केवल 1 फोटो प्रदान किया गया था, और उस फोटो में कोई बालकनी दिखाई नहीं दे रही है।\n* **पानी तक पहुंच और स्थान**: 14057 [शार्लोटनबर्ग (Charlottenburg)](wiki:Charlottenburg) में स्थित। प्रदाता ने सड़क का नाम या घर का नंबर निर्दिष्ट नहीं किया (केवल पिनकोड-स्तर की सटीकता)। विवरण में लीट्ज़ेन्सीपार्क (Lietzenseepark) (जिसमें लीट्ज़ेन्सी झील है) तक पैदल दूरी का उल्लेख है, लेकिन सड़क के पते के बिना सटीक मार्ग समय और तटरेखा की दूरी की गणना नहीं की जा सकती है।\n* **लीज की शर्तें**: 01.11.2026 से अधिकतम 01.11.2027 तक निश्चित अवधि का सबलेट (कम अवधि के लिए बातचीत की जा सकती है)।\n\n---\n\n### पूछताछ करने से पहले मुख्य बातें\n1. **पानी का सत्यापन**: केवल मायबाखुफर फ्लैट ही अपार्टमेंट से सीधे खुले जलमार्ग की ओर देखता है, लेकिन इसका जियोकोड अनुमानित है और तारीखों में टकराव है। एंटोन-सेफको-प्लात्ज़ फ्लैट की फेनफुहल (Fennpfuhl) से पार्क की निकटता की पुष्टि हुई है, हालांकि तटरेखा की सटीक दूरी मापी नहीं गई है।\n2. **लीज के प्रकार**: ExampleHousingC लिस्टिंग में से कोई भी ओपन-एंडेड (*unbefristet*) लीज की पेशकश नहीं करता है; वे सभी निश्चित अवधि के सबलेट हैं। मोमेंटो बर्लिन (Momento Berlin) न्यूनतम 12 महीने से शुरू होने वाली लंबी अवधि की किरायेदारी की पेशकश करता है।\n3. **फोटो सैंपलिंग की सीमाएं**: विजुअल असेसमेंट में प्रति लिस्टिंग 1 से 3 छवियों के एक सीमित नमूने की जांच की गई। प्रत्येक लिस्टिंग कार्ड के माध्यम से सुलभ पूरी गैलरी में अतिरिक्त सुविधाएं दिखाई दे सकती हैं।\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**अपार्टमेंट खोज मापदंडों को परिभाषित करना**\n\nमैं अब बर्लिन में किराए के लिए सटीक खोज मापदंडों को परिभाषित करने पर ध्यान केंद्रित कर रहा हूँ। मैंने शहर के रूप में बर्लिन को निर्दिष्ट किया है, और लिस्टिंग के प्रकार को \"किराया\" (rent) और संपत्ति के प्रकार को \"अपार्टमेंट\" तक सीमित कर दिया है। बालकनी एक अनिवार्य आवश्यकता है, जिसे मैं खोज मापदंडों में शामिल करना सुनिश्चित करूँगा।\n\n\n**खोज मापदंडों को परिष्कृत करना**\n\nमैंने अभी खोज मापदंडों को और अधिक परिष्कृत किया है। मैंने \"आदर्श रूप से नदी या झील के पास\" को पानी के करीब होने की प्राथमिकता में अनुवादित किया है, जिसे \"neighborhood_categories: ['water']\" के रूप में वर्गीकृत किया गया है। \"प्रति माह 1,800 EUR तक\" के बजट को अब `max_warm_rent_eur: 1800` के रूप में निर्दिष्ट किया गया है, क्योंकि मैं मान रहा हूँ कि यह वार्म रेंट (warm rent) है। इसके अलावा, चूंकि मुझे बताया गया है कि \"कुछ विवरण गायब होने पर स्पष्ट रूप से लेबल की गई संभावनाओं का स्वागत है\", इसलिए मैं अब `include_unconfirmed: true` के साथ स्पष्ट रूप से अपुष्ट लिस्टिंग को शामिल करूँगा।\n\n\n**खोज आवश्यकताओं का विश्लेषण करना**\n\nमैं अब इस होम-सर्च टूल के दिशानिर्देशों का सावधानीपूर्वक विश्लेषण कर रहा हूँ। मैं इस बात पर ध्यान केंद्रित कर रहा हूँ कि अपनी प्राथमिकताओं को सही संरचित फिल्टर और `relevance_criteria` में कैसे बेहतर ढंग से अनुवादित किया जाए। मुझे यह सुनिश्चित करने की आवश्यकता है कि पानी की निकटता, बालकनी के प्रमाण और बजट की बाधाओं के लिए मेरी आवश्यकताएं ठीक से एन्कोड की गई हैं। मैं यह भी सुनिश्चित कर रहा हूँ कि मैं अपनी खोज में \"आवश्यक,\" \"वर्जित\" और \"पसंदीदा\" के बीच अंतर करूँ।\n\n\n**लिस्टिंग डेटा अखंडता का आकलन करना**\n\nमैं अब डेटा अखंडता को लेकर गहराई से चिंतित हूँ। मुझे दृश्य साक्ष्यों के बारे में अति-दावा करने से बचना चाहिए और प्रत्येक प्रदाता की सीमाओं को निर्दिष्ट करना चाहिए। पानी की निकटता साक्ष्यों पर मजबूती से आधारित होनी चाहिए, और संवर्धन (enrichment) अनुपलब्ध होने या टाइम-आउट होने पर इसे \"असत्यापित\" (unverified) के रूप में रिपोर्ट किया जाना चाहिए। यह स्पष्ट होना चाहिए कि दिखाई देने वाली बालकनी इस बात की गारंटी नहीं देती है कि वह अपार्टमेंट की ही है, और मैं लीज विवरण केवल तभी रिपोर्ट कर सकता हूँ जब स्पष्ट रूप से बताया गया हो।\n\n\n**लिस्टिंग डेटा का विश्लेषण करना**\n\nमैं अब प्राप्त लिस्टिंग की गहराई से जांच कर रहा हूँ, और दिए गए नियमों के साथ उनका सावधानीपूर्वक मिलान कर रहा हूँ। मेरा ध्यान पुष्टि किए गए डेटा बिंदुओं को अनिश्चितताओं से स्पष्ट रूप से अलग करने पर है। मैं किराए, लीज की तारीखों और पानी तक पहुंच जैसे विवरणों पर पूरा ध्यान दे रहा हूँ, और किसी भी अस्पष्टता को चिह्नित कर रहा हूँ। लक्ष्य सटीक शुद्धता है।\n\n\n**निकटता मापदंडों को स्पष्ट करना**\n\nमैं अब सूक्ष्म निकटता आवश्यकताओं को एकीकृत कर रहा हूँ। मैं साक्ष्यों में किसी भी सीमा का सावधानीपूर्वक दस्तावेजीकरण कर रहा हूँ। मैं सत्यापित दावों को असत्यापित जानकारी से पारदर्शी रूप से अलग करने पर ध्यान केंद्रित कर रहा हूँ। मैं अपने दस्तावेजीकरण में सटीकता को प्राथमिकता दे रहा हूँ। मैं इस बारे में स्पष्ट हूँ कि पानी तक सत्यापित पहुंच क्या है और क्या नहीं। मैं अनिश्चित डेटा की स्पष्ट लेबलिंग की आवश्यकता पर जोर दे रहा हूँ।\n\n\n**अस्पष्टता नियमों को परिष्कृत करना**\n\nमैं अब अनिश्चित डेटा बिंदुओं के इर्द-गिर्द नियमों को परिष्कृत करने पर ध्यान केंद्रित कर रहा हूँ। यदि पानी की किसी विशेषता का कोई उल्लेख नहीं है, तो मैं इसे अज्ञात के रूप में रिपोर्ट करूँगा; मैं निकटता का अनुमान नहीं लगाऊँगा। मैं बालकनी की फोटो दृश्यता को टेक्स्ट पुष्टिकरण से अलग रखूँगा। लीज की शर्तें केवल तभी स्पष्ट रूप से रिपोर्ट की जाती हैं जब बताई गई हों। तारीखों और किराए के विवरण में विरोधाभासों को प्राथमिकता दी जाती है। मैं एम्बेड प्रीव्यू कार्ड्स का उपयोग एक दृश्य (view) के रूप में करूँगा।\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**परिणाम प्रारूप की व्याख्या करना**\n\nमैं अब \"embeds\\_results\\_view\" प्रतिक्रिया की संरचना पर ध्यान केंद्रित कर रहा हूँ। मैंने \"source\\_ref\" की अनुपस्थिति पर ध्यान दिया, जो \"sources\" या \"embeds\" के सही उपयोग को प्रभावित करता है। मैं \"embeds\" फ़ील्ड का उपयोग करना सुनिश्चित करूँगा जब कोई source\\_ref उपलब्ध न हो, विशेष रूप से लौटाए गए चाइल्ड embed\\_ref मानों का संदर्भ देते हुए। साथ ही, मैं एक वर्णनात्मक तत्व के रूप में \"title\" फ़ील्ड पर ध्यान दूँगा।\n\n\n**लिस्टिंग विवरणों की जांच करना**\n\nमैं अब व्यक्तिगत लिस्टिंग की बारीकी से जांच कर रहा हूँ, विशेष रूप से \"रिंगबान के पास बालकनी वाला 2-कमरे का लॉफ्ट अपार्टमेंट\" पर ध्यान केंद्रित कर रहा हूँ। मैं एम्बेड डेटा के साथ इस लिस्टिंग का मिलान कर रहा हूँ। मैं अज्ञात दूरी और पहुंच के कारण असत्यापित पानी की निकटता को नोट कर रहा हूँ, भले ही झील के दृश्य का उल्लेख किया गया हो। मेरा ध्यान इस बात पर है कि क्या पुष्टि की गई है बनाम क्या असत्यापित है, इसे स्पष्ट रूप से नोट किया जाए। मैं सभी अनिश्चितताओं का सावधानीपूर्वक दस्तावेजीकरण कर रहा हूँ।\n\n\n**लिस्टिंग विवरणों का मूल्यांकन करना**\n\nमैंने अभी एक और लिस्टिंग का मूल्यांकन पूरा किया है। मैंने फोटो विश्लेषण के माध्यम से बालकनी की दृश्यता की पुष्टि की। लीज की अवधि एक निश्चित अवधि और उसके बाद लचीले विस्तार की पेशकश करती है, जिसे मैंने प्रलेखित किया है। मैं विवरणों पर ध्यान केंद्रित कर रहा हूँ। अब, मैं सभी प्रासंगिक लिस्टिंग जानकारी को पूरी तरह से समझने के लिए काम कर रहा हूँ।\n```\n```\n\n**विशिष्ट विशेषताओं का विवरण देना**\n\nमैं अब इस विशिष्ट लिस्टिंग का विवरण दे रहा हूँ। सड़क का जियोकोड (geocode) अस्पष्ट है; मैं नोट करता हूँ कि यह पानी की निकटता के सत्यापन को प्रभावित करता है। लैंडवेहरकनाल (Landwehrkanal) दृश्य के टेक्स्ट दावे को ज्यामितीय रूप से सत्यापित नहीं किया जा सकता है। मैं टेक्स्ट और विजुअल जांच के माध्यम से बालकनी की उपस्थिति की पुष्टि करता हूँ। मैं संरचित डेटा और वर्णनात्मक टेक्स्ट के बीच लीज की तारीख के विरोधाभास को स्पष्ट रूप से चिह्नित कर रहा हूँ।\n\n\n**लिस्टिंग डेटा का आकलन करना**\n\nमैं अब नवीनतम लिस्टिंग की जांच कर रहा हूँ। मैंने गायब कोल्ड रेंट (cold rent) और अस्पष्ट रेंट ब्रेकडाउन को चिह्नित किया है। विज्ञापित किराया एक शुरुआती बिंदु है, इसलिए मैंने अज्ञात न्यूनतम राशि को नोट किया है। प्रोजेक्ट के भीतर अपार्टमेंट के आकार की सीमा स्पष्टता की मांग करती है, क्योंकि लिस्टिंग का आकार इसके अंतर्गत आता है। मैंने असत्यापित स्थान सटीकता के कारण अनिश्चित नहर निकटता को चिह्नित किया है।\n\n\n**लीज विवरण की व्याख्या करना**\n\nमैं अब नवीनतम लिस्टिंग की लीज जानकारी और बालकनी सत्यापन पर ध्यान केंद्रित कर रहा हूँ। मैंने टेक्स्ट और नमूना दृश्यों के माध्यम से बालकनी की दृश्यता की पुष्टि की। मैंने 12 महीने की न्यूनतम लीज और डेटा में स्पष्ट समाप्ति तिथियों की अनुपस्थिति को नोट किया है। लिस्टिंग बालकनी वाले एक सुसज्जित कमरे (furnished room) के लिए है, लेकिन शीर्षक में 2-कमरे का अपार्टमेंट कहा गया है, इसलिए मैं संभावित कमरे बनाम अपार्टमेंट की अस्पष्टता की जांच कर रहा हूँ। मैं सभी विवरणों पर पूरा ध्यान दे रहा हूँ।\n\n\n**लिस्टिंग विवरणों का विश्लेषण करना**\n\nमैं अब एक नई लिस्टिंग का सावधानीपूर्वक विश्लेषण कर रहा हूँ, जिसमें बालकनी के साथ एक सुसज्जित कमरे का उल्लेख है। वाक्यांश \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" महत्वपूर्ण अस्पष्टता जोड़ता है; दी गई लिस्टिंग की एकमात्र फोटो में बालकनी की पुष्टि नहीं है, जिसे मैंने चिह्नित किया है। पता, जिला-स्तरीय जियोकोड पानी की निकटता को अस्पष्ट बनाता है। लीज 1 नवंबर, 2026 से 1 नवंबर, 2027 तक है।\n\n\n**पानी के उल्लेखों की तुलना करना**\n\nमैं अब मायबाखुफर (Maybachufer) और अन्य जैसी पानी की विशेषताओं का उल्लेख करने वाली लिस्टिंग की तुलना कर रहा हूँ ताकि उनके दावों की सटीकता और किसी भी अंतर्निहित डेटा अंतर को समझा जा सके। मैं उनके साक्ष्यों और कवरेज की समीक्षा कर रहा हूँ। मैं उपयोगकर्ता द्वारा मांगे गए सटीक विवरणों पर ध्यान केंद्रित कर रहा हूँ। मैं डेटा में किसी भी अनिश्चितता और सीमा को चिह्नित करूँगा।\n\n\n**रेंट ब्रेकडाउन का सत्यापन करना**\n\nमैं अब किराए के आंकड़ों में विसंगतियों पर ध्यान केंद्रित कर रहा हूँ। मैं विरोधाभासी आंकड़ों के समाधान, गैर-मदवार लागतों की रिपोर्टिंग और अज्ञात हीटिंग समावेशन को स्पष्ट रूप से नोट करने को प्राथमिकता दे रहा हूँ। साथ ही, मैं इनलाइन एम्बेड संदर्भों की जांच कर रहा हूँ ताकि यह सुनिश्चित हो सके कि डिस्प्ले टेक्स्ट कभी भी embed_ref न हो। इसके अलावा, मैं सिंटैक्स के आधार पर एम्बेड रेफ के लिए केवल बड़े या छोटे कार्ड का उपयोग करूँगा। अंत में, मैं इस अपडेट के बिल्कुल अंत में एक सुझाया गया अनुवर्ती संदेश (follow-up message) जोड़ूँगा।"
-      },
-      "message_3": {
-        "text": "मुझे लॉफ्ट और मेबैकउफर (Maybachufer) फ्लैट में सबसे ज्यादा दिलचस्पी है। सेव की गई लिस्टिंग के आधार पर, क्या 1,800 EUR का किराया वास्तव में ऑल-इंक्लूसिव है, या कुछ बिल अभी भी अज्ञात हैं? साथ ही, क्या आप स्पष्ट कर सकते हैं कि सर्च में कितनी तस्वीरें मिलीं और वास्तव में कितनी जांची गईं, और बालकनी और पानी से संबंधित कौन से विवरण सीधे लिस्टिंग द्वारा समर्थित हैं? मैं असत्यापित विवरणों को अज्ञात (unknown) के रूप में ही रखना चाहूँगा।"
-      },
-      "message_4": {
-        "text": "यहाँ **Maybachufer flat** और **Anton-Saefkow-Platz loft** के लिए लिस्टिंग डेटा वास्तव में क्या पुष्टि करता है और क्या असत्यापित या अज्ञात रहता है, इसका सटीक विवरण दिया गया है।\n\n---\n\n### 1. Maybachufer का किराया: क्या €1,800 वास्तव में ऑल-इंक्लूसिव है?\n\n* **लिस्टिंग क्या निर्दिष्ट करती है**: कोल्ड रेंट (*Kaltmiete*) और कुल किराया (*Warmmiete*) दोनों ही फ्लैट **€1,800** के रूप में दर्ज किए गए हैं। सिक्योरिटी डिपॉजिट €1,000 निर्धारित है।\n* **क्या अज्ञात रहता है**:\n  * **उपयोगिताओं का विवरण (Utilities Breakdown)**: लिस्टिंग में परिचालन लागत (*Betriebskosten/Nebenkosten*) या हीटिंग (*Heizkosten*) के लिए **कोई मदवार लागत विवरण (itemized cost breakdown)** नहीं दिया गया है।\n  * **बिजली और इंटरनेट**: होस्ट ने संरचित फ़ील्ड (structured fields) में स्पष्ट रूप से पुष्टि नहीं की है कि घरेलू बिजली (*Haushaltsstrom*) या वाई-फाई €1,800 में शामिल हैं या उपयोग की कोई सीमा लागू है।\n  * **ब्रॉडकास्टिंग शुल्क**: क्या अनिवार्य जर्मन ब्रॉडकास्टिंग शुल्क (*Rundfunkbeitrag*) शामिल है या इसे अलग से पंजीकृत किया जाना चाहिए, यह नहीं बताया गया है।\n* **निष्कर्ष**: हालांकि इसे सुसज्जित अल्पकालिक सबलेट्स के लिए विशिष्ट एकमुश्त मासिक राशि के रूप में विज्ञापित किया गया है, लेकिन जब तक होस्ट बिजली, हीटिंग की अतिरिक्त लागत और इंटरनेट कवरेज की पुष्टि करने वाला लिखित विवरण प्रदान नहीं करता, तब तक इसे **सख्ती से ऑल-इंक्लूसिव के रूप में सत्यापित नहीं किया जा सकता**।\n\n---\n\n### 2. फोटो गैलरी का दायरा: प्राप्त बनाम जाँच की गई\n\nसर्च टूल ने पूरी गैलरी संख्या के साथ लिस्टिंग मेटाडेटा प्राप्त किया, लेकिन स्वचालित विजुअल विश्लेषण ने मुख्य विशेषताओं की पहचान करने के लिए प्रति लिस्टिंग केवल तस्वीरों के एक लक्षित नमूने का मूल्यांकन किया:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*नोट: आप सभी 14-15 हाई-रेजोल्यूशन तस्वीरों को मैन्युअल रूप से देखने के लिए सीधे लिस्टिंग कार्ड खोल सकते हैं।*\n\n---\n\n### 3. बालकनी और पानी का विवरण: पुष्ट बनाम अज्ञात\n\n#### Maybachufer फ्लैट\n* **बालकनी**:\n  * *लिस्टिंग टेक्स्ट द्वारा पुष्ट*: इसमें **दो बालकनियाँ** होने की बात कही गई है — एक आंगन (*Innenhof*) की ओर और एक नहर/सड़क की ओर।\n  * *फोटो जाँच द्वारा पुष्ट*: निरीक्षण किए गए फोटो इंडेक्स 0 और 14 में दृश्यमान बालकनी संरचनाओं की पुष्टि की गई थी।\n  * *अज्ञात*: बालकनी के सटीक आयाम, दिशा/धूप के घंटे, और क्या बाहरी फर्नीचर प्रदान किया गया है।\n* **पानी तक पहुँच**:\n  * *लिस्टिंग टेक्स्ट द्वारा पुष्ट*: [Neukölln](wiki:Neukölln) में [Landwehr Canal](wiki:Landwehr_Canal) के किनारे सीधे Maybachufer पर स्थित है। विवरण स्पष्ट रूप से पानी की ओर दिखने वाले दृश्यों का दावा करता है।\n  * *टूल द्वारा अज्ञात / असत्यापित*: जियोकोडिंग सिस्टम ने सड़क के पते की क्वेरी को अस्पष्ट के रूप में चिह्नित किया और सटीक पार्सल पिन के बजाय बर्लिन-व्यापी केंद्र बिंदु को डिफॉल्ट मान लिया। परिणामस्वरूप, पैदल यात्री नहर क्रॉसिंग या डॉक एक्सेस से लिस्टिंग की सटीक दूरी को डेटा पेलोड से स्वतंत्र रूप से नहीं मापा जा सका।\n\n#### Anton-Saefkow-Platz लॉफ्ट\n* **बालकनी**:\n  * *लिस्टिंग टेक्स्ट द्वारा पुष्ट*: स्पष्ट रूप से \"फेनपफुहलपार्क (Fennpfuhlpark) के दृश्य के साथ धूप वाली बालकनी\" का विज्ञापन करता है।\n  * *फोटो जाँच द्वारा पुष्ट*: निरीक्षण किए गए फोटो इंडेक्स 0 में एक बालकनी संरचना की पुष्टि की गई थी।\n  * *अज्ञात*: बालकनी का वर्ग फुट और मंजिल का स्तर (लिस्टिंग ऊपरी मंजिलों पर लॉफ्ट शैली निर्दिष्ट करती है, लेकिन सटीक मंजिल नहीं)।\n* **पानी तक पहुँच**:\n  * *लिस्टिंग टेक्स्ट और OpenStreetMap द्वारा पुष्ट*: लिकटेंबर्ग में Anton-Saefkow-Platz पर स्थित, फेनपफुहलपार्क के बगल में, जिसमें **Fennpfuhl** (एक ऐतिहासिक झील) है।\n  * *टूल द्वारा अज्ञात / असत्यापित*: लिस्टिंग सीधे नदी या नहर के किनारे पर स्थित **नहीं** है; जल निकाय एक अंतर्देशीय पार्क झील है। इसके अलावा, जबकि पार्क सड़क के पार है, पानी के किनारे तक पैदल चलने का सटीक समय और क्या बालकनी से पेड़ों के ऊपर पानी सीधे दिखाई देता है, यह असत्यापित है।\n\n---\n\n### देखने से पहले होस्ट से पूछने वाले प्रश्न\n\n1. **Maybachufer के लिए**:\n   * *\"क्या €1,800 की मासिक फ्लैट दर में हीटिंग, बिजली और इंटरनेट पूरी तरह से शामिल है, या प्रवास के अंत में एक अलग उपयोगिता निपटान (*Nebenkostenabrechnung*) होता है?\"*\n   * *\"क्या आप सबलीज की सटीक तारीखों की पुष्टि कर सकते हैं (सारांश में 2 महीने लिखा है, लेकिन अंग्रेजी विवरण में 4-6 महीने का उल्लेख है)?\"*\n2. **लॉफ्ट के लिए**:\n   * *\"क्या €150 का अतिरिक्त शुल्क हीटिंग और इंटरनेट सहित निश्चित (*Pauschale*) है, या यह एक अग्रिम भुगतान (*Vorauszahlung*) है?\"*\n   * *\"क्या जरूरत पड़ने पर अनुबंध में 28 दिसंबर, 2026 के बाद विस्तार की गारंटी है?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**प्रॉपर्टी के विवरण स्पष्ट करना**\n\nमैं वर्तमान में \"द लॉफ्ट\" (the loft) और \"मेबैकउफर फ्लैट\" (the Maybachufer flat) से संबंधित उपयोगकर्ता के प्रश्नों पर ध्यान केंद्रित कर रहा हूँ। विशेष रूप से, मैं मेबैकउफर प्रॉपर्टी के 1,800 EUR किराए की गहराई से जांच कर रहा हूँ। मुझे निश्चित रूप से यह निर्धारित करने की आवश्यकता है कि क्या यह वास्तव में सर्व-समावेशी (all-inclusive) है, या क्या इसमें कोई अतिरिक्त लागत हो सकती है। साथ ही, मैं अब खोज के लिए उपलब्ध फ़ोटो की संख्या स्पष्ट कर रहा हूँ।\n\n\n**शामिल विवरणों का सत्यापन**\n\nमैं अब मेबैकउफर फ्लैट के किराए के विवरणों, विशेष रूप से \"सर्व-समावेशी\" (all-inclusive) दावे की जांच कर रहा हूँ। मेरा लक्ष्य इस बात का सटीक विवरण निकालना है कि इसमें क्या शामिल है और क्या नहीं। मुझे यह स्पष्ट करने की आवश्यकता है कि क्या 1800 EUR में उपयोगिताएँ (utilities), इंटरनेट, हीटिंग और ब्रॉडकास्टिंग शुल्क शामिल हैं। प्रारंभिक डेटा विरोधाभासी जानकारी दिखाता है, इसलिए मुझे यह पता लगाना होगा कि डेटा *वास्तव में* क्या पुष्टि करता है।\n\n\n**शामिल न की गई चीज़ों की पहचान करना**\n\nमैं अब उपयोगिताओं (utilities) के संबंध में विवरण स्पष्ट कर रहा हूँ। प्रारंभिक डेटा में इस बात की पुष्टि नहीं हुई है कि GEZ शुल्क, बिजली, या हीटिंग ओवरएज शामिल हैं या नहीं। मुझे कुल फ़ोटो संख्या को स्पष्ट रूप से परिभाषित करने और यह सुनिश्चित करने की आवश्यकता है कि प्रत्येक प्रॉपर्टी के लिए सभी प्रासंगिक फ़ोटो का विश्लेषण किया जाए। मेबैकउफर में दो बालकनी हैं, और लॉफ्ट में एक है, हालांकि उनके आकार (dimensions) का उल्लेख नहीं किया गया है। साथ ही, मैं मेबैकउफर प्रॉपर्टी के स्थान की पुष्टि कर रहा हूँ।\n\n\n\n\n---"
-      },
-      "follow_up_1": {
-        "text": "बर्लिन में पानी के पास अन्य 2-कमरों वाले अपार्टमेंट खोजें"
-      },
-      "follow_up_2": {
-        "text": "मेबैकउफर के मकान मालिक के लिए जर्मन में एक पूछताछ संदेश का ड्राफ्ट तैयार करें"
-      },
-      "follow_up_3": {
-        "text": "एंटोन-सैफको-प्लात्ज़ से अलेक्जेंडरप्लात्ज़ तक सार्वजनिक परिवहन मार्ग खोजें"
-      },
-      "follow_up_4": {
-        "text": "दोनों अपार्टमेंट की सुरक्षा जमा और रद्दीकरण शर्तों की तुलना करें"
-      },
-      "follow_up_5": {
-        "text": "बर्लिन लिकटेंबर्ग के लिए वर्तमान मौसम का पूर्वानुमान देखें"
-      },
-      "follow_up_6": {
-        "text": "बर्लिन में अपार्टमेंट देखने के दौरान मकान मालिकों से पूछे जाने वाले मुख्य प्रश्नों की सूची बनाएं"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "समझाएं कि आवास बाजार की आपूर्ति मूल्य नियंत्रण पर कैसे प्रतिक्रिया देती है"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "जर्मनी में सार्थक नौकरियां"
-      },
-      "summary": {
-        "text": "जर्मनी में रिक्तियों के लिए चार जॉब प्लेटफॉर्म पर खोजें, फिर डिज़ाइन भूमिकाओं की तुलना करें और नियोक्ताओं के लिए प्रश्न तैयार करें।"
-      },
-      "message_1": {
-        "text": "मैं जर्मनी में सार्थक काम की तलाश में हूँ, विशेष रूप से रिसर्च, डिज़ाइन या सॉफ्टवेयर इंजीनियरिंग में। कृपया ExampleJobsB और ExampleJobsC के साथ-साथ ExampleJobsD और Example Employment Board का उपयोग करके कुछ वर्तमान रिक्तियां खोजें। मैं जर्मनी में कहीं भी काम करने के लिए तैयार हूँ। मुझे नियोक्ता, स्थान, स्रोत और आवेदन लिंक के साथ एक संक्षिप्त शॉर्टलिस्ट दें, और यदि लिस्टिंग में उल्लेख न हो, तो रिमोट वर्क या वेतन के बारे में कोई धारणा न बनाएं।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nयहाँ ExampleJobsB, **ExampleJobsC**, **ExampleJobsD**, और **Example Employment Board** से जर्मनी में रिसर्च, डिज़ाइन और सॉफ्टवेयर इंजीनियरिंग के क्षेत्र में वर्तमान रिक्तियों की एक संक्षिप्त सूची दी गई है।\n\n---\n\n### डिज़ाइन (Design)\n\n* **Senior Product Designer**\n  * **नियोक्ता:** voize (नर्सिंग और क्लिनिकल देखभाल के लिए दस्तावेज़ीकरण को आसान बनाने हेतु स्पीच-रिकग्निशन AI विकसित कर रहा है)\n  * **स्थान:** बर्लिन, जर्मनी (रिमोट-योग्य के रूप में सूचीबद्ध)\n  * **स्रोत:** ExampleJobsC\n  * **वेतन:** निर्दिष्ट नहीं\n  * **आवेदन:** [voize के माध्यम से आवेदन करें](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **नियोक्ता:** stiftung ear (इलेक्ट्रॉनिक कचरे के निपटान, वापसी और सर्कुलर इकोनॉमी ट्रैकिंग का समन्वय करने वाला राष्ट्रीय रजिस्टर)\n  * **स्थान:** नूर्नबर्ग, बवेरिया (Nürnberg, Bayern)\n  * **स्रोत:** Example Employment Board\n  * **कार्य व्यवस्था और वेतन:** लिस्टिंग विवरण में लचीले/मोबाइल कार्य विकल्पों का उल्लेख है, लेकिन कोई औपचारिक पूर्ण-रिमोट वर्गीकरण नहीं है; वेतन निर्दिष्ट नहीं है\n  * **आवेदन:** [Example Employment Board के माध्यम से आवेदन करें](embed:ui-ux-design-1Bm)\n\n---\n\n### रिसर्च (Research)\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **नियोक्ता:** [University of Hamburg](wiki:University_of_Hamburg) और Institute for Peace Research and Security Policy (IFSH)\n  * **स्थान:** हैम्बर्ग, जर्मनी\n  * **स्रोत:** ExampleJobsB\n  * **कार्य व्यवस्था और वेतन:** निर्दिष्ट नहीं\n  * **आवेदन:** [IFSH / ExampleJobsB के माध्यम से आवेदन करें](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **नियोक्ता:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **स्थान:** बोचुम, नॉर्थ राइन-वेस्टफेलिया (Bochum, Nordrhein-Westfalen)\n  * **स्रोत:** Example Employment Board\n  * **कार्य व्यवस्था और वेतन:** पूर्णकालिक (39.83 घंटे/सप्ताह); रिमोट व्यवस्था निर्दिष्ट नहीं है; TV-L E13 सार्वजनिक सामूहिक वेतनमान के अनुसार पारिश्रमिक (सटीक राशि लिस्टिंग में प्रकाशित नहीं है)\n  * **आवेदन:** [Example Employment Board के माध्यम से आवेदन करें](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **नियोक्ता:** [Siemens Energy](wiki:Siemens_Energy)\n  * **स्थान:** बर्लिन\n  * **स्रोत:** Example Employment Board\n  * **कार्य व्यवस्था और वेतन:** टेक्स्ट में लचीले/मोबाइल विकल्पों का उल्लेख है, लेकिन कोई निश्चित रिमोट स्थिति नहीं बताई गई है; वेतन निर्दिष्ट नहीं है\n  * **आवेदन:** [Example Employment Board के माध्यम से आवेदन करें](embed:research-engineer-f-7ao)\n\n---\n\n### सॉफ्टवेयर इंजीनियरिंग (Software Engineering)\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **नियोक्ता:** idealo internet GmbH\n  * **स्थान:** बर्लिन, जर्मनी\n  * **स्रोत:** ExampleJobsD\n  * **कार्य व्यवस्था और वेतन:** ऑन-साइट/हाइब्रिड ऑफिस वातावरण; वेतन निर्दिष्ट नहीं है\n  * **आवेदन:** [ExampleJobsD के माध्यम से आवेदन करें](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **नियोक्ता:** Quantum-Systems GmbH (स्वायत्त हवाई प्लेटफॉर्म और रोबोटिक परसेप्शन)\n  * **स्थान:** गिलचिंग, बवेरिया (Gilching, Bayern)\n  * **स्रोत:** ExampleJobsD\n  * **कार्य व्यवस्था और वेतन:** ऑन-साइट/हाइब्रिड; वेतन निर्दिष्ट नहीं है\n  * **आवेदन:** [ExampleJobsD के माध्यम से आवेदन करें](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**जर्मनी में अवसरों की पहचान करना**\n\nमैं वर्तमान में जर्मनी में प्रासंगिक नौकरी के अवसरों को सटीक रूप से खोजने पर ध्यान केंद्रित कर रहा हूँ। मैंने आशाजनक स्रोतों की एक सूची संकलित करके शुरुआत की है: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD`, और `Example Employment Board`। मेरी मुख्य रुचि अनुसंधान, डिज़ाइन और सॉफ़्टवेयर इंजीनियरिंग भूमिकाओं में है, और मैं स्थान के पहलू पर पैनी नज़र रखूँगा।\n\n\n**खोज मापदंडों को परिष्कृत करना**\n\nमैं अब `jobs-search` टूल का प्रभावी ढंग से उपयोग करने के लिए अपने दृष्टिकोण को परिष्कृत कर रहा हूँ। मैं 5 अनुरोधों की सीमा को देखते हुए, प्रश्नों की एक श्रृंखला बनाने और सीधे प्रदाताओं को निर्दिष्ट करने के लिए `requests` ऐरे पर ध्यान केंद्रित कर रहा हूँ। मैं यह पुष्टि करने के लिए फ़ंक्शन परिभाषा की जाँच कर रहा हूँ कि प्रदाताओं को स्पष्ट रूप से सूची के रूप में कैसे प्रदान किया जाए, और प्रासंगिकता मानदंड कैसे परिभाषित किए जाएं। इससे नियोक्ता, स्थान, स्रोत और आवेदन लिंक के साथ एक शॉर्टलिस्ट बनाने में मदद मिलेगी। मेरा लक्ष्य रिमोट काम या वेतन के बारे में धारणा बनाने से बचना है जहाँ स्पष्ट रूप से नहीं बताया गया है।\n\n\n**प्रदाता परिणामों की जांच करना**\n\nठीक है, मुझे प्राप्त प्रदाताओं की पहली झलक मिल गई है। ऐसा लगता है कि हमारे पास \"ExampleJobsC\" और ExampleJobsD से कुछ परिणाम हैं; एक बैकएंड इंजीनियरिंग (Java/Kotlin) में सीनियर भूमिका है, और दूसरी वर्किंग स्टूडेंट की भूमिका है। मैं शुरुआती छापों को नोट कर रहा हूँ और प्रत्येक लिस्टिंग के संभावित प्रभाव का आकलन कर रहा हूँ।\n\n\n**वर्तमान अवसरों का विश्लेषण करना**\n\nमैं वर्तमान में दो आशाजनक अवसरों के मूल्यांकन पर ध्यान केंद्रित कर रहा हूँ। पहला है हैम्बर्ग विश्वविद्यालय के इंस्टीट्यूट फॉर पीस रिसर्च एंड सिक्योरिटी पॉलिसी में \"जॉइंट फेलोशिप प्रोग्राम\", और दूसरा इंटरफ़ेस साइबर सुरक्षा कार्यक्रम के भीतर \"छात्र सहायक\" का पद है। मैं क्रमशः शांति और सुरक्षा अनुसंधान और साइबर सुरक्षा के संदर्भ में उनकी संबंधित खूबियों पर सावधानीपूर्वक विचार कर रहा हूँ।\n\n\n**नई लीड्स को प्राथमिकता देना**\n\nमैंने अपना ध्यान एक संतुलित शॉर्टलिस्ट तैयार करने पर केंद्रित किया है। मैं प्रासंगिकता और हालिया पोस्टिंग पर ध्यान केंद्रित करते हुए डिज़ाइन और अनुसंधान के अवसरों को प्राथमिकता दे रहा हूँ। वर्तमान में, मैं बर्लिन में voize में सीनियर प्रोडक्ट डिज़ाइनर की भूमिका और stiftung ear में UI/UX डिज़ाइन पद की जांच कर रहा हूँ। अनुसंधान के लिए, मैं हैम्बर्ग में जॉइंट फेलोशिप प्रोग्राम के साथ-साथ रुहर-यूनिवर्सिटी बोचुम में एक भूमिका की समीक्षा कर रहा हूँ।\n\n\n**नई संभावनाओं का मूल्यांकन करना**\n\nमैं अब अपने मानदंडों के आलोक में नई लीड्स का आकलन कर रहा हूँ। मैंने संघीय रोजगार एजेंसी के माध्यम से सीमेंस एनर्जी, बर्लिन में रिसर्च इंजीनियर की भूमिका जैसे विकल्प खोजे हैं, जो मौलिक अनुसंधान पर केंद्रित है। मैं क्रमशः idealo internet GmbH (बर्लिन, ExampleJobsD) और CT Software Engineering (इंगोलस्टैड, संघीय रोजगार एजेंसी) में सीनियर बैकएंड और जूनियर C++ सॉफ़्टवेयर डेवलपर भूमिकाओं पर भी विचार कर रहा हूँ। ये सॉफ़्टवेयर इंजीनियरिंग में मेरी रुचियों के अनुरूप हैं।\n\n\n**आवेदन मानदंडों को परिष्कृत करना**\n\nमैं अब स्पष्ट कर रहा हूँ कि आवेदन लिंक को कैसे संभालना है। मुझे आवेदन की स्पष्ट प्रक्रियाओं को प्राथमिकता देना याद रखना चाहिए, `[display text](embed:embed_ref)` या मानक लिंक के उपयोग की जाँच करनी चाहिए। इसके अलावा, मुझे रिमोट काम मान लेने या वेतन का खुलासा करने से बचना चाहिए जब तक कि लिस्टिंग में स्पष्ट रूप से न कहा गया हो।\n\n\n**आवेदन प्रोटोकॉल को स्पष्ट करना**\n\nमैं अब आवेदन लिंक प्रारूपों पर ध्यान केंद्रित कर रहा हूँ। मैं सीधे लिंक एकीकरण या `(embed:embed_ref)` प्रारूप का उपयोग सुनिश्चित करने पर ध्यान केंद्रित कर रहा हूँ, यह सुनिश्चित करते हुए कि मैं दोनों प्रदान नहीं करता हूँ। मैं अनुपालन सुनिश्चित करने के लिए ऐप स्किल्स से प्राप्त यूआरएल की सावधानीपूर्वक समीक्षा कर रहा हूँ। मेरा लक्ष्य प्रत्येक नौकरी आवेदन लिंक के लिए केवल एक लिंक शैली का उपयोग करने के नियम का पालन करना है।\n\n\n**आवेदन लिंक का मानकीकरण करना**\n\nमैं अब आवेदन लिंक रणनीति को लागू कर रहा हूँ। मेरा लक्ष्य नौकरी पोस्टिंग के लिए प्रारूप को मानकीकृत करना है। मैं आवेदन लिंक के लिए केवल एम्बेड रेफ (embed ref) का उपयोग करूँगा। मैं प्रत्येक रिक्ति के लिए भूमिका, नियोक्ता, स्थान और स्रोत को भी शामिल करूँगा, और एक एम्बेडेड लिंक का उपयोग करूँगा। मैं यह सुनिश्चित करूँगा कि प्रत्येक रिक्ति के लिए हमेशा एक लिंक का उपयोग किया जाए।\n\n\n**अवसर डेटा संकलित करना**\n\nमैं अब कई अवसरों के विवरण एकत्र कर रहा हूँ। मेरे पास voize में सीनियर प्रोडक्ट डिज़ाइनर की भूमिका, stiftung ear में UI/UX डिज़ाइन पद और हैम्बर्ग विश्वविद्यालय में जॉइंट फेलोशिप प्रोग्राम की जानकारी है। मैं प्रत्येक के लिए भूमिका, नियोक्ता, स्थान और स्रोत के साथ-साथ रिमोट और वेतन विनिर्देशों को नोट कर रहा हूँ। मैं प्रत्येक आवेदन के लिए एम्बेड का उपयोग करके सुसंगत लिंक प्रारूप सुनिश्चित करने पर ध्यान केंद्रित कर रहा हूँ।\n\n\n**नई लिस्टिंग को एकीकृत करना**\n\nमैं अब नई लिस्टिंग को डेटासेट में एकीकृत कर रहा हूँ। मैंने रुहर-यूनिवर्सिटी बोचुम में एक रिसर्च एसोसिएट पद जोड़ा है, इसे संघीय रोजगार एजेंसी से प्राप्त किया है और इसके रिमोट और वेतन विवरण नोट किए हैं। साथ ही, मैंने सीमेंस एनर्जी में रिसर्च इंजीनियर की भूमिका पर जानकारी संकलित की है, जिसमें लचीले विकल्प शामिल हैं। मैं आवेदन लिंक के लिए एम्बेड का उपयोग करते हुए, लिंक प्रारूपों में निरंतरता सुनिश्चित कर रहा हूँ।\n\n\n**नई लिस्टिंग जोड़ना**\n\nमैंने अभी-अभी दो नई लिस्टिंग जोड़ी हैं, एक अनिर्दिष्ट स्थान पर सीनियर बैकएंड इंजीनियर की भूमिका और गिलचिंग में Quantum-Systems GmbH में वर्किंग स्टूडेंट का पद। मैं स्थान, रिमोट काम के विकल्प, वेतन की जानकारी (जहाँ उपलब्ध हो), और मानकीकृत प्रारूप में आवेदन लिंक सहित सभी विवरणों को सटीक रूप से कैप्चर करने पर ध्यान केंद्रित कर रहा हूँ। मैं आवेदन लिंक के लिए `(embed:embed_ref)` प्रारूप का उपयोग कर रहा हूँ।"
-      },
-      "message_3": {
-        "text": "वे दो डिज़ाइन भूमिकाएं सबसे दिलचस्प लग रही हैं। क्या आप संक्षेप में तुलना कर सकते हैं कि सहेजी गई लिस्टिंग वास्तव में क्या कहती हैं और सुझाव दे सकते हैं कि आवेदन करने से पहले मुझे प्रत्येक नियोक्ता से क्या पूछना चाहिए?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nयहाँ प्रत्येक लिस्टिंग में क्या कहा गया है, इसकी सीधी तुलना दी गई है, जिसके बाद लक्षित प्रश्न दिए गए हैं जिन्हें आप आवेदन प्रक्रिया से पहले या उसके दौरान प्रत्येक नियोक्ता से पूछ सकते हैं।\n\n---\n\n### लिस्टिंग की तुलना\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### आवेदन करने से पहले क्या पूछें\n\n#### voize के लिए:\n1. **यूजर रिसर्च एक्सेस:** *\"डिजाइनर अपने दैनिक नैदानिक परिवेश (clinical setting) में फ्रंटलाइन नर्सों और देखभाल कर्मचारियों के साथ कितनी बार और किन माध्यमों से फील्डवर्क या परीक्षण करते हैं?\"*\n2. **टीम की परिपक्वता और दायरा:** *\"प्रोडक्ट टीम की संरचना कैसी है, वर्तमान में डिजाइनरों का PMs और इंजीनियरों के साथ अनुपात क्या है, और क्या यह भूमिका एक व्यक्तिगत योगदानकर्ता (individual contributor) की है या इससे डिजाइन सिस्टम स्थापित करने की अपेक्षा की जाती है?\"*\n3. **मुआवजा और रिमोट कैडेंस:** *\"इस वरिष्ठता स्तर के लिए लक्षित मुआवजा बैंड (compensation band) क्या है, और क्या रिमोट पॉलिसी के बावजूद अनिवार्य ऑन-साइट टीम ऑफसाइट या कोर घंटे (core hours) हैं?\"*\n\n#### stiftung ear के लिए:\n1. **नूर्नबर्ग (Nürnberg) में ऑन-साइट अपेक्षाएं:** *\"व्यवहार में मोबाइल वर्किंग की संरचना कैसी है—क्या नूर्नबर्ग कार्यालय में ऑन-साइट रहने की कोई निश्चित साप्ताहिक या मासिक आवश्यकता है?\"*\n2. **डिजाइन बनाम QA संतुलन:** *\"लिस्टिंग में UX/UI डिजाइन के साथ-साथ सॉफ्टवेयर टेस्टिंग कार्यान्वयन का उल्लेख है। इस भूमिका का कितना प्रतिशत यूजर रिसर्च/प्रोटोटाइपिंग बनाम तकनीकी सॉफ्टवेयर सत्यापन और गुणवत्ता आश्वासन (quality assurance) पर केंद्रित है?\"*\n3. **डिजाइन टूलिंग और डेवलपमेंट हैंडओवर:** *\"वर्तमान में कौन से डिजाइन सिस्टम और प्रोटोटाइपिंग टूल उपयोग में हैं, और क्या आप इन-हाउस डेवलपमेंट टीम या बाहरी IT सेवा प्रदाताओं के साथ काम करते हैं?\"*\n4. **मुआवजा बेंचमार्क:** *\"यह देखते हुए कि stiftung ear सार्वजनिक-हित वैधानिक क्षमता में कार्य करता है, क्या मुआवजा एक विशिष्ट सार्वजनिक सामूहिक पैमाने (जैसे TVöD/TV-L) या आंतरिक ग्रेडिंग संरचना का पालन करता है?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**नौकरी लिस्टिंग सामग्री का विश्लेषण**\n\nठीक है, मैंने नौकरी के विवरणों की तुलना करना शुरू कर दिया है। मैं Voize में सीनियर प्रोडक्ट डिज़ाइनर की भूमिका और Stiftung EAR में UI/UX डिज़ाइन पद के लिए मुख्य जिम्मेदारियों और आवश्यक कौशल पर ध्यान केंद्रित कर रहा हूँ। अब मैं दोनों नौकरी लिस्टिंग की मुख्य जिम्मेदारियों और आवश्यक कौशल का सारांश तैयार कर रहा हूँ। फिर, मैं यह पता लगाऊँगा कि मुझे और क्या जानकारी चाहिए।\n\n\n**नौकरी के विवरण का विश्लेषण**\n\nठीक है, अब मैं प्रत्येक लिस्टिंग की बारीकियों को गहराई से समझ रहा हूँ। मेरा ध्यान विवरणों में उपयोग की गई वास्तविक भाषा का विश्लेषण करने पर है। मैं यह निर्धारित करने की कोशिश कर रहा हूँ कि प्रत्येक नियोक्ता के लिए तैयारी करने के लिए किन मुख्य प्रश्नों के उत्तर देने की आवश्यकता है। उदाहरण के लिए, voize लिस्टिंग में, मुझे उनके AI साथी उत्पाद के बारे में जानने की आवश्यकता है।\n\n\n**मुख्य विवरणों का आकलन**\n\nअब मैं voize लिस्टिंग पर ध्यान केंद्रित कर रहा हूँ और मुख्य निष्कर्ष निकाल रहा हूँ। यह महत्वपूर्ण स्वामित्व वाली एक वरिष्ठ भूमिका है, जिसमें किसी ऐसे व्यक्ति की आवश्यकता है जो प्रोडक्ट मैनेजरों को चुनौती दे सके। सेटअप लचीला है, जिसमें बर्लिन कार्यालय और रिमोट विकल्प हैं। मुआवजे का उल्लेख नहीं किया गया है, लेकिन लाभों में छुट्टियों का अच्छा समय और स्पोर्ट्स क्लब की सदस्यता शामिल है। अंग्रेजी प्राथमिक भाषा है, भले ही संदर्भ जर्मन स्वास्थ्य सेवा हो।\n\n\n**विशिष्ट आवश्यकताओं की पहचान**\n\nअब मैं नूर्नबर्ग-आधारित भूमिका पर ध्यान केंद्रित कर रहा हूँ। मैंने मुख्य क्षेत्रों को विभाजित किया है: कानूनी अनुपालन पहलू ElektroG नियमों पर केंद्रित है। मेरे काम में वेब ऐप विकास और UX गतिविधियाँ, हितधारकों को सलाह देना शामिल है। जर्मन प्रवाह (न्यूनतम C1) अनिवार्य है, नियामक सॉफ्टवेयर में अनुभव एक प्लस है। यह पद महत्वपूर्ण रिमोट वर्क लचीलेपन के साथ स्थायी है। मुआवजा प्रदर्शन-आधारित है।\n\n\n**नौकरी की विशेषताओं की तुलना**\n\nअब मैं सभी भूमिकाओं के बीच सीधी तुलना कर रहा हूँ। मैंने इसे डोमेन, संस्कृति, आवश्यक कौशल और कार्य स्थान के आधार पर विभाजित किया है। विशेष रूप से, मैं voize बनाम stiftung ear भूमिका को देख रहा हूँ। मैं उनके वातावरण और प्राथमिकताओं के बीच अंतर करने पर ध्यान केंद्रित कर रहा हूँ, फ्रंटलाइन हेल्थकेयर से लेकर ई-कचरा अनुपालन तक। मैं भाषा की आवश्यकताओं और अनुभव के स्तर जैसे मुख्य अंतरों को नोट कर रहा हूँ। साथ ही, मैं उनकी रिमोट वर्क नीतियों में अंतर का आकलन कर रहा हूँ।"
-      },
-      "follow_up_1": {
-        "text": "बर्लिन में और अधिक UI/UX डिज़ाइन नौकरियों की खोज करें"
-      },
-      "follow_up_2": {
-        "text": "voize के हायरिंग मैनेजर के लिए एक आउटरीच ईमेल ड्राफ्ट करें"
-      },
-      "follow_up_3": {
-        "text": "जर्मनी में इसी तरह की हेल्थकेयर टेक भूमिकाएं खोजें"
-      },
-      "follow_up_4": {
-        "text": "हेल्थकेयर स्टार्टअप बनाम सार्वजनिक निकायों में काम करने के फायदे और नुकसान की तुलना करें"
-      },
-      "follow_up_5": {
-        "text": "न्यूरेमबर्ग में सार्वजनिक क्षेत्र की तकनीकी नौकरियों की खोज करें"
-      },
-      "follow_up_6": {
-        "text": "सीनियर प्रोडक्ट डिज़ाइन इंटरव्यू के लिए मुख्य तैयारी चरणों की सूची बनाएं"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "प्रिंट करने योग्य Benchy और फोन स्टैंड मॉडल"
-      },
-      "summary": {
-        "text": "प्रीव्यू कार्ड और सोर्स लिंक के साथ लोकप्रिय 3D-प्रिंट करने योग्य Benchy और फोन स्टैंड मॉडल के लिए ExampleModels पर खोजें।"
-      },
-      "message_1": {
-        "text": "ExampleModels पर 3D-प्रिंट करने योग्य Benchy और फोन स्टैंड मॉडल खोजें। प्रीव्यू कार्ड और सोर्स लिंक के साथ सबसे अच्छे विकल्प दिखाएं।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nतुम्हारे अगले 3D प्रिंटिंग प्रोजेक्ट्स के लिए, मुझे ExampleModels पर कुछ सबसे लोकप्रिय और रचनात्मक मॉडल मिले हैं। चाहे तुम क्लासिक [कैलिब्रेशन](wiki:Calibration_(statistics)) टगबोट ढूंढ रहे हो या एक कार्यात्मक [फ़ोन](wiki:Smartphone) एक्सेसरी, ये विकल्प बेहतरीन शुरुआती बिंदु हैं।\n\n### 3DBenchy कलेक्शन\n[3DBenchy](wiki:3DBenchy) तुम्हारे [3D प्रिंटर](wiki:3D_printing) की क्षमताओं का परीक्षण करने के लिए गोल्ड स्टैंडर्ड है। ओरिजिनल के अलावा, कई \"रीमिक्स\" भी हैं जो तुम्हारे वर्कबेंच में चार चाँद लगा देते हैं।\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **ओरिजिनल 3DBenchy**: [ओवरहैंग्स](wiki:3D_printing#Support_structures), [ब्रिजिंग](wiki:3D_printing#Support_structures) और सरफेस फिनिश की [बेंचमार्किंग](wiki:Benchmark_(computing)) के लिए सबसे अच्छा।\n*   **असॉल्ट Benchy**: उन लोगों के लिए एक पोज़ेबल [मेका](wiki:Mecha) वर्शन जो थोड़ा स्टाइल चाहते हैं।\n*   **फ्लोटिंग BEN**: विशेष रूप से खोखले हल (hull) के साथ डिज़ाइन किया गया है ताकि यह वास्तव में तैर सके—नहाने के टब के लिए एकदम सही!\n\n### कार्यात्मक फ़ोन स्टैंड\nफ़ोन स्टैंड एक बेहतरीन व्यावहारिक प्रिंट है। ये डिज़ाइन मिनिमलिस्ट से लेकर जटिल मैकेनिकल गियर्स तक भिन्न होते हैं।\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **हनीकॉम्ब स्टैंड**: अपने उच्च [स्ट्रेंथ-टू-वेट रेशियो](wiki:Specific_strength) और मॉडर्न लुक के लिए बहुत लोकप्रिय।\n*   **गियर्ड स्टैंड**: एक \"प्रिंट-इन-प्लेस\" मैकेनिकल चमत्कार जो एडजस्टेबल व्यूइंग एंगल्स की अनुमति देता है।\n*   **मॉडर्न कर्व्ड**: एक स्लीक, वन-पीस डिज़ाइन जो मिनिमलिस्ट ऑफिस सेटअप में पूरी तरह फिट बैठता है।\n\n**प्रो टिप:** [गियर्ड फ़ोन स्टैंड](embed:geared-phone-stand-3Bl) प्रिंट करते समय, सुनिश्चित करो कि तुम्हारा [एक्सट्रूज़न मल्टीप्लायर](wiki:3D_printing#Fused_deposition_modeling) अच्छी तरह से कैलिब्रेटेड है ताकि हिलने वाले हिस्से आपस में न जुड़ें।\n\nतुम इनके लिए किस तरह के [फिलामेंट](wiki:3D_printing_filament) (PLA, PETG, आदि) का उपयोग करने की योजना बना रहे हो? मैं तुम्हारे मटेरियल के आधार पर कुछ विशिष्ट स्लाइसिंग टिप्स दे सकता हूँ!\n\n**तुम आगे क्या करना चाहोगे?**\n- [अधिक 3D मॉडल खोजें](/#settings/apps/models3d)\n- [3D प्रिंटिंग टिप्स प्राप्त करें](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "मुझे responsive design के सिद्धांत सिखाएं"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "चेक किए गए डोमेन के साथ सोशल ऐप के नाम"
-      },
-      "summary": {
-        "text": "चेक की गई डोमेन उपलब्धता, रजिस्ट्रेशन और रिन्यूअल की कीमतों और रजिस्ट्रेशन की शर्तों के आधार पर सोशल ऐप के नामों की तुलना करें।"
-      },
-      "message_1": {
-        "text": "मैं एक सोशल ऐप का नाम रख रहा हूँ जो लोगों को व्यक्तिगत रूप से मिलने के बाद संपर्क में रहने और नए लोगों से मिलने में मदद करता है। दो विशिष्ट नाम सुझाव दें। प्रत्येक सुझाव के लिए, कृपया इसके सटीक .com, .net और .app डोमेन को लाइव चेक करें, फिर केवल वही सटीक डोमेन सुझाएं जिनकी उपलब्धता, रजिस्ट्रेशन की कीमत, रिन्यूअल की कीमत और प्रतिबंध उन चेक में दिखाई देते हैं। अनचेक किए गए डोमेन के बारे में अनुमान न लगाएं। चेक किए गए परिणामों के आधार पर बेहतर नाम चुनें।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nयहाँ दो विशिष्ट नाम विचार दिए गए हैं जो व्यक्तिगत संबंधों को पोषित करने और सामाजिक दायरे का विस्तार करने पर केंद्रित ऐप के लिए तैयार किए गए हैं, साथ ही प्रत्येक नाम के सटीक `.com`, `.net`, और `.app` एक्सटेंशन के लिए लाइव डोमेन चेक भी दिए गए हैं।\n\n---\n\n### विचार 1: Kinloop\n* **अवधारणा:** 'kin' (समुदाय, व्यक्तिगत आत्मीयता, विश्वसनीय बंधन) को 'loop' (प्रारंभिक मुलाकात के बाद लूप को बंद करना और चल रहे दायरे में कनेक्शन को जीवित रखना) के साथ जोड़ता है।\n* **लाइव डोमेन सत्यापन:**\n  * **`kinloop.com`**: **अनुपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **अनुपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **अनुपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-XJX))\n* **सिफारिश:** कोई नहीं। तीनों सटीक लक्षित डोमेन वर्तमान में पंजीकृत/अनुपलब्ध हैं, इसलिए इस नाम के लिए किसी सटीक डोमेन की सिफारिश नहीं की जा सकती है।\n\n---\n\n### विचार 2: Orbitfolk\n* **अवधारणा:** नए लोगों ('folk') को अपनी दुनिया में लगातार खोजने और उनका स्वागत करने के साथ-साथ वास्तविक जीवन के परिचितों को अपने व्यक्तिगत दायरे (orbit) में रखने के विचार को उजागर करता है।\n* **लाइव डोमेन सत्यापन:**\n  * **`orbitfolk.com`**: **अनुपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **उपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-cex))\n    * **पंजीकरण मूल्य:** $12.99 / प्रथम वर्ष कर को छोड़कर ($15.46 जिसमें 19% वैट शामिल है; नियमित 1-वर्ष की दर $18.78)\n    * **नवीनीकरण मूल्य:** $39.98 / वर्ष कर को छोड़कर ($47.58 जिसमें 1-वर्ष की अवधि के लिए 19% वैट शामिल है; 2–9 वर्ष की अवधि के लिए कर से पहले $35.98/वर्ष)\n    * **प्रतिबंध:** कोई रिपोर्ट नहीं की गई\n  * **`orbitfolk.app`**: **उपलब्ध** ([ExampleRegistrar check](embed:shop.ExampleRegistrar.net-U3Z))\n    * **पंजीकरण मूल्य:** $9.99 / प्रथम वर्ष कर को छोड़कर ($11.89 जिसमें 19% वैट शामिल है; नियमित 1-वर्ष की दर $23.29)\n    * **नवीनीकरण मूल्य:** $47.98 / वर्ष कर को छोड़कर ($57.10 जिसमें 1-वर्ष की अवधि के लिए 19% वैट शामिल है; 2–9 वर्ष की अवधि के लिए कर से पहले $43.18/वर्ष)\n    * **प्रतिबंध:** कोई रिपोर्ट नहीं की गई\n\n---\n\n### तुलना और बेहतर विकल्प\n\n**Orbitfolk** बेहतर विकल्प है:\n\n1. **सीधी उपलब्धता:** जबकि `Kinloop` तीनों एक्सटेंशन पर लिया जा चुका है, `Orbitfolk` के `.app` और `.net` दोनों संस्करण पंजीकरण के लिए तुरंत उपलब्ध हैं।\n2. **उत्पाद उपयुक्तता:** चूंकि यह एक मोबाइल सोशल उत्पाद है, **`orbitfolk.app`** एक स्पष्ट, उद्देश्य-निर्मित डोमेन एक्सटेंशन प्रदान करता है जो सीधे उपयोगकर्ताओं को उत्पाद के प्रकार के बारे में बताता है।\n\n---\n\n### अगले कदम\n\n* [सामाजिक दायरे (social orbits) के इर्द-गिर्द और नाम विविधताओं का पता लगाएं](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [व्यक्तिगत रूप से मिलने के लिए ऑनबोर्डिंग फ्लो का मसौदा तैयार करें](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "किसी अन्य सोशल ऐप आइडिया के लिए उपलब्ध डोमेन नाम खोजें"
-      },
-      "follow_up_2": {
-        "text": "बताएं कि मोबाइल ऐप्स के लिए .app डोमेन एक्सटेंशन प्रभावी क्यों है"
-      },
-      "follow_up_3": {
-        "text": "तीन वैकल्पिक ब्रांड नामों के लिए डोमेन की उपलब्धता जांचें"
-      },
-      "follow_up_4": {
-        "text": "कंज्यूमर एप्लिकेशन के लिए .net और .app डोमेन एक्सटेंशन की तुलना करें"
-      },
-      "follow_up_5": {
-        "text": "AppFolk नाम के लिए डोमेन की कीमत और उपलब्धता जांचें"
-      },
-      "follow_up_6": {
-        "text": "इस सोशल कनेक्शन ऐप के लिए तीन अतिरिक्त ब्रांडिंग एंगल सुझाएं"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "विल स्टीफन के व्यंग्यात्मक टेड टॉक का विश्लेषण"
-      },
-      "summary": {
-        "text": "सार्वजनिक भाषण पर विल स्टीफन के व्यंग्यात्मक टेडएक्स टॉक को पांच मुख्य हास्य तर्कों में सारांशित किया गया।"
-      },
-      "message_1": {
-        "text": "इस टेड टॉक की ट्रांसक्रिप्ट प्राप्त करें और मुख्य तर्क को पांच बुलेट्स में सारांशित करें: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nयह वीडियो विल स्टीफन की व्यंग्यात्मक TEDx प्रस्तुति है, *\"How to sound smart in your TEDx Talk\"* (टॉक देखें)।\n\nएक सूचनात्मक व्याख्यान देने के बजाय, स्टीफन मुख्य भाषण [सार्वजनिक भाषण](wiki:Public_speaking) की परंपराओं को समझने के लिए मेटा-ह्यूमर का उपयोग करते हैं। यहाँ मुख्य तर्क को पाँच बिंदुओं में संक्षेपित किया गया है:\n\n* **प्रस्तुति सार का भ्रम पैदा करती है:** बोलने की गति, जानबूझकर किए गए हाथों के इशारे, नाटकीय आई-कॉन्टैक्ट और भौतिक प्रॉप्स (जैसे बिना नंबर वाले चश्मे) दर्शकों को यह विश्वास दिला सकते हैं कि वक्ता प्रतिभाशाली है, भले ही उनके पास कहने के लिए कुछ भी सार्थक न हो।\n* **मंच पर तालमेल अत्यधिक औपचारिक होता है:** परिचित संवादात्मक तरीके—जैसे अलंकारिक प्रश्न पूछना, हाथ उठाने के लिए कहना, और आत्म-हीनता वाले किस्से सुनाना—सोची-समझी मंच कला है जिसे कृत्रिम गर्मजोशी और विश्वसनीयता पैदा करने के लिए डिज़ाइन किया गया है।\n* **डेटा विजुअल्स अनर्जित अधिकार प्रदान करते हैं:** यादृच्छिक संख्याएँ, बुनियादी अंकगणित और संदर्भ-रहित चार्ट दिखाना विजुअल पूर्वाग्रह का फायदा उठाता है, जिससे प्रस्तुति पूरी तरह से शोधित लगती है, भले ही डेटा पूरी तरह से अप्रासंगिक हो।\n* **दर्शक बकवास में भी अर्थ ढूँढ लेते हैं:** गंभीर स्वर और विचारोत्तेजक स्टॉक छवियों को शाब्दिक बकवास के साथ जोड़कर, वक्ता श्रोताओं को अवचेतन रूप से उन गहरे संबंधों को खोजने—और कल्पना करने—के लिए प्रेरित कर सकते हैं जो वास्तव में मौजूद नहीं हैं।\n* **भावनात्मक चरम सीमाएँ कृत्रिम रूप से बनाई जा सकती हैं:** आवाज की तीव्रता बढ़ाना, फुसफुसाने के लिए धीमा होना और नाटकीय रूप से रुकना एक आत्मज्ञान की लय की नकल करते हैं, जो यह साबित करता है कि बिना किसी अंतर्दृष्टि के प्रेरणा की भावना को कितनी आसानी से तैयार किया जा सकता है।"
-      },
-      "follow_up_1": {
-        "text": "YouTube पर अन्य लोकप्रिय व्यंग्यात्मक प्रस्तुतियाँ खोजें"
-      },
-      "follow_up_2": {
-        "text": "TEDx प्रारूप का इतिहास और इसके सांस्कृतिक प्रभाव के बारे में बताएं"
-      },
-      "follow_up_3": {
-        "text": "ऑनलाइन पब्लिक स्पीकिंग मास्टरक्लास ट्यूटोरियल खोजें"
-      },
-      "follow_up_4": {
-        "text": "प्रसिद्ध मुख्य वक्ताओं द्वारा उपयोग की जाने वाली विशिष्ट बॉडी लैंग्वेज तकनीकों का विश्लेषण करें"
-      },
-      "follow_up_5": {
-        "text": "अलंकारिक तकनीकों (rhetorical techniques) के बारे में विश्लेषण वीडियो खोजें"
-      },
-      "follow_up_6": {
-        "text": "सार्वजनिक रूप से बोलने के दौरान मंच के डर (stage fright) पर काबू पाने के सुझावों की सूची बनाएं"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "आप एक प्रोग्रामिंग विशेषज्ञ हैं।"
       }
     },
-    "health_health_insights": {
-      "text": "स्वास्थ्य अंतर्दृष्टि",
-      "description": {
-        "text": "स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।"
-      },
-      "systemprompt": {
-        "text": "आप एक स्वास्थ्य विशेषज्ञ हैं।"
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "डॉक्टर अपॉइंटमेंट तैयार करें",
-      "description": {
-        "text": "अगली विज़िट में क्या चर्चा करनी है, तैयार करें।"
-      },
-      "process": {
-        "text": "- पिछले हफ्तों और महीनों में हुए लक्षणों पर चर्चा करता है, भले ही उनके बीच कोई संबंध न दिखे\n- अगली अपॉइंटमेंट से पहले कौन से परीक्षण परिणाम/दस्तावेज़ एकत्र करने चाहिए, इस पर चर्चा करता है"
-      },
-      "systemprompt": {
-        "text": "आप एक स्वास्थ्य विशेषज्ञ हैं।"
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "डॉक्टर रिपोर्ट तैयार करें",
-      "description": {
-        "text": "अगली डॉक्टर विज़िट के लिए रिपोर्ट बनाएं।"
-      }
-    },
     "jobs_career_insights": {
       "text": "करियर अंतर्दृष्टि",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "भविष्य की बातचीत",
       "description": {
         "text": "एक शक्तिशाली जीवन कोचिंग तकनीक।"
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "डॉक्टर रिपोर्ट तैयार करें",
+      "description": {
+        "text": "अगली डॉक्टर विज़िट के लिए रिपोर्ट बनाएं।"
+      }
+    },
+    "health_health_insights": {
+      "text": "स्वास्थ्य अंतर्दृष्टि",
+      "description": {
+        "text": "स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।"
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "डॉक्टर अपॉइंटमेंट तैयार करें",
+      "description": {
+        "text": "अगली विज़िट में क्या चर्चा करनी है, तैयार करें।"
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "सामग्री कैलेंडर रणनीतिकार",
       "description": {
         "text": "30-दिनीय सोशल मीडिया सामग्री योजना बनाएं।"
+      },
+      "systemprompt": {
+        "text": "एक पेशेवर सोशल मीडिया रणनीतिकार के रूप में कार्य करें। नीचे दिए गए इनपुट का उपयोग करके, मुख्य लक्ष्य प्राप्त करने पर केंद्रित 30-दिवसीय सामग्री कैलेंडर बनाएं।\n\nपहले, इस विषय/क्षेत्र और लक्षित दर्शकों के लिए अपने मौजूदा ज्ञान और, यदि उपलब्ध हो, लाइव वेब डेटा का उपयोग करके एक संक्षिप्त आंतरिक शोध और रणनीति चरण करें। दर्शकों के मुख्य दर्द बिंदुओं और इच्छाओं, इस क्षेत्र में अच्छा प्रदर्शन करने वाली पोस्ट के प्रकार और हुक, और किसी भी प्रासंगिक वर्तमान प्रवृत्ति को स्पष्ट करें। इन जानकारियों का उपयोग केवल कैलेंडर को मार्गदर्शन देने के लिए करें, उन्हें अलग से आउटपुट न करें।\n\nआउटपुट इन सटीक स्तंभों के साथ एक Markdown तालिका होनी चाहिए (और कुछ नहीं): दिन #, तारीख, थीम/स्तंभ, प्लेटफ़ॉर्म, सामग्री विचार, कार्रवाई के लिए कॉल (CTA)।\n\nकैलेंडर दिशानिर्देश:\n- प्रारंभ तिथि से शुरू होकर प्रत्येक लगातार कैलेंडर दिन के लिए एक, वास्तविक तारीखों के साथ आरोही क्रम में ठीक 30 पंक्तियां बनाएं।\n- प्रत्येक पंक्ति में थीम/स्तंभ प्रदान किए गए सामग्री स्तंभों में से एक होना चाहिए, 30 दिनों में उचित रूप से संतुलित मिश्रण के साथ।\n- प्लेटफ़ॉर्म स्तंभ पोस्टिंग शेड्यूल का पालन करना चाहिए। यदि किसी दिन के लिए कई प्लेटफ़ॉर्म निर्दिष्ट हैं, तो प्रत्येक प्लेटफ़ॉर्म के लिए एक पंक्ति बनाएं।\n\nसामग्री दिशानिर्देश:\n- प्रत्येक सामग्री विचार को पोस्ट प्रकार (जैसे Reel, कैरोसेल, स्थिर पोस्ट, कहानी, लाइव, पोल, LinkedIn टेक्स्ट पोस्ट) बताना चाहिए और लक्षित दर्शकों के लिए तैयार किया गया स्पष्ट, स्क्रॉल-रोकने वाला हुक शामिल करना चाहिए।\n- प्रत्येक CTA विशिष्ट, क्रिया-उन्मुख होना चाहिए और सीधे मुख्य लक्ष्य का समर्थन करना चाहिए (जैसे \"मुफ्त गाइड डाउनलोड करें\", \"एक कॉल बुक करें\", \"न्यूज़लेटर में शामिल हों\", \"अपने #1 प्रश्न के साथ टिप्पणी करें\")।\n- दोहराव से बचने के लिए 30 दिनों में प्रारूप और कोण बदलें (जैसे शैक्षणिक, कहानी सुनाना, पर्दे के पीछे, FAQ, आपत्तियां, सामाजिक प्रमाण, जुड़ाव संकेत)।\n- सुनिश्चित करें कि प्रत्येक विचार लक्षित दर्शकों के प्रमुख दर्द बिंदुओं और इच्छाओं से स्पष्ट रूप से जुड़ा हो और मुख्य लक्ष्य के साथ संरेखित हो।\n\nइनपुट (प्रॉम्प्ट चलाने से पहले भरें):\n* विषय/क्षेत्र: [यहां अपना विषय/क्षेत्र दर्ज करें]\n* लक्षित दर्शक: [यहां अपने लक्षित दर्शक दर्ज करें, यदि ज्ञात हो तो मुख्य दर्द बिंदु और इच्छाएं शामिल करें]\n* मुख्य लक्ष्य: [यहां अपना मुख्य लक्ष्य दर्ज करें, जैसे ईमेल सूची बढ़ाएं / बिक्री बढ़ाएं / प्राधिकरण बनाएं]\n* पोस्टिंग शेड्यूल: [यहां अपनी पोस्टिंग आवृत्ति और प्लेटफ़ॉर्म दर्ज करें, जैसे IG Reels पर 5x/सप्ताह + LinkedIn पर 3x/सप्ताह]\n* सामग्री स्तंभ: [यहां अपने 3–5 सामग्री स्तंभ दर्ज करें, कॉमा से अलग करें]\n* प्रारंभ तिथि: [अपने कैलेंडर की पहली तारीख दर्ज करें, जैसे 18 नवंबर 2025]\n\nकेवल अंतिम Markdown तालिका आउटपुट करें। तालिका के बाहर कोई स्पष्टीकरण, नोट्स या टेक्स्ट शामिल न करें।"
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (वीडियो ट्रांसक्रिप्ट)"
+              "text": "YouTube (वीडियो मेटाडेटा)"
             },
             "description": {
-              "text": "जब तुम OpenMates से YouTube वीडियो के लिए ट्रांसक्रिप्ट प्राप्त करने के लिए कहते हो, तब YouTube से क्वेरी की जाती है। YouTube को बिना किसी OpenMates उपयोगकर्ता पहचानकर्ता के वीडियो URL और अनुरोधित ट्रांसक्रिप्ट भाषा प्राथमिकताएं प्राप्त होती हैं।"
+              "text": "वीडियो और चैनल का सार्वजनिक मेटाडेटा प्राप्त करने के लिए OpenMates उनके पहचानकर्ता आधिकारिक YouTube Data API को भेजता है। YouTube को ये पहचानकर्ता और हमारे सर्वर की नेटवर्क जानकारी मिलती है, लेकिन OpenMates उपयोगकर्ता पहचानकर्ता नहीं मिलता।"
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "वॉइस कॉल में Mistral ट्रांसक्रिप्शन, ElevenLabs v4 Turbo की आवाज़, OpenMates की सामान्य AI रूटिंग और उपयोग आधारित बिलिंग होती है।"
+    },
+    "privacy_description": {
+      "text": "Mistral तुम्हारे माइक्रोफ़ोन की आवाज़ को टेक्स्ट में बदलता है; ElevenLabs v4 Turbo उत्तर के टेक्स्ट और आवाज़ की सेटिंग से सहायक की आवाज़ बनाता है। बातचीत में OpenMates की सामान्य AI रूटिंग और स्किल्स इस्तेमाल होती हैं। प्रदाता अपनी नीतियों के अनुसार अनुरोध का डेटा रख सकते हैं।"
+    },
+    "privacy_terms": {
+      "text": "OpenMates गोपनीयता नीति"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "हमारे Discord के सदस्य"

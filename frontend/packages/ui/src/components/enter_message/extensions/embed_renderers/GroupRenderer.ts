@@ -47,6 +47,7 @@ import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPr
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
+import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
@@ -2199,6 +2200,14 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "web" && skillId === "browse") {
+        const component = mount(BrowseEmbedPreview, {
+          target,
+          props: { id: embedId, content: decodedContent ?? {}, status, onFullscreen: handleFullscreen },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
       if (appId === "web" && skillId === "read") {
         const component = mount(WebReadEmbedPreview, {
           target,

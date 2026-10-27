@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "JobTech ile İsveç'teki herkese açık iş ilanlarını arayın."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Transkript al",
         "description": {
-          "text": "Bir YouTube / media.ccc.de videosunun transkriptini alın."
+          "text": "media.ccc.de konuşmalarının yayımlanmış altyazılarını alın."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Roma İmparatorluğu hakkındaki Vikipedi sayfasını oku ve önemli bilgileri ver"
           }
+        }
+      },
+      "browse": {
+        "text": "Gezin",
+        "description": {
+          "text": "Web sitelerinde gezinin ve gözlemlenen bilgileri JSON olarak alın."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Barındırma",
       "description": {
-        "text": "Alan adları bulun, müsaitliklerini ve fiyatlarını kontrol edin."
+        "text": "Alan adı araması şu anda kullanılamıyor."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Posta",
       "description": {
-        "text": "E-posta gönderin, yönetin ve yazın."
+        "text": "E-posta taslakları hazırlayın ve postalarınızla çalışın."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Videolar",
       "description": {
-        "text": "Video arayın, transkript alın."
+        "text": "Video bulun ve oluşturun."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Seyahat",
       "description": {
-        "text": "Konaklama, ulaşım arayın ve planlayın."
+        "text": "Seyahat planlayın ve kaydedilmiş seyahat bilgilerini saklayın."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "Elektronik bileşen araması şu anda kullanılamıyor."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Konut",
       "description": {
-        "text": "Yeni bir ev arayın ve daha fazlası."
+        "text": "Kaydedilmiş konut bilgilerini saklayın."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Etkinlikler",
       "description": {
-        "text": "Gathering, konferans ve yerel etkinlikleri keşfedin."
+        "text": "Kaydedilmiş etkinlik bilgilerini saklayın."
       },
       "search": {
         "text": "Ara",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Kaydedilmiş 3B modelleri görüntüleyin."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Alışveriş",
       "description": {
-        "text": "Süpermarket fiyatlarını karşılaştırın ve fırsatlar bulun."
+        "text": "Ürün araması şu anda kullanılamıyor."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Göz at"
+      },
+      "running": {
+        "text": "Geziniliyor"
+      },
+      "user_control": {
+        "text": "Kontrol sizde"
+      },
+      "paused": {
+        "text": "Duraklatıldı"
+      },
+      "completed": {
+        "text": "Tamamlandı"
+      },
+      "no_results": {
+        "text": "Sonuç yok"
+      },
+      "needs_user": {
+        "text": "Girişiniz gerekiyor"
+      },
+      "blocked": {
+        "text": "Engellendi"
+      },
+      "failed": {
+        "text": "Başarısız"
+      },
+      "cancelled": {
+        "text": "İptal edildi"
+      },
+      "budget_exceeded": {
+        "text": "Harcama sınırına ulaşıldı"
+      },
+      "closed": {
+        "text": "Tarayıcı kapatıldı"
+      },
+      "expired": {
+        "text": "Oturumun süresi doldu"
+      },
+      "unavailable": {
+        "text": "Tarayıcı kullanılamıyor"
+      },
+      "watch": {
+        "text": "Tarayıcıyı izle"
+      },
+      "take_control": {
+        "text": "Kontrolü al"
+      },
+      "continue": {
+        "text": "Yapay zekâ devam etsin"
+      },
+      "pause": {
+        "text": "Duraklat"
+      },
+      "close": {
+        "text": "Tarayıcıyı kapat"
+      },
+      "sign_in_title": {
+        "text": "Giriş yapmadan önce"
+      },
+      "sign_in_confirm": {
+        "text": "Giriş yapmaya devam et"
+      },
+      "saved_frame": {
+        "text": "Kayıtlı tarayıcı görüntüsü"
+      },
+      "live_frame": {
+        "text": "Canlı tarayıcı"
+      },
+      "waiting_frame": {
+        "text": "Tarayıcı bekleniyor…"
+      },
+      "text_input": {
+        "text": "Web sitesi için metin"
+      },
+      "send_text": {
+        "text": "Metni gönder"
+      },
+      "scroll_up": {
+        "text": "Yukarı kaydır"
+      },
+      "scroll_down": {
+        "text": "Aşağı kaydır"
+      },
+      "structured_data": {
+        "text": "Yapılandırılmış veri"
+      },
+      "connection_error": {
+        "text": "Bağlantı kesildi. Başka bir işlemden önce yenileyin."
+      },
+      "credits": {
+        "text": "{used} / {limit} kredi"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Bulut tarayıcısında giriş yapıyorsunuz. Yapay zekânın devam etmesine izin verirseniz bu hesaptaki bilgilere erişebilir. İlgili sayfa içeriği yapay zekâ sağlayıcılarımıza gönderilebilir. Yalnızca yapay zekâya erişim vermek istediğiniz hesaplara giriş yapın."
+      },
+      "manual_hint": {
+        "text": "Sayfaya tıklayın veya Tab ve Enter ile gezinin. Metin yalnızca bu siteye gönderilir ve gönderildikten sonra bu alandan silinir."
+      },
+      "paused_hint": {
+        "text": "Tarayıcı duraklatıldı ve işlem ücreti yok. Devam etmek için kontrolü alın. Oturum 24 saat etkileşim olmadığında silinir."
+      },
+      "watch_hint": {
+        "text": "İzliyorsunuz. Siteyle etkileşim için kontrolü alın. İzlemek oturumu etkin tutmaz."
+      },
+      "stopping": {
+        "text": "Durduruluyor…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "Her iki rolün günlük sorumluluklarını ve gelişim yollarını karşılaştır"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "Almanya'daki Hava Fritözlerini Karşılaştırma"
-      },
-      "summary": {
-        "text": "ExampleRetail Almanya'daki en iyi hava fritözlerini fiyat, kapasite ve puanlara göre karşılaştırarak iki kişilik bir hane için Philips Airfryer 2000 Serisi'ni önerdi."
-      },
-      "message_1": {
-        "text": "Almanya'da çevrim içi satın alabileceğim hava fritözlerini (ExampleRetail listeleri dahil) bul. Güncel fiyatları, kapasiteleri ve inceleme puanlarını karşılaştır, ardından kaynak bağlantılarıyla birlikte iki kişilik bir hane için bir tane öner."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nExampleRetail Almanya'da şu anda mevcut olan en yüksek puanlı hava fritözlerinin (air fryer) fiyat, kapasite ve müşteri değerlendirmelerini içeren bir karşılaştırmasını aşağıda bulabilirsin.\n\n---\n\n### Almanya'daki Popüler Modellerin Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2 Kişilik Haneler İçin En İyi Öneri\n\n#### **Birinci Tercih: [Philips Airfryer 2000 Serisi 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Neden iki kişi için en uygunu:**\n  * **Optimal Kapasite (6,2 L):** 4,5–5 L'den küçük sepetler, iki kişi için bile birden fazla seferde pişirme gerektirir. 6,2 L'lik bir sepet, iki somon filetoyu ve yanına tam bir porsiyon sebze veya patates kızartmasını, eşit çıtırlık için tek bir katmana yaymana olanak tanır.\n  * **Mutfakta Kapladığı Alan:** Çift bölgeli makineler (Ninja veya Russell Hobbs gibi) tezgahta önemli ölçüde yer kaplar. Tek bir 6 L'lik sepet, tipik Alman mutfak tezgahları için uygun, kompakt bir yapı sunarken geniş bir hacim sağlar.\n  * **Şeffaf Pencere:** Çekmeceyi açıp ısı kaybetmeden kızarma durumunu kontrol etmeni sağlar.\n  * **Değer:** 99,99 € fiyatıyla, [Philips](wiki:Philips) kalitesinde güvenilir sıcaklık tutarlılığını makul bir fiyata sunar.\n\n#### **Alternatif (Sık Sık Farklı Sıcaklıklarda İki Yemek Pişiriyorsan): [Philips Dual Basket 3000 Serisi (9.0L)](embed:philips-airfryer-dual-pjD)**\nSen ve partnerin proteinleri ve garnitür sebzeleri aynı anda farklı sıcaklık ve sürelerde (örneğin, 180 °C'de tavuk göğsü ve 200 °C'de çıtır patates) hazırlamayı tercih ediyorsanız, bu model şu anda 119,99 €'ya indirimli ve senkronize pişirme süreleri özelliğine sahip.\n\n---\n\n### Satın Almadan Önce Dikkat Edilmesi Gereken Temel Faktörler\n1. **Çekmece Şekli:** Kare sepetler (Cosori ve Philips gibi), aynı litre kapasitesindeki yuvarlak sepetlere göre düz ürünleri (biftekler, fırın kalıpları, şişler) çok daha iyi alır.\n2. **Bulaşık Makinesi Uygunluğu:** Bulaşık makinenin 6 L'lik tek bir çekmece için yeterli raf yüksekliğine sahip olduğundan emin ol veya yapışmaz kaplamaların ömrünü uzatmak için elde yıkamayı düşün."
-      },
-      "follow_up_1": {
-        "text": "Hava fritözleri için özel olarak tasarlanmış tarifleri ara"
-      },
-      "follow_up_2": {
-        "text": "Tek ve çift hazneli hava fritözleri arasındaki temel farkları açıkla"
-      },
-      "follow_up_3": {
-        "text": "Bu hava fritözü için uyumlu pişirme aksesuarlarını bul"
-      },
-      "follow_up_4": {
-        "text": "Hava fritözünde akşam yemeği pişirmek için başlangıç dostu tarifleri listele"
-      },
-      "follow_up_5": {
-        "text": "Bu modellerin güncel enerji tüketim değerlerini kontrol et"
-      },
-      "follow_up_6": {
-        "text": "Seramik ve teflon kaplamalar için temizlik ve bakım gereksinimlerini karşılaştır"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II Görevi Öne Çıkanlar ve Keşif"
@@ -8894,38 +8967,6 @@
         "text": "[code] Benzer bir şablon oluştur ama farklı bir tasarım estetiğiyle"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Berlin'de Başlangıç Seviyesi Yoga Dersleri"
-      },
-      "summary": {
-        "text": "Berlin'de saatleri, fiyatları ve rezervasyon bağlantılarıyla birlikte başlangıç seviyesine uygun üç yoga dersi bul."
-      },
-      "message_1": {
-        "text": "Yogaya yeni başlıyorum ve önümüzdeki hafta Berlin'de başlangıç seviyesine uygun bir ders arıyorum. Saatleri, fiyatları ve rezervasyon bağlantılarıyla birlikte birkaç ders bulabilir misin?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nİşte önümüzdeki hafta Berlin genelinde gerçekleşecek başlangıç dostu [yoga](wiki:Yoga) dersleri:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Nedir:** Nefes odaklı hareketleri, hizalanma ve dinginliği keşfetmek için duruşlarla dengeleyen farkındalık dolu bir ders. Yeni başlayanlar için özel olarak tasarlanmıştır (İngilizce olarak verilir).\n- **Tarih ve Saat:** 14 Ekim 2026 Çarşamba, 18:00 – 19:00 CEST (10 dakika erken gelin)\n- **Konum:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Fiyat:** 11,83 € – 22,49 €\n- **Rezervasyon:** [ExampleTickets üzerinden bilet alın](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Nedir:** Akışların nazik bir tempoda adım adım açıklandığı, her seviyeye uygun, resmi olmayan ve rahat bir mobilite ve yoga seansı. Önceden esneklik veya deneyim gerekmez.\n- **Tarih ve Saat:** 13 Ekim 2026 Salı, 19:00 – 19:45 CEST (15 dakika erken gelin)\n- **Konum:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Fiyat:** 5 € (bouldering de yaparsanız ExampleFitness / Wellpass ile ücretsiz giriş)\n- **Rezervasyon:** [Detayları ve rezervasyon bağlantısını görüntüle](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Nedir:** Nefes farkındalığına, vücut hizalamasına ve stres atmaya odaklanan, yeni başlayanlar için modifikasyonlar sunan dinamik ama nazik bir Vinyasa seansı.\n- **Tarih ve Saat:** 14 Ekim 2026 Çarşamba, 19:30 – 21:00 CEST\n- **Konum:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Fiyat:** İlk deneme dersiniz için 10 € (başlangıç paketi: 3 ders 20 €)\n- **Rezervasyon:** [Berlin Yoga Club Gathering üzerinden LCV yapın](embed:vinyasa-flow-in-a8l)\n\n---\n\n### İlk yoga dersiniz için ipuçları\n* **Kıyafet:** İçinde kolayca hareket edebileceğiniz ve eğilebileceğiniz rahat, esnek kıyafetler. Yoga genellikle çıplak ayakla yapılır.\n* **Sıvı Alımı ve Öğünler:** Dersten önceki 1,5–2 saat içinde ağır öğünlerden kaçının.\n* **Vücudunuzu dinleyin:** Dersten önce eğitmene ilk kez geldiğinizi bildirin; size düzeltmeleri ve yardımcı ekipmanları (bloklar, battaniyeler veya kemerler) memnuniyetle göstereceklerdir. Mevcut eklem veya sırt sorunlarınız varsa, dinamik sekansları denemeden önce bir doktora veya fizyoterapiste danışın.\n\nBelirli bir mahalleye (örneğin Neukölln, Prenzlauer Berg, Charlottenburg) daha yakın öneriler mi istersiniz, yoksa [Hatha yoga](wiki:Hatha_yoga) veya [Yin yoga](wiki:Yin_yoga) gibi nazik bir tarza mı odaklanmak istersiniz?\n---\n*⚠️ Bu bilgiler yalnızca eğitim amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Tıbbi kararlar için doktorunuza danışın.*"
-      },
-      "follow_up_1": {
-        "text": "Berlin Neukölln'deki yoga derslerini ara"
-      },
-      "follow_up_2": {
-        "text": "İlk yoga dersinde neler bekleneceğini açıkla"
-      },
-      "follow_up_3": {
-        "text": "Gelecek hafta sonu için Hatha yoga atölyeleri bul"
-      },
-      "follow_up_4": {
-        "text": "Vinyasa ve Hatha yoga stillerini karşılaştır"
-      },
-      "follow_up_5": {
-        "text": "Mitte'deki Yin yoga stüdyolarını ara"
-      },
-      "follow_up_6": {
-        "text": "Yoga matı satın almak için yeni başlayanlara yönelik ipuçlarını listele"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Berlin'de İngilizce konuşan bir aile hekimi bul"
-      },
-      "summary": {
-        "text": "Dürüst sigorta detayları ve klinik bağlantılarıyla randevu seçeneklerini bul."
-      },
-      "message_1": {
-        "text": "Gelecek hafta Berlin'de İngilizce konuşan bir aile hekimi randevusuna ihtiyacım var. Lütfen en erken seçenekleri karşılaştır, randevu kartlarını göster ve sigorta kapsamını yalnızca rezervasyon listesi onayladığında belirt. Kapsam net değilse bunu belirt."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nBerlin'de önümüzdeki 7 gün içinde bulduğum en erken İngilizce konuşan pratisyen hekim (GP) seçeneklerini aşağıda bulabilirsin. Sigorta kapsamını yalnızca randevu ilanında belirtildiği durumlarda ekledim.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Gelecek haftanın en erken seçenekleri**\n1. **12 Ekim Pzt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Adres: Albert-Einstein-Straße 2, 12489 Berlin\n   - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)\n   - Belirtilen diller: Almanca, İngilizce\n   - **Sigorta:** özel *(ilan tarafından onaylandı)*\n\n2. **12 Ekim Pzt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Adres: Kapweg 5, 13405 Berlin\n   - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)\n   - Belirtilen diller: İngilizce\n   - **Sigorta:** özel *(ilan tarafından onaylandı)*\n\n3. **12 Ekim Pzt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Adres: Stargarder Straße 69, 10437 Berlin\n   - Muayene türü: Acil muayene (Akutsprechstunde)\n   - Belirtilen diller: Almanca, İngilizce\n   - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*\n\n4. **12 Ekim Pzt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Adres: Müllerstraße 36, 13353 Berlin\n   - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)\n   - Belirtilen diller: Almanca, İngilizce\n   - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*\n\n5. **12 Ekim Pzt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Adres: Wallstraße 16, 10179 Berlin\n   - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)\n   - Belirtilen diller: Almanca, İngilizce\n   - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*\n\nBirkaç not:\n- Özellikle **gelecek hafta** için sorduğun için **9–10 Ekim** tarihlerindeki daha erken iki seçeneği yukarıdaki karşılaştırmaya dahil etmedim.\n- Bu sonuçlar ExampleClinicA ilanlarından alınmış gibi görünüyor; ExampleClinicB kapsamı bu arama sonuçları setinde desteklenmiyordu.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nİstersen şunları yapabilirim:\n- onaylandığı durumlarda bunu sadece **kamu sigortası** ile sınırlandırabilirim veya\n- **semte / bulunduğun yere olan mesafeye** göre kısa bir liste oluşturabilirim.\n---\n*⚠️ Bu bilgiler sadece eğitim amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Tıbbi kararlar için doktoruna danış.*"
-      },
-      "follow_up_1": {
-        "text": "Mitte'de kamu sigortalı aile hekimi randevularını ara"
-      },
-      "follow_up_2": {
-        "text": "Randevuları sadece kamu sigortasını gösterecek şekilde filtrele"
-      },
-      "follow_up_3": {
-        "text": "Prenzlauer Berg bölgesi yakınlarında İngilizce konuşan doktorlar bul"
-      },
-      "follow_up_4": {
-        "text": "Seçenekleri mahalle ve mesafeye göre daralt"
-      },
-      "follow_up_5": {
-        "text": "Berlin'de uzman doktor randevularını ara"
-      },
-      "follow_up_6": {
-        "text": "Bu doktor randevularının internetten nasıl alınacağını açıkla"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "Gethenliler ve Oankalilerin uzaylı biyolojilerini karşılaştır"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "Web performansı için SVG dosyalarının nasıl optimize edileceğini açıkla"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Bir marka adı ve alan adı bul"
-      },
-      "summary": {
-        "text": "Kısa bir isimlendirme sohbeti: yedi aday üzerinde beyin fırtınası yap, ardından alan adı, web ve ön ABD ticari marka kanıtlarıyla iki finalisti karşılaştır."
-      },
-      "message_1": {
-        "text": "Yeni ürünüm için bir isim bulmama yardım et."
-      },
-      "message_2": {
-        "text": "Başlamak için, ürünün ne işe yarıyor, hedef kitlen kim ve isim nasıl bir ton veya his uyandırmalı (örneğin; eğlenceli, premium, teknik)?"
-      },
-      "message_3": {
-        "text": "ABD'deki serbest çalışanlar için İngilizce dilinde, sakin bir bütçeleme uygulaması. Kısa, akılda kalıcı isimler ve yıllık 20 €'ya kadar bir .com alan adı istiyorum. Lütfen önce çeşitli seçeneklerden oluşan kısa bir liste hazırla."
-      },
-      "message_4": {
-        "text": "Sakin bir serbest çalışan bütçeleme deneyimine göre uyarlanmış, telaffuz edilebilir ve çeşitli isimlerden oluşan ilk kısa liste:\n\n- [ ] **Serenito**: Dalgalı solo gelir için dinginlik ve nazik bir tempo çağrıştırır.\n- [ ] **Solowell**: Solo girişimciler için finansal sağlık ve huzur telkin eder.\n- [ ] **Equafy**: Düzensiz bolluk ve kıtlık nakit akışı döngülerini dengelemeye odaklanır.\n- [ ] **StillLedger**: Klasik muhasebe yapısını bilinçli, düşük stresli bir dinginlikle eşleştirir.\n- [ ] **Cadenceo**: Geçici iş ödemelerinden istikrarlı, öngörülebilir bir ritim oluşturmayı ima eder.\n- [ ] **HavenFin**: Para yönetimini güvenli, rahatlatıcı bir liman olarak çerçeveler.\n- [ ] **Placidly**: Finansal kaygıyı dağıtan yumuşak, güven verici bir ton.\n\n*(Not: Bu kısa liste, canlı alan adı müsaitliği veya yasal izinler açısından kontrol edilmemiştir.)*\n\nHangi 2–3 isim için canlı kontrol yapmak istersin? Favorilerini seçebilir veya .com fiyatlandırması, marka çakışmaları ve ABD ticari markalarını doğrulamak için finalistleri seçmemi isteyebilirsin.\n\n- [Serenito, Solowell ve Equafy'yi kontrol et](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Benim için en iyi 3 tanesini seç ve kontrol et](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Lütfen Equafy ve Cadenceo'yu kontrol et: .com müsaitlikleri ve belirtilen fiyatları, web'deki mevcut markalar ve ABD ticari markaları. Karşılaştırmayı, tavsiyen ve hala eksik olan kontrollerle birlikte kısa tut."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n12 Ekim 2026 tarihinde yapılan kontrollere dayalı karşılaştırma aşağıdadır:\n\n### Equafy\n- **Alan Adı**: `equafy.com` şu anda ExampleRegistrar üzerinde müsait değil; standart kayıt fiyatı mevcut değil, bu nedenle yıllık 20 € bütçesini karşılamıyor.\n- **Web ve marka görünümü**: Hiçbir önde gelen bütçeleme yazılımı tam olarak bu ismi kullanmıyor, ancak web aramaları [Equifax kişisel finans hizmetleri](embed:equifax.com-TrW) ile yüksek fonetik benzerlik ve arama karışıklığı gösteriyor.\n- **ABD ticari markaları (ExampleTrademarks)**: Ön araştırma 1.640 benzer kayıttan 5'ini döndürdü (kısaltılmış; tam isim yokluğu kesinleştirilemez). Aktif eşleşmeler arasında Sınıf 36'da (bekleyen finansal ve ön ödemeli hizmetler) ve Sınıf 35'te (kayıtlı açık artırma hizmetleri) `EQUIFY` bulunmaktadır.\n\n### Cadenceo\n- **Alan Adı**: `cadenceo.com` şu anda ExampleRegistrar üzerinde müsait değil; standart kayıt fiyatı mevcut değil, bu nedenle yıllık 20 € bütçesini karşılamıyor.\n- **Web ve marka görünümü**: iOS, Android ve web üzerinde ABD ve Kanada'da faaliyet gösteren köklü bir kişisel finans ve bütçe takip uygulaması olan [Cadence Money](embed:cadencemoney.com-IcE) ile doğrudan çakışıyor.\n- **ABD ticari markaları (ExampleTrademarks)**: Ön araştırma 227 benzer kayıttan 5'ini döndürdü (kısaltılmış; tam isim yokluğu kesinleştirilemez). `CADENCE` için aktif eşleşmeler Sınıf 9 indirilebilir yazılım kayıtlarını içermektedir.\n\n---\n\n### Öneri ve Değerlendirmeler\n- **Yönlendirme**: Her ikisinden de vazgeçin. **Equafy**, **Cadenceo**'ya (*Cadence Money* ile doğrudan çakışan) göre daha az doğrudan uygulama çakışmasına sahip olsa da, hiçbiri yıllık 20 € limitinizin altında müsait bir `.com` sunmuyor ve Equafy, *Equify* ve *Equifax* gibi mevcut finansal markalarla fonetik karışıklık taşıyor.\n- **Eksik kontroller**: ABD dışındaki uluslararası ticari marka sicilleri, teamül hukuku eyalet ticari marka başvuruları ve ikincil piyasa alan adı satın alma değerlemeleri kontrol edilmemiştir.\n\nDiğer kısa liste seçeneklerinde (**Solowell** veya **StillLedger** gibi) alan adı müsaitliğini ve uygunluğunu test etmek mi istersiniz, yoksa bütçe dahilinde müsait bir `.com` bulmak için hafif birleşik varyasyonları mı keşfetmek istersiniz?\n\n- [Solowell ve StillLedger'ı kontrol et](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20 € altındaki müsait .com'lar ile birleşik isimler türet](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Solowell ve StillLedger için alan adı müsaitliğini ve ticari markaları kontrol et"
-      },
-      "follow_up_2": {
-        "text": "Yirmi euronun altında, müsait .com alan adlarına sahip birleşik isimler için beyin fırtınası yap"
-      },
-      "follow_up_3": {
-        "text": "Gelecek bütçeleme uygulaması isim fikirleri için ticari marka kayıtlarını ara"
-      },
-      "follow_up_4": {
-        "text": "Bireysel girişimci uygulamaları için markalaşma ve isimlendirme stratejilerini karşılaştır"
-      },
-      "follow_up_5": {
-        "text": "Serbest çalışan finans uygulamaları için müsait alan adı uzantılarını ara"
-      },
-      "follow_up_6": {
-        "text": "Uygun fiyatlı girişim alan adları için alternatif alan adı kayıt kuruluşlarını listele"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Berlin'den Bangkok'a Uçuşlar"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Bangkok'ta bütçe dostu konaklama yerleri öner"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Balkonlu Berlin daireleri"
-      },
-      "summary": {
-        "text": "Gerçek Berlin daire ilanlarını, tam fotoğraf galerilerini, balkon kanıtlarını ve harita konumlarını; net bir şekilde etiketlenmiş doğrulanmamış maliyetler ve su erişimi ile karşılaştırın."
-      },
-      "message_1": {
-        "text": "Berlin'de balkonlu, ideal olarak bir nehir veya göl yakınında, aylık 1.800 EUR'ya kadar ve en az iki odalı kiralık bir daire arıyorum. Birkaç ilanı fotoğraf galerileri ve harita konumlarıyla karşılaştırabilir misin? Lütfen kira, kiralama tarihleri ve su erişimi dahil olmak üzere ilanların gerçekte neyi onayladığını bilinmeyenlerden ayırt et. Bir sağlayıcı yalnızca yaklaşık bir konum veya eksik fotoğraflar veriyorsa bunu belirt. Bazı ayrıntılar eksik olduğunda net bir şekilde etiketlenmiş olasılıklar kabulümdür."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nAşağıda, Berlin'de aylık 1.800 €'nun altındaki balkonlu 2 odalı kiralık dairelerin karşılaştırmalı bir dökümü yer almaktadır. Suya yakınlık iddiaları ve onaylanmış gerçekler ile belirsizlikler vurgulanmıştır:\n\nBerlin balkonlu 2 odalı kiralık daireler\n\n---\n\n### Özet Karşılaştırma\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Detaylı İlan Profilleri\n\n#### 1. [Ringbahn yakınında balkonlu 2 odalı loft daire](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Kira ve Maliyetler**: Toplam sıcak kira açıkça **aylık 1.350 €** olarak belirtilmiştir; bu tutar 1.200 € soğuk kira ve 150 € tutarında ayrıntısı belirtilmemiş ek masraflardan oluşmaktadır. Isınma giderlerinin dahil olup olmadığı açıkça belirtilmemiştir. Depozito 2.000 €'dur.\n* **Kiralama Şartları**: Belirli süreli alt kiralama. Yapılandırılmış veriler 01.11.2026 ile 01.04.2027 arasını listelerken, ilan açıklaması garantili sabit dönemin **1 Kasım - 28 Aralık 2026** olduğunu, karşılıklı anlaşmaya bağlı olarak 1 Nisan 2027'ye kadar esnek aylık uzatmalar yapılabileceğini netleştirmektedir.\n* **Balkon Kanıtı**: Onaylandı. Özelliklerde ve metinde (\"Fennpfuhlpark manzaralı güneşli balkon\") açıkça listelenmiştir. Görsel değerlendirmede mevcut 14 galeri fotoğrafından 3'ü incelenmiş ve 0 numaralı fotoğrafta balkonun görünür olduğu onaylanmıştır.\n* **Suya Erişim ve Konum**: Lichtenberg'deki Anton-Saefkow-Platz'da yer almaktadır. Coğrafi kodlama sokak düzeyinde eşleşmiştir (belirli bir bina numarası yok). OpenStreetMap verileri bir su kaynağını (**Fennpfuhl**, bir park gölü) doğrulamaktadır, ancak bu sadece temsilî bir koordinattır; kıyıya tam mesafe ve yürüme süresi hesaplanmamıştır ve bu nedenle doğrulanmamıştır.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Kira ve Maliyetler**: Her şey dahil **aylık 1.800 €** sabit fiyatla ilan edilmiştir (hem soğuk hem de sıcak kira 1.800 € olarak girilmiştir). Yan giderler, ısınma masrafları ve elektrik kalemlere ayrılmamıştır. Depozito 1.000 €'dur.\n* **Kiralama Şartları ve Kapsam Çelişkileri**:\n  * *Tarih çelişkisi*: Yapılandırılmış alanlar 21.10.2026 ile 03.05.2027 arasında uygunluk göstermektedir. Ancak Almanca metin, 11 Kasım'dan itibaren 2 ay süreyle uygun olduğunu belirtirken, ilanın alt kısmındaki İngilizce çeviri \"6 Kasım'dan itibaren, 4-6 ay\" ifadesini kullanmaktadır.\n  * *Oda kısıtlaması*: İlan, ev sahibine ait dahili bir odanın (*Sperrraum*) kilitli kalacağını ve kiralamaya dahil olmadığını belirtmektedir; ancak erişilebilir kalan alan 85 m² üzerinde iki oda olarak tanımlanmıştır.\n* **Balkon Kanıtı**: Onaylandı. İki balkonlu (biri avluya, diğeri suya bakan) olarak ilan edilmiştir. Örneklenen fotoğraflar (15 fotoğraftan 3'ü), 0 ve 14 numaralı fotoğraflarda balkonları doğrulamıştır.\n* **Suya Erişim ve Konum**: Adres [Neukölln](wiki:Neukölln)'deki Maybachufer olarak listelenmiştir. Coğrafi kodlama belirsiz bir sonuç döndürmüş ve genel Berlin şehir koordinatlarına geri dönmüştür. İlan metni açıkça [Landwehr Kanalı](wiki:Landwehr_Canal) manzarası olduğunu iddia etse de, koordinat hatası nedeniyle mahalle mesafesi ve yürüyüş rotaları geometrik olarak doğrulanamamıştır.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Kira ve Maliyetler**: Sıcak kira **aylık 1.372 €**'dan başlamakta olup, 130 € işletme gideri ve 105 € ısınma gideri kalemlere ayrılmıştır. Soğuk baz kira belirtilmemiştir ve açıklamada bunun bir promosyon kademesi için minimum başlangıç kirası olduğu not edilmiştir. Elektrik sözleşmesi kiracı tarafından bağımsız olarak yapılmalıdır.\n* **Kiralama Şartları**: Yeni bir konut projesi (*Erstbezug* 2026) için ticari bir operatör tarafından ilan edilmiştir. **Minimum 12 aylık kiralama süresi** (*Mindestmietdauer*) gerektirir. Başlangıç tarihleri açıktır (her Çarşamba/Perşembe düzenli gösterimler).\n* **Balkon Kanıtı**: Açıklama detaylarında (\"einen Balkon\") ve ilan edilen özelliklerde onaylanmıştır. 27 fotoğraftan 3'ünün görsel incelemesi, 26 numaralı fotoğrafta dış balkon yapısını doğrulamıştır.\n* **Suya Erişim ve Konum**: Neukölln/[Britz](wiki:Britz)'deki Buschkrugallee 64 adresinde yer almaktadır. Konum, bağımsız sokak doğrulaması olmaksızın sağlayıcı tarafından sunulan koordinatlara dayanmaktadır. Açıklama, kompleksin bir kanala (Neukölln Gemi Kanalı) komşu olduğunu belirtmektedir, ancak tam kıyı mesafesi ve yürüme erişim noktaları geometrik olarak hesaplanmamıştır.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Kira ve Maliyetler**: Sıcak kira **aylık 980 €** olarak ilan edilmiştir. Açıklamada \"Nebenkosten: 270 € pro Monat\" ifadesi geçmektedir, ancak bunun 980 €'ya dahil mi olduğu yoksa üzerine mi eklendiği net değildir. Depozito 1.500 €'dur.\n* **Kritik Tüm Daire - Oda Belirsizliği**: Başlıkta \"2-Zimmer Wohnung... zur Untermiete\" (Kiralık 2 odalı daire) yazmaktadır, ancak metin şu şekilde başlamaktadır: *\"Wir vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon...\"* (Balkonlu güzel, sessiz ve mobilyalı odamızı kiralıyoruz...). 50 m²'lik 2 odalı dairenin tamamının mı yoksa sadece içindeki tek bir odanın mı alt kiraya verildiği belirsizdir.\n* **Balkon Kanıtı**: Görsel olarak onaylanmadı. Başlıkta ve metinde balkonlu olduğu ilan edilse de, ilanı veren kişi tarafından sadece 1 fotoğraf sağlanmıştır ve o fotoğrafta balkon görünmemektedir.\n* **Suya Erişim ve Konum**: 14057 [Charlottenburg](wiki:Charlottenburg)'da yer almaktadır. Sağlayıcı sokak adı veya bina numarası belirtmemiştir (sadece posta kodu düzeyinde hassasiyet). Açıklama, Lietzenseepark'a (Lietzensee gölünü içerir) yürüme mesafesinde olduğunu belirtmektedir, ancak sokak adresi olmadan tam rota süresi ve kıyı mesafesi hesaplanamaz.\n* **Kiralama Şartları**: 01.11.2026'dan maksimum 01.11.2027'ye kadar belirli süreli alt kiralama (daha kısa süreler müzakere edilebilir).\n\n---\n\n### Sorgulama Öncesi Önemli Notlar\n1. **Su Doğrulaması**: Sadece Maybachufer dairesi, dairenin kendisinden açık bir su yoluna bakmaktadır, ancak coğrafi kodu yaklaşık değerdedir ve tarihler çelişmektedir. Anton-Saefkow-Platz dairesinin Fennpfuhl'a park yakınlığı onaylanmıştır, ancak tam kıyı mesafesi ölçülmemiştir.\n2. **Kira Türleri**: ExampleHousingC ilanlarının hiçbiri ucu açık (*unbefristet*) kira sözleşmesi sunmamaktadır; hepsi belirli süreli alt kiralamalardır. Momento Berlin, 12 aylık minimum süre ile başlayan daha uzun vadeli kiralama sunmaktadır.\n3. **Fotoğraf İnceleme Sınırlamaları**: Görsel değerlendirme, ilan başına 1 ila 3 resimden oluşan sınırlı bir örneklemi incelemiştir. Her bir ilan kartı üzerinden erişilebilen tam galerilerde ek özellikler görünebilir.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Daire Arama Parametrelerini Belirleme**\n\nŞu anda Berlin kiralık ilanları için kesin arama parametrelerini belirlemeye odaklanıyorum. Şehri Berlin olarak belirledim; ilan türünü \"kiralık\", mülk türünü ise \"daire\" ile sınırlandırdım. Balkon kesin bir gereklilik ve bunun arama kriterlerine dahil edildiğinden emin olacağım.\n\n\n**Arama Kriterlerini İyileştirme**\n\nArama parametrelerini az önce daha da detaylandırdım. \"İdeal olarak bir nehir veya göl yakınında\" ifadesini, \"neighborhood_categories: ['water']\" olarak sınıflandırılan bir su yakınlığı tercihine dönüştürdüm. \"Aylık 1.800 EUR'ya kadar\" olan bütçeyi, bunun sıcak kira (warm rent) olduğunu varsayarak `max_warm_rent_eur: 1800` şeklinde belirledim. Ayrıca, \"Bazı detaylar eksik olduğunda açıkça etiketlenmiş olasılıklar memnuniyetle karşılanır\" dendiği için, `include_unconfirmed: true` ile onaylanmamış ilanları da açıkça dahil edeceğim.\n\n\n**Arama Gereksinimlerini Analiz Etme**\n\nŞu anda bu konut arama aracının yönergelerini dikkatle analiz ediyorum. Tercihlerimi en iyi şekilde doğru yapılandırılmış filtrelere ve `relevance_criteria` (alaka düzeyi kriterleri) kısmına nasıl aktaracağıma odaklanıyorum. Su yakınlığı, balkon kanıtı ve bütçe kısıtlamalarıyla ilgili gereksinimlerimin tamamının düzgün şekilde kodlandığından emin olmam gerekiyor. Ayrıca aramamda nelerin \"zorunlu\", nelerin \"hariç tutulan\" ve nelerin \"tercih edilen\" olduğunu ayırt etmeye çalışıyorum.\n\n\n**İlan Veri Bütünlüğünü Değerlendirme**\n\nŞu anda veri bütünlüğü konusuna yoğunlaşmış durumdayım. Görsel kanıtlar hakkında aşırı iddialı beyanlardan kaçınmalı ve her sağlayıcının sınırlamalarını belirtmeliyim. Suya yakınlık, sağlam kanıtlara dayanmalı; zenginleştirilmiş veri mevcut olmadığında veya zaman aşımına uğradığında \"doğrulanmadı\" olarak raporlanmalıdır. Görünür bir balkonun mutlaka o daireye ait olduğunun garanti edilemeyeceği açık olmalı ve kira sözleşmesi ayrıntılarını yalnızca açıkça belirtildiğinde raporlayabilirim.\n\n\n**İlan Verilerini Analiz Etme**\n\nŞu an gelen ilanların derinliklerine indim, sağlanan kurallarla titizlikle çapraz kontrol yapıyorum. Odak noktam, onaylanmış veri noktalarını belirsizliklerden net bir şekilde ayırmak. Kira bedeli, kira tarihleri ve suya erişim gibi ayrıntılara yakından dikkat ediyor, her türlü belirsizliği işaretliyorum. Hedefim tam isabetli hassasiyet.\n\n\n**Yakınlık Kriterlerini Netleştirme**\n\nŞu anda nüanslı yakınlık gereksinimlerini entegre ediyorum. Kanıtlardaki tüm sınırlamaları dikkatle belgeliyorum. Doğrulanmış iddiaları doğrulanmamış bilgilerden şeffaf bir şekilde ayırmaya odaklanıyorum. Belgelerimde doğruluğa öncelik veriyorum. Nelerin doğrulanmış suya erişim teşkil ettiği ve nelerin etmediği konusunda net davranıyorum. Belirsiz verilerin açıkça etiketlenmesi gerekliliğini vurguluyorum.\n\n\n**Belirsizlik Kurallarını İyileştirme**\n\nŞu anda belirsiz veri noktaları etrafındaki kuralları iyileştirmeye odaklanıyorum. Eğer bir su özelliğinden bahsedilmiyorsa, bunu bilinmiyor olarak raporlayacağım; yakınlık çıkarımı yapmayacağım. Bir balkonun fotoğraftaki görünürlüğünü metin onayından ayıracağım. Kira koşullarını yalnızca belirtildiğinde açıkça raporlayacağım. Tarihlerdeki ve kira dökümlerindeki çelişkilere öncelik vereceğim. Görünüm olarak ekli önizleme kartlarını kullanacağım.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Sonuç Formatını Yorumlama**\n\nŞu anda \"embeds\\_results\\_view\" yanıtının yapısına odaklanıyorum. \"source\\_ref\" eksikliğini fark ettim; bu durum \"sources\" veya \"embeds\" alanlarından hangisinin doğru kullanılacağını etkiliyor. Bir source\\_ref mevcut olmadığında, döndürülen alt embed\\_ref değerlerine atıfta bulunarak \"embeds\" alanını kullanacağımdan emin olacağım. Ayrıca, tanımlayıcı bir öğe olarak \"title\" alanına dikkat edeceğim.\n\n\n**İlan Detaylarını İnceleme**\n\nŞu anda münferit ilanları, özellikle de \"Ringbahn yakınında, balkonlu 2 odalı loft daire\" ilanını yakından inceliyorum. Bu ilanı ekli verilerle çapraz kontrol ediyorum. Bir göl manzarasından bahsedilse bile, bilinmeyen mesafeler ve erişim nedeniyle doğrulanmamış su yakınlığını not ediyorum. Odak noktam, nelerin onaylandığını nelerin doğrulanmadığını net bir şekilde belirtmek. Tüm belirsizlikleri dikkatle belgeliyorum.\n\n\n**İlan Detaylarını Değerlendirme**\n\nBaşka bir ilanı değerlendirmeyi az önce bitirdim. Fotoğraf analizi yoluyla bir balkonun görünürlüğünü onayladım. Kira sözleşmesi süresi, sabit bir dönemi takip eden esnek uzatmalar sunuyor ve bunu belgeledim. Ayrıntılara odaklanmış durumdayım. Şimdi, ilgili tüm ilan bilgilerini tam olarak anlamaya çalışıyorum.\n```\n```\n\n**Belirli Nitelikleri Detaylandırma**\n\nŞu anda bu spesifik ilanı detaylandırıyorum. Sokak coğrafi kodu belirsiz; bunun su yakınlığı doğrulamasını etkilediğini not ediyorum. Landwehrkanal manzarasıyla ilgili metinsel iddia geometrik olarak doğrulanamıyor. Metinsel ve görsel kontrollerle balkon varlığını onaylıyorum. Yapılandırılmış veriler ile açıklama metni arasındaki kira tarihi çelişkisini açıkça işaretliyorum.\n\n\n**İlan Verilerini Değerlendirme**\n\nŞu anda en son ilana dalış yapıyorum. Eksik soğuk kira bedelini ve kesin olmayan kira dökümünü işaretledim. Reklamı yapılan kira bedeli bir başlangıç noktası, bu yüzden bilinmeyen minimum tutarı not ettim. İlandaki boyut bu aralığa girdiği için, projedeki daire boyutlarının çeşitliliği netlik gerektiriyor. Doğrulanmamış konum hassasiyeti nedeniyle belirsiz kanal yakınlığını işaretledim.\n\n\n**Kira Detaylarını Yorumlama**\n\nŞu anda en son ilanın kira bilgilerine ve balkon doğrulamasına odaklanıyorum. Metin ve örnek görseller aracılığıyla balkon görünürlüğünü onayladım. Verilerde 12 aylık minimum kira süresini ve net bitiş tarihlerinin eksikliğini not ettim. İlan balkonlu mobilyalı bir oda için ancak başlıkta 2 odalı daire yazıyor, bu yüzden potansiyel oda-daire belirsizliğini araştırıyorum. Tüm detaylara yakından dikkat ediyorum.\n\n\n**İlan Detaylarını Analiz Etme**\n\nŞu anda balkonlu mobilyalı bir oda olduğunu belirten yeni bir ilanı dikkatle analiz ediyorum. \"Vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" (güzel, sakin ve mobilyalı balkonlu odamızı kiralıyoruz) ifadesi kritik bir belirsizlik katıyor; sağlanan ilanın tek fotoğrafında balkon onayı eksik, bunu işaretledim. Adres ve bölge düzeyindeki coğrafi kod, su yakınlığını belirsiz kılıyor. Kira süresi 1 Kasım 2026'dan 1 Kasım 2027'ye kadar uzanıyor.\n\n\n**Su Bahislerini Karşılaştırma**\n\nŞu anda Maybachufer ve diğerleri gibi su özelliklerinden bahseden ilanları, iddialarının kesinliğini ve verilerdeki doğal ayrımları ayırt etmek için karşılaştırıyorum. Kanıtlarını ve kapsamlarını gözden geçiriyorum. Kullanıcı tarafından talep edilen kesin ayrıntılara odaklanmış durumdayım. Verilerdeki tüm belirsizlikleri ve sınırlamaları işaretleyeceğim.\n\n\n**Kira Dökümlerini Doğrulama**\n\nŞu anda kira rakamlarındaki tutarsızlıklara odaklanıyorum. Çelişkili rakamların uzlaştırılmasına, kalem kalem belirtilmemiş maliyetlerin raporlanmasına ve bilinmeyen ısınma dahil durumlarının açıkça not edilmesine öncelik veriyorum. Ayrıca, görüntüleme metninin asla embed\\_ref olmamasını sağlamak için satır içi ekleme (embed) referanslarını inceliyorum. Dahası, söz dizimine bağlı olarak ekleme referansları için yalnızca büyük veya küçük kartlar kullanacağım. Son olarak, bu güncellemenin en sonuna önerilen bir takip mesajı ekleyeceğim."
-      },
-      "message_3": {
-        "text": "En çok loft ve Maybachufer dairesiyle ilgileniyorum. Kayıtlı ilanlara dayanarak, 1.800 EUR kira gerçekten her şey dahil mi yoksa bazı faturalar hala belirsiz mi? Ayrıca, aramanın kaç fotoğraf getirdiğini, bunlardan kaçının kontrol edildiğini ve hangi balkon ve su detaylarının doğrudan ilanlarda yer aldığını açıklayabilir misin? Doğrulanmamış detayların bilinmiyor olarak kalmasını tercih ederim."
-      },
-      "message_4": {
-        "text": "İşte **Maybachufer dairesi** ve **Anton-Saefkow-Platz loftu** için ilan verilerinin neleri doğruladığına ve nelerin doğrulanmamış veya bilinmez kaldığına dair tam bir döküm.\n\n---\n\n### 1. Maybachufer Kirası: 1.800 € Gerçekten Her Şey Dahil mi?\n\n* **İlanda belirtilenler**: Hem soğuk kira (*Kaltmiete*) hem de toplam kira (*Warmmiete*) sabit **1.800 €** olarak girilmiş. Depozito 1.000 € olarak belirlenmiş.\n* **BİLİNMEYENLER**:\n  * **Gider Kalemleri**: İlan, işletme giderleri (*Betriebskosten/Nebenkosten*) veya ısınma giderleri (*Heizkosten*) için **ayrıntılı bir maliyet dökümü sunmuyor**.\n  * **Elektrik ve İnternet**: Ev sahibi, yapılandırılmış alanlarda ev elektriğinin (*Haushaltsstrom*) veya Wi-Fi'nin 1.800 €'ya dahil olup olmadığını veya kullanım sınırlarının geçerli olup olmadığını açıkça onaylamıyor.\n  * **Radyo-TV Vergisi**: Zorunlu Alman yayın ücretinin (*Rundfunkbeitrag*) dahil mi olduğu yoksa ayrıca mı kaydedilmesi gerektiği belirtilmemiş.\n* **Sonuç**: Mobilyalı kısa süreli alt kiralamalar için tipik olan götürü bir aylık tutar olarak pazarlansa da, ev sahibi elektrik, ısınma aşımı ve internet kapsamını onaylayan yazılı bir döküm sunana kadar **kesinlikle her şey dahil olduğu doğrulanamaz**.\n\n---\n\n### 2. Fotoğraf Galerisi Kapsamı: Getirilen ve Kontrol Edilen\n\nArama aracı, tam galeri sayılarını içeren ilan meta verilerini getirdi, ancak otomatik görsel analiz, temel özellikleri belirlemek için ilan başına yalnızca hedeflenen bir fotoğraf örneğini değerlendirdi:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Not: 14–15 yüksek çözünürlüklü fotoğrafın tamamına manuel olarak göz atmak için ilan kartlarını doğrudan açabilirsin.*\n\n---\n\n### 3. Balkon ve Su Detayları: Onaylananlar ve Bilinmeyenler\n\n#### Maybachufer Dairesi\n* **Balkon**:\n  * *İlan metniyle onaylanan*: Biri avluya (*Innenhof*), diğeri ise kanala/sokağa baktığı iddia edilen **iki balkon** bulunuyor.\n  * *Fotoğraf kontrolüyle onaylanan*: İncelenen 0 ve 14 numaralı fotoğraf dizinlerinde görünür balkon yapıları doğrulandı.\n  * *Bilinmeyen*: Balkonun tam boyutları, cephesi/güneş alma saatleri ve dış mekan mobilyası sağlanıp sağlanmadığı.\n* **Suya Erişim**:\n  * *İlan metniyle onaylanan*: Doğrudan [Neukölln](wiki:Neukölln)'deki [Landwehr Kanalı](wiki:Landwehr_Canal) boyunca Maybachufer üzerinde yer alıyor. Açıklama açıkça su manzaralı olduğunu iddia ediyor.\n  * *Araç tarafından bilinmeyen / doğrulanmayan*: Coğrafi kodlama sistemi, sokak adresi sorgusunu belirsiz olarak işaretledi ve tam bir parsel noktası yerine Berlin genelindeki bir merkez noktayı varsayılan olarak kabul etti. Sonuç olarak, ilanın yaya kanalı geçişlerine veya iskele erişimine olan tam mesafesi veri paketinden bağımsız olarak ölçülemedi.\n\n#### Anton-Saefkow-Platz Loftu\n* **Balkon**:\n  * *İlan metniyle onaylanan*: Açıkça \"Fennpfuhlpark manzaralı güneşli balkon\" reklamı yapılıyor.\n  * *Fotoğraf kontrolüyle onaylanan*: İncelenen 0 numaralı fotoğraf dizininde bir balkon yapısı doğrulandı.\n  * *Bilinmeyen*: Balkonun metrekaresi ve kat seviyesi (ilan üst katlarda loft tarzı olduğunu belirtiyor ancak tam katı belirtmiyor).\n* **Suya Erişim**:\n  * *İlan metni ve OpenStreetMap ile onaylanan*: Lichtenberg'de, içinde **Fennpfuhl** (tarihi bir göl) bulunan Fennpfuhlpark'ın bitişiğinde, Anton-Saefkow-Platz'da yer alıyor.\n  * *Araç tarafından bilinmeyen / doğrulanmayan*: İlan doğrudan bir nehir veya kanal kıyısında **değildir**; su özelliği bir iç park gölüdür. Ayrıca, parkın kendisi sokağın karşısında olsa da, su kenarına tam yaya yürüme süresi ve suyun balkondan ağaç tepelerinin üzerinden doğrudan görünüp görünmediği doğrulanmamıştır.\n\n---\n\n### Görüntülemeden Önce Ev Sahiplerine Sorulacak Sorular\n\n1. **Maybachufer için**:\n   * *\"1.800 €'luk aylık sabit ücret ısınma, elektrik ve interneti tam olarak kapsıyor mu yoksa konaklama sonunda ayrı bir yan gider hesaplaşması (*Nebenkostenabrechnung*) var mı?\"*\n   * *\"Tam alt kiralama tarihlerini onaylayabilir misiniz (özet 2 ay diyor ancak İngilizce açıklamada 4–6 aydan bahsediliyor)?\"*\n2. **Loft için**:\n   * *\"150 €'luk ek ücret ısınma ve internet dahil sabit bir ücret (*Pauschale*) mi yoksa bir avans ödemesi (*Vorauszahlung*) mi?\"*\n   * *\"Gerekirse sözleşmede 28 Aralık 2026 sonrasına uzatma garantisi veriliyor mu?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Emlak Detaylarını Netleştirme**\n\nŞu anda kullanıcının \"loft\" ve \"Maybachufer dairesi\" ile ilgili sorularına odaklanıyorum. Özellikle Maybachufer mülkü için 1.800 EUR tutarındaki kirayı derinlemesine inceliyorum. Bunun gerçekten her şey dahil olup olmadığını veya potansiyel ek maliyetler olup olmadığını kesin olarak belirlemem gerekiyor. Ayrıca, arama için mevcut olan fotoğraf sayısını netleştiriyorum.\n\n\n**Dahil Olan Detayların Doğrulanması**\n\nŞimdi Maybachufer dairesinin kirasının ayrıntılarına, özellikle de \"her şey dahil\" iddiasına odaklanıyorum. Amacım, nelerin dahil edildiğine ve nelerin hariç tutulduğuna dair tam dökümü çıkarmak. 1800 EUR'nun faturaları, interneti, ısınmayı ve yayın ücretini (GEZ) kapsayıp kapsamadığını ayırt etmem gerekiyor. İlk veriler çelişkili bilgiler gösteriyor, bu nedenle verilerin *aslında* neyi doğruladığını tam olarak belirlemeliyim.\n\n\n**Kapsam Eksikliklerinin Belirlenmesi**\n\nŞimdi faturalarla ilgili ayrıntıları netleştiriyorum. İlk verilerde GEZ ücretlerinin, elektriğin veya ısınma aşım bedellerinin dahil olup olmadığı doğrulanmamış durumda. Toplam fotoğraf sayısını net bir şekilde tanımlamam ve her mülk için ilgili tüm fotoğrafların analiz edildiğinden emin olmam gerekiyor. Maybachufer'in iki balkonu, loftun ise bir balkonu var, ancak boyutları belirtilmemiş. Ayrıca, Maybachufer mülkünün konumunu doğruluyorum."
-      },
-      "follow_up_1": {
-        "text": "Berlin'de su kenarında başka 2 odalı daireler ara"
-      },
-      "follow_up_2": {
-        "text": "Maybachufer'deki ev sahibi için Almanca bir başvuru mesajı taslağı hazırla"
-      },
-      "follow_up_3": {
-        "text": "Anton-Saefkow-Platz'dan Alexanderplatz'a toplu taşıma rotalarını ara"
-      },
-      "follow_up_4": {
-        "text": "Her iki dairenin depozito miktarlarını ve iptal şartlarını karşılaştır"
-      },
-      "follow_up_5": {
-        "text": "Berlin Lichtenberg için güncel hava durumunu kontrol et"
-      },
-      "follow_up_6": {
-        "text": "Berlin'de daire gezileri sırasında ev sahiplerine sorulacak temel soruları listele"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "Konut piyasası arzının fiyat kontrollerine nasıl tepki verdiğini açıkla"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Almanya'da Anlamlı İşler"
-      },
-      "summary": {
-        "text": "Almanya'daki iş ilanları için dört platformda arama yap, tasarım rollerini karşılaştır ve işverenler için sorular hazırla."
-      },
-      "message_1": {
-        "text": "Almanya'da, özellikle araştırma, tasarım veya yazılım mühendisliği alanlarında anlamlı bir iş arıyorum. Lütfen ExampleJobsB, ExampleJobsC, ExampleJobsD ve Federal İstihdam Kurumu'nu kullanarak birkaç güncel ilan bul. Almanya'nın her yerine açığım. İşveren, konum, kaynak ve başvuru bağlantısını içeren kısa bir liste hazırla; ilanda belirtilmediği sürece uzaktan çalışma veya maaş varsayımında bulunma."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nİşte ExampleJobsB, **ExampleJobsC**, **ExampleJobsD** ve **Federal İstihdam Kurumu**'ndan (*Example Employment Board*) alınan; Almanya'daki araştırma, tasarım ve yazılım mühendisliği alanlarındaki güncel iş ilanlarının kısa bir listesi.\n\n---\n\n### Tasarım\n\n* **Senior Product Designer**\n  * **İşveren:** voize (hemşirelik ve klinik bakım dokümantasyonunu kolaylaştırmak için konuşma tanıma yapay zekası geliştiriyor)\n  * **Konum:** Berlin, Almanya (uzaktan çalışmaya uygun olarak listelenmiş)\n  * **Kaynak:** ExampleJobsC\n  * **Maaş:** Belirtilmemiş\n  * **Başvuru:** [voize üzerinden başvur](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **İşveren:** stiftung ear (elektronik atıkların bertarafı, geri alımı ve döngüsel ekonomi takibini koordine eden ulusal kayıt kuruluşu)\n  * **Konum:** Nürnberg, Bavyera\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** İlan açıklamasında esnek/mobil çalışma seçeneklerinden bahsedilmiş ancak resmi bir tam uzaktan çalışma sınıflandırması yok; maaş belirtilmemiş\n  * **Başvuru:** [Example Employment Board üzerinden başvur](embed:ui-ux-design-1Bm)\n\n---\n\n### Araştırma\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **İşveren:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Konum:** Hamburg, Almanya\n  * **Kaynak:** ExampleJobsB\n  * **Çalışma Düzeni ve Maaş:** Belirtilmemiş\n  * **Başvuru:** [IFSH / ExampleJobsB üzerinden başvur](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **İşveren:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Konum:** Bochum, Kuzey Ren-Vestfalya\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** Tam zamanlı (haftalık 39,83 saat); uzaktan çalışma düzeni belirtilmemiş; TV-L E13 kamu toplu sözleşme skalasına göre ücretlendirilir (kesin miktar ilanda yayınlanmamış)\n  * **Başvuru:** [Example Employment Board üzerinden başvur](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **İşveren:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Konum:** Berlin\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** Metinde esnek/mobil seçeneklerden bahsedilmiş ancak sabit bir uzaktan çalışma durumu belirtilmemiş; maaş belirtilmemiş\n  * **Başvuru:** [Example Employment Board üzerinden başvur](embed:research-engineer-f-7ao)\n\n---\n\n### Yazılım Mühendisliği\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **İşveren:** idealo internet GmbH\n  * **Konum:** Berlin, Almanya\n  * **Kaynak:** ExampleJobsD\n  * **Çalışma Düzeni ve Maaş:** Yerinde/hibrit ofis ortamı; maaş belirtilmemiş\n  * **Başvuru:** [ExampleJobsD üzerinden başvur](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **İşveren:** Quantum-Systems GmbH (otonom hava platformları ve robotik algılama)\n  * **Konum:** Gilching, Bavyera\n  * **Kaynak:** ExampleJobsD\n  * **Çalışma Düzeni ve Maaş:** Yerinde/hibrit; maaş belirtilmemiş\n  * **Başvuru:** [ExampleJobsD üzerinden başvur](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Almanya'daki Fırsatların Belirlenmesi**\n\nŞu anda Almanya'daki ilgili iş ilanlarını tespit etmeye odaklanmış durumdayım. İşe gelecek vaat eden kaynaklardan oluşan bir liste derleyerek başladım: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` ve `Federal İstihdam Kurumu`. Temel ilgi alanım araştırma, tasarım ve yazılım mühendisliği rollerinde yatıyor ve konum unsurunu yakından takip edeceğim.\n\n\n**Arama Parametrelerinin İyileştirilmesi**\n\nŞimdi `jobs-search` aracını etkili bir şekilde kullanmak için yaklaşımımı geliştiriyorum. 5 istek sınırı göz önüne alındığında, bir dizi sorgu yapmak ve sağlayıcıları doğrudan belirtmek için `requests` dizisine odaklanıyorum. Sağlayıcıların bir liste olarak açıkça nasıl sunulacağını ve alaka düzeyi kriterlerinin nasıl tanımlanacağını onaylamak için fonksiyon tanımını kontrol ediyorum. Bu; işveren, konum, kaynak ve başvuru bağlantısını içeren bir kısa liste oluşturmaya yardımcı olacak. Amacım, açıkça belirtilmediği sürece uzaktan çalışma veya maaş hakkında varsayımlarda bulunmaktan kaçınmak.\n\n\n**Sağlayıcı Dönüşlerinin İncelenmesi**\n\nTamam, geri dönen sağlayıcılara ilk bakışımı attım. Görünüşe göre elimizde \"ExampleJobsC\" ve ExampleJobsD'dan birkaç ilan var; biri arka uç mühendisliğinde (Java/Kotlin) kıdemli bir rol, diğeri ise çalışan öğrenci rolü. İlk izlenimleri not ediyor ve her bir ilanın potansiyel etkisini değerlendiriyorum.\n\n\n**Mevcut Fırsatların Analiz Edilmesi**\n\nŞu anda gelecek vaat eden iki fırsatı değerlendirmeye odaklanmış durumdayım. Birincisi Hamburg Üniversitesi Barış Araştırmaları ve Güvenlik Politikası Enstitüsü'ndeki \"Ortak Burs Programı\", ikincisi ise Arayüz Siber Güvenlik Programı bünyesindeki \"Öğrenci Asistanı\" pozisyonu. Bunların barış ve güvenlik araştırmaları ile siber güvenlik bağlamındaki değerlerini sırasıyla dikkatle değerlendiriyorum.\n\n\n**Yeni Adayların Önceliklendirilmesi**\n\nDikkatimi dengeli bir kısa liste oluşturmaya kaydırdım. Alaka düzeyine ve son ilanlara odaklanarak tasarım ve araştırma alanındaki fırsatlara öncelik veriyorum. Şu anda Berlin'deki voize'da Kıdemli Ürün Tasarımcısı rolünü ve stiftung ear'daki UI/UX Tasarım pozisyonunu inceliyorum. Araştırma için, Hamburg'daki Ortak Burs Programı'nın yanı sıra Ruhr-Universität Bochum'daki bir rolü gözden geçiriyorum.\n\n\n**Yeni Olasılıkların Değerlendirilmesi**\n\nŞimdi yeni adayları kriterlerim ışığında tartıyorum. Federal İstihdam Kurumu aracılığıyla Berlin'deki Siemens Energy'de temel araştırmaya odaklanan bir Araştırma Mühendisi rolü gibi seçenekler ortaya çıkardım. Ayrıca sırasıyla idealo internet GmbH (Berlin, ExampleJobsD) ve CT Software Engineering'deki (Ingolstadt, Federal İstihdam Kurumu) Kıdemli Arka Uç ve Küçük C++ Yazılım Geliştirici rollerini de değerlendiriyorum. Bunlar yazılım mühendisliğine olan ilgime uygun.\n\n\n**Başvuru Kriterlerinin İyileştirilmesi**\n\nŞimdi başvuru bağlantılarının nasıl ele alınacağını netleştiriyorum. `[görünen metin](embed:embed_ref)` veya standart bağlantıların kullanımını kontrol ederek net başvuru süreçlerine öncelik vermeyi unutmamalıyım. Ayrıca, ilanda açıkça belirtilmediği sürece uzaktan çalışma varsayımında bulunmaktan veya maaş bilgisini paylaşmaktan kaçınmalıyım.\n\n\n**Başvuru Protokollerinin Netleştirilmesi**\n\nŞimdi başvuru bağlantısı formatlarına odaklanıyorum. Doğrudan bağlantı entegrasyonunu veya `(embed:embed_ref)` formatının kullanımını sağlamaya odaklanarak her ikisini birden sunmadığımdan emin oluyorum. Uyumluluğu sağlamak için uygulama becerilerinden dönen URL'leri dikkatle gözden geçiriyorum. İş başvurusu bağlantısı başına yalnızca bir bağlantı stili kullanma kuralına uymayı hedefliyorum.\n\n\n**Başvuru Bağlantılarının Standartlaştırılması**\n\nŞimdi başvuru bağlantısı stratejisini uyguluyorum. Amacım iş ilanları için formatı standartlaştırmak. Başvuru bağlantıları için yalnızca gömülü referansı (embed ref) kullanacağım. Ayrıca her boş pozisyon için rol, işveren, konum ve kaynağı dahil edeceğim ve gömülü bir bağlantı kullanacağım. Her boş pozisyon için her zaman tek bir bağlantı kullandığımdan emin olacağım.\n\n\n**Fırsat Verilerinin Derlenmesi**\n\nŞimdi birden fazla fırsat için ayrıntıları topluyorum. voize'daki Kıdemli Ürün Tasarımcısı rolü, stiftung ear'daki UI/UX Tasarım pozisyonu ve Hamburg Üniversitesi'ndeki Ortak Burs Programı için bilgilere sahibim. Her biri için rolü, işvereni, konumu ve kaynağı, ayrıca uzaktan çalışma ve maaş özelliklerini not ediyorum. Her başvuru için gömülü bağlantılar kullanarak tutarlı bağlantı formatları sağlamaya odaklanıyorum.\n\n\n**Yeni İlanların Entegre Edilmesi**\n\nŞimdi yeni ilanları veri setine entegre ediyorum. Ruhr-Universität Bochum'daki bir Araştırma Görevlisi pozisyonunu Federal İstihdam Kurumu'ndan temin ederek ve uzaktan çalışma ile maaş ayrıntılarını not ederek ekledim. Ayrıca, esnek seçenekler de dahil olmak üzere Siemens Energy'deki bir Araştırma Mühendisi rolü hakkında bilgi derledim. Başvuru bağlantıları için gömülü bağlantılar kullanarak bağlantı formatlarında tutarlılık sağlıyorum.\n\n\n**Yeni İlanların Eklenmesi**\n\nBelirtilmemiş bir konumdaki Kıdemli Arka Uç Mühendisi rolü ve Gilching'deki Quantum-Systems GmbH'deki bir Çalışan Öğrenci pozisyonu olmak üzere iki yeni ilan ekledim. Konum, uzaktan çalışma seçenekleri, maaş bilgileri (varsa) ve standart formattaki başvuru bağlantıları dahil olmak üzere tüm ayrıntıları doğru bir şekilde yakalamaya odaklanıyorum. Başvuru bağlantısı için `(embed:embed_ref)` formatını kullanıyorum."
-      },
-      "message_3": {
-        "text": "İki tasarım rolü en ilgi çekici olanlar gibi görünüyor. Kaydedilen ilanların tam olarak ne dediğini kısaca karşılaştırabilir ve başvurmadan önce her bir işverene ne sormam gerektiği konusunda öneride bulunabilir misin?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nİşte her bir ilanın belirttiklerinin doğrudan bir karşılaştırması ve ardından başvuru sürecinden önce veya süreç sırasında her bir işverene sorabileceğin hedefe yönelik sorular.\n\n---\n\n### İlanların Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Başvurmadan Önce Neler Sorulmalı\n\n#### voize için:\n1. **Kullanıcı araştırması erişimi:** *\"Tasarımcılar, günlük klinik ortamlarında saha hemşireleri ve bakım personeli ile ne sıklıkla ve hangi kanallar aracılığıyla saha çalışması veya testler yürütüyor?\"*\n2. **Ekip olgunluğu ve kapsamı:** *\"Ürün ekibi nasıl yapılandırılmış, tasarımcıların Ürün Yöneticilerine (PM) ve mühendislere oranı nedir ve bu rol bireysel bir katkı sağlayan pozisyon mu yoksa tasarım sistemleri kurması mı bekleniyor?\"*\n3. **Ücretlendirme ve uzaktan çalışma düzeni:** *\"Bu kıdem seviyesi için hedeflenen ücret aralığı nedir ve uzaktan çalışma politikasına rağmen zorunlu yerinde ekip toplantıları veya çekirdek çalışma saatleri var mı?\"*\n\n#### stiftung ear için:\n1. **Nürnberg'deki yerinde çalışma beklentileri:** *\"Mobil çalışma pratikte nasıl yapılandırılıyor; Nürnberg ofisinde bulunmak için haftalık veya aylık sabit bir gereklilik var mı?\"*\n2. **Tasarım ve Kalite Güvence (QA) dengesi:** *\"İlanda UX/UI tasarımının yanı sıra yazılım testi uygulamasından da bahsediliyor. Rolün yüzde kaçı kullanıcı araştırması/prototiplemeye, yüzde kaçı teknik yazılım doğrulama ve kalite güvencesine odaklanıyor?\"*\n3. **Tasarım araçları ve geliştirme devri:** *\"Şu anda hangi tasarım sistemi ve prototipleme araçları kullanılıyor ve şirket içi bir geliştirme ekibiyle mi yoksa harici BT hizmet sağlayıcılarıyla mı çalışıyorsunuz?\"*\n4. **Ücretlendirme kriteri:** *\"stiftung ear'ın kamu yararına yasal bir kapasitede faaliyet gösterdiği göz önüne alındığında, ücretlendirme belirli bir kamu toplu ölçeğini (TVöD/TV-L gibi) mi yoksa dahili bir derecelendirme yapısını mı takip ediyor?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**İş İlanı İçeriği Analiz Ediliyor**\n\nTamam, iş tanımlarını karşılaştırmaya başladım. Voize'deki Kıdemli Ürün Tasarımcısı rolü ile Stiftung EAR'daki UI/UX Tasarım pozisyonu için temel sorumluluklara ve gerekli becerilere odaklanıyorum. Şimdi her iki iş ilanının temel sorumluluklarının ve gerekli becerilerinin bir özetini hazırlıyorum. Ardından, başka hangi bilgilere ihtiyacım olabileceğini belirleyeceğim.\n\n\n**İş Tanımları Analiz Ediliyor**\n\nTamam, şimdi her bir ilanın ayrıntılarını daha derinlemesine inceliyorum. Odak noktam, açıklamalarda kullanılan asıl dili çözümlemek. Her bir işveren için hazırlık yapmak amacıyla hangi temel soruların yanıtlanması gerektiğini belirlemeye çalışıyorum. Örneğin, voize ilanında, yapay zeka asistan ürünleri hakkında bilgi edinmem gerekiyor.\n\n\n**Temel Ayrıntılar Değerlendiriliyor**\n\nŞimdi voize ilanına odaklanıyor ve önemli çıkarımları belirliyorum. Bu, ürün yöneticilerini zorlayabilecek, önemli ölçüde sahiplik gerektiren kıdemli bir rol. Berlin ofisi ve uzaktan çalışma seçenekleriyle esnek bir yapı sunuluyor. Ücret belirtilmemiş ancak yan haklar arasında makul tatil süresi ve spor kulübü üyeliği yer alıyor. Bağlam Alman sağlık sektörü olsa da birincil dil İngilizce.\n\n\n**Belirli Gereksinimler Tespit Ediliyor**\n\nŞimdi Nürnberg merkezli role odaklanıyorum. Temel alanları belirledim: yasal uyumluluk yönü ElektroG düzenlemelerine odaklanıyor. Çalışmalarım web uygulaması geliştirme ve paydaşlara danışmanlık sağlayan UX faaliyetlerini içeriyor. Akıcı Almanca (en az C1) zorunlu, düzenleyici yazılım deneyimi ise bir avantaj. Pozisyon kalıcıdır ve önemli ölçüde uzaktan çalışma esnekliği sunar. Ücretlendirme performansa dayalıdır.\n\n\n**İş Nitelikleri Karşılaştırılıyor**\n\nŞimdi roller arasında doğrudan karşılaştırmalar yapıyorum. Bunları alan, kültür, gerekli beceriler ve çalışma yeri bazında ayırdım. Özellikle voize ile stiftung ear rolünü karşılaştırıyorum. Birinci basamak sağlık hizmetlerinden e-atık uyumluluğuna kadar ortamlarını ve önceliklerini kıyaslamaya odaklanıyorum. Dil gereksinimleri ve deneyim düzeyi gibi temel farklılıkları not ediyorum. Ayrıca, uzaktan çalışma politikalarındaki farklılıkları değerlendiriyorum."
-      },
-      "follow_up_1": {
-        "text": "Berlin'de daha fazla UI/UX tasarım işi ara"
-      },
-      "follow_up_2": {
-        "text": "voize'daki işe alım yöneticisi için bir iletişim e-postası taslağı hazırla"
-      },
-      "follow_up_3": {
-        "text": "Almanya'da benzer sağlık teknolojisi rollerini bul"
-      },
-      "follow_up_4": {
-        "text": "Sağlık teknolojisi girişimlerinde çalışmanın kamu kurumlarına kıyasla artılarını ve eksilerini karşılaştır"
-      },
-      "follow_up_5": {
-        "text": "Nürnberg'de kamu sektörü teknoloji işlerini ara"
-      },
-      "follow_up_6": {
-        "text": "Kıdemli ürün tasarımı mülakatı için temel hazırlık adımlarını listele"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Yazdırılabilir Benchy ve Telefon Standı Modelleri"
-      },
-      "summary": {
-        "text": "Popüler 3D yazdırılabilir Benchy ve telefon standı modelleri için önizleme kartları ve kaynak bağlantılarıyla birlikte ExampleModels'da arama yap."
-      },
-      "message_1": {
-        "text": "ExampleModels'da 3D yazdırılabilir Benchy ve telefon standı modelleri bul. En iyi seçenekleri önizleme kartları ve kaynak bağlantılarıyla göster."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nSıradaki 3D baskı projelerin için ExampleModels'daki en popüler ve yaratıcı modellerden bazılarını buldum. İster klasik bir [kalibrasyon](wiki:Calibration_(statistics)) teknesi, ister işlevsel bir [telefon](wiki:Smartphone) aksesuarı arıyor ol, bu seçenekler mükemmel başlangıç noktalarıdır.\n\n### 3DBenchy Koleksiyonu\n[3DBenchy](wiki:3DBenchy), [3D yazıcının](wiki:3D_printing) yeteneklerini test etmek için altın standarttır. Orijinalinin ötesinde, çalışma masana karakter katacak birkaç \"remix\" de mevcut.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **Orijinal 3DBenchy**: [Çıkıntıları](wiki:3D_printing#Support_structures) (overhangs), [köprülemeyi](wiki:3D_printing#Support_structures) (bridging) ve yüzey kalitesini [kıyaslamak](wiki:Benchmark_(computing)) için en iyisidir.\n*   **Assault Benchy**: Biraz hava katmak isteyenler için hareket ettirilebilir bir [mecha](wiki:Mecha) versiyonu.\n*   **Yüzen BEN**: İçi boş bir gövdeyle özel olarak tasarlanmıştır, böylece gerçekten yüzer; banyo için mükemmel!\n\n### İşlevsel Telefon Standları\nTelefon standı harika bir pratik baskıdır. Bu tasarımlar minimalistten karmaşık mekanik dişlilere kadar çeşitlilik gösterir.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Petek Stand**: Yüksek [dayanıklılık-ağırlık oranı](wiki:Specific_strength) ve modern görünümü nedeniyle çok popülerdir.\n*   **Dişli Stand**: Ayarlanabilir görüş açıları sağlayan, \"tek parça baskı\" (print-in-place) bir mekanik harikadır.\n*   **Modern Kavisli**: Minimalist bir ofis kurulumuna mükemmel uyum sağlayan şık, tek parça bir tasarım.\n\n**İpucu:** [Dişli Telefon Standını](embed:geared-phone-stand-3Bl) basarken, hareketli parçaların birbirine kaynamasını önlemek için [ekstrüzyon çarpanının](wiki:3D_printing#Fused_deposition_modeling) iyi kalibre edildiğinden emin ol.\n\nBunlar için ne tür bir [filament](wiki:3D_printing_filament) (PLA, PETG vb.) kullanmayı planlıyorsun? Malzemene göre sana özel dilimleme ipuçları verebilirim!\n\n**Sırada ne yapmak istersin?**\n- [Daha fazla 3D model ara](/#settings/apps/models3d)\n- [3D baskı ipuçları al](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "Bana responsive tasarım ilkelerini öğret"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Alan Adı Kontrollü Sosyal Uygulama İsimleri"
-      },
-      "summary": {
-        "text": "Sosyal uygulama isimlerini; kontrol edilmiş alan adı müsaitliği, kayıt ve yenileme fiyatlandırması ve kayıt şartlarını kullanarak karşılaştır."
-      },
-      "message_1": {
-        "text": "İnsanların yüz yüze tanıştıktan sonra iletişimde kalmalarına ve yeni insanlarla tanışmalarına yardımcı olan bir sosyal uygulama isimlendiriyorum. İki tane özgün isim fikri öner. Her fikir için lütfen tam .com, .net ve .app alan adlarını canlı olarak kontrol et, ardından yalnızca bu kontrollerde müsaitlik durumu, kayıt fiyatı, yenileme fiyatı ve kısıtlamaları görünen tam alan adlarını öner. Kontrol edilmemiş alan adları hakkında tahminde bulunma. Kontrol edilen sonuçlara göre daha güçlü olan ismi seç."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nYüz yüze bağlantıları beslemeye ve sosyal çevreleri genişletmeye odaklanan bir uygulama için özel olarak hazırlanmış iki özgün isim fikri ve her bir ismin tam `.com`, `.net` ve `.app` uzantıları için canlı alan adı kontrolleri aşağıdadır.\n\n---\n\n### Fikir 1: Kinloop\n* **Konsept:** \"kin\" (topluluk, kişisel yakınlık, güvenilir bağlar) ile \"loop\" (ilk görüşmeden sonra döngüyü tamamlamak ve bağlantıları devam eden bir çember içinde canlı tutmak) kelimelerini birleştirir.\n* **Canlı Alan Adı Doğrulaması:**\n  * **`kinloop.com`**: **Müsait Değil** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Müsait Değil** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Müsait Değil** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-XJX))\n* **Öneri:** Yok. Hedeflenen üç tam alan adının tümü şu anda kayıtlı/müsait değil, bu nedenle bu isim için tam bir alan adı önerilemiyor.\n\n---\n\n### Fikir 2: Orbitfolk\n* **Konsept:** Gerçek hayattaki tanıdıkları kişisel yörüngende tutarken, dünyana sürekli yeni insanlar (\"folk\") keşfetme ve kabul etme fikrini çağrıştırır.\n* **Canlı Alan Adı Doğrulaması:**\n  * **`orbitfolk.com`**: **Müsait Değil** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Müsait** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-cex))\n    * **Kayıt Ücreti:** 1. yıl için 12,99 $ vergi hariç (%19 KDV dahil 15,46 $; normal 1 yıllık ücret 18,78 $)\n    * **Yenileme Ücreti:** Yıllık 39,98 $ vergi hariç (1 yıllık dönemler için %19 KDV dahil 47,58 $; 2-9 yıllık dönemler için vergi öncesi 35,98 $/yıl)\n    * **Kısıtlamalar:** Bildirilmedi\n  * **`orbitfolk.app`**: **Müsait** ([ExampleRegistrar kontrolü](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Kayıt Ücreti:** 1. yıl için 9,99 $ vergi hariç (%19 KDV dahil 11,89 $; normal 1 yıllık ücret 23,29 $)\n    * **Yenileme Ücreti:** Yıllık 47,98 $ vergi hariç (1 yıllık dönemler için %19 KDV dahil 57,10 $; 2-9 yıllık dönemler için vergi öncesi 43,18 $/yıl)\n    * **Kısıtlamalar:** Bildirilmedi\n\n---\n\n### Karşılaştırma ve Daha Güçlü Seçim\n\n**Orbitfolk** daha güçlü bir seçimdir:\n\n1. **Doğrudan Kullanılabilirlik:** Kinloop her üç uzantıda da alınmış olsa da, Orbitfolk'un hem `.app` hem de `.net` sürümleri kayıt için hemen müsaittir.\n2. **Ürün Uyumu:** Bu bir mobil sosyal ürün olduğu için, **`orbitfolk.app`** ürün türünü doğrudan kullanıcılara ileten temiz, amaca yönelik bir alan adı uzantısı sunar.\n\n---\n\n### Sonraki Adımlar\n\n* [Sosyal yörüngeler etrafında daha fazla isim varyasyonu keşfet](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Yüz yüze görüşme için ilk katılım (onboarding) akışını tasarla](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Başka bir sosyal uygulama fikri için uygun alan adlarını ara"
-      },
-      "follow_up_2": {
-        "text": ".app alan adı uzantısının mobil uygulamalar için neden etkili olduğunu açıkla"
-      },
-      "follow_up_3": {
-        "text": "Üç alternatif marka adı için alan adı müsaitliğini kontrol et"
-      },
-      "follow_up_4": {
-        "text": "Tüketici uygulamaları için .net ve .app alan adı uzantılarını karşılaştır"
-      },
-      "follow_up_5": {
-        "text": "AppFolk ismi için alan adı fiyatlarını ve müsaitliğini kontrol et"
-      },
-      "follow_up_6": {
-        "text": "Bu sosyal bağlantı uygulaması için üç ek markalaşma açısı öner"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Will Stephen'ın Hicivli TED Konuşmasının Analizi"
-      },
-      "summary": {
-        "text": "Will Stephen'ın topluluk önünde konuşma üzerine hicivli TEDx konuşmasını beş temel komedi argümanı halinde özetler."
-      },
-      "message_1": {
-        "text": "Bu TED konuşmasının transkriptini getir ve ana argümanı beş madde halinde özetle: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo, Will Stephen'ın hicivli TEDx sunumu olan *\"How to sound smart in your TEDx Talk\"* (konuşmayı izle) adlı videosudur.\n\nStephen, bilgilendirici bir ders vermek yerine [topluluk önünde konuşma](wiki:Public_speaking) kurallarını yapıbozuma uğratmak için meta-mizah kullanıyor. İşte beş maddede özetlenen temel argüman:\n\n* **Sunum, İçerik İllüzyonu Yaratır:** Tempo, bilinçli el hareketleri, dramatik göz teması ve fiziksel aksesuarlar (numarasız gözlükler gibi), bir konuşmacının söyleyecek değerli hiçbir şeyi olmasa bile dinleyiciyi onun zeki olduğuna ikna edebilir.\n* **Sahne Uyumu Son Derece Formülseldir:** Retorik sorular sormak, el kaldırmayı teşvik etmek ve kendini küçümseyen anekdotlar anlatmak gibi tanıdık etkileşimli yöntemler; yapay bir sıcaklık ve güvenilirlik oluşturmak için tasarlanmış hesaplı sahne sanatlarıdır.\n* **Veri Görselleri Hak Edilmemiş Bir Otorite Sağlar:** Rastgele sayıları, temel aritmetiği ve bağlam dışı grafikleri göstermek görsel önyargıyı suistimal eder; veriler tamamen alakasız olsa bile bir sunumun titizlikle araştırılmış görünmesini sağlar.\n* **Dinleyiciler Anlamsızlığa Anlam Yükler:** Konuşmacılar, samimi bir ses tonu ve çağrışım yapan stok görselleri tam anlamıyla saçma sözlerle eşleştirerek, dinleyicilerin bilinçaltında var olmayan derin bağlantılar aramasına ve hayal etmesine neden olabilir.\n* **Duygusal Doruk Noktaları Üretilebilir:** Ses yoğunluğunu artırmak, fısıldamak için yavaşlamak ve dramatik bir şekilde duraksamak bir aydınlanma ritmini taklit eder; bu da ilham hissinin herhangi bir temel içgörü olmadan ne kadar kolay kurgulanabileceğini kanıtlar."
-      },
-      "follow_up_1": {
-        "text": "YouTube'daki diğer popüler hicivli sunumları ara"
-      },
-      "follow_up_2": {
-        "text": "TEDx formatının tarihini ve kültürel etkisini açıkla"
-      },
-      "follow_up_3": {
-        "text": "İnternette topluluk önünde konuşma üzerine ustalık sınıfı eğitimleri bul"
-      },
-      "follow_up_4": {
-        "text": "Ünlü ana konuşmacıların kullandığı spesifik beden dili tekniklerini analiz et"
-      },
-      "follow_up_5": {
-        "text": "Retorik teknikler hakkındaki analiz videolarını ara"
-      },
-      "follow_up_6": {
-        "text": "Topluluk önünde konuşurken sahne korkusunu yenmek için ipuçlarını listele"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "Programlama konusunda uzmansınız."
       }
     },
-    "health_health_insights": {
-      "text": "Sağlık içgörüleri",
-      "description": {
-        "text": "Sağlık bilgileri alın ve doğru doktoru bulun."
-      },
-      "systemprompt": {
-        "text": "Siz bir sağlık uzmanısınız."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Doktor randevusu hazırla",
-      "description": {
-        "text": "Sonraki ziyaretiniz için konuları hazırlayın."
-      },
-      "process": {
-        "text": "- son haftalarda ve aylarda yaşanan semptomları, aralarında bağlantı görünmese bile tartışır\n- bir sonraki randevudan önce hangi test sonuçları/belgelerinin toplanması gerektiğini tartışır"
-      },
-      "systemprompt": {
-        "text": "Sağlık konusunda uzmansınız."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Doktor raporu hazırla",
-      "description": {
-        "text": "Sonraki doktor ziyaretiniz için rapor oluşturun."
-      }
-    },
     "jobs_career_insights": {
       "text": "Kariyer öngörüleri",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "Gelecek konuşması",
       "description": {
         "text": "Güçlü bir yaşam koçluğu tekniği."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Doktor raporu hazırla",
+      "description": {
+        "text": "Sonraki doktor ziyaretiniz için rapor oluşturun."
+      }
+    },
+    "health_health_insights": {
+      "text": "Sağlık içgörüleri",
+      "description": {
+        "text": "Sağlık bilgileri alın ve doğru doktoru bulun."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Doktor randevusu hazırla",
+      "description": {
+        "text": "Sonraki ziyaretiniz için konuları hazırlayın."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "İçerik Takvimi Stratejisti",
       "description": {
         "text": "30 günlük sosyal medya içerik planı oluşturun."
+      },
+      "systemprompt": {
+        "text": "Profesyonel bir Sosyal Medya Stratejisti olarak hareket edin. Aşağıdaki girdileri kullanarak, Ana Hedefi gerçekleştirmeye odaklanmış 30 günlük bir içerik takvimi oluşturun.\n\nÖnce, bu Konu/Niş ve Hedef Kitle için mevcut bilginizi ve varsa canlı web verilerini kullanarak kısa bir dahili araştırma ve strateji adımı gerçekleştirin. Kitlenin başlıca acı noktalarını ve isteklerini, bu niş için iyi performans gösteren gönderi türlerini ve kancaları ve mevcut ilgili trendleri netleştirin. Bu içgörüleri yalnızca takvimi yönlendirmek için kullanın, onları ayrı olarak ÇIKTI olarak vermeyin.\n\nÇıktı, tam olarak bu sütunlarla (ve başka hiçbir şey olmadan) bir Markdown tablosu OLMALIDIR: Gün #, Tarih, Tema/Sütun, Platform, İçerik Fikri, Harekete Geçirici Mesaj (CTA).\n\nTakvim yönergeleri:\n- Başlangıç Tarihinden itibaren her ardışık takvim günü için bir tane olmak üzere, gerçek tarihleri artan sırayla tam olarak 30 satır oluşturun.\n- Her satırdaki Tema/Sütun, sağlanan İçerik Sütunlarından biri olmalı ve 30 gün boyunca makul ölçüde dengeli bir karışım sunmalıdır.\n- Platform sütunu, Yayın Takvimine uygun olmalıdır. Belirli bir gün için birden fazla platform belirtilmişse, platform başına bir satır oluşturun.\n\nİçerik yönergeleri:\n- Her İçerik Fikri, gönderi türünü belirtmeli (örn. Reel, döngü, statik gönderi, hikaye, canlı yayın, anket, LinkedIn metin gönderisi) ve Hedef Kitleye göre uyarlanmış net, kaydırmayı durduran bir kanca içermelidir.\n- Her CTA, spesifik, eylem odaklı ve doğrudan Ana Hedefi destekler nitelikte olmalıdır (örn. \"Ücretsiz rehberi indirin\", \"Bir arama rezervasyonu yapın\", \"Bültene katılın\", \"1 numaralı sorunuzla yorum yapın\").\n- Tekrarı önlemek için 30 gün boyunca formatları ve açıları değiştirin (örn. eğitici, hikaye anlatımı, perde arkası, SSS, itirazlar, sosyal kanıt, etkileşim istemleri).\n- Her fikrin Hedef Kitlenin temel acı noktaları ve istekleriyle açıkça bağlantılı ve Ana Hedefle uyumlu olduğundan emin olun.\n\nGirdiler (promptu çalıştırmadan önce bunları doldurun):\n* Konu/Niş: [Konunuzu/Nişinizi buraya girin]\n* Hedef Kitle: [Hedef Kitlenizi buraya girin, biliniyorsa temel acı noktaları ve istekleri dahil edin]\n* Ana Hedef: [Ana Hedefinizi buraya girin, örn. e-posta listesi büyütme / satış artırma / otorite oluşturma]\n* Yayın Takvimi: [Yayın Sıklığınızı ve Platformunuzu buraya girin, örn. IG Reels'ta haftada 5 kez + LinkedIn'de haftada 3 kez]\n* İçerik Sütunları: [3–5 İçerik Sütununuzu buraya virgülle ayırarak girin]\n* Başlangıç Tarihi: [Takviminizin ilk tarihini girin, örn. 18 Kasım 2025]\n\nYalnızca son Markdown tablosunu çıktılayın. Tablonun dışında açıklamalar, notlar veya metin EKLEMEYİN."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (video transkriptleri)"
+              "text": "YouTube (video meta verileri)"
             },
             "description": {
-              "text": "OpenMates'ten bir YouTube videosu için transkript almasını istediğinde YouTube'a sorgu gönderilir. YouTube, video URL'lerini ve istenen transkript dili tercihlerini bir OpenMates kullanıcı tanımlayıcısı olmadan alır."
+              "text": "Herkese açık video ve kanal meta verilerini almak için OpenMates, video ve kanal tanımlayıcılarını resmî YouTube Data API’ye gönderir. YouTube bu tanımlayıcıları ve sunucumuzun ağ bilgilerini alır; OpenMates kullanıcı tanımlayıcısı almaz."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."
+    },
+    "privacy_description": {
+      "text": "Mistral mikrofon sesini yazıya döker; ElevenLabs v4 Turbo yanıt metni ve ses ayarlarından asistan sesini üretir. Görüşme, OpenMates’in normal yapay zekâ yönlendirmesini ve becerilerini kullanır. Sağlayıcılar istek verilerini kendi politikalarına göre saklayabilir."
+    },
+    "privacy_terms": {
+      "text": "OpenMates gizlilik politikası"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Discord üyelerimiz"

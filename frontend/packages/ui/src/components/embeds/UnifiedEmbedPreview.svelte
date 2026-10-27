@@ -88,6 +88,10 @@
     onFullscreen: () => void;
     /** Click handler for stop button */
     onStop?: () => void;
+    /** Processing details may contain independently enabled actions such as Watch browser. */
+    hasProcessingActions?: boolean;
+    /** Paid executions can require server acknowledgement before displaying cancellation. */
+    optimisticStop?: boolean;
     /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
     details?: import('svelte').Snippet<[{ isMobile: boolean; isLarge?: boolean }]>;
     /** Whether to show status line in basic infos bar (default: true) */
@@ -129,6 +133,8 @@
     isMobile = false,
     onFullscreen,
     onStop,
+    hasProcessingActions = false,
+    optimisticStop = true,
     details,
     showStatus = true,
     faviconUrl,
@@ -161,7 +167,7 @@
   // aria-disabled on a container also disables its nested source-image buttons.
   // While the skill runs, expose a group of input actions instead of a disabled
   // outer button; fullscreen activation remains gated by isInteractive/status.
-  let hasProcessingInputActions = $derived(!isInteractive && inputEmbedIds.length > 0);
+  let hasProcessingInputActions = $derived(!isInteractive && (inputEmbedIds.length > 0 || (status === 'processing' && hasProcessingActions)));
 
   let isDirectContentEmbed = $derived.by(() => (
     appId === skillId
@@ -906,7 +912,7 @@
     // so the embed will remain visually cancelled but won't actually be. This is
     // acceptable: the user wanted to stop, and the worst case is a stale UI state
     // that would resolve on next reload. No silent data loss occurs.
-    if (status === 'processing') {
+    if (optimisticStop && status === 'processing') {
       localStatus = 'cancelled';
     }
   }

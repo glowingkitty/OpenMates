@@ -81,6 +81,22 @@ settings_and_memories:
 # Embed type definitions — single source of truth for frontend embed routing.
 # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
 embed_types:
+  - id: browse
+    category: app-skill-use
+    skill_id: browse
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: web/BrowseEmbedPreview.svelte
+    fullscreen_component: web/BrowseEmbedFullscreen.svelte
+    icon: web
+    gradient_var: "--color-app-web"
+    i18n_namespace: embeds.browse
+    content_fields:
+      - name: session_id
+        type: string
+      - name: results
+        type: array
   # Web search results — composite embed with child website embeds
   - id: search
     authoring:

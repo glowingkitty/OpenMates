@@ -10,6 +10,7 @@ goal: >
   embeds first, then workflow support, and report performance, cost and reliability.
 specifications: [feature.app-skill.web-browse@1]
 decisions:
+  - 'On 2026-10-27 the user answered "Yes, continue with the embeds." to the explicit Rust SDK gate deferral question. Proceed with web embeds after the verified CLI/npm/pip evidence; Rust SDK parity remains deferred and is not claimed as implemented or verified.'
   - The user explicitly authorized implementation from the clarified design on 2026-10-26; no additional design approval round is required.
   - Use two times effective metered supplier cost, pause idle compute after 120 seconds and delete after 86400 seconds of inactivity.
   - Reuse session d7bf and existing provider, encryption, app-skill, billing, embed and CI infrastructure.

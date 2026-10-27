@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "Tìm tin tuyển dụng công khai tại Thụy Điển bằng JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Lấy bản ghi",
         "description": {
-          "text": "Lấy bản ghi của video YouTube / media.ccc.de."
+          "text": "Lấy phụ đề đã công bố của các bài nói trên media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Đọc trang Wikipedia về Đế chế La Mã và cho tôi các sự kiện chính"
           }
+        }
+      },
+      "browse": {
+        "text": "Duyệt",
+        "description": {
+          "text": "Duyệt trang web và trả về thông tin quan sát được dưới dạng JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Lưu trữ web",
       "description": {
-        "text": "Tìm tên miền và kiểm tra tình trạng còn trống cùng giá cả."
+        "text": "Tìm kiếm tên miền hiện không khả dụng."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Bưu điện",
       "description": {
-        "text": "Gửi, quản lý và soạn email."
+        "text": "Soạn bản nháp email và làm việc với thư."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Video",
       "description": {
-        "text": "Tìm video, lấy bản ghi và hơn thế."
+        "text": "Tìm và tạo video."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Du lịch",
       "description": {
-        "text": "Tìm chỗ ở, phương tiện và lên kế hoạch."
+        "text": "Lên kế hoạch chuyến đi và lưu giữ thông tin du lịch đã lưu."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "Tìm kiếm linh kiện điện tử hiện không khả dụng."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Nhà ở",
       "description": {
-        "text": "Tìm nhà mới và hơn thế nữa."
+        "text": "Lưu giữ thông tin nhà ở đã lưu."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Sự kiện",
       "description": {
-        "text": "Khám phá Gathering, hội nghị và sự kiện địa phương."
+        "text": "Lưu giữ thông tin sự kiện đã lưu."
       },
       "search": {
         "text": "Tìm kiếm",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Xem các mô hình 3D đã lưu."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Mua sắm",
       "description": {
-        "text": "So sánh giá siêu thị và tìm ưu đãi."
+        "text": "Tìm kiếm sản phẩm hiện không khả dụng."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Duyệt"
+      },
+      "running": {
+        "text": "Đang duyệt"
+      },
+      "user_control": {
+        "text": "Bạn đang điều khiển"
+      },
+      "paused": {
+        "text": "Đã tạm dừng"
+      },
+      "completed": {
+        "text": "Hoàn tất"
+      },
+      "no_results": {
+        "text": "Không có kết quả"
+      },
+      "needs_user": {
+        "text": "Cần bạn nhập"
+      },
+      "blocked": {
+        "text": "Bị chặn"
+      },
+      "failed": {
+        "text": "Thất bại"
+      },
+      "cancelled": {
+        "text": "Đã hủy"
+      },
+      "budget_exceeded": {
+        "text": "Đạt giới hạn chi tiêu"
+      },
+      "closed": {
+        "text": "Đã đóng trình duyệt"
+      },
+      "expired": {
+        "text": "Phiên đã hết hạn"
+      },
+      "unavailable": {
+        "text": "Trình duyệt không khả dụng"
+      },
+      "watch": {
+        "text": "Xem trình duyệt"
+      },
+      "take_control": {
+        "text": "Nắm quyền điều khiển"
+      },
+      "continue": {
+        "text": "Để AI tiếp tục"
+      },
+      "pause": {
+        "text": "Tạm dừng"
+      },
+      "close": {
+        "text": "Đóng trình duyệt"
+      },
+      "sign_in_title": {
+        "text": "Trước khi đăng nhập"
+      },
+      "sign_in_confirm": {
+        "text": "Tiếp tục đăng nhập"
+      },
+      "saved_frame": {
+        "text": "Ảnh trình duyệt đã lưu"
+      },
+      "live_frame": {
+        "text": "Trình duyệt trực tiếp"
+      },
+      "waiting_frame": {
+        "text": "Đang chờ trình duyệt…"
+      },
+      "text_input": {
+        "text": "Văn bản cho trang web"
+      },
+      "send_text": {
+        "text": "Gửi văn bản"
+      },
+      "scroll_up": {
+        "text": "Cuộn lên"
+      },
+      "scroll_down": {
+        "text": "Cuộn xuống"
+      },
+      "structured_data": {
+        "text": "Dữ liệu có cấu trúc"
+      },
+      "connection_error": {
+        "text": "Kết nối bị gián đoạn. Hãy làm mới trước thao tác khác."
+      },
+      "credits": {
+        "text": "{used} / {limit} tín dụng"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Bạn đang đăng nhập trong trình duyệt đám mây. Khi cho AI tiếp tục, AI có thể truy cập thông tin trong tài khoản này. Nội dung trang liên quan có thể được gửi đến nhà cung cấp AI của chúng tôi. Chỉ đăng nhập tài khoản mà bạn sẵn sàng cho AI truy cập."
+      },
+      "manual_hint": {
+        "text": "Nhấp vào trang hoặc dùng Tab và Enter. Văn bản chỉ được gửi đến trang này và bị xóa khỏi ô nhập sau khi gửi."
+      },
+      "paused_hint": {
+        "text": "Trình duyệt đã tạm dừng, không tính phí xử lý. Nắm quyền điều khiển để tiếp tục. Phiên bị xóa sau 24 giờ không tương tác."
+      },
+      "watch_hint": {
+        "text": "Bạn đang xem. Nắm quyền điều khiển để thao tác với trang. Việc xem không giữ phiên hoạt động."
+      },
+      "stopping": {
+        "text": "Đang dừng…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "So sánh trách nhiệm hàng ngày và lộ trình phát triển của cả hai vai trò"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "So sánh nồi chiên không dầu tại Đức"
-      },
-      "summary": {
-        "text": "Đã so sánh các loại nồi chiên không dầu hàng đầu trên ExampleRetail Đức theo giá, dung tích và đánh giá, đồng thời đề xuất Philips Airfryer 2000 Series cho hộ gia đình hai người."
-      },
-      "message_1": {
-        "text": "Tìm các loại nồi chiên không dầu tôi có thể mua trực tuyến tại Đức, bao gồm cả danh sách trên ExampleRetail. So sánh giá hiện tại, dung tích và xếp hạng đánh giá, sau đó đề xuất một loại cho hộ gia đình hai người kèm theo các liên kết nguồn."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nDưới đây là bảng so sánh các mẫu nồi chiên không dầu được đánh giá cao nhất hiện có trên ExampleRetail Đức, dựa trên tiêu chí giá cả, dung tích và đánh giá của khách hàng.\n\n---\n\n### So sánh các mẫu phổ biến tại Đức\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Đề xuất hàng đầu cho gia đình 2 người\n\n#### **Lựa chọn chính: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Tại sao mẫu này phù hợp nhất cho hai người:**\n  * **Dung tích tối ưu (6,2 L):** Các giỏ chiên nhỏ hơn 4,5–5 L thường yêu cầu nấu nhiều đợt ngay cả khi chỉ cho hai người. Giỏ 6,2 L cho phép bạn đặt phẳng hai miếng phi lê cá hồi cùng với rau củ hoặc khoai tây chiên trên một lớp để thực phẩm chín giòn đều.\n  * **Diện tích chiếm dụng:** Các dòng máy hai ngăn (như Ninja hoặc Russell Hobbs) chiếm khá nhiều diện tích mặt bếp. Một giỏ chiên 6 L duy nhất vừa cung cấp dung tích rộng rãi vừa giữ được kích thước nhỏ gọn, phù hợp với mặt bếp điển hình tại Đức.\n  * **Cửa sổ trong suốt:** Cho phép kiểm tra độ vàng giòn mà không cần kéo ngăn ra, tránh làm thất thoát nhiệt.\n  * **Giá trị:** Với mức giá 99,99 €, sản phẩm mang lại khả năng duy trì nhiệt độ ổn định từ [Philips](wiki:Philips) với mức giá hợp lý.\n\n#### **Lựa chọn thay thế (Nếu bạn thường xuyên nấu hai món ở nhiệt độ khác nhau): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nNếu bạn và người thân muốn chuẩn bị món chính và rau củ cùng lúc ở nhiệt độ và thời gian khác nhau (ví dụ: ức gà ở 180 °C và khoai tây giòn ở 200 °C), mẫu này hiện đang được giảm giá còn 119,99 € và có tính năng đồng bộ hóa thời gian nấu.\n\n---\n\n### Các yếu tố chính cần lưu ý trước khi mua\n1. **Hình dáng ngăn chiên:** Giỏ vuông (như của Cosori và Philips) chứa các thực phẩm dạng phẳng (bít tết, khuôn nướng, xiên que) tốt hơn nhiều so với giỏ tròn có cùng dung tích lít.\n2. **Kích thước máy rửa bát:** Đảm bảo máy rửa bát của bạn có đủ chiều cao ngăn cho giỏ đơn 6 L hoặc cân nhắc rửa tay các lớp phủ chống dính để kéo dài tuổi thọ của chúng."
-      },
-      "follow_up_1": {
-        "text": "Tìm kiếm các công thức nấu ăn được thiết kế riêng cho nồi chiên không dầu"
-      },
-      "follow_up_2": {
-        "text": "Giải thích sự khác biệt chính giữa nồi chiên không dầu giỏ đơn và giỏ đôi"
-      },
-      "follow_up_3": {
-        "text": "Tìm các phụ kiện nướng bánh tương thích cho nồi chiên không dầu này"
-      },
-      "follow_up_4": {
-        "text": "Liệt kê các công thức nấu bữa tối bằng nồi chiên không dầu cho người mới bắt đầu"
-      },
-      "follow_up_5": {
-        "text": "Kiểm tra xếp hạng mức tiêu thụ năng lượng hiện tại cho các mẫu này"
-      },
-      "follow_up_6": {
-        "text": "So sánh yêu cầu vệ sinh và bảo dưỡng giữa lớp phủ gốm và teflon"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Điểm nổi bật và khám phá sứ mệnh Artemis II"
@@ -8894,38 +8967,6 @@
         "text": "[code] Tạo một mẫu tương tự nhưng với phong cách thiết kế khác"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Lớp học Yoga cho người mới bắt đầu tại Berlin"
-      },
-      "summary": {
-        "text": "Tìm ba lớp học yoga phù hợp cho người mới bắt đầu tại Berlin với thời gian, giá cả và liên kết đặt chỗ."
-      },
-      "message_1": {
-        "text": "Tôi mới tập yoga và muốn tìm một lớp học cho người mới bắt đầu tại Berlin vào tuần tới. Bạn có thể tìm giúp tôi một vài lớp học kèm theo thời gian, giá cả và liên kết đặt chỗ không?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nDưới đây là các lớp [yoga](wiki:Yoga) dành cho người mới bắt đầu diễn ra tại Berlin vào tuần tới:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Giới thiệu:** Một lớp học chánh niệm kết hợp chuyển động theo hơi thở với việc giữ các tư thế để khám phá sự căn chỉnh và tĩnh lặng. Được thiết kế đặc biệt để phù hợp với người mới bắt đầu (dạy bằng tiếng Anh).\n- **Ngày & Giờ:** Thứ Tư, ngày 14 tháng 10 năm 2026, 18:00 – 19:00 CEST (đến sớm 10 phút)\n- **Địa điểm:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Giá:** €11,83 – €22,49\n- **Đặt chỗ:** [Đặt vé trên ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Giới thiệu:** Một buổi tập yoga và vận động linh hoạt không chính thức, thư giãn cho mọi trình độ, nơi các chuỗi động tác được giải thích từng bước với tốc độ nhẹ nhàng. Không yêu cầu kinh nghiệm hay sự dẻo dai trước đó.\n- **Ngày & Giờ:** Thứ Ba, ngày 13 tháng 10 năm 2026, 19:00 – 19:45 CEST (đến sớm 15 phút)\n- **Địa điểm:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Giá:** €5 (miễn phí với ExampleFitness / Wellpass nếu bạn cũng tập leo núi bouldering)\n- **Đặt chỗ:** [Xem chi tiết và link đặt chỗ](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Giới thiệu:** Một buổi tập Vinyasa năng động nhưng nhẹ nhàng, có các biến thể cho người mới bắt đầu, tập trung vào nhận thức hơi thở, căn chỉnh cơ thể và giải tỏa căng thẳng.\n- **Ngày & Giờ:** Thứ Tư, ngày 14 tháng 10 năm 2026, 19:30 – 21:00 CEST\n- **Địa điểm:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Giá:** €10 cho buổi tập thử đầu tiên (gói khởi đầu: 3 buổi với giá €20)\n- **Đặt chỗ:** [Đăng ký qua Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Mẹo cho buổi tập yoga đầu tiên của bạn\n* **Trang phục:** Quần áo thoải mái, co giãn để bạn có thể di chuyển và gập người dễ dàng. Yoga thường được tập bằng chân trần.\n* **Nước uống & Ăn uống:** Tránh ăn no trong vòng 1,5–2 giờ trước khi tập.\n* **Lắng nghe cơ thể:** Hãy báo cho giáo viên biết trước buổi tập rằng đây là lần đầu của bạn; họ sẽ sẵn lòng hướng dẫn bạn các điều chỉnh và cách dùng dụng cụ hỗ trợ (gạch, chăn hoặc dây đai). Nếu bạn có vấn đề về khớp hoặc lưng, hãy tham khảo ý kiến bác sĩ hoặc chuyên gia vật lý trị liệu trước khi thử các chuỗi động tác năng động.\n\nBạn có muốn nhận gợi ý ở gần một khu vực cụ thể nào không (ví dụ: Neukölln, Prenzlauer Berg, Charlottenburg), hoặc tập trung vào một phong cách nhẹ nhàng như [Hatha yoga](wiki:Hatha_yoga) hay [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải lời khuyên y tế. Hãy tham khảo ý kiến bác sĩ cho các quyết định y tế.*"
-      },
-      "follow_up_1": {
-        "text": "Tìm các lớp yoga ở Neukölln Berlin"
-      },
-      "follow_up_2": {
-        "text": "Giải thích những gì sẽ diễn ra trong buổi tập yoga đầu tiên"
-      },
-      "follow_up_3": {
-        "text": "Tìm các hội thảo yoga Hatha vào cuối tuần tới"
-      },
-      "follow_up_4": {
-        "text": "So sánh phong cách yoga Vinyasa và Hatha"
-      },
-      "follow_up_5": {
-        "text": "Tìm các studio yoga Yin ở Mitte"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các mẹo cho người mới bắt đầu khi mua thảm yoga"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Tìm bác sĩ tổng quát nói tiếng Anh tại Berlin"
-      },
-      "summary": {
-        "text": "Tìm các lựa chọn hẹn khám với thông tin bảo hiểm minh bạch và liên kết đến phòng khám."
-      },
-      "message_1": {
-        "text": "Tôi cần hẹn bác sĩ tổng quát nói tiếng Anh tại Berlin vào tuần tới. Hãy so sánh các lựa chọn sớm nhất, hiển thị thẻ thông tin cuộc hẹn và chỉ nêu chi tiết bảo hiểm nếu thông tin đặt chỗ có xác nhận. Nếu không rõ về bảo hiểm, hãy báo lại."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nDưới đây là các lựa chọn bác sĩ tổng quát (GP) nói tiếng Anh sớm nhất tại Berlin trong 7 ngày tới mà mình tìm thấy. Mình chỉ nêu phạm vi bảo hiểm khi thông tin đăng ký khám bệnh có ghi rõ.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Các lựa chọn sớm nhất vào tuần tới**\n1. **Thứ Hai, 12/10, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Địa chỉ: Albert-Einstein-Straße 2, 12489 Berlin\n   - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)\n   - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh\n   - **Bảo hiểm:** tư nhân *(được xác nhận theo thông tin đăng ký)*\n\n2. **Thứ Hai, 12/10, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Địa chỉ: Kapweg 5, 13405 Berlin\n   - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)\n   - Ngôn ngữ hiển thị: Tiếng Anh\n   - **Bảo hiểm:** tư nhân *(được xác nhận theo thông tin đăng ký)*\n\n3. **Thứ Hai, 12/10, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Địa chỉ: Stargarder Straße 69, 10437 Berlin\n   - Loại hình thăm khám: Khám cấp tính (Akutsprechstunde)\n   - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh\n   - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*\n\n4. **Thứ Hai, 12/10, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Địa chỉ: Müllerstraße 36, 13353 Berlin\n   - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)\n   - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh\n   - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*\n\n5. **Thứ Hai, 12/10, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Địa chỉ: Wallstraße 16, 10179 Berlin\n   - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)\n   - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh\n   - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*\n\nMột vài lưu ý:\n- Mình đã loại bỏ hai lựa chọn sớm hơn vào ngày **9–10 tháng 10** khỏi bảng so sánh trên vì bạn đã yêu cầu cụ thể cho **tuần tới**.\n- Các kết quả này có vẻ đến từ danh sách của ExampleClinicA; phạm vi bảo hiểm của ExampleClinicB không được hỗ trợ trong bộ kết quả tìm kiếm này.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nNếu muốn, tiếp theo mình có thể:\n- thu hẹp phạm vi chỉ bao gồm **bảo hiểm công** ở những nơi đã xác nhận, hoặc\n- tạo một danh sách rút gọn theo **quận / khoảng cách từ khu vực của bạn**.\n---\n*⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là lời khuyên y tế. Hãy tham khảo ý kiến bác sĩ để đưa ra các quyết định y tế.*"
-      },
-      "follow_up_1": {
-        "text": "Tìm lịch hẹn bác sĩ gia đình có bảo hiểm công tại Mitte"
-      },
-      "follow_up_2": {
-        "text": "Lọc lịch hẹn để chỉ hiển thị bảo hiểm công"
-      },
-      "follow_up_3": {
-        "text": "Tìm bác sĩ nói tiếng Anh gần quận Prenzlauer Berg"
-      },
-      "follow_up_4": {
-        "text": "Thu hẹp các lựa chọn theo khu vực và khoảng cách"
-      },
-      "follow_up_5": {
-        "text": "Tìm lịch hẹn bác sĩ chuyên khoa tại Berlin"
-      },
-      "follow_up_6": {
-        "text": "Hướng dẫn cách đặt lịch hẹn bác sĩ trực tuyến"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "So sánh đặc điểm sinh học ngoài hành tinh của người Gethen và người Oankali"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "Giải thích cách tối ưu hóa tệp SVG để tăng hiệu suất web"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Tìm tên thương hiệu và tên miền"
-      },
-      "summary": {
-        "text": "Một cuộc hội thoại đặt tên súc tích: lên ý tưởng cho bảy ứng viên, sau đó so sánh hai cái tên cuối cùng với các bằng chứng về tên miền, web và nhãn hiệu sơ bộ tại Mỹ."
-      },
-      "message_1": {
-        "text": "Giúp tôi tìm tên cho sản phẩm mới của mình."
-      },
-      "message_2": {
-        "text": "Để bắt đầu, sản phẩm của bạn làm gì, đối tượng mục tiêu là ai và tên gọi nên truyền tải tông điệu hay cảm giác như thế nào (ví dụ: vui tươi, cao cấp, kỹ thuật)?"
-      },
-      "message_3": {
-        "text": "Đó là một ứng dụng lập ngân sách nhẹ nhàng dành cho những người làm tự do (freelancer) tại Mỹ, bằng tiếng Anh. Tôi muốn những cái tên ngắn gọn, dễ nhớ và tên miền .com với giá tối đa 20 €/năm. Trước tiên, hãy gợi ý cho tôi một danh sách rút gọn đa dạng."
-      },
-      "message_4": {
-        "text": "Dưới đây là danh sách rút gọn ban đầu gồm các tên gọi đa dạng, dễ phát âm, được thiết kế riêng cho trải nghiệm lập ngân sách tự do nhẹ nhàng:\n\n- [ ] **Serenito**: Gợi lên sự thanh thản và nhịp độ nhẹ nhàng cho thu nhập tự do biến động.\n- [ ] **Solowell**: Gợi ý sự lành mạnh về tài chính và sự an tâm cho những người kinh doanh độc lập.\n- [ ] **Equafy**: Tập trung vào việc cân bằng các chu kỳ dòng tiền không đều đặn.\n- [ ] **StillLedger**: Kết hợp cấu trúc kế toán cổ điển với sự tĩnh lặng, ít căng thẳng.\n- [ ] **Cadenceo**: Ngụ ý việc xây dựng một nhịp điệu ổn định, có thể dự đoán được từ các khoản thanh toán công việc tự do.\n- [ ] **HavenFin**: Coi việc quản lý tiền bạc như một bến đỗ an toàn, trấn an.\n- [ ] **Placidly**: Tông điệu mềm mại, trấn an giúp xua tan lo âu tài chính.\n\n*(Lưu ý: Danh sách rút gọn này chưa được kiểm tra về tính khả dụng của tên miền thực tế hoặc tính pháp lý.)*\n\nBạn muốn kiểm tra trực tiếp 2–3 tên nào? Bạn có thể chọn những tên mình thích hoặc yêu cầu tôi chọn ra các ứng viên cuối cùng để xác minh giá .com, xung đột thương hiệu và nhãn hiệu tại Mỹ.\n\n- [Kiểm tra Serenito, Solowell và Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Chọn giúp tôi 3 tên tốt nhất và kiểm tra chúng](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Vui lòng kiểm tra Equafy và Cadenceo: tính khả dụng của tên miền .com và giá niêm yết, các thương hiệu hiện có trên web và nhãn hiệu tại Mỹ. Hãy so sánh một cách gọn gàng, kèm theo đề xuất của bạn và bất kỳ bước kiểm tra nào còn thiếu."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nDưới đây là bảng so sánh dựa trên các kiểm tra được thực hiện vào ngày 12 tháng 10, 2026:\n\n### Equafy\n- **Tên miền**: `equafy.com` hiện không khả dụng trên ExampleRegistrar; không có giá đăng ký tiêu chuẩn, vì vậy nó không đáp ứng ngân sách €20/năm.\n- **Bối cảnh web & thương hiệu**: Không có phần mềm lập ngân sách nổi bật nào sử dụng chính xác tên này, nhưng các tìm kiếm trên web cho thấy sự tương đồng cao về ngữ âm và gây nhầm lẫn khi tìm kiếm với [dịch vụ tài chính cá nhân Equifax](embed:equifax.com-TrW).\n- **Nhãn hiệu Hoa Kỳ (ExampleTrademarks)**: Tìm kiếm sơ bộ trả về 5 trong số 1.640 hồ sơ tương tự (đã bị cắt bớt; không thể xác định việc vắng mặt tên chính xác). Các kết quả khớp đang hoạt động bao gồm `EQUIFY` trong Nhóm 36 (dịch vụ tài chính và giá trị lưu trữ đang chờ xử lý) và Nhóm 35 (dịch vụ đấu giá đã đăng ký).\n\n### Cadenceo\n- **Tên miền**: `cadenceo.com` hiện không khả dụng trên ExampleRegistrar; không có giá đăng ký tiêu chuẩn, không đạt ngân sách €20/năm.\n- **Bối cảnh web & thương hiệu**: Trùng lặp trực tiếp với [Cadence Money](embed:cadencemoney.com-IcE), một ứng dụng theo dõi ngân sách và tài chính cá nhân đã có uy tín hoạt động tại Hoa Kỳ và Canada trên iOS, Android và web.\n- **Nhãn hiệu Hoa Kỳ (ExampleTrademarks)**: Tìm kiếm sơ bộ trả về 5 trong số 227 hồ sơ tương tự (đã bị cắt bớt; không thể xác định việc vắng mặt tên chính xác). Các kết quả khớp đang hoạt động cho `CADENCE` bao gồm các hồ sơ phần mềm có thể tải xuống thuộc Nhóm 9.\n\n---\n\n### Khuyến nghị & Đánh đổi\n- **Hướng đi**: Bỏ qua cả hai. Mặc dù **Equafy** có ít xung đột ứng dụng trực tiếp hơn **Cadenceo** (vốn va chạm trực tiếp với *Cadence Money*), nhưng cả hai đều không có tên miền `.com` khả dụng dưới hạn mức €20/năm của bạn, và Equafy gây nhầm lẫn về ngữ âm với các nhãn hiệu tài chính hiện có như *Equify* và *Equifax*.\n- **Các kiểm tra còn thiếu**: Chưa kiểm tra các đăng ký nhãn hiệu quốc tế ngoài Hoa Kỳ, hồ sơ nhãn hiệu tiểu bang theo thông luật và định giá mua lại tên miền trên thị trường thứ cấp.\n\nBạn có muốn kiểm tra tính khả dụng và sự rõ ràng của tên miền cho các lựa chọn khác trong danh sách rút gọn (chẳng hạn như **Solowell** hoặc **StillLedger**), hay khám phá các biến thể ghép từ nhẹ để tìm một tên miền `.com` khả dụng trong ngân sách?\n\n- [Kiểm tra Solowell và StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Động não các tên ghép có tên miền .com khả dụng dưới €20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Kiểm tra tính khả dụng của tên miền và nhãn hiệu cho Solowell và StillLedger"
-      },
-      "follow_up_2": {
-        "text": "Tìm ý tưởng tên ghép có tên miền .com khả dụng dưới hai mươi euro"
-      },
-      "follow_up_3": {
-        "text": "Tìm kiếm hồ sơ nhãn hiệu cho các ý tưởng tên ứng dụng lập ngân sách sắp tới"
-      },
-      "follow_up_4": {
-        "text": "So sánh chiến lược xây dựng thương hiệu và đặt tên cho các ứng dụng của doanh nhân độc lập"
-      },
-      "follow_up_5": {
-        "text": "Tìm kiếm các phần mở rộng tên miền khả dụng cho các ứng dụng tài chính tự do"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các nhà đăng ký tên miền thay thế cho các tên miền khởi nghiệp giá rẻ"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Chuyến bay từ Berlin đến Bangkok"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Đề xuất chỗ ở tiết kiệm ở Bangkok"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Căn hộ Berlin có ban công"
-      },
-      "summary": {
-        "text": "So sánh các tin đăng căn hộ thực tế tại Berlin, thư viện ảnh đầy đủ, bằng chứng về ban công và vị trí trên bản đồ, cùng với các chi phí chưa xác nhận và khả năng tiếp cận mặt nước được dán nhãn rõ ràng."
-      },
-      "message_1": {
-        "text": "Tôi đang tìm một căn hộ cho thuê ở Berlin có ban công, lý tưởng nhất là gần sông hoặc hồ, giá tối đa 1.800 EUR mỗi tháng và có ít nhất hai phòng. Bạn có thể so sánh một vài tin đăng cùng với thư viện ảnh và vị trí trên bản đồ của chúng không? Vui lòng phân biệt những gì tin đăng thực sự xác nhận với những gì chưa biết, bao gồm tiền thuê nhà, ngày thuê và khả năng tiếp cận mặt nước. Nếu nhà cung cấp chỉ đưa ra vị trí xấp xỉ hoặc ảnh không đầy đủ, hãy nêu rõ. Các khả năng được dán nhãn rõ ràng luôn được hoan nghênh khi thiếu một số chi tiết."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nDưới đây là bảng phân tích so sánh các căn hộ cho thuê 2 phòng tại Berlin với giá dưới 1.800 €/tháng, có bằng chứng về ban công và vị trí gần hoặc có thông tin gần nguồn nước, làm nổi bật các sự thật đã xác nhận so với các điểm chưa rõ ràng:\n\nCăn hộ cho thuê 2 phòng tại Berlin có ban công\n\n---\n\n### So sánh tóm tắt\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Hồ sơ niêm yết chi tiết\n\n#### 1. [Căn hộ loft 2 phòng có ban công, gần Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Tiền thuê & Chi phí**: Tổng tiền thuê bao gồm chi phí (warm rent) được nêu rõ là **1.350 €/tháng**, bao gồm tiền thuê chưa phí (cold rent) 1.200 € và 150 € chi phí bổ sung không xác định. Việc bao gồm chi phí sưởi ấm không được phân tách rõ ràng. Tiền đặt cọc là 2.000 €.\n* **Điều khoản thuê**: Cho thuê lại có thời hạn cố định. Dữ liệu cấu trúc liệt kê từ 01.11.2026 đến 01.04.2027, nhưng mô tả niêm yết làm rõ rằng thời gian cố định được đảm bảo là từ **ngày 1 tháng 11 đến ngày 28 tháng 12 năm 2026**, với các gia hạn linh hoạt hàng tháng cho đến ngày 1 tháng 4 năm 2027 tùy thuộc vào thỏa thuận chung.\n* **Bằng chứng về ban công**: Đã xác nhận. Được liệt kê rõ ràng trong các tính năng và văn bản (\"Ban công đầy nắng với tầm nhìn ra công viên Fennpfuhlpark\"). Đánh giá trực quan đã lấy mẫu 3 trong số 14 ảnh thư viện có sẵn, xác nhận có ban công hiển thị trong ảnh số 0.\n* **Tiếp cận nguồn nước & Vị trí**: Nằm trên quảng trường Anton-Saefkow-Platz ở Lichtenberg. Định vị địa lý khớp ở cấp độ đường phố (không có số nhà cụ thể). Dữ liệu OpenStreetMap xác nhận có nguồn nước (**Fennpfuhl**, một hồ trong công viên), nhưng chỉ dưới dạng tọa độ điểm đại diện; khoảng cách chính xác đến bờ hồ và số phút đi bộ vẫn chưa được tính toán và do đó chưa được xác minh.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Tiền thuê & Chi phí**: Được quảng cáo với giá trọn gói **1.800 €/tháng** (cả tiền thuê chưa phí và bao gồm phí đều được nhập là 1.800 €). Các tiện ích, chi phí sưởi ấm và tiền điện không được liệt kê chi tiết. Tiền đặt cọc là 1.000 €.\n* **Điều khoản thuê & Sự khác biệt về phạm vi**:\n  * *Xung đột ngày tháng*: Các trường cấu trúc hiển thị thời gian trống từ 21.10.2026 đến 03.05.2027. Tuy nhiên, văn bản tiếng Đức nêu rõ thời gian trống bắt đầu từ ngày 11 tháng 11 trong 2 tháng, trong khi bản dịch tiếng Anh ở phần dưới của niêm yết ghi \"từ ngày 6 tháng 11, 4–6 tháng\".\n  * *Hạn chế về phòng*: Niêm yết lưu ý rằng một phòng riêng của chủ sở hữu (*Sperrraum*) vẫn bị khóa và không bao gồm trong việc cho thuê, mặc dù không gian có thể tiếp cận còn lại được mô tả là hai phòng trên diện tích 85 m².\n* **Bằng chứng về ban công**: Đã xác nhận. Được quảng cáo có hai ban công (một hướng ra sân trong, một hướng ra phía nước). Các ảnh mẫu (3 trên 15) đã xác nhận có ban công trong ảnh 0 và 14.\n* **Tiếp cận nguồn nước & Vị trí**: Địa chỉ được liệt kê là Maybachufer ở [Neukölln](wiki:Neukölln). Định vị địa lý trả về kết quả mơ hồ và quay lại tọa độ chung của thành phố Berlin. Mặc dù văn bản niêm yết tuyên bố rõ ràng có tầm nhìn trực tiếp ra [Kênh Landwehr](wiki:Landwehr_Canal), nhưng khoảng cách trong khu lân cận và các tuyến đường đi bộ không thể xác minh về mặt hình học do lỗi tọa độ.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Tiền thuê & Chi phí**: Tiền thuê bao gồm chi phí (warm rent) được liệt kê từ **1.372 €/tháng**, với 130 € chi phí vận hành và 105 € chi phí sưởi ấm được liệt kê chi tiết. Tiền thuê cơ bản chưa phí (cold rent) bị bỏ qua, và mô tả lưu ý rằng đây là mức giá thuê khởi điểm tối thiểu cho một đợt khuyến mãi. Tiền điện phải do người thuê tự ký hợp đồng riêng.\n* **Điều khoản thuê**: Được quảng cáo bởi một đơn vị vận hành thương mại cho một khu dân cư mới (*Erstbezug* 2026). Yêu cầu **thời hạn thuê tối thiểu là 12 tháng** (*Mindestmietdauer*). Ngày bắt đầu để ngỏ (các buổi xem nhà diễn ra vào mỗi Thứ Tư/Thứ Năm hàng tuần).\n* **Bằng chứng về ban công**: Đã xác nhận trong các thông số kỹ thuật mô tả (\"einen Balkon\") và các thuộc tính được quảng cáo. Lấy mẫu trực quan 3 trong số 27 ảnh đã xác nhận cấu trúc ban công bên ngoài trong ảnh số 26.\n* **Tiếp cận nguồn nước & Vị trí**: Nằm tại Buschkrugallee 64 ở Neukölln/[Britz](wiki:Britz). Vị trí dựa trên tọa độ do nhà cung cấp cung cấp mà không có xác minh đường phố độc lập. Mô tả cho biết khu phức hợp giáp với một con kênh (Kênh tàu thủy Neukölln), nhưng khoảng cách chính xác đến bờ và các điểm tiếp cận đi bộ không được tính toán về mặt hình học.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Tiền thuê & Chi phí**: Tiền thuê bao gồm chi phí (warm rent) được quảng cáo là **980 €/tháng**. Mô tả đề cập đến \"Nebenkosten: 270 € pro Monat\", nhưng không làm rõ liệu số tiền này đã bao gồm trong 980 € hay tính thêm. Tiền đặt cọc là 1.500 €.\n* **Sự mơ hồ quan trọng giữa thuê nguyên căn và thuê phòng**: Tiêu đề ghi \"2-Zimmer Wohnung... zur Untermiete\", nhưng văn bản bắt đầu bằng: *\"Wir vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon...\"*. Không rõ liệu toàn bộ căn hộ 2 phòng rộng 50 m² đang được cho thuê lại hay chỉ là một phòng riêng lẻ trong đó.\n* **Bằng chứng về ban công**: Chưa được xác nhận trực quan. Mặc dù được quảng cáo là có ban công trong tiêu đề và văn bản, nhưng người đăng chỉ cung cấp 1 ảnh và không thấy ban công nào trong ảnh đó.\n* **Tiếp cận nguồn nước & Vị trí**: Nằm ở 14057 [Charlottenburg](wiki:Charlottenburg). Nhà cung cấp không chỉ định tên đường hoặc số nhà (chỉ chính xác ở cấp mã bưu điện). Mô tả lưu ý vị trí gần công viên Lietzenseepark (nơi có hồ Lietzensee), nhưng thời gian di chuyển chính xác và khoảng cách đến bờ hồ không thể tính toán được nếu không có địa chỉ đường phố cụ thể.\n* **Điều khoản thuê**: Cho thuê lại có thời hạn cố định từ 01.11.2026 đến tối đa 01.11.2027 (có thể thương lượng thời gian ngắn hơn).\n\n---\n\n### Các lưu ý chính trước khi hỏi thuê\n1. **Xác minh nguồn nước**: Chỉ có căn hộ Maybachufer là nhìn thẳng ra một đường thủy mở từ chính căn hộ, nhưng định vị địa lý của nó chỉ là xấp xỉ và có xung đột về ngày tháng. Căn hộ tại Anton-Saefkow-Platz đã xác nhận nằm gần công viên Fennpfuhl, mặc dù khoảng cách chính xác đến bờ hồ chưa được đo lường.\n2. **Loại hình thuê**: Không có niêm yết nào từ ExampleHousingC cung cấp hợp đồng thuê không thời hạn (*unbefristet*); tất cả đều là cho thuê lại có thời hạn cố định. Momento Berlin cung cấp thời hạn thuê dài hơn bắt đầu với mức tối thiểu 12 tháng.\n3. **Hạn chế về lấy mẫu ảnh**: Đánh giá trực quan đã kiểm tra một mẫu giới hạn từ 1 đến 3 hình ảnh cho mỗi niêm yết. Các tính năng bổ sung có thể xuất hiện trong thư viện đầy đủ có thể truy cập qua mỗi thẻ niêm yết.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Xác định các tham số tìm kiếm căn hộ**\n\nBây giờ tôi đang tập trung vào việc xác định các tham số tìm kiếm chính xác cho các căn hộ cho thuê tại Berlin. Tôi đã chỉ định Berlin là thành phố, giới hạn loại tin đăng là \"thuê\" (rent) và loại bất động sản là \"căn hộ\" (apartment). Ban công là một yêu cầu bắt buộc, tôi sẽ đảm bảo yêu cầu này được đưa vào tiêu chí tìm kiếm.\n\n\n**Tinh chỉnh tiêu chí tìm kiếm**\n\nTôi vừa tinh chỉnh thêm các tham số tìm kiếm. Tôi đã chuyển yêu cầu \"lý tưởng nhất là gần sông hoặc hồ\" thành ưu tiên gần nguồn nước, được phân loại là \"neighborhood_categories: ['water']\". Ngân sách \"lên đến 1.800 EUR mỗi tháng\" hiện được chỉ định là `max_warm_rent_eur: 1800`, vì tôi giả định đó là tiền thuê bao gồm các chi phí (warm rent). Hơn nữa, vì tôi được hướng dẫn rằng \"Các khả năng được dán nhãn rõ ràng luôn được hoan nghênh khi thiếu một số chi tiết\", nên bây giờ tôi sẽ bao gồm rõ ràng các tin đăng chưa được xác nhận với `include_unconfirmed: true`.\n\n\n**Phân tích các yêu cầu tìm kiếm**\n\nBây giờ tôi đang phân tích kỹ các hướng dẫn của công cụ tìm kiếm nhà này. Tôi đang tập trung vào cách tốt nhất để chuyển đổi các sở thích của mình thành các bộ lọc có cấu trúc và `relevance_criteria` (tiêu chí liên quan) chính xác. Tôi cần đảm bảo các yêu cầu về khoảng cách gần nguồn nước, bằng chứng về ban công và các giới hạn ngân sách đều được mã hóa đúng cách. Tôi cũng đang đảm bảo phân biệt rõ ràng giữa những gì là \"bắt buộc\", \"loại trừ\" và \"ưu tiên\" trong tìm kiếm của mình.\n\n\n**Đánh giá tính toàn vẹn của dữ liệu tin đăng**\n\nBây giờ tôi đang rất quan tâm đến tính toàn vẹn của dữ liệu. Tôi phải tránh khẳng định quá mức về các bằng chứng hình ảnh và chỉ rõ các hạn chế từ mỗi nhà cung cấp. Khoảng cách gần nguồn nước phải dựa trên bằng chứng vững chắc, báo cáo là \"chưa xác minh\" (unverified) khi không có dữ liệu bổ sung hoặc hết thời gian chờ. Phải làm rõ rằng một ban công có thể nhìn thấy được không đảm bảo nó thuộc về căn hộ đó, và tôi chỉ có thể báo cáo các chi tiết cụ thể về hợp đồng thuê khi được nêu rõ ràng.\n\n\n**Phân tích dữ liệu tin đăng**\n\nHiện tôi đang đi sâu vào các tin đăng được trả về, đối chiếu tỉ mỉ với các quy tắc đã cung cấp. Trọng tâm của tôi là phân định rõ ràng các điểm dữ liệu đã xác nhận với các điểm chưa chắc chắn. Tôi đang chú ý kỹ đến các chi tiết cụ thể như tiền thuê, ngày thuê và khả năng tiếp cận nguồn nước, đánh dấu bất kỳ sự mơ hồ nào. Mục tiêu là độ chính xác tuyệt đối.\n\n\n**Làm rõ tiêu chí về khoảng cách gần**\n\nBây giờ tôi đang tích hợp các yêu cầu sắc thái về khoảng cách gần. Tôi đang ghi chép cẩn thận mọi hạn chế về bằng chứng. Tôi tập trung vào việc tách biệt một cách minh bạch các khẳng định đã được xác thực khỏi các thông tin chưa được xác minh. Tôi ưu tiên tính chính xác trong tài liệu của mình. Tôi đang làm rõ những gì cấu thành khả năng tiếp cận nguồn nước đã được xác minh và những gì không. Tôi nhấn mạnh nhu cầu dán nhãn rõ ràng cho các dữ liệu không chắc chắn.\n\n\n**Tinh chỉnh các quy tắc về sự mơ hồ**\n\nBây giờ tôi đang tập trung vào việc tinh chỉnh các quy tắc xung quanh các điểm dữ liệu không chắc chắn. Nếu không có đề cập đến đặc điểm nguồn nước, tôi sẽ báo cáo là không xác định; tôi sẽ không tự suy luận về khoảng cách gần. Tôi sẽ tách biệt khả năng nhìn thấy ban công qua ảnh khỏi xác nhận bằng văn bản. Các điều khoản thuê chỉ được báo cáo rõ ràng khi được nêu ra. Các mâu thuẫn về ngày tháng và bảng phân bổ tiền thuê được ưu tiên xử lý. Tôi sẽ sử dụng các thẻ xem trước nhúng (embed preview cards) làm chế độ xem.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Giải thích định dạng kết quả**\n\nBây giờ tôi đang tập trung vào cấu trúc của phản hồi \"embeds\\_results\\_view\". Tôi nhận thấy sự vắng mặt của \"source\\_ref\", điều này ảnh hưởng đến việc sử dụng đúng \"sources\" hoặc \"embeds\". Tôi chắc chắn sẽ sử dụng trường \"embeds\" khi không có source\\_ref, tham chiếu cụ thể đến các giá trị embed\\_ref con được trả về. Ngoài ra, tôi sẽ chú ý đến trường \"title\" như một yếu tố mô tả.\n\n\n**Kiểm tra chi tiết tin đăng**\n\nBây giờ tôi đang kiểm tra kỹ từng tin đăng cá nhân, cụ thể là tập trung vào \"Căn hộ loft 2 phòng có ban công, gần Ringbahn\". Tôi đang đối chiếu tin đăng này với dữ liệu nhúng. Tôi lưu ý rằng khoảng cách gần nguồn nước chưa được xác minh do không rõ khoảng cách và lối tiếp cận, mặc dù có đề cập đến tầm nhìn ra hồ. Trọng tâm của tôi là ghi chú rõ ràng những gì đã xác nhận so với những gì chưa được xác minh. Tôi đang ghi chép cẩn thận tất cả các điểm chưa chắc chắn.\n\n\n**Đánh giá chi tiết tin đăng**\n\nTôi vừa hoàn thành việc đánh giá một tin đăng khác. Tôi đã xác nhận khả năng nhìn thấy ban công thông qua phân tích ảnh. Thời hạn thuê cung cấp một khoảng thời gian cố định sau đó là gia hạn linh hoạt, điều mà tôi đã ghi lại. Tôi đang tập trung vào các chi tiết cụ thể. Bây giờ, tôi đang làm việc để hiểu đầy đủ tất cả các thông tin tin đăng có liên quan.\n```\n```\n\n\n**Chi tiết hóa các thuộc tính cụ thể**\n\nBây giờ tôi đang chi tiết hóa tin đăng cụ thể này. Mã địa lý của đường phố không rõ ràng; tôi lưu ý điều này ảnh hưởng đến việc xác minh khoảng cách gần nguồn nước. Khẳng định bằng văn bản về tầm nhìn ra Landwehrkanal không thể được xác thực về mặt hình học. Tôi xác nhận sự hiện diện của ban công thông qua kiểm tra văn bản và hình ảnh. Tôi đang đánh dấu rõ ràng mâu thuẫn về ngày thuê giữa dữ liệu có cấu trúc và văn bản mô tả.\n\n\n**Đánh giá dữ liệu tin đăng**\n\nBây giờ tôi đang đi sâu vào tin đăng mới nhất. Tôi đã đánh dấu việc thiếu tiền thuê chưa bao gồm chi phí (cold rent) và bảng phân bổ tiền thuê không chính xác. Tiền thuê được quảng cáo là mức khởi điểm, vì vậy tôi đã lưu ý mức tối thiểu không xác định. Phạm vi diện tích căn hộ trong dự án cần được làm rõ, vì diện tích của tin đăng nằm trong phạm vi này. Tôi đã đánh dấu khoảng cách gần kênh đào không chắc chắn do độ chính xác của vị trí chưa được xác minh.\n\n\n**Giải thích chi tiết về hợp đồng thuê**\n\nBây giờ tôi đang tập trung vào thông tin thuê và xác minh ban công của tin đăng mới nhất. Tôi đã xác nhận khả năng nhìn thấy ban công qua văn bản và hình ảnh mẫu. Tôi đã lưu ý thời hạn thuê tối thiểu là 12 tháng và không có ngày kết thúc rõ ràng trong dữ liệu. Tin đăng dành cho một phòng đầy đủ nội thất có ban công, nhưng tiêu đề ghi là căn hộ 2 phòng, vì vậy tôi đang điều tra sự mơ hồ tiềm ẩn giữa phòng và căn hộ. Tôi đang chú ý kỹ đến tất cả các chi tiết.\n\n\n**Phân tích chi tiết tin đăng**\n\nBây giờ tôi đang phân tích cẩn thận một tin đăng mới, trong đó nêu rõ một phòng đầy đủ nội thất có ban công. Cụm từ \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" (cho thuê căn phòng đẹp, yên tĩnh và đầy đủ nội thất của chúng tôi có ban công) làm tăng thêm sự mơ hồ quan trọng; bức ảnh duy nhất của tin đăng được cung cấp thiếu xác nhận về ban công, điều mà tôi đã đánh dấu. Địa chỉ, mã địa lý ở cấp quận làm cho khoảng cách gần nguồn nước trở nên mơ hồ. Thời hạn thuê kéo dài từ ngày 1 tháng 11 năm 2026 đến ngày 1 tháng 11 năm 2027.\n\n\n**So sánh các đề cập về nguồn nước**\n\nBây giờ tôi đang so sánh các tin đăng có đề cập đến các đặc điểm nguồn nước như Maybachufer và các nơi khác để phân biệt độ chính xác trong các khẳng định của họ và bất kỳ sự khác biệt dữ liệu vốn có nào. Tôi đang xem xét bằng chứng và phạm vi bao phủ của chúng. Tôi tập trung vào các chi tiết chính xác mà người dùng yêu cầu. Tôi sẽ đánh dấu bất kỳ sự không chắc chắn và hạn chế nào trong dữ liệu.\n\n\n**Xác minh bảng phân bổ tiền thuê**\n\nBây giờ tôi đang tập trung vào sự khác biệt trong các con số tiền thuê. Tôi ưu tiên đối chiếu các con số mâu thuẫn, báo cáo các chi phí không được liệt kê cụ thể và ghi chú rõ ràng các khoản bao gồm chi phí sưởi ấm không xác định. Ngoài ra, tôi đang kiểm tra các tham chiếu nhúng nội dòng để đảm bảo rằng văn bản hiển thị không bao giờ là embed\\_ref. Hơn nữa, tôi sẽ chỉ sử dụng các thẻ lớn hoặc nhỏ cho các tham chiếu nhúng, dựa trên cú pháp. Cuối cùng, tôi sẽ thêm một tin nhắn theo dõi được đề xuất ở phần cuối cùng của bản cập nhật này."
-      },
-      "message_3": {
-        "text": "Tôi quan tâm nhất đến căn hộ loft và căn hộ Maybachufer. Dựa trên các tin đăng đã lưu, mức giá thuê 1.800 EUR có thực sự là trọn gói không, hay vẫn còn một số hóa đơn chưa rõ? Ngoài ra, bạn có thể làm rõ kết quả tìm kiếm đã trả về bao nhiêu ảnh so với số lượng ảnh thực tế đã được kiểm tra, và những chi tiết nào về ban công và nguồn nước được hỗ trợ trực tiếp bởi các tin đăng không? Tôi muốn giữ các chi tiết chưa xác minh được đánh dấu là chưa rõ."
-      },
-      "message_4": {
-        "text": "Dưới đây là bảng phân tích chính xác về những gì dữ liệu tin đăng thực sự xác nhận so với những gì vẫn chưa được xác minh hoặc chưa biết đối với **căn hộ Maybachufer** và **căn hộ loft Anton-Saefkow-Platz**.\n\n---\n\n### 1. Tiền thuê tại Maybachufer: 1.800 € có thực sự là trọn gói?\n\n* **Những gì tin đăng nêu rõ**: Cả tiền thuê thuần (*Kaltmiete*) và tổng tiền thuê (*Warmmiete*) đều được nhập là **1.800 €** trọn gói. Tiền đặt cọc được ấn định là 1.000 €.\n* **Những gì vẫn CHƯA BIẾT**:\n  * **Phân bổ tiện ích**: Tin đăng **không cung cấp bảng kê chi tiết** cho chi phí vận hành (*Betriebskosten/Nebenkosten*) hoặc chi phí sưởi (*Heizkosten*).\n  * **Điện & Internet**: Chủ nhà không xác nhận rõ ràng trong các trường dữ liệu có cấu trúc liệu điện sinh hoạt (*Haushaltsstrom*) hoặc Wi-Fi đã bao gồm trong khoản 1.800 € hay chưa, hoặc có áp dụng hạn mức sử dụng hay không.\n  * **Phí truyền hình**: Liệu phí truyền hình bắt buộc của Đức (*Rundfunkbeitrag*) đã bao gồm hay phải đăng ký riêng vẫn chưa được nêu rõ.\n* **Kết luận**: Mặc dù được quảng cáo là số tiền trọn gói hàng tháng điển hình cho các căn hộ cho thuê lại ngắn hạn có nội thất, nhưng nó **không thể được xác minh là trọn gói hoàn toàn** cho đến khi chủ nhà cung cấp bảng kê bằng văn bản xác nhận về điện, chi phí sưởi vượt mức và internet.\n\n---\n\n### 2. Phạm vi thư viện ảnh: Đã truy xuất so với Đã kiểm tra\n\nCông cụ tìm kiếm đã truy xuất siêu dữ liệu tin đăng với đầy đủ số lượng ảnh, nhưng phân tích hình ảnh tự động chỉ đánh giá một mẫu ảnh mục tiêu cho mỗi tin đăng để xác định các tính năng cốt lõi:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Lưu ý: Bạn có thể mở trực tiếp các thẻ tin đăng để xem thủ công tất cả 14–15 ảnh độ phân giải cao.*\n\n---\n\n### 3. Chi tiết về Ban công & Mặt nước: Đã xác nhận so với Chưa biết\n\n#### Căn hộ Maybachufer\n* **Ban công**:\n  * *Xác nhận qua văn bản tin đăng*: Có **hai ban công** — một cái hướng ra sân trong (*Innenhof*) và một cái hướng ra kênh/phố.\n  * *Xác nhận qua kiểm tra ảnh*: Cấu trúc ban công có thể nhìn thấy đã được xác nhận trong các chỉ số ảnh 0 và 14 được kiểm tra.\n  * *Chưa biết*: Kích thước chính xác của ban công, hướng/giờ tiếp xúc với ánh nắng mặt trời và liệu có đồ nội thất ngoài trời hay không.\n* **Tiếp cận mặt nước**:\n  * *Xác nhận qua văn bản tin đăng*: Nằm trực tiếp trên đường Maybachufer dọc theo [Kênh Landwehr](wiki:Landwehr_Canal) ở [Neukölln](wiki:Neukölln). Mô tả khẳng định rõ ràng có tầm nhìn hướng ra mặt nước.\n  * *Chưa biết / Công cụ chưa xác minh*: Hệ thống mã hóa địa lý đã gắn cờ truy vấn địa chỉ đường phố là không rõ ràng và mặc định chọn một điểm trung tâm toàn Berlin thay vì ghim vị trí chính xác. Do đó, khoảng cách chính xác từ tin đăng đến các điểm băng qua kênh dành cho người đi bộ hoặc bến tàu không thể được đo lường độc lập từ gói dữ liệu.\n\n#### Căn hộ loft Anton-Saefkow-Platz\n* **Ban công**:\n  * *Xác nhận qua văn bản tin đăng*: Quảng cáo rõ ràng có \"ban công đầy nắng với tầm nhìn ra công viên Fennpfuhlpark\".\n  * *Xác nhận qua kiểm tra ảnh*: Cấu trúc ban công đã được xác nhận trong chỉ số ảnh 0 được kiểm tra.\n  * *Chưa biết*: Diện tích ban công và tầng (tin đăng nêu rõ phong cách loft ở các tầng trên, nhưng không nêu chính xác là tầng mấy).\n* **Tiếp cận mặt nước**:\n  * *Xác nhận qua văn bản tin đăng & OpenStreetMap*: Nằm tại Anton-Saefkow-Platz ở Lichtenberg, cạnh công viên Fennpfuhlpark, nơi có hồ **Fennpfuhl** (một hồ nước lịch sử).\n  * *Chưa biết / Công cụ chưa xác minh*: Tin đăng **không** nằm trực tiếp trên bờ sông hoặc kênh; đặc điểm mặt nước là một hồ nước trong công viên. Hơn nữa, mặc dù bản thân công viên nằm đối diện bên kia đường, nhưng thời gian đi bộ chính xác đến mép nước và liệu có thể nhìn thấy mặt nước trực tiếp qua tán cây từ ban công hay không vẫn chưa được xác minh.\n\n---\n\n### Các câu hỏi cần hỏi chủ nhà trước khi xem nhà\n\n1. **Đối với Maybachufer**:\n   * *\"Mức giá trọn gói 1.800 € hàng tháng có bao gồm toàn bộ chi phí sưởi, điện và internet không, hay sẽ có quyết toán chi phí tiện ích riêng (*Nebenkostenabrechnung*) vào cuối thời gian lưu trú?\"*\n   * *\"Bạn có thể xác nhận ngày thuê lại chính xác không (phần tóm tắt ghi 2 tháng, nhưng phần mô tả tiếng Anh lại đề cập đến 4–6 tháng)?\"*\n2. **Đối với căn hộ Loft**:\n   * *\"Khoản phí bổ sung 150 € là phí cố định (*Pauschale*) đã bao gồm sưởi và internet, hay là khoản thanh toán trước (*Vorauszahlung*)?\"*\n   * *\"Việc gia hạn sau ngày 28 tháng 12 năm 2026 có được đảm bảo trong hợp đồng nếu cần thiết không?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Làm rõ chi tiết bất động sản**\n\nTôi hiện đang tập trung vào các câu hỏi của người dùng liên quan đến \"căn hộ loft\" và \"căn hộ Maybachufer\". Cụ thể, tôi đang tìm hiểu sâu hơn về mức giá thuê 1.800 EUR cho bất động sản Maybachufer. Tôi cần xác định chắc chắn liệu đó có thực sự là giá trọn gói hay không, hoặc liệu có các chi phí bổ sung tiềm ẩn nào khác. Ngoài ra, tôi cũng đang làm rõ số lượng ảnh có sẵn cho việc tìm kiếm.\n\n\n**Xác minh chi tiết các khoản bao gồm**\n\nTôi hiện đang đi sâu vào các chi tiết cụ thể về giá thuê của căn hộ Maybachufer, đặc biệt là tuyên bố \"trọn gói\". Mục tiêu của tôi là trích xuất bảng phân bổ chính xác những gì được bao gồm và loại trừ. Tôi cần phân biệt liệu 1800 EUR có bao gồm các tiện ích, internet, sưởi và phí truyền hình hay không. Dữ liệu ban đầu cho thấy thông tin mâu thuẫn, vì vậy tôi phải xác định chính xác những gì dữ liệu *thực sự* xác nhận.\n\n\n**Xác định các khoản chưa rõ ràng**\n\nTôi hiện đang làm rõ các chi tiết cụ thể liên quan đến tiện ích. Dữ liệu ban đầu chưa xác nhận liệu phí GEZ, tiền điện hay chi phí sưởi vượt mức có được bao gồm hay không. Tôi cần xác định rõ tổng số lượng ảnh và đảm bảo tất cả các ảnh liên quan đều được phân tích cho từng bất động sản. Căn hộ Maybachufer có hai ban công và căn hộ loft có một ban công, mặc dù kích thước vẫn chưa được nêu rõ. Ngoài ra, tôi đang xác minh vị trí của bất động sản Maybachufer."
-      },
-      "follow_up_1": {
-        "text": "Tìm các căn hộ 2 phòng khác gần mặt nước ở Berlin"
-      },
-      "follow_up_2": {
-        "text": "Soạn tin nhắn hỏi thuê bằng tiếng Đức cho chủ nhà ở Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "Tìm lộ trình giao thông công cộng từ Anton-Saefkow-Platz đến Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "So sánh tiền đặt cọc và điều khoản hủy hợp đồng của cả hai căn hộ"
-      },
-      "follow_up_5": {
-        "text": "Kiểm tra dự báo thời tiết hiện tại ở Berlin Lichtenberg"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các câu hỏi quan trọng cần hỏi chủ nhà khi đi xem căn hộ ở Berlin"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "Giải thích cách nguồn cung thị trường nhà ở phản ứng với việc kiểm soát giá"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Công việc ý nghĩa tại Đức"
-      },
-      "summary": {
-        "text": "Tìm kiếm các vị trí tuyển dụng tại Đức trên bốn nền tảng việc làm, sau đó so sánh các vai trò thiết kế và chuẩn bị câu hỏi cho nhà tuyển dụng."
-      },
-      "message_1": {
-        "text": "Tôi đang tìm kiếm công việc ý nghĩa tại Đức, đặc biệt là trong lĩnh vực nghiên cứu, thiết kế hoặc kỹ thuật phần mềm. Vui lòng tìm một vài vị trí tuyển dụng hiện tại bằng cách sử dụng ExampleJobsB và ExampleJobsC cũng như ExampleJobsD và Cơ quan Việc làm Liên bang (Example Employment Board). Tôi sẵn sàng làm việc ở bất cứ đâu tại Đức. Hãy đưa cho tôi một danh sách rút gọn bao gồm nhà tuyển dụng, địa điểm, nguồn và liên kết ứng tuyển, và đừng giả định về hình thức làm việc từ xa hay mức lương khi tin tuyển dụng không đề cập đến."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nDưới đây là danh sách rút gọn các vị trí tuyển dụng hiện tại ở Đức trong các lĩnh vực nghiên cứu, thiết kế và kỹ thuật phần mềm từ ExampleJobsB, **ExampleJobsC**, **ExampleJobsD**, và **Example Employment Board**.\n\n---\n\n### Thiết kế\n\n* **Senior Product Designer**\n  * **Nhà tuyển dụng:** voize (phát triển AI nhận dạng giọng nói để tối ưu hóa việc lập hồ sơ cho điều dưỡng và chăm sóc lâm sàng)\n  * **Địa điểm:** Berlin, Đức (được liệt kê là có thể làm từ xa)\n  * **Nguồn:** ExampleJobsC\n  * **Mức lương:** Không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua voize](embed:senior-product-designer-Wid)\n\n* **Thiết kế UI/UX (m/w/d)**\n  * **Nhà tuyển dụng:** stiftung ear (cơ quan đăng ký quốc gia điều phối việc xử lý, thu hồi và theo dõi kinh tế tuần hoàn đối với rác thải điện tử)\n  * **Địa điểm:** Nürnberg, Bayern\n  * **Nguồn:** Cơ quan Việc làm Liên bang\n  * **Hình thức làm việc & Mức lương:** Các lựa chọn làm việc linh hoạt/di động được đề cập trong mô tả, nhưng không có phân loại làm việc từ xa hoàn toàn chính thức; mức lương không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### Nghiên cứu\n\n* **Chương trình Học bổng Liên kết (Chính sách Hòa bình & An ninh)**\n  * **Nhà tuyển dụng:** [Đại học Hamburg](wiki:University_of_Hamburg) & Viện Nghiên cứu Hòa bình và Chính sách An ninh (IFSH)\n  * **Địa điểm:** Hamburg, Đức\n  * **Nguồn:** ExampleJobsB\n  * **Hình thức làm việc & Mức lương:** Không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **Cộng tác viên Nghiên cứu (m/f/x) – Học máy & Ra quyết định trong điều kiện không chắc chắn**\n  * **Nhà tuyển dụng:** [Đại học Ruhr Bochum](wiki:Ruhr_University_Bochum)\n  * **Địa điểm:** Bochum, Nordrhein-Westfalen\n  * **Nguồn:** Cơ quan Việc làm Liên bang\n  * **Hình thức làm việc & Mức lương:** Toàn thời gian (39,83 giờ/tuần); hình thức làm việc từ xa không được nêu rõ; thù lao theo thang bảng lương công cộng TV-L E13 (số tiền cụ thể không được công bố trong tin tuyển dụng)\n  * **Ứng tuyển:** [Ứng tuyển qua Example Employment Board](embed:research-associate-m-79L)\n\n* **Kỹ sư Nghiên cứu (f/m/d) – Khử carbon lưới điện & Công nghệ cơ bản**\n  * **Nhà tuyển dụng:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Địa điểm:** Berlin\n  * **Nguồn:** Cơ quan Việc làm Liên bang\n  * **Hình thức làm việc & Mức lương:** Các lựa chọn linh hoạt/di động được đề cập trong văn bản, nhưng không có trạng thái làm việc từ xa cố định; mức lương không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### Kỹ thuật Phần mềm\n\n* **Kỹ sư Backend Cấp cao (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Nhà tuyển dụng:** idealo internet GmbH\n  * **Địa điểm:** Berlin, Đức\n  * **Nguồn:** ExampleJobsD\n  * **Hình thức làm việc & Mức lương:** Làm việc tại văn phòng/hybrid; mức lương không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **Sinh viên vừa học vừa làm – Kỹ thuật Phần mềm (Thị giác máy tính / Hệ thống tự hành)**\n  * **Nhà tuyển dụng:** Quantum-Systems GmbH (nền tảng bay tự hành và nhận thức robot)\n  * **Địa điểm:** Gilching, Bayern\n  * **Nguồn:** ExampleJobsD\n  * **Hình thức làm việc & Mức lương:** Tại văn phòng/hybrid; mức lương không được nêu rõ\n  * **Ứng tuyển:** [Ứng tuyển qua ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Xác định các cơ hội tại Đức**\n\nTôi hiện đang tập trung vào việc xác định các vị trí tuyển dụng phù hợp tại Đức. Tôi đã bắt đầu bằng cách tổng hợp danh sách các nguồn đầy hứa hẹn: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` và `Cơ quan Việc làm Liên bang`. Mối quan tâm chính của tôi nằm ở các vai trò nghiên cứu, thiết kế và kỹ thuật phần mềm, và tôi sẽ theo dõi sát sao khía cạnh địa điểm.\n\n\n**Tinh chỉnh các tham số tìm kiếm**\n\nBây giờ tôi đang tinh chỉnh cách tiếp cận của mình để sử dụng công cụ `jobs-search` một cách hiệu quả. Tôi đang tập trung vào mảng `requests` để thực hiện một loạt các truy vấn và chỉ định trực tiếp các nhà cung cấp, do giới hạn là 5 yêu cầu. Tôi đang kiểm tra định nghĩa hàm để xác nhận cách cung cấp danh sách nhà cung cấp một cách rõ ràng và cách xác định các tiêu chí liên quan. Điều này sẽ giúp tạo ra một danh sách rút gọn bao gồm nhà tuyển dụng, địa điểm, nguồn và liên kết ứng tuyển. Mục tiêu của tôi là tránh đưa ra các giả định về làm việc từ xa hoặc mức lương nếu không được nêu rõ.\n\n\n**Kiểm tra kết quả từ nhà cung cấp**\n\nĐược rồi, tôi đã có cái nhìn đầu tiên về các nhà cung cấp được trả về. Có vẻ như chúng ta có \"ExampleJobsC\" và một vài vị trí từ ExampleJobsD; một là vai trò kỹ sư backend cấp cao (Java/Kotlin), và vai trò còn lại là sinh viên vừa học vừa làm. Tôi đang ghi lại những ấn tượng ban đầu và đánh giá tác động tiềm năng của từng tin tuyển dụng.\n\n\n**Phân tích các cơ hội hiện tại**\n\nTôi hiện đang tập trung vào việc đánh giá hai cơ hội đầy hứa hẹn. Đầu tiên là \"Chương trình Nghiên cứu sinh chung\" tại Viện Nghiên cứu Hòa bình và Chính sách An ninh của Đại học Hamburg, và thứ hai là vị trí \"Trợ lý Sinh viên\" trong Chương trình An ninh mạng Giao diện. Tôi đang xem xét kỹ lưỡng những giá trị tương ứng của chúng trong bối cảnh nghiên cứu hòa bình và an ninh, cũng như an ninh mạng.\n\n\n**Ưu tiên các đầu mối mới**\n\nTôi đã chuyển sự chú ý của mình sang việc biên soạn một danh sách rút gọn cân bằng. Tôi đang ưu tiên các cơ hội trong lĩnh vực thiết kế và nghiên cứu, tập trung vào mức độ phù hợp và các bài đăng gần đây. Hiện tại, tôi đang xem xét vai trò Nhà thiết kế Sản phẩm Cấp cao tại voize ở Berlin và vị trí Thiết kế UI/UX tại stiftung ear. Đối với nghiên cứu, tôi đang xem xét một vai trò tại Đại học Ruhr Bochum, cùng với Chương trình Nghiên cứu sinh chung ở Hamburg.\n\n\n**Đánh giá các khả năng mới**\n\nBây giờ tôi đang cân nhắc các đầu mối mới dựa trên các tiêu chí của mình. Tôi đã phát hiện ra các lựa chọn, như vai trò Kỹ sư Nghiên cứu tại Siemens Energy, Berlin, thông qua Cơ quan Việc làm Liên bang, tập trung vào nghiên cứu cơ bản. Tôi cũng đang xem xét các vai trò Kỹ sư Backend Cấp cao và Nhà phát triển Phần mềm C++ Cấp thấp tại idealo internet GmbH (Berlin, ExampleJobsD) và CT Software Engineering (Ingolstadt, Cơ quan Việc làm Liên bang). Những vị trí này phù hợp với sở thích của tôi trong lĩnh vực kỹ thuật phần mềm.\n\n\n**Tinh chỉnh tiêu chí ứng tuyển**\n\nBây giờ tôi đang làm rõ cách xử lý các liên kết ứng tuyển. Tôi phải nhớ ưu tiên các quy trình ứng tuyển rõ ràng, kiểm tra việc sử dụng `[văn bản hiển thị](embed:embed_ref)` hoặc các liên kết tiêu chuẩn. Hơn nữa, tôi nên tránh giả định về làm việc từ xa hoặc tiết lộ mức lương trừ khi nó được nêu rõ trong tin tuyển dụng.\n\n\n**Làm rõ các giao thức ứng tuyển**\n\nBây giờ tôi đang tập trung vào các định dạng liên kết ứng tuyển. Tôi đang tập trung vào việc đảm bảo tích hợp liên kết trực tiếp hoặc sử dụng định dạng `(embed:embed_ref)`, đảm bảo tôi không cung cấp cả hai. Tôi đang xem xét kỹ các URL được trả về từ các kỹ năng ứng dụng để đảm bảo tuân thủ. Tôi đặt mục tiêu tuân thủ quy tắc chỉ sử dụng một kiểu liên kết cho mỗi liên kết ứng tuyển công việc.\n\n\n**Tiêu chuẩn hóa các liên kết ứng tuyển**\n\nBây giờ tôi đang triển khai chiến lược liên kết ứng tuyển. Mục tiêu của tôi là tiêu chuẩn hóa định dạng cho các tin tuyển dụng. Tôi sẽ chỉ sử dụng tham chiếu nhúng cho các liên kết ứng tuyển. Tôi cũng sẽ kết hợp vai trò, nhà tuyển dụng, địa điểm và nguồn cho mỗi vị trí trống và sử dụng một liên kết nhúng. Tôi sẽ đảm bảo luôn sử dụng một liên kết cho mỗi vị trí trống.\n\n\n**Tổng hợp dữ liệu cơ hội**\n\nBây giờ tôi đang đối chiếu chi tiết cho nhiều cơ hội. Tôi có thông tin cho vai trò Nhà thiết kế Sản phẩm Cấp cao tại voize, vị trí Thiết kế UI/UX tại stiftung ear và Chương trình Nghiên cứu sinh chung tại Đại học Hamburg. Tôi đang ghi lại vai trò, nhà tuyển dụng, địa điểm và nguồn cho mỗi vị trí, cũng như các thông số kỹ thuật về làm việc từ xa và mức lương. Tôi đang tập trung vào việc đảm bảo định dạng liên kết nhất quán bằng cách sử dụng các bản nhúng cho mỗi lần ứng tuyển.\n\n\n**Tích hợp các tin tuyển dụng mới**\n\nBây giờ tôi đang tích hợp các tin tuyển dụng mới vào bộ dữ liệu. Tôi đã thêm một vị trí Cộng tác viên Nghiên cứu tại Đại học Ruhr Bochum, lấy nguồn từ Cơ quan Việc làm Liên bang và ghi chú các chi tiết về làm việc từ xa và mức lương của vị trí đó. Ngoài ra, tôi đã tổng hợp thông tin về vai trò Kỹ sư Nghiên cứu tại Siemens Energy, bao gồm các tùy chọn linh hoạt. Tôi đang đảm bảo tính nhất quán trong định dạng liên kết, sử dụng các bản nhúng cho các liên kết ứng tuyển.\n\n\n**Thêm các tin tuyển dụng mới**\n\nTôi vừa thêm hai tin tuyển dụng mới, một vai trò Kỹ sư Backend Cấp cao tại một địa điểm không xác định và một vị trí Sinh viên vừa học vừa làm tại Quantum-Systems GmbH ở Gilching. Tôi đang tập trung vào việc nắm bắt chính xác tất cả các chi tiết, bao gồm địa điểm, các tùy chọn làm việc từ xa, thông tin mức lương (nếu có) và các liên kết ứng tuyển theo định dạng tiêu chuẩn. Tôi đang sử dụng định dạng `(embed:embed_ref)` cho liên kết ứng tuyển."
-      },
-      "message_3": {
-        "text": "Hai vị trí thiết kế nghe có vẻ thú vị nhất. Bạn có thể so sánh ngắn gọn nội dung thực tế của các tin tuyển dụng đã lưu và gợi ý tôi nên hỏi mỗi nhà tuyển dụng điều gì trước khi ứng tuyển không?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nDưới đây là bảng so sánh trực tiếp các thông tin từ mỗi tin tuyển dụng, kèm theo các câu hỏi trọng tâm mà bạn có thể hỏi từng nhà tuyển dụng trước hoặc trong quá trình ứng tuyển.\n\n---\n\n### So sánh các tin tuyển dụng\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Những điều cần hỏi trước khi ứng tuyển\n\n#### Dành cho voize:\n1. **Tiếp cận nghiên cứu người dùng:** *\"Các nhà thiết kế thường thực hiện nghiên cứu thực địa hoặc thử nghiệm với các điều dưỡng và nhân viên chăm sóc tuyến đầu trong môi trường lâm sàng hàng ngày của họ với tần suất như thế nào và qua những kênh nào?\"*\n2. **Mức độ trưởng thành và phạm vi của đội ngũ:** *\"Cấu trúc của đội ngũ sản phẩm như thế nào, tỷ lệ hiện tại giữa nhà thiết kế với PM và kỹ sư là bao nhiêu, và vai trò này là vị trí đóng góp cá nhân hay được kỳ vọng sẽ thiết lập các hệ thống thiết kế (design systems)?\"*\n3. **Mức lương và chế độ làm việc từ xa:** *\"Mức lương mục tiêu cho cấp bậc kinh nghiệm này là bao nhiêu, và có các buổi offsite bắt buộc tại văn phòng hoặc khung giờ làm việc cốt lõi nào không, mặc dù có chính sách làm việc từ xa?\"*\n\n#### Dành cho stiftung ear:\n1. **Yêu cầu làm việc tại văn phòng ở Nürnberg:** *\"Việc làm việc linh động (mobile working) được tổ chức trên thực tế như thế nào—có yêu cầu cố định hàng tuần hoặc hàng tháng phải có mặt tại văn phòng ở Nürnberg không?\"*\n2. **Sự cân bằng giữa Thiết kế và QA:** *\"Tin tuyển dụng có đề cập đến việc triển khai kiểm thử phần mềm bên cạnh thiết kế UX/UI. Bao nhiêu phần trăm vai trò này tập trung vào nghiên cứu người dùng/tạo mẫu (prototyping) so với việc xác thực phần mềm kỹ thuật và đảm bảo chất lượng (QA)?\"*\n3. **Công cụ thiết kế và bàn giao phát triển:** *\"Hiện tại đang sử dụng hệ thống thiết kế và công cụ tạo mẫu nào, và các bạn làm việc với đội ngũ phát triển nội bộ hay các đơn vị cung cấp dịch vụ IT bên ngoài?\"*\n4. **Định mức lương:** *\"Vì stiftung ear hoạt động với tư cách là một cơ quan pháp định vì lợi ích công cộng, mức lương sẽ tuân theo thang lương tập thể công cộng cụ thể (như TVöD/TV-L) hay cấu trúc phân bậc nội bộ?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Phân tích nội dung tin tuyển dụng**\n\nĐược rồi, tôi đã bắt đầu so sánh các bản mô tả công việc. Tôi đang tập trung vào các trách nhiệm chính và kỹ năng yêu cầu cho vị trí Senior Product Designer tại Voize và vị trí UI/UX Design tại Stiftung EAR. Bây giờ tôi đang chuẩn bị một bản tóm tắt về các trách nhiệm chính và kỹ năng yêu cầu của cả hai tin tuyển dụng. Sau đó, tôi sẽ xác định xem mình có thể cần thêm thông tin gì khác.\n\n\n**Phân tích mô tả công việc**\n\nĐược rồi, tôi đang đi sâu hơn vào các chi tiết cụ thể của từng tin tuyển dụng. Trọng tâm của tôi là mổ xẻ ngôn ngữ thực tế được sử dụng trong các bản mô tả. Tôi đang cố gắng xác định những câu hỏi then chốt nào cần được trả lời để chuẩn bị cho từng nhà tuyển dụng. Ví dụ, trong tin tuyển dụng của voize, tôi cần biết về sản phẩm trợ lý AI của họ.\n\n\n**Đánh giá các chi tiết chính**\n\nBây giờ tôi đang tập trung vào tin tuyển dụng của voize và rút ra những điểm mấu chốt. Đây là một vai trò cấp cao với quyền làm chủ đáng kể, đòi hỏi một người có thể phản biện các quản lý sản phẩm. Cơ cấu làm việc linh hoạt, có văn phòng tại Berlin và các tùy chọn làm việc từ xa. Mức lương không được nêu rõ, nhưng các đặc quyền bao gồm thời gian nghỉ phép hợp lý và thẻ thành viên câu lạc bộ thể thao. Tiếng Anh là ngôn ngữ chính, mặc dù bối cảnh là ngành y tế Đức.\n\n\n**Xác định các yêu cầu cụ thể**\n\nBây giờ tôi đang tập trung vào vai trò có trụ sở tại Nürnberg. Tôi đã chia nhỏ các lĩnh vực chính: khía cạnh tuân thủ pháp lý tập trung vào các quy định của ElektroG. Công việc bao gồm phát triển ứng dụng web và các hoạt động UX, tư vấn cho các bên liên quan. Thành thạo tiếng Đức (tối thiểu C1) là bắt buộc, kinh nghiệm về phần mềm quản lý quy định là một điểm cộng. Vị trí này là chính thức với sự linh hoạt đáng kể trong việc làm việc từ xa. Thù lao dựa trên hiệu suất.\n\n\n**So sánh các đặc điểm công việc**\n\nBây giờ tôi đang so sánh trực tiếp giữa các vai trò. Tôi đã chia nhỏ theo lĩnh vực, văn hóa, kỹ năng yêu cầu và địa điểm làm việc. Cụ thể, tôi đang xem xét voize so với vai trò tại stiftung ear. Tôi đang tập trung vào việc đối chiếu môi trường và các ưu tiên của họ, từ y tế tuyến đầu đến tuân thủ quy định về rác thải điện tử. Tôi đang ghi chú những khác biệt chính như yêu cầu về ngôn ngữ và mức độ kinh nghiệm. Ngoài ra, tôi cũng đang đánh giá sự khác biệt trong chính sách làm việc từ xa của họ."
-      },
-      "follow_up_1": {
-        "text": "Tìm thêm các công việc thiết kế UI/UX tại Berlin"
-      },
-      "follow_up_2": {
-        "text": "Soạn email tiếp cận gửi cho quản lý tuyển dụng tại voize"
-      },
-      "follow_up_3": {
-        "text": "Tìm các vị trí công nghệ y tế tương tự tại Đức"
-      },
-      "follow_up_4": {
-        "text": "So sánh ưu và nhược điểm khi làm việc tại các startup y tế so với các cơ quan công quyền"
-      },
-      "follow_up_5": {
-        "text": "Tìm kiếm các công việc công nghệ trong khu vực công tại Nuremberg"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các bước chuẩn bị phỏng vấn quan trọng cho vị trí thiết kế sản phẩm cấp cao (senior product design)"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Mẫu Benchy và giá đỡ điện thoại in 3D"
-      },
-      "summary": {
-        "text": "Tìm kiếm các mẫu Benchy và giá đỡ điện thoại in 3D phổ biến trên ExampleModels kèm thẻ xem trước và liên kết nguồn."
-      },
-      "message_1": {
-        "text": "Tìm các mẫu Benchy và giá đỡ điện thoại có thể in 3D trên ExampleModels. Hiển thị các lựa chọn tốt nhất kèm thẻ xem trước và liên kết nguồn."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nCho các dự án in 3D tiếp theo của bạn, mình đã tìm thấy một số mô hình phổ biến và sáng tạo nhất trên ExampleModels. Cho dù bạn đang tìm kiếm chiếc tàu kéo [hiệu chuẩn](wiki:Calibration_(statistics)) cổ điển hay một phụ kiện [điện thoại](wiki:Smartphone) tiện dụng, những lựa chọn này đều là những điểm khởi đầu tuyệt vời.\n\n### Bộ sưu tập 3DBenchy\n[3DBenchy](wiki:3DBenchy) là tiêu chuẩn vàng để kiểm tra khả năng của [máy in 3D](wiki:3D_printing) của bạn. Ngoài bản gốc, còn có một số bản \"remix\" giúp tăng thêm cá tính cho bàn làm việc của bạn.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **3DBenchy nguyên bản**: Tốt nhất để [đánh giá](wiki:Benchmark_(computing)) các phần [nhô ra (overhang)](wiki:3D_printing#Support_structures), [bắc cầu (bridging)](wiki:3D_printing#Support_structures) và độ hoàn thiện bề mặt.\n*   **Assault Benchy**: Một phiên bản [mecha](wiki:Mecha) có thể tạo dáng cho những ai muốn một chút phong cách.\n*   **Floating BEN**: Được thiết kế đặc biệt với thân tàu rỗng để nó thực sự có thể nổi—hoàn hảo cho bồn tắm!\n\n### Giá đỡ điện thoại tiện dụng\nGiá đỡ điện thoại là một vật phẩm in thực tế tuyệt vời. Các thiết kế này thay đổi từ tối giản đến các bánh răng cơ khí phức tạp.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Giá đỡ tổ ong**: Rất phổ biến nhờ [tỷ lệ độ bền trên trọng lượng](wiki:Specific_strength) cao và vẻ ngoài hiện đại.\n*   **Giá đỡ có bánh răng**: Một kỳ quan cơ khí \"in tại chỗ\" (print-in-place) cho phép điều chỉnh góc nhìn.\n*   **Đường cong hiện đại**: Một thiết kế nguyên khối bóng bẩy, phù hợp hoàn hảo với không gian văn phòng tối giản.\n\n**Mẹo chuyên nghiệp:** Khi in [Giá đỡ điện thoại có bánh răng](embed:geared-phone-stand-3Bl), hãy đảm bảo [hệ số đùn (extrusion multiplier)](wiki:3D_printing#Fused_deposition_modeling) của bạn được hiệu chuẩn tốt để ngăn các bộ phận chuyển động bị dính chặt vào nhau.\n\nBạn định sử dụng loại [nhựa in](wiki:3D_printing_filament) nào (PLA, PETG, v.v.) cho những mô hình này? Mình có thể đưa cho bạn một số mẹo cắt lớp (slicing) cụ thể dựa trên vật liệu của bạn!\n\n**Bạn muốn làm gì tiếp theo?**\n- [Tìm kiếm thêm các mô hình 3D](/#settings/apps/models3d)\n- [Nhận mẹo in 3D](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "Dạy tôi các nguyên tắc thiết kế responsive"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Tên ứng dụng mạng xã hội với tên miền đã kiểm tra"
-      },
-      "summary": {
-        "text": "So sánh tên ứng dụng mạng xã hội dựa trên tình trạng tên miền, giá đăng ký và gia hạn, cùng các điều khoản đăng ký."
-      },
-      "message_1": {
-        "text": "Tôi đang đặt tên cho một ứng dụng mạng xã hội giúp mọi người giữ liên lạc sau khi gặp mặt trực tiếp và làm quen với những người mới. Hãy đề xuất hai ý tưởng tên gọi độc đáo. Với mỗi ý tưởng, vui lòng kiểm tra trực tiếp các tên miền .com, .net và .app chính xác, sau đó chỉ đề xuất những tên miền chính xác có tình trạng sẵn có, giá đăng ký, giá gia hạn và các hạn chế xuất hiện trong các lần kiểm tra đó. Không đoán về các tên miền chưa được kiểm tra. Hãy chọn tên tốt hơn dựa trên kết quả đã kiểm tra."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nDưới đây là hai ý tưởng tên gọi độc đáo dành cho một ứng dụng tập trung vào việc nuôi dưỡng các kết nối trực tiếp và mở rộng vòng tròn xã hội, cùng với kết quả kiểm tra tên miền trực tiếp cho các đuôi .com, .net và .app của từng tên.\n\n---\n\n### Ý tưởng 1: Kinloop\n* **Khái niệm:** Kết hợp giữa \"kin\" (cộng đồng, sự gần gũi cá nhân, các mối liên kết tin cậy) với \"loop\" (khép kín vòng lặp sau cuộc gặp gỡ ban đầu và duy trì các kết nối trong một vòng tròn liên tục).\n* **Kiểm tra tên miền trực tiếp:**\n  * **`kinloop.com`**: **Không khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Không khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Không khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-XJX))\n* **Đề xuất:** Không có. Cả ba tên miền mục tiêu chính xác hiện đã được đăng ký/không khả dụng, vì vậy không thể đề xuất tên miền chính xác nào cho tên gọi này.\n\n---\n\n### Ý tưởng 2: Orbitfolk\n* **Khái niệm:** Gợi lên ý tưởng giữ những người quen ngoài đời thực trong quỹ đạo cá nhân của bạn, đồng thời liên tục khám phá và chào đón những người mới (\"folk\") vào thế giới của bạn.\n* **Kiểm tra tên miền trực tiếp:**\n  * **`orbitfolk.com`**: **Không khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-cex))\n    * **Giá đăng ký:** $12.99 / năm đầu chưa bao gồm thuế ($15.46 bao gồm 19% VAT; giá thông thường cho 1 năm là $18.78)\n    * **Giá gia hạn:** $39.98 / năm chưa bao gồm thuế ($47.58 bao gồm 19% VAT cho kỳ hạn 1 năm; $35.98/năm trước thuế cho kỳ hạn 2–9 năm)\n    * **Hạn chế:** Không có báo cáo\n  * **`orbitfolk.app`**: **Khả dụng** ([Kiểm tra trên ExampleRegistrar](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Giá đăng ký:** $9.99 / năm đầu chưa bao gồm thuế ($11.89 bao gồm 19% VAT; giá thông thường cho 1 năm là $23.29)\n    * **Giá gia hạn:** $47.98 / năm chưa bao gồm thuế ($57.10 bao gồm 19% VAT cho kỳ hạn 1 năm; $43.18/năm trước thuế cho kỳ hạn 2–9 năm)\n    * **Hạn chế:** Không có báo cáo\n\n---\n\n### So sánh & Lựa chọn tốt hơn\n\n**Orbitfolk** là lựa chọn tốt hơn:\n\n1. **Tính khả dụng trực tiếp:** Trong khi `Kinloop` đã bị chiếm dụng ở cả ba đuôi mở rộng, `Orbitfolk` có cả phiên bản `.app` và `.net` sẵn sàng để đăng ký ngay lập tức.\n2. **Sự phù hợp với sản phẩm:** Vì đây là một sản phẩm xã hội trên di động, **`orbitfolk.app`** cung cấp một đuôi tên miền gọn gàng, được xây dựng có mục đích, giúp truyền tải trực tiếp loại hình sản phẩm đến người dùng.\n\n---\n\n### Các bước tiếp theo\n\n* [Khám phá thêm các biến thể tên xoay quanh quỹ đạo xã hội](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Phác thảo quy trình onboarding để gặp gỡ trực tiếp](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Tìm kiếm tên miền khả dụng cho một ý tưởng ứng dụng mạng xã hội khác"
-      },
-      "follow_up_2": {
-        "text": "Giải thích lý do tại sao phần mở rộng tên miền .app lại hiệu quả cho các ứng dụng di động"
-      },
-      "follow_up_3": {
-        "text": "Kiểm tra tính khả dụng của tên miền cho ba tên thương hiệu thay thế"
-      },
-      "follow_up_4": {
-        "text": "So sánh phần mở rộng tên miền .net và .app cho các ứng dụng tiêu dùng"
-      },
-      "follow_up_5": {
-        "text": "Kiểm tra giá và tính khả dụng của tên miền cho tên AppFolk"
-      },
-      "follow_up_6": {
-        "text": "Gợi ý thêm ba hướng xây dựng thương hiệu cho ứng dụng kết nối xã hội này"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Phân tích bài diễn thuyết TED châm biếm của Will Stephen"
-      },
-      "summary": {
-        "text": "Tóm tắt bài diễn thuyết TEDx châm biếm của Will Stephen về kỹ năng nói trước công chúng thành năm lập luận hài hước cốt lõi."
-      },
-      "message_1": {
-        "text": "Lấy bản chép lời cho bài diễn thuyết TED này và tóm tắt lập luận cốt lõi thành năm gạch đầu dòng: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo này là bài thuyết trình TEDx châm biếm của Will Stephen, *\"How to sound smart in your TEDx Talk\"* (xem bài diễn thuyết).\n\nThay vì trình bày một bài giảng cung cấp thông tin, Stephen sử dụng sự hài hước mang tính tự trào để giải mã các quy ước [diễn thuyết trước công chúng](wiki:Public_speaking) chính yếu. Dưới đây là luận điểm cốt lõi được tóm tắt trong năm điểm:\n\n* **Cách trình bày tạo ra ảo giác về nội dung:** Nhịp độ, cử chỉ tay có chủ đích, giao tiếp bằng mắt đầy kịch tính và các đạo cụ vật lý (như kính không độ) có thể thuyết phục khán giả rằng diễn giả là người xuất chúng ngay cả khi họ không có điều gì giá trị để nói.\n* **Sự kết nối trên sân khấu mang tính công thức cao:** Những mô-típ tương tác quen thuộc—như đặt câu hỏi tu từ, yêu cầu giơ tay và kể những giai thoại tự hạ thấp bản thân—là những kỹ thuật sân khấu được tính toán kỹ lưỡng nhằm tạo ra sự ấm áp và uy tín giả tạo.\n* **Hình ảnh dữ liệu mang lại uy quyền không đáng có:** Việc đưa ra các con số ngẫu nhiên, các phép tính cơ bản và các biểu đồ không có ngữ cảnh sẽ khai thác định kiến về thị giác, làm cho bài thuyết trình có vẻ như được nghiên cứu kỹ lưỡng ngay cả khi dữ liệu hoàn toàn không liên quan.\n* **Khán giả tự gán ý nghĩa cho những điều vô nghĩa:** Bằng cách kết hợp ngữ điệu giọng nói chân thành và những hình ảnh minh họa gợi cảm với những lời nói nhảm nhí theo đúng nghĩa đen, diễn giả có thể thúc đẩy người nghe tìm kiếm—và tưởng tượng—những mối liên hệ sâu sắc trong tiềm thức ở những nơi không hề tồn tại chúng.\n* **Các cao trào cảm xúc có thể được dàn dựng:** Việc tăng cường độ giọng nói, nói chậm lại để thì thầm và tạm dừng một cách đầy kịch tính sẽ mô phỏng nhịp điệu của một sự khai sáng, chứng minh rằng cảm giác truyền cảm hứng có thể được tạo ra dễ dàng như thế nào mà không cần bất kỳ sự thấu hiểu thực sự nào bên dưới."
-      },
-      "follow_up_1": {
-        "text": "Tìm kiếm các bài thuyết trình châm biếm phổ biến khác trên YouTube"
-      },
-      "follow_up_2": {
-        "text": "Giải thích lịch sử của định dạng TEDx và tác động văn hóa của nó"
-      },
-      "follow_up_3": {
-        "text": "Tìm các hướng dẫn lớp học chuyên sâu về thuyết trình trước công chúng trực tuyến"
-      },
-      "follow_up_4": {
-        "text": "Phân tích các kỹ thuật ngôn ngữ cơ thể cụ thể được sử dụng bởi các diễn giả chính nổi tiếng"
-      },
-      "follow_up_5": {
-        "text": "Tìm kiếm các video phân tích về kỹ thuật hùng biện"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các mẹo để vượt qua nỗi sợ sân khấu khi thuyết trình trước công chúng"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "Bạn là chuyên gia lập trình."
       }
     },
-    "health_health_insights": {
-      "text": "Thông tin sức khỏe",
-      "description": {
-        "text": "Nhận thông tin sức khỏe và tìm bác sĩ phù hợp."
-      },
-      "systemprompt": {
-        "text": "Bạn là một chuyên gia sức khỏe."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Chuẩn bị cuộc hẹn bác sĩ",
-      "description": {
-        "text": "Chuẩn bị nội dung thảo luận cho lần khám tới."
-      },
-      "process": {
-        "text": "- thảo luận về các triệu chứng trong những tuần và tháng gần đây, dù không thấy mối liên hệ giữa chúng\n- thảo luận về kết quả xét nghiệm/tài liệu cần thu thập trước cuộc hẹn tiếp theo"
-      },
-      "systemprompt": {
-        "text": "Bạn là chuyên gia sức khỏe."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Chuẩn bị báo cáo bác sĩ",
-      "description": {
-        "text": "Tạo báo cáo cho lần khám bác sĩ tiếp theo."
-      }
-    },
     "jobs_career_insights": {
       "text": "Thông tin chi tiết về nghề nghiệp",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "Nói về tương lai",
       "description": {
         "text": "Kỹ thuật huấn luyện cuộc sống mạnh mẽ."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Chuẩn bị báo cáo bác sĩ",
+      "description": {
+        "text": "Tạo báo cáo cho lần khám bác sĩ tiếp theo."
+      }
+    },
+    "health_health_insights": {
+      "text": "Thông tin sức khỏe",
+      "description": {
+        "text": "Nhận thông tin sức khỏe và tìm bác sĩ phù hợp."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Chuẩn bị cuộc hẹn bác sĩ",
+      "description": {
+        "text": "Chuẩn bị nội dung thảo luận cho lần khám tới."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "Nhà chiến lược lịch nội dung",
       "description": {
         "text": "Tạo kế hoạch nội dung mạng xã hội 30 ngày."
+      },
+      "systemprompt": {
+        "text": "Hành động như một Chuyên gia Chiến lược Mạng xã hội chuyên nghiệp. Sử dụng các đầu vào bên dưới, tạo lịch nội dung 30 ngày tập trung vào đạt được Mục tiêu Chính.\n\nĐầu tiên, thực hiện bước nghiên cứu và chiến lược nội bộ ngắn gọn bằng cách sử dụng kiến thức hiện có của bạn và, nếu có, dữ liệu web trực tiếp cho Chủ đề/Lĩnh vực và Đối tượng Mục tiêu này. Làm rõ các điểm đau chính và mong muốn của đối tượng, các loại bài đăng và hook hoạt động tốt trong lĩnh vực này, và bất kỳ xu hướng hiện tại nào có liên quan. Chỉ sử dụng những thông tin này để hướng dẫn lịch, KHÔNG xuất chúng riêng biệt.\n\nĐầu ra PHẢI là bảng Markdown với các cột chính xác này (và không có gì khác): Ngày #, Ngày, Chủ đề/Trụ cột, Nền tảng, Ý tưởng Nội dung, Lời kêu gọi Hành động (CTA).\n\nHướng dẫn lịch:\n- Tạo chính xác 30 hàng, một hàng cho mỗi ngày dương lịch liên tiếp bắt đầu từ Ngày Bắt đầu, với ngày thực tế theo thứ tự tăng dần.\n- Chủ đề/Trụ cột trong mỗi hàng phải là một trong số Trụ cột Nội dung đã cung cấp, với sự kết hợp cân bằng hợp lý trong 30 ngày.\n- Cột Nền tảng phải tuân theo Lịch Đăng bài. Nếu nhiều nền tảng được chỉ định cho một ngày nhất định, hãy tạo một hàng cho mỗi nền tảng.\n\nHướng dẫn nội dung:\n- Mỗi Ý tưởng Nội dung phải nêu rõ loại bài đăng (ví dụ: Reel, băng chuyền, bài đăng tĩnh, story, live, bình chọn, bài đăng văn bản LinkedIn) và bao gồm một hook rõ ràng, dừng cuộn được điều chỉnh cho Đối tượng Mục tiêu.\n- Mỗi CTA phải cụ thể, định hướng hành động và hỗ trợ trực tiếp Mục tiêu Chính (ví dụ: \"Tải hướng dẫn miễn phí\", \"Đặt lịch gọi\", \"Tham gia bản tin\", \"Bình luận câu hỏi số 1 của bạn\").\n- Đa dạng hóa định dạng và góc độ trong 30 ngày (ví dụ: giáo dục, kể chuyện, hậu trường, FAQ, phản đối, bằng chứng xã hội, lời nhắc tương tác) để tránh lặp lại.\n- Đảm bảo mọi ý tưởng được kết nối rõ ràng với các điểm đau và mong muốn chính của Đối tượng Mục tiêu và phù hợp với Mục tiêu Chính.\n\nĐầu vào (điền vào trước khi chạy prompt):\n* Chủ đề/Lĩnh vực: [Nhập Chủ đề/Lĩnh vực của bạn tại đây]\n* Đối tượng Mục tiêu: [Nhập Đối tượng Mục tiêu của bạn tại đây, bao gồm các điểm đau và mong muốn chính nếu đã biết]\n* Mục tiêu Chính: [Nhập Mục tiêu Chính của bạn tại đây, ví dụ: tăng danh sách email / thúc đẩy doanh số / xây dựng uy quyền]\n* Lịch Đăng bài: [Nhập Tần suất Đăng bài và Nền tảng của bạn tại đây, ví dụ: 5 lần/tuần trên IG Reels + 3 lần/tuần trên LinkedIn]\n* Trụ cột Nội dung: [Nhập 3–5 Trụ cột Nội dung của bạn tại đây, phân cách bằng dấu phẩy]\n* Ngày Bắt đầu: [Nhập ngày đầu tiên của lịch, ví dụ: 18 tháng 11, 2025]\n\nChỉ xuất bảng Markdown cuối cùng. KHÔNG bao gồm giải thích, ghi chú hoặc bất kỳ văn bản nào ngoài bảng."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (bản ghi video)"
+              "text": "YouTube (siêu dữ liệu video)"
             },
             "description": {
-              "text": "YouTube được truy vấn khi bạn yêu cầu OpenMates lấy bản ghi cho một video YouTube. YouTube nhận URL video và tùy chọn ngôn ngữ bản ghi được yêu cầu mà không kèm theo mã định danh người dùng OpenMates."
+              "text": "Để lấy siêu dữ liệu công khai của video và kênh, OpenMates gửi mã định danh video và kênh đến YouTube Data API chính thức. YouTube nhận các mã này và thông tin mạng của máy chủ chúng tôi, nhưng không nhận mã định danh người dùng OpenMates."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."
+    },
+    "privacy_description": {
+      "text": "Mistral chuyển âm thanh micrô của bạn thành văn bản; ElevenLabs v4 Turbo tạo giọng trợ lý từ văn bản trả lời và cài đặt giọng nói. Cuộc trò chuyện dùng cơ chế định tuyến AI và kỹ năng thông thường của OpenMates. Nhà cung cấp có thể lưu dữ liệu yêu cầu theo chính sách của họ."
+    },
+    "privacy_terms": {
+      "text": "Chính sách quyền riêng tư của OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Các thành viên trong Discord của chúng tôi sẽ"

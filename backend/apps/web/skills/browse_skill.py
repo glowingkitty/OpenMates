@@ -99,6 +99,27 @@ class BrowseSkill(BaseSkill):
         from backend.shared.python_utils.web_browse_dispatch import dispatch_browser_job
 
         placeholders = kwargs.get("placeholder_embed_ids") or []
+        if placeholders and job.dispatch_required:
+            # Publish the admitted opaque session before paid browser work, so
+            # the processing embed can open its owner-only viewer immediately.
+            from backend.core.api.app.services.embed_service import EmbedService
+            from backend.shared.python_schemas.web_browse import owner_hash
+
+            await EmbedService(
+                cache_service=cache_service,
+                directus_service=service.store.db,
+                encryption_service=encryption_service,
+            ).create_processing_embed_placeholder(
+                app_id="web", skill_id="browse", chat_id=chat_id,
+                message_id=message_id, user_id=user_id,
+                user_id_hash=owner_hash(user_id),
+                user_vault_key_id=user_vault_key_id,
+                embed_id=placeholders[0],
+                task_id=kwargs.get("task_id"),
+                skill_task_id=kwargs.get("skill_task_id"),
+                metadata={"session_id": job.session_id, "run_id": job.run_id,
+                          "task": request.task, "url": request.start_url or ""},
+            )
         return await dispatch_browser_job(
             job,
             producer=self.celery_producer,

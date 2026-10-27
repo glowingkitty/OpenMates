@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "JobTechでスウェーデンの公開求人を検索。"
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "文字起こしを取得",
         "description": {
-          "text": "YouTube / media.ccc.de動画の文字起こしを取得。"
+          "text": "media.ccc.deの講演で公開されている字幕を取得。"
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "ローマ帝国のウィキペディアページを読んで重要な事実を教えて"
           }
+        }
+      },
+      "browse": {
+        "text": "閲覧する",
+        "description": {
+          "text": "ウェブサイトを操作し、確認した情報を JSON で返します。"
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "ホスティング",
       "description": {
-        "text": "ドメイン名を探し、空き状況と料金を確認します。"
+        "text": "ドメイン検索は現在利用できません。"
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "郵便",
       "description": {
-        "text": "メールの送信、管理、作成。"
+        "text": "メールの下書きを作成し、メールを扱います。"
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "動画",
       "description": {
-        "text": "動画を検索し、文字起こしを取得。"
+        "text": "動画を検索・作成。"
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "旅行",
       "description": {
-        "text": "宿泊先・交通手段を検索し旅行を計画。"
+        "text": "旅行を計画し、保存した旅行情報を管理。"
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "電子部品の検索は現在利用できません。"
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "住宅",
       "description": {
-        "text": "新しい住まいを探す。"
+        "text": "保存した住まいの情報を管理。"
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "イベント",
       "description": {
-        "text": "ミートアップ、カンファレンス、地元のイベントを発見。"
+        "text": "保存したイベント情報を管理。"
       },
       "search": {
         "text": "検索",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "保存した3Dモデルを表示。"
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "ショッピング",
       "description": {
-        "text": "スーパーの価格を比較してお得情報を見つけよう。"
+        "text": "商品検索は現在利用できません。"
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "ブラウズ"
+      },
+      "running": {
+        "text": "閲覧中"
+      },
+      "user_control": {
+        "text": "操作できます"
+      },
+      "paused": {
+        "text": "一時停止中"
+      },
+      "completed": {
+        "text": "完了"
+      },
+      "no_results": {
+        "text": "結果なし"
+      },
+      "needs_user": {
+        "text": "入力が必要です"
+      },
+      "blocked": {
+        "text": "ブロックされました"
+      },
+      "failed": {
+        "text": "失敗"
+      },
+      "cancelled": {
+        "text": "キャンセル済み"
+      },
+      "budget_exceeded": {
+        "text": "利用上限に達しました"
+      },
+      "closed": {
+        "text": "ブラウザーを閉じました"
+      },
+      "expired": {
+        "text": "セッションの有効期限切れ"
+      },
+      "unavailable": {
+        "text": "ブラウザーを利用できません"
+      },
+      "watch": {
+        "text": "ブラウザーを見る"
+      },
+      "take_control": {
+        "text": "操作を引き継ぐ"
+      },
+      "continue": {
+        "text": "AI に続行させる"
+      },
+      "pause": {
+        "text": "一時停止"
+      },
+      "close": {
+        "text": "ブラウザーを閉じる"
+      },
+      "sign_in_title": {
+        "text": "ログインする前に"
+      },
+      "sign_in_confirm": {
+        "text": "ログインを続ける"
+      },
+      "saved_frame": {
+        "text": "保存されたブラウザー画像"
+      },
+      "live_frame": {
+        "text": "ライブブラウザー"
+      },
+      "waiting_frame": {
+        "text": "ブラウザーを待っています…"
+      },
+      "text_input": {
+        "text": "サイトに入力するテキスト"
+      },
+      "send_text": {
+        "text": "テキストを送信"
+      },
+      "scroll_up": {
+        "text": "上にスクロール"
+      },
+      "scroll_down": {
+        "text": "下にスクロール"
+      },
+      "structured_data": {
+        "text": "構造化データ"
+      },
+      "connection_error": {
+        "text": "接続が中断されました。次の操作の前に更新してください。"
+      },
+      "credits": {
+        "text": "{used} / {limit} クレジット"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "クラウドブラウザーでログインします。AI に続行させると、このアカウントの情報にアクセスできるようになります。関連するページの内容は AI 提供事業者に送信される場合があります。AI にアクセスを許可できるアカウントだけでログインしてください。"
+      },
+      "manual_hint": {
+        "text": "ページをクリックするか、Tab と Enter で操作してください。テキストはこのサイトだけに送信され、送信後にこの入力欄から消去されます。"
+      },
+      "paused_hint": {
+        "text": "ブラウザーは一時停止中で、計算料金はかかりません。操作を引き継ぐと再開します。24 時間操作がないとセッションは削除されます。"
+      },
+      "watch_hint": {
+        "text": "表示のみです。サイトを操作するには操作を引き継いでください。閲覧だけではセッションの有効期間は延長されません。"
+      },
+      "stopping": {
+        "text": "停止しています…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "両方の職務の日常業務と成長パスを比較する"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "ドイツで買えるエアフライヤーの比較"
-      },
-      "summary": {
-        "text": "ExampleRetailドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
-      },
-      "message_1": {
-        "text": "ドイツでオンライン購入できるエアフライヤーを、ExampleRetailの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのExampleRetailで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
-      },
-      "follow_up_1": {
-        "text": "エアフライヤー専用のレシピを探す"
-      },
-      "follow_up_2": {
-        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
-      },
-      "follow_up_3": {
-        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
-      },
-      "follow_up_4": {
-        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
-      },
-      "follow_up_5": {
-        "text": "これらのモデルの現在の消費電力を確認して"
-      },
-      "follow_up_6": {
-        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II ミッションのハイライトと探査"
@@ -8894,38 +8967,6 @@
         "text": "[code] 同様のテンプレートを異なるデザインの美学で作成して"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "ベルリンの初心者向けヨガクラス"
-      },
-      "summary": {
-        "text": "ベルリンにある初心者向けのヨガクラスを3つ、時間、料金、予約リンクと共にご紹介します。"
-      },
-      "message_1": {
-        "text": "ヨガ初心者なのですが、来週ベルリンで開催される初心者向けのクラスを探しています。時間、料金、予約リンクを含めていくつか見つけてもらえますか？"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n来週ベルリン各地で開催される、初心者向けの[ヨガ](wiki:Yoga)クラスをご紹介します：\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (クロイツベルク)\n- **内容:** 呼吸に合わせた動きとポーズの保持をバランスよく行い、アライメント（姿勢）と静寂を探求するマインドフルなクラスです。特に初心者向けに構成されています（英語での指導）。\n- **日時:** 2026年10月14日（水）18:00 – 19:00 CEST（10分前にお越しください）\n- **場所:** Art OM, Wrangelstraße 54, 10997 Berlin ([クロイツベルク](wiki:Kreuzberg))\n- **料金:** €11.83 – €22.49\n- **予約:** [ExampleTicketsでチケットを予約](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (フリードリヒスハイン)\n- **内容:** あらゆるレベルに対応した、インフォーマルでリラックスしたモビリティ＆ヨガセッションです。フローはゆっくりとしたペースで、ステップごとに説明されます。柔軟性や経験は必要ありません。\n- **日時:** 2026年10月13日（火）19:00 – 19:45 CEST（15分前にお越しください）\n- **場所:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([フリードリヒスハイン](wiki:Friedrichshain))\n- **料金:** €5（ボルダリングも行う場合は、ExampleFitness / Wellpassで無料入場可）\n- **予約:** [詳細と予約リンクを表示](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (ウェディング / ミッテ)\n- **内容:** 初心者向けに調整を加えた、ダイナミックかつ穏やかなヴィンヤサセッションです。呼吸への意識、身体のアライメント、ストレス解消に焦点を当てています。\n- **日時:** 2026年10月14日（水）19:30 – 21:00 CEST\n- **場所:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ミッテ](wiki:Mitte))\n- **料金:** 初回体験クラス €10（スターターパック：3クラス €20）\n- **予約:** [Berlin Yoga Club Meetupで予約](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 初めてのヨガクラスへのアドバイス\n* **服装:** 動きやすく、体を曲げやすい、快適で伸縮性のある服。ヨガは通常、裸足で行います。\n* **水分補給と食事:** クラスの1.5〜2時間前からは重い食事を避けてください。\n* **自分の体の声を聞く:** クラスが始まる前に、初めてであることを講師に伝えてください。調整方法やプロップス（ブロック、ブランケット、ストラップなど）の使い方を喜んで教えてくれます。関節や背中に持病がある場合は、ダイナミックな動きを試す前に医師や理学療法士に相談してください。\n\n特定のエリア（ノイケルン、プレンツラウアー・ベルク、シャルロッテンブルクなど）に近い場所や、[ハタヨガ](wiki:Hatha_yoga)や[陰ヨガ](wiki:Yin_yoga)のような穏やかなスタイルに絞ったおすすめが必要ですか？\n---\n*⚠️ これは教育目的の情報であり、医学的アドバイスではありません。医学的な判断については医師にご相談ください。*"
-      },
-      "follow_up_1": {
-        "text": "ベルリン・ノイケルンのヨガ教室を検索する"
-      },
-      "follow_up_2": {
-        "text": "初めてのヨガクラスで何をするか教えて"
-      },
-      "follow_up_3": {
-        "text": "来週末のハタヨガのワークショップを探す"
-      },
-      "follow_up_4": {
-        "text": "ヴィンヤサヨガとハタヨガの違いを比較する"
-      },
-      "follow_up_5": {
-        "text": "ミッテ地区の陰ヨガスタジオを検索する"
-      },
-      "follow_up_6": {
-        "text": "ヨガマットを購入する際の初心者向けヒントを教えて"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "ベルリンで英語対応の一般医（GP）を探す"
-      },
-      "summary": {
-        "text": "正確な保険情報とクリニックへのリンクで、予約の選択肢を見つけます。"
-      },
-      "message_1": {
-        "text": "来週、ベルリンで英語対応の一般医（GP）の予約が必要です。最短の候補を比較して予約カードを表示し、保険の適用については予約ページで確認できる場合のみ記載してください。不明な場合はそのように伝えてください。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nベルリン市内で、今後7日間以内に予約可能な英語対応の一般医（GP）をいくつか見つけました。保険の適用範囲については、予約ページ自体に記載がある場合のみ明記しています。\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**来週の最短予約オプション**\n1. **10月12日（月）07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 住所: Albert-Einstein-Straße 2, 12489 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n2. **10月12日（月）08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 住所: Kapweg 5, 13405 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: 英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n3. **10月12日（月）08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 住所: Stargarder Straße 69, 10437 Berlin\n   - 受診タイプ: 急患対応\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n4. **10月12日（月）08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 住所: Müllerstraße 36, 13353 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n5. **10月12日（月）08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 住所: Wallstraße 16, 10179 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n注意事項:\n- 「来週」というご希望に合わせて、**10月9日〜10日**のより早い日程の選択肢は上記の比較から除外しています。\n- これらの結果はExampleClinicAの掲載情報に基づいているようです。今回の検索結果ではExampleClinicBの情報は含まれていません。\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nご希望であれば、次に以下のことが可能です：\n- 確認済みの**公的保険のみ**に絞り込む\n- **地区や現在地からの距離**で絞り込んだリストを作成する\n---\n*⚠️ これは情報提供のみを目的としており、医学的アドバイスではありません。医療上の判断については医師にご相談ください。*"
-      },
-      "follow_up_1": {
-        "text": "ミッテ区で公的保険適用の一般医の予約を検索する"
-      },
-      "follow_up_2": {
-        "text": "公的保険のみを表示するように予約を絞り込む"
-      },
-      "follow_up_3": {
-        "text": "プレンツラウアー・ベルク地区周辺の英語を話す医師を探す"
-      },
-      "follow_up_4": {
-        "text": "地域や距離で選択肢を絞り込む"
-      },
-      "follow_up_5": {
-        "text": "ベルリンで専門医の予約を検索する"
-      },
-      "follow_up_6": {
-        "text": "これらの医師の予約をオンラインで行う方法を説明して"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "ゲセン人とオアンカリの異星人としての生物学的特徴を比較する"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "ウェブパフォーマンスのためにSVGファイルを最適化する方法を説明する"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "ブランド名とドメインを探す"
-      },
-      "summary": {
-        "text": "簡潔なネーミングの対話：7つの候補を出し、ドメイン、ウェブ、米国の予備的な商標状況をもとに2つの最終候補を比較します。"
-      },
-      "message_1": {
-        "text": "新製品の名前を考えるのを手伝ってください。"
-      },
-      "message_2": {
-        "text": "まず、その製品は何をするものですか？ターゲット層は誰ですか？また、名前はどのようなトーンや雰囲気（例：遊び心がある、プレミアム、テクニカルなど）を伝えるべきですか？"
-      },
-      "message_3": {
-        "text": "米国のフリーランサー向けの、穏やかな雰囲気の家計簿アプリです（英語）。短くて覚えやすい名前で、年間20ユーロ以下の.comドメインを希望します。まずは、バリエーション豊かな候補リストをいくつか出してください。"
-      },
-      "message_4": {
-        "text": "穏やかなフリーランスの予算管理体験に合わせた、発音しやすくバリエーション豊かな初期候補リストです：\n\n- [ ] **Serenito**: セレニティ（静けさ）と、変動する個人収入に合わせた穏やかなペースを連想させます。\n- [ ] **Solowell**: ソロプレナー（個人事業主）の経済的な健康と心の平穏を示唆します。\n- [ ] **Equafy**: 不規則な収入サイクルのバランスを整えることに焦点を当てています。\n- [ ] **StillLedger**: 伝統的な会計構造と、マインドフルでストレスの少ない静けさを組み合わせています。\n- [ ] **Cadenceo**: ギグワークの報酬から、安定した予測可能なリズムを築くことを暗示しています。\n- [ ] **HavenFin**: 資金管理を、安全で安心できる港（ハーバー）として位置づけています。\n- [ ] **Placidly**: お金の不安を和らげる、柔らかく安心感のあるトーンです。\n\n*(注：このリストは、ドメインの空き状況や法的クリアランスの確認は行っていません。)*\n\nどの2〜3個の名前について詳細なチェックを実行しますか？お気に入りを選ぶか、私に最終候補を選ばせて、.comの価格、ブランドの競合、米国の商標を確認させることもできます。\n\n- [Serenito、Solowell、Equafyをチェックする](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [最適な3つを選んでチェックする](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "EquafyとCadenceoについて、.comの空き状況と提示価格、ウェブ上の既存ブランド、および米国の商標をチェックしてください。比較は簡潔にまとめ、おすすめと、まだ済んでいないチェック項目も教えてください。"
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n2026年10月12日に実施された調査に基づく比較結果は以下の通りです。\n\n### Equafy\n- **ドメイン**: `equafy.com` は現在 ExampleRegistrar で利用できません。標準の登録価格が不明なため、年間20ユーロの予算内には収まりません。\n- **ウェブおよびブランドの状況**: この正確な名称を使用している著名な予算管理ソフトはありませんが、ウェブ検索では [Equifax のパーソナルファイナンスサービス](embed:equifax.com-TrW) との発音が酷似しており、検索結果の混同が見られます。\n- **米国商標 (ExampleTrademarks)**: 予備調査では 1,640 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。有効な一致項目には、第36類（申請中の金融およびバリューカードサービス）の `EQUIFY` や、第35類（登録済みのオークションサービス）が含まれます。\n\n### Cadenceo\n- **ドメイン**: `cadenceo.com` は現在 ExampleRegistrar で利用できません。標準の登録価格が不明なため、年間20ユーロの予算要件を満たしません。\n- **ウェブおよびブランドの状況**: 米国およびカナダで iOS、Android、ウェブ向けに展開されている、実績のあるパーソナルファイナンス・予算管理アプリ [Cadence Money](embed:cadencemoney.com-IcE) と直接重複しています。\n- **米国商標 (ExampleTrademarks)**: 予備調査では 227 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。`CADENCE` の有効な一致項目には、第9類のダウンロード可能なソフトウェアのレコードが含まれます。\n\n---\n\n### 推奨事項とトレードオフ\n- **方針**: 両方とも見送る。**Equafy** は **Cadenceo**（*Cadence Money* と直接競合）よりも直接的なアプリの競合は少ないものの、どちらも年間20ユーロ以内で利用可能な `.com` ドメインがなく、Equafy は *Equify* や *Equifax* といった既存の金融関連商標と発音が混同される恐れがあります。\n- **未実施の調査**: 米国以外の国際商標登録、コモン・ローに基づく州の商標登録、およびドメインの二次市場での買収査定は調査に含まれていません。\n\n他の候補（**Solowell** や **StillLedger** など）のドメインの空き状況や権利関係を調査しますか？あるいは、予算内で利用可能な `.com` を見つけるために、少し変えた複合名の案を探りますか？\n\n- [Solowell と StillLedger を確認する](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20ユーロ以下で .com が取得可能な複合名を考案する](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "SolowellとStillLedgerのドメイン空き状況と商標を確認する"
-      },
-      "follow_up_2": {
-        "text": "20ユーロ以下で取得可能な.comドメインを持つ複合名をブレインストーミングする"
-      },
-      "follow_up_3": {
-        "text": "次期家計簿アプリの名前の候補について商標記録を検索する"
-      },
-      "follow_up_4": {
-        "text": "個人起業家向けアプリのブランディングと命名戦略を比較する"
-      },
-      "follow_up_5": {
-        "text": "フリーランス向け金融アプリで利用可能なドメイン拡張子を検索する"
-      },
-      "follow_up_6": {
-        "text": "手頃な価格でスタートアップ用ドメインを取得できる代替ドメイン登録業者をリストアップする"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "ベルリンからバンコクへのフライト"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] バンコクのリーズナブルな宿泊施設をおすすめする"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "バルコニー付きのベルリンのアパート"
-      },
-      "summary": {
-        "text": "ベルリンの実際の賃貸物件を比較。フォトギャラリー、バルコニーの証拠、地図上の位置に加え、未確定の費用や水辺へのアクセスも明確に表示します。"
-      },
-      "message_1": {
-        "text": "ベルリンでバルコニー付きの賃貸アパートを探しています。できれば川や湖の近くで、月額1,800ユーロ以下、2部屋以上の物件が理想です。いくつかの物件を、フォトギャラリーや地図上の位置を含めて比較できますか？賃料、契約期間、水辺へのアクセスなど、物件情報で確定していることと不明なことを区別してください。業者がおおよその位置しか提供していない場合や、写真が不完全な場合は、その旨を明記してください。詳細が欠けている場合でも、可能性として明確にラベル付けされていれば歓迎します。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\n以下は、ベルリン市内の月額1,800ユーロ以下、バルコニー付き2部屋賃貸アパートの比較分析です。バルコニーの有無、水辺への近接性やその主張に焦点を当て、確認済みの事実と不明瞭な点を明らかにします。\n\nベルリンのバルコニー付き2部屋賃貸アパート\n\n---\n\n### 概要比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### 物件詳細プロファイル\n\n#### 1. [バルコニー付き2部屋ロフトアパート、リングバーン近く](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **家賃と費用**: 共益費込み家賃（Warmmiete）は月額**1,350ユーロ**と明記されています。内訳は冷家賃（Kaltmiete）1,200ユーロと、詳細不明の追加費用150ユーロです。暖房費が含まれているかの詳細は不明です。敷金は2,000ユーロです。\n* **賃貸条件**: 期間限定の転貸。データ上は2026年11月1日から2027年4月1日までとなっていますが、説明文では確定期間は**2026年11月1日から12月28日**までであり、その後は相互の合意により2027年4月1日まで月単位で延長可能とされています。\n* **バルコニーの証拠**: 確認済み。設備リストと本文に明記されています（「フェンプフール公園を望む日当たりの良いバルコニー」）。14枚の写真のうち3枚をサンプルとして確認し、インデックス0の写真でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: リヒテンベルク区のアントン・ゼーフコウ・プラッツに位置。番地なしの通りレベルでジオコーディングされています。OpenStreetMapデータで水辺（**フェンプフール**、公園内の湖）を確認しましたが、代表座標のみです。正確な岸までの距離や徒歩分数は算出されていないため、未検証です。\n\n---\n\n#### 2. [マイバッハ・ウーファー沿い、2つのバルコニー付き家具付き2部屋アパート](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **家賃と費用**: 月額**1,800ユーロ**の定額オールインクルーシブとして広告されています（冷家賃・共益費込み家賃ともに1,800ユーロと入力されています）。公共料金、暖房費、電気代の内訳はありません。敷金は1,000ユーロです。\n* **賃貸条件と範囲の不一致**:\n  * *日付の矛盾*: データ項目では2026年10月21日から2027年5月3日までとなっています。しかし、ドイツ語の本文では11月11日から2ヶ月間と明記されており、さらにその下の英語翻訳では「11月6日から4〜6ヶ月」と記載されています。\n  * *部屋の制限*: オーナーの荷物部屋（Sperrraum）は施錠され、レンタル対象から除外されるとの注記があります。ただし、使用可能な残りのスペースは85㎡の2部屋として説明されています。\n* **バルコニーの証拠**: 確認済み。2つのバルコニー（中庭側と水辺側）があるとされています。15枚中3枚の写真を確認し、写真0と14でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: 住所は[ノイケルン](wiki:Neukölln)のマイバッハ・ウーファー。ジオコーディング結果が曖昧で、ベルリン市全域の座標にフォールバックされました。本文では[ラントヴェーア運河](wiki:Landwehr_Canal)が直接見えると明記されていますが、座標の不備により近隣距離や徒歩ルートの幾何学的検証はできませんでした。\n\n---\n\n#### 3. [限定共用スペース付き2部屋アパート（Momento Berlin）](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **家賃と費用**: 共益費込み家賃は**月額1,372ユーロ**からで、運営費130ユーロ、暖房費105ユーロの内訳があります。冷家賃の基本額は省略されており、説明文にはこれがキャンペーン価格の最低開始家賃である旨が記載されています。電気代は入居者が個別に契約する必要があります。\n* **賃貸条件**: 商業事業者による新築物件（2026年新築入居）。**最低賃貸期間12ヶ月**が必要です。開始日は未定です（毎週水・木に内覧実施）。\n* **バルコニーの証拠**: 説明文（「einen Balkon」）および属性で確認済み。27枚中3枚の写真を確認したところ、インデックス26の写真で外側のバルコニー構造を確認しました。\n* **水辺へのアクセスと立地**: ノイケルン／[ブリッツ](wiki:Britz)地区のBuschkrugallee 64に位置。提供された座標に基づいており、通りの独立した検証は行われていません。説明文には運河（ノイケルン船舶運河）に隣接しているとの記載がありますが、正確な岸までの距離やアクセス地点は算出されていません。\n\n---\n\n#### 4. [シャルロッテンブルクの転貸用2部屋アパート](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **家賃と費用**: 共益費込み家賃は**月額980ユーロ**で広告されています。説明文に「共益費：月額270ユーロ」とありますが、これが980ユーロに含まれているのか、別途請求されるのかは不明です。敷金は1,500ユーロです。\n* **物件全体か個室かの重大な曖昧さ**: タイトルは「2部屋アパート...転貸」となっていますが、本文は「バルコニー付きの素敵で静かな家具付きの個室（Zimmer）を貸し出します...」で始まっています。50㎡の2部屋アパート全体が転貸されるのか、その中の1部屋のみなのかは不明です。\n* **バルコニーの証拠**: 目視未確認。タイトルと本文にはバルコニーありと記載されていますが、写真は1枚のみで、その写真にバルコニーは写っていません。\n* **水辺へのアクセスと立地**: 14057 [シャルロッテンブルク](wiki:Charlottenburg)に位置。提供者は通り名や番地を指定していません（郵便番号レベルの精度のみ）。説明文にはリーツェンゼー公園（リーツェンゼー湖がある）まで徒歩圏内との記載がありますが、住所不明のため正確なルートや距離は算出できません。\n* **賃貸条件**: 2026年11月1日から最長2027年11月1日までの期間限定転貸（短期間の相談可）。\n\n---\n\n### 問い合わせ前の重要ポイント\n1. **水辺の検証**: マイバッハ・ウーファーの物件のみが部屋から直接水辺を望めると明記していますが、座標は概算であり日付に矛盾があります。アントン・ゼーフコウ・プラッツの物件はフェンプフール公園への近接が確認されていますが、正確な距離は未測定です。\n2. **賃貸形態**: ExampleHousingCの掲載物件はいずれも無期限（unbefristet）ではなく、期間限定の転貸です。Momento Berlinは最低12ヶ月からの長期賃貸を提供しています。\n3. **写真確認の制限**: 目視による評価は、各物件1〜3枚の限定的なサンプル画像に基づいています。各物件カードからアクセスできるフルギャラリーには、追加の設備が写っている可能性があります。\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**アパート検索パラメータの定義**\n\nベルリンの賃貸物件に関する正確な検索パラメータの定義を絞り込んでいます。都市をベルリンに指定し、リスティングタイプを「賃貸（rent）」、物件タイプを「アパート（apartment）」に制限しました。バルコニーは必須条件であるため、検索条件に確実に含まれるようにします。\n\n\n**検索条件の絞り込み**\n\n検索パラメータをさらに調整しました。「理想的には川や湖の近く」という要望を、水辺への近さの好みとして翻訳し、`neighborhood_categories: ['water']` に分類しました。「月額最大1,800ユーロ」という予算は、共益費込みの賃料（warm rent）であると想定し、`max_warm_rent_eur: 1800` として指定しました。さらに、「詳細が不明な場合でも、明確にラベル付けされた可能性のある物件は歓迎する」との指示に基づき、`include_unconfirmed: true` を含めて未確認のリスティングも明示的に対象とします。\n\n\n**検索要件の分析**\n\nこの住宅検索ツールのガイドラインを慎重に分析しています。自分の好みを、どのようにして正しい構造化フィルタと `relevance_criteria`（関連性基準）に変換するのが最善かに焦点を当てています。水辺への近さ、バルコニーの証拠、予算の制約に関する要件がすべて適切にエンコードされていることを確認する必要があります。また、検索において何が「必須（required）」、「除外（excluded）」、「優先（preferred）」であるかを明確に区別するようにしています。\n\n\n**リスティングデータの完全性の評価**\n\nデータの完全性について深く検討しています。視覚的な証拠を過剰に主張することを避け、各プロバイダーによる制限を明記しなければなりません。水辺への近さは確かな証拠に基づいている必要があり、情報の拡充が利用できない場合やタイムアウトした場合は「未検証（unverified）」として報告します。目に見えるバルコニーが必ずしもそのアパートに属しているとは限らないことを明確にし、リースの詳細は明示されている場合にのみ報告します。\n\n\n**リスティングデータの分析**\n\n現在、返されたリスティングを詳細に調査し、提供されたルールと照らし合わせて細かくチェックしています。確認済みのデータポイントと不確実な要素を明確に区別することに重点を置いています。賃料、リース期間、水辺へのアクセスなどの詳細に細心の注意を払い、曖昧な点があればフラグを立てています。目標はピンポイントの正確さです。\n\n\n**近接基準の明確化**\n\nニュアンスの異なる近接要件を統合しています。証拠における制限事項を慎重に文書化しています。検証済みの主張と未検証の情報を透明性を持って分離することに注力しています。文書化においては正確さを優先しています。何が検証済みの水辺へのアクセスを構成し、何がそうでないかを明確にしています。不確実なデータには明示的なラベル付けが必要であることを強調しています。\n\n\n**曖昧さに関するルールの洗練**\n\n不確実なデータポイントに関するルールの洗練に注力しています。水辺の特徴に関する言及がない場合は「不明」として報告し、近接性を推測しません。写真で確認できるバルコニーと、テキストによる確認を区別します。リース条件は、記載がある場合にのみ明示的に報告します。日付の矛盾や賃料の内訳の不一致を優先的に扱います。埋め込みプレビューカードをビューとして使用します。\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**結果形式の解釈**\n\n「embeds\\_results\\_view」レスポンスの構造に注目しています。「source\\_ref」がないことに気づきました。これは「sources」と「embeds」のどちらを正しく使用するかに影響します。source\\_ref が利用できない場合は「embeds」フィールドを使用し、返された子要素の embed\\_ref 値を具体的に参照するようにします。また、説明的な要素として「title」フィールドにも注意を払います。\n\n\n**リスティング詳細の検討**\n\n個々のリスティング、特に「環状線（Ringbahn）近くのバルコニー付き2部屋ロフトアパート」を詳しく調べています。このリスティングを埋め込みデータと照合しています。湖の眺望について言及されていますが、距離やアクセスが不明なため、水辺への近さは未検証であると記しています。確認済み事項と未検証事項を明確に区別することに重点を置いています。すべての不確実な要素を慎重に文書化しています。\n\n\n**リスティング詳細の評価**\n\n別のリスティングの評価を終えたところです。写真分析によりバルコニーの存在を確認しました。リース期間は一定期間の固定後に柔軟な延長が可能であるとされており、これを記録しました。詳細事項に集中しています。現在、関連するすべてのリスティング情報を完全に理解しようと努めています。\n```\n```\n\n**特定の属性の詳細化**\n\nこの特定のリスティングの詳細をまとめています。通りのジオコードが曖昧であり、これが水辺への近さの検証に影響していることを記しています。ラントヴェーア運河（Landwehrkanal）の眺望があるというテキスト上の主張は、幾何学的に検証できません。テキストと視覚的なチェックの両方でバルコニーの存在を確認しました。構造化データと説明テキストの間でリース日の矛盾があることを明示的にフラグ立てしています。\n\n\n**リスティングデータの評価**\n\n最新のリスティングを詳しく調べています。管理費抜きの賃料（cold rent）の欠落と、不正確な賃料の内訳にフラグを立てました。広告されている賃料は開始価格であるため、不明な最低価格について注記しました。プロジェクト内のアパートのサイズの幅が広く、リスティングのサイズがその範囲内にあるため、明確にする必要があります。場所の精度が未検証であるため、運河への近さが不確実であることにフラグを立てました。\n\n\n**リース詳細の解釈**\n\n最新のリスティングのリース情報とバルコニーの検証に焦点を当てています。テキストとサンプルの画像によりバルコニーの存在を確認しました。12ヶ月の最低リース期間と、データ内に明確な終了日がないことを注記しました。リスティングはバルコニー付きの家具付き個室（furnished room）ですが、タイトルには「2部屋アパート」とあるため、個室かアパートかという曖昧さの可能性を調査しています。すべての詳細に細心の注意を払っています。\n\n\n**リスティング詳細の分析**\n\n新しいリスティングを慎重に分析しています。そこにはバルコニー付きの家具付き個室と記載されています。「vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon（私たちの美しく静かなバルコニー付き家具付き個室を貸し出します）」というフレーズは重大な曖昧さを加えています。提供されたリスティングの1枚の写真にはバルコニーの確認が取れないため、フラグを立てました。住所が地区レベルのジオコードであるため、水辺への近さは曖昧です。リース期間は2026年11月1日から2027年11月1日までとなっています。\n\n\n**水辺に関する言及の比較**\n\nマイバッハ・ウーファー（Maybachufer）などの水辺の特徴に言及しているリスティングを比較し、その主張の正確さや固有のデータの違いを識別しています。それらの証拠と網羅性を確認しています。ユーザーからリクエストされた正確な詳細に焦点を当てています。データにおける不確実性や制限事項があればフラグを立てます。\n\n\n**賃料内訳の検証**\n\n賃料の数値の不一致に焦点を当てています。矛盾する数値の調整を優先し、項目化されていないコストを報告し、暖房費が含まれているか不明であることを明示的に記しています。また、インラインの埋め込み参照を調べ、表示テキストが決して embed\\_ref にならないように確認しています。さらに、構文に基づいて、埋め込み参照には大きなカードまたは小さなカードのみを使用します。最後に、この更新の最後に提案されたフォローアップメッセージを追加します。"
-      },
-      "message_3": {
-        "text": "ロフトとマイバッハ・ウーファーの物件に一番興味があります。保存した物件情報に基づくと、1,800ユーロの家賃は本当にすべて込み（オールインクルーシブ）ですか？それとも、まだ不明な費用がありますか？また、検索でヒットした写真の数と実際に確認された写真の数、そしてバルコニーや水辺に関するどの詳細が物件情報によって直接裏付けられているかを明確にしてもらえますか？確認されていない詳細は「不明」のままにしておきたいです。"
-      },
-      "message_4": {
-        "text": "**Maybachuferのフラット**と**Anton-Saefkow-Platzのロフト**について、物件データで実際に確認されている内容と、未確認または不明なままの内容を正確に分類しました。\n\n---\n\n### 1. Maybachuferの賃料：1,800ユーロは本当に「すべて込み」か？\n\n* **物件情報の記載内容**: 冷たい賃料（*Kaltmiete*）と合計賃料（*Warmmiete*）の両方が、一律**1,800ユーロ**と入力されています。敷金は1,000ユーロに設定されています。\n* **不明な点**:\n  * **光熱費の内訳**: 物件情報には、管理費（*Betriebskosten/Nebenkosten*）や暖房費（*Heizkosten*）の**項目別の費用内訳が記載されていません**。\n  * **電気・インターネット**: 構造化されたフィールドにおいて、家庭用電気代（*Haushaltsstrom*）やWi-Fiが1,800ユーロに含まれているか、あるいは使用量の上限があるかどうか、ホストは明示的に確認していません。\n  * **放送受信料**: ドイツで義務付けられている放送受信料（*Rundfunkbeitrag*）が含まれているのか、別途登録が必要なのかは記載されていません。\n* **結論**: 家具付きの短期転貸で一般的な一括月額料金として提示されていますが、ホストから電気、暖房の超過分、インターネットのカバー範囲を確認する書面による内訳が提供されるまでは、**厳密に「すべて込み」であると検証することはできません**。\n\n---\n\n### 2. フォトギャラリーの範囲：取得済み vs. 確認済み\n\n検索ツールは全写真枚数を含む物件メタデータを取得しましたが、自動ビジュアル解析では、主要な特徴を特定するために各物件の特定のサンプル写真のみを評価しました。\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*注：物件カードを直接開いて、14〜15枚のすべての高解像度写真を手動で閲覧することも可能です。*\n\n---\n\n### 3. バルコニーと水辺の詳細：確認済み vs. 不明\n\n#### Maybachuferのフラット\n* **バルコニー**:\n  * *物件説明文で確認済み*: **2つのバルコニー**があるとのことです。1つは中庭（*Innenhof*）に面しており、もう1つは運河/通りに面していると主張されています。\n  * *写真チェックで確認済み*: 検査した写真インデックス0と14で、バルコニーの構造が確認されました。\n  * *不明な点*: バルコニーの正確な寸法、向き/日照時間、および屋外家具が提供されているかどうか。\n* **水辺へのアクセス**:\n  * *物件説明文で確認済み*: [Neukölln](wiki:Neukölln)（ノイケルン）の[Landwehr Canal](wiki:Landwehr_Canal)（ランドヴェーア運河）沿い、Maybachuferに直接位置しています。説明文では、水辺に面した眺望が明示されています。\n  * *ツールで不明/未検証*: ジオコーディングシステムが住所クエリを曖昧であるとフラグを立て、正確な区画地点ではなくベルリン全域の中心点をデフォルトとしたため、歩行者用の運河横断地点やドックへの正確な距離は、データペイロードから独立して測定できませんでした。\n\n#### Anton-Saefkow-Platzのロフト\n* **バルコニー**:\n  * *物件説明文で確認済み*: 「Fennpfuhlparkを見渡す日当たりの良いバルコニー」と明記されています。\n  * *写真チェックで確認済み*: 検査した写真インデックス0で、バルコニーの構造が確認されました。\n  * *不明な点*: バルコニーの面積と階数（物件情報では上層階のロフトスタイルと指定されていますが、正確な階数は不明です）。\n* **水辺へのアクセス**:\n  * *物件説明文およびOpenStreetMapで確認済み*: Lichtenberg（リヒテンベルク）のAnton-Saefkow-Platzに位置し、**Fennpfuhl**（歴史的な湖）があるFennpfuhlparkに隣接しています。\n  * *ツールで不明/未検証*: この物件は川や運河の堤防に直接面しているわけではなく、水辺の要素は内陸の公園の湖です。さらに、公園自体は通りの向かい側にありますが、水辺までの正確な徒歩時間や、バルコニーから木々の梢越しに水面が直接見えるかどうかは未検証のままです。\n\n---\n\n### 内見前にホストに確認すべき質問\n\n1. **Maybachuferについて**:\n   * 「月額1,800ユーロの定額料金には、暖房、電気、インターネットがすべて含まれていますか？それとも、滞在終了時に別途光熱費の精算（*Nebenkostenabrechnung*）がありますか？」\n   * 「正確な転貸期間を教えてください（概要には2ヶ月とありますが、英語の説明文には4〜6ヶ月と記載されています）。」\n2. **ロフトについて**:\n   * 「150ユーロの追加料金は、暖房とインターネットを含む固定額（*Pauschale*）ですか、それとも前払い金（*Vorauszahlung*）ですか？」\n   * 「必要に応じて、2026年12月28日以降の契約延長は保証されていますか？」"
-      },
-      "message_4_thinking": {
-        "text": "**物件詳細の明確化**\n\n現在、ユーザーの「ロフト」と「Maybachuferのフラット」に関する質問に焦点を当てています。具体的には、Maybachuferの物件の家賃1,800ユーロについて詳しく調べています。これが本当にすべて込み（オールインクルーシブ）なのか、それとも追加費用の可能性があるのかを確定させる必要があります。また、検索で利用可能な写真の枚数についても確認しています。\n\n\n**込みの詳細の検証**\n\nMaybachuferのフラットの家賃、特に「オールインクルーシブ」という主張の具体的内容を詳しく調べています。何が含まれ、何が除外されているのか、正確な内訳を抽出することが目的です。1,800ユーロに光熱費、インターネット、暖房費、放送受信料（GEZ）が含まれているかどうかを判別する必要があります。初期データには矛盾する情報があるため、データが*実際に*裏付けている内容を特定しなければなりません。\n\n\n**込み内容の不足箇所の特定**\n\n光熱費に関する詳細を明確にしています。初期データでは、GEZ料金、電気代、または暖房費の超過分が含まれているかどうかが未確認です。写真の総数を明確に定義し、各物件について関連するすべての写真が分析されていることを確認する必要があります。Maybachuferには2つのバルコニーがあり、ロフトには1つありますが、寸法は記載されていません。また、Maybachuferの物件の所在地も確認しています。"
-      },
-      "follow_up_1": {
-        "text": "ベルリンの、水辺に近い他の2部屋のアパートを探す"
-      },
-      "follow_up_2": {
-        "text": "Maybachuferの大家さん宛にドイツ語で問い合わせメッセージを作成する"
-      },
-      "follow_up_3": {
-        "text": "Anton-Saefkow-PlatzからAlexanderplatzまでの公共交通機関のルートを検索する"
-      },
-      "follow_up_4": {
-        "text": "両方のアパートの敷金と解約条件を比較する"
-      },
-      "follow_up_5": {
-        "text": "ベルリン・リヒテンベルクの現在の天気予報を確認する"
-      },
-      "follow_up_6": {
-        "text": "ベルリンのアパート内見時に大家さんに尋ねるべき重要な質問をリストアップする"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "住宅市場の供給が価格統制にどのように反応するか説明して"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "ドイツでのやりがいのある仕事"
-      },
-      "summary": {
-        "text": "4つの求人プラットフォームでドイツの求人を検索。デザイン職の比較や雇用主への質問の準備を行います。"
-      },
-      "message_1": {
-        "text": "ドイツで、特に研究、デザイン、またはソフトウェアエンジニアリングの分野でやりがいのある仕事を探しています。ExampleJobsB、ExampleJobsC、ExampleJobsD、および連邦雇用庁（Example Employment Board）を使って、現在の求人をいくつか見つけてください。ドイツ国内ならどこでも構いません。雇用主、勤務地、情報源、応募リンクをまとめた短いリストを作成してください。募集要項に記載がない場合は、リモートワークや給与について推測しないでください。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nExampleJobsB、**ExampleJobsC**、**ExampleJobsD**、**連邦雇用庁**（*Example Employment Board*）から、ドイツで現在募集中の研究、デザイン、ソフトウェアエンジニアリング分野の求人を厳選しました。\n\n---\n\n### デザイン\n\n* **シニアプロダクトデザイナー**\n  * **雇用主：** voize（看護・臨床ケアの記録業務を効率化する音声認識AIを開発）\n  * **勤務地：** ドイツ、ベルリン（リモート勤務可能と記載）\n  * **掲載元：** ExampleJobsC\n  * **給与：** 記載なし\n  * **応募：** [voizeから応募](embed:senior-product-designer-Wid)\n\n* **UI/UXデザイン（m/w/d）**\n  * **雇用主：** stiftung ear（電子廃棄物の処分、回収、循環型経済に関する追跡を調整する全国登録機関）\n  * **勤務地：** バイエルン州ニュルンベルク\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 求人説明に柔軟な働き方やモバイルワークへの言及あり。ただし、正式なフルリモート区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:ui-ux-design-1Bm)\n\n---\n\n### 研究\n\n* **共同フェローシッププログラム（平和・安全保障政策）**\n  * **雇用主：** [ハンブルク大学](wiki:University_of_Hamburg)および平和研究・安全保障政策研究所（IFSH）\n  * **勤務地：** ドイツ、ハンブルク\n  * **掲載元：** ExampleJobsB\n  * **勤務形態・給与：** 記載なし\n  * **応募：** [IFSH / ExampleJobsBから応募](embed:joint-fellowship-program-iLH)\n\n* **研究員（m/f/x）– 機械学習と不確実性下の意思決定**\n  * **雇用主：** [ルール大学ボーフム](wiki:Ruhr_University_Bochum)\n  * **勤務地：** ノルトライン＝ヴェストファーレン州ボーフム\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** フルタイム（週39.83時間）。リモート勤務に関する記載なし。公的部門の労働協約に基づく給与体系TV-L E13に準拠（具体的な金額は求人に記載なし）\n  * **応募：** [連邦雇用庁から応募](embed:research-associate-m-79L)\n\n* **研究エンジニア（f/m/d）– 電力網の脱炭素化・基盤技術**\n  * **雇用主：** [シーメンス・エナジー](wiki:Siemens_Energy)\n  * **勤務地：** ベルリン\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 本文に柔軟な働き方やモバイルワークへの言及あり。ただし、リモート勤務の明確な区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:research-engineer-f-7ao)\n\n---\n\n### ソフトウェアエンジニアリング\n\n* **シニアバックエンドエンジニア（m/w/d）– Java/Kotlin、AWS、Kafka**\n  * **雇用主：** idealo internet GmbH\n  * **勤務地：** ドイツ、ベルリン\n  * **掲載元：** ExampleJobsD\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [ExampleJobsDから応募](embed:senior-backend-engineer-q7x)\n\n* **学生アルバイト – ソフトウェアエンジニアリング（コンピュータービジョン／自律システム）**\n  * **雇用主：** Quantum-Systems GmbH（自律飛行プラットフォームとロボットの知覚技術）\n  * **勤務地：** バイエルン州ギルヒング\n  * **掲載元：** ExampleJobsD\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [ExampleJobsDから応募](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**ドイツでの機会の特定**\n\n現在、ドイツ国内の関連する求人を特定することに注力しています。まずは、有望な情報源のリストを作成しました：`ExampleJobsB`、`ExampleJobsC`、`ExampleJobsD`、および`連邦雇用庁（Example Employment Board）`です。主な関心対象は研究、デザイン、ソフトウェアエンジニアリングの職種であり、勤務地についても細かくチェックしています。\n\n\n**検索パラメータの精査**\n\n`jobs-search` ツールを効果的に活用するため、アプローチを洗練させています。リクエストの上限が5件であることを踏まえ、`requests` 配列に焦点を当てて一連のクエリを作成し、プロバイダーを直接指定しています。プロバイダーをリストとして明示的に提供する方法と、関連性の基準を定義する方法を確認するために、関数の定義をチェックしています。これにより、雇用主、勤務地、情報源、応募リンクを含むショートリストの作成に役立てます。明記されていない限り、リモートワークや給与に関する推測は避けるようにします。\n\n\n**プロバイダーからの返信の確認**\n\nプロバイダーから返ってきた情報を一通り確認しました。「ExampleJobsC」からの案件と、ExampleJobsDからの数件（Java/Kotlinのシニアバックエンドエンジニア職と、ワーキングステーション（学生インターン）職）があるようです。第一印象をメモし、各求人の潜在的な影響を評価しています。\n\n\n**現在の機会の分析**\n\n現在、2つの有望な機会の評価に注力しています。1つ目はハンブルク大学平和研究・安全保障政策研究所の「ジョイント・フェローシップ・プログラム」、2つ目はInterface Cybersecurity Programmeの「スチューデント・アシスタント」職です。平和・安全保障研究およびサイバーセキュリティというそれぞれの文脈において、それぞれのメリットを慎重に検討しています。\n\n\n**新しいリードの優先順位付け**\n\nバランスの取れたショートリストを作成することに意識を向けました。関連性と最近の投稿を重視し、デザインと研究の機会を優先しています。現在は、ベルリンの voize でのシニアプロダクトデザイナー職と、stiftung ear でのUI/UXデザイン職を検討しています。研究職については、ハンブルクのジョイント・フェローシップ・プログラムと並行して、ルール大学ボーフムでの職務を確認しています。\n\n\n**新しい可能性の評価**\n\n基準に照らして新しいリードを検討しています。連邦雇用庁を通じて、ベルリンの Siemens Energy での基礎研究に焦点を当てたリサーチエンジニア職などの選択肢を見つけました。また、idealo internet GmbH（ベルリン、ExampleJobsD）のシニアバックエンドエンジニア職や、CT Software Engineering（インゴルシュタット、連邦雇用庁）のジュニアC++ソフトウェアデベロッパー職も検討しています。これらはソフトウェアエンジニアリングへの関心に合致しています。\n\n\n**応募基準の精査**\n\n応募リンクの取り扱いを明確にしています。わかりやすい応募プロセスを優先し、`[表示テキスト](embed:embed_ref)` または標準的なリンクの使用を確認することを忘れないようにします。さらに、求人情報に明記されていない限り、リモートワークを想定したり給与を開示したりすることは避けるべきです。\n\n\n**応募プロトコルの明確化**\n\n応募リンクの形式を絞り込んでいます。直接リンクの統合、または `(embed:embed_ref)` 形式の使用に焦点を当て、両方を提供しないようにします。コンプライアンスを確保するため、アプリのスキルから返されたURLを慎重に確認しています。1つの求人応募リンクにつき、1つのリンクスタイルのみを使用するというルールを遵守することを目指します。\n\n\n**応募リンクの標準化**\n\n応募リンクの戦略を実行に移しています。求人情報のフォーマットを標準化することを目指しています。応募リンクには埋め込み参照（embed ref）のみを使用します。また、各求人について、職務、雇用主、勤務地、情報源を組み込み、埋め込みリンクを使用します。常に1つの求人につき1つのリンクを使用するように徹底します。\n\n\n**機会データの収集**\n\n複数の機会の詳細をまとめています。voize のシニアプロダクトデザイナー職、stiftung ear のUI/UXデザイン職、ハンブルク大学のジョイント・フェローシップ・プログラムに関する情報を得ました。それぞれの職務、雇用主、勤務地、情報源、およびリモートワークと給与の仕様をメモしています。各応募に埋め込みを使用して、一貫したリンク形式を確保することに注力しています。\n\n\n**新しい求人の統合**\n\n新しい求人をデータセットに統合しています。ルール大学ボーフムのリサーチアソシエイト職を追加しました。これは連邦雇用庁からの情報で、リモートワークと給与の詳細もメモしています。また、Siemens Energy のリサーチエンジニア職（フレキシブルなオプションを含む）に関する情報もまとめました。応募リンクには埋め込みを使用し、リンク形式の一貫性を確保しています。\n\n\n**新しい求人の追加**\n\n新たに2つの求人を追加しました。勤務地未指定のシニアバックエンドエンジニア職と、ギルヒングの Quantum-Systems GmbH でのワーキングステーション（学生インターン）職です。勤務地、リモートワークのオプション、給与情報（利用可能な場合）、および標準化された形式の応募リンクを含むすべての詳細を正確に把握することに注力しています。応募リンクには `(embed:embed_ref)` 形式を使用しています。"
-      },
-      "message_3": {
-        "text": "2つのデザイン職が一番面白そうです。保存した求人情報の内容を簡単に比較して、応募前にそれぞれの雇用主に何を聞くべきか提案してもらえますか？"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n各求人内容の直接的な比較と、応募前や選考中に各雇用主に確認すべき具体的な質問事項をまとめました。\n\n---\n\n### 求人の比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### 応募前に確認すべきこと\n\n#### voizeの場合：\n1. **ユーザーリサーチへのアクセス：** 「デザイナーが現場の看護師や介護スタッフの日常的な臨床現場でフィールドワークやテストを行う頻度やチャネルはどのようになっていますか？」\n2. **チームの成熟度と範囲：** 「プロダクトチームの構成、現在のデザイナーとPM、エンジニアの比率を教えてください。また、このロールは個人のコントリビューターとしての役割ですか、それともデザインシステムの構築も期待されていますか？」\n3. **報酬とリモートの頻度：** 「このシニアレベルの想定年収レンジはどのくらいですか？また、リモートポリシーがある一方で、強制的な対面でのチームオフサイトやコアタイムはありますか？」\n\n#### stiftung earの場合：\n1. **ニュルンベルクでの出社要件：** 「モバイルワークは実際にはどのように運用されていますか？ニュルンベルクのオフィスへの出社について、週単位や月単位での固定の要件はありますか？」\n2. **デザインとQAのバランス：** 「求人にはUX/UIデザインと並んでソフトウェアテストの実施についても記載されています。ユーザーリサーチやプロトタイピングと、技術的なソフトウェアの検証や品質保証（QA）の業務比率はどのようになっていますか？」\n3. **デザインツールと開発への引き継ぎ：** 「現在どのようなデザインシステムやプロトタイピングツールを使用していますか？また、開発は社内のチームが行っていますか、それとも外部のITサービスプロバイダーに委託していますか？」\n4. **報酬の基準：** 「stiftung earは公的な法定機関として運営されていますが、報酬は特定の公的団体交渉賃金（TVöD/TV-Lなど）に基づいていますか、それとも独自の給与体系がありますか？」"
-      },
-      "message_4_thinking": {
-        "text": "**求人内容を分析中**\n\n求人情報の比較を開始しました。Voizeのシニア・プロダクトデザイナー職と、Stiftung EARのUI/UXデザイン職における主な責任と必須スキルに焦点を当てています。現在、両方の求人情報の主な責任と必須スキルの要約を準備しています。その後、さらにどのような情報が必要かを判断します。\n\n\n**職務内容を分析中**\n\n各求人の詳細をさらに深く掘り下げています。説明文で使用されている具体的な表現を分析することに重点を置いています。各雇用主への準備として、どのような重要な質問に答える必要があるかを見極めようとしています。例えば、voizeの求人では、彼らのAIコンパニオン製品について知る必要があります。\n\n\n**主要な詳細を評価中**\n\n現在、voizeの求人に絞り込み、重要なポイントを抽出しています。これは大きな裁量権を持つシニア職であり、プロダクトマネージャーに意見できる人材が求められています。体制は柔軟で、ベルリンのオフィスとリモートの選択肢があります。報酬は明記されていませんが、特典には十分な休暇とスポーツクラブの会員権が含まれています。ドイツのヘルスケアという文脈ですが、主な言語は英語です。\n\n\n**具体的な要件を特定中**\n\n現在、ニュルンベルクを拠点とする職務に絞り込んでいます。主要な領域を分類しました。法的コンプライアンスの側面は、電気電子機器法（ElektroG）の規制に焦点を当てています。業務には、Webアプリ開発やUX活動、ステークホルダーへのアドバイスが含まれます。ドイツ語の流暢さ（最低C1レベル）が必須で、規制関連ソフトウェアの経験があれば尚可です。このポジションは正社員で、大幅なリモートワークの柔軟性があります。報酬はパフォーマンスに基づきます。\n\n\n**職務属性を比較中**\n\n各職務の直接的な比較を行っています。ドメイン、文化、必須スキル、勤務地ごとに分類しました。具体的には、voizeとstiftung earの役割を比較しています。最前線のヘルスケアから電子廃棄物のコンプライアンスまで、それぞれの環境と優先事項の対比に焦点を当てています。言語要件や経験レベルなどの主な違いをメモしています。また、リモートワークポリシーの違いについても評価しています。"
-      },
-      "follow_up_1": {
-        "text": "ベルリンのUI/UXデザインの求人をさらに探す"
-      },
-      "follow_up_2": {
-        "text": "voizeの採用担当者へのアウトリーチメールを作成する"
-      },
-      "follow_up_3": {
-        "text": "ドイツ国内の類似したヘルスケアテックの職務を探す"
-      },
-      "follow_up_4": {
-        "text": "ヘルスケア系スタートアップと公的機関で働くメリット・デメリットを比較する"
-      },
-      "follow_up_5": {
-        "text": "ニュルンベルクの公共セクターのテック系求人を探す"
-      },
-      "follow_up_6": {
-        "text": "シニアプロダクトデザインの面接に向けた主な準備ステップをリストアップする"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "3Dプリント可能なBenchyとスマホスタンドのモデル"
-      },
-      "summary": {
-        "text": "ExampleModelsで人気の3Dプリント可能なBenchyやスマホスタンドのモデルを検索し、プレビューカードとソースリンクを表示します。"
-      },
-      "message_1": {
-        "text": "ExampleModelsで3Dプリント可能なBenchyとスマホスタンドのモデルを探して。プレビューカードとソースリンク付きで、おすすめのものを表示して。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n次の3Dプリントプロジェクトに向けて、ExampleModelsで特に人気がありクリエイティブなモデルをいくつか見つけました。定番の[キャリブレーション](wiki:Calibration_(statistics))用タグボートから実用的な[スマートフォン](wiki:Smartphone)アクセサリーまで、これらのオプションは素晴らしい出発点になります。\n\n### 3DBenchyコレクション\n[3DBenchy](wiki:3DBenchy)は、[3Dプリンター](wiki:3D_printing)の性能をテストするための指標（ゴールドスタンダード）です。オリジナル以外にも、作業スペースに個性を添えてくれる「リミックス」版がいくつかあります。\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **オリジナル3DBenchy**: [オーバーハング](wiki:3D_printing#Support_structures)や[ブリッジ](wiki:3D_printing#Support_structures)、表面の仕上がりなどの[ベンチマーク](wiki:Benchmark_(computing))に最適です。\n*   **アサルト・ベンチー**: 少し個性を出したい人向けの、ポーズを変えられる[メカ](wiki:Mecha)バージョンです。\n*   **フローティング・ベン**: 船体が中空になるよう特別に設計されており、実際に水に浮きます。お風呂にぴったりです！\n\n### 実用的なスマホスタンド\nスマホスタンドは、実用的なプリントとして最適です。ミニマルなものから複雑なメカニカルギアまで、さまざまなデザインがあります。\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **ハニカムスタンド**: [比強度](wiki:Specific_strength)（軽さと強さの比率）の高さとモダンな外観で非常に人気があります。\n*   **ギアスタンド**: 組み立て不要の「プリント・イン・プレイス」方式で、視聴角度を調整できる驚きのメカニズムです。\n*   **モダン・カーブ**: 洗練された一体型デザインで、ミニマルなオフィス環境に完璧にフィットします。\n\n**プロのヒント:** [ギア付きスマホスタンド](embed:geared-phone-stand-3Bl)をプリントする際は、可動パーツ同士がくっついてしまわないよう、[押し出し倍率](wiki:3D_printing#Fused_deposition_modeling)をしっかり調整しておきましょう。\n\nこれらにはどのような[フィラメント](wiki:3D_printing_filament)（PLA、PETGなど）を使う予定ですか？素材に合わせた具体的なスライス設定のコツをアドバイスできます！\n\n**次は何をしますか？**\n- [他の3Dモデルを探す](/#settings/apps/models3d)\n- [3Dプリントのコツを見る](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "レスポンシブデザインの原則を教えて"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "ドメイン確認済みのソーシャルアプリ名"
-      },
-      "summary": {
-        "text": "ドメインの空き状況、登録・更新費用、登録条件を確認して、ソーシャルアプリ名を比較します。"
-      },
-      "message_1": {
-        "text": "対面で会った後の連絡維持や、新しい出会いを支援するソーシャルアプリの命名を考えています。特徴的な名前のアイデアを2つ提案してください。それぞれのアイデアについて、.com、.net、.appドメインの空き状況をリアルタイムで確認し、空き状況、登録費用、更新費用、制限事項が確認できたドメインのみを提案してください。確認していないドメインについては推測しないでください。確認結果に基づいて、より優れた名前を選んでください。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n対面でのつながりを育み、社交の輪を広げることに特化したアプリにぴったりの、特徴的な2つの名前のアイデアを提案します。それぞれの名前について、`.com`、`.net`、`.app` 拡張子のドメイン空き状況も確認しました。\n\n---\n\n### アイデア 1: Kinloop\n* **コンセプト:** 「kin」（コミュニティ、親近感、信頼できる絆）と「loop」（最初の出会いの後のフォローアップや、継続的なサークル内でのつながりを維持すること）を組み合わせています。\n* **ライブドメイン確認:**\n  * **`kinloop.com`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-XJX))\n* **推奨事項:** なし。3つのターゲットドメインすべてが現在登録済み（利用不可）であるため、この名前に対して推奨できる正確なドメインはありません。\n\n---\n\n### アイデア 2: Orbitfolk\n* **コンセプト:** 実生活での知人を自分の「orbit」（軌道、活動範囲）に留めつつ、新しい人々（「folk」）を常に発見し、自分の世界に迎え入れるというイメージを想起させます。\n* **ライブドメイン確認:**\n  * **`orbitfolk.com`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **利用可能** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-cex))\n    * **登録価格:** 1年目 $12.99 税抜（19%のVAT込で $15.46、通常の1年間の料金は $18.78）\n    * **更新価格:** 年間 $39.98 税抜（1年契約の場合19%のVAT込で $47.58、2〜9年契約の場合は税抜 $35.98/年）\n    * **制限事項:** 報告なし\n  * **`orbitfolk.app`**: **利用可能** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-U3Z))\n    * **登録価格:** 1年目 $9.99 税抜（19%のVAT込で $11.89、通常の1年間の料金は $23.29）\n    * **更新価格:** 年間 $47.98 税抜（1年契約の場合19%のVAT込で $57.10、2〜9年契約の場合は税抜 $43.18/年）\n    * **制限事項:** 報告なし\n\n---\n\n### 比較とおすすめ\n\n**Orbitfolk** の方が強力な選択肢です：\n\n1. **直接的な可用性:** `Kinloop` は3つの拡張子すべてで取得済みですが、`Orbitfolk` は `.app` と `.net` の両方がすぐに登録可能です。\n2. **プロダクトへの適合性:** これはモバイルソーシャル製品であるため、**`orbitfolk.app`** は製品タイプをユーザーに直接伝える、クリーンで目的に特化したドメイン拡張子を提供します。\n\n---\n\n### 次のステップ\n\n* [ソーシャル・オービットに関連する名前のバリエーションをもっと探す](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [対面でつながるためのオンボーディングフローをドラフトする](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "別のソーシャルアプリのアイデアで空きドメインを検索する"
-      },
-      "follow_up_2": {
-        "text": "モバイルアプリに .app ドメインが効果的な理由を説明する"
-      },
-      "follow_up_3": {
-        "text": "3つの代替ブランド名でドメインの空き状況を確認する"
-      },
-      "follow_up_4": {
-        "text": "コンシューマー向けアプリにおける .net と .app ドメインを比較する"
-      },
-      "follow_up_5": {
-        "text": "AppFolk という名前のドメイン価格と空き状況を確認する"
-      },
-      "follow_up_6": {
-        "text": "このソーシャル系アプリにさらに3つのブランディング案を提案する"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "ウィル・スティーブンの風刺的なTEDトークの分析"
-      },
-      "summary": {
-        "text": "パブリックスピーキングに関するウィル・スティーブンの風刺的なTEDxトークを、5つの主要なコメディ的論点に要約しました。"
-      },
-      "message_1": {
-        "text": "このTEDトークの書き起こしを取得し、その核心となる主張を5つの箇条書きで要約してください： [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nこの動画は、ウィル・スティーブンによる風刺的なTEDxプレゼンテーション「*How to sound smart in your TEDx Talk*」（動画を見る）です。\n\nスティーブンは、有益な講義を行うのではなく、メタ的なユーモアを用いて基調講演の[パブリックスピーキング](wiki:Public_speaking)の慣習を解体しています。主な論点を5つのポイントにまとめました：\n\n* **話し方が内容の伴っているような錯覚を生む：** ペース配分、意図的な身振り手振り、ドラマチックなアイコンタクト、そして小道具（度なしの眼鏡など）を使うことで、話す内容に価値がなくても、聞き手に「このスピーカーは素晴らしい」と思わせることができます。\n* **ステージ上での信頼関係の構築は極めて定型的である：** 修辞的な質問を投げかける、挙手を促す、自虐的なエピソードを披露するといったお決まりのやり取りは、人工的な親しみやすさと信頼感を作り出すために計算された演出です。\n* **データの視覚化は不当な権威を与える：** ランダムな数字や単純な計算、文脈のないチャートを次々と見せることで視覚的なバイアスを利用し、データが全く無関係であっても、プレゼンテーションが厳密に調査されたものであるかのように見せかけます。\n* **観客は無意味なものに意味を投影する：** 真剣な口調や感情に訴えるストック画像と、文字通りの「でたらめ」を組み合わせることで、聞き手の潜在意識に働きかけ、実際には存在しない深い繋がりを探させ、想像させることができます。\n* **感情的な盛り上がりは捏造できる：** 声のトーンを強めたり、ささやくようにゆっくり話したり、ドラマチックな間を置いたりすることで、ひらめきの瞬間のリズムを模倣できます。これは、根本的な洞察がなくても、いかに簡単に「インスピレーションを受けた」という感覚を作り出せるかを証明しています。"
-      },
-      "follow_up_1": {
-        "text": "YouTubeで他の人気のある風刺的なプレゼンテーションを検索する"
-      },
-      "follow_up_2": {
-        "text": "TEDx形式の歴史とその文化的影響を説明する"
-      },
-      "follow_up_3": {
-        "text": "オンラインでパブリックスピーキングのマスタークラスのチュートリアルを探す"
-      },
-      "follow_up_4": {
-        "text": "有名な基調講演者が使用する特定のボディランゲージのテクニックを分析する"
-      },
-      "follow_up_5": {
-        "text": "修辞技法に関する分析動画を検索する"
-      },
-      "follow_up_6": {
-        "text": "人前で話す際にあがり症を克服するためのヒントをリストアップする"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "あなたはプログラミングの専門家です。"
       }
     },
-    "health_health_insights": {
-      "text": "健康インサイト",
-      "description": {
-        "text": "健康のインサイトを得て適切な医師を見つける。"
-      },
-      "systemprompt": {
-        "text": "あなたは健康の専門家です。"
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "医師の予約を準備",
-      "description": {
-        "text": "次の診察で相談する内容を準備する。"
-      },
-      "process": {
-        "text": "- 最近数週間・数ヶ月で経験した症状を話し合う（関連性が見えなくても）\n- 次の予約前に収集すべき検査結果/書類について話し合う"
-      },
-      "systemprompt": {
-        "text": "あなたは健康の専門家です。"
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "医師レポートを準備",
-      "description": {
-        "text": "次の診察に向けたレポートを作成する。"
-      }
-    },
     "jobs_career_insights": {
       "text": "キャリアインサイト",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "未来について話す",
       "description": {
         "text": "強力なライフコーチングテクニック。"
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "医師レポートを準備",
+      "description": {
+        "text": "次の診察に向けたレポートを作成する。"
+      }
+    },
+    "health_health_insights": {
+      "text": "健康インサイト",
+      "description": {
+        "text": "健康のインサイトを得て適切な医師を見つける。"
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "医師の予約を準備",
+      "description": {
+        "text": "次の診察で相談する内容を準備する。"
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "コンテンツカレンダー戦略家",
       "description": {
         "text": "30日間のSNSコンテンツプランを作成する。"
+      },
+      "systemprompt": {
+        "text": "プロのソーシャルメディア戦略家として行動してください。以下の入力を使用して、メインゴールの達成に焦点を当てた30日間のコンテンツカレンダーを作成してください。\n\nまず、このトピック/ニッチとターゲットオーディエンスに関する既存の知識と、利用可能な場合はリアルタイムのウェブデータを使用して、簡単な内部調査と戦略ステップを実施してください。オーディエンスの主な痛点と欲求、このニッチでパフォーマンスが良い投稿の種類とフック、関連する現在のトレンドを明確にしてください。これらのインサイトはカレンダーを指導するためだけに使用し、別途出力しないでください。\n\n出力は、これらの正確な列を持つMarkdownテーブルでなければなりません（それ以外は何も含めないでください）：日 #、日付、テーマ/柱、プラットフォーム、コンテンツアイデア、行動喚起 (CTA)。\n\nカレンダーガイドライン：\n- 開始日から始まる連続する各カレンダー日に1行ずつ、実際の日付を昇順で、正確に30行作成してください。\n- 各行のテーマ/柱は、提供されたコンテンツの柱の1つである必要があり、30日間でバランスの取れた混合にしてください。\n- プラットフォーム列は投稿スケジュールに従ってください。特定の日に複数のプラットフォームが指定されている場合、プラットフォームごとに1行作成してください。\n\nコンテンツガイドライン：\n- 各コンテンツアイデアは投稿タイプ（例：Reel、カルーセル、静的投稿、ストーリー、ライブ、投票、LinkedInテキスト投稿）を明示し、ターゲットオーディエンスに合わせたスクロールを止める明確なフックを含めてください。\n- 各CTAは具体的で行動指向であり、メインゴールを直接サポートするものにしてください（例：「無料ガイドをダウンロード」、「電話を予約」、「ニュースレターに登録」、「質問#1をコメントで」）。\n- 30日間でフォーマットと角度を変えてください（例：教育的、ストーリーテリング、舞台裏、FAQ、反論処理、社会的証明、エンゲージメント促進）。\n- すべてのアイデアがターゲットオーディエンスの主要な痛点と欲求に明確に関連し、メインゴールと一致していることを確認してください。\n\n入力（プロンプトを実行する前に記入してください）：\n* トピック/ニッチ：[ここにトピック/ニッチを入力]\n* ターゲットオーディエンス：[ここにターゲットオーディエンスを入力、既知の場合は主要な痛点と欲求を含む]\n* メインゴール：[ここにメインゴールを入力、例：メールリストを増やす / 販売を促進 / 権威を構築]\n* 投稿スケジュール：[ここに投稿頻度とプラットフォームを入力、例：IG Reelsに週5回 + LinkedInに週3回]\n* コンテンツの柱：[ここに3〜5つのコンテンツの柱をカンマ区切りで入力]\n* 開始日：[カレンダーの最初の日付を入力、例：2025年11月18日]\n\n最終的なMarkdownテーブルのみを出力してください。テーブル以外の説明、注記、テキストを含めないでください。"
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (動画の文字起こし)"
+              "text": "YouTube（動画メタデータ）"
             },
             "description": {
-              "text": "YouTubeは、OpenMatesにYouTube動画の文字起こしの取得を依頼した際に照会されます。YouTubeは、OpenMatesのユーザー識別子を含まない動画のURLと言語設定を受信します。"
+              "text": "公開されている動画とチャンネルのメタデータを取得するため、OpenMates は動画とチャンネルの識別子を公式の YouTube Data API に送信します。YouTube はこれらの識別子と当社サーバーのネットワーク情報を受け取りますが、OpenMates のユーザー識別子は受け取りません。"
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"
+    },
+    "privacy_description": {
+      "text": "Mistral がマイク音声を文字起こしし、ElevenLabs v4 Turbo が回答テキストと音声設定からアシスタントの音声を生成します。会話には通常の OpenMates AI ルーティングとスキルが使われます。各プロバイダーは自身のポリシーに従ってリクエストデータを保持する場合があります。"
+    },
+    "privacy_terms": {
+      "text": "OpenMates プライバシーポリシー"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Discordのメンバーは"

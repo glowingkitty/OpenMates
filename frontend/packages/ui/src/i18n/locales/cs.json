@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "Hledejte veřejné pracovní nabídky ve Švédsku pomocí JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Získat přepis",
         "description": {
-          "text": "Získejte přepis videa YouTube / media.ccc.de."
+          "text": "Získejte zveřejněné titulky přednášek na media.ccc.de."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Přečti stránku Wikipedie o Římské říši a dej mi klíčová fakta"
           }
+        }
+      },
+      "browse": {
+        "text": "Procházet",
+        "description": {
+          "text": "Procházejte weby a vracejte zjištěné informace jako JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Hosting",
       "description": {
-        "text": "Najděte doménová jména a ověřte jejich dostupnost a ceny."
+        "text": "Vyhledávání domén nyní není dostupné."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Pošta",
       "description": {
-        "text": "Posílejte, spravujte a vytvářejte e-maily."
+        "text": "Připravujte koncepty e-mailů a pracujte s poštou."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Videa",
       "description": {
-        "text": "Hledejte videa, získejte přepisy."
+        "text": "Hledejte a vytvářejte videa."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Cestování",
       "description": {
-        "text": "Hledejte ubytování, spojení a plánujte."
+        "text": "Plánujte cesty a uchovávejte uložené cestovní informace."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "Vyhledávání elektronických součástek nyní není dostupné."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Bydlení",
       "description": {
-        "text": "Hledejte nový domov a více."
+        "text": "Uchovávejte uložené informace o bydlení."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Události",
       "description": {
-        "text": "Objevujte meetupy, konference a místní události."
+        "text": "Uchovávejte uložené informace o událostech."
       },
       "search": {
         "text": "Hledat",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Zobrazujte uložené 3D modely."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Nakupování",
       "description": {
-        "text": "Porovnejte ceny v supermarketech a najděte nabídky."
+        "text": "Vyhledávání produktů nyní není dostupné."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Procházet"
+      },
+      "running": {
+        "text": "Procházení"
+      },
+      "user_control": {
+        "text": "Máte kontrolu"
+      },
+      "paused": {
+        "text": "Pozastaveno"
+      },
+      "completed": {
+        "text": "Dokončeno"
+      },
+      "no_results": {
+        "text": "Žádné výsledky"
+      },
+      "needs_user": {
+        "text": "Je potřeba váš vstup"
+      },
+      "blocked": {
+        "text": "Zablokováno"
+      },
+      "failed": {
+        "text": "Selhalo"
+      },
+      "cancelled": {
+        "text": "Zrušeno"
+      },
+      "budget_exceeded": {
+        "text": "Dosažen limit útraty"
+      },
+      "closed": {
+        "text": "Prohlížeč zavřen"
+      },
+      "expired": {
+        "text": "Relace vypršela"
+      },
+      "unavailable": {
+        "text": "Prohlížeč není dostupný"
+      },
+      "watch": {
+        "text": "Sledovat prohlížeč"
+      },
+      "take_control": {
+        "text": "Převzít kontrolu"
+      },
+      "continue": {
+        "text": "Nechat AI pokračovat"
+      },
+      "pause": {
+        "text": "Pozastavit"
+      },
+      "close": {
+        "text": "Zavřít prohlížeč"
+      },
+      "sign_in_title": {
+        "text": "Před přihlášením"
+      },
+      "sign_in_confirm": {
+        "text": "Pokračovat k přihlášení"
+      },
+      "saved_frame": {
+        "text": "Uložený snímek prohlížeče"
+      },
+      "live_frame": {
+        "text": "Živý prohlížeč"
+      },
+      "waiting_frame": {
+        "text": "Čekání na prohlížeč…"
+      },
+      "text_input": {
+        "text": "Text pro web"
+      },
+      "send_text": {
+        "text": "Odeslat text"
+      },
+      "scroll_up": {
+        "text": "Posunout nahoru"
+      },
+      "scroll_down": {
+        "text": "Posunout dolů"
+      },
+      "structured_data": {
+        "text": "Strukturovaná data"
+      },
+      "connection_error": {
+        "text": "Spojení přerušeno. Před další akcí obnovte stránku."
+      },
+      "credits": {
+        "text": "{used} / {limit} kreditů"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Přihlašujete se v cloudovém prohlížeči. Když necháte AI pokračovat, může přistupovat k údajům tohoto účtu. Relevantní obsah stránek může být odeslán našim poskytovatelům AI. Přihlašujte se jen k účtům, ke kterým chcete dát AI přístup."
+      },
+      "manual_hint": {
+        "text": "Klikněte na stránku nebo použijte Tab a Enter. Text se odešle jen tomuto webu a poté se z pole vymaže."
+      },
+      "paused_hint": {
+        "text": "Prohlížeč je pozastaven a neúčtují se výpočty. Převezměte kontrolu pro obnovení. Po 24 hodinách bez interakce se relace smaže."
+      },
+      "watch_hint": {
+        "text": "Pouze sledujete. Pro ovládání webu převezměte kontrolu. Sledování neudržuje relaci aktivní."
+      },
+      "stopping": {
+        "text": "Zastavování…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "Porovnej každodenní odpovědnosti a možnosti růstu u obou rolí"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "Srovnání horkovzdušných fritéz v Německu"
-      },
-      "summary": {
-        "text": "Srovnání nejlepších horkovzdušných fritéz na německém ExampleRetailu podle ceny, kapacity a hodnocení s doporučením modelu Philips Airfryer řady 2000 pro dvoučlennou domácnost."
-      },
-      "message_1": {
-        "text": "Najdi horkovzdušné fritézy, které si můžu koupit online v Německu, včetně nabídek na ExampleRetailu. Porovnej aktuální ceny, kapacity a hodnocení a poté doporuč jednu pro dvoučlennou domácnost i s odkazy na zdroje."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nZde je srovnání nejlépe hodnocených horkovzdušných fritéz aktuálně dostupných na ExampleRetail Germany, které porovnává cenu, kapacitu a hodnocení zákazníků.\n\n---\n\n### Srovnání oblíbených modelů v Německu\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Hlavní doporučení pro domácnost o 2 osobách\n\n#### **Hlavní volba: [Philips Airfryer 2000 Series 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Proč se nejlépe hodí pro dva lidi:**\n  * **Optimální kapacita (6,2 l):** Košíky menší než 4,5–5 l vyžadují vaření ve více dávkách i pro dvě osoby. Košík o objemu 6,2 l ti umožní položit dva filety z lososa a celou přílohu ze zeleniny nebo hranolek naplocho v jedné vrstvě pro rovnoměrné propečení.\n  * **Prostorová náročnost:** Dvouzónové přístroje (jako Ninja nebo Russell Hobbs) zabírají na lince značné množství místa. Jeden 6l košík poskytuje dostatečný objem při zachování kompaktních rozměrů vhodných pro typické německé kuchyňské pracovní desky.\n  * **Průhledné okénko:** Umožňuje kontrolovat míru opečení bez nutnosti vysouvat zásuvku a ztrácet teplo.\n  * **Poměr cena/výkon:** Za 99,99 € nabízí spolehlivou konzistenci teploty od značky [Philips](wiki:Philips) za rozumnou cenu.\n\n#### **Alternativa (pokud často připravuješ dva pokrmy při různých teplotách): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nPokud s partnerem dáváte přednost přípravě bílkovin a zeleninových příloh současně při různých teplotách a časech (např. kuřecí prsa na 180 °C a křupavé brambory na 200 °C), je tento model aktuálně zlevněn na 119,99 € a disponuje funkcí synchronizovaného času vaření.\n\n---\n\n### Klíčové faktory, které je třeba zvážit před nákupem\n1. **Tvar zásuvky:** Čtvercové košíky (jako Cosori a Philips) pojmou ploché potraviny (steaky, pečicí formy, špízy) mnohem lépe než kulaté košíky o stejném objemu v litrech.\n2. **Místo v myčce:** Ujisti se, že tvoje myčka má dostatečnou výšku koše pro jednu 6l zásuvku, nebo zvaž ruční mytí nepřilnavých povrchů pro prodloužení jejich životnosti."
-      },
-      "follow_up_1": {
-        "text": "Vyhledat recepty určené speciálně pro horkovzdušné fritézy"
-      },
-      "follow_up_2": {
-        "text": "Vysvětlit hlavní rozdíly mezi fritézami s jedním a dvěma koši"
-      },
-      "follow_up_3": {
-        "text": "Najít kompatibilní příslušenství na pečení pro tuto fritézu"
-      },
-      "follow_up_4": {
-        "text": "Vypsat recepty na večeři z horkovzdušné fritézy vhodné pro začátečníky"
-      },
-      "follow_up_5": {
-        "text": "Zkontrolovat aktuální hodnocení spotřeby energie u těchto modelů"
-      },
-      "follow_up_6": {
-        "text": "Porovnat nároky na čištění a údržbu u keramických a teflonových povrchů"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Hlavní momenty a průzkum mise Artemis II"
@@ -8894,38 +8967,6 @@
         "text": "[code] Vytvoř podobnou šablonu, ale s jiným designovým stylem"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Lekce jógy pro začátečníky v Berlíně"
-      },
-      "summary": {
-        "text": "Najdi tři lekce jógy pro začátečníky v Berlíně s časy, cenami a odkazy na rezervaci."
-      },
-      "message_1": {
-        "text": "S jógou začínám a příští týden bych v Berlíně chtěl/a zajít na lekci pro začátečníky. Můžeš mi najít pár lekcí s časy, cenami a odkazy na rezervaci?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nTady jsou lekce [jógy](wiki:Yoga) pro začátečníky, které se konají příští týden po celém Berlíně:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **O co jde:** Všímavá lekce vyvažující pohyb vedený dechem s výdržemi v pozicích pro zkoumání správného nastavení těla a klidu. Navrženo speciálně tak, aby byla lekce přístupná pro začátečníky (probíhá v angličtině).\n- **Datum a čas:** Středa 14. října 2026, 18:00 – 19:00 SELČ (přijď o 10 minut dříve)\n- **Místo:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Cena:** 11,83 € – 22,49 €\n- **Rezervace:** [Rezervovat vstupenky na ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **O co jde:** Neformální, uvolněná lekce mobility a jógy pro všechny úrovně, kde jsou sestavy vysvětlovány krok za krokem v mírném tempu. Není vyžadována předchozí flexibilita ani zkušenosti.\n- **Datum a čas:** Úterý 13. října 2026, 19:00 – 19:45 SELČ (přijď o 15 minut dříve)\n- **Místo:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Cena:** 5 € (vstup zdarma s ExampleFitness / Wellpass, pokud jdeš i na bouldering)\n- **Rezervace:** [Zobrazit podrobnosti a odkaz na rezervaci](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **O co jde:** Dynamická, ale jemná lekce vinyasy nabízející modifikace pro začátečníky, zaměřená na uvědomění si dechu, držení těla a uvolnění stresu.\n- **Datum a čas:** Středa 14. října 2026, 19:30 – 21:00 SELČ\n- **Místo:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Cena:** 10 € za první zkušební lekci (startovací balíček: 3 lekce za 20 €)\n- **Rezervace:** [Potvrdit účast přes Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tipy pro tvou první lekci jógy\n* **Oblečení:** Pohodlné, pružné oblečení, ve kterém se můžeš snadno hýbat a ohýbat. Jóga se obvykle cvičí naboso.\n* **Hydratace a jídlo:** Vyhni se těžkým jídlům 1,5–2 hodiny před lekcí.\n* **Naslouchej svému tělu:** Před lekcí řekni lektorovi, že jsi tu poprvé; rádi ti ukážou úpravy a pomůcky (bloky, deky nebo popruhy). Pokud máš problémy s klouby nebo zády, poraď se před zkoušením dynamických sestav s lékařem nebo fyzioterapeutem.\n\nChceš doporučení blíž ke konkrétní čtvrti (např. Neukölln, Prenzlauer Berg, Charlottenburg), nebo se zaměřením na jemný styl jako [Hatha jóga](wiki:Hatha_yoga) nebo [Yin jóga](wiki:Yin_yoga)?\n---\n*⚠️ Toto jsou pouze informativní údaje, nikoli lékařská rada. O lékařských rozhodnutích se poraď se svým lékařem.*"
-      },
-      "follow_up_1": {
-        "text": "Hledat lekce jógy v Neuköllnu v Berlíně"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli, co očekávat na první lekci jógy"
-      },
-      "follow_up_3": {
-        "text": "Najít workshopy hatha jógy příští víkend"
-      },
-      "follow_up_4": {
-        "text": "Porovnat styly vinyasa a hatha jógy"
-      },
-      "follow_up_5": {
-        "text": "Hledat studia jin jógy v Mitte"
-      },
-      "follow_up_6": {
-        "text": "Seznam tipů pro začátečníky při výběru podložky na jógu"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Najdi anglicky mluvícího praktického lékaře v Berlíně"
-      },
-      "summary": {
-        "text": "Najdi možnosti termínů s pravdivými údaji o pojištění a odkazy na ordinace."
-      },
-      "message_1": {
-        "text": "Potřebuju příští týden termín u anglicky mluvícího praktického lékaře v Berlíně. Porovnej prosím nejbližší možnosti, ukaž jejich karty termínů a uváděj krytí pojištěním, jen když je to v rezervační nabídce potvrzeno. Pokud je krytí nejasné, napiš to."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nTady jsou nejbližší termíny u anglicky mluvících praktických lékařů v Berlíně v příštích 7 dnech, které se mi podařilo najít. Uvádím pouze informace o pojištění, které jsou přímo uvedeny v nabídce.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Nejbližší termíny příští týden**\n1. **Po 12. 10., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Adresa: Albert-Einstein-Straße 2, 12489 Berlin\n   - Typ návštěvy: Vstupní vyšetření (nový pacient)\n   - Uvedené jazyky: němčina, angličtina\n   - **Pojištění:** soukromé *(potvrzeno v nabídce)*\n\n2. **Po 12. 10., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Adresa: Kapweg 5, 13405 Berlin\n   - Typ návštěvy: Vstupní vyšetření (nový pacient)\n   - Uvedené jazyky: angličtina\n   - **Pojištění:** soukromé *(potvrzeno v nabídce)*\n\n3. **Po 12. 10., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Adresa: Stargarder Straße 69, 10437 Berlin\n   - Typ návštěvy: Akutní ošetření\n   - Uvedené jazyky: němčina, angličtina\n   - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*\n\n4. **Po 12. 10., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Adresa: Müllerstraße 36, 13353 Berlin\n   - Typ návštěvy: Vstupní vyšetření (nový pacient)\n   - Uvedené jazyky: němčina, angličtina\n   - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*\n\n5. **Po 12. 10., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Adresa: Wallstraße 16, 10179 Berlin\n   - Typ návštěvy: Vstupní vyšetření (nový pacient)\n   - Uvedené jazyky: němčina, angličtina\n   - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*\n\nPár poznámek:\n- Z výše uvedeného srovnání jsem vynechal dvě dřívější možnosti z **9.–10. října**, protože ses ptal konkrétně na **příští týden**.\n- Tyto výsledky pocházejí z nabídek na ExampleClinicA; pokrytí ExampleClinicB nebylo v této sadě výsledků vyhledávání podporováno.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nPokud chceš, můžu dál:\n- omezit výběr pouze na **veřejné pojištění**, kde je potvrzeno, nebo\n- vytvořit užší výběr podle **čtvrti / vzdálenosti od tvé polohy**.\n---\n*⚠️ Tyto informace jsou pouze vzdělávací a neslouží jako lékařské poradenství. O lékařských rozhodnutích se poraď se svým lékařem.*"
-      },
-      "follow_up_1": {
-        "text": "Hledat termíny u praktických lékařů pro veřejné pojištění v Mitte"
-      },
-      "follow_up_2": {
-        "text": "Filtrovat termíny pouze pro veřejné pojištění"
-      },
-      "follow_up_3": {
-        "text": "Najít anglicky mluvící lékaře poblíž čtvrti Prenzlauer Berg"
-      },
-      "follow_up_4": {
-        "text": "Zúžit výběr podle čtvrti a vzdálenosti"
-      },
-      "follow_up_5": {
-        "text": "Hledat termíny u odborných lékařů v Berlíně"
-      },
-      "follow_up_6": {
-        "text": "Vysvětlit, jak si tyto termíny u lékaře rezervovat online"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "Porovnej mimozemskou biologii Getheňanů a Oankaliů"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "Vysvětlit, jak optimalizovat soubory SVG pro výkon webu"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Najdi název značky a doménu"
-      },
-      "summary": {
-        "text": "Stručná konverzace o pojmenování: brainstorming sedmi kandidátů a následné porovnání dvou finalistů s údaji o doméně, webu a předběžných ochranných známkách v USA."
-      },
-      "message_1": {
-        "text": "Pomoz mi najít název pro můj nový produkt."
-      },
-      "message_2": {
-        "text": "Pro začátek: co tvůj produkt dělá, kdo je cílová skupina a jaký tón nebo dojem by měl název vyvolávat (např. hravý, prémiový, technický)?"
-      },
-      "message_3": {
-        "text": "Je to uklidňující aplikace pro správu rozpočtu pro americké freelancery, v angličtině. Chci krátké, zapamatovatelné názvy a doménu .com do 20 € ročně. Nejdřív prosím vymysli pestrý užší výběr."
-      },
-      "message_4": {
-        "text": "Zde je úvodní užší výběr rozmanitých, snadno vyslovitelných názvů šitých na míru klidnému prostředí pro správu rozpočtu na volné noze:\n\n- [ ] **Serenito**: Evokuje klid a mírné tempo pro kolísavé příjmy jednotlivců.\n- [ ] **Solowell**: Naznačuje finanční pohodu a klid v duši pro solopodnikatele.\n- [ ] **Equafy**: Zaměřuje se na vyrovnávání nepravidelných cyklů cash flow (období hojnosti a nedostatku).\n- [ ] **StillLedger**: Spojuje klasickou účetní strukturu s vědomým klidem bez stresu.\n- [ ] **Cadenceo**: Naznačuje budování stabilního, předvídatelného rytmu z plateb za zakázky.\n- [ ] **HavenFin**: Rámcuje správu peněz jako bezpečný, uklidňující přístav.\n- [ ] **Placidly**: Jemný, uklidňující tón, který rozptyluje finanční úzkost.\n\n*(Poznámka: U tohoto užšího výběru nebyla kontrolována dostupnost domén ani právní nezávadnost.)*\n\nU kterých 2–3 názvů chceš provést živou kontrolu? Můžeš si vybrat své favority, nebo mě požádat o výběr finalistů k ověření cen .com domén, konfliktů značek a ochranných známek v USA.\n\n- [Zkontrolovat Serenito, Solowell a Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Vyber pro mě 3 nejlepší a zkontroluj je](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Prosím zkontroluj Equafy a Cadenceo: jejich dostupnost na .com a uvedené ceny, existující značky na webu a ochranné známky v USA. Srovnání ponech stručné, uveď své doporučení a případné chybějící kontroly."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nZde je srovnání na základě kontrol provedených 12. října 2026:\n\n### Equafy\n- **Doména**: `equafy.com` je momentálně na ExampleRegistrar nedostupná; není k dispozici žádná standardní registrační cena, takže nesplňuje rozpočet 20 €/rok.\n- **Webové a značkové prostředí**: Žádný významný rozpočtový software tento přesný název nepoužívá, ale vyhledávání na webu ukazuje vysokou fonetickou podobnost a záměnu při vyhledávání se [službami osobních financí Equifax](embed:equifax.com-TrW).\n- **Ochranné známky v USA (ExampleTrademarks)**: Předběžné vyhledávání vrátilo 5 z 1 640 podobných záznamů (zkráceno; absenci přesného názvu nelze potvrdit). Aktivní shody zahrnují `EQUIFY` ve třídě 36 (probíhající finanční služby a služby uložených hodnot) a třídě 35 (registrované aukční služby).\n\n### Cadenceo\n- **Doména**: `cadenceo.com` je momentálně na ExampleRegistrar nedostupná; není k dispozici žádná standardní registrační cena, čímž nesplňuje rozpočet 20 €/rok.\n- **Webové a značkové prostředí**: Přímo se překrývá s [Cadence Money](embed:cadencemoney.com-IcE), zavedenou aplikací pro osobní finance a sledování rozpočtu, která působí v USA a Kanadě na platformách iOS, Android a webu.\n- **Ochranné známky v USA (ExampleTrademarks)**: Předběžné vyhledávání vrátilo 5 z 227 podobných záznamů (zkráceno; absenci přesného názvu nelze potvrdit). Aktivní shody pro `CADENCE` zahrnují záznamy softwaru ke stažení ve třídě 9.\n\n---\n\n### Doporučení a kompromisy\n- **Směr**: Oba názvy zamítnout. Zatímco **Equafy** má méně přímých konfliktů s aplikacemi než **Cadenceo** (které koliduje přímo s *Cadence Money*), ani jeden nenabízí dostupnou doménu `.com` pod tvým limitem 20 €/rok a Equafy s sebou nese fonetickou záměnu se stávajícími finančními značkami jako *Equify* a *Equifax*.\n- **Chybějící kontroly**: Nebyly kontrolovány mezinárodní registry ochranných známek mimo USA, státní podání ochranných známek podle zvykového práva (common-law) ani ocenění odkupu domén na sekundárním trhu.\n\nChceš otestovat dostupnost domény a právní čistotu u dalších možností z užšího výběru (například **Solowell** nebo **StillLedger**), nebo prozkoumat mírné složené varianty, abychom našli dostupnou doménu `.com` v rámci rozpočtu?\n\n- [Zkontrolovat Solowell a StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Vymyslet složené názvy s dostupnými .com pod 20 €](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Zkontroluj dostupnost domén a ochranné známky pro Solowell a StillLedger"
-      },
-      "follow_up_2": {
-        "text": "Vymysli složená jména s dostupnými .com doménami do dvaceti eur"
-      },
-      "follow_up_3": {
-        "text": "Prohledej databáze ochranných známek pro nápady na názvy nové aplikace na rozpočet"
-      },
-      "follow_up_4": {
-        "text": "Porovnej branding a strategie pojmenování pro aplikace pro sólo podnikatele"
-      },
-      "follow_up_5": {
-        "text": "Vyhledej dostupné doménové koncovky pro finanční aplikace pro freelancery"
-      },
-      "follow_up_6": {
-        "text": "Vypiš alternativní registrátory pro cenově dostupné domény pro startupy"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Lety z Berlína do Bangkoku"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Doporučit cenově dostupné ubytování v Bangkoku"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Berlínské byty s balkonem"
-      },
-      "summary": {
-        "text": "Porovnej si reálné nabídky bytů v Berlíně, kompletní fotogalerie, důkazy o balkonech a polohy na mapě, s jasně označenými nepotvrzenými náklady a přístupem k vodě."
-      },
-      "message_1": {
-        "text": "Hledám byt k pronájmu v Berlíně s balkonem, ideálně u řeky nebo jezera, do 1 800 EUR měsíčně a s alespoň dvěma pokoji. Můžeš porovnat několik nabídek včetně jejich fotogalerií a polohy na mapě? Rozliš prosím, co nabídky skutečně potvrzují a co je neznámé, včetně nájemného, termínů nájmu a přístupu k vodě. Pokud poskytovatel uvádí pouze přibližnou polohu nebo neúplné fotografie, uveď to. Jasně označené možnosti jsou vítány, i když některé detaily chybí."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nZde je srovnávací přehled dvoupokojových nájemních bytů v Berlíně do 1 800 €/měsíc s doloženým balkonem a blízkostí nebo tvrzením o blízkosti vody, s důrazem na potvrzená fakta versus nejasnosti:\n\nBerlínské dvoupokojové nájemní byty s balkony\n\n---\n\n### Souhrnné srovnání\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Podrobné profily nabídek\n\n#### 1. [2pokojový loftový byt s balkonem, u Ringbahnu](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Nájemné a náklady**: Celkové teplé nájemné je výslovně uvedeno jako **1 350 €/měsíc**, což zahrnuje studené nájemné 1 200 € a 150 € nespecifikovaných vedlejších nákladů. Zahrnutí vytápění není výslovně rozepsáno. Kauce činí 2 000 €.\n* **Podmínky pronájmu**: Podnájem na dobu určitou. Strukturovaná data uvádějí 01.11.2026 až 01.04.2027, ale popis nabídky upřesňuje, že garantovaná pevná doba je **od 1. listopadu do 28. prosince 2026**, s možností flexibilního měsíčního prodloužení až do 1. dubna 2027 po vzájemné dohodě.\n* **Důkaz o balkonu**: Potvrzeno. Výslovně uvedeno ve vybavení i v textu („Slunný balkon s výhledem na Fennpfuhlpark“). Vizuální posouzení vzorku 3 ze 14 dostupných fotografií v galerii potvrdilo viditelný balkon na fotografii s indexem 0.\n* **Přístup k vodě a lokalita**: Nachází se na Anton-Saefkow-Platz v Lichtenbergu. Geokódování odpovídá úrovni ulice (bez konkrétního čísla popisného). Data OpenStreetMap potvrzují vodní prvek (**Fennpfuhl**, parkové jezero), ale pouze jako reprezentativní souřadnici bodu; přesná vzdálenost od břehu a pěší dostupnost v minutách nejsou vypočteny, a tudíž ani ověřeny.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Nájemné a náklady**: Inzerováno jako paušální částka **1 800 €/měsíc** all-inclusive (studené i teplé nájemné je zadáno jako 1 800 €). Poplatky, náklady na vytápění a elektřinu nejsou rozepsány. Kauce činí 1 000 €.\n* **Podmínky pronájmu a nesrovnalosti v rozsahu**:\n  * *Rozpor v datech*: Strukturovaná pole ukazují dostupnost od 21.10.2026 do 03.05.2027. Německý text však výslovně uvádí dostupnost od 11. listopadu na 2 měsíce, zatímco anglický překlad níže v inzerátu uvádí „od 6. listopadu, 4–6 měsíců“.\n  * *Omezení pokojů*: Inzerát uvádí, že interní pokoj majitele (*Sperrraum*) zůstává uzamčen a je z pronájmu vyloučen, ačkoli zbývající přístupný prostor je popsán jako dva pokoje na 85 m².\n* **Důkaz o balkonu**: Potvrzeno. Inzerováno se dvěma balkony (jeden do dvora, jeden k vodě). Vzorek fotografií (3 z 15) potvrdil balkony na fotografiích 0 a 14.\n* **Přístup k vodě a lokalita**: Adresa je uvedena jako Maybachufer v [Neuköllnu](wiki:Neukölln). Geokódování vrátilo nejednoznačný výsledek a vrátilo se k obecným souřadnicím města Berlín. Přestože text inzerátu výslovně uvádí přímý výhled na [Landwehrkanal](wiki:Landwehr_Canal), vzdálenost od sousedství a pěší trasy nebylo možné geometricky ověřit kvůli náhradním souřadnicím.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Nájemné a náklady**: Teplé nájemné je uvedeno od **1 372 €/měsíc**, s rozepsanými provozními náklady 130 € a náklady na vytápění 105 €. Základní studené nájemné je vynecháno a v popisu je uvedeno, že se jedná o minimální počáteční nájemné pro akční nabídku. Elektřinu si musí nájemce sjednat samostatně.\n* **Podmínky pronájmu**: Inzerováno komerčním operátorem pro novou rezidenční čtvrť (*Erstbezug* 2026). Vyžaduje **minimální dobu nájmu 12 měsíců** (*Mindestmietdauer*). Termíny zahájení jsou otevřené (průběžné prohlídky každou středu/čtvrtek).\n* **Důkaz o balkonu**: Potvrzeno v popisu specifikací („einen Balkon“) i v inzerovaných atributech. Vizuální vzorek 3 z 27 fotografií potvrdil vnější konstrukci balkonu na fotografii s indexem 26.\n* **Přístup k vodě a lokalita**: Nachází se na adrese Buschkrugallee 64 v Neuköllnu/[Britzu](wiki:Britz). Poloha vychází ze souřadnic poskytnutých poskytovatelem bez nezávislého ověření ulice. Popis uvádí, že komplex sousedí s kanálem (Neuköllner Schifffahrtskanal), ale přesná vzdálenost od břehu a body pro pěší přístup nebyly geometricky vypočteny.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Nájemné a náklady**: Teplé nájemné je inzerováno ve výši **980 €/měsíc**. Popis zmiňuje „Nebenkosten: 270 € pro Monat“, ale není jasné, zda je tato částka již zahrnuta v 980 €, nebo se účtuje navíc. Kauce činí 1 500 €.\n* **Zásadní nejasnost: Celý byt vs. pokoj**: Název uvádí „2-Zimmer Wohnung... zur Untermiete“, ale text začíná: *„Pronajímáme náš krásný, klidný a zařízený pokoj s balkonem...“*. Není jasné, zda se podnajímá celý dvoupokojový byt o rozloze 50 m², nebo pouze jednotlivý pokoj v něm.\n* **Důkaz o balkonu**: Vizuálně nepotvrzeno. Ačkoli je v názvu i textu inzerován balkon, inzerent poskytl pouze 1 fotografii a na ní žádný balkon vidět není.\n* **Přístup k vodě a lokalita**: Nachází se v 14057 [Charlottenburgu](wiki:Charlottenburg). Poskytovatel neuvedl název ulice ani číslo popisné (přesnost pouze na úrovni PSČ). Popis zmiňuje pěší blízkost k Lietzenseeparku (kde se nachází jezero Lietzensee), ale přesný čas trasy a metry k břehu nelze bez adresy vypočítat.\n* **Podmínky pronájmu**: Podnájem na dobu určitou od 01.11.2026 do maximálně 01.11.2027 (kratší období dohodou).\n\n---\n\n### Klíčové poznatky před poptávkou\n1. **Ověření vody**: Pouze byt na Maybachufer má výslovný výhled na otevřenou vodní cestu přímo z bytu, ale jeho geokód je přibližný a data se rozcházejí. Byt na Anton-Saefkow-Platz má potvrzenou blízkost parku u Fennpfuhlu, i když přesná vzdálenost od břehu není změřena.\n2. **Typy nájmů**: Žádná z nabídek na ExampleHousingC nenabízí nájem na dobu neurčitou (*unbefristet*); ve všech případech se jedná o podnájmy na dobu určitou. Momento Berlin nabízí dlouhodobější pronájem začínající minimálně 12 měsíci.\n3. **Omezení vzorků fotografií**: Vizuální posouzení zkoumalo omezený vzorek 1 až 3 snímků na nabídku. Další prvky se mohou objevit v plných galeriích přístupných přes kartu každé nabídky.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Definování parametrů vyhledávání bytů**\n\nNyní se zaměřuji na definování přesných parametrů vyhledávání pronájmů v Berlíně. Jako město jsem určil Berlín a omezil typ nabídky na „pronájem“ a typ nemovitosti na „byt“. Balkon je pevnou podmínkou, kterou zajistím v kritériích vyhledávání.\n\n\n**Upřesnění kritérií vyhledávání**\n\nPrávě jsem dále upřesnil parametry vyhledávání. Požadavek „ideálně blízko řeky nebo jezera“ jsem přeložil jako preferenci blízkosti vody, kategorizovanou jako `neighborhood_categories: ['water']`. Rozpočet „do 1 800 EUR měsíčně“ je nyní specifikován jako `max_warm_rent_eur: 1800`, protože předpokládám, že jde o nájemné včetně poplatků (warm rent). Navíc, jelikož mi bylo řečeno, že „jasně označené možnosti jsou vítány, i když některé detaily chybí“, zahrnu nyní explicitně i nepotvrzené nabídky pomocí `include_unconfirmed: true`.\n\n\n**Analýza požadavků na vyhledávání**\n\nNyní pečlivě analyzuji pokyny tohoto nástroje pro hledání domova. Zaměřuji se na to, jak nejlépe převést své preference do správných strukturovaných filtrů a `relevance_criteria`. Musím zajistit, aby mé požadavky na blízkost vody, doložení balkonu a rozpočtová omezení byly správně zakódovány. Také dbám na rozlišení mezi tím, co je ve vyhledávání „vyžadováno“, „vyloučeno“ a „preferováno“.\n\n\n**Posouzení integrity dat nabídek**\n\nNyní se hluboce zabývám integritou dat. Musím se vyvarovat přehnaných tvrzení o vizuálních důkazech a specifikovat omezení u každého poskytovatele. Blízkost vody musí být pevně podložena důkazy, přičemž v případě nedostupnosti nebo vypršení časového limitu obohacení dat ji nahlásím jako „neověřenou“. Musí být jasné, že viditelný balkon nezaručuje, že patří k danému bytu, a specifika nájemní smlouvy mohu uvádět pouze tehdy, jsou-li výslovně uvedena.\n\n\n**Analýza dat nabídek**\n\nNyní se hluboce nořím do vrácených nabídek a pečlivě je porovnávám s poskytnutými pravidly. Zaměřuji se na jasné oddělení potvrzených datových bodů od nejistot. Věnuji velkou pozornost detailům, jako je nájemné, termíny pronájmu a přístup k vodě, a označuji veškeré nejasnosti. Cílem je naprostá přesnost.\n\n\n**Objasnění kritérií blízkosti**\n\nNyní integruji nuancované požadavky na blízkost. Pečlivě dokumentuji veškerá omezení v důkazech. Zaměřuji se na transparentní oddělení ověřených tvrzení od neověřených informací. Při dokumentaci upřednostňuji přesnost. Jasně uvádím, co představuje ověřený přístup k vodě a co nikoliv. Zdůrazňuji potřebu explicitního označování nejistých dat.\n\n\n**Upřesnění pravidel pro nejednoznačnost**\n\nNyní se zaměřuji na upřesnění pravidel týkajících se nejistých datových bodů. Pokud není zmíněn žádný vodní prvek, nahlásím jej jako neznámý; nebudu blízkost vyvozovat. Oddělím viditelnost balkonu na fotografii od potvrzení v textu. Podmínky nájmu uvádím explicitně pouze tehdy, jsou-li uvedeny. Rozpory v datech a rozpisy nájemného mají prioritu. Jako zobrazení použiji karty náhledů embedů.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Interpretace formátu výsledků**\n\nNyní se zaměřuji na strukturu odpovědi „embeds\\_results\\_view“. Všiml jsem si absence „source\\_ref“, což ovlivňuje správné použití buď „sources“, nebo „embeds“. Pokud není k dispozici source\\_ref, určitě použiji pole „embeds“ a budu odkazovat konkrétně na vrácené hodnoty child embed\\_ref. Také budu věnovat pozornost poli „title“ jako popisnému prvku.\n\n\n**Zkoumání detailů nabídky**\n\nNyní podrobně zkoumám jednotlivé nabídky, konkrétně se zaměřuji na „2pokojový loftový byt s balkonem, poblíž Ringbahn“. Tuto nabídku porovnávám s daty v embedu. Beru na vědomí neověřenou blízkost vody kvůli neznámým vzdálenostem a přístupu, i když je zmíněn výhled na jezero. Zaměřuji se na jasné zaznamenání toho, co je potvrzené vs. neověřené. Pečlivě dokumentuji všechny nejistoty.\n\n\n**Vyhodnocení detailů nabídky**\n\nPrávě jsem dokončil vyhodnocení další nabídky. Analýzou fotografií jsem potvrdil viditelnost balkonu. Doba nájmu nabízí fixní období následované flexibilním prodloužením, což jsem zdokumentoval. Zaměřuji se na specifika. Nyní pracuji na plném pochopení všech relevantních informací o nabídce.\n```\n```\n\n**Detailní popis specifických atributů**\n\nNyní podrobně popisuji tuto konkrétní nabídku. Geokód ulice je vágní; poznamenávám, že to ovlivňuje ověření blízkosti vody. Textové tvrzení o výhledu na Landwehrkanal nelze geometricky potvrdit. Přítomnost balkonu potvrzuji textovou a vizuální kontrolou. Explicitně označuji rozpor v datu pronájmu mezi strukturovanými daty a popisným textem.\n\n\n**Posouzení dat nabídky**\n\nNyní se nořím do nejnovější nabídky. Označil jsem chybějící čisté nájemné (cold rent) a nepřesný rozpis nájemného. Inzerované nájemné je výchozím bodem, takže jsem poznamenal neznámé minimum. Rozsah velikostí bytů v rámci projektu vyžaduje vyjasnění, protože velikost v nabídce do tohoto rozsahu spadá. Označil jsem nejistou blízkost kanálu kvůli neověřené přesnosti polohy.\n\n\n**Interpretace podrobností o pronájmu**\n\nNyní se zaměřuji na informace o pronájmu a ověření balkonu u nejnovější nabídky. Potvrdil jsem viditelnost balkonu pomocí textu a ukázkových vizuálů. Zaznamenal jsem minimální délku nájmu 12 měsíců a absenci jasných dat ukončení v datech. Nabídka se týká zařízeného pokoje s balkonem, ale název uvádí 2pokojový byt, takže prověřuji potenciální nejednoznačnost mezi pokojem a bytem. Věnuji velkou pozornost všem detailům.\n\n\n**Analýza detailů nabídky**\n\nNyní pečlivě analyzuji novou nabídku, která uvádí zařízený pokoj s balkonem. Fráze „vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon“ (pronajímáme náš krásný, klidný a zařízený pokoj s balkonem) vnáší zásadní nejednoznačnost; na jediné fotografii v nabídce chybí potvrzení balkonu, což jsem označil. Adresa a geokód na úrovni čtvrti činí blízkost vody vágní. Pronájem trvá od 1. listopadu 2026 do 1. listopadu 2027.\n\n\n**Porovnání zmínek o vodě**\n\nNyní porovnávám nabídky zmiňující vodní prvky, jako je Maybachufer a další, abych rozpoznal přesnost jejich tvrzení a jakékoli inherentní rozdíly v datech. Kontroluji jejich důkazy a pokrytí. Zaměřuji se na přesné detaily požadované uživatelem. Označím veškeré nejistoty a omezení v datech.\n\n\n**Ověřování rozpisů nájemného**\n\nNyní se zaměřuji na nesrovnalosti v částkách nájemného. Upřednostňuji sladění protichůdných údajů, hlášení nepoložkových nákladů a explicitní uvádění neznámých položek zahrnutých v ceně vytápění. Také zkoumám vložené odkazy (inline embeds), abych se ujistil, že zobrazovaný text není nikdy embed\\_ref. Dále budu pro odkazy na embedy používat pouze velké nebo malé karty na základě syntaxe. Nakonec na úplný závěr této aktualizace připojím návrh následné zprávy."
-      },
-      "message_3": {
-        "text": "Nejvíc mě zajímá ten loft a byt na Maybachufer. Je na základě uložených inzerátů nájem 1 800 EUR opravdu all-inclusive, nebo jsou některé poplatky stále neznámé? Můžeš mi také upřesnit, kolik fotek vyhledávání vrátilo oproti tomu, kolik jich bylo skutečně zkontrolováno, a které detaily o balkonu a vodě jsou přímo podložené inzeráty? Raději bych neověřené detaily nechal označené jako neznámé."
-      },
-      "message_4": {
-        "text": "Zde je přesný rozpis toho, co údaje v inzerátu skutečně potvrzují, a co naopak zůstává neověřené nebo neznámé pro **byt na Maybachufer** a **loft na Anton-Saefkow-Platz**.\n\n---\n\n### 1. Nájemné na Maybachufer: Je 1 800 € skutečně all-inclusive?\n\n* **Co inzerát uvádí**: Čisté nájemné (*Kaltmiete*) i celkové nájemné (*Warmmiete*) jsou zadány jako paušální částka **1 800 €**. Kauce je stanovena na 1 000 €.\n* **Co zůstává NEZNÁMÉ**:\n  * **Rozpis poplatků**: Inzerát neobsahuje **žádný položkový rozpis nákladů** na provoz (*Betriebskosten/Nebenkosten*) ani na vytápění (*Heizkosten*).\n  * **Elektřina a internet**: Host ve strukturovaných polích výslovně nepotvrzuje, zda je v částce 1 800 € zahrnuta elektřina pro domácnost (*Haushaltsstrom*) nebo Wi-Fi, ani zda platí limity spotřeby.\n  * **Rozhlasový a televizní poplatek**: Není uvedeno, zda je zahrnut povinný německý poplatek (*Rundfunkbeitrag*), nebo zda je nutné se k němu registrovat samostatně.\n* **Závěr**: Přestože je byt nabízen za paušální měsíční částku typickou pro zařízené krátkodobé podnájmy, **nelze jej považovat za striktně all-inclusive**, dokud host neposkytne písemný rozpis potvrzující úhradu elektřiny, doplatků za topení a internetu.\n\n---\n\n### 2. Rozsah fotogalerie: Vrácené vs. zkontrolované\n\nVyhledávací nástroj získal metadata inzerátů s celkovým počtem fotek, ale automatizovaná vizuální analýza vyhodnotila pouze cílený vzorek fotografií u každého inzerátu, aby identifikovala klíčové prvky:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Poznámka: Karty inzerátů můžeš otevřít přímo a prohlédnout si všech 14–15 fotografií ve vysokém rozlišení ručně.*\n\n---\n\n### 3. Podrobnosti o balkonu a vodě: Potvrzené vs. neznámé\n\n#### Byt na Maybachufer\n* **Balkon**:\n  * *Potvrzeno textem inzerátu*: Uvádí **dva balkony** – jeden údajně do vnitrobloku (*Innenhof*) a jeden směrem ke kanálu/ulici.\n  * *Potvrzeno kontrolou fotek*: Viditelné konstrukce balkonů byly potvrzeny na kontrolovaných fotografiích s indexy 0 a 14.\n  * *Neznámé*: Přesné rozměry balkonů, orientace/doba slunečního svitu a zda je k dispozici venkovní nábytek.\n* **Přístup k vodě**:\n  * *Potvrzeno textem inzerátu*: Nachází se přímo na Maybachufer podél [Landwehrského kanálu](wiki:Landwehr_Canal) v [Neuköllnu](wiki:Neukölln). Popis výslovně uvádí výhled na vodu.\n  * *Neznámé / Neověřené nástrojem*: Geokódovací systém označil dotaz na adresu za nejednoznačný a jako výchozí bod nastavil střed Berlína namísto přesného umístění parcely. V důsledku toho nebylo možné nezávisle na datech inzerátu změřit přesnou vzdálenost k přechodům přes kanál nebo k přístavišti.\n\n#### Loft na Anton-Saefkow-Platz\n* **Balkon**:\n  * *Potvrzeno textem inzerátu*: Výslovně inzeruje „slunný balkon s výhledem na Fennpfuhlpark“.\n  * *Potvrzeno kontrolou fotek*: Konstrukce balkonu byla potvrzena na kontrolované fotografii s indexem 0.\n  * *Neznámé*: Plocha balkonu a podlaží (inzerát uvádí styl loftu v horních patrech, ale ne přesné podlaží).\n* **Přístup k vodě**:\n  * *Potvrzeno textem inzerátu a OpenStreetMap*: Nachází se na Anton-Saefkow-Platz v Lichtenbergu, hned vedle parku Fennpfuhlpark, ve kterém leží **Fennpfuhl** (historické jezero).\n  * *Neznámé / Neověřené nástrojem*: Inzerát **neleží** přímo na břehu řeky nebo kanálu; vodním prvkem je vnitrozemské parkové jezero. Navíc, i když je samotný park přes ulici, přesná doba chůze k vodě a to, zda je voda z balkonu skutečně vidět přes koruny stromů, zůstává neověřené.\n\n---\n\n### Otázky, které bys měl(a) položit hostitelům před prohlídkou\n\n1. **Pro Maybachufer**:\n   * *„Pokrývá měsíční paušál 1 800 € v plné výši topení, elektřinu a internet, nebo probíhá na konci pobytu samostatné vyúčtování služeb (*Nebenkostenabrechnung*)?“*\n   * *„Můžete potvrdit přesné termíny podnájmu (shrnutí uvádí 2 měsíce, ale anglický popis zmiňuje 4–6 měsíců)?“*\n2. **Pro loft**:\n   * *„Je dodatečný poplatek 150 € pevný paušál (*Pauschale*) zahrnující topení a internet, nebo se jedná o zálohu (*Vorauszahlung*)?“*\n   * *„Je ve smlouvě v případě potřeby garantováno prodloužení po 28. prosinci 2026?“*"
-      },
-      "message_4_thinking": {
-        "text": "**Upřesňování podrobností o nemovitostech**\n\nMomentálně se soustředím na dotazy uživatele ohledně „loftu“ a „bytu na Maybachufer“. Konkrétně zkoumám nájemné 1 800 EUR u nemovitosti na Maybachufer. Potřebuji s jistotou určit, zda je skutečně all-inclusive, nebo zda existují potenciální dodatečné náklady. Také si ujasňuji počet fotografií, které jsou pro vyhledávání k dispozici.\n\n\n**Ověřování podrobností o zahrnutých službách**\n\nNyní se nořím do specifik nájemného bytu na Maybachufer, zejména do tvrzení „all-inclusive“. Mým cílem je zjistit přesný rozpis toho, co je zahrnuto a co ne. Musím rozlišit, zda částka 1 800 EUR pokrývá poplatky za služby, internet, topení a rozhlasový a televizní poplatek. Počáteční údaje vykazují rozporuplné informace, takže musím přesně určit, co data *skutečně* potvrzují.\n\n\n**Identifikace mezer v zahrnutých službách**\n\nNyní si ujasňuji specifika týkající se poplatků za služby. Z počátečních údajů není potvrzeno, zda jsou zahrnuty poplatky GEZ, elektřina nebo doplatky za topení. Musím jasně definovat celkový počet fotografií a zajistit, aby byly u každé nemovitosti analyzovány všechny relevantní snímky. Byt na Maybachufer má dva balkony a loft má jeden, ačkoli rozměry zůstávají neuvedeny. Také ověřuji polohu nemovitosti na Maybachufer.\n\n\n\n\n---"
-      },
-      "follow_up_1": {
-        "text": "Hledat další 2pokojové byty u vody v Berlíně"
-      },
-      "follow_up_2": {
-        "text": "Navrhnout zprávu s dotazem v němčině pro pronajímatele na Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "Vyhledat spojení veřejnou dopravou z Anton-Saefkow-Platz na Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "Porovnat kauce a storno podmínky obou bytů"
-      },
-      "follow_up_5": {
-        "text": "Zkontrolovat aktuální předpověď počasí pro Berlín Lichtenberg"
-      },
-      "follow_up_6": {
-        "text": "Seznam klíčových otázek pro pronajímatele při prohlídkách bytů v Berlíně"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "Vysvětlit, jak nabídka na trhu s bydlením reaguje na cenovou regulaci"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Smysluplná práce v Německu"
-      },
-      "summary": {
-        "text": "Prohledej čtyři pracovní portály s nabídkami v Německu, porovnej pozice v oblasti designu a připrav si otázky pro zaměstnavatele."
-      },
-      "message_1": {
-        "text": "Hledám smysluplnou práci v Německu, zejména v oblasti výzkumu, designu nebo softwarového inženýrství. Najdi prosím několik aktuálních volných míst pomocí ExampleJobsB a ExampleJobsC a také ExampleJobsD a Example Employment Board. Jsem otevřený jakékoli lokalitě v Německu. Dej mi stručný užší výběr se zaměstnavatelem, lokalitou, zdrojem a odkazem na přihlášku a nepředpokládej práci na dálku ani plat, pokud to v inzerátu není uvedeno."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nZde je užší výběr aktuálních volných pracovních míst v Německu v oblastech výzkumu, designu a softwarového inženýrství od ExampleJobsB, **ExampleJobsC**, **ExampleJobsD** a **Example Employment Board**.\n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Zaměstnavatel:** voize (vyvíjí AI pro rozpoznávání řeči pro zefektivnění dokumentace v ošetřovatelské a klinické péči)\n  * **Lokalita:** Berlín, Německo (uvedeno jako možnost práce na dálku)\n  * **Zdroj:** ExampleJobsC\n  * **Plat:** Neuvedeno\n  * **Přihláška:** [Přihlásit se přes voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **Zaměstnavatel:** stiftung ear (národní registr koordinující likvidaci, zpětný odběr a sledování oběhového hospodářství u elektronického odpadu)\n  * **Lokalita:** Norimberk, Bavorsko\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** V popisu inzerátu jsou zmíněny flexibilní/mobilní možnosti práce, ale bez formální klasifikace jako plně na dálku; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### Výzkum\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **Zaměstnavatel:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Lokalita:** Hamburk, Německo\n  * **Zdroj:** ExampleJobsB\n  * **Pracovní režim a plat:** Neuvedeno\n  * **Přihláška:** [Přihlásit se přes IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **Zaměstnavatel:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Lokalita:** Bochum, Severní Porýní-Vestfálsko\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** Plný úvazek (39,83 hod./týden); možnost práce na dálku neuvedena; odměňování podle veřejné kolektivní tabulky TV-L E13 (přesná částka v inzerátu není zveřejněna)\n  * **Přihláška:** [Přihlásit se přes Example Employment Board](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **Zaměstnavatel:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Lokalita:** Berlín\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** V textu jsou zmíněny flexibilní/mobilní možnosti, ale není uveden pevný status práce na dálku; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### Softwarové inženýrství\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Zaměstnavatel:** idealo internet GmbH\n  * **Lokalita:** Berlín, Německo\n  * **Zdroj:** ExampleJobsD\n  * **Pracovní režim a plat:** Na místě / hybridní kancelářské prostředí; plat neuveden\n  * **Přihláška:** [Přihlásit se přes ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **Zaměstnavatel:** Quantum-Systems GmbH (autonomní letecké platformy a robotické vnímání)\n  * **Lokalita:** Gilching, Bavorsko\n  * **Zdroj:** ExampleJobsD\n  * **Pracovní režim a plat:** Na místě / hybridní; plat neuveden\n  * **Přihláška:** [Přihlásit se přes ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Identifikace příležitostí v Německu**\n\nMomentálně se soustředím na vyhledávání relevantních pracovních nabídek v Německu. Začal jsem sestavením seznamu slibných zdrojů: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` a `Spolkový úřad práce`. Můj hlavní zájem spočívá v rolích v oblasti výzkumu, designu a softwarového inženýrství, přičemž budu bedlivě sledovat lokalitu.\n\n\n**Upřesnění parametrů vyhledávání**\n\nNyní ladím svůj přístup k efektivnímu využití nástroje `jobs-search`. Zaměřuji se na pole `requests`, abych vytvořil sérii dotazů a přímo specifikoval poskytovatele, vzhledem k limitu 5 požadavků. Kontroluji definici funkce, abych si potvrdil, jak explicitně zadat poskytovatele jako seznam a jak definovat kritéria relevance. To mi pomůže vytvořit užší výběr obsahující zaměstnavatele, lokalitu, zdroj a odkaz na přihlášku. Mým cílem je vyhnout se předpokladům o práci na dálku nebo platu, pokud nejsou výslovně uvedeny.\n\n\n**Zkoumání výsledků od poskytovatelů**\n\nDobře, mám první náhled na vrácené poskytovatele. Zdá se, že tu máme „ExampleJobsC“ a pár nabídek z ExampleJobsD; jedna je na pozici senior backend inženýra (Java/Kotlin) a druhá na pozici pracujícího studenta. Zaznamenávám si první dojmy a posuzuji potenciální dopad každého inzerátu.\n\n\n**Analýza aktuálních příležitostí**\n\nMomentálně se soustředím na vyhodnocení dvou slibných příležitostí. První je „Joint Fellowship Program“ v Institutu pro výzkum míru a bezpečnostní politiku na Univerzitě v Hamburku a druhou je pozice „Student Assistant“ v rámci programu Interface Cybersecurity. Pečlivě zvažuji jejich přínosy v kontextu výzkumu míru a bezpečnosti, respektive kybernetické bezpečnosti.\n\n\n**Prioritizace nových tipů**\n\nPřesunul jsem svou pozornost na sestavení vyváženého užšího výběru. Prioritizuji příležitosti v oblasti designu a výzkumu se zaměřením na relevanci a aktuálnost nabídek. Právě zkoumám roli Senior Product Designer ve společnosti voize v Berlíně a pozici UI/UX Design ve stiftung ear. V oblasti výzkumu prověřuji roli na Ruhr-Universität Bochum spolu s programem Joint Fellowship v Hamburku.\n\n\n**Hodnocení nových možností**\n\nNyní zvažuji nové tipy ve světle svých kritérií. Objevil jsem možnosti, jako je role Research Engineer v Siemens Energy v Berlíně prostřednictvím Spolkového úřadu práce, která se zaměřuje na základní výzkum. Zvažuji také role Senior Backend a Junior C++ Software Developer ve společnostech idealo internet GmbH (Berlín, ExampleJobsD) a CT Software Engineering (Ingolstadt, Spolkový úřad práce). Ty odpovídají mým zájmům v oblasti softwarového inženýrství.\n\n\n**Upřesnění kritérií pro přihlášky**\n\nNyní si ujasňuji, jak nakládat s odkazy na přihlášky. Musím pamatovat na prioritizaci jasných procesů podávání přihlášek a kontrolovat použití formátu `[zobrazovaný text](embed:embed_ref)` nebo standardních odkazů. Dále bych se měl vyvarovat předpokladů o práci na dálku nebo uvádění platu, pokud to není v inzerátu výslovně uvedeno.\n\n\n**Ujasnění protokolů pro přihlášky**\n\nNyní se zaměřuji na formáty odkazů pro přihlášení. Soustředím se na zajištění přímé integrace odkazů nebo použití formátu `(embed:embed_ref)` a dbám na to, abych neposkytoval obojí. Pečlivě kontroluji URL adresy vrácené z dovedností aplikace, abych zajistil soulad s pravidly. Mým cílem je dodržet pravidlo použití pouze jednoho stylu odkazu na každou pracovní přihlášku.\n\n\n**Standardizace odkazů na přihlášky**\n\nNyní implementuji strategii odkazů na přihlášky. Mým cílem je standardizovat formát pracovních inzerátů. Pro odkazy na přihlášky budu používat pouze embed ref. U každého volného místa také uvedu roli, zaměstnavatele, lokalitu a zdroj a použiji vložený odkaz. Dohlédnu na to, abych pro každou pozici vždy použil jeden odkaz.\n\n\n**Sestavování údajů o příležitostech**\n\nNyní shromažďuji podrobnosti o několika příležitostech. Mám informace o roli Senior Product Designer ve společnosti voize, pozici UI/UX Design ve stiftung ear a o programu Joint Fellowship na Univerzitě v Hamburku. U každé z nich si zaznamenávám roli, zaměstnavatele, lokalitu a zdroj, stejně jako specifikace práce na dálku a platu. Soustředím se na zajištění konzistentních formátů odkazů pomocí embedů pro každou přihlášku.\n\n\n**Integrace nových inzerátů**\n\nNyní integruji nové inzeráty do datové sady. Přidal jsem pozici Research Associate na Ruhr-Universität Bochum, kterou jsem čerpal ze Spolkového úřadu práce, a poznamenal jsem si podrobnosti o práci na dálku a platu. Také jsem sestavil informace o roli Research Engineer v Siemens Energy, včetně flexibilních možností. Zajišťuji konzistenci formátů odkazů a pro odkazy na přihlášky používám embedy.\n\n\n**Přidávání nových inzerátů**\n\nPrávě jsem přidal dva nové inzeráty: roli Senior Backend Engineer v nespecifikované lokalitě a pozici Working Student ve společnosti Quantum-Systems GmbH v Gilchingu. Soustředím se na přesné zachycení všech podrobností, včetně lokality, možností práce na dálku, informací o platu (pokud jsou k dispozici) a odkazů na přihlášky ve standardizovaném formátu. Pro odkaz na přihlášku používám formát `(embed:embed_ref)`."
-      },
-      "message_3": {
-        "text": "Ty dvě designérské pozice znějí nejzajímavěji. Můžeš stručně porovnat, co ty uložené inzeráty vlastně říkají, a navrhnout, na co bych se měl každého zaměstnavatele před podáním přihlášky zeptat?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nZde je přímé srovnání toho, co uvádí jednotlivé inzeráty, a následně cílené otázky, které můžeš položit každému zaměstnavateli před podáním přihlášky nebo během výběrového řízení.\n\n---\n\n### Srovnání inzerátů\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Na co se zeptat před podáním přihlášky\n\n#### Pro voize:\n1. **Přístup k uživatelskému výzkumu:** *\"Jak často a jakými kanály provádějí designéři terénní výzkum nebo testování se zdravotními sestrami a pečovatelským personálem v jejich každodenním klinickém prostředí?\"*\n2. **Vyspělost a rozsah týmu:** *\"Jak je strukturován produktový tým, jaký je aktuální poměr designérů k PM a inženýrům a jedná se o pozici samostatného přispěvatele (IC), nebo se očekává vytváření design systémů?\"*\n3. **Odměňování a režim práce na dálku:** *\"Jaké je cílové platové rozmezí pro tuto úroveň seniority a existují i přes možnost práce na dálku povinné týmové výjezdy (offsites) nebo pevně stanovená pracovní doba?\"*\n\n#### Pro stiftung ear:\n1. **Očekávání ohledně přítomnosti v Norimberku:** *\"Jak je v praxi strukturována mobilní práce – existuje pevný týdenní nebo měsíční požadavek na přítomnost v kanceláři v Norimberku?\"*\n2. **Poměr mezi designem a QA:** *\"Inzerát zmiňuje implementaci testování softwaru vedle UX/UI designu. Jaké procento náplně práce je zaměřeno na uživatelský výzkum/prototypování oproti technické validaci softwaru a zajištění kvality (QA)?\"*\n3. **Nástroje pro design a předávání vývoji:** *\"Jaké nástroje pro design systém a prototypování se aktuálně používají a spolupracujete s interním vývojovým týmem, nebo s externími poskytovateli IT služeb?\"*\n4. **Srovnání odměňování:** *\"Vzhledem k tomu, že stiftung ear působí jako veřejnoprávní subjekt, řídí se odměňování konkrétní veřejnou kolektivní smlouvou (jako TVöD/TV-L), nebo interní platovou strukturou?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Analýza obsahu pracovních nabídek**\n\nDobře, začal jsem porovnávat popisy pracovních pozic. Zaměřuji se na klíčové odpovědnosti a požadované dovednosti pro roli Senior Product Designer ve společnosti Voize a pozici UI/UX Design ve Stiftung EAR. Nyní připravuji shrnutí klíčových odpovědností a požadovaných dovedností obou pracovních nabídek. Poté zjistím, jaké další informace bych mohl potřebovat.\n\n\n**Analýza popisů práce**\n\nDobře, nyní se nořím hlouběji do specifik každé nabídky. Zaměřuji se na rozbor konkrétního jazyka použitého v popisech. Snažím se určit, na jaké klíčové otázky je třeba odpovědět, abych se mohl připravit na každého zaměstnavatele. Například u nabídky voize potřebuji vědět o jejich produktu AI společníka.\n\n\n**Posouzení klíčových detailů**\n\nNyní se zaměřuji na nabídku voize a vybírám z ní klíčové poznatky. Jedná se o seniorskou roli s významnou mírou odpovědnosti, která vyžaduje někoho, kdo dokáže být výzvou pro produktové manažery. Nastavení je flexibilní, s kanceláří v Berlíně a možností práce na dálku. Odměna není uvedena, ale mezi výhody patří slušná dovolená a členství ve sportovním klubu. Primárním jazykem je angličtina, i když kontextem je německé zdravotnictví.\n\n\n**Určení konkrétních požadavků**\n\nNyní se zaměřuji na roli se sídlem v Norimberku. Rozdělil jsem klíčové oblasti: aspekt právního souladu se zaměřuje na předpisy ElektroG. Moje práce zahrnuje vývoj webových aplikací a UX aktivity, poradenství zúčastněným stranám. Plynulá němčina (minimálně C1) je povinná, zkušenost s regulačním softwarem je výhodou. Pozice je trvalá s výraznou flexibilitou práce na dálku. Odměňování je založeno na výkonu.\n\n\n**Porovnání atributů práce**\n\nNyní provádím přímé srovnání napříč rolemi. Rozdělil jsem to podle oboru, kultury, požadovaných dovedností a místa výkonu práce. Konkrétně se dívám na voize versus roli ve stiftung ear. Zaměřuji se na kontrast jejich prostředí a priorit, od zdravotní péče v první linii až po dodržování předpisů o elektronickém odpadu. Všímám si klíčových rozdílů, jako jsou jazykové požadavky a úroveň zkušeností. Také posuzuji rozdíly v jejich zásadách pro práci na dálku."
-      },
-      "follow_up_1": {
-        "text": "Hledat další pracovní pozice v UI/UX designu v Berlíně"
-      },
-      "follow_up_2": {
-        "text": "Navrhnout oslovovací e-mail pro náborového manažera ve společnosti voize"
-      },
-      "follow_up_3": {
-        "text": "Najít podobné pozice v oblasti zdravotnických technologií v Německu"
-      },
-      "follow_up_4": {
-        "text": "Porovnat výhody a nevýhody práce ve zdravotnických startupech oproti veřejným institucím"
-      },
-      "follow_up_5": {
-        "text": "Hledat technologické pozice ve veřejném sektoru v Norimberku"
-      },
-      "follow_up_6": {
-        "text": "Seznam klíčových kroků přípravy na pohovor na pozici senior produktového designéra"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Tisknutelné modely Benchy a stojánků na telefon"
-      },
-      "summary": {
-        "text": "Vyhledej na ExampleModels oblíbené 3D tisknutelné modely Benchy a stojánků na telefon s náhledovými kartami a odkazy na zdroje."
-      },
-      "message_1": {
-        "text": "Najdi na ExampleModels 3D tisknutelné modely Benchy a stojánků na telefon. Ukaž nejlepší možnosti s náhledovými kartami a odkazy na zdroje."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nPro tvé příští 3D tiskové projekty jsem na ExampleModels našel několik nejoblíbenějších a nejkreativnějších modelů. Ať už hledáš klasický [kalibrační](wiki:Calibration_(statistics)) remorkér nebo funkční doplněk pro [telefon](wiki:Smartphone), tyto možnosti jsou skvělým začátkem.\n\n### Kolekce 3DBenchy\n[3DBenchy](wiki:3DBenchy) je zlatým standardem pro testování schopností tvé [3D tiskárny](wiki:3D_printing). Kromě originálu existuje několik „remixů“, které tvému pracovnímu stolu dodají šmrnc.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **Originální 3DBenchy**: Nejlepší pro [benchmarking](wiki:Benchmark_(computing)) [převisů](wiki:3D_printing#Support_structures), [přemostění](wiki:3D_printing#Support_structures) a kvalitu povrchu.\n*   **Assault Benchy**: Polohovatelná [mecha](wiki:Mecha) verze pro ty, kteří chtějí trochu stylu.\n*   **Floating BEN**: Speciálně navržený s dutým trupem, takže skutečně plave – ideální do vany!\n\n### Funkční stojánky na telefon\nStojánek na telefon je skvělý praktický tisk. Tyto návrhy sahají od minimalistických až po složité mechanické převody.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Honeycomb stojánek**: Velmi oblíbený pro svůj vysoký [poměr pevnosti k hmotnosti](wiki:Specific_strength) a moderní vzhled.\n*   **Převodový stojánek**: Mechanický zázrak typu „print-in-place“, který umožňuje nastavení úhlu pohledu.\n*   **Moderní zakřivený**: Elegantní jednodílný design, který se skvěle hodí do minimalistické kanceláře.\n\n**Pro tip:** Při tisku [převodového stojánku na telefon](embed:geared-phone-stand-3Bl) se ujisti, že máš dobře zkalibrovaný [multiplikátor extruze](wiki:3D_printing#Fused_deposition_modeling), aby se pohyblivé části nespojily dohromady.\n\nJaký druh [filamentu](wiki:3D_printing_filament) (PLA, PETG atd.) plánuješ použít? Můžu ti dát konkrétní tipy pro slicing podle tvého materiálu!\n\n**Co chceš dělat dál?**\n- [Hledat další 3D modely](/#settings/apps/models3d)\n- [Získat tipy pro 3D tisk](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "Nauč mě principy responzivního designu"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Názvy sociálních aplikací s ověřenými doménami"
-      },
-      "summary": {
-        "text": "Porovnej názvy sociálních aplikací podle dostupnosti domén, cen za registraci a obnovení a podmínek registrace."
-      },
-      "message_1": {
-        "text": "Pojmenovávám sociální aplikaci, která lidem pomáhá zůstat v kontaktu po osobním setkání a poznávat nové lidi. Doporuč dva osobité nápady na název. U každého nápadu prosím naživo ověř přesné domény .com, .net a .app a poté doporuč pouze ty přesné domény, jejichž dostupnost, cena za registraci, cena za obnovení a omezení se v těchto kontrolách zobrazí. Nehádej u neověřených domén. Vyber silnější název na základě výsledků kontroly."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nZde jsou dva osobité nápady na názvy šité na míru aplikaci zaměřené na pěstování osobních kontaktů a rozšiřování sociálních kruhů, spolu s aktuální kontrolou domén pro přesné koncovky `.com`, `.net` a `.app` u každého názvu.\n\n---\n\n### Nápad 1: Kinloop\n* **Koncept:** Kombinuje slova „kin“ (komunita, osobní spřízněnost, důvěryhodná pouta) a „loop“ (uzavření smyčky po prvním setkání a udržování kontaktů v neustálém kruhu).\n* **Aktuální ověření domény:**\n  * **`kinloop.com`**: **Nedostupná** ([ExampleRegistrar kontrola](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Nedostupná** ([ExampleRegistrar kontrola](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Nedostupná** ([ExampleRegistrar kontrola](embed:shop.ExampleRegistrar.net-XJX))\n* **Doporučení:** Žádné. Všechny tři přesné cílové domény jsou momentálně registrované/nedostupné, takže pro tento název nelze doporučit žádnou přesnou doménu.\n\n---\n\n### Nápad 2: Orbitfolk\n* **Koncept:** Vyvolává představu udržování známých z reálného života ve vaší osobní sféře (orbitu) a zároveň neustálého objevování a vítání nových lidí („folk“) do vašeho světa.\n* **Ověření domény v reálném čase:**\n  * **`orbitfolk.com`**: **Nedostupná** ([Kontrola na ExampleRegistrar](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Dostupná** ([Kontrola na ExampleRegistrar](embed:shop.ExampleRegistrar.net-cex))\n    * **Registrační cena:** $12.99 / 1. rok bez daně ($15.46 včetně 19% DPH; běžná sazba za 1 rok $18.78)\n    * **Cena za obnovení:** $39.98 / rok bez daně ($47.58 včetně 19% DPH pro roční období; $35.98/rok před zdaněním pro období 2–9 let)\n    * **Omezení:** Žádná nebyla nahlášena\n  * **`orbitfolk.app`**: **Dostupná** ([Kontrola na ExampleRegistrar](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Registrační cena:** $9.99 / 1. rok bez daně ($11.89 včetně 19% DPH; běžná sazba za 1 rok $23.29)\n    * **Cena za obnovení:** $47.98 / rok bez daně ($57.10 včetně 19% DPH pro roční období; $43.18/rok před zdaněním pro období 2–9 let)\n    * **Omezení:** Žádná nebyla nahlášena\n\n---\n\n### Srovnání a silnější výběr\n\n**Orbitfolk** je silnější volba:\n\n1. **Přímá dostupnost:** Zatímco `Kinloop` je obsazen ve všech třech koncovkách, `Orbitfolk` má své verze `.app` i `.net` okamžitě k dispozici k registraci.\n2. **Vhodnost pro produkt:** Protože se jedná o mobilní sociální produkt, **`orbitfolk.app`** nabízí čistou, účelovou doménovou koncovku, která uživatelům přímo sděluje typ produktu.\n\n---\n\n### Další kroky\n\n* [Prozkoumat další varianty jmen kolem sociálních orbitů](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Navrhnout proces onboardingu pro osobní setkávání](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Vyhledej dostupné domény pro další nápad na sociální aplikaci"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli, proč je doménová koncovka .app efektivní pro mobilní aplikace"
-      },
-      "follow_up_3": {
-        "text": "Zkontroluj dostupnost domény pro tři alternativní názvy značek"
-      },
-      "follow_up_4": {
-        "text": "Porovnej doménové koncovky .net a .app pro spotřebitelské aplikace"
-      },
-      "follow_up_5": {
-        "text": "Zkontroluj cenu a dostupnost domény pro název AppFolk"
-      },
-      "follow_up_6": {
-        "text": "Navrhni tři další směry brandingu pro tuto aplikaci pro sociální propojování"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Analýza satirické přednášky TED Willa Stephena"
-      },
-      "summary": {
-        "text": "Shrnutí satirické přednášky TEDx Willa Stephena o veřejném vystupování do pěti hlavních komediálních argumentů."
-      },
-      "message_1": {
-        "text": "Získej přepis této přednášky TED a shrň její hlavní argumenty v pěti bodech: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo je satirická prezentace Willa Stephena na TEDx s názvem *„How to sound smart in your TEDx Talk“* (přehrát video).\n\nNamísto předávání informací využívá Stephen meta-humor k dekonstrukci konvencí [řečnictví](wiki:Public_speaking). Zde je hlavní argument shrnutý v pěti bodech:\n\n* **Přednes vytváří iluzi obsahu:** Tempo řeči, promyšlená gesta rukou, dramatický oční kontakt a fyzické rekvizity (jako nedioptrické brýle) dokážou publikum přesvědčit o genialitě mluvčího, i když nemá co říct.\n* **Vztah s publikem je vysoce šablonovitý:** Známé interaktivní obraty – jako kladení řečnických otázek, vyzývání k hlasování zdvižením ruky a vyprávění sebeironických historek – jsou vykalkulované triky navržené k vytvoření umělého pocitu vřelosti a důvěryhodnosti.\n* **Vizualizace dat dodává nezaslouženou autoritu:** Ukazování náhodných čísel, základní aritmetiky a grafů bez kontextu zneužívá vizuální zkreslení, díky čemuž prezentace vypadá jako důkladně podložená výzkumem, i když jsou data zcela irelevantní.\n* **Publikum si do nesmyslů promítá význam:** Spojením vážné intonace hlasu a sugestivních ilustračních obrázků s naprostými nesmysly mohou řečníci přimět posluchače k podvědomému hledání – a představování si – hlubokých souvislostí tam, kde žádné nejsou.\n* **Emoční gradaci lze uměle vytvořit:** Stupňování intenzity hlasu, zpomalení do šepotu a dramatické pauzy napodobují rytmus prozření, což dokazuje, jak snadno lze vyvolat pocit inspirace bez jakéhokoli hlubšího vhledu."
-      },
-      "follow_up_1": {
-        "text": "Vyhledej další populární satirické prezentace na YouTube"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli historii formátu TEDx a jeho kulturní dopad"
-      },
-      "follow_up_3": {
-        "text": "Najdi online kurzy (masterclass) veřejného vystupování"
-      },
-      "follow_up_4": {
-        "text": "Analyzuj konkrétní techniky řeči těla, které používají slavní řečníci"
-      },
-      "follow_up_5": {
-        "text": "Vyhledej analytická videa o rétorických technikách"
-      },
-      "follow_up_6": {
-        "text": "Vypiš tipy, jak překonat trému při veřejném vystupování"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "Jste odborník na programování."
       }
     },
-    "health_health_insights": {
-      "text": "Zdravotní poznatky",
-      "description": {
-        "text": "Získejte zdravotní poznatky a najděte lékaře."
-      },
-      "systemprompt": {
-        "text": "Jste odborník na zdraví."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Připravit lékařskou schůzku",
-      "description": {
-        "text": "Připravte témata pro další návštěvu lékaře."
-      },
-      "process": {
-        "text": "- diskutuje o příznacích z posledních týdnů a měsíců, i když není vidět spojitost\n- diskutuje o výsledcích testů/dokumentech, které je třeba shromáždit před příštím termínem"
-      },
-      "systemprompt": {
-        "text": "Jste odborník na zdraví."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Připravit lékařskou zprávu",
-      "description": {
-        "text": "Vytvořte zprávu pro další návštěvu lékaře."
-      }
-    },
     "jobs_career_insights": {
       "text": "Kariérní postřehy",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "Rozhovor o budoucnosti",
       "description": {
         "text": "Mocná technika životního koučinku."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Připravit lékařskou zprávu",
+      "description": {
+        "text": "Vytvořte zprávu pro další návštěvu lékaře."
+      }
+    },
+    "health_health_insights": {
+      "text": "Zdravotní poznatky",
+      "description": {
+        "text": "Získejte zdravotní poznatky a najděte lékaře."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Připravit lékařskou schůzku",
+      "description": {
+        "text": "Připravte témata pro další návštěvu lékaře."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "Stratég obsahu kalendáře",
       "description": {
         "text": "Vytvořte 30denní plán obsahu pro sociální sítě."
+      },
+      "systemprompt": {
+        "text": "Jednejte jako profesionální Stratég pro sociální média. Pomocí níže uvedených vstupů vygenerujte 30denní obsahový kalendář zaměřený na dosažení Hlavního cíle.\n\nNejprve proveďte stručný interní krok výzkumu a strategie s využitím vašich stávajících znalostí a, pokud jsou k dispozici, živých webových dat pro toto Téma/Niku a Cílové publikum. Objasněte hlavní bolestivé body a touhy publika, typy příspěvků a hooků, které v této nice fungují dobře, a jakékoli relevantní aktuální trendy. Tyto poznatky použijte pouze k vedení kalendáře, nevypisujte je samostatně.\n\nVýstup MUSÍ být tabulka Markdown s přesně těmito sloupci (a ničím jiným): Den #, Datum, Téma/Pilíř, Platforma, Nápad na obsah, Výzva k akci (CTA).\n\nPokyny pro kalendář:\n- Vytvořte přesně 30 řádků, jeden pro každý po sobě jdoucí kalendářní den počínaje Datem začátku, se skutečnými daty ve vzestupném pořadí.\n- Téma/Pilíř v každém řádku musí být jedním z poskytnutých Obsahových pilířů, s přiměřeně vyváženou kombinací po dobu 30 dní.\n- Sloupec Platforma musí dodržovat Plán zveřejňování. Pokud je pro daný den zadáno více platforem, vytvořte jeden řádek na každou platformu.\n\nPokyny pro obsah:\n- Každý Nápad na obsah musí uvádět typ příspěvku (např. Reel, kolotoč, statický příspěvek, příběh, živé vysílání, anketa, textový příspěvek LinkedIn) a obsahovat jasný, zastavující přetáčení hook přizpůsobený Cílovému publiku.\n- Každá CTA musí být konkrétní, akce zaměřená a přímo podporující Hlavní cíl (např. „Stáhněte si bezplatný průvodce\", „Zarezervujte hovor\", „Přidejte se k newsletteru\", „Komentujte svou otázku č. 1\").\n- Střídejte formáty a úhly pohledu po dobu 30 dní (např. vzdělávací, storytelling, zákulisí, FAQ, námitky, sociální důkaz, výzvy k zapojení), aby nedocházelo k opakování.\n- Zajistěte, aby každý nápad byl jasně spojený s klíčovými bolestivými body a touhami Cílového publika a byl v souladu s Hlavním cílem.\n\nVstupy (vyplňte před spuštěním výzvy):\n* Téma/Nika: [Vložte své Téma/Niku zde]\n* Cílové publikum: [Vložte své Cílové publikum zde, včetně klíčových bolestivých bodů a tuh, pokud jsou známy]\n* Hlavní cíl: [Vložte svůj Hlavní cíl zde, např. rozrůstat e-mailový seznam / podpořit prodej / budovat autoritu]\n* Plán zveřejňování: [Vložte sem Frekvenci zveřejňování a Platformu, např. 5x/týden na IG Reels + 3x/týden na LinkedIn]\n* Obsahové pilíře: [Vložte zde své 3–5 Obsahových pilířů oddělených čárkami]\n* Datum začátku: [Vložte první datum vašeho kalendáře, např. 18. listopadu 2025]\n\nVypisujte pouze konečnou tabulku Markdown. NEzahrnujte vysvětlení, poznámky ani jakýkoli text mimo tabulku."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (přepisy videí)"
+              "text": "YouTube (metadata videí)"
             },
             "description": {
-              "text": "YouTube je dotazován, když požádáš OpenMates o získání přepisu videa na YouTube. YouTube obdrží URL videa a preference jazyka přepisu bez identifikátoru uživatele OpenMates."
+              "text": "Pro získání veřejných metadat videí a kanálů odesílá OpenMates jejich identifikátory do oficiálního YouTube Data API. YouTube obdrží tyto identifikátory a síťové informace našeho serveru, nikoli identifikátor uživatele OpenMates."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."
+    },
+    "privacy_description": {
+      "text": "Mistral přepisuje zvuk mikrofonu; ElevenLabs v4 Turbo vytváří hlas asistenta z textu odpovědi a nastavení hlasu. Konverzace používá běžné směrování AI a dovednosti OpenMates. Poskytovatelé mohou uchovávat údaje požadavků podle svých zásad."
+    },
+    "privacy_terms": {
+      "text": "Zásady ochrany soukromí OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Členové našeho Discordu získají"

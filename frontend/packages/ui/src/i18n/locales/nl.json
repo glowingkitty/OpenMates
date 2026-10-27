@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "Zoek openbare vacatures in Zweden met JobTech."
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "Transcript ophalen",
         "description": {
-          "text": "Krijg het transcript van een YouTube / media.ccc.de-video."
+          "text": "Haal gepubliceerde ondertitels van lezingen op media.ccc.de op."
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "Lees de Wikipedia-pagina over het Romeinse Rijk en geef me de belangrijkste feiten"
           }
+        }
+      },
+      "browse": {
+        "text": "Bladeren",
+        "description": {
+          "text": "Doorzoek websites en geef waargenomen informatie terug als JSON."
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "Hosting",
       "description": {
-        "text": "Zoek domeinnamen en controleer beschikbaarheid en prijzen."
+        "text": "Domeinen zoeken is momenteel niet beschikbaar."
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "Post",
       "description": {
-        "text": "Verstuur, beheer en schrijf e-mails."
+        "text": "Stel e-mails op en werk met je post."
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "Video's",
       "description": {
-        "text": "Zoek video's, krijg transcripties."
+        "text": "Zoek en maak video's."
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "Reizen",
       "description": {
-        "text": "Zoek verblijven, verbindingen en plan."
+        "text": "Plan reizen en bewaar opgeslagen reisinformatie."
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "Elektronische componenten zoeken is momenteel niet beschikbaar."
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "Woning",
       "description": {
-        "text": "Zoek een nieuw huis en meer."
+        "text": "Bewaar opgeslagen woninginformatie."
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "Evenementen",
       "description": {
-        "text": "Ontdek meetups, conferenties en lokale evenementen."
+        "text": "Bewaar opgeslagen evenementinformatie."
       },
       "search": {
         "text": "Zoeken",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "Bekijk opgeslagen 3D-modellen."
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "Boodschappen",
       "description": {
-        "text": "Vergelijk supermarktprijzen en vind aanbiedingen."
+        "text": "Producten zoeken is momenteel niet beschikbaar."
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "Bladeren"
+      },
+      "running": {
+        "text": "Bezig met bladeren"
+      },
+      "user_control": {
+        "text": "Je hebt de controle"
+      },
+      "paused": {
+        "text": "Gepauzeerd"
+      },
+      "completed": {
+        "text": "Voltooid"
+      },
+      "no_results": {
+        "text": "Geen resultaten"
+      },
+      "needs_user": {
+        "text": "Jouw invoer nodig"
+      },
+      "blocked": {
+        "text": "Geblokkeerd"
+      },
+      "failed": {
+        "text": "Mislukt"
+      },
+      "cancelled": {
+        "text": "Geannuleerd"
+      },
+      "budget_exceeded": {
+        "text": "Bestedingslimiet bereikt"
+      },
+      "closed": {
+        "text": "Browser gesloten"
+      },
+      "expired": {
+        "text": "Sessie verlopen"
+      },
+      "unavailable": {
+        "text": "Browser niet beschikbaar"
+      },
+      "watch": {
+        "text": "Browser bekijken"
+      },
+      "take_control": {
+        "text": "Controle overnemen"
+      },
+      "continue": {
+        "text": "AI laten doorgaan"
+      },
+      "pause": {
+        "text": "Pauzeren"
+      },
+      "close": {
+        "text": "Browser sluiten"
+      },
+      "sign_in_title": {
+        "text": "Voordat je inlogt"
+      },
+      "sign_in_confirm": {
+        "text": "Doorgaan met inloggen"
+      },
+      "saved_frame": {
+        "text": "Opgeslagen browserafbeelding"
+      },
+      "live_frame": {
+        "text": "Livebrowser"
+      },
+      "waiting_frame": {
+        "text": "Wachten op de browser…"
+      },
+      "text_input": {
+        "text": "Tekst voor de website"
+      },
+      "send_text": {
+        "text": "Tekst verzenden"
+      },
+      "scroll_up": {
+        "text": "Omhoog scrollen"
+      },
+      "scroll_down": {
+        "text": "Omlaag scrollen"
+      },
+      "structured_data": {
+        "text": "Gestructureerde gegevens"
+      },
+      "connection_error": {
+        "text": "Verbinding onderbroken. Vernieuw vóór een volgende actie."
+      },
+      "credits": {
+        "text": "{used} / {limit} credits"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "Je logt in via een cloudbrowser. Als je AI laat doorgaan, kan die informatie in dit account bekijken. Relevante pagina-inhoud kan naar onze AI-aanbieders worden gestuurd. Log alleen in op accounts waartoe je AI toegang wilt geven."
+      },
+      "manual_hint": {
+        "text": "Klik op de pagina of gebruik Tab en Enter. Tekst wordt alleen naar deze website gestuurd en daarna uit dit invoerveld gewist."
+      },
+      "paused_hint": {
+        "text": "De browser is gepauzeerd en er zijn geen computerkosten. Neem de controle om te hervatten. Na 24 uur zonder interactie wordt de sessie verwijderd."
+      },
+      "watch_hint": {
+        "text": "Je kijkt mee. Neem de controle om de website te bedienen. Meekijken houdt de sessie niet actief."
+      },
+      "stopping": {
+        "text": "Bezig met stoppen…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "Vergelijk de dagelijkse verantwoordelijkheden en groeimogelijkheden van beide rollen"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "Airfryers vergelijken in Duitsland"
-      },
-      "summary": {
-        "text": "Vergeleek de beste airfryers op ExampleRetail Duitsland op basis van prijs, capaciteit en beoordelingen, met een aanbeveling voor de Philips Airfryer 2000-serie voor een tweepersoonshuishouden."
-      },
-      "message_1": {
-        "text": "Zoek airfryers die ik online kan kopen in Duitsland, inclusief ExampleRetail-vermeldingen. Vergelijk de huidige prijzen, capaciteiten en beoordelingen, en raad er vervolgens een aan voor een tweepersoonshuishouden met bronvermeldingen."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier is een vergelijking van de best beoordeelde airfryers die momenteel beschikbaar zijn op ExampleRetail Duitsland, waarbij prijs, capaciteit en klantbeoordelingen worden vergeleken.\n\n---\n\n### Vergelijking van populaire modellen in Duitsland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Beste aanbeveling voor een huishouden van 2 personen\n\n#### **Eerste keuze: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Waarom dit het beste past bij twee personen:**\n  * **Optimale capaciteit (6,2 L):** Bij manden kleiner dan 4,5–5 L moet je zelfs voor twee personen in meerdere porties koken. In een mand van 6,2 L kun je twee zalmfilets en een volledige portie groenten of frietjes plat in één laag leggen voor een gelijkmatig krokant resultaat.\n  * **Ruimtebeslag in de keuken:** Dual-zone machines (zoals Ninja of Russell Hobbs) nemen veel ruimte in op het aanrecht. Een enkele mand van 6 L biedt voldoende volume terwijl hij een compact formaat behoudt dat geschikt is voor typische Duitse keukenbladen.\n  * **Transparant venster:** Hiermee kun je de bruining controleren zonder de lade te openen en warmte te verliezen.\n  * **Waarde:** Voor € 99,99 biedt het een betrouwbare temperatuurconsistentie van [Philips](wiki:Philips) voor een redelijke prijs.\n\n#### **Alternatief (als je vaak twee gerechten op verschillende temperaturen bereidt): [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nAls jij en je partner liever proteïnen en bijgerechten tegelijkertijd bereiden op verschillende temperaturen en tijden (bijv. kipfilets op 180 °C en krokante aardappeltjes op 200 °C), dan is dit model momenteel afgeprijsd naar € 119,99 en beschikt het over gesynchroniseerde bereidingstijden.\n\n---\n\n### Belangrijke factoren om te overwegen voor aankoop\n1. **Vorm van de lade:** Vierkante manden (zoals Cosori and Philips) zijn veel geschikter voor platte items (steaks, bakvormen, spiesen) dan ronde manden met een identieke inhoud in liters.\n2. **Ruimte in de vaatwasser:** Zorg ervoor dat je vaatwasser genoeg hoogte heeft voor een enkele lade van 6 L, of overweeg om antiaanbaklagen met de hand te wassen om de levensduur te verlengen."
-      },
-      "follow_up_1": {
-        "text": "Zoek recepten die specifiek zijn ontworpen voor airfryers"
-      },
-      "follow_up_2": {
-        "text": "Leg de belangrijkste verschillen uit tussen airfryers met een enkele en een dubbele mand"
-      },
-      "follow_up_3": {
-        "text": "Vind compatibele bakaccessoires voor deze airfryer"
-      },
-      "follow_up_4": {
-        "text": "Toon een lijst met beginnersvriendelijke recepten voor het avondeten in een airfryer"
-      },
-      "follow_up_5": {
-        "text": "Bekijk de huidige energieverbruikscijfers voor deze modellen"
-      },
-      "follow_up_6": {
-        "text": "Vergelijk de reinigings- en onderhoudsvereisten voor keramische versus tefloncoatings"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Hoogtepunten en verkenning van de Artemis II-missie"
@@ -8894,38 +8967,6 @@
         "text": "[code] Maak een vergelijkbaar sjabloon maar met een andere ontwerpesthetiek"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "Beginners yogalessen in Berlijn"
-      },
-      "summary": {
-        "text": "Vind drie beginnersvriendelijke yogalessen in Berlijn met tijden, prijzen en boekingslinks."
-      },
-      "message_1": {
-        "text": "Ik ben nieuw met yoga en wil volgende week graag een beginnersvriendelijke les volgen in Berlijn. Kun je een paar lessen vinden met tijden, prijzen en boekingslinks?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nHier zijn beginnersvriendelijke [yoga](wiki:Yoga)-lessen die volgende week in Berlijn plaatsvinden:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Wat het is:** Een mindful les die beweging op het ritme van de ademhaling combineert met het vasthouden van houdingen om uitlijning en stilte te verkennen. Speciaal ontworpen om toegankelijk te zijn voor beginners (gegeven in het Engels).\n- **Datum & tijd:** Woensdag 14 oktober 2026, 18:00 – 19:00 CEST (kom 10 min. eerder)\n- **Locatie:** Art OM, Wrangelstraße 54, 10997 Berlijn ([Kreuzberg](wiki:Kreuzberg))\n- **Prijs:** € 11,83 – € 22,49\n- **Boeken:** [Boek tickets op ExampleTickets](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Wat het is:** Een informele, ontspannen mobiliteits- en yogasessie voor alle niveaus waarbij flows stap voor stap in een rustig tempo worden uitgelegd. Geen eerdere flexibiliteit of ervaring vereist.\n- **Datum & tijd:** Dinsdag 13 oktober 2026, 19:00 – 19:45 CEST (kom 15 min. eerder)\n- **Locatie:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlijn ([Friedrichshain](wiki:Friedrichshain))\n- **Prijs:** € 5 (gratis toegang met ExampleFitness / Wellpass als je ook bouldert)\n- **Boeken:** [Bekijk details en boekingslink](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Wat het is:** Een dynamische maar zachte Vinyasa-sessie met aanpassingen voor beginners, gericht op adembewustzijn, lichaamshouding en ontspanning.\n- **Datum & tijd:** Woensdag 14 oktober 2026, 19:30 – 21:00 CEST\n- **Locatie:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlijn (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Prijs:** € 10 voor je eerste proefles (starterpakket: 3 lessen voor € 20)\n- **Boeken:** [Meld je aan via Berlin Yoga Club Gathering](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tips voor je eerste yogales\n* **Kleding:** Comfortabele, rekbare kleding waarin je gemakkelijk kunt bewegen en buigen. Yoga wordt meestal op blote voeten beoefend.\n* **Hydratatie & maaltijden:** Vermijd zware maaltijden binnen 1,5 tot 2 uur voor de les.\n* **Luister naar je lichaam:** Laat de docent voor de les weten dat het je eerste keer is; ze laten je graag aanpassingen en hulpmiddelen zien (blokken, dekens of riemen). Als je bestaande gewrichts- of rugklachten hebt, overleg dan met een arts of fysiotherapeut voordat je dynamische reeksen probeert.\n\nWil je aanbevelingen dichter bij een specifieke buurt (bijv. Neukölln, Prenzlauer Berg, Charlottenburg), of gericht op een zachte stijl zoals [Hatha yoga](wiki:Hatha_yoga) of [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*"
-      },
-      "follow_up_1": {
-        "text": "Zoek naar yogalessen in Neukölln Berlijn"
-      },
-      "follow_up_2": {
-        "text": "Leg uit wat ik kan verwachten tijdens een eerste yogales"
-      },
-      "follow_up_3": {
-        "text": "Vind Hatha yoga workshops volgend weekend"
-      },
-      "follow_up_4": {
-        "text": "Vergelijk Vinyasa en Hatha yoga stijlen"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar Yin yoga studio's in Mitte"
-      },
-      "follow_up_6": {
-        "text": "Tips voor beginners bij het kopen van een yogamat"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "Vind een Engelssprekende huisarts in Berlijn"
-      },
-      "summary": {
-        "text": "Vind afspraakopties met eerlijke verzekeringsgegevens en links naar praktijken."
-      },
-      "message_1": {
-        "text": "Ik heb volgende week een afspraak nodig bij een Engelssprekende huisarts in Berlijn. Vergelijk de vroegste opties, toon hun afsprakenkaarten en vermeld de verzekeringsdekking alleen als de boekingsvermelding dit bevestigt. Als de dekking onduidelijk is, geef dit dan aan."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nHier zijn de vroegste opties voor Engelssprekende huisartsen in Berlijn binnen de komende 7 dagen die ik heb gevonden. Ik vermeld de verzekeringsdekking alleen als de vermelding dit zelf aangeeft.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Vroegste opties volgende week**\n1. **Ma 12 okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Adres: Albert-Einstein-Straße 2, 12489 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** privé *(bevestigd door vermelding)*\n\n2. **Ma 12 okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Adres: Kapweg 5, 13405 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Engels\n   - **Verzekering:** privé *(bevestigd door vermelding)*\n\n3. **Ma 12 okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Adres: Stargarder Straße 69, 10437 Berlin\n   - Type afspraak: Akutsprechstunde\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\n4. **Ma 12 okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Adres: Müllerstraße 36, 13353 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\n5. **Ma 12 okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Adres: Wallstraße 16, 10179 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\nEen paar opmerkingen:\n- Ik heb de twee eerdere opties op **9–10 okt** uitgesloten van de bovenstaande vergelijking, omdat je specifiek naar **volgende week** vroeg.\n- Deze resultaten lijken afkomstig te zijn van ExampleClinicA-vermeldingen; ExampleClinicB-dekking werd niet ondersteund in deze zoekresultaten.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nAls je wilt, kan ik vervolgens:\n- dit beperken tot **alleen de publieke verzekering** waar bevestigd, of\n- een korte shortlist maken op basis van **wijk / afstand tot jouw locatie**.\n---\n*⚠️ Dit is uitsluitend ter informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*"
-      },
-      "follow_up_1": {
-        "text": "Zoek naar afspraken bij huisartsen met publieke verzekering in Mitte"
-      },
-      "follow_up_2": {
-        "text": "Filter de afspraken om alleen publieke verzekeringen te tonen"
-      },
-      "follow_up_3": {
-        "text": "Vind Engelssprekende artsen in de buurt van de wijk Prenzlauer Berg"
-      },
-      "follow_up_4": {
-        "text": "Verfijn de opties op buurt en afstand"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar afspraken bij medisch specialisten in Berlijn"
-      },
-      "follow_up_6": {
-        "text": "Leg uit hoe je deze doktersafspraken online kunt boeken"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "Vergelijk de buitenaardse biologie van Gethenianen en Oankali"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "Leg uit hoe je SVG-bestanden optimaliseert voor webprestaties"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "Vind een merknaam en domein"
-      },
-      "summary": {
-        "text": "Een beknopt gesprek over naamgeving: brainstorm over zeven kandidaten en vergelijk vervolgens twee finalisten op basis van domein, web en voorlopig bewijs van Amerikaanse handelsmerken."
-      },
-      "message_1": {
-        "text": "Help me een naam te vinden voor mijn nieuwe product."
-      },
-      "message_2": {
-        "text": "Om te beginnen: wat doet je product, wie is je doelgroep en welke toon of sfeer moet de naam uitstralen (bijv. speels, premium, technisch)?"
-      },
-      "message_3": {
-        "text": "Het is een rustgevende budget-app voor Amerikaanse freelancers, in het Engels. Ik wil korte, gedenkwaardige namen en een .com-domein tot € 20 per jaar. Brainstorm eerst over een gevarieerde shortlist."
-      },
-      "message_4": {
-        "text": "Hier is een eerste shortlist van gevarieerde, uitspreekbare namen die zijn afgestemd op een rustgevende ervaring voor freelance budgettering:\n\n- [ ] **Serenito**: Roept sereniteit en een rustig tempo op voor fluctuerende solo-inkomsten.\n- [ ] **Solowell**: Suggereert financieel welzijn en gemoedsrust voor solopreneurs.\n- [ ] **Equafy**: Richt zich op het in evenwicht brengen van onregelmatige cashflowcycli.\n- [ ] **StillLedger**: Combineert een klassieke boekhoudstructuur met bewuste, stressvrije stilte.\n- [ ] **Cadenceo**: Impliceert het opbouwen van een gestaag, voorspelbaar ritme op basis van inkomsten uit klussen.\n- [ ] **HavenFin**: Presenteert financieel beheer als een veilige, geruststellende haven.\n- [ ] **Placidly**: Zachte, geruststellende toon die financiële angst wegneemt.\n\n*(Opmerking: Deze shortlist is niet gecontroleerd op live domeinbeschikbaarheid of juridische goedkeuring.)*\n\nOp welke 2-3 namen wil je live controles uitvoeren? Je kunt je favorieten kiezen of mij vragen finalisten te selecteren om te controleren op .com-prijzen, merkconflicten en Amerikaanse handelsmerken.\n\n- [Controleer Serenito, Solowell en Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Kies de beste 3 voor mij en controleer ze](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "Controleer Equafy en Cadenceo: hun .com-beschikbaarheid en vermelde prijzen, bestaande merken op het web en Amerikaanse handelsmerken. Houd de vergelijking compact, met je aanbeveling en eventuele controles die nog ontbreken."
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nHier is de vergelijking op basis van de controles die zijn uitgevoerd op 12 oktober 2026:\n\n### Equafy\n- **Domein**: `equafy.com` is momenteel niet beschikbaar op ExampleRegistrar; er is geen standaard registratieprijs beschikbaar, dus het voldoet niet aan het budget van € 20/jaar.\n- **Web- & merklandschap**: Geen enkele prominente budgetteringssoftware gebruikt exact deze naam, maar zoekopdrachten op het web tonen een sterke fonetische gelijkenis en verwarring met [Equifax personal finance services](embed:equifax.com-TrW).\n- **Amerikaanse handelsmerken (ExampleTrademarks)**: Voorlopig onderzoek leverde 5 van de 1.640 vergelijkbare resultaten op (ingekort; de afwezigheid van de exacte naam kan niet worden vastgesteld). Actieve overeenkomsten zijn onder andere `EQUIFY` in klasse 36 (lopende aanvragen voor financiële diensten en diensten met opgeslagen waarde) en klasse 35 (geregistreerde veilingdiensten).\n\n### Cadenceo\n- **Domein**: `cadenceo.com` is momenteel niet beschikbaar op ExampleRegistrar; er is geen standaard registratieprijs beschikbaar, waardoor het budget van € 20/jaar niet wordt gehaald.\n- **Web- & merklandschap**: Overlapt direct met [Cadence Money](embed:cadencemoney.com-IcE), een gevestigde app voor persoonlijke financiën en budgetbeheer die actief is in de VS en Canada op iOS, Android en het web.\n- **Amerikaanse handelsmerken (ExampleTrademarks)**: Voorlopig onderzoek leverde 5 van de 227 vergelijkbare resultaten op (ingekort; de afwezigheid van de exacte naam kan niet worden vastgesteld). Actieve overeenkomsten voor `CADENCE` omvatten resultaten in klasse 9 voor downloadbare software.\n\n---\n\n### Aanbeveling & afwegingen\n- **Richting**: Sla beide over. Hoewel **Equafy** minder directe app-conflicten heeft dan **Cadenceo** (dat direct botst met *Cadence Money*), biedt geen van beide een beschikbare `.com` onder je limiet van € 20/jaar, en Equafy roept fonetische verwarring op met bestaande financiële merken zoals *Equify* en *Equifax*.\n- **Ontbrekende controles**: Internationale merkenregisters buiten de VS, 'common-law' merkregistraties op staatsniveau en waardebepalingen voor de overname van domeinen op de secundaire markt zijn niet gecontroleerd.\n\nWil je de beschikbaarheid van domeinen en de merkregistratie controleren voor andere opties op de shortlist (zoals **Solowell** of **StillLedger**), of wil je kleine variaties van samengestelde namen verkennen om een beschikbare `.com` binnen je budget te vinden?\n\n- [Controleer Solowell en StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Brainstorm samengestelde namen met beschikbare .com's onder € 20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "Controleer domeinbeschikbaarheid en handelsmerken voor Solowell en StillLedger"
-      },
-      "follow_up_2": {
-        "text": "Brainstorm over samengestelde namen met beschikbare .com-domeinen onder de twintig euro"
-      },
-      "follow_up_3": {
-        "text": "Doorzoek handelsmerkregisters voor namen van nieuwe budgetteringsapps"
-      },
-      "follow_up_4": {
-        "text": "Vergelijk branding- en naamgevingsstrategieën voor apps van solo-ondernemers"
-      },
-      "follow_up_5": {
-        "text": "Zoek beschikbare domeinextensies voor financiële apps voor freelancers"
-      },
-      "follow_up_6": {
-        "text": "Lijst met alternatieve domeinregistreerders voor betaalbare startup-domeinen"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Vluchten van Berlijn naar Bangkok"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] Aanbeveel budgetvriendelijke accommodaties in Bangkok"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "Appartementen in Berlijn met balkon"
-      },
-      "summary": {
-        "text": "Vergelijk echte woningadvertenties in Berlijn, volledige fotogalerijen, bewijs van balkons en kaartlocaties, met onbevestigde kosten en toegang tot water duidelijk aangegeven."
-      },
-      "message_1": {
-        "text": "Ik ben op zoek naar een huurappartement in Berlijn met een balkon, bij voorkeur in de buurt van een rivier of meer, voor maximaal 1.800 EUR per maand en met minstens twee kamers. Kun je een paar advertenties vergelijken met hun fotogalerijen en locaties op de kaart? Maak alsjeblieft onderscheid tussen wat de advertenties daadwerkelijk bevestigen en wat onbekend is, inclusief huurprijs, huurdata en toegang tot water. Als een aanbieder alleen een geschatte locatie of onvolledige foto's geeft, vermeld dat dan. Duidelijk gemarkeerde mogelijkheden zijn welkom wanneer sommige details ontbreken."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nHier is een vergelijkend overzicht van 2-kamer huurappartementen in Berlijn onder de € 1.800/maand met bewijs van een balkon en de nabijheid van of claims over water in de buurt, waarbij de bevestigde feiten versus de onduidelijkheden worden belicht:\n\nBerlijnse 2-kamer huurappartementen met balkon\n\n---\n\n### Samenvattende vergelijking\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Gedetailleerde profielen van de advertenties\n\n#### 1. [2-kamer loftappartement met balkon, nabij Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Huur & Kosten**: De totale warmhuur wordt expliciet vermeld als **€ 1.350/maand**, bestaande uit een koudhuur van € 1.200 en € 150 aan niet-gespecificeerde bijkomende kosten. Of de verwarming is inbegrepen, wordt niet expliciet vermeld. De borg bedraagt € 2.000.\n* **Huurvoorwaarden**: Onderverhuur voor bepaalde tijd. De gestructureerde gegevens vermelden 01.11.2026 tot 01.04.2027, maar de beschrijving van de advertentie verduidelijkt dat de gegarandeerde vaste periode **1 november tot 28 december 2026** is, met flexibele maandelijkse verlengingen tot 1 april 2027 in onderling overleg.\n* **Bewijs van balkon**: Bevestigd. Expliciet vermeld in de kenmerken en tekst (\"Zonnig balkon met uitzicht op het Fennpfuhlpark\"). De visuele beoordeling bekeek 3 van de 14 beschikbare foto's en bevestigde een zichtbaar balkon op foto-index 0.\n* **Toegang tot water & Locatie**: Gelegen aan de Anton-Saefkow-Platz in Lichtenberg. Geocodering kwam overeen op straatniveau (geen specifiek huisnummer). OpenStreetMap-gegevens bevestigen een waterpartij (**Fennpfuhl**, een parkmeer), maar alleen als een representatief puntcoördinaat; de exacte afstand tot de oever en de loopminuten voor voetgangers zijn niet berekend en daarom niet geverifieerd.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Huur & Kosten**: Geadverteerd als een vast bedrag van **€ 1.800/maand** all-inclusive (zowel koud- als warmhuur zijn ingevoerd als € 1.800). Nutsvoorzieningen, stookkosten en elektriciteit zijn niet gespecificeerd. De borg bedraagt € 1.000.\n* **Huurvoorwaarden & Verschillen in reikwijdte**:\n  * *Datumconflict*: Gestructureerde velden tonen beschikbaarheid van 21.10.2026 tot 03.05.2027. De Duitse tekst vermeldt echter expliciet een beschikbaarheid vanaf 11 november voor 2 maanden, terwijl de Engelse vertaling lager in de advertentie \"vanaf 6 november, 4–6 maanden\" vermeldt.\n  * *Kamerbeperking*: De advertentie merkt op dat een interne kamer van de eigenaar (*Sperrraum*) op slot blijft en uitgesloten is van de verhuur, hoewel de resterende toegankelijke ruimte wordt beschreven als twee kamers verdeeld over 85 m².\n* **Bewijs van balkon**: Bevestigd. Geadverteerd met twee balkons (één aan de binnenplaats, één aan het water). Steekproefsgewijze foto's (3 van de 15) bevestigden balkons op foto 0 en 14.\n* **Toegang tot water & Locatie**: Het adres wordt vermeld als Maybachufer in [Neukölln](wiki:Neukölln). Geocodering leverde een dubbelzinnig resultaat op en viel terug op algemene stads-coördinaten van Berlijn. Hoewel de advertentietekst expliciet een direct uitzicht op het [Landwehrkanaal](wiki:Landwehr_Canal) claimt, konden de afstand tot de buurt en de wandelroutes niet geometrisch worden geverifieerd vanwege de terugval op coördinaten.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Huur & Kosten**: Warmhuur wordt vermeld vanaf **€ 1.372/maand**, met € 130 aan bedrijfskosten en € 105 aan stookkosten gespecificeerd. De koude basishuur is weggelaten en de beschrijving merkt op dat dit een minimale starthuur is voor een promotieniveau. Elektriciteit moet onafhankelijk door de huurder worden gecontracteerd.\n* **Huurvoorwaarden**: Geadverteerd door een commerciële exploitant voor een nieuwe woonwijk (*Erstbezug* 2026). Vereist een **minimale huurperiode van 12 maanden** (*Mindestmietdauer*). Startdata zijn open (doorlopende bezichtigingen elke woensdag/donderdag).\n* **Bewijs van balkon**: Bevestigd in de beschrijving (\"einen Balkon\") en geadverteerde kenmerken. Visuele steekproef van 3 van de 27 foto's bevestigde een externe balkonstructuur op foto-index 26.\n* **Toegang tot water & Locatie**: Gelegen aan de Buschkrugallee 64 in Neukölln/[Britz](wiki:Britz). De positie is gebaseerd op door de aanbieder verstrekte coördinaten zonder onafhankelijke straatverificatie. De beschrijving stelt dat het complex grenst aan een kanaal (het Neuköllner Schifffahrtskanal), maar de precieze afstand tot de oever en de toegangspunten voor wandelaars zijn niet geometrisch berekend.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Huur & Kosten**: Warmhuur wordt geadverteerd voor **€ 980/maand**. De beschrijving vermeldt \"Nebenkosten: 270 € pro Monat\", maar maakt niet duidelijk of dit al is inbegrepen in de € 980 of er bovenop komt. De borg bedraagt € 1.500.\n* **Cruciale onduidelijkheid: Hele woning vs. Kamer**: De titel vermeldt \"2-Zimmer Wohnung... zur Untermiete\", maar de tekst begint met: *\"Wir vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon...\"*. Het is onduidelijk of het gehele 2-kamerappartement van 50 m² wordt onderverhuurd of alleen een individuele kamer daarin.\n* **Bewijs van balkon**: Visueel niet bevestigd. Hoewel in de titel en tekst wordt geadverteerd met een balkon, is er slechts 1 foto geplaatst door de adverteerder en op die foto is geen balkon te zien.\n* **Toegang tot water & Locatie**: Gelegen in 14057 [Charlottenburg](wiki:Charlottenburg). De aanbieder heeft geen straatnaam of huisnummer opgegeven (alleen precisie op postcodeniveau). De beschrijving vermeldt de nabijheid van het Lietzenseepark (waar het Lietze-meer ligt), maar de exacte routetijd en meters tot de oever kunnen niet worden berekend zonder een straatadres.\n* **Huurvoorwaarden**: Onderverhuur voor bepaalde tijd van 01.11.2026 tot maximaal 01.11.2027 (kortere periodes bespreekbaar).\n\n---\n\n### Belangrijke aandachtspunten voor je reageert\n1. **Verificatie van water**: Alleen het appartement aan de Maybachufer kijkt vanuit de woning zelf expliciet uit over een open waterweg, maar de geocode is bij benadering en de data spreken elkaar tegen. Het appartement aan de Anton-Saefkow-Platz ligt bevestigd in de buurt van het park bij de Fennpfuhl, hoewel de exacte afstand tot de oever niet is gemeten.\n2. **Huurvormen**: Geen van de advertenties op ExampleHousingC biedt een contract voor onbepaalde tijd (*unbefristet*); het gaat allemaal om onderverhuur voor bepaalde tijd. Momento Berlin biedt huurcontracten voor langere termijn met een minimum van 12 maanden.\n3. **Beperkingen van de fotosteekproef**: De visuele beoordeling onderzocht een beperkte steekproef van 1 tot 3 afbeeldingen per advertentie. Aanvullende kenmerken kunnen zichtbaar zijn in de volledige galerijen die toegankelijk zijn via elke advertentiekaart.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**Zoekparameters voor appartementen definiëren**\n\nIk richt me nu op het definiëren van de precieze zoekparameters voor huurwoningen in Berlijn. Ik heb Berlijn als stad opgegeven en het type aanbod beperkt tot \"huur\" en het type woning tot \"appartement\". Een balkon is een harde eis, die ik zeker in de zoekcriteria zal opnemen.\n\n\n**Zoekcriteria verfijnen**\n\nIk heb de zoekparameters zojuist verder verfijnd. Ik heb \"idealiter in de buurt van een rivier of meer\" vertaald naar een voorkeur voor de nabijheid van water, gecategoriseerd als \"neighborhood_categories: ['water']\". Het budget van \"maximaal 1.800 EUR per maand\" is nu gespecificeerd als `max_warm_rent_eur: 1800`, omdat ik ervan uitga dat dit de warmhuur is. Omdat mij is verteld dat \"duidelijk gelabelde mogelijkheden welkom zijn wanneer sommige details ontbreken\", zal ik nu expliciet onbevestigde advertenties opnemen met `include_unconfirmed: true`.\n\n\n**Zoekvereisten analyseren**\n\nIk analyseer nu zorgvuldig de richtlijnen van deze tool voor het zoeken naar woningen. Ik concentreer me op hoe ik mijn voorkeuren het beste kan vertalen naar de juiste gestructureerde filters en `relevance_criteria`. Ik moet ervoor zorgen dat mijn eisen voor de nabijheid van water, bewijs van een balkon en budgetbeperkingen allemaal correct zijn gecodeerd. Ik zorg er ook voor dat ik in mijn zoekopdracht onderscheid maak tussen wat \"vereist\", \"uitgesloten\" en \"geprefereerd\" is.\n\n\n**Integriteit van advertentiegegevens beoordelen**\n\nIk houd me nu intensief bezig met de gegevensintegriteit. Ik moet voorkomen dat ik visueel bewijs overschat en moet de beperkingen van elke aanbieder specificeren. De nabijheid van water moet stevig onderbouwd zijn met bewijs, en als \"niet geverifieerd\" worden gerapporteerd wanneer verrijking niet beschikbaar is of een time-out heeft. Het moet duidelijk zijn dat een zichtbaar balkon niet garandeert dat het bij het appartement hoort, en ik kan huurspecificaties alleen rapporteren als ze expliciet worden vermeld.\n\n\n**Advertentiegegevens analyseren**\n\nIk ben nu diep in de gevonden advertenties gedoken en controleer ze nauwgezet aan de hand van de verstrekte regels. Mijn focus ligt op het duidelijk afbakenen van bevestigde gegevenspunten ten opzichte van onzekerheden. Ik let goed op details zoals huur, huurdata en toegang tot water, en markeer eventuele onduidelijkheden. Het doel is uiterste precisie.\n\n\n**Nabijheidscriteria verduidelijken**\n\nIk integreer nu de genuanceerde nabijheidseisen. Ik documenteer zorgvuldig alle beperkingen in het bewijsmateriaal. Ik richt me op het transparant scheiden van gevalideerde claims van niet-geverifieerde informatie. Ik geef prioriteit aan nauwkeurigheid in mijn documentatie. Ik ben duidelijk over wat telt als geverifieerde toegang tot water en wat niet. Ik benadruk de noodzaak van expliciete labeling van onzekere gegevens.\n\n\n**Regels voor ambiguïteit verfijnen**\n\nIk richt me nu op het verfijnen van de regels rond onzekere gegevenspunten. Als er geen melding wordt gemaakt van water, rapporteer ik dit als onbekend; ik trek geen conclusies over de nabijheid. Ik scheid de zichtbaarheid van een balkon op foto's van tekstuele bevestiging. Huurvoorwaarden worden alleen expliciet gerapporteerd als ze worden vermeld. Tegenstrijdigheden in data en huurspecificaties krijgen prioriteit. Ik gebruik de embed-voorbeeldkaarten als weergave.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Resultaatindeling interpreteren**\n\nIk richt me nu op de structuur van de \"embeds\\_results\\_view\"-respons. Het viel me op dat een \"source\\_ref\" ontbreekt, wat van invloed is op het juiste gebruik van \"sources\" of \"embeds\". Ik zal het veld \"embeds\" gebruiken wanneer er geen source\\_ref beschikbaar is, waarbij ik specifiek verwijs naar de geretourneerde onderliggende embed\\_ref-waarden. Ook let ik op het veld \"title\" als beschrijvend element.\n\n\n**Details van advertenties onderzoeken**\n\nIk onderzoek nu individuele advertenties nauwgezet, met name de \"2-kamer loft-appartement met balkon, nabij Ringbahn\". Ik vergelijk deze advertentie met de embed-gegevens. Ik noteer de niet-geverifieerde nabijheid van water vanwege onbekende afstanden en toegang, ook al wordt er een uitzicht op het meer genoemd. Mijn focus ligt op het duidelijk noteren van wat bevestigd is versus wat niet geverifieerd is. Ik documenteer zorgvuldig alle onzekerheden.\n\n\n**Details van advertenties evalueren**\n\nIk ben net klaar met het evalueren van een andere advertentie. Ik heb de aanwezigheid van een balkon bevestigd via fotoanalyse. De huurperiode biedt een vaste termijn gevolgd door flexibele verlengingen, wat ik heb gedocumenteerd. Ik richt me op de details. Nu werk ik eraan om alle relevante informatie uit de advertentie volledig te begrijpen.\n```\n```\n\n**Specifieke kenmerken detailleren**\n\nIk specificeer nu deze specifieke advertentie. De geocode van de straat is vaag; ik merk op dat dit invloed heeft op de verificatie van de nabijheid van water. De tekstuele claim van uitzicht op het Landwehrkanal kan geometrisch niet worden gevalideerd. Ik bevestig de aanwezigheid van een balkon via tekstuele en visuele controles. Ik markeer expliciet het conflict in de huurdatum tussen de gestructureerde gegevens en de beschrijvende tekst.\n\n\n**Advertentiegegevens beoordelen**\n\nIk duik nu in de nieuwste advertentie. Ik heb de ontbrekende kale huur en de onprecieze huurspecificatie gemarkeerd. De geadverteerde huur is een startpunt, dus ik heb de onbekende minimumhuur genoteerd. De variatie in appartementgroottes binnen het project vereist duidelijkheid, aangezien de grootte in de advertentie hierbinnen valt. Ik heb de onzekere nabijheid van het kanaal gemarkeerd vanwege de niet-geverifieerde precisie van de locatie.\n\n\n**Huurdetails interpreteren**\n\nIk richt me nu op de huurinformatie en de balkonverificatie van de nieuwste advertentie. Ik heb de zichtbaarheid van het balkon bevestigd via tekst en steekproefsgewijze visuele controle. Ik heb een minimale huurperiode van 12 maanden genoteerd en de afwezigheid van duidelijke einddata in de gegevens. De advertentie betreft een gemeubileerde kamer met een balkon, maar de titel vermeldt een 2-kamerappartement, dus ik onderzoek de mogelijke ambiguïteit tussen kamer en appartement. Ik let goed op alle details.\n\n\n**Details van advertenties analyseren**\n\nIk analyseer nu zorgvuldig een nieuwe advertentie, waarin een gemeubileerde kamer met balkon wordt vermeld. De zin \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" voegt cruciale ambiguïteit toe; de enige foto bij de advertentie biedt geen bevestiging van het balkon, wat ik heb gemarkeerd. Het adres, een geocode op wijkniveau, maakt de nabijheid van water vaag. De huurperiode loopt van 1 november 2026 tot 1 november 2027.\n\n\n**Vermeldingen van water vergelijken**\n\nIk vergelijk nu advertenties waarin waterkenmerken zoals de Maybachufer en andere worden genoemd, om de precisie van hun claims en eventuele inherente gegevensverschillen te onderscheiden. Ik beoordeel hun bewijsvoering en dekking. Ik richt me op de precieze details die de gebruiker heeft gevraagd. Ik zal eventuele onzekerheden en beperkingen in de gegevens markeren.\n\n\n**Huurspecificaties verifiëren**\n\nIk richt me nu op discrepanties in de huurcijfers. Ik geef prioriteit aan het op één lijn brengen van tegenstrijdige cijfers, het rapporteren van niet-gespecificeerde kosten en het expliciet noteren van onbekende inbegrepen stookkosten. Ook controleer ik inline embed-verwijzingen om er zeker van te zijn dat de weergavetekst nooit de embed\\_ref is. Bovendien zal ik alleen grote of kleine kaarten gebruiken voor embed-refs, op basis van de syntaxis. Tot slot voeg ik aan het einde van deze update een suggestie voor een vervolgbericht toe."
-      },
-      "message_3": {
-        "text": "Ik ben het meest geïnteresseerd in de loft en het appartement aan de Maybachufer. Is de huur van 1.800 EUR op basis van de opgeslagen advertenties echt all-inclusive, of zijn sommige rekeningen nog onbekend? Kun je ook verduidelijken hoeveel foto's de zoekopdracht heeft opgeleverd versus hoeveel er daadwerkelijk zijn gecontroleerd, en welke details over het balkon en het water direct door de advertenties worden ondersteund? Ik houd niet-geverifieerde details liever gemarkeerd als onbekend."
-      },
-      "message_4": {
-        "text": "Hier is een exact overzicht van wat de advertentiegegevens daadwerkelijk bevestigen versus wat onbevestigd of onbekend blijft voor het **appartement aan de Maybachufer** en de **loft aan de Anton-Saefkow-Platz**.\n\n---\n\n### 1. Huur Maybachufer: Is € 1.800 echt all-inclusive?\n\n* **Wat de advertentie vermeldt**: Zowel de kale huur (*Kaltmiete*) als de totale huur (*Warmmiete*) zijn ingevoerd als een vast bedrag van **€ 1.800**. De borg is vastgesteld op € 1.000.\n* **Wat ONBEKEND blijft**:\n  * **Specificatie van de kosten**: De advertentie bevat **geen gespecificeerd kostenoverzicht** voor de bijkomende kosten (*Betriebskosten/Nebenkosten*) of verwarming (*Heizkosten*).\n  * **Elektriciteit & internet**: De verhuurder bevestigt in de gestructureerde velden niet expliciet of huishoudelijke elektriciteit (*Haushaltsstrom*) of wifi zijn inbegrepen in de € 1.800, of dat er verbruikslimieten gelden.\n  * **Omroepbijdrage**: Of de verplichte Duitse omroepbijdrage (*Rundfunkbeitrag*) is inbegrepen of apart moet worden geregistreerd, wordt niet vermeld.\n* **Conclusie**: Hoewel het wordt gepresenteerd als een maandelijks totaalbedrag dat typisch is voor gemeubileerde kortetermijnonderverhuur, **kan niet worden geverifieerd of het strikt all-inclusive is** totdat de verhuurder een schriftelijke specificatie verstrekt die elektriciteit, verwarmingsoverschrijdingen en internetdekking bevestigt.\n\n---\n\n### 2. Omvang fotogalerij: Opgehaald vs. Gecontroleerd\n\nDe zoektool heeft metadata van de advertenties opgehaald met het volledige aantal foto's, maar de geautomatiseerde visuele analyse heeft slechts een gerichte steekproef van foto's per advertentie geëvalueerd om de belangrijkste kenmerken te identificeren:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Let op: Je kunt de advertentiekaarten direct openen om alle 14–15 foto's in hoge resolutie handmatig te bekijken.*\n\n---\n\n### 3. Details balkon & water: Bevestigd vs. Onbekend\n\n#### Appartement Maybachufer\n* **Balkon**:\n  * *Bevestigd door advertentietekst*: Beschikt over **twee balkons** — één gericht op de binnenplaats (*Innenhof*) en één gericht op het kanaal/de straat.\n  * *Bevestigd door fotocontrole*: Zichtbare balkonstructuren werden bevestigd in de gecontroleerde foto-indexen 0 en 14.\n  * *Onbekend*: Exacte afmetingen van het balkon, oriëntatie/zonuren en of er buitenmeubilair aanwezig is.\n* **Toegang tot water**:\n  * *Bevestigd door advertentietekst*: Direct gelegen aan de Maybachufer langs het [Landwehrkanaal](wiki:Landwehr_Canal) in [Neukölln](wiki:Neukölln). De beschrijving claimt expliciet uitzicht op het water.\n  * *Onbekend / Niet geverifieerd door tool*: Het geocoderingssysteem markeerde de zoekopdracht voor het adres als dubbelzinnig en koos standaard voor een centraal punt in Berlijn in plaats van een exacte locatie. Hierdoor kon de exacte afstand van de woning tot voetgangersoversteekplaatsen over het kanaal of aanlegplaatsen niet onafhankelijk van de advertentiegegevens worden gemeten.\n\n#### Loft Anton-Saefkow-Platz\n* **Balkon**:\n  * *Bevestigd door advertentietekst*: Adverteert expliciet met een \"zonnig balkon met uitzicht over het Fennpfuhlpark\".\n  * *Bevestigd door fotocontrole*: Een balkonstructuur werd bevestigd in de gecontroleerde foto-index 0.\n  * *Onbekend*: Oppervlakte van het balkon en de verdieping (de advertentie vermeldt loftstijl op de bovenste verdiepingen, maar niet de exacte etage).\n* **Toegang tot water**:\n  * *Bevestigd door advertentietekst & OpenStreetMap*: Gelegen aan de Anton-Saefkow-Platz in Lichtenberg, grenzend aan het Fennpfuhlpark, waarin de **Fennpfuhl** (een historisch meer) ligt.\n  * *Onbekend / Niet geverifieerd door tool*: De woning ligt **niet** direct aan een rivier- of kanaaloever; het water is een parkmeer. Bovendien, hoewel het park zelf aan de overkant van de straat ligt, blijven de precieze wandeltijd naar de waterkant en de vraag of het water vanaf het balkon direct zichtbaar is over de boomtoppen onbevestigd.\n\n---\n\n### Vragen om aan de verhuurders te stellen voor een bezichtiging\n\n1. **Voor Maybachufer**:\n   * *\"Dekt het vaste maandbedrag van € 1.800 de kosten voor verwarming, elektriciteit en internet volledig, of is er aan het einde van het verblijf een aparte afrekening van de bijkomende kosten (*Nebenkostenabrechnung*)?\"*\n   * *\"Kunt u de exacte data voor de onderverhuur bevestigen (de samenvatting zegt 2 maanden, maar de Engelse beschrijving noemt 4–6 maanden)?\"*\n2. **Voor de loft**:\n   * *\"Is de extra vergoeding van € 150 een vast bedrag (*Pauschale*) inclusief verwarming en internet, of een voorschot (*Vorauszahlung*)?\"*\n   * *\"Is een verlenging na 28 december 2026 gegarandeerd in het contract indien nodig?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Details van de woningen verduidelijken**\n\nIk richt me momenteel op de vragen van de gebruiker over \"de loft\" en \"het appartement aan de Maybachufer\". Specifiek kijk ik dieper naar de huur van 1.800 EUR voor de woning aan de Maybachufer. Ik moet definitief vaststellen of dit echt all-inclusive is, of dat er mogelijke extra kosten zijn. Ook ben ik bezig met het verduidelijken van het aantal beschikbare foto's voor de zoekopdracht.\n\n\n**Details over inclusies verifiëren**\n\nIk duik nu in de details van de huurprijs van het appartement aan de Maybachufer, met name de claim \"all-inclusive\". Mijn doel is om de exacte uitsplitsing te achterhalen van wat wel en niet is inbegrepen. Ik moet onderscheiden of de 1800 EUR de kosten voor nutsvoorzieningen, internet, verwarming en de omroepbijdrage dekt. De eerste gegevens tonen tegenstrijdige informatie, dus ik moet precies bepalen wat de gegevens *daadwerkelijk* bevestigen.\n\n\n**Inclusie-hiaten vaststellen**\n\nIk verduidelijk nu de details met betrekking tot nutsvoorzieningen. In de eerste gegevens is niet bevestigd of GEZ-kosten, elektriciteit of extra stookkosten zijn inbegrepen. Ik moet het totale aantal foto's duidelijk definiëren en ervoor zorgen dat alle relevante foto's voor elke woning worden geanalyseerd. De Maybachufer heeft twee balkons en de loft heeft er één, hoewel de afmetingen onvermeld blijven. Ook verifieer ik de locatie van de woning aan de Maybachufer."
-      },
-      "follow_up_1": {
-        "text": "Zoek naar andere 2-kamerappartementen aan het water in Berlijn"
-      },
-      "follow_up_2": {
-        "text": "Stel een bericht in het Duits op voor de verhuurder van de Maybachufer"
-      },
-      "follow_up_3": {
-        "text": "Zoek naar routes met het openbaar vervoer van Anton-Saefkow-Platz naar Alexanderplatz"
-      },
-      "follow_up_4": {
-        "text": "Vergelijk de borgsommen en annuleringsvoorwaarden van beide appartementen"
-      },
-      "follow_up_5": {
-        "text": "Bekijk de actuele weersverwachting voor Berlijn Lichtenberg"
-      },
-      "follow_up_6": {
-        "text": "Lijst met belangrijke vragen voor verhuurders tijdens bezichtigingen in Berlijn"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "Leg uit hoe het aanbod op de woningmarkt reageert op prijsbeheersing"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "Zinvol werk in Duitsland"
-      },
-      "summary": {
-        "text": "Doorzoek vier vacatureplatforms voor Duitse vacatures, vergelijk vervolgens design-rollen en bereid vragen voor werkgevers voor."
-      },
-      "message_1": {
-        "text": "Ik ben op zoek naar zinvol werk in Duitsland, vooral in onderzoek, design of software engineering. Zoek een paar actuele vacatures via ExampleJobsB en ExampleJobsC, evenals ExampleJobsD en het Example Employment Board. Ik sta open voor elke plek in Duitsland. Geef me een korte shortlist met de werkgever, locatie, bron en sollicitatielink, en ga niet uit van werken op afstand of een salaris als de vacature dit niet vermeldt."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nHier is een shortlist van actuele vacatures in Duitsland op het gebied van onderzoek, design en software engineering van ExampleJobsB, **ExampleJobsC**, **ExampleJobsD** en de **Example Employment Board**.\n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Werkgever:** voize (ontwikkelt spraakherkennings-AI om documentatie voor verpleging en klinische zorg te stroomlijnen)\n  * **Locatie:** Berlijn, Duitsland (vermeld als geschikt voor werken op afstand)\n  * **Bron:** ExampleJobsC\n  * **Salaris:** Niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/v/x)**\n  * **Werkgever:** stiftung ear (nationaal register dat de verwijdering, inname en tracking van de circulaire economie van elektronisch afval coördineert)\n  * **Locatie:** Neurenberg, Beieren\n  * **Bron:** Example Employment Board\n  * **Werkvorm & Salaris:** Flexibele/mobiele werkopties vermeld in de beschrijving, maar geen formele classificatie voor volledig op afstand; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Example Employment Board](embed:ui-ux-design-1Bm)\n\n---\n\n### Onderzoek\n\n* **Joint Fellowship Program (Vredes- & Veiligheidsbeleid)**\n  * **Werkgever:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Locatie:** Hamburg, Duitsland\n  * **Bron:** ExampleJobsB\n  * **Werkvorm & Salaris:** Niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via IFSH / ExampleJobsB](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/v/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **Werkgever:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Locatie:** Bochum, Noordrijn-Westfalen\n  * **Bron:** Example Employment Board\n  * **Werkvorm & Salaris:** Fulltime (39,83 uur/week); regeling voor werken op afstand niet gespecificeerd; bezoldiging volgens de collectieve schaal voor de publieke sector TV-L E13 (exact bedrag niet vermeld in de vacature)\n  * **Sollicitatie:** [Solliciteer via Example Employment Board](embed:research-associate-m-79L)\n\n* **Research Engineer (v/m/d) – Grid Decarbonization & Basic Technology**\n  * **Werkgever:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Locatie:** Berlijn\n  * **Bron:** Example Employment Board\n  * **Werkvorm & Salaris:** Flexibele/mobiele opties vermeld in de tekst, maar geen vaste status voor werken op afstand vermeld; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Example Employment Board](embed:research-engineer-f-7ao)\n\n---\n\n### Software Engineering\n\n* **Senior Backend Engineer (m/v/x) – Java/Kotlin, AWS, Kafka**\n  * **Werkgever:** idealo internet GmbH\n  * **Locatie:** Berlijn, Duitsland\n  * **Bron:** ExampleJobsD\n  * **Werkvorm & Salaris:** Op locatie/hybride kantooromgeving; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via ExampleJobsD](embed:senior-backend-engineer-q7x)\n\n* **Werkstudent – Software Engineering (Computer Vision / Autonome Systemen)**\n  * **Werkgever:** Quantum-Systems GmbH (autonome luchtplatforms en robotperceptie)\n  * **Locatie:** Gilching, Beieren\n  * **Bron:** ExampleJobsD\n  * **Werkvorm & Salaris:** Op locatie/hybride; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via ExampleJobsD](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**Duitse kansen identificeren**\n\nIk richt me momenteel op het vinden van relevante vacatures in Duitsland. Ik ben begonnen met het samenstellen van een lijst met veelbelovende bronnen: `ExampleJobsB`, `ExampleJobsC`, `ExampleJobsD` en de `Example Employment Board`. Mijn belangrijkste interesse gaat uit naar rollen in onderzoek, design en software engineering, waarbij ik de locatie nauwlettend in de gaten houd.\n\n\n**Zoekparameters verfijnen**\n\nIk verfijn nu mijn aanpak om de `jobs-search` tool effectief te gebruiken. Ik richt me op de `requests` array om een reeks zoekopdrachten uit te voeren en de aanbieders rechtstreeks te specificeren, gezien de limiet van 5 verzoeken. Ik controleer de functiedefinitie om te bevestigen hoe ik aanbieders expliciet als lijst kan opgeven en hoe ik relevantiecriteria definieer. Dit helpt bij het maken van een shortlist met werkgever, locatie, bron en sollicitatielink. Mijn doel is om aannames over werken op afstand of salaris te vermijden wanneer dit niet expliciet wordt vermeld.\n\n\n**Resultaten van aanbieders onderzoeken**\n\nOké, ik heb een eerste blik geworpen op de teruggekoppelde aanbieders. Het lijkt erop dat we \"ExampleJobsC\" hebben en een paar van ExampleJobsD; de ene is een senior rol in backend engineering (Java/Kotlin) en de andere is een rol als werkstudent. Ik noteer de eerste indrukken en beoordeel de potentiële impact van elke vermelding.\n\n\n**Huidige kansen analyseren**\n\nIk richt me momenteel op het evalueren van twee veelbelovende kansen. De eerste is een \"Joint Fellowship Program\" bij het Institute for Peace Research and Security Policy van de Universiteit Hamburg, en de tweede is een positie als \"Student Assistant\" binnen het Interface Cybersecurity Programme. Ik weeg hun respectievelijke verdiensten zorgvuldig af in de context van respectievelijk vredes- en veiligheidsonderzoek en cybersecurity.\n\n\n**Nieuwe leads prioriteren**\n\nIk heb mijn aandacht verlegd naar het samenstellen van een evenwichtige shortlist. Ik geef prioriteit aan kansen in design en onderzoek, waarbij ik me richt op relevantie en recente plaatsingen. Momenteel bekijk ik een rol als Senior Product Designer bij voize in Berlijn en een UI/UX Design-positie bij stiftung ear. Voor onderzoek bekijk ik een rol bij de Ruhr-Universität Bochum, naast het Joint Fellowship Program in Hamburg.\n\n\n**Nieuwe mogelijkheden evalueren**\n\nIk weeg nu nieuwe leads af tegen mijn criteria. Ik heb opties ontdekt, zoals een rol als Research Engineer bij Siemens Energy in Berlijn via de Example Employment Board, die zich richt op fundamenteel onderzoek. Ik overweeg ook rollen als Senior Backend en Junior C++ Software Developer bij respectievelijk idealo internet GmbH (Berlijn, ExampleJobsD) en CT Software Engineering (Ingolstadt, Example Employment Board). Deze sluiten aan bij mijn interesses in software engineering.\n\n\n**Sollicitatiecriteria verfijnen**\n\nIk verduidelijk nu hoe ik met sollicitatielinks omga. Ik moet eraan denken om prioriteit te geven aan duidelijke sollicitatieprocessen en te controleren op het gebruik van `[weergavetekst](embed:embed_ref)` of standaardlinks. Bovendien moet ik aannames over werken op afstand of het vermelden van salaris vermijden, tenzij dit expliciet in de vacature staat.\n\n\n**Sollicitatieprotocollen verduidelijken**\n\nIk concentreer me nu op de formaten van sollicitatielinks. Ik richt me op het waarborgen van directe linkintegratie of het gebruik van het `(embed:embed_ref)` formaat, waarbij ik ervoor zorg dat ik niet beide aanbied. Ik controleer zorgvuldig de URL's die door app-skills worden geretourneerd om naleving te garanderen. Ik streef ernaar de regel te volgen om slechts één linkstijl per sollicitatielink te gebruiken.\n\n\n**Sollicitatielinks standaardiseren**\n\nIk implementeer nu de strategie voor sollicitatielinks. Mijn doel is om het formaat voor vacatures te standaardiseren. Ik gebruik alleen de embed-ref voor sollicitatielinks. Ik neem ook de rol, werkgever, locatie en bron op voor elke vacature en gebruik een ingesloten link. Ik zorg ervoor dat ik altijd één link per vacature gebruik.\n\n\n**Gegevens over kansen verzamelen**\n\nIk verzamel nu details voor meerdere kansen. Ik heb informatie voor een rol als Senior Product Designer bij voize, een UI/UX Design-positie bij stiftung ear en het Joint Fellowship Program bij de Universiteit Hamburg. Ik noteer de rol, werkgever, locatie en bron voor elk, evenals de specificaties voor werken op afstand en salaris. Ik richt me op het waarborgen van consistente linkformaten door embeds te gebruiken voor elke sollicitatie.\n\n\n**Nieuwe vermeldingen integreren**\n\nIk integreer nu nieuwe vermeldingen in de dataset. Ik heb een positie als Research Associate bij de Ruhr-Universität Bochum toegevoegd, afkomstig van de Example Employment Board, met vermelding van de details over werken op afstand en salaris. Ook heb ik informatie verzameld over een rol als Research Engineer bij Siemens Energy, inclusief flexibele opties. Ik zorg voor consistentie in linkformaten door embeds te gebruiken voor sollicitatielinks.\n\n\n**Nieuwe vermeldingen toevoegen**\n\nIk heb zojuist twee nieuwe vermeldingen toegevoegd: een rol als Senior Backend Engineer op een niet nader genoemde locatie en een positie als werkstudent bij Quantum-Systems GmbH in Gilching. Ik richt me op het nauwkeurig vastleggen van alle details, inclusief locatie, opties voor werken op afstand, salarisinformatie (indien beschikbaar) and sollicitatielinks in het gestandaardiseerde formaat. Ik gebruik het `(embed:embed_ref)` formaat voor de sollicitatielink."
-      },
-      "message_3": {
-        "text": "De twee designrollen klinken het meest interessant. Kun je kort vergelijken wat er precies in de opgeslagen vacatures staat en suggesties geven voor wat ik elke werkgever zou moeten vragen voordat ik solliciteer?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nHier is een directe vergelijking van wat elke vacature vermeldt, gevolgd door gerichte vragen die je aan elke werkgever kunt stellen voor of tijdens het sollicitatieproces.\n\n---\n\n### Vergelijking van de vacatures\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Wat je kunt vragen voordat je solliciteert\n\n#### Voor voize:\n1. **Toegang tot gebruikersonderzoek:** *\"Hoe vaak en via welke kanalen voeren designers veldonderzoek of tests uit met verpleegkundigen en zorgpersoneel in hun dagelijkse klinische omgeving?\"*\n2. **Teamvolwassenheid en reikwijdte:** *\"Hoe is het productteam gestructureerd, wat is de huidige verhouding tussen designers, PM's en engineers, en is deze rol een individuele bijdrager of wordt er verwacht dat je design systems opzet?\"*\n3. **Compensatie en remote ritme:** *\"Wat is de beoogde salarisindicatie voor dit senioriteitsniveau, en zijn er verplichte on-site team-offsites of kernuren ondanks het remote beleid?\"*\n\n#### Voor stiftung ear:\n1. **On-site verwachtingen in Neurenberg:** *\"Hoe is mobiel werken in de praktijk gestructureerd — is er een vaste wekelijkse of maandelijkse verplichting om op kantoor in Neurenberg te zijn?\"*\n2. **Balans tussen Design en QA:** *\"De vacature vermeldt de implementatie van softwaretests naast UX/UI-design. Welk percentage van de rol is gericht op gebruikersonderzoek/prototyping versus technische softwarevalidatie en kwaliteitsborging?\"*\n3. **Design tooling en overdracht naar development:** *\"Welke design systems en prototyping-tools worden er momenteel gebruikt, en werken jullie met een intern developmentteam of externe IT-dienstverleners?\"*\n4. **Salarisbenchmark:** *\"Aangezien stiftung ear een publiekrechtelijke functie vervult, volgt de compensatie een specifieke publieke cao (zoals TVöD/TV-L) of een interne salarisstructuur?\"*"
-      },
-      "message_4_thinking": {
-        "text": "**Vacature-inhoud analyseren**\n\nOké, ik ben begonnen met het vergelijken van de functiebeschrijvingen. Ik richt me op de belangrijkste verantwoordelijkheden en vereiste vaardigheden voor de rol van Senior Product Designer bij Voize en de UI/UX Design-positie bij Stiftung EAR. Nu bereid ik een samenvatting voor van de belangrijkste verantwoordelijkheden en vereiste vaardigheden van beide vacatures. Daarna zal ik bepalen welke verdere informatie ik eventueel nodig heb.\n\n\n**Functiebeschrijvingen analyseren**\n\nOké, ik duik nu dieper in de details van elke vacature. Mijn focus ligt op het ontleden van het feitelijke taalgebruik in de beschrijvingen. Ik probeer te bepalen welke belangrijke vragen beantwoord moeten worden om me op elke werkgever voor te bereiden. Bij de voize-vacature moet ik bijvoorbeeld meer weten over hun AI-begeleidingsproduct.\n\n\n**Belangrijke details beoordelen**\n\nIk richt me nu specifiek op de voize-vacature en haal de belangrijkste punten eruit. Het is een senior rol met aanzienlijke verantwoordelijkheid, die iemand vereist die productmanagers kan uitdagen. De opzet is flexibel, met een kantoor in Berlijn en mogelijkheden om op afstand te werken. De vergoeding wordt niet vermeld, maar de extra's omvatten een behoorlijk aantal vakantiedagen en een lidmaatschap van een sportclub. Engels is de voertaal, ook al is de context de Duitse gezondheidszorg.\n\n\n**Specifieke vereisten vaststellen**\n\nIk richt me nu op de rol in Neurenberg. Ik heb de belangrijkste gebieden uitgesplitst: het aspect van wettelijke naleving richt zich op ElektroG-regelgeving. Mijn werk omvat de ontwikkeling van web-apps en UX-activiteiten, waarbij ik belanghebbenden adviseer. Vloeiend Duits (minimaal C1) is verplicht, ervaring met regelgevende software is een pluspunt. De functie is permanent met aanzienlijke flexibiliteit voor werken op afstand. De vergoeding is prestatiegericht.\n\n\n**Functiekenmerken vergelijken**\n\nIk maak nu directe vergelijkingen tussen de rollen. Ik heb het onderverdeeld naar domein, cultuur, vereiste vaardigheden en werklocatie. Specifiek kijk ik naar voize versus de rol bij stiftung ear. Ik richt me op het contrasteren van hun omgevingen en prioriteiten, van de frontlinie van de gezondheidszorg tot de naleving van regels voor e-waste. Ik noteer belangrijke verschillen zoals de taalvereisten en het ervaringsniveau. Ook beoordeel ik de verschillen in hun beleid voor werken op afstand."
-      },
-      "follow_up_1": {
-        "text": "Zoek naar meer UI/UX design vacatures in Berlijn"
-      },
-      "follow_up_2": {
-        "text": "Schrijf een concept-e-mail naar de hiring manager bij voize"
-      },
-      "follow_up_3": {
-        "text": "Vind vergelijkbare tech-functies in de gezondheidszorg in Duitsland"
-      },
-      "follow_up_4": {
-        "text": "Vergelijk de voor- en nadelen van werken bij startups in de gezondheidszorg versus overheidsinstanties"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar tech-vacatures in de publieke sector in Neurenberg"
-      },
-      "follow_up_6": {
-        "text": "Lijst met belangrijke stappen ter voorbereiding op een sollicitatiegesprek voor senior product design"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "Printbare Benchy- en telefoonstandaardmodellen"
-      },
-      "summary": {
-        "text": "Zoek op ExampleModels naar populaire 3D-printbare Benchy- en telefoonstandaardmodellen met voorbeeldkaarten en bronlinks."
-      },
-      "message_1": {
-        "text": "Vind 3D-printbare Benchy- en telefoonstandaardmodellen op ExampleModels. Toon de beste opties met voorbeeldkaarten en bronlinks."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\nVoor je volgende 3D-printprojecten heb ik een paar van de populairste en meest creatieve modellen op ExampleModels gevonden. Of je nu op zoek bent naar de klassieke [kalibratie](wiki:Calibration_(statistics))-sleepboot of een functioneel [telefoon](wiki:Smartphone)-accessoire, deze opties zijn uitstekende startpunten.\n\n### De 3DBenchy-collectie\nDe [3DBenchy](wiki:3DBenchy) is de gouden standaard voor het testen van de mogelijkheden van je [3D-printer](wiki:3D_printing). Naast het origineel zijn er verschillende 'remixes' die je werkbank wat meer karakter geven.\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **Originele 3DBenchy**: Het beste voor het [benchmarken](wiki:Benchmark_(computing)) van [overhangen](wiki:3D_printing#Support_structures), [bridging](wiki:3D_printing#Support_structures) en de oppervlakteafwerking.\n*   **Assault Benchy**: Een verstelbare [mecha](wiki:Mecha)-versie voor wie wat meer flair wil.\n*   **Floating BEN**: Speciaal ontworpen met een holle romp zodat hij echt blijft drijven — perfect voor in bad!\n\n### Functionele telefoonstandaarden\nEen telefoonstandaard is een geweldige praktische print. Deze ontwerpen variëren van minimalistisch tot complexe mechanische tandwielen.\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **Honeycomb-standaard**: Erg populair vanwege de hoge [sterkte-gewichtsverhouding](wiki:Specific_strength) en moderne uitstraling.\n*   **Geared-standaard**: Een 'print-in-place' mechanisch wonder waarmee je de kijkhoek kunt aanpassen.\n*   **Modern Curved**: Een strak ontwerp uit één stuk dat perfect past in een minimalistische kantoorinrichting.\n\n**Pro-tip:** Zorg er bij het printen van de [Geared-telefoonstandaard](embed:geared-phone-stand-3Bl) voor dat je [extrusion multiplier](wiki:3D_printing#Fused_deposition_modeling) goed is gekalibreerd om te voorkomen dat de bewegende delen aan elkaar smelten.\n\nWat voor soort [filament](wiki:3D_printing_filament) (PLA, PETG, etc.) ben je van plan hiervoor te gebruiken? Ik kan je specifieke slicing-tips geven op basis van je materiaal!\n\n**Wat wil je nu doen?**\n- [Zoek naar meer 3D-modellen](/#settings/apps/models3d)\n- [Krijg 3D-printtips](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "Leer me de principes van responsive design"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "Namen voor sociale apps met gecontroleerde domeinen"
-      },
-      "summary": {
-        "text": "Vergelijk namen voor sociale apps op basis van gecontroleerde domeinbeschikbaarheid, registratie- en verlengingsprijzen en registratievoorwaarden."
-      },
-      "message_1": {
-        "text": "Ik zoek een naam voor een sociale app die mensen helpt contact te houden na een persoonlijke ontmoeting en nieuwe mensen te leren kennen. Beveel twee onderscheidende naamideeën aan. Controleer voor elk idee live de exacte .com-, .net- en .app-domeinen en beveel vervolgens alleen exacte domeinen aan waarvan de beschikbaarheid, registratieprijs, verlengingsprijs en beperkingen in die controles naar voren komen. Doe geen aannames over niet-gecontroleerde domeinen. Kies de sterkste naam op basis van de gecontroleerde resultaten."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\nHier zijn twee onderscheidende naamideeën, afgestemd op een app die gericht is op het koesteren van persoonlijke connecties en het uitbreiden van sociale kringen, samen met de live domeincontroles voor de exacte `.com`-, `.net`- en `.app`-extensies van elke naam.\n\n---\n\n### Idee 1: Kinloop\n* **Concept:** Combineert \"kin\" (gemeenschap, persoonlijke affiniteit, vertrouwde banden) met \"loop\" (de cirkel rondmaken na een eerste ontmoeting en connecties levend houden in een voortdurende kring).\n* **Live domeinverificatie:**\n  * **`kinloop.com`**: **Niet beschikbaar** ([ExampleRegistrar-controle](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **Niet beschikbaar** ([ExampleRegistrar-controle](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **Niet beschikbaar** ([ExampleRegistrar-controle](embed:shop.ExampleRegistrar.net-XJX))\n* **Aanbeveling:** Geen. Alle drie de exacte doeldomeinen zijn momenteel geregistreerd/niet beschikbaar, dus er kan geen exact domein worden aanbevolen voor deze naam.\n\n---\n\n### Idee 2: Orbitfolk\n* **Concept:** Roept het idee op om kennissen uit het echte leven in je persoonlijke baan te houden, terwijl je voortdurend nieuwe mensen (\"folk\") ontdekt en verwelkomt in je wereld.\n* **Live domeinverificatie:**\n  * **`orbitfolk.com`**: **Niet beschikbaar** ([ExampleRegistrar-check](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **Beschikbaar** ([ExampleRegistrar-check](embed:shop.ExampleRegistrar.net-cex))\n    * **Registratieprijs:** $12.99 / 1e jaar exclusief btw ($15.46 inclusief 19% btw; regulier tarief voor 1 jaar $18.78)\n    * **Verlengingsprijs:** $39.98 / jaar exclusief btw ($47.58 inclusief 19% btw voor termijnen van 1 jaar; $35.98/jr vóór btw voor termijnen van 2–9 jaar)\n    * **Beperkingen:** Geen gerapporteerd\n  * **`orbitfolk.app`**: **Beschikbaar** ([ExampleRegistrar-check](embed:shop.ExampleRegistrar.net-U3Z))\n    * **Registratieprijs:** $9.99 / 1e jaar exclusief btw ($11.89 inclusief 19% btw; regulier tarief voor 1 jaar $23.29)\n    * **Verlengingsprijs:** $47.98 / jaar exclusief btw ($57.10 inclusief 19% btw voor termijnen van 1 jaar; $43.18/jr vóór btw voor termijnen van 2–9 jaar)\n    * **Beperkingen:** Geen gerapporteerd\n\n---\n\n### Vergelijking & Sterkere Keuze\n\n**Orbitfolk** is de sterkere keuze:\n\n1. **Directe beschikbaarheid:** Hoewel `Kinloop` bezet is op alle drie de extensies, zijn van `Orbitfolk` zowel de `.app`- als de `.net`-versie direct beschikbaar voor registratie.\n2. **Product-fit:** Omdat dit een mobiel sociaal product is, biedt **`orbitfolk.app`** een strakke, doelgerichte domeinextensie die het producttype direct aan gebruikers communiceert.\n\n---\n\n### Volgende stappen\n\n* [Ontdek meer naamvariaties rond sociale banen](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [Stel de onboarding-flow op voor persoonlijke ontmoetingen](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "Zoek beschikbare domeinnamen voor een ander idee voor een sociale app"
-      },
-      "follow_up_2": {
-        "text": "Leg uit waarom de .app-domeinextensie effectief is voor mobiele apps"
-      },
-      "follow_up_3": {
-        "text": "Controleer de beschikbaarheid van domeinen voor drie alternatieve merknamen"
-      },
-      "follow_up_4": {
-        "text": "Vergelijk .net- en .app-domeinextensies voor consumentenapplicaties"
-      },
-      "follow_up_5": {
-        "text": "Controleer de prijzen en beschikbaarheid van domeinen voor de naam AppFolk"
-      },
-      "follow_up_6": {
-        "text": "Suggereer drie extra branding-invalshoeken voor deze sociale verbindings-app"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "Will Stephens satirische TED-talk analyseren"
-      },
-      "summary": {
-        "text": "Vatte Will Stephens satirische TEDx-talk over spreken in het openbaar samen in vijf komische kernargumenten."
-      },
-      "message_1": {
-        "text": "Haal het transcript van deze TED-talk op en vat het kernargument samen in vijf opsommingstekens: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nDe video is Will Stephens satirische TEDx-presentatie, *\"How to sound smart in your TEDx Talk\"* (bekijk talk).\n\nIn plaats van een informatieve lezing te geven, gebruikt Stephen meta-humor om de conventies van keynote [spreken in het openbaar](wiki:Public_speaking) te deconstrueren. Hier is het kernargument samengevat in vijf punten:\n\n* **Voordracht creëert de illusie van inhoud:** Tempo, bewuste handgebaren, dramatisch oogcontact en fysieke rekwisieten (zoals een bril zonder sterkte) kunnen een publiek ervan overtuigen dat een spreker briljant is, zelfs als diegene niets waardevols te zeggen heeft.\n* **Interactie op het podium is uiterst formulematig:** Bekende interactieve stijlmiddelen — zoals het stellen van retorische vragen, het vragen om handen op te steken en het vertellen van zelfspot-anekdotes — zijn berekende podiumtechnieken die zijn ontworpen om kunstmatige warmte en geloofwaardigheid te creëren.\n* **Datavisualisaties zorgen voor onverdiende autoriteit:** Het tonen van willekeurige getallen, eenvoudige rekenkunde en grafieken zonder context maakt misbruik van visuele vooroordelen, waardoor een presentatie er grondig onderzocht uitziet, zelfs als de gegevens totaal irrelevant zijn.\n* **Publiek projecteert betekenis op onzin:** Door een ernstige stemcadans en suggestieve stockfoto's te combineren met letterlijk gebrabbel, kunnen sprekers luisteraars aanzetten om onbewust te zoeken naar — en zich een voorstelling te maken van — diepzinnige verbanden waar deze niet bestaan.\n* **Emotionele crescendo's kunnen worden gefabriceerd:** Het opbouwen van stemintensiteit, vertragen tot een fluistering en dramatisch pauzeren bootsen het ritme van een openbaring na, wat bewijst hoe gemakkelijk het gevoel van inspiratie kan worden gemanipuleerd zonder enig onderliggend inzicht."
-      },
-      "follow_up_1": {
-        "text": "Zoek naar andere populaire satirische presentaties op YouTube"
-      },
-      "follow_up_2": {
-        "text": "Leg de geschiedenis van het TEDx-formaat en de culturele impact ervan uit"
-      },
-      "follow_up_3": {
-        "text": "Vind online masterclass-tutorials over spreken in het openbaar"
-      },
-      "follow_up_4": {
-        "text": "Analyseer de specifieke lichaamstaaltechnieken die door beroemde keynote-sprekers worden gebruikt"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar analysevideo's over retorische technieken"
-      },
-      "follow_up_6": {
-        "text": "Lijst met tips voor het overwinnen van plankenkoorts tijdens het spreken in het openbaar"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "U bent een programmeerexpert."
       }
     },
-    "health_health_insights": {
-      "text": "Gezondheidsinzichten",
-      "description": {
-        "text": "Krijg gezondheidsinzichten en vind de juiste arts."
-      },
-      "systemprompt": {
-        "text": "U bent een gezondheidsexpert."
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "Doktersafspraak voorbereiden",
-      "description": {
-        "text": "Bereid voor wat je bij de arts wilt bespreken."
-      },
-      "process": {
-        "text": "- bespreekt welke symptomen men de afgelopen weken en maanden had, ook als er geen verbanden zichtbaar zijn\n- bespreekt welke testresultaten/documenten verzameld moeten worden voor de volgende afspraak"
-      },
-      "systemprompt": {
-        "text": "U bent een gezondheidsexpert."
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "Doktersrapport voorbereiden",
-      "description": {
-        "text": "Maak een rapport voor je volgende doktersbezoek."
-      }
-    },
     "jobs_career_insights": {
       "text": "Carrière-inzichten",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "Toekomstgesprek",
       "description": {
         "text": "Een krachtige levenscoachingtechniek."
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "Doktersrapport voorbereiden",
+      "description": {
+        "text": "Maak een rapport voor je volgende doktersbezoek."
+      }
+    },
+    "health_health_insights": {
+      "text": "Gezondheidsinzichten",
+      "description": {
+        "text": "Krijg gezondheidsinzichten en vind de juiste arts."
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "Doktersafspraak voorbereiden",
+      "description": {
+        "text": "Bereid voor wat je bij de arts wilt bespreken."
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "Content-kalender strategist",
       "description": {
         "text": "Maak een 30-dagen social media-contentplan."
+      },
+      "systemprompt": {
+        "text": "Treed op als professionele Social Media Strateeg. Gebruik de onderstaande invoer om een 30-dagencontentkalender te genereren gericht op het bereiken van het Hoofddoel.\n\nVoer eerst een korte interne onderzoeks- en strategiestap uit met behulp van uw bestaande kennis en, indien beschikbaar, live webgegevens voor dit Onderwerp/Niche en Doelgroep. Verduidelijk de belangrijkste pijnpunten en wensen van het publiek, de soorten berichten en hooks die goed presteren in deze niche, en relevante huidige trends. Gebruik deze inzichten alleen om de kalender te sturen, maak ze NIET afzonderlijk zichtbaar.\n\nDe uitvoer MOET een Markdown-tabel zijn met precies deze kolommen (en niets anders): Dag #, Datum, Thema/Pijler, Platform, Inhoudsidee, Oproep tot Actie (CTA).\n\nKalenderrichtlijnen:\n- Maak precies 30 rijen, één voor elke opeenvolgende kalenderdag vanaf de Startdatum, met echte datums in oplopende volgorde.\n- Het Thema/Pijler in elke rij moet een van de opgegeven Inhoudspijlers zijn, met een redelijk evenwichtige mix over de 30 dagen.\n- De kolom Platform moet het Publicatieschema volgen. Als er voor een bepaalde dag meerdere platforms zijn opgegeven, maak dan één rij per platform.\n\nInhoudsrichtlijnen:\n- Elk Inhoudsidee moet het berichttype vermelden (bijv. Reel, carrousel, statisch bericht, story, live, poll, LinkedIn tekstbericht) en een duidelijke, scroll-stoppende hook bevatten die is afgestemd op de Doelgroep.\n- Elke CTA moet specifiek, actiegericht zijn en het Hoofddoel direct ondersteunen (bijv. \"Download de gratis gids\", \"Boek een gesprek\", \"Meld je aan voor de nieuwsbrief\", \"Reageer met je vraag #1\").\n- Varieer formats en invalshoeken gedurende de 30 dagen (bijv. educatief, storytelling, achter de schermen, FAQ's, bezwaren, sociaal bewijs, betrokkenheidsprompts) om herhaling te vermijden.\n- Zorg ervoor dat elk idee duidelijk verbonden is met de belangrijkste pijnpunten en wensen van de Doelgroep en is afgestemd op het Hoofddoel.\n\nInvoer (vul dit in voordat u de prompt uitvoert):\n* Onderwerp/Niche: [Voer hier uw Onderwerp/Niche in]\n* Doelgroep: [Voer hier uw Doelgroep in, inclusief belangrijkste pijnpunten en wensen indien bekend]\n* Hoofddoel: [Voer hier uw Hoofddoel in, bijv. e-maillijst laten groeien / verkopen stimuleren / autoriteit opbouwen]\n* Publicatieschema: [Voer hier uw Publicatiefrequentie en Platform in, bijv. 5x/week op IG Reels + 3x/week op LinkedIn]\n* Inhoudspijlers: [Voer hier uw 3–5 Inhoudspijlers in, gescheiden door komma's]\n* Startdatum: [Voer de eerste datum van uw kalender in, bijv. 18 november 2025]\n\nGeef alleen de uiteindelijke Markdown-tabel weer. Voeg GEEN uitleg, notities of tekst buiten de tabel toe."
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube (videotranscripties)"
+              "text": "YouTube (videometadata)"
             },
             "description": {
-              "text": "YouTube wordt geraadpleegd wanneer je OpenMates vraagt om een transcriptie van een YouTube-video op te halen. YouTube ontvangt video-URL's en gevraagde taalvoorkeuren voor transcripties zonder een OpenMates-gebruikers-ID."
+              "text": "Om openbare video- en kanaalmetadata op te halen, stuurt OpenMates video- en kanaal-ID’s naar de officiële YouTube Data API. YouTube ontvangt deze ID’s en de netwerkinformatie van onze server, zonder een OpenMates-gebruikers-ID."
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."
+    },
+    "privacy_description": {
+      "text": "Mistral transcribeert je microfoonaudio; ElevenLabs v4 Turbo maakt de assistentstem op basis van antwoordtekst en steminstellingen. Het gesprek gebruikt de normale AI-routering en vaardigheden van OpenMates. Aanbieders kunnen aanvraaggegevens bewaren volgens hun eigen beleid."
+    },
+    "privacy_terms": {
+      "text": "Privacybeleid van OpenMates"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "Leden in onze Discord krijgen"

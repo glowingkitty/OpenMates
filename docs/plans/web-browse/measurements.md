@@ -391,12 +391,32 @@ are now closed. The unresolved legacy accounting receipt remains preserved.
    well before its settled spending reaches the session cap. Report insufficient
    operation headroom distinctly from exhausted actual spend.
 
+## Web embed implementation (2026-10-27)
+
+The user explicitly authorized continuing web embeds while Rust SDK parity is
+unavailable. CLI and direct npm/Python execution and settlement are verified as
+recorded above. Rust remains deferred, rather than implemented or verified.
+
+The candidate adds Browse preview/fullscreen routing (including grouped embeds),
+actual task outcomes, lossless saved JSON, encrypted early session identity,
+owner-only live frames, watch/takeover, contextual sign-in consent, normal-chat
+continuation with the same session and spending limit, and pause/close controls.
+Account/view changes abort requests and release private frame URLs. Viewing does
+not resume compute or extend inactivity. All 21 locales have control labels and
+privacy/lifecycle guidance; the exact continuation instruction retains its English
+machine field names in every locale.
+
+Local focused verification: 26 frontend unit tests and five dispatch tests pass.
+The three Browse components compile. The repository-wide Svelte check reports
+521 existing errors elsewhere; no Browse component/service error was reported.
+Isolated component/browser CI and actual deployed takeover remain pending. This
+candidate has not yet established first-visible-frame latency or end-to-end UI
+performance. Do not substitute the earlier provider provisioning measurements for
+those user-visible measurements.
+
 ## Remaining acceptance
 
-CLI/npm extraction, final settlement and cross-SDK closed-session replay are
-verified on the deployed version. Fresh Python execution, the correction's
-isolated CI/deployment and broader permitted-task acceptance remain pending.
-Rust parity is unavailable until the separate Rust migration
-lands or the user explicitly defers that phase prerequisite. Web screenshot embeds,
-watch/takeover/private sign-in/continuation and laptop/mobile proof follow the CLI
-and required SDK gate. Workflow verification follows the regular skill and embeds.
+Complete isolated component proof, authenticated web flows, dev deployment and
+reviewed laptop/mobile evidence, followed by the two real app-store examples.
+Workflow verification follows delivery of the regular skill and embeds. Rust SDK
+parity remains explicitly deferred by the user’s 2026-10-27 decision.

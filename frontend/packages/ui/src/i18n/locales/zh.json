@@ -1829,7 +1829,7 @@
       "search": {
         "text": "Search jobs",
         "description": {
-          "text": "Find current jobs from public employment sources in Germany and Sweden."
+          "text": "通过 JobTech 搜索瑞典的公开职位信息。"
         },
         "how_to_use": {
           "1": {
@@ -2394,7 +2394,7 @@
       "get_transcript": {
         "text": "获取转录",
         "description": {
-          "text": "获取YouTube / media.ccc.de视频的转录。"
+          "text": "获取 media.ccc.de 演讲已发布的字幕。"
         },
         "how_to_use": {
           "1": {
@@ -2459,6 +2459,12 @@
           "3": {
             "text": "阅读维基百科关于罗马帝国的页面并告诉我关键事实"
           }
+        }
+      },
+      "browse": {
+        "text": "浏览",
+        "description": {
+          "text": "浏览网站并以 JSON 返回观察到的信息。"
         }
       }
     },
@@ -2534,7 +2540,7 @@
     "hosting": {
       "text": "主机托管",
       "description": {
-        "text": "查找域名并查看可用性和价格。"
+        "text": "域名搜索目前不可用。"
       },
       "skills": {
         "search_domains": {
@@ -2562,7 +2568,7 @@
     "mail": {
       "text": "邮政",
       "description": {
-        "text": "发送、管理和撰写电子邮件。"
+        "text": "起草电子邮件并处理邮件。"
       }
     },
     "life_coaching": {
@@ -2580,7 +2586,7 @@
     "videos": {
       "text": "视频",
       "description": {
-        "text": "搜索视频、获取转录等。"
+        "text": "查找并创建视频。"
       }
     },
     "tv": {
@@ -2592,7 +2598,7 @@
     "travel": {
       "text": "旅行",
       "description": {
-        "text": "搜索住宿、交通并规划旅行。"
+        "text": "规划行程并保存旅行信息。"
       }
     },
     "study": {
@@ -2610,7 +2616,7 @@
     "electronics": {
       "text": "Electronics",
       "description": {
-        "text": "Find components and design electronic circuits."
+        "text": "电子元件搜索目前不可用。"
       }
     },
     "nutrition": {
@@ -2660,7 +2666,7 @@
     "home": {
       "text": "住房",
       "description": {
-        "text": "搜索新家及更多。"
+        "text": "保存住房信息。"
       }
     },
     "fitness": {
@@ -2744,7 +2750,7 @@
     "events": {
       "text": "活动",
       "description": {
-        "text": "发现聚会、会议和本地活动。"
+        "text": "保存活动信息。"
       },
       "search": {
         "text": "搜索",
@@ -2882,7 +2888,7 @@
     "models3d": {
       "text": "3D Models",
       "description": {
-        "text": "Generate 3D models from prompts or reference images."
+        "text": "查看已保存的3D模型。"
       }
     },
     "math": {
@@ -2900,7 +2906,7 @@
     "shopping": {
       "text": "购物",
       "description": {
-        "text": "比较超市价格，找到优惠。"
+        "text": "商品搜索目前不可用。"
       }
     },
     "weather": {
@@ -8140,6 +8146,119 @@
           }
         }
       }
+    },
+    "browse": {
+      "title": {
+        "text": "浏览"
+      },
+      "running": {
+        "text": "正在浏览"
+      },
+      "user_control": {
+        "text": "你拥有控制权"
+      },
+      "paused": {
+        "text": "已暂停"
+      },
+      "completed": {
+        "text": "已完成"
+      },
+      "no_results": {
+        "text": "无结果"
+      },
+      "needs_user": {
+        "text": "需要你的输入"
+      },
+      "blocked": {
+        "text": "已阻止"
+      },
+      "failed": {
+        "text": "失败"
+      },
+      "cancelled": {
+        "text": "已取消"
+      },
+      "budget_exceeded": {
+        "text": "已达消费上限"
+      },
+      "closed": {
+        "text": "浏览器已关闭"
+      },
+      "expired": {
+        "text": "会话已过期"
+      },
+      "unavailable": {
+        "text": "浏览器不可用"
+      },
+      "watch": {
+        "text": "查看浏览器"
+      },
+      "take_control": {
+        "text": "接管控制"
+      },
+      "continue": {
+        "text": "让 AI 继续"
+      },
+      "pause": {
+        "text": "暂停"
+      },
+      "close": {
+        "text": "关闭浏览器"
+      },
+      "sign_in_title": {
+        "text": "登录前须知"
+      },
+      "sign_in_confirm": {
+        "text": "继续登录"
+      },
+      "saved_frame": {
+        "text": "已保存的浏览器截图"
+      },
+      "live_frame": {
+        "text": "实时浏览器"
+      },
+      "waiting_frame": {
+        "text": "正在等待浏览器…"
+      },
+      "text_input": {
+        "text": "发送到网站的文字"
+      },
+      "send_text": {
+        "text": "发送文字"
+      },
+      "scroll_up": {
+        "text": "向上滚动"
+      },
+      "scroll_down": {
+        "text": "向下滚动"
+      },
+      "structured_data": {
+        "text": "结构化数据"
+      },
+      "connection_error": {
+        "text": "连接中断。请刷新后再进行操作。"
+      },
+      "credits": {
+        "text": "{used} / {limit} 积分"
+      },
+      "continue_message": {
+        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+      },
+      "sign_in_notice": {
+        "text": "你正在登录云端浏览器。允许 AI 继续后，它可以访问此账户中的信息。相关页面内容可能会发送给我们的 AI 服务商。请仅登录你愿意允许 AI 访问的账户。"
+      },
+      "manual_hint": {
+        "text": "点击页面，或使用 Tab 和 Enter 导航。文字只发送到此网站，发送后会从此输入框清除。"
+      },
+      "paused_hint": {
+        "text": "浏览器已暂停，不产生计算费用。接管控制以继续。24 小时无交互后，会话将被删除。"
+      },
+      "watch_hint": {
+        "text": "你正在观看。接管控制后可与网站交互。观看不会延长会话活动时间。"
+      },
+      "stopping": {
+        "text": "正在停止…"
+      }
     }
   },
   "embeds_input": {},
@@ -8692,52 +8811,6 @@
         "text": "比较这两个角色的日常职责和成长路径"
       }
     },
-    "ai_workshops_meetups_berlin": {
-      "title": {
-        "text": "AI Workshops and Meetups in Berlin"
-      },
-      "summary": {
-        "text": "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-      },
-      "message_1": {
-        "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_retail_germany": {
-      "title": {
-        "text": "比较德国的空气炸锅"
-      },
-      "summary": {
-        "text": "比较了德国亚马逊上热门空气炸锅的价格、容量和评分，并为两人家庭推荐了飞利浦 2000 系列空气炸锅。"
-      },
-      "message_1": {
-        "text": "查找我在德国可以在线购买的空气炸锅，包括亚马逊上的商品。比较当前的价格、容量和评价等级，然后为两人家庭推荐一款，并附上来源链接。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n以下是目前在德国亚马逊上热销的空气炸锅对比，涵盖了价格、容量和客户评分。\n\n---\n\n### 德国热门型号对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 两人家庭首选推荐\n\n#### **首选：[飞利浦 2000 系列空气炸锅 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **为什么它最适合两人：**\n  * **最佳容量 (6.2 L)：** 小于 4.5–5 L 的炸篮即使是两人份也需要分批烹饪。6.2 L 的炸篮可以让你平铺两块三文鱼排和一整份蔬菜或薯条，确保受热均匀、口感酥脆。\n  * **厨房占用空间：** 双篮机型（如 Ninja 或 Russell Hobbs）会占用大量的台面空间。单篮 6 L 炸锅在提供充足容量的同时，保持了紧凑的外形，适合典型的德国厨房台面。\n  * **透明视窗：** 无需拉开抽屉即可查看上色情况，避免热量流失。\n  * **性价比：** 售价 99.99 欧元，以合理的价格提供了来自[飞利浦](wiki:Philips)可靠的控温性能。\n\n#### **备选（如果你经常以不同温度烹饪两道菜）：[飞利浦 3000 系列双篮空气炸锅 (9.0L)](embed:philips-airfryer-dual-pjD)**\n如果你和伴侣喜欢同时以不同的温度和时间准备主食和配菜（例如，180 °C 烤鸡胸肉和 200 °C 炸薯条），这款型号目前折扣价为 119.99 欧元，并具有同步烹饪功能。\n\n---\n\n### 购买前需考虑的关键因素\n1. **炸篮形状：** 方形炸篮（如 Cosori 和飞利浦）比同等升数的圆形炸篮更能容纳扁平食物（牛排、烤盘、串烧）。\n2. **洗碗机空间：** 确保你的洗碗机架高度足以容纳 6 L 的单抽屉，或者考虑手洗非粘涂层以延长其使用寿命。"
-      },
-      "follow_up_1": {
-        "text": "搜索专为空气炸锅设计的食谱"
-      },
-      "follow_up_2": {
-        "text": "解释单篮和双篮空气炸锅的主要区别"
-      },
-      "follow_up_3": {
-        "text": "寻找适用于这款空气炸锅的烘焙配件"
-      },
-      "follow_up_4": {
-        "text": "列出适合初学者的空气炸锅晚餐食谱"
-      },
-      "follow_up_5": {
-        "text": "查看这些型号的当前能耗等级"
-      },
-      "follow_up_6": {
-        "text": "比较陶瓷涂层与特氟龙涂层的清洁和维护要求"
-      }
-    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II 任务亮点与探索"
@@ -8894,38 +8967,6 @@
         "text": "[code] 创建一个类似的模板但采用不同的设计风格"
       }
     },
-    "beginner_yoga_classes_berlin": {
-      "title": {
-        "text": "柏林初学者瑜伽课程"
-      },
-      "summary": {
-        "text": "查找柏林的三家适合初学者的瑜伽课，包含时间、价格和预订链接。"
-      },
-      "message_1": {
-        "text": "我是瑜伽初学者，想在下周参加柏林的初学者友好课程。你能帮我找几节课，并提供时间、价格和预订链接吗？"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n以下是下周在柏林各地举行的适合初学者的[瑜伽](wiki:Yoga)课程：\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [接地瑜伽](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **课程简介：** 一门正念课程，平衡了呼吸引导的动作与持式，旨在探索身体对齐与宁静。专为初学者设计（英语授课）。\n- **日期与时间：** 2026年10月14日，星期三，18:00 – 19:00 CEST（请提前10分钟到达）\n- **地点：** Art OM, Wrangelstraße 54, 10997 Berlin ([克罗伊茨贝格](wiki:Kreuzberg))\n- **价格：** €11.83 – €22.49\n- **预订：** [在 ExampleTickets 上购票](embed:yoga-for-grounding-TB2)\n\n### 2. [柔韧性瑜伽与可选抱石](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **课程简介：** 一节非正式、放松的适合各水平的柔韧性与瑜伽课，动作流程会以温和的节奏逐步讲解。无需柔韧性基础或经验。\n- **日期与时间：** 2026年10月13日，星期二，19:00 – 19:45 CEST（请提前15分钟到达）\n- **地点：** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([腓特烈斯海恩](wiki:Friedrichshain))\n- **价格：** €5（如果同时参加抱石，使用 ExampleFitness / Wellpass 可免费入场）\n- **预订：** [查看详情及预订链接](embed:mobility-yoga-optional-qv3)\n\n### 3. [流瑜伽](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **课程简介：** 一节充满活力且温和的流瑜伽 (Vinyasa) 课，为初学者提供动作调整建议，专注于呼吸意识、身体对齐和压力释放。\n- **日期与时间：** 2026年10月14日，星期三，19:30 – 21:00 CEST\n- **地点：** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [米特区](wiki:Mitte))\n- **价格：** 首节体验课 €10（入门套餐：3 节课 €20）\n- **预订：** [通过 Berlin Yoga Club Gathering 报名](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 初次参加瑜伽课的小贴士\n* **着装：** 穿着舒适、有弹性的衣物，方便活动和弯曲。瑜伽通常赤脚练习。\n* **补水与饮食：** 课前 1.5–2 小时内避免饱食。\n* **倾听身体的声音：** 课前告知老师这是你第一次参加；他们会很乐意向你展示如何使用辅助具（瑜伽砖、毯子或拉伸带）并进行调整。如果你有既往的关节或背部问题，在尝试动态序列前请咨询医生或理疗师。\n\n你是否需要更靠近特定社区（如 Neukölln、Prenzlauer Berg、Charlottenburg）的推荐，或者更倾向于温和的风格，如[哈他瑜伽](wiki:Hatha_yoga)或[阴瑜伽](wiki:Yin_yoga)？\n---\n*⚠️ 此信息仅供参考，不构成医疗建议。医疗决策请咨询医生。*"
-      },
-      "follow_up_1": {
-        "text": "搜索柏林新克尔恩区 (Neukölln) 的瑜伽课"
-      },
-      "follow_up_2": {
-        "text": "说明第一节瑜伽课会有哪些内容"
-      },
-      "follow_up_3": {
-        "text": "查找下周末的哈他瑜伽工作坊"
-      },
-      "follow_up_4": {
-        "text": "对比流瑜伽 (Vinyasa) 和哈他瑜伽 (Hatha) 的风格"
-      },
-      "follow_up_5": {
-        "text": "搜索米特区 (Mitte) 的阴瑜伽工作室"
-      },
-      "follow_up_6": {
-        "text": "列出购买瑜伽垫的初学者建议"
-      }
-    },
     "berlin_ai_founder_meetups_map": {
       "title": {
         "text": "Berlin AI founder meetups map"
@@ -8938,38 +8979,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
-      }
-    },
-    "berlin_english_speaking_gp_appointments": {
-      "title": {
-        "text": "在柏林寻找说英语的全科医生"
-      },
-      "summary": {
-        "text": "查找包含真实保险详情和诊所链接的预约选项。"
-      },
-      "message_1": {
-        "text": "我下周需要在柏林预约一位说英语的全科医生（GP）。请对比最早的可选时段，显示他们的预约卡片，并仅在预约列表中确认保险覆盖范围时才说明。如果覆盖范围不明确，请如实说明。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\n以下是我为您找到的未来 7 天内柏林最早的英语全科医生 (GP) 预约选项。我仅在预约列表中明确注明保险覆盖范围的情况下才列出该信息。\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**下周最早的选项**\n1. **10 月 12 日周一, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 地址: Albert-Einstein-Straße 2, 12489 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 私立保险 *(列表已确认)*\n\n2. **10 月 12 日周一, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 地址: Kapweg 5, 13405 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 英语\n   - **保险:** 私立保险 *(列表已确认)*\n\n3. **10 月 12 日周一, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 地址: Stargarder Straße 69, 10437 Berlin\n   - 就诊类型: Akutsprechstunde (急诊门诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n4. **10 月 12 日周一, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 地址: Müllerstraße 36, 13353 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n5. **10 月 12 日周一, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 地址: Wallstraße 16, 10179 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n几点说明：\n- 我在上述对比中排除了 **10 月 9 日至 10 日** 的两个更早选项，因为您特别要求的是 **下周**。\n- 这些结果似乎来自 ExampleClinicA 列表；本次搜索结果集中不支持 ExampleClinicB 的覆盖范围。\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\n如果您需要，我接下来可以：\n- 将范围缩小到已确认的 **仅限公立保险**，或者\n- 根据 **所在地区/距离** 创建一份精简名单。\n---\n*⚠️ 本信息仅供参考，不构成医疗建议。医疗决策请咨询您的医生。*"
-      },
-      "follow_up_1": {
-        "text": "在米特区 (Mitte) 搜索公立保险全科医生预约"
-      },
-      "follow_up_2": {
-        "text": "筛选预约，仅显示公立保险"
-      },
-      "follow_up_3": {
-        "text": "在普伦茨劳贝格区 (Prenzlauer Berg) 附近寻找说英语的医生"
-      },
-      "follow_up_4": {
-        "text": "按街区和距离缩小选项范围"
-      },
-      "follow_up_5": {
-        "text": "在柏林搜索专科医生预约"
-      },
-      "follow_up_6": {
-        "text": "说明如何在线预约这些医生"
       }
     },
     "berlin_mitte_work_friendly_restaurants": {
@@ -9080,20 +9089,6 @@
       },
       "follow_up_6": {
         "text": "比较格森星人与欧安卡利人的外星生物特征"
-      }
-    },
-    "buck_converters_24v_5v": {
-      "title": {
-        "text": "Buck converters for 24V to 5V"
-      },
-      "summary": {
-        "text": "Find TI buck converter options for a 24V-to-5V electronics project."
-      },
-      "message_1": {
-        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9500,38 +9495,6 @@
         "text": "说明如何针对 Web 性能优化 SVG 文件"
       }
     },
-    "deutschlandticket_train_fare_breakdown": {
-      "title": {
-        "text": "Deutschlandticket train fare breakdown"
-      },
-      "summary": {
-        "text": "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
-      },
-      "message_1": {
-        "text": "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
-      },
-      "message_2": {
-        "text": "[!](embed:699e7331-5148-486a-947b-0d7b7f480aab)\n\nHere are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):\n\n* [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)\n* [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)\n* [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)\n* [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)\n* [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)\n\nWould you like to check connections for a different departure time, or see details on any specific transfer station?"
-      },
-      "follow_up_1": {
-        "text": "Find local attractions in Munich"
-      },
-      "follow_up_2": {
-        "text": "Explain the benefits of regional trains"
-      },
-      "follow_up_3": {
-        "text": "Search for hotels near Munich Hbf"
-      },
-      "follow_up_4": {
-        "text": "List things to do during long train rides"
-      },
-      "follow_up_5": {
-        "text": "Compare regional train prices with ICE"
-      },
-      "follow_up_6": {
-        "text": "Help me plan activities in Munich"
-      }
-    },
     "email_verification_sequence_diagram": {
       "title": {
         "text": "Email Verification Sequence Diagram"
@@ -9628,50 +9591,6 @@
         "text": "Explain the cash-flow trend"
       }
     },
-    "find_brand_name_and_domain": {
-      "title": {
-        "text": "寻找品牌名称和域名"
-      },
-      "summary": {
-        "text": "一次简洁的命名对话：头脑风暴七个候选方案，然后根据域名、网络信息和初步的美国商标证据对比两个最终入围方案。"
-      },
-      "message_1": {
-        "text": "帮我给我的新产品起个名字。"
-      },
-      "message_2": {
-        "text": "在开始之前，请问你的产品是做什么的？目标受众是谁？以及你希望这个名字传达什么样的基调或感觉（例如：俏皮、高端、专业）？"
-      },
-      "message_3": {
-        "text": "这是一款面向美国自由职业者的冷静理财应用，使用英文。我想要简短、好记的名字，并且 .com 域名的价格在每年 20 欧元以内。请先帮我头脑风暴出一份多样化的候选名单。"
-      },
-      "message_4": {
-        "text": "这是一份初步的候选名单，包含各种易读的名字，专为冷静的自由职业理财体验而设计：\n\n- [ ] **Serenito**：让人联想到宁静和温和的节奏，适合波动较大的个人收入。\n- [ ] **Solowell**：暗示财务健康，为个体创业者带来内心的平静。\n- [ ] **Equafy**：专注于平衡不规则的收入周期。\n- [ ] **StillLedger**：将经典的会计结构与正念、低压力的宁静相结合。\n- [ ] **Cadenceo**：暗示从零散的零工报酬中建立稳定、可预测的节奏。\n- [ ] **HavenFin**：将资金管理定义为一个安全、令人放心的港湾。\n- [ ] **Placidly**：柔和、令人安心的基调，缓解财务焦虑。\n\n*（注意：此名单尚未经过实时域名可用性或法律清障检查。）*\n\n你想对哪 2-3 个名字进行实时检查？你可以挑选你喜欢的，或者让我选出最终入围的名字，以核实 .com 价格、品牌冲突和美国商标。\n\n- [检查 Serenito、Solowell 和 Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [帮我选出最好的 3 个并进行检查](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
-      },
-      "message_5": {
-        "text": "请检查 Equafy 和 Cadenceo：它们的 .com 可用性和报价、网络上的现有品牌以及美国商标。请保持对比简洁，并给出你的建议以及任何尚待检查的事项。"
-      },
-      "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n以下是基于 2026 年 10 月 12 日检查结果的对比分析：\n\n### Equafy\n- **域名**：`equafy.com` 目前在 ExampleRegistrar 上不可用；没有标准注册价格，因此不符合每年 20 欧元的预算。\n- **网络与品牌概况**：没有知名的预算软件使用这个确切名称，但网络搜索显示其发音与 [Equifax 个人金融服务](embed:equifax.com-TrW) 高度相似，容易产生搜索混淆。\n- **美国商标 (ExampleTrademarks)**：初步搜索返回了 1,640 条相似记录中的 5 条（已截断；无法确定是否存在完全相同的名称）。活跃的匹配项包括第 36 类中的 `EQUIFY`（待定的金融和储值服务）以及第 35 类（已注册的拍卖服务）。\n\n### Cadenceo\n- **域名**：`cadenceo.com` 目前在 ExampleRegistrar 上不可用；没有标准注册价格，不符合每年 20 欧元的预算。\n- **网络与品牌概况**：与 [Cadence Money](embed:cadencemoney.com-IcE) 直接重合，后者是一款成熟的个人理财和预算追踪应用，在美国和加拿大的 iOS、Android 及 Web 端运营。\n- **美国商标 (ExampleTrademarks)**：初步搜索返回了 227 条相似记录中的 5 条（已截断；无法确定是否存在完全相同的名称）。`CADENCE` 的活跃匹配项包括第 9 类可下载软件记录。\n\n---\n\n### 建议与权衡\n- **方向**：两者均不建议。虽然 **Equafy** 的直接应用冲突比 **Cadenceo**（与 *Cadence Money* 直接冲突）少，但两者都无法在 20 欧元预算内提供可用的 `.com` 域名，且 Equafy 与现有的金融商标（如 *Equify* 和 *Equifax*）存在发音混淆。\n- **缺失的检查**：未检查美国以外的国际商标注册情况、普通法州商标备案以及二级市场域名收购估值。\n\n你是否想测试其他候选方案（如 **Solowell** 或 **StillLedger**）的域名可用性和合规性，或者探索一些复合词变体，以寻找预算内可用的 `.com` 域名？\n\n- [检查 Solowell 和 StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [集思广益 20 欧元以下可用 .com 的复合名称](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
-      },
-      "follow_up_1": {
-        "text": "检查 Solowell 和 StillLedger 的域名可用性和商标情况"
-      },
-      "follow_up_2": {
-        "text": "集思广益，寻找 20 欧元以下且有可用 .com 域名的复合名称"
-      },
-      "follow_up_3": {
-        "text": "查询即将推出的预算应用名称创意的商标记录"
-      },
-      "follow_up_4": {
-        "text": "比较个人创业者应用的品牌和命名策略"
-      },
-      "follow_up_5": {
-        "text": "搜索自由职业财务应用的可用域名后缀"
-      },
-      "follow_up_6": {
-        "text": "列出提供经济实惠初创公司域名的备选域名注册商"
-      }
-    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "柏林至曼谷的航班"
@@ -9702,50 +9621,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] 推荐曼谷的经济实惠住宿"
-      }
-    },
-    "furnished_apartments_berlin": {
-      "title": {
-        "text": "柏林带阳台的公寓"
-      },
-      "summary": {
-        "text": "比较真实的柏林公寓房源、完整相册、阳台证明和地图位置，并清晰标注未确认的费用和临水情况。"
-      },
-      "message_1": {
-        "text": "我正在柏林寻找一套带阳台的待租公寓，最好靠近河流或湖泊，月租最高 1,800 欧元，且至少有两个房间。你能对比几个房源及其相册和地图位置吗？请区分房源中已确认的信息和未知信息，包括租金、租期和临水情况。如果房东只提供了大致位置或不完整的照片，请说明。在某些细节缺失的情况下，欢迎提供标注清晰的可能性。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\n以下是柏林月租 1,800 欧元以下、带阳台且靠近或声称靠近水源的二居室出租公寓对比分析，重点说明已确认的事实与不明确之处：\n\n柏林带阳台的二居室出租公寓\n\n---\n\n### 摘要对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### 详细房源概况\n\n#### 1. [环线铁路附近带阳台的二居室阁楼公寓](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **租金与费用**：总暖租明确标注为**每月 1,350 欧元**，包括 1,200 欧元的冷租和 150 欧元的未指明杂费。未明确列出是否包含暖气费。押金为 2,000 欧元。\n* **租赁条款**：固定期限转租。结构化数据显示租期为 2026 年 11 月 1 日至 2027 年 4 月 1 日，但房源描述澄清，保证的固定期限为 **2026 年 11 月 1 日至 12 月 28 日**，之后经双方同意可按月灵活延长至 2027 年 4 月 1 日。\n* **阳台证明**：已确认。在设施和文本中均有明确列出（“可欣赏 Fennpfuhl 公园美景的阳光阳台”）。视觉评估抽样检查了 14 张图库照片中的 3 张，确认照片索引 0 中可见阳台。\n* **水源距离与位置**：位于 Lichtenberg 的 Anton-Saefkow-Platz。地理编码匹配到了街道级别（无具体门牌号）。OpenStreetMap 数据确认了水域（**Fennpfuhl**，一个公园湖泊），但仅作为代表性的点坐标；未计算确切的岸边距离和步行时间，因此无法核实。\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **租金与费用**：广告价格为全包价**每月 1,800 欧元**（冷租和暖租均输入为 1,800 欧元）。杂费、暖气费和电费未逐项列出。押金为 1,000 欧元。\n* **租赁条款与范围差异**：\n  * *日期冲突*：结构化字段显示租期为 2026 年 10 月 21 日至 2027 年 5 月 3 日。然而，德语文本明确指出从 11 月 11 日开始，租期为 2 个月，而房源下方的英语翻译则称“从 11 月 6 日起，租期 4-6 个月”。\n  * *房间限制*：房源指出房东的一个内部房间（*Sperrraum*）将保持锁定，不包含在租赁范围内，不过剩余的可使用空间被描述为分布在 85 平方米内的两个房间。\n* **阳台证明**：已确认。广告称有两个阳台（一个朝向庭院，一个朝向水面）。抽样照片（15 张中的 3 张）确认了照片 0 和 14 中的阳台。\n* **水源距离与位置**：地址列为 [Neukölln](wiki:Neukölln) 的 Maybachufer。地理编码返回了模糊结果，并回退到柏林市中心通用坐标。虽然房源文本明确声称可以直接看到 [Landwehr Canal](wiki:Landwehr_Canal)，但由于坐标回退，无法通过几何计算核实社区距离和步行路线。\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **租金与费用**：暖租为**每月 1,372 欧元起**，其中列出了 130 欧元的物业费和 105 欧元的暖气费。冷租基准价被省略，描述中指出这是促销档位的最低起租价。电费必须由租客独立签约。\n* **租赁条款**：由商业运营商出租的新住宅区（2026 年首租）。要求**最短租期为 12 个月**（*Mindestmietdauer*）。开始日期不限（每周三/周四滚动看房）。\n* **阳台证明**：在描述规范（“einen Balkon”）和广告属性中已确认。对 27 张照片中的 3 张进行视觉抽样，确认了照片索引 26 中的外部阳台结构。\n* **水源距离与位置**：位于 Neukölln/[Britz](wiki:Britz) 的 Buschkrugallee 64。位置基于供应商提供的坐标，未经独立街道核实。描述称该建筑群毗邻运河（Neukölln 货运运河），但未通过几何计算得出精确的岸边距离和步行入口点。\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **租金与费用**：暖租广告价为**每月 980 欧元**。描述中提到“杂费：每月 270 欧元”，但不清楚这是否已包含在 980 欧元中，还是额外收取。押金为 1,500 欧元。\n* **整套公寓还是单间的不确定性**：标题写着“二居室公寓……转租”，但正文开头却是：*“我们出租漂亮、安静、带阳台的家具齐全的房间……”*。目前尚不清楚是转租整套 50 平方米的二居室公寓，还是仅转租其中的一个房间。\n* **阳台证明**：视觉上未确认。虽然标题和正文中称有阳台，但发布者仅提供了 1 张照片，且该照片中看不到阳台。\n* **水源距离与位置**：位于 14057 [Charlottenburg](wiki:Charlottenburg)。供应商未指明街道名称或门牌号（仅精确到邮编级别）。描述提到步行可达 Lietzenseepark（内有 Lietzensee 湖），但由于没有街道地址，无法计算确切的路线时间和岸边距离。\n* **租赁条款**：固定期限转租，从 2026 年 11 月 1 日至最晚 2027 年 11 月 1 日（较短租期可协商）。\n\n---\n\n### 咨询前的关键要点\n1. **水源核实**：只有 Maybachufer 公寓明确可以从公寓本身俯瞰开放水域，但其地理编码是近似值且日期存在冲突。Anton-Saefkow-Platz 公寓确认靠近 Fennpfuhl 公园，但确切的岸边距离未测量。\n2. **租赁类型**：ExampleHousingC 上的房源均不提供无固定期限（*unbefristet*）租约；它们都是固定期限转租。Momento Berlin 提供较长期的租约，最短租期 12 个月起。\n3. **照片采样限制**：视觉评估仅检查了每个房源 1 到 3 张图片的有限样本。更多设施可能会出现在通过每个房源卡片访问的完整图库中。\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
-      },
-      "message_2_thinking": {
-        "text": "**定义公寓搜索参数**\n\n我正在确定柏林租房的精确搜索参数。我已将城市指定为柏林，并将房源类型限制为“出租”，房产类型限制为“公寓”。阳台是一个硬性要求，我将确保将其包含在搜索标准中。\n\n\n**完善搜索标准**\n\n我刚刚进一步完善了搜索参数。我将“最好靠近河流或湖泊”翻译为对水源的偏好，分类为 `neighborhood_categories: ['water']`。由于我假设“每月最高 1,800 欧元”是指暖租房租，因此预算现在指定为 `max_warm_rent_eur: 1800`。此外，由于我被告知“在缺少某些细节时，欢迎提供标记清晰的可能性”，我现在将通过 `include_unconfirmed: true` 明确包含未确认的房源。\n\n\n**分析搜索需求**\n\n我正在仔细分析此房屋搜索工具的指南。我专注于如何最好地将我的偏好转化为正确的结构化过滤器和 `relevance_criteria`。我需要确保对水源邻近性、阳台证据和预算限制的要求都得到了正确的编码。我还确保在搜索中区分“必需”、“排除”和“首选”。\n\n\n**评估房源数据完整性**\n\n我目前非常关注数据的完整性。我必须避免过度声明视觉证据，并指明每个提供商的局限性。与水源的邻近性必须有扎实的证据支持，在无法获取增强信息或超时时报告为“未核实”。必须明确，可见的阳台并不保证它属于该公寓，并且我只能在明确说明的情况下报告租赁详情。\n\n\n**分析房源数据**\n\n我正在深入研究返回的房源，并根据提供的规则进行细致的交叉引用。我的重点是清晰地划分确认的数据点和不确定的数据点。我正密切关注租金、租期和水源入口等细节，并标记任何歧义。目标是达到极高的精确度。\n\n\n**澄清邻近性标准**\n\n我正在整合细微的邻近性要求。我正在仔细记录证据中的任何局限性。我专注于透明地将经过验证的声明与未核实的信息分开。我在记录中优先考虑准确性。我明确了什么构成了经过验证的水源入口，什么不构成。我强调需要对不确定的数据进行明确标记。\n\n\n**完善歧义规则**\n\n我现在的重点是完善围绕不确定数据点的规则。如果没有提到水景，我会将其报告为未知；我不会推断邻近性。我会将照片中可见的阳台与文本确认分开。租赁条款仅在说明时明确报告。日期和租金明细中的冲突将被优先处理。我将使用嵌入预览卡作为视图。\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**解读结果格式**\n\n我现在的重点是“embeds\\_results\\_view”响应的结构。我注意到缺少“source\\_ref”，这影响了“sources”或“embeds”的正确使用。当没有 source\\_ref 可用时，我将确保使用“embeds”字段，并专门引用返回的子 embed\\_ref 值。此外，我还会注意将“title”字段作为描述性元素。\n\n\n**检查房源详情**\n\n我正在仔细检查单个房源，特别是“环线铁路附近带阳台的两居室阁楼公寓”。我正在将此房源与嵌入数据进行交叉引用。我注意到由于距离和入口未知，尽管提到了湖景，但水源邻近性仍未核实。我的重点是清楚地记录已确认与未核实的内容。我正在仔细记录所有不确定性。\n\n\n**评估房源详情**\n\n我刚刚完成了对另一个房源的评估。我通过照片分析确认了阳台的可见性。租赁条款提供了一个固定期限，随后是灵活的延期，我已经记录了这一点。我专注于细节。现在，我正在努力全面了解所有相关的房源信息。\n```\n```\n\n\n**详细说明特定属性**\n\n我正在详细说明这个特定的房源。街道地理编码模糊；我注意到这会影响水源邻近性的验证。关于兰德韦尔运河景观的文字声明无法通过几何验证。我通过文字和视觉检查确认了阳台的存在。我明确标记了结构化数据与描述性文本之间的租期日期冲突。\n\n\n**评估房源数据**\n\n我正在深入研究最新的房源。我标记了缺失的冷租租金和不精确的租金明细。广告租金是一个起点，因此我记录了未知的最低租金。由于该房源的大小在项目范围内，因此项目内公寓大小的范围需要澄清。由于地理位置精度未核实，我标记了不确定的运河邻近性。\n\n\n**解读租赁详情**\n\n我现在的重点是最新房源的租赁信息和阳台验证。我通过文本和抽样视觉效果确认了阳台的可见性。我注意到数据中存在 12 个月的最低租期，且没有明确的结束日期。该房源是一个带阳台的带家具房间，但标题说是两居室公寓，因此我正在调查潜在的房间与公寓歧义。我正密切关注所有细节。\n\n\n**分析房源详情**\n\n我正在仔细分析一个新房源，该房源说明是一个带阳台的带家具房间。短语“vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon”增加了关键的歧义；提供的房源单张照片缺乏阳台确认，我已经标记了这一点。地址为地区级地理编码，使得水源邻近性变得模糊。租期从 2026 年 11 月 1 日到 2027 年 11 月 1 日。\n\n\n**比较水源提及**\n\n我正在比较提到 Maybachufer 等水景的房源，以辨别其声明的精确性以及任何固有的数据区别。我正在审查它们的证据和覆盖范围。我专注于用户要求的精确细节。我将标记数据中的任何不确定性和局限性。\n\n\n**核实租金明细**\n\n我现在的重点是租金数字的差异。我优先协调矛盾的数字，报告未列出的费用，并明确指出未知的供暖包含情况。此外，我正在检查内联嵌入引用，以确保显示文本绝不是 embed\\_ref。此外，我将根据语法仅对嵌入引用使用大卡片或小卡片。最后，我将在本次更新的最末尾附上一条建议的后续消息。"
-      },
-      "message_3": {
-        "text": "我对那间阁楼公寓和 Maybachufer 公寓最感兴趣。根据保存的房源信息，1,800 欧元的租金真的是全包价吗，还是有些账单仍不明确？另外，你能说明一下搜索返回了多少张照片，其中实际检查了多少张，以及房源信息直接支持哪些阳台和水域细节吗？我宁愿将未核实的细节标记为未知。"
-      },
-      "message_4": {
-        "text": "以下是关于 **Maybachufer 公寓**和 **Anton-Saefkow-Platz 阁楼**房源数据中已确认内容与未核实/未知内容的详细对比。\n\n---\n\n### 1. Maybachufer 租金：€1,800 真的全包吗？\n\n* **房源明确说明**：冷租 (*Kaltmiete*) 和总租金 (*Warmmiete*) 均输入为固定金额 **€1,800**。押金设定为 €1,000。\n* **仍属未知**：\n  * **杂费明细**：房源未提供运营成本 (*Betriebskosten/Nebenkosten*) 或取暖费 (*Heizkosten*) 的**逐项费用明细**。\n  * **电费和网络**：房主未在结构化字段中明确确认 €1,800 是否包含生活用电 (*Haushaltsstrom*) 或 Wi-Fi，也未说明是否存在使用上限。\n  * **广播电视费**：是否包含德国强制缴纳的广播电视费 (*Rundfunkbeitrag*)，还是需要单独注册，目前尚不明确。\n* **结论**：虽然该房源以家具齐全的短期转租中常见的月度包干价形式进行营销，但在房主提供书面明细确认包含电费、取暖费超额部分及网络费用之前，**无法核实其是否为严格意义上的“全包”**。\n\n---\n\n### 2. 照片库范围：返回数量 vs. 已检查数量\n\n搜索工具检索到了包含完整相册计数的房源元数据，但自动化视觉分析仅评估了每个房源的部分照片样本，以识别核心特征：\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*注意：你可以直接打开房源卡片，手动浏览全部 14–15 张高分辨率照片。*\n\n---\n\n### 3. 阳台与水景细节：已确认 vs. 未知\n\n#### Maybachufer 公寓\n* **阳台**：\n  * *房源文本确认*：拥有**两个阳台**——据称一个面向内院 (*Innenhof*)，一个面向运河/街道。\n  * *照片核查确认*：在检查的照片索引 0 和 14 中确认了可见的阳台结构。\n  * *未知*：阳台的具体尺寸、朝向/日照时长，以及是否提供户外家具。\n* **临水情况**：\n  * *房源文本确认*：位于 [Neukölln](wiki:Neukölln) 的 [Landwehr Canal](wiki:Landwehr_Canal) 沿岸的 Maybachufer。描述中明确声称拥有水景。\n  * *工具未核实/未知*：地理编码系统标记该街道地址查询存在歧义，默认定位到了柏林市中心点而非精确的地块定位点。因此，无法独立于数据负载测量房源到行人运河过道或码头入口的准确距离。\n\n#### Anton-Saefkow-Platz 阁楼\n* **阳台**：\n  * *房源文本确认*：明确宣传“拥有俯瞰 Fennpfuhlpark 景观的阳光阳台”。\n  * *照片核查确认*：在检查的照片索引 0 中确认了阳台结构。\n  * *未知*：阳台的平方数和楼层（房源指明是高层的阁楼风格，但未说明具体楼层）。\n* **临水情况**：\n  * *房源文本确认及 OpenStreetMap*：位于 Lichtenberg 的 Anton-Saefkow-Platz，毗邻 Fennpfuhlpark，公园内有 **Fennpfuhl**（一个历史悠久的湖泊）。\n  * *工具未核实/未知*：房源**并非**直接坐落在河流或运河岸边；水景是一个内陆公园湖泊。此外，虽然公园就在街道对面，但步行到水边的精确时间，以及从阳台看去水面是否被树冠遮挡，仍未核实。\n\n---\n\n### 看房前可询问房主的问题\n\n1. **针对 Maybachufer**：\n   * *“€1,800 的月租包干价是否全额涵盖取暖费、电费和网络费，还是在租期结束时会有单独的杂费结算 (*Nebenkostenabrechnung*)？”*\n   * *“能否确认具体的转租日期（摘要显示为 2 个月，但英文描述中提到 4–6 个月）？”*\n2. **针对阁楼 (Loft)**：\n   * *“€150 的额外费用是包含取暖和网络的固定费用 (*Pauschale*)，还是预付款 (*Vorauszahlung*)？”*\n   * *“如果需要，合同中是否保证可以续租到 2026 年 12 月 28 日之后？”*"
-      },
-      "message_4_thinking": {
-        "text": "**澄清房产详情**\n\n我目前正专注于用户关于“阁楼（the loft）”和“Maybachufer 公寓”的问题。具体来说，我正在深入调查 Maybachufer 房产 1,800 欧元的租金。我需要明确判定这是否真的是全包价，或者是否存在潜在的额外费用。此外，我正在确认搜索结果中可用的照片数量。\n\n\n**核实包含项目详情**\n\n我正在深入研究 Maybachufer 公寓租金的具体细节，特别是“全包”这一说法。我的目标是提取出所含费用和不含费用的确切明细。我需要区分 1800 欧元的租金是否涵盖了水电煤气费、网络费、暖气费和广播费（GEZ）。初始数据显示信息存在冲突，因此我必须查明数据*实际*确认的内容。\n\n\n**查明包含项目的缺失项**\n\n我正在澄清有关公用事业费用的具体细节。初始数据尚未确认是否包含 GEZ 费用、电费或超额暖气费。我需要明确界定照片总数，并确保分析了每处房产的所有相关照片。Maybachufer 公寓有两个阳台，阁楼有一个阳台，但具体尺寸仍未说明。此外，我正在核实 Maybachufer 房产的具体位置。"
-      },
-      "follow_up_1": {
-        "text": "搜索柏林水岸附近的其他两居室公寓"
-      },
-      "follow_up_2": {
-        "text": "为 Maybachufer 的房东起草一份德语咨询信息"
-      },
-      "follow_up_3": {
-        "text": "查询从 Anton-Saefkow-Platz 到亚历山大广场的公共交通路线"
-      },
-      "follow_up_4": {
-        "text": "比较两套公寓的押金和退租条款"
-      },
-      "follow_up_5": {
-        "text": "查看柏林利希滕贝格（Lichtenberg）当前的天气预报"
-      },
-      "follow_up_6": {
-        "text": "列出在柏林看房时需要询问房东的关键问题"
       }
     },
     "germany_historic_film_industry": {
@@ -9880,50 +9755,6 @@
       },
       "follow_up_6": {
         "text": "解释住房市场供应如何应对价格管制"
-      }
-    },
-    "jobs_in_germany": {
-      "title": {
-        "text": "德国有意义的工作"
-      },
-      "summary": {
-        "text": "在四个招聘平台搜索德国职位空缺，然后比较设计岗位并为雇主准备面试问题。"
-      },
-      "message_1": {
-        "text": "我正在德国寻找有意义的工作，特别是研究、设计或软件工程领域。请使用 ExampleJobsB、ExampleJobsC、ExampleJobsD 和联邦就业局 (Example Employment Board) 查找一些当前的职位空缺。我不限工作地点，德国境内任何地方都可以。请给我一份简短的清单，包含雇主、地点、来源和申请链接。如果招聘信息中没有说明，请不要假设可以远程办公或薪资水平。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n以下是来自 ExampleJobsB、**ExampleJobsC**、**ExampleJobsD** 和**Example Employment Board** 的德国研究、设计和软件工程领域的最新职位空缺简表。\n\n---\n\n### 设计\n\n* **高级产品设计师 (Senior Product Designer)**\n  * **雇主：** voize（开发语音识别 AI 以简化护理和临床记录）\n  * **地点：** 德国柏林（注明可远程办公）\n  * **来源：** ExampleJobsC\n  * **薪资：** 未注明\n  * **申请：** [通过 voize 申请](embed:senior-product-designer-Wid)\n\n* **UI/UX 设计 (m/w/d)**\n  * **雇主：** stiftung ear（负责协调电子垃圾处理、回收和循环经济追踪的国家注册机构）\n  * **地点：** 纽伦堡，巴伐利亚州\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 职位描述中提到灵活/移动办公选项，但无正式的全远程分类；薪资未注明\n  * **申请：** [通过联邦就业局申请](embed:ui-ux-design-1Bm)\n\n---\n\n### 研究\n\n* **联合奖学金项目（和平与安全政策）**\n  * **雇主：** [汉堡大学](wiki:University_of_Hamburg) & 和平研究与安全政策研究所 (IFSH)\n  * **地点：** 汉堡，德国\n  * **来源：** ExampleJobsB\n  * **工作形式与薪资：** 未注明\n  * **申请：** [通过 IFSH / ExampleJobsB 申请](embed:joint-fellowship-program-iLH)\n\n* **研究助理 (m/f/x) – 机器学习与不确定性下的决策**\n  * **雇主：** [波鸿鲁尔大学](wiki:Ruhr_University_Bochum)\n  * **地点：** 波鸿，北莱茵-威斯特法伦州\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 全职（39.83 小时/周）；未注明远程安排；根据 TV-L E13 公共集体工资标准支付报酬（具体金额未在列表中公布）\n  * **申请：** [通过联邦就业局申请](embed:research-associate-m-79L)\n\n* **研究工程师 (f/m/d) – 电网脱碳与基础技术**\n  * **雇主：** [西门子能源](wiki:Siemens_Energy)\n  * **地点：** 柏林\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 文中提到灵活/移动办公选项，但未说明固定远程状态；薪资未注明\n  * **申请：** [通过联邦就业局申请](embed:research-engineer-f-7ao)\n\n---\n\n### 软件工程\n\n* **高级后端工程师 (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **雇主：** idealo internet GmbH\n  * **地点：** 柏林，德国\n  * **来源：** ExampleJobsD\n  * **工作形式与薪资：** 现场/混合办公环境；薪资未注明\n  * **申请：** [通过 ExampleJobsD 申请](embed:senior-backend-engineer-q7x)\n\n* **实习生 – 软件工程（计算机视觉 / 自主系统）**\n  * **雇主：** Quantum-Systems GmbH（自主航空平台和机器人感知）\n  * **地点：** 吉尔兴，巴伐利亚州\n  * **来源：** ExampleJobsD\n  * **工作形式与薪资：** 现场/混合办公；薪资未注明\n  * **申请：** [通过 ExampleJobsD 申请](embed:working-student-software-VX8)"
-      },
-      "message_2_thinking": {
-        "text": "**正在识别德国的就业机会**\n\n我目前正专注于精准定位德国的相关职位空缺。我首先整理了一份极具潜力的来源名单：`ExampleJobsB`、`ExampleJobsC`、`ExampleJobsD` 以及 `联邦就业局 (Example Employment Board)`。我的主要兴趣集中在研究、设计和软件工程岗位，并将密切关注工作地点。\n\n\n**优化搜索参数**\n\n我正在优化方法，以便更有效地使用 `jobs-search` 工具。由于限制为 5 个请求，我正专注于 `requests` 数组，以进行一系列查询并直接指定提供商。我正在检查函数定义，以确认如何以列表形式明确提供提供商，以及如何定义相关性标准。这将有助于创建一个包含雇主、地点、来源和申请链接的入围名单。我的目标是在没有明确说明的情况下，避免对远程办公或薪资做出假设。\n\n\n**检查提供商返回结果**\n\n好了，我已经初步查看了返回的提供商结果。目前有来自 “ExampleJobsC” 的职位，以及几个来自 ExampleJobsD 的职位；一个是后端工程（Java/Kotlin）的高级职位，另一个是实习生（Working Student）职位。我正在记录初步印象，并评估每个职位的潜在影响。\n\n\n**分析当前机会**\n\n我目前正专注于评估两个极具潜力的机会。第一个是汉堡大学和平研究与安全政策研究所的“联合奖学金项目 (Joint Fellowship Program)”，第二个是 Interface 网络安全项目中的“学生助理 (Student Assistant)”职位。我正在分别结合和平与安全研究以及网络安全背景，仔细权衡它们各自的优势。\n\n\n**优先处理新线索**\n\n我已将注意力转向策划一份平衡的入围名单。我优先考虑设计和研究领域的机会，重点关注相关性和近期发布的帖子。目前，我正在查看柏林 voize 的高级产品设计师职位，以及 stiftung ear 的 UI/UX 设计职位。研究方面，我正在审查波鸿鲁尔大学的一个职位，以及汉堡的联合奖学金项目。\n\n\n**评估新的可能性**\n\n我正根据我的标准权衡新的线索。我发现了一些选择，例如通过联邦就业局找到的柏林西门子能源公司 (Siemens Energy) 的研究工程师职位，该职位专注于基础研究。我也在考虑 idealo internet GmbH（柏林，ExampleJobsD）的高级后端开发职位和 CT Software Engineering（因戈尔施塔特，联邦就业局）的初级 C++ 软件开发职位。这些都符合我对软件工程的兴趣。\n\n\n**完善申请标准**\n\n我正在明确如何处理申请链接。我必须记住优先考虑清晰的申请流程，检查是否使用了 `[显示文本](embed:embed_ref)` 或标准链接。此外，除非招聘信息中明确说明，否则我不应假设可以远程办公或透露薪资。\n\n\n**明确申请协议**\n\n我正专注于申请链接的格式。我的重点是确保直接链接集成或使用 `(embed:embed_ref)` 格式，并确保不同时提供两者。我正在仔细审查从应用技能返回的 URL，以确保合规。我的目标是坚持每个职位申请链接仅使用一种链接样式的规则。\n\n\n**标准化申请链接**\n\n我正在实施申请链接策略。我的目标是标准化职位发布的格式。我将仅使用嵌入引用 (embed ref) 作为申请链接。我还将为每个空缺职位整合职位名称、雇主、地点和来源，并使用嵌入链接。我会确保每个职位始终只使用一个链接。\n\n\n**汇编机会数据**\n\n我正在整理多个机会的详细信息。我已经掌握了 voize 的高级产品设计师职位、stiftung ear 的 UI/UX 设计职位以及汉堡大学联合奖学金项目的信息。我记录了每个职位的名称、雇主、地点和来源，以及远程办公和薪资说明。我正专注于通过为每个申请使用嵌入链接来确保链接格式的一致性。\n\n\n**整合新职位**\n\n我正在将新职位整合到数据集中。我添加了波鸿鲁尔大学的研究助理职位，来源为联邦就业局，并记录了其远程办公和薪资详情。此外，我还汇编了西门子能源公司研究工程师职位的信息，包括灵活的工作选择。我正在确保链接格式的一致性，在申请链接中使用嵌入引用。\n\n\n**添加新职位**\n\n我刚刚添加了两个新职位：一个地点不详的高级后端工程师职位，以及位于吉尔兴 (Gilching) 的 Quantum-Systems GmbH 的实习生职位。我正专注于准确捕捉所有细节，包括地点、远程办公选项、薪资信息（如有）以及标准格式的申请链接。我正在申请链接中使用 `(embed:embed_ref)` 格式。"
-      },
-      "message_3": {
-        "text": "这两个设计岗位听起来最吸引人。你能简要对比一下已保存的招聘信息具体说了什么，并建议我在申请前应该向每位雇主询问些什么吗？"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n以下是各招聘职位的直接对比，以及你在申请前或申请过程中可以向每位雇主提出的针对性问题。\n\n---\n\n### 职位对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### 申请前的提问建议\n\n#### 针对 voize：\n1. **用户研究渠道：** *“设计师在日常临床环境中与一线护士和护理人员进行实地考察或测试的频率如何？通过哪些渠道进行？”*\n2. **团队成熟度与职责范围：** *“产品团队的结构是怎样的？目前设计师与产品经理（PM）及工程师的比例是多少？该职位是个人贡献者角色，还是需要负责建立设计系统？”*\n3. **薪酬与远程办公节奏：** *“该资历级别的目标薪酬范围是多少？尽管有远程办公政策，是否仍有强制性的线下团队团建或核心办公时间？”*\n\n#### 针对 stiftung ear：\n1. **纽伦堡线下的办公要求：** *“移动办公在实践中是如何安排的——每周或每月是否有固定的时间要求必须在纽伦堡办公室现场办公？”*\n2. **设计与 QA 的平衡：** *“招聘信息中提到了软件测试实施以及 UX/UI 设计。该职位中，专注于用户研究/原型设计的工作比例是多少，专注于技术软件验证和质量保证的工作比例又是多少？”*\n3. **设计工具与开发交接：** *“目前使用了哪些设计系统和原型设计工具？你们是与内部开发团队合作，还是与外部 IT 服务提供商合作？”*\n4. **薪酬基准：** *“鉴于 stiftung ear 履行的是公共利益法定职责，薪酬是遵循特定的公共集体薪资标准（如 TVöD/TV-L），还是采用内部职级结构？”*"
-      },
-      "message_4_thinking": {
-        "text": "**分析职位列表内容**\n\n好的，我已开始对比职位描述。我正专注于 Voize 的高级产品设计师角色和 Stiftung EAR 的 UI/UX 设计职位的核心职责及所需技能。现在，我正在准备这两份职位列表的核心职责和所需技能摘要。随后，我将确定可能还需要哪些进一步的信息。\n\n\n**分析职位描述**\n\n好的，我现在正深入研究每个列表的细节。我的重点是剖析描述中所使用的实际语言。我正试图确定需要回答哪些关键问题，以便为每位雇主做好准备。例如，在 voize 的列表中，我需要了解他们的 AI 伴侣产品。\n\n\n**评估关键细节**\n\n我现在正锁定 voize 的列表并提取关键要点。这是一个具有重大自主权的高级角色，需要能够挑战产品经理的人才。工作安排很灵活，设有柏林办公室并提供远程办公选项。薪酬未说明，但福利包括不错的带薪假期和体育俱乐部会员资格。尽管背景是德国医疗保健，但英语是主要语言。\n\n\n**精准定位具体要求**\n\n我现在正锁定位于纽伦堡的角色。我已分解了关键领域：法律合规方面侧重于 ElektroG 法规。我的工作包括 Web 应用程序开发和 UX 活动，并为利益相关者提供建议。必须具备流利的德语（至少 C1 水平），有监管软件经验者优先。该职位是永久性的，具有很大的远程办公灵活性。薪酬基于绩效。\n\n\n**比较职位属性**\n\n我现在正对这些角色进行直接比较。我已按领域、文化、所需技能和工作地点进行了分解。具体来说，我正在对比 voize 与 stiftung ear 的角色。我正专注于对比他们的环境和优先级，从一线医疗保健到电子垃圾合规。我正记录关键差异，如语言要求和经验水平。此外，我还在评估他们在远程办公政策方面的差异。"
-      },
-      "follow_up_1": {
-        "text": "在柏林搜索更多 UI/UX 设计职位"
-      },
-      "follow_up_2": {
-        "text": "起草一封给 voize 招聘经理的联系邮件"
-      },
-      "follow_up_3": {
-        "text": "在德国寻找类似的医疗科技职位职位"
-      },
-      "follow_up_4": {
-        "text": "比较在医疗初创公司与公共机构工作的优缺点"
-      },
-      "follow_up_5": {
-        "text": "在纽伦堡搜索公共部门的科技职位"
-      },
-      "follow_up_6": {
-        "text": "列出高级产品设计面试的关键准备步骤"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -10516,20 +10347,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
       }
     },
-    "printable_benchy_phone_stand_models": {
-      "title": {
-        "text": "可打印的 Benchy 和手机支架模型"
-      },
-      "summary": {
-        "text": "在 ExampleModels 上搜索热门的可 3D 打印 Benchy 和手机支架模型，并提供预览卡片和来源链接。"
-      },
-      "message_1": {
-        "text": "在 ExampleModels 上查找可 3D 打印的 Benchy 和手机支架模型。通过预览卡片和来源链接展示最佳选项。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n对于你的下一个 3D 打印项目，我在 ExampleModels 上找到了一些最受欢迎且极具创意的模型。无论你是在寻找经典的[校准](wiki:Calibration_(statistics))小船，还是实用的[手机](wiki:Smartphone)配件，这些选项都是绝佳的起点。\n\n### 3DBenchy 系列\n[3DBenchy](wiki:3DBenchy) 是测试 [3D 打印机](wiki:3D_printing)性能的金标准。除了原版之外，还有几种“重混”版本可以为你的工作台增添个性。\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **原版 3DBenchy**：最适合[基准测试](wiki:Benchmark_(computing))[悬垂](wiki:3D_printing#Support_structures)、[架桥](wiki:3D_printing#Support_structures)和表面光洁度。\n*   **突击 Benchy**：一个可活动的[机甲](wiki:Mecha)版本，适合想要点个性的玩家。\n*   **漂浮 BEN**：特别设计的空心船体，使其能够真正漂浮——非常适合洗澡时玩！\n\n### 实用手机支架\n手机支架是一个非常实用的打印件。这些设计从极简风格到复杂的机械齿轮应有尽有。\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **蜂窝支架**：因其高[比强度](wiki:Specific_strength)和现代外观而备受欢迎。\n*   **齿轮支架**：一个“原地打印”的机械奇迹，允许调节观看角度。\n*   **现代曲线**：时尚的一体式设计，完美适配极简办公环境。\n\n**专业提示：** 打印[齿轮手机支架](embed:geared-phone-stand-3Bl)时，请确保你的[挤出倍率](wiki:3D_printing#Fused_deposition_modeling)已校准好，以防止活动部件熔合在一起。\n\n你打算用哪种[耗材](wiki:3D_printing_filament)（PLA、PETG 等）来打印这些？我可以根据你的材料提供一些具体的切片建议！\n\n**接下来你想做什么？**\n- [搜索更多 3D 模型](/#settings/apps/models3d)\n- [获取 3D 打印技巧](/#settings/apps/web)"
-      }
-    },
     "privacy_first_local_ai_workspace": {
       "title": {
         "text": "Build a Privacy-First Local AI Workspace"
@@ -10758,38 +10575,6 @@
         "text": "教我响应式设计原则"
       }
     },
-    "social_app_name_domain_search": {
-      "title": {
-        "text": "已检查域名的社交应用名称"
-      },
-      "summary": {
-        "text": "通过检查域名的可用性、注册和续费价格以及注册条款来比较社交应用名称。"
-      },
-      "message_1": {
-        "text": "我正在为一个社交应用命名，该应用旨在帮助人们在见面后保持联系并结识新朋友。请推荐两个独特的名称创意。对于每个创意，请实时检查其精确的 .com、.net 和 .app 域名，然后仅推荐那些在检查中显示了可用性、注册价格、续费价格和限制条件的精确域名。请勿对未检查的域名进行猜测。根据检查结果选出更好的名称。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n这里有两个针对专注于培养线下联系和扩大社交圈的应用而设计的独特名称创意，以及每个名称对应的 `.com`、`.net` 和 `.app` 后缀的实时域名检查结果。\n\n---\n\n### 创意 1：Kinloop\n* **概念：** 结合了“kin”（社区、亲和力、信任纽带）和“loop”（在初次见面后形成闭环，并在持续的圈子中保持联系）。\n* **实时域名验证：**\n  * **`kinloop.com`**：**不可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**：**不可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**：**不可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-XJX))\n* **建议：** 无。所有三个目标域名目前都已被注册/不可用，因此无法为该名称推荐精确域名。\n\n---\n\n### 创意 2：Orbitfolk\n* **概念：** 唤起将现实生活中的熟人保持在个人轨道（orbit）上的想法，同时不断发现并欢迎新朋友（“folk”）进入你的世界。\n* **实时域名验证：**\n  * **`orbitfolk.com`**：**不可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**：**可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-cex))\n    * **注册价格：** $12.99 / 首年（不含税）（含 19% 增值税为 $15.46；常规 1 年价格为 $18.78）\n    * **续费价格：** $39.98 / 年（不含税）（1 年期含 19% 增值税为 $47.58；2–9 年期税前为 $35.98/年）\n    * **限制：** 无报告\n  * **`orbitfolk.app`**：**可用** ([ExampleRegistrar 检查](embed:shop.ExampleRegistrar.net-U3Z))\n    * **注册价格：** $9.99 / 首年（不含税）（含 19% 增值税为 $11.89；常规 1 年价格为 $23.29）\n    * **续费价格：** $47.98 / 年（不含税）（1 年期含 19% 增值税为 $57.10；2–9 年期税前为 $43.18/年）\n    * **限制：** 无报告\n\n---\n\n### 对比与更佳选择\n\n**Orbitfolk** 是更佳的选择：\n\n1. **直接可用性：** 虽然 `Kinloop` 的三个后缀都已被占用，但 `Orbitfolk` 的 `.app` 和 `.net` 版本均可立即注册。\n2. **产品契合度：** 由于这是一个移动社交产品，**`orbitfolk.app`** 提供了一个简洁、专用的域名后缀，能直接向用户传达产品类型。\n\n---\n\n### 后续步骤\n\n* [探索更多围绕社交轨道的名称变体](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [起草线下见面的新手引导流程](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
-      },
-      "follow_up_1": {
-        "text": "搜索另一个社交应用创意的可用域名"
-      },
-      "follow_up_2": {
-        "text": "解释为什么 .app 域名后缀对移动应用很有效"
-      },
-      "follow_up_3": {
-        "text": "检查三个备选品牌名称的域名可用性"
-      },
-      "follow_up_4": {
-        "text": "比较消费级应用的 .net 和 .app 域名后缀"
-      },
-      "follow_up_5": {
-        "text": "检查 AppFolk 名称的域名价格和可用性"
-      },
-      "follow_up_6": {
-        "text": "为此社交连接应用建议三个额外的品牌定位角度"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10802,38 +10587,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf346f38-6f8f-4a29-b7b4-00eacda289e5\", \"app_id\": \"code\", \"skill_id\": \"get_docs\"}\n```\n\nIn [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.\n\n### 1. `$state`\nThe `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).\n\n### 2. `$derived`\nThe `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.\n\n---\n\n### Component Example: Price Calculator\nThis example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"83d61971-d1ad-4023-8a5f-39f6dacabe7b\"}\n```\n\n\n\n### Key Takeaways\n*   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.\n*   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).\n*   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.\n\nWould you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?\n\n**Next Steps:**\n- [Learn about the $effect rune](/#settings/apps/web)\n- [Explore Svelte 5 Snippets](/#settings/apps/web)"
-      }
-    },
-    "ted_talk_transcript_summary": {
-      "title": {
-        "text": "分析 Will Stephen 的讽刺性 TED 演讲"
-      },
-      "summary": {
-        "text": "将 Will Stephen 关于演讲技巧的讽刺性 TEDx 演讲总结为五个核心喜剧论点。"
-      },
-      "message_1": {
-        "text": "获取这段 TED 演讲的逐字稿，并用五个要点总结其核心论点：[!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\n这段视频是 Will Stephen 的讽刺性 TEDx 演讲，《How to sound smart in your TEDx Talk》(观看演讲)。\n\nStephen 并没有进行知识性的讲座，而是利用元幽默（meta-humor）解构了主题[演讲](wiki:Public_speaking)的惯例。以下是总结为五点的核心论点：\n\n* **演讲技巧营造出有内涵的假象：** 语速、刻意的手势、戏剧性的眼神交流以及实物道具（如平光眼镜）可以让观众相信演讲者才华横溢，即使他们所说的话毫无价值。\n* **舞台亲和力是高度公式化的：** 熟悉的互动套路——如提出反问、要求举手示意以及讲述自嘲的轶事——都是经过精心设计的舞台技巧，旨在制造虚假的人情味和可信度。\n* **数据可视化提供了名不副实的权威感：** 展示随机数字、基础算术和脱离语境的图表利用了视觉偏见，使演讲看起来经过严谨研究，即使数据完全无关紧要。\n* **观众会将意义投射到废话上：** 通过将诚恳的语调和引起共鸣的素材图片与字面上的胡言乱语相结合，演讲者可以促使听众在潜意识中寻找并想象出原本并不存在的深刻联系。\n* **情感高潮是可以制造的：** 增强语势、放慢语速转为低语以及戏剧性的停顿，模仿了顿悟的节奏，证明了在没有任何深刻见解的情况下，灵感迸发的感觉是多么容易被策划出来。"
-      },
-      "follow_up_1": {
-        "text": "在 YouTube 上搜索其他热门的讽刺性演讲"
-      },
-      "follow_up_2": {
-        "text": "解释 TEDx 形式的历史及其文化影响"
-      },
-      "follow_up_3": {
-        "text": "在网上查找公众演讲大师班教程"
-      },
-      "follow_up_4": {
-        "text": "分析著名主讲嘉宾使用的具体肢体语言技巧"
-      },
-      "follow_up_5": {
-        "text": "搜索关于修辞技巧的分析视频"
-      },
-      "follow_up_6": {
-        "text": "列出克服公众演讲时舞台恐惧的技巧"
       }
     },
     "urban_heat_island_at_night": {
@@ -11151,33 +10904,6 @@
         "text": "你是一位编程专家。"
       }
     },
-    "health_health_insights": {
-      "text": "健康洞察",
-      "description": {
-        "text": "获取健康洞察并找到合适的医生。"
-      },
-      "systemprompt": {
-        "text": "你是一位健康专家。"
-      }
-    },
-    "health_prepare_doctor_appointment": {
-      "text": "准备医生预约",
-      "description": {
-        "text": "准备下次就诊要讨论的内容。"
-      },
-      "process": {
-        "text": "- 讨论近几周和几个月出现的症状，即使看不出它们之间的联系\n- 讨论在下次预约前应该收集哪些检查结果/文件"
-      },
-      "systemprompt": {
-        "text": "你是一位健康专家。"
-      }
-    },
-    "health_prepare_doctor_report": {
-      "text": "准备医生报告",
-      "description": {
-        "text": "为下次看医生创建一份报告。"
-      }
-    },
     "jobs_career_insights": {
       "text": "职业洞察",
       "description": {
@@ -11200,6 +10926,24 @@
       "text": "未来对话",
       "description": {
         "text": "一种强大的生活指导技巧。"
+      }
+    },
+    "health_prepare_doctor_report": {
+      "text": "准备医生报告",
+      "description": {
+        "text": "为下次看医生创建一份报告。"
+      }
+    },
+    "health_health_insights": {
+      "text": "健康洞察",
+      "description": {
+        "text": "获取健康洞察并找到合适的医生。"
+      }
+    },
+    "health_prepare_doctor_appointment": {
+      "text": "准备医生预约",
+      "description": {
+        "text": "准备下次就诊要讨论的内容。"
       }
     },
     "news_understand_the_news": {
@@ -11251,6 +10995,9 @@
       "text": "内容日历战略家",
       "description": {
         "text": "创建30天社交媒体内容计划。"
+      },
+      "systemprompt": {
+        "text": "作为专业的社交媒体策略师。使用以下输入，生成一个专注于实现主要目标的30天内容日历。\n\n首先，利用你现有的知识以及（如果可用）关于该主题/细分市场和目标受众的实时网络数据，进行简短的内部研究和策略步骤。明确受众的主要痛点和需求、在该细分市场中表现良好的帖子类型和钩子，以及任何相关的当前趋势。仅使用这些见解来指导日历，不要单独输出它们。\n\n输出必须是一个包含以下精确列的 Markdown 表格（不含其他内容）：天数、日期、主题/支柱、平台、内容创意、行动号召 (CTA)。\n\n日历指南：\n- 创建恰好30行，从开始日期起每个连续日历日一行，日期按升序排列。\n- 每行的主题/支柱必须是所提供内容支柱之一，在30天内保持合理均衡的混合。\n- 平台列必须遵循发布计划。如果某天指定了多个平台，则每个平台创建一行。\n\n内容指南：\n- 每个内容创意必须说明帖子类型（例如：Reel、轮播图、静态帖子、故事、直播、投票、LinkedIn 文字帖），并包含针对目标受众的清晰、吸引眼球的钩子。\n- 每个 CTA 必须具体、以行动为导向，并直接支持主要目标（例如：\"下载免费指南\"、\"预约通话\"、\"订阅新闻通讯\"、\"在评论中写下你的第一个问题\"）。\n- 在30天内变化格式和角度（例如：教育性、叙事性、幕后花絮、FAQ、异议处理、社会认同、互动提示），避免重复。\n- 确保每个创意都与目标受众的主要痛点和需求明确相关，并与主要目标保持一致。\n\n输入（在运行提示前填写）：\n* 主题/细分市场：[在此填写您的主题/细分市场]\n* 目标受众：[在此填写您的目标受众，如已知，包括主要痛点和需求]\n* 主要目标：[在此填写您的主要目标，例如：增加邮件列表/推动销售/建立权威]\n* 发布计划：[在此填写您的发布频率和平台，例如：每周5次 IG Reels + 每周3次 LinkedIn]\n* 内容支柱：[在此填写3–5个内容支柱，用逗号分隔]\n* 开始日期：[填写日历的第一个日期，例如：2025年11月18日]\n\n只输出最终的 Markdown 表格。不要包含任何解释、注释或表格之外的文字。"
       }
     },
     "study_learn_topic": {
@@ -12363,14 +12110,14 @@
             "text": "Audio generation and speech (only when you use an audio generation skill)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice calls. If you use none of these features, none of your data is shared with them."
           },
           "elevenlabs": {
             "heading": {
               "text": "ElevenLabs (sound effects and text-to-speech)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription, not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs may retain API request data under its own policies."
             }
           }
         },
@@ -12471,10 +12218,10 @@
           },
           "youtube": {
             "heading": {
-              "text": "YouTube（视频字幕）"
+              "text": "YouTube（视频元数据）"
             },
             "description": {
-              "text": "当你要求 OpenMates 获取 YouTube 视频的字幕时，系统会查询 YouTube。YouTube 会接收视频 URL 和请求的字幕语言偏好，且不包含 OpenMates 用户标识符。"
+              "text": "为获取公开的视频和频道元数据，OpenMates 会将视频和频道标识符发送至官方 YouTube Data API。YouTube 会收到这些标识符和我们服务器的网络信息，但不会收到 OpenMates 用户标识符。"
             }
           }
         },
@@ -21795,7 +21542,17 @@
   },
   "videocall": {},
   "voice_call_events": {},
-  "voicecall": {},
+  "voicecall": {
+    "start_hint": {
+      "text": "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"
+    },
+    "privacy_description": {
+      "text": "Mistral 转录你的麦克风音频；ElevenLabs v4 Turbo 根据回复文本和语音设置生成助手语音。对话使用 OpenMates 的常规 AI 路由和技能。提供商可能根据各自政策保留请求数据。"
+    },
+    "privacy_terms": {
+      "text": "OpenMates 隐私政策"
+    }
+  },
   "waiting_list": {
     "discord_members": {
       "text": "我们的 Discord 成员将"
