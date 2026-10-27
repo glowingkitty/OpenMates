@@ -3843,14 +3843,14 @@ describe("apps metadata commands", () => {
   });
 
   // contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.history.renderable
-  it("forwards shopping reference images through generated typed flags with provider and price filters", async () => {
+  it("forwards shopping reference images through generated typed flags with category and price filters", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const references = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "apps", "shopping", "search_products",
         "--query", "travel bag",
-        "--provider", "ExampleRetail",
+        "--category", "general_marketplace",
         "--country", "de",
         "--max-results", "3",
         "--min-price", "50.5",
@@ -3864,7 +3864,7 @@ describe("apps metadata commands", () => {
         url: "/v1/apps/shopping/skills/search_products",
         body: { requests: [{
           query: "travel bag",
-          provider: "ExampleRetail",
+          category: "general_marketplace",
           country: "de",
           max_results: 3,
           min_price: 50.5,

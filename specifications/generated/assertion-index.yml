@@ -4840,7 +4840,7 @@ assertions:
       path: frontend/packages/openmates-cli/tests/cli.test.ts
       line: 3846
       name: forwards shopping reference images through generated typed flags with
-        provider and price filters
+        category and price filters
       surface: cli
     - &id665
       path: frontend/packages/openmates-cli/tests/jobsSdkGenerator.test.ts
@@ -6149,7 +6149,7 @@ assertions:
       path: frontend/packages/openmates-cli/tests/cli.test.ts
       line: 3846
       name: forwards shopping reference images through generated typed flags with
-        provider and price filters
+        category and price filters
       surface: cli
     - &id816
       path: frontend/packages/ui/src/components/embeds/home/homeListingData.test.ts
