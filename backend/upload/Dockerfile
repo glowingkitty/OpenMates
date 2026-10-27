@@ -19,10 +19,12 @@ WORKDIR /app
 # cairosvg needs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0
 # (these are the Cairo/Pango/GDK-Pixbuf rendering stack used to rasterize SVGs).
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         curl \
         git \
         libmagic1 \
+        libbrotli1 \
         libjpeg-dev \
         libpng-dev \
         libwebp-dev \
@@ -33,6 +35,9 @@ RUN apt-get update && \
         libgdk-pixbuf-2.0-0 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Fail the build if a cached base image retains the vulnerable native decoder.
+RUN python -c "import ctypes; decoder = ctypes.CDLL('libbrotlidec.so.1'); decoder.BrotliDecoderErrorString.argtypes = [ctypes.c_int]; decoder.BrotliDecoderErrorString.restype = ctypes.c_char_p; assert decoder.BrotliDecoderErrorString(-17).decode().endswith('BLOCK_SWITCH')"
 
 # Copy and install Python requirements (uploads-specific superset of core requirements)
 COPY backend/upload/requirements.txt .

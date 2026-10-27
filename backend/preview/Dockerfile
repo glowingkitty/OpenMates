@@ -31,7 +31,8 @@ RUN groupadd --gid 1000 preview && \
 # - libxml2/libxslt for lxml (HTML parsing)
 # - libjpeg/zlib for Pillow (image processing)
 # - curl for health checks
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libbrotli1 \
     libxml2-dev \
     libxslt1-dev \
     libjpeg62-turbo-dev \
@@ -39,6 +40,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwebp-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Fail the build if a cached base image retains the vulnerable native decoder.
+RUN python -c "import ctypes; decoder = ctypes.CDLL('libbrotlidec.so.1'); decoder.BrotliDecoderErrorString.argtypes = [ctypes.c_int]; decoder.BrotliDecoderErrorString.restype = ctypes.c_char_p; assert decoder.BrotliDecoderErrorString(-17).decode().endswith('BLOCK_SWITCH')"
 
 # Set working directory
 WORKDIR /app
