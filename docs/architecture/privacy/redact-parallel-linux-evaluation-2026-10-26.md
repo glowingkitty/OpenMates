@@ -159,11 +159,24 @@ documents resizing and reallocation, but does not guarantee a static graph can
 accept arbitrary dimensions.
 
 The 2–3 second target is not met for these large files on this host, even with
-16 CPU cores. The recommended native integration is automatic enhanced scanning
-only where full-file calibration fits the latency budget, with complete basic
+16 CPU cores. The initial native integration proposal was automatic enhanced
+scanning only where full-file calibration fits the latency budget, with basic
 regex processing otherwise and an explicit slower enhanced full-scan option.
-An enforced deadline must accompany prediction. More capable machines can admit
-larger inputs after their own calibration; extra RAM alone is insufficient.
+Any such future integration would need an enforced deadline alongside prediction.
+More capable machines could admit larger inputs after their own calibration;
+extra RAM alone is insufficient.
+
+### Current scope decision, 2026-10-27
+
+The user proposed limiting enhanced detection to message inputs and deferring
+Linux server document scanning. This narrower scope supersedes the native
+integration proposal above: no document/file model activation, small-file
+threshold or optional full-scan product integration is planned now. Keep the
+working browser composer and recording/transcript text path, plus existing basic
+detection wherever already supported. CLI/TUI model activation remains deferred.
+The experiments and policy prototype below are retained as evidence for a
+possible future evaluation, not as product integration requirements. This scope
+record changes no runtime behavior; very long pasted messages can still be slow.
 
 ## Memory and latency policy prototype
 

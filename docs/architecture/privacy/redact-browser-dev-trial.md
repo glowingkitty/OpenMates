@@ -37,6 +37,15 @@ Production placement and privacy disclosure are part of the later decision.
 
 ## Integration boundary
 
+The current scope decision on 2026-10-27 keeps enhanced detection in message
+inputs and the existing recording/transcript text send path. Document/file
+scanning on Linux servers is deferred, including small-file and optional full-scan
+integration. The native evaluation and resource-policy prototype remain
+engineering evidence; they do not enable a product feature. Existing document
+and code embed paths retain basic detection wherever already supported. CLI/TUI
+model activation remains deferred. Very large pasted messages can still be
+slow; restricting the feature to inputs does not itself enforce a latency limit.
+
 The development browser uses the local model for semantic detection while
 retaining the complete existing basic pattern detector, configured private
 entries, category settings and exclusions. Basic detection remains immediate
