@@ -54,6 +54,18 @@ def test_safe_cleanup_default_retains_integrated_work_under_four_days(monkeypatc
     assert report["deleted"] == []
 
 
+def test_cleanup_and_reconciliation_delegate_before_inventory_after_disk_cutover(monkeypatch):
+    sessions = load_sessions_module()
+    calls = []
+    monkeypatch.setattr(sessions, "_queue_coordinated_worktree_cleanup", lambda: calls.append(True) or True)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *a, **k: pytest.fail("independent cleanup inventory"))
+    report = sessions.reconcile_session_worktrees(apply_safe=True)
+    assert report["queued"] and report["deleted"] == []
+    expiry = sessions.expire_managed_worktrees.__wrapped__(max_age_hours=96)
+    assert expiry["queued"] and expiry["retained"] == []
+    assert len(calls) == 2
+
+
 def test_safe_cleanup_deletes_only_old_integrated_worktrees(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
@@ -795,6 +807,7 @@ def test_ensure_reactivates_valid_merged_worktree(monkeypatch, tmp_path):
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env"])
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
 
     result = sessions.ensure_session_worktree("abcd")
 
@@ -807,6 +820,7 @@ def test_ensure_rejects_missing_merged_worktree(monkeypatch, tmp_path):
     missing = tmp_path / "managed" / "agent-abcd"
     data = {"sessions": {"abcd": {"worktree": {"path": str(missing), "status": "merged"}}}}
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
 
     with pytest.raises(RuntimeError, match="invalid or missing managed worktree"):
         sessions.ensure_session_worktree("abcd")

@@ -5,6 +5,22 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# After cutover every scheduled/manual cleanup joins the elected host owner.
+DISK_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" configured-check --repository "$DISK_REPO_ROOT"; then
+    DISK_CONFIGURATION_STATUS=0
+else
+    DISK_CONFIGURATION_STATUS=$?
+fi
+if [ "$DISK_CONFIGURATION_STATUS" -eq 0 ]; then
+    if ! python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" owner-check; then
+        exec python3 "$DISK_REPO_ROOT/scripts/disk_coordinator.py" maintenance --repository "$DISK_REPO_ROOT" --kind proof
+    fi
+elif [ "$DISK_CONFIGURATION_STATUS" -ne 3 ]; then
+    echo "Disk coordinator state is uncertain; refusing independent cleanup." >&2
+    exit 1
+fi
+
 LOCK_FILE="${OPENMATES_PROOF_CLEANUP_LOCK:-/tmp/openmates-proof-video-cleanup.lock}"
 
 exec 9>"$LOCK_FILE"

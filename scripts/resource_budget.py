@@ -2,8 +2,8 @@
 
 Cleanup owns only proven disposable successful CI payloads and integrated,
 expired candidate patches. Worktree expiry owns worktree deletion; dependency
-copies are reported but kept. Admission cleanup requires explicit opt-in after
-dry-run review; no background cleaner runs.
+copies are reported but kept. Cleanup eligibility still requires reviewed opt-in; the elected host service
+schedules cleanup for migrated repositories. Callers never clean on admission.
 """
 
 from __future__ import annotations
@@ -144,39 +144,84 @@ def admission(root: Path, requested: int, *, min_free: int = MIN_FREE,
             "reserved_bytes": reserved, "requested_bytes": requested}
 
 
+def _coordinated_reserve(root, amount, *, min_free, max_used_percent, operation, thread, task_id):
+    try:
+        from scripts import disk_coordinator
+    except ModuleNotFoundError:
+        import disk_coordinator
+    coordinator = disk_coordinator.configured(root)
+    if coordinator is None:
+        return None
+    row = coordinator.request(root, amount, operation=operation, thread=thread,
+                              task_id=task_id, min_free=min_free,
+                              max_used_percent=max_used_percent)
+    # Wait briefly for the service's normal metadata tick, never run cleanup in
+    # the requesting process. A chat then yields; its durable ticket survives.
+    deadline = time.monotonic() + 3
+    while True:
+        if row["state"] == "granted" and coordinator.available():
+            claimed = coordinator.claim(row["id"], row["grant_id"])
+            if claimed is not None:
+                return coordinator, claimed
+        if row["state"] == "claimed":
+            raise RuntimeError("Disk operation already has a live allocation owner")
+        if time.monotonic() >= deadline:
+            raise disk_coordinator.DiskWait(row)
+        time.sleep(0.1)
+        row = coordinator.get(row["id"])
+
+
 @contextmanager
 def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
-            max_used_percent: int = MAX_USED_PERCENT):
-    """Reserve allocation headroom across local processes until owner exit.
+            max_used_percent: int = MAX_USED_PERCENT, operation="allocation",
+            thread=None, task_id=""):
+    """Gate a disk allocation; coordinated waits outlive short-lived chat tools.
 
-    A PID and kernel process start identity fence stale reservations, including
-    a crashed owner and PID reuse. All callers use the same root lock.
+    Unmigrated repositories retain fail-closed admission without caller-driven
+    cleanup. All migrated repositories on a filesystem share the host ledger.
+    The yielded lease supports explicit materialization accounting through the
+    coordinator; writers without reliable attribution retain conservative peaks.
     """
-    if amount < 0:
-        raise ValueError("Negative disk reservation")
-    root = root.resolve()
+    if type(amount) is not int or amount < 0:
+        raise ValueError("Negative or invalid disk reservation")
+    try:
+        from scripts.disk_coordinator import canonical_repository, configured
+    except ModuleNotFoundError:
+        from disk_coordinator import canonical_repository, configured
+    root = canonical_repository(root)
+    thread = os.environ.get("CODEX_THREAD_ID", "") if thread is None else thread
+    coordinated = _coordinated_reserve(root, amount, min_free=min_free,
+        max_used_percent=max_used_percent, operation=operation, thread=thread, task_id=task_id)
+    if coordinated:
+        coordinator, row = coordinated
+        try:
+            yield {**row, "coordinator": coordinator}
+        finally:
+            coordinator.release(row["id"])
+        return
     token = uuid.uuid4().hex
-    for attempt in range(2):
-        with _locked(root) as directory:
+    path = None
+    with _locked(root) as directory:
+        # Registration uses this same lock. Recheck after acquiring it so a
+        # concurrent cutover cannot leave a second legacy reservation writer.
+        if configured(root) is None:
             existing = sum(item["bytes"] for item in _reservations(directory))
             decision = admission(root, amount, min_free=min_free,
                                  max_used_percent=max_used_percent, reserved=existing)
-            if decision["allowed"]:
-                start = _start_time(os.getpid())
-                if not start:
-                    raise RuntimeError("Cannot establish disk reservation owner")
-                path = directory / f"reservation-{token}.json"
-                path.write_text(json.dumps({"pid": os.getpid(), "start": start,
-                                            "bytes": amount, "created": time.time()}))
-                break
-        if attempt or not _auto_enabled(root):
-            raise RuntimeError("Disk budget exceeded: " + json.dumps(decision, sort_keys=True))
-        # The admin has reviewed a dry-run manifest and explicitly enabled this
-        # owner. Persist each automatic dry-run before touching eligible bytes.
-        manifest = inventory(root)
-        stamp = f"auto-dry-run-{int(time.time())}-{uuid.uuid4().hex}.json"
-        (_control(root) / stamp).write_text(json.dumps(manifest, indent=2, sort_keys=True))
-        cleanup(root, manifest=manifest)
+            if not decision["allowed"]:
+                raise RuntimeError("Disk budget exceeded: " + json.dumps(decision, sort_keys=True)
+                                   + "; no caller cleanup is allowed; enable the host disk coordinator")
+            start = _start_time(os.getpid())
+            if not start:
+                raise RuntimeError("Cannot establish disk reservation owner")
+            path = directory / f"reservation-{token}.json"
+            path.write_text(json.dumps({"pid": os.getpid(), "start": start,
+                                        "bytes": amount, "created": time.time()}))
+    if path is None:
+        with reserve(root, amount, min_free=min_free, max_used_percent=max_used_percent,
+                     operation=operation, thread=thread, task_id=task_id) as lease:
+            yield lease
+        return
     try:
         yield decision
     finally:
@@ -437,9 +482,18 @@ def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True)
             "reclaim_bytes": sum(item.get("reclaim_bytes", 0) for item in entries)}
 
 
-def cleanup(root: Path, *, manifest: dict) -> dict:
+def cleanup(root: Path, *, manifest: dict, _coordinator_owned=False) -> dict:
     """Apply only an unchanged, explicit manifest under the shared budget lock."""
     root = root.resolve()
+    if not _coordinator_owned:
+        try:
+            from scripts.disk_coordinator import configured
+        except ModuleNotFoundError:
+            from disk_coordinator import configured
+        coordinator = configured(root)
+        if coordinator is not None:
+            coordinator.enqueue_maintenance(root, "managed")
+            return {"queued": True, "removed": [], "reclaimed_estimate_bytes": 0}
     if manifest.get("dry_run") is not True or manifest.get("root") != str(root):
         raise ValueError("Expected exact dry-run disk manifest")
     with _locked(root):

@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { OpenMatesClient } from '../frontend/packages/openmates-cli/src/client.ts';
 import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from '../frontend/packages/openmates-cli/src/crypto.ts';
-import { buildBlockUserTaskInput, buildCreateUserTaskInput, buildUpdateUserTaskInput, decryptUserTask, taskKeyFromRecord } from '../frontend/packages/openmates-cli/src/tasksCli.ts';
+import { buildBlockUserTaskInput, buildCreateUserTaskInput, buildUpdateUserTaskInput, decryptTaskActivityEntry, decryptUserTask, taskKeyFromRecord } from '../frontend/packages/openmates-cli/src/tasksCli.ts';
 import { buildCreateUserPlanInput, decryptUserPlan } from '../frontend/packages/openmates-cli/src/plansCli.ts';
 import { startRemoteAccessSource } from '../frontend/packages/openmates-cli/src/remoteAccess.ts';
 import { taskMutationStore } from '../frontend/packages/openmates-cli/src/taskMutationDelivery.ts';
@@ -190,6 +190,57 @@ try {
   const input = createInterface({input: process.stdin});
   for await (const line of input) {
     if (line !== 'verify-replay') continue;
+    stage = 'disk_task_activate';
+    const diskTarget = await client.getUserTask(tasks[0].task_id, {personal:true});
+    const diskActive = await client.updateUserTask(diskTarget.task_id,
+      await buildUpdateUserTaskInput(await decryptUserTask(diskTarget,master),master,{status:'in_progress'}), {personal:true});
+    await until(() => snapshot()?.tasks.some(task => task.task_id === diskActive.task_id && task.status === 'in_progress' && task.version === diskActive.version),
+      'Disk fixture active Task did not reach the authenticated cache');
+    const diskFixture = join(folder,'disk-task-sync.json');
+    async function diskProbe(phase) {
+      const result = await promisify(execFile)('python3', ['scripts/verify_disk_task_sync.py',phase,
+        '--snapshot',snapshotFile,'--task',diskActive.task_id,'--fixture',diskFixture], {env:process.env,timeout:30_000});
+      return JSON.parse(result.stdout);
+    }
+    function acknowledged(receipts) {
+      const stateRoot = process.env.OPENMATES_STATE_DIR;
+      assert.ok(stateRoot,'The real foreground CLI and Python outbox must share private state');
+      const directory = join(stateRoot,'task-command-delivery',createHash('sha256').update(scope).digest('hex'));
+      return receipts.every(receipt => JSON.parse(readFileSync(join(directory,`${receipt.id}.json`),'utf8')).state === 'acknowledged');
+    }
+    stage = 'disk_task_block_outbox';
+    const diskBlocked = await diskProbe('block');
+    assert.equal(diskBlocked.original_version,diskActive.version);
+    await until(() => snapshot()?.tasks.some(task => task.task_id === diskActive.task_id && task.status === 'blocked' && task.version === diskActive.version+1)
+      && acknowledged(diskBlocked.receipts), 'Encrypted disk wait status/activity was not acknowledged and pushed to cache');
+    const persistedDiskBlock = await client.getUserTask(diskActive.task_id,{personal:true});
+    assert.equal(persistedDiskBlock.status,'blocked');
+    assert.equal(persistedDiskBlock.version,diskActive.version+1);
+    const diskActivities = await client.listUserTaskActivity(diskActive.task_id,{personal:true,limit:100});
+    const diskActivityId = diskBlocked.receipts.find(receipt => receipt.kind === 'activity').id;
+    const activityRecord = diskActivities.entries.find(entry => entry.entry_id === diskActivityId);
+    assert.ok(activityRecord,'The acknowledged activity must exist in the real API');
+    assert.equal((await decryptTaskActivityEntry(await decryptUserTask(persistedDiskBlock,master),master,activityRecord)).message,
+      'Waiting for host disk capacity; existing work will resume after a reserved grant.');
+    stage = 'disk_task_restore_outbox';
+    const diskRestore = await diskProbe('restore');
+    await until(() => snapshot()?.tasks.some(task => task.task_id === diskActive.task_id && task.status === 'in_progress' && task.version === diskActive.version+2)
+      && acknowledged(diskRestore.receipts), 'Encrypted disk-ready restore was not acknowledged and pushed to cache');
+    await diskProbe('confirm');
+    const persistedDiskRestore = await client.getUserTask(diskActive.task_id,{personal:true});
+    assert.equal(persistedDiskRestore.status,'in_progress');
+    assert.equal(persistedDiskRestore.version,diskActive.version+2);
+    stage = 'disk_task_human_blocker';
+    const humanBlocked = await client.blockUserTask(diskActive.task_id,
+      await buildBlockUserTaskInput(await decryptUserTask(persistedDiskRestore,master),master,
+        {reasonCode:'needs_user_input',reasonText:'Human approval remains required during disk recovery.'}));
+    await until(() => snapshot()?.tasks.some(task => task.task_id === diskActive.task_id && task.status === 'blocked' && task.version === humanBlocked.version
+      && task.blocked_reason_code === 'needs_user_input'), 'Human blocker did not reach the real cache');
+    await diskProbe('human-blocker');
+    const preservedHumanBlock = await client.getUserTask(diskActive.task_id,{personal:true});
+    assert.equal(preservedHumanBlock.version,humanBlocked.version);
+    assert.equal(preservedHumanBlock.status,'blocked');
+    assert.equal((await decryptUserTask(preservedHumanBlock,master)).blockedReason,'Human approval remains required during disk recovery.');
     stage = 'replay';
     await stop();
     const previous = await client.getUserTask(tasks[1].task_id, {personal: true});
@@ -300,7 +351,7 @@ try {
     const detached = await client.getUserTask(owned.task_id,{personal:true});
     assert.equal(detached.external_chat_provider,null);
     assert.equal((await decryptUserTask(detached,master)).title,(await decryptUserTask(owned,master)).title);
-    emit({event: 'verified', checks: ['twelve_tasks', 'single_owner', 'dependency_todo', 'lost_ack_reconciled', 'reconnect_update', 'reconnect_deletion','native_chat_task_plan_unlink','confirmed_codex_unlink']});
+    emit({event: 'verified', checks: ['twelve_tasks', 'single_owner', 'dependency_todo', 'lost_ack_reconciled', 'reconnect_update', 'reconnect_deletion','native_chat_task_plan_unlink','confirmed_codex_unlink','disk_task_wait_outbox','disk_task_restore_outbox','disk_task_human_blocker']});
     break;
   }
   input.close();

@@ -1,0 +1,40 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: disk-coordination
+title: Coordinated disk admission and automatic chat recovery
+goal: >-
+  Chats automatically pause when they need more disk space, one coordinator safely
+  cleans space, and affected chats are informed and resume when capacity is available.
+authorization:
+  proposal: R1 revision 1, reviewed PDF of 2026-10-27
+  approval: User replied "Okay, implement." in Codex chat 01a17cdd-c079-7973-ba11-04fa5c7dced4.
+scope:
+  in:
+    - One host ledger and elected disk service; per-filesystem capacity and durable waits.
+    - Existing workspace/publication admission; bounded command wrapper for heavier allocations.
+    - Existing safe cleanup implementations routed through the single owner.
+    - Existing Task event adapter with human-stop and uncertain-start protections.
+    - Focused process tests, isolated integration coverage, scoped dev release and small pilot.
+  out:
+    - Production changes, arbitrary process suspension, deletion of protected source/data/evidence.
+acceptance:
+  - Concurrent requests share one cleanup owner and cannot overcommit capacity.
+  - Disk waits survive client exit; replay cannot duplicate continuation or override a human stop.
+  - Cleanup that cannot make progress backs off and exposes a persistent shortfall.
+  - Expired grants and uncertain owners cannot authorize work or deletion.
+  - Old independent cleanup writers stop at activation; rollback preserves pending requests.
+verification:
+  required:
+    - Focused local admission, concurrency, cleanup safety, adapter and replay tests.
+    - Isolated process integration of request, wait, cleanup, grant and resume gating.
+    - Scoped dev deployment and a registered pilot with no forced low-disk condition.
+
+closure_request:
+  user: "We are running out of codex usage ... deploy what is fixed and give an overview of anything else remains open."
+  scope: Publish the locally verified implementation now; defer isolated E2E execution and runtime activation.
+  verification: Focused admission/process/adapter/cleanup/source and worktree regression checks passed; encrypted Task integration coverage was added but not executed.
+  remaining:
+    - Run project-task-sync.spec.ts with tasks-flow.spec.ts in isolated GitHub CI and deliver selected recordings.
+    - Install and enable the supervised disk service after that check passes.
+    - Deliberately reload the foreground Task adapter and verify the registered dev pilot.

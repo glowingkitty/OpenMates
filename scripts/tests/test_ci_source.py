@@ -181,7 +181,8 @@ def test_candidate_reservation_covers_private_upload(tmp_path, monkeypatch):
     def reserved(reservation_root, amount, **limits):
         assert reservation_root == root
         assert amount == ci_source.MAX_CHANGED_BYTES
-        assert limits == {"min_free": 0, "max_used_percent": 100}
+        assert limits == {"min_free": 0, "max_used_percent": 100,
+                          "operation": "ci-source:fixture"}
         active.append(True)
         try:
             yield

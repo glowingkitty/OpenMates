@@ -308,9 +308,22 @@ def test_opt_in_admission_reclaims_only_reviewed_classification(tmp_path, monkey
                                    "free": 200 if occupied else 300})()
 
     monkeypatch.setattr(budget.shutil, "disk_usage", usage)
-    with budget.reserve(tmp_path, 70, min_free=0, max_used_percent=85):
+    # Even reviewed eligibility must never make the rejected caller a cleaner.
+    with pytest.raises(RuntimeError, match="no caller cleanup"):
+        with budget.reserve(tmp_path, 70, min_free=0, max_used_percent=85):
+            pass
+    assert (result / "test-results/large.webm").exists()
+    assert not list(budget._control(tmp_path).glob("auto-dry-run-*.json"))
+    from scripts.disk_coordinator import Coordinator
+    coordinator = Coordinator(tmp_path / "host-ledger", usage=usage, inodes=lambda _: 100000)
+    coordinator.register(tmp_path, maintenance=("managed",))
+    request = coordinator.request(tmp_path, 70, operation="fixture", min_free=0,
+                                  max_used_percent=85, min_inodes=0)
+    with coordinator.leadership():
+        coordinator.tick(recovery_margin=0)
         assert not (result / "test-results/large.webm").exists()
-    assert list(budget._control(tmp_path).glob("auto-dry-run-*.json"))
+        coordinator.tick(recovery_margin=0)
+        assert coordinator.get(request["id"])["state"] == "granted"
     budget.disable_auto(tmp_path)
     assert not budget._auto_enabled(tmp_path)
 

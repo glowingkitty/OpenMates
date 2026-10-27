@@ -1974,7 +1974,7 @@ def ensure_session_worktree(session_id: str) -> dict:
         from scripts.resource_budget import reserve
     except ModuleNotFoundError:
         from resource_budget import reserve
-    with reserve(CONTROL_PLANE_ROOT, 1024**3,
+    with reserve(CONTROL_PLANE_ROOT, 1024**3, operation=f"workspace:{session_id}",
                  min_free=WORKTREE_MIN_FREE_BYTES,
                  max_used_percent=WORKTREE_MAX_DISK_PERCENT):
         return _ensure_session_worktree_impl(session_id)
@@ -4272,6 +4272,18 @@ def _prune_deletion_manifests(data: dict) -> None:
     data["worktree_deletion_manifests"] = retained
 
 
+def _queue_coordinated_worktree_cleanup() -> bool:
+    try:
+        from scripts.disk_coordinator import configured, owner_check
+    except ModuleNotFoundError:
+        from disk_coordinator import configured, owner_check
+    disk_owner = configured(CONTROL_PLANE_ROOT)
+    if disk_owner is None or owner_check(disk_owner):
+        return False
+    disk_owner.enqueue_maintenance(CONTROL_PLANE_ROOT, "worktrees")
+    return True
+
+
 def reconcile_session_worktrees(
     *,
     target_ref: str = "origin/dev",
@@ -4281,6 +4293,9 @@ def reconcile_session_worktrees(
     only_session_ids: set[str] | None = None,
 ) -> dict:
     """Report or safely apply reconciliation for all known agent worktrees."""
+    if apply_safe and _queue_coordinated_worktree_cleanup():
+        return {"target_ref": target_ref, "target_commit": "", "apply_safe": True,
+                "items": [], "deleted": [], "unresolved": [], "queued": True}
     approved = set(approved_obsolete or set())
     rc, target_commit, stderr = _run_cmd(["git", "rev-parse", target_ref])
     if rc != 0:
@@ -4960,6 +4975,10 @@ def expire_managed_worktrees(
     now_timestamp: float | None = None,
 ) -> dict:
     """Delete aged, idle worktrees only when their changes are recoverable."""
+    if _queue_coordinated_worktree_cleanup():
+        return {"max_age_hours": max_age_hours, "inspected": 0, "deleted": [],
+                "retained": [], "failures": [], "queued": True}
+
     if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
         raise ValueError(
             f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
@@ -5118,7 +5137,13 @@ def expire_managed_worktrees(
 
 def _enforce_worktree_creation_capacity() -> None:
     """Clean expired worktrees, then refuse creation before disk or count exhaustion."""
-    expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
+    # Expiry is scheduled by the disk owner after cutover, never by every chat.
+    try:
+        from scripts.disk_coordinator import configured
+    except ModuleNotFoundError:
+        from disk_coordinator import configured
+    if configured(CONTROL_PLANE_ROOT) is None:
+        expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
     # free excludes reserved blocks, while used does not include them. Using
@@ -12813,6 +12838,8 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"Inspected: {report['inspected']}")
             print(f"Deleted: {len(report['deleted'])}")
             print(f"Retained: {len(report['retained'])}")
+            if report.get("queued"):
+                print("Cleanup queued for the elected disk coordinator.")
             for failure in report["failures"]:
                 print(f"  ! {failure['path']}: {failure['error']}")
         if report["failures"]:

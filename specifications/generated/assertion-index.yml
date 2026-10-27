@@ -132848,7 +132848,7 @@ assertions:
     direct_tests:
     - &id17017
       path: frontend/apps/web_app/tests/project-task-sync.spec.ts
-      line: 52
+      line: 53
       name: web edits reach every cached Task and disconnected updates replay
       surface: gui.web
     supporting_tests:
@@ -143207,7 +143207,7 @@ assertions:
     direct_tests:
     - &id18332
       path: frontend/apps/web_app/tests/project-task-sync.spec.ts
-      line: 52
+      line: 53
       name: web edits reach every cached Task and disconnected updates replay
       surface: gui.web
     supporting_tests:
@@ -143280,7 +143280,7 @@ assertions:
     direct_tests:
     - &id18337
       path: frontend/apps/web_app/tests/project-task-sync.spec.ts
-      line: 52
+      line: 53
       name: web edits reach every cached Task and disconnected updates replay
       surface: gui.web
     supporting_tests:
@@ -143378,7 +143378,7 @@ assertions:
     direct_tests:
     - &id18346
       path: frontend/apps/web_app/tests/project-task-sync.spec.ts
-      line: 52
+      line: 53
       name: web edits reach every cached Task and disconnected updates replay
       surface: gui.web
     supporting_tests: []
