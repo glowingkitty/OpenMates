@@ -27,8 +27,10 @@ const {
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const PRIVATE_EMAIL = 'rewrite-owner@example.net';
-const SEED_TEXT = `Remember ${PRIVATE_EMAIL} as my private contact for this rewrite test.`;
-const FOLLOW_UP_TEXT = `Use ${PRIVATE_EMAIL} for the signup form in one short sentence.`;
+const FIRST_ADDRESS = '42 Maple Avenue, Bristol BS1 4QA';
+const SECOND_ADDRESS = '18 Cedar Lane, York YO1 7AA';
+const SEED_TEXT = `Our customer Amina Okafor lives at ${FIRST_ADDRESS}. Remember ${PRIVATE_EMAIL} as my private contact for this rewrite test.`;
+const FOLLOW_UP_TEXT = `Use ${PRIVATE_EMAIL} for the signup form. Send deliveries to ${SECOND_ADDRESS} and keep ${FIRST_ADDRESS} as the alternate.`;
 
 type CapturedOutboundFrame = {
 	type: string;
@@ -37,7 +39,9 @@ type CapturedOutboundFrame = {
 };
 
 function redactTestValues(value: string): string {
-	return value.split(PRIVATE_EMAIL).join('<private-email>');
+	return value.split(PRIVATE_EMAIL).join('<private-email>')
+		.split(FIRST_ADDRESS).join('<first-address>')
+		.split(SECOND_ADDRESS).join('<second-address>');
 }
 
 function createRedactingLogger(label: string): (message: string, metadata?: Record<string, unknown>) => void {
@@ -54,7 +58,7 @@ function extractOutboundContent(parsed: Record<string, any>): string | null {
 			: null;
 	}
 
-	if (parsed.type === 'chat_turn_preflight') {
+	if (parsed.type === 'chat_turn_admit' || parsed.type === 'chat_turn_preflight') {
 		return typeof parsed.payload?.inference_request?.message?.content === 'string'
 			? parsed.payload.inference_request.message.content
 			: null;
@@ -85,7 +89,43 @@ function captureOutboundInferenceFrames(page: any, frames: CapturedOutboundFrame
 }
 
 function findPlaceholder(content: string): string | null {
-	return content.match(/\[EMAIL_\d+_[A-Za-z0-9]+\]/)?.[0] ?? null;
+	return content.match(/\[EMAIL_\d+(?:_[A-Za-z0-9]+)?\]/)?.[0] ?? null;
+}
+
+function addressPlaceholders(content: string): string[] {
+	const placeholders = [...new Set(content.match(/\[ADDRESS_[^\]]+\]/g) ?? [])];
+	expect(placeholders.length, 'The actual model must redact at least one address span').toBeGreaterThan(0);
+	for (const placeholder of placeholders) {
+		expect(placeholder, 'Outbound tokens retain their collision-resistant identity').toMatch(/^\[ADDRESS_[1-9]\d*_[A-Za-z0-9_]+\]$/);
+	}
+	return placeholders;
+}
+
+async function expectCompactAddressDisplay(page: any, internalTokens: string[]): Promise<void> {
+	const message = page.getByTestId('message-user').last();
+	const labels = message.getByTestId('pii-placeholder-label').filter({ hasText: /^\[ADDRESS_/ });
+	await expect(labels.first()).toBeVisible();
+	// A decoration transaction can replace spans between separate async reads.
+	// Inspect the complete rendered state in one synchronous DOM snapshot.
+	await expect.poll(async () => {
+		const snapshot = await labels.evaluateAll((elements: Element[]) => elements.map(element => ({
+			label: element.getAttribute('data-pii-display-label'),
+			content: getComputedStyle(element, '::after').content,
+			fontSize: getComputedStyle(element, '::after').fontSize,
+			canonicalFontSize: getComputedStyle(element).fontSize,
+			width: element.getBoundingClientRect().width,
+			height: element.getBoundingClientRect().height,
+			connected: element.isConnected,
+		})));
+		return { hasLabels: snapshot.length > 0, invalid: snapshot.filter((item: {
+			label: string | null; content: string; fontSize: string; canonicalFontSize: string;
+			width: number; height: number; connected: boolean;
+		}) => !item.connected || !/^\[ADDRESS_[1-9]\d*\]$/.test(item.label ?? '') ||
+			item.content !== JSON.stringify(item.label) || item.canonicalFontSize !== '0px' ||
+			!(parseFloat(item.fontSize) > 0 && item.width > 0 && item.height > 0)) };
+	}, { timeout: 5000 }).toEqual({ hasLabels: true, invalid: [] });
+	// Display aliases must not replace canonical tokens used by copy/send.
+	for (const token of internalTokens) await expect(message).toContainText(token);
 }
 
 async function waitForSentContent(
@@ -114,9 +154,9 @@ async function expectLastUserMessageContains(page: any, expectedText: string | R
 }
 
 // contract-test: direct surface=gui.web assertions=pii.outbound.known-original-rewrite,pii.message.owner-local-reveal
-test('rewrites prior PII originals before outbound follow-up send', async ({ page }: { page: any }) => {
+test('shows compact address labels while preserving unique wire tokens and owner restoration after reload', async ({ page }: { page: any }) => {
 	test.slow();
-	test.setTimeout(300000);
+	test.setTimeout(420000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const logCheckpoint = createRedactingLogger('PII_PLACEHOLDER_REWRITE');
@@ -145,15 +185,23 @@ test('rewrites prior PII originals before outbound follow-up send', async ({ pag
 	const placeholder = findPlaceholder(seedContent);
 	expect(placeholder).toBeTruthy();
 	expect(seedContent).not.toContain(PRIVATE_EMAIL);
+	expect(seedContent).not.toContain('Maple Avenue');
+	const seedAddresses = addressPlaceholders(seedContent);
 
 	await expectLastUserMessageContains(page, placeholder as string);
+	await expectCompactAddressDisplay(page, seedAddresses);
 
 	const chatPiiToggle = page.getByTestId('chat-pii-toggle');
 	await expect(chatPiiToggle).toBeVisible({ timeout: 15000 });
-	await chatPiiToggle.click();
+	const compactLabel = page.getByTestId('message-user').last().getByTestId('pii-placeholder-label').first();
+	await compactLabel.focus();
+	await compactLabel.press('Enter');
+	await expect(chatPiiToggle).toHaveAttribute('data-pii-revealed', 'true');
 	await expectLastUserMessageContains(page, PRIVATE_EMAIL);
+	await expectLastUserMessageContains(page, FIRST_ADDRESS);
 	await chatPiiToggle.click();
 	await expectLastUserMessageContains(page, placeholder as string);
+	await expectCompactAddressDisplay(page, seedAddresses);
 
 	await waitForAssistantMessage(page, {
 		which: 'last',
@@ -180,8 +228,26 @@ test('rewrites prior PII originals before outbound follow-up send', async ({ pag
 	for (const frame of followUpFrames) {
 		expect(frame.content).toContain(placeholder as string);
 		expect(frame.content).not.toContain(PRIVATE_EMAIL);
+		expect(frame.content).not.toContain('Maple Avenue');
+		expect(frame.content).not.toContain('Cedar Lane');
+		const followUpAddresses = addressPlaceholders(frame.content);
+		expect(followUpAddresses.some(token => seedAddresses.includes(token)), 'Known address components retain their prior tokens').toBe(true);
+		expect(followUpAddresses.some(token => !seedAddresses.includes(token)), 'A different address must retain a distinct internal token').toBe(true);
 	}
 
 	await expectLastUserMessageContains(page, placeholder as string);
+	const followUpAddresses = addressPlaceholders(followUpFrames[0].content);
+	await expectCompactAddressDisplay(page, followUpAddresses);
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await expectLastUserMessageContains(page, placeholder as string);
+	await expectCompactAddressDisplay(page, followUpAddresses);
+	await expect(chatPiiToggle).toHaveAttribute('data-pii-revealed', 'false');
+	await chatPiiToggle.click();
+	await expectLastUserMessageContains(page, PRIVATE_EMAIL);
+	await expectLastUserMessageContains(page, FIRST_ADDRESS);
+	await expectLastUserMessageContains(page, SECOND_ADDRESS);
+	await chatPiiToggle.click();
+	await expectLastUserMessageContains(page, placeholder as string);
+	await expect(page.getByTestId('message-user').last()).not.toContainText('Cedar Lane');
 	await deleteActiveChat(page, logCheckpoint, undefined, 'pii-rewrite-cleanup');
 });

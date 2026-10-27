@@ -79,6 +79,30 @@ if (typeof document !== 'undefined') {
 export default defaultProps;
 
 export const variants = {
+  compactPIIHidden: {
+    ...defaultProps,
+    chatId: 'preview-compact-pii',
+    content: 'Literal [ADDRESS_1]. Home [ADDRESS_1_0000000000000001], work [ADDRESS_1_0000000000000002], home again [ADDRESS_1_0000000000000001]. Custom [MY_HOME]. Legacy [EMAIL_1_test].',
+    piiMappings: [
+      { type: 'ADDRESS', original: 'Maple Avenue', placeholder: '[ADDRESS_1_0000000000000001]' },
+      { type: 'ADDRESS', original: 'Birch Lane', placeholder: '[ADDRESS_1_0000000000000002]' },
+      { type: 'ADDRESS', original: 'Private Cottage', placeholder: '[MY_HOME]' },
+      { type: 'EMAIL', original: 'owner@example.test', placeholder: '[EMAIL_1_test]' },
+    ],
+    piiRevealed: false,
+  },
+  compactPIIRevealed: {
+    ...defaultProps,
+    chatId: 'preview-compact-pii',
+    content: 'Literal [ADDRESS_1]. Home [ADDRESS_1_0000000000000001], work [ADDRESS_1_0000000000000002], home again [ADDRESS_1_0000000000000001]. Custom [MY_HOME]. Legacy [EMAIL_1_test].',
+    piiMappings: [
+      { type: 'ADDRESS', original: 'Maple Avenue', placeholder: '[ADDRESS_1_0000000000000001]' },
+      { type: 'ADDRESS', original: 'Birch Lane', placeholder: '[ADDRESS_1_0000000000000002]' },
+      { type: 'ADDRESS', original: 'Private Cottage', placeholder: '[MY_HOME]' },
+      { type: 'EMAIL', original: 'owner@example.test', placeholder: '[EMAIL_1_test]' },
+    ],
+    piiRevealed: true,
+  },
   voiceDeliveryCues: {
     ...defaultProps,
     role: 'assistant' as const,

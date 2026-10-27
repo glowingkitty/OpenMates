@@ -66,6 +66,7 @@ const mocks = vi.hoisted(() => {
     tipTapToCanonicalMarkdown: vi.fn((_content: unknown) => 'Send these attachments'),
     createEmbedFromUrl: vi.fn(),
     privacySettings: { masterEnabled: false, categories: {} },
+    getActivePIIMappingsForRewrite: vi.fn((): Array<{ placeholder: string; original: string; type: string }> => []),
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
     beginFreshProjectRoutingForSend: vi.fn(),
@@ -125,7 +126,7 @@ vi.mock('../services/webPIIDetectionService', () => ({
   }),
 }));
 vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn((markdown: string) => ({ markdown, appliedMappings: [] })) }));
-vi.mock('../../../stores/embedPIIStore', () => ({ getActivePIIMappingsForRewrite: vi.fn(() => []) }));
+vi.mock('../../../stores/embedPIIStore', () => ({ getActivePIIMappingsForRewrite: mocks.getActivePIIMappingsForRewrite }));
 vi.mock('../../../stores/teamStore', () => ({
   activeTeamContext: mocks.store({ teamId: null, epoch: 0 }),
   activeTeamId: mocks.store(null),
@@ -149,6 +150,7 @@ import { addPendingSend, claimPendingSendPrivacy, getReadyPendingSend, markPendi
 beforeEach(() => {
   mocks.webPIIEnabled.mockReturnValue(false);
   mocks.scanGate.mockImplementation(async () => undefined);
+  mocks.getActivePIIMappingsForRewrite.mockReturnValue([]);
 });
 
 function makeEditor(includeEmbeds = true) {
@@ -322,6 +324,91 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     mocks.teamContext.epoch = 0;
     mocks.isTeamAIInvocation.mockReturnValue(false);
     mocks.tipTapToCanonicalMarkdown.mockReturnValue('Send these attachments');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it('sends a followup when active-chat PII mappings contain reactive proxies', async () => {
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue(null);
+    const seed = makeEditor(false);
+    expect(await handleSend(seed.editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    const originalMapping = { placeholder: '[EMAIL_1_com]', original: 'owner@example.test', type: 'EMAIL' };
+    const mapping = new Proxy({ ...originalMapping }, {});
+    expect(() => structuredClone(mapping)).toThrow();
+    mocks.getActivePIIMappingsForRewrite.mockReturnValue([mapping]);
+    const followup = makeEditor(false);
+    mocks.privacySettings.masterEnabled = true;
+    try {
+      expect(await handleSend(followup.editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+      expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(2);
+      const { rewriteKnownPIIPlaceholders } = await import('../services/placeholderRewriteService');
+      const snapshot = vi.mocked(rewriteKnownPIIPlaceholders).mock.calls.at(-1)![1].mappings;
+      expect(structuredClone(snapshot)).toEqual([originalMapping]);
+      mapping.original = 'newer@example.test';
+      expect(snapshot).toEqual([originalMapping]);
+    } finally {
+      mocks.privacySettings.masterEnabled = false;
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it('releases the send guard when synchronous privacy capture fails before pipeline setup', async () => {
+    mocks.getActivePIIMappingsForRewrite.mockImplementationOnce(() => { throw new Error('snapshot unavailable'); });
+    const rejected = makeEditor(false);
+    await expect(handleSend(rejected.editor, vi.fn(), vi.fn(), 'chat-auth')).rejects.toThrow('snapshot unavailable');
+    expect(rejected.clearContent).not.toHaveBeenCalled();
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    const retry = makeEditor(false);
+    expect(await handleSend(retry.editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it.each([
+    ['transport', 'send_new_message_started'],
+    ['admission read', 'send_admission_read_started'],
+    ['draft cleanup', 'send_draft_cleanup_started'],
+  ] as const)('retains the owning %s phase when rejecting duplicate sends', async (pendingOperation, phase) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue(null);
+    mocks.clearCurrentDraft.mockResolvedValue(undefined);
+    if (pendingOperation === 'transport') mocks.chatSyncService.sendNewMessage.mockImplementationOnce(() => pending);
+    if (pendingOperation === 'admission read') mocks.chatDB.getMessage.mockImplementationOnce(async () => { await pending; return null; });
+    if (pendingOperation === 'draft cleanup') mocks.clearCurrentDraft.mockImplementationOnce(() => pending);
+    const debugWindow = window as Window & {
+      __openmatesLastSendDebug?: { step: string; timestamp: string; details: Record<string, unknown> };
+    };
+    const { editor } = makeEditor(false);
+    const firstSend = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
+    try {
+      const pendingMock = pendingOperation === 'transport' ? mocks.chatSyncService.sendNewMessage
+        : pendingOperation === 'admission read' ? mocks.chatDB.getMessage : mocks.clearCurrentDraft;
+      await vi.waitFor(() => expect(pendingMock).toHaveBeenCalledOnce());
+      const duplicate = makeEditor(false);
+      let phaseStartedAt: unknown;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await handleSend(duplicate.editor, vi.fn(), vi.fn(), 'chat-auth');
+        if (attempt === 0) {
+          phaseStartedAt = debugWindow.__openmatesLastSendDebug?.details.activeSendPhaseStartedAt;
+          expect(phaseStartedAt).toEqual(expect.any(String));
+        }
+        expect(debugWindow.__openmatesLastSendDebug).toMatchObject({
+          step: 'send_guard_rejected',
+          details: { activeSendPhase: phase, activeSendPhaseStartedAt: phaseStartedAt },
+        });
+      }
+      expect(duplicate.clearContent).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledOnce();
+    } finally {
+      release();
+      await firstSend;
+    }
+    expect(debugWindow.__openmatesLastSendDebug?.step).toBe('send_guard_released');
+    const next = makeEditor(false);
+    expect(await handleSend(next.editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(2);
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,drafts.persistence.local-first-encrypted

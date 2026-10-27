@@ -424,6 +424,10 @@ function setSubmittedEmbedContentRef(
  * (chat creation + dispatch + WebSocket send).
  */
 let sendInProgress = false;
+// Keep only the current owner's fixed phase name and start time. A duplicate
+// invocation replaces the last-step snapshot, so retain its owner's phase
+// separately to identify a stalled await without retaining message content.
+let activeSendDebugPhase: { step: string; timestamp: string } | null = null;
 
 const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
 
@@ -450,7 +454,11 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
   const userId = get(userProfile).user_id;
   const authenticated = get(authStore).isAuthenticated;
   const enhanced = isWebPIIModelEnabled();
-  const placeholderOwners = new Map(mappings.map((mapping) => [mapping.placeholder, mapping.original]));
+  // ActiveChat's Svelte state exposes mapping objects through reactive proxies.
+  // Copy the primitive fields into an owner-local snapshot: structuredClone
+  // rejects proxies even when their contents are plain serializable strings.
+  const mappingSnapshot = mappings.map(({ placeholder, original, type }) => ({ placeholder, original, type }));
+  const placeholderOwners = new Map(mappingSnapshot.map((mapping) => [mapping.placeholder, mapping.original]));
   let placeholderSequence = 0;
   const options: PIIDetectionOptions = {
     excludedIds: new Set(exclusions),
@@ -474,7 +482,7 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
     enabled: settings.masterEnabled,
     enhanced,
     options,
-    mappings: structuredClone(mappings),
+    mappings: mappingSnapshot,
     failureNotificationId: undefined as string | undefined,
     uniqueMatches(matches: PIIMatch[]): PIIMatch[] {
       return matches.map((match) => {
@@ -681,13 +689,18 @@ function recordSendDebugStep(
   step: string,
   details: Record<string, unknown> = {},
 ): void {
+  const timestamp = new Date().toISOString();
+  if (sendInProgress && step !== "send_invoked" && step !== "send_guard_rejected" &&
+      step !== "send_set_active_chat_complete") {
+    activeSendDebugPhase = { step, timestamp };
+  }
   const debugWindow = window as Window & {
     __openmatesLastSendDebug?: Record<string, unknown>;
   };
   debugWindow.__openmatesLastSendDebug = {
     step,
     details,
-    timestamp: new Date().toISOString(),
+    timestamp,
   };
 }
 
@@ -821,6 +834,10 @@ export async function handleSend(
   // created, leading to messages being routed to the wrong chat (e.g., the user sees
   // their message in the "for everyone" intro chat instead of the new chat).
   if (sendInProgress) {
+    recordSendDebugStep("send_guard_rejected", {
+      activeSendPhase: activeSendDebugPhase?.step ?? null,
+      activeSendPhaseStartedAt: activeSendDebugPhase?.timestamp ?? null,
+    });
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
       { currentChatId, textLength: editorTextLength },
@@ -828,6 +845,8 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  try {
+  recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
   const privacyAtClick = captureSendPrivacy(activePIIExclusions);
   const submittedEditorDoc = editor.state.doc;
@@ -906,8 +925,6 @@ export async function handleSend(
       console.warn("[handleSend] Could not prepare immediate history row:", error);
     }
   }
-  recordSendDebugStep("send_guard_acquired", { currentChatId });
-
   // OTel instrumentation: root span covering the entire send pipeline
   const tracer = getTracer();
   const rootSpan = tracer.startSpan('message.send.pipeline', {
@@ -2467,9 +2484,12 @@ export async function handleSend(
 			isNewChatCreation || isUsingDraftChat,
 			earlyEmptyConnectedAccounts,
 		);
+    recordSendDebugStep("send_transport_resolved");
     // A local admission guard can resolve after marking the message failed.
     // Every composer must retain its draft on rejection; cleanup requires acceptance.
+    recordSendDebugStep("send_admission_read_started");
     const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
+    recordSendDebugStep("send_admission_read_complete");
     if (submittedMessage?.status === 'failed') {
       wsSpan.end();
       return false;
@@ -2491,7 +2511,10 @@ export async function handleSend(
 
     const wasCancelledAfterSend = isSendCancelled(chatIdToUse);
     if (wasCancelledAfterSend) {
+      recordSendDebugStep("send_cancelled_message_delete_started");
       await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_message_delete_complete");
+      recordSendDebugStep("send_cancelled_remote_delete_started");
       await chatSyncService.sendDeleteMessage(chatIdToUse, messagePayload.message_id);
       recordSendDebugStep("sent_message_deleted_after_cancellation", {
         chatIdToUse,
@@ -2519,7 +2542,9 @@ export async function handleSend(
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
+      recordSendDebugStep("send_draft_cleanup_started");
       await clearCurrentDraft({ editor, document: composerStillContainsClearedDocument ? clearedEditorDoc! : submittedEditorDoc, chatId: chatIdToUse });
+      recordSendDebugStep("send_draft_cleanup_complete");
     } else {
       // This case might happen if a message is sent for a chat that isn't the one
       // currently active in the MessageInput's draft context (e.g., programmatic send).
@@ -2586,6 +2611,7 @@ export async function handleSend(
   } finally {
     if (!sendAccepted && !queuedDeferredSend) {
       if (createdLocalChatId || persistedMessageId) {
+        recordSendDebugStep("send_rollback_started");
         try {
           if (messageStoredIncognito) {
             const { incognitoChatService } = await import("../../../services/incognitoChatService");
@@ -2620,6 +2646,7 @@ export async function handleSend(
         } catch (rollbackError) {
           console.error("[handleSend] Failed to roll back rejected local message:", rollbackError);
         }
+        recordSendDebugStep("send_rollback_complete");
       }
       restoreRejectedDraft();
       if (optimisticMessageDispatched && dispatchedMessage) {
@@ -2629,8 +2656,14 @@ export async function handleSend(
         });
       }
     }
-    sendInProgress = false;
     rootSpan.end();
+  }
+  } finally {
+    // Synchronous snapshot/tracing preparation above can throw before the
+    // pipeline's rollback block exists. Every acquired guard must be released.
+    sendInProgress = false;
+    activeSendDebugPhase = null;
+    recordSendDebugStep("send_guard_released");
   }
 }
 

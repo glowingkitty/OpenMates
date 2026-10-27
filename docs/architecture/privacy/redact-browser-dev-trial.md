@@ -46,6 +46,16 @@ and code embed paths retain basic detection wherever already supported. CLI/TUI
 model activation remains deferred. Very large pasted messages can still be
 slow; restricting the feature to inputs does not itself enforce a latency limit.
 
+Owner-visible message placeholders use compact labels such as `[ADDRESS_1]` and
+`[ADDRESS_2]` for generated semantic tokens. Numbering is local to the rendered
+message and avoids existing literal, short and configured labels. The unique
+canonical tokens remain unchanged in encrypted mappings, outbound content and
+copied message text. This avoids unsafe reuse of short tokens when older chat
+history is unloaded or another device sends. Reveal/hide still uses the exact
+canonical mapping. Street, city and postcode spans retain the ADDRESS category;
+this change does not group them into numbered complete addresses. Embed-specific
+renderers and viewers without owner mappings retain their existing presentation.
+
 The development browser uses the local model for semantic detection while
 retaining the complete existing basic pattern detector, configured private
 entries, category settings and exclusions. Basic detection remains immediate
