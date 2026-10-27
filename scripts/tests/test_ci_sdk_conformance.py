@@ -1383,7 +1383,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "f85685a2b2fab7db3a6c0373e1a87b641dbfd70f687b6497668c67d6d19f37d6"
+    assert sdk.sha(live_bytes) == "06b039408543b5da502db06e5caa70f33f343f9bfd5d74e3a2b6ac21e7ba59f0"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -3276,6 +3276,14 @@ def selected_sdk_matrix_history(raw):
 
 
 def selected_sdk_cookie_history(raw):
+    change = browser41_registration_delta()["cookieDelta"]
+    if sdk.sha(raw) == change["afterSha256"]:
+        raw = change["beforeRaw"].encode()
+        assert sdk.sha(raw) == change["beforeSha256"]
+    change = rich45_registration_delta()["cookieDelta"]
+    if sdk.sha(raw) == change["afterSha256"]:
+        raw = change["beforeRaw"].encode()
+        assert sdk.sha(raw) == change["beforeSha256"]
     change = full29_arrival20_registration_delta()["cookieDelta"]
     if sdk.sha(raw) == change["afterSha256"]:
         raw = change["beforeRaw"].encode()
@@ -3461,7 +3469,7 @@ def test_ci_fixture3_exact_source_inverse_preserves_original_d26_case_evidence()
     assert len(delta["sourceInverse"]) == 3
     for change in delta["sourceInverse"]:
         path = root / change["path"]
-        raw = path.read_bytes()
+        raw = browser41_historical_source_raw(path, path.read_bytes())
         assert sdk.sha(raw) == change["afterSha256"]
         original = ci_fixture3_historical_source_raw(path, raw)
         assert original == change["beforeRaw"].encode()
@@ -3624,6 +3632,7 @@ def full29_arrival20_history(trust):
 
 
 def full29_arrival20_historical_source_raw(path, raw):
+    raw = rich45_historical_source_raw(path, raw)
     raw = binding_compile2_historical_source_raw(path, raw)
     raw = full29_sdk_header_historical_source_raw(path, raw)
     root = Path(__file__).resolve().parents[2]
@@ -3637,6 +3646,7 @@ def full29_arrival20_historical_source_raw(path, raw):
 
 
 def restore_before_full29_arrival20_matrix_raw(raw):
+    raw = rich45_matrix_history(raw)
     change = full29_arrival20_registration_delta()["matrixDelta"]
     assert sdk.sha(raw) == change["afterSha256"]
     prior = change["beforeRaw"].encode()
@@ -3645,12 +3655,14 @@ def restore_before_full29_arrival20_matrix_raw(raw):
 
 
 def full29_arrival20_matrix_history(raw):
+    raw = rich45_matrix_history(raw)
     if sdk.sha(raw) == full29_arrival20_registration_delta()["matrixDelta"]["afterSha256"]:
         return restore_before_full29_arrival20_matrix_raw(raw)
     return raw
 
 
 def restore_before_full29_arrival20_fixture_raw(raw, capability):
+    raw = rich45_fixture_history(raw, capability)
     delta = full29_arrival20_registration_delta()["fixtureDelta"]
     if capability != delta["capability"]:
         return raw
@@ -3706,6 +3718,7 @@ def test_full29_arrival20_matrix_classifies_only_exact_new_partial_saved_read_sy
     delta = full29_arrival20_registration_delta()
     root = Path(__file__).resolve().parents[2]
     raw = (root / "config/sdk-capabilities.json").read_bytes()
+    raw = rich45_matrix_history(raw)
     current = json.loads(raw)
     old = json.loads(restore_before_full29_arrival20_matrix_raw(raw))
     assert len(current["capabilities"]) == len(old["capabilities"])
@@ -3733,6 +3746,7 @@ def test_full29_arrival20_shared_fixture_preserves_all66_vectors_and_exact_share
     change = delta["fixtureDelta"]
     root = Path(__file__).resolve().parents[2]
     raw = (root / change["path"]).read_bytes()
+    raw = rich45_fixture_history(raw, change["capability"])
     old = json.loads(restore_before_full29_arrival20_fixture_raw(raw, change["capability"]))
     current = json.loads(raw)
     assert len(old["capabilities"][change["capability"]]["vectors"]) == 66
@@ -3758,7 +3772,7 @@ def test_full29_arrival20_source_inverse_refuses_unknown_or_stale_actual_source(
     root = Path(__file__).resolve().parents[2]
     for change in full29_arrival20_registration_delta()["sourceInverse"]:
         path = root / change["path"]
-        raw = binding_compile2_historical_source_raw(path, full29_sdk_header_historical_source_raw(path, path.read_bytes()))
+        raw = rich45_historical_source_raw(path, binding_compile2_historical_source_raw(path, full29_sdk_header_historical_source_raw(path, path.read_bytes())))
         assert full29_arrival20_historical_source_raw(path, raw) == change["beforeRaw"].encode()
         for wrong in (raw + b"\n", change["beforeRaw"].encode()):
             with pytest.raises(AssertionError):
@@ -3775,7 +3789,7 @@ def test_full29_arrival20_matrix_and_fixture_inverse_refuse_unknown_actual_bytes
 
 def test_full29_arrival20_exact_inventory_scanners_sources_and_classifications_are_pinned():
     delta = full29_arrival20_registration_delta()
-    root = Path(__file__).resolve().parents[2]
+    root = Rich45HistoricalPath(Path(__file__).resolve().parents[2])
     for row in delta["exactApiInventorySources"]:
         assert sdk.sha((root / row["path"]).read_bytes()) == row["sha256"]
     matrix = json.loads((root / "config/sdk-capabilities.json").read_bytes())
@@ -3803,7 +3817,7 @@ def full29_arrival20_historical_sdk_source_root(root):
 
 def test_full29_arrival20_schema_delta_retains_every_other_root_and_definition():
     delta = full29_arrival20_registration_delta()["schemaKnownDelta"]
-    root = Path(__file__).resolve().parents[2]
+    root = Rich45HistoricalPath(Path(__file__).resolve().parents[2])
     raw = (root / delta["path"]).read_bytes()
     assert sdk.sha(raw) == delta["afterSha256"]
     old = json.loads(delta["beforeRaw"])
@@ -3896,6 +3910,7 @@ def binding_compile2_registration_delta():
 
 
 def restore_before_binding_compile2_registration(trust):
+    trust = rich45_history(trust)
     delta = binding_compile2_registration_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
@@ -3907,6 +3922,7 @@ def restore_before_binding_compile2_registration(trust):
 
 
 def binding_compile2_history(trust):
+    trust = rich45_history(trust)
     delta = binding_compile2_registration_delta()
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
         return restore_before_binding_compile2_registration(trust)
@@ -3925,7 +3941,7 @@ def binding_compile2_historical_source_raw(path, raw):
 
 def test_binding_compile2_registration_updates_only_two_existing_test_pins():
     delta = binding_compile2_registration_delta()
-    live = sdk.load_trust()
+    live = rich45_history(sdk.load_trust())
     prior = restore_before_binding_compile2_registration(live)
     assert {k: len(live[k]) for k in delta["counts"]} == delta["counts"] == {"programs": 379, "contracts": 93, "plan": 93, "gaps": 180}
     assert live["contracts"] == prior["contracts"] == delta["oldContracts"]
@@ -3979,3 +3995,1174 @@ def test_binding_compile2_unchanged_runtime_loader_rejects_wrong_and_stale_sourc
         path.write_bytes(wrong)
         with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
             sdk.verify_programs(tmp_path, trust)
+
+
+def rich45_registration_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-rich45-delta.json", "f5c103597daca63aef57e3463972c676fb3eeeeff9b51543e9f37ddd7aa0b620")
+
+
+def restore_before_rich45_registration(trust):
+    trust = browser41_history(trust)
+    delta = rich45_registration_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    for bucket, key in (("plan", "planDeltas"), ("gaps", "gapDeltas")):
+        for change in delta[key]:
+            assert prior[bucket][change["index"]] == change["after"]
+            prior[bucket][change["index"]] = copy.deepcopy(change["before"])
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def rich45_history(trust):
+    trust = browser41_history(trust)
+    delta = rich45_registration_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_rich45_registration(trust)
+    return trust
+
+
+def rich45_historical_source_raw(path, raw):
+    raw = browser41_historical_source_raw(path, raw)
+    root = Path(__file__).resolve().parents[2]
+    for change in rich45_registration_delta()["sourceInverse"]:
+        if path == root / change["path"] and sdk.sha(raw) == change["afterSha256"]:
+            prior = change["beforeRaw"].encode()
+            assert sdk.sha(prior) == change["beforeSha256"]
+            return prior
+    return raw
+
+
+def restore_before_rich45_matrix_raw(raw):
+    raw = browser41_matrix_history(raw)
+    change = rich45_registration_delta()["matrixDelta"]
+    assert sdk.sha(raw) == change["afterSha256"]
+    prior = change["beforeRaw"].encode()
+    assert sdk.sha(prior) == change["beforeSha256"]
+    return prior
+
+
+def rich45_matrix_history(raw):
+    raw = browser41_matrix_history(raw)
+    if sdk.sha(raw) == rich45_registration_delta()["matrixDelta"]["afterSha256"]:
+        return restore_before_rich45_matrix_raw(raw)
+    return raw
+
+
+def restore_before_rich45_fixture_raw(raw):
+    change = rich45_registration_delta()["fixtureDelta"]
+    assert sdk.sha(raw) == change["afterSha256"]
+    current = json.loads(raw)["capabilities"][change["capability"]]["vectors"]
+    assert current == change["original74"] + change["appended29"]
+    prior = change["beforeRaw"].encode()
+    assert sdk.sha(prior) == change["beforeSha256"]
+    return prior
+
+
+def rich45_fixture_history(raw, capability):
+    change = rich45_registration_delta()["fixtureDelta"]
+    if capability == change["capability"] and sdk.sha(raw) == change["afterSha256"]:
+        return restore_before_rich45_fixture_raw(raw)
+    return raw
+
+
+class Rich45HistoricalPath:
+    def __init__(self, path):
+        self.path = path
+
+    def __truediv__(self, child):
+        return Rich45HistoricalPath(self.path / child)
+
+    def read_bytes(self):
+        raw = self.path.read_bytes()
+        if self.path == Path(__file__).resolve().parents[2] / "config/sdk-capabilities.json":
+            return rich45_matrix_history(raw)
+        return rich45_historical_source_raw(self.path, raw)
+
+
+def test_rich45_exact_registration_inverse_preserves93_plans180_gap_identities_and_compiler2():
+    delta = rich45_registration_delta()
+    current = browser41_history(sdk.load_trust())
+    prior = restore_before_rich45_registration(current)
+    assert delta["beforeSha256"] == "f85685a2b2fab7db3a6c0373e1a87b641dbfd70f687b6497668c67d6d19f37d6"
+    assert {k: len(prior[k]) for k in delta["beforeCounts"]} == {"programs": 379, "contracts": 93, "plan": 93, "gaps": 180}
+    assert {k: len(current[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
+    assert prior["plan"] == delta["originalPlans"] and prior["gaps"] == delta["originalGaps"]
+    assert len(current["plan"]) == 93 and len(current["gaps"]) == 180
+    assert len(delta["planDeltas"]) == len(delta["gapDeltas"]) == 3
+    changed = {row["index"] for row in delta["planDeltas"]}
+    for i, (old, new) in enumerate(zip(prior["plan"], current["plan"])):
+        if i not in changed:
+            assert old == new
+        else:
+            assert new["capability"] == "session.saved-chat-read.v1"
+            assert {k: v for k, v in old.items() if k not in ("fixtureSha256", "vectors")} == {k: v for k, v in new.items() if k not in ("fixtureSha256", "vectors")}
+            assert len(old["vectors"]) == 74 and len(new["vectors"]) == 103
+            assert set(old["vectors"]) < set(new["vectors"])
+    for change in delta["gapDeltas"]:
+        assert change["before"].startswith("session.saved-chat-read.v1 [")
+        assert change["after"] == change["before"] + "; " + delta["matrixDelta"]["obligation"]
+    root = Path(__file__).resolve().parents[2]
+    for row in delta["protectedCompiler2"]:
+        assert current["programs"][row["path"]] == prior["programs"][row["path"]] == row["sha256"]
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["sha256"]
+        assert row["path"] not in {r["path"] for r in delta["exactSourceMap"]}
+    assert delta["newCapabilityFamilies"] == delta["newExecutionPlans"] == delta["actualConformanceExecutions"] == 0
+    assert delta["releaseEligible"] is False and delta["browserSchedulerCancelFutureExcluded"] is True
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_rich45_strict_inverse_refuses_unknown_authority_and_scope(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_rich45_registration(wrong)
+    assert rich45_history(wrong) == wrong
+
+
+def test_rich45_source_map_and_unknown_bytes_never_gain_historical_authority():
+    delta = rich45_registration_delta()
+    root = Browser41HistoricalPath(Path(__file__).resolve().parents[2])
+    assert len(delta["exactSourceMap"]) == len({r["path"] for r in delta["exactSourceMap"]}) == 45
+    assert delta["sourcePacketManifestSha256"] == "ec26ba4fb61dfed59a4fcdeafa1b3bf90e54569dcba3ef44f3395b65b241532a"
+    assert delta["sourceMapSha256"] == "da9e5b2e207840feb4a51957354d4220407de4dfa6162eef72a3a44797cc7be7"
+    for row in delta["exactSourceMap"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["after_sha256"]
+    for row in delta["sourceInverse"]:
+        path = root / row["path"]
+        raw = path.read_bytes()
+        assert rich45_historical_source_raw(path, raw) == row["beforeRaw"].encode()
+        assert rich45_historical_source_raw(path, raw + b"\n") == raw + b"\n"
+        assert rich45_historical_source_raw(root / "unknown", raw) == raw
+
+
+def test_rich45_actual_strict_loader_rejects_all_mutated_and_stale_pins(tmp_path):
+    root = Browser41HistoricalPath(Path(__file__).resolve().parents[2])
+    for bucket in ("programs", "contracts"):
+        for name, change in rich45_registration_delta()["pinDeltas"][bucket].items():
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            raw = (root / name).read_bytes()
+            trust = {"programs": {}, "contracts": {}}
+            trust[bucket][name] = change["after"]
+            path.write_bytes(raw)
+            sdk.verify_programs(tmp_path, trust)
+            path.write_bytes(raw + b"\n")
+            with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                sdk.verify_programs(tmp_path, trust)
+            if change["before"] is not None:
+                path.write_bytes(raw)
+                trust[bucket][name] = change["before"]
+                with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                    sdk.verify_programs(tmp_path, trust)
+
+
+def test_rich45_classifies_all3_exact_api_deltas_without_status_or_legacy_ownership_changes():
+    delta = rich45_registration_delta()
+    root = Browser41HistoricalPath(Path(__file__).resolve().parents[2])
+    current = json.loads((root / "config/sdk-capabilities.json").read_bytes())
+    old = json.loads(delta["matrixDelta"]["beforeRaw"])
+    for a, b in zip(old["capabilities"], current["capabilities"]):
+        assert a["id"] == b["id"]
+        if a["id"] != "session.saved-chat-read.v1":
+            assert a == b
+            continue
+        assert b["description"] == a["description"] + delta["matrixDelta"]["descriptionSuffix"]
+        for language in ("rust", "npm", "python"):
+            before = a["languages"][language]
+            after = b["languages"][language]
+            assert after["status"] == before["status"] == "partial"
+            assert after["conformance"] == before["conformance"] is True
+            assert after["evidence"] == before["evidence"]
+            assert after["api"] == sorted(before["api"] + delta["matrixDelta"]["apiAdded"][language])
+            assert after["gaps"] == before["gaps"] + [delta["matrixDelta"]["obligation"]]
+    for language in ("rust", "npm", "python"):
+        classified = [api for family in current["capabilities"] for api in family["languages"][language]["api"]]
+        assert len(classified) == len(set(classified))
+        assert set(classified) == set(delta["exactApiInventory"][language])
+    assert {language: len(names) for language, names in delta["matrixDelta"]["apiAdded"].items()} == {"rust": 66, "npm": 1, "python": 8}
+    session = next(row for row in current["capabilities"] if row["id"] == "sdk.session-client")
+    assert "SessionClient.openChat" in session["languages"]["npm"]["api"]
+    assert "SessionClient.open_chat" in session["languages"]["python"]["api"]
+
+
+def test_rich45_shared103_preserves_all74_and98_original_objects_and_exact29_inputs():
+    delta = rich45_registration_delta()
+    change = delta["fixtureDelta"]
+    root = Path(__file__).resolve().parents[2]
+    raw = (root / change["path"]).read_bytes()
+    vectors = json.loads(raw)["capabilities"][change["capability"]]["vectors"]
+    assert len(vectors) == len({v["id"] for v in vectors}) == 103
+    assert vectors[:74] == change["original74"]
+    assert vectors[:98] == change["private98Vectors"]
+    assert vectors[74:] == change["appended29"]
+    core = json.loads((root / "packages/openmates-rust/tests/fixtures/chat-details-read.json").read_bytes())
+    assert core["vectors"] == change["appended29"]
+    assert restore_before_rich45_fixture_raw(raw).decode() == change["beforeRaw"]
+    for wrong in (raw + b"\n", change["beforeRaw"].encode()):
+        with pytest.raises(AssertionError):
+            restore_before_rich45_fixture_raw(wrong)
+    for path in ("frontend/packages/openmates-tui-native/tests/fixtures/chats-show-json.json", "packages/openmates-session-bindings/tests/fixtures/chat-details-read.json"):
+        value = (root / path).read_bytes()
+        assert sdk.sha(value) == delta["CLI6Sha256"]
+        assert len(json.loads(value)["vectors"]) == 6
+    assert sdk.sha((root / "frontend/packages/openmates-tui-native/tests/fixtures/chats-show-json.schema.json").read_bytes()) == delta["CLI6SchemaSha256"]
+
+
+def test_rich45_schema_only_adds_two_named_definitions_and_matrix_strict_inverse():
+    delta = rich45_registration_delta()
+    root = Path(__file__).resolve().parents[2]
+    change = delta["schemaDelta"]
+    raw = (root / change["path"]).read_bytes()
+    assert sdk.sha(raw) == change["afterSha256"]
+    a = json.loads(change["beforeRaw"])
+    b = json.loads(raw)
+    assert {k: v for k, v in a.items() if k != "$defs"} == {k: v for k, v in b.items() if k != "$defs"}
+    assert set(b["$defs"]) - set(a["$defs"]) == set(change["addedDefinitions"]) == {"chatDetailsOptions", "chatDetailsRead"}
+    assert all(b["$defs"][k] == v for k, v in a["$defs"].items())
+    matrix_raw = (root / "config/sdk-capabilities.json").read_bytes()
+    assert restore_before_rich45_matrix_raw(matrix_raw).decode() == delta["matrixDelta"]["beforeRaw"]
+    with pytest.raises(AssertionError):
+        restore_before_rich45_matrix_raw(matrix_raw + b"\n")
+
+
+def browser41_registration_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-browser41-rich768-delta.json", "daceb492365176ce6d6141f81ded864e3f3128cec06653a0bae4e02e795381b4")
+
+
+def restore_before_browser41_registration(trust):
+    trust = cli_json_header_history(trust)
+    delta = browser41_registration_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    for change in delta["gapDeltas"]:
+        assert prior["gaps"][change["index"]] == change["after"]
+        prior["gaps"][change["index"]] = change["before"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def browser41_history(trust):
+    trust = cli_json_header_history(trust)
+    delta = browser41_registration_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_browser41_registration(trust)
+    return trust
+
+
+def browser41_historical_source_raw(path, raw):
+    raw = direct11_source_history(path, raw)
+    raw = cli_json_header_source_history(path, raw)
+    root = Path(__file__).resolve().parents[2]
+    for change in browser41_registration_delta()["sourceInverse"]:
+        if path == root / change["path"] and sdk.sha(raw) == change["afterSha256"]:
+            prior = change["beforeRaw"].encode()
+            assert sdk.sha(prior) == change["beforeSha256"]
+            return prior
+    return raw
+
+
+def restore_before_browser41_matrix_raw(raw):
+    raw = direct11_matrix_history(raw)
+    change = browser41_registration_delta()["matrixDelta"]
+    assert sdk.sha(raw) == change["afterSha256"]
+    prior = change["beforeRaw"].encode()
+    assert sdk.sha(prior) == change["beforeSha256"]
+    return prior
+
+
+def browser41_matrix_history(raw):
+    raw = direct11_matrix_history(raw)
+    if sdk.sha(raw) == browser41_registration_delta()["matrixDelta"]["afterSha256"]:
+        return restore_before_browser41_matrix_raw(raw)
+    return raw
+
+
+class Browser41HistoricalPath:
+    def __init__(self, path):
+        self.path = path
+
+    def __truediv__(self, child):
+        return Browser41HistoricalPath(self.path / child)
+
+    def __eq__(self, other):
+        return self.path == getattr(other, "path", other)
+
+    def __hash__(self):
+        return hash(self.path)
+
+    def read_bytes(self):
+        raw = direct11_source_history(self.path, self.path.read_bytes())
+        root = Path(__file__).resolve().parents[2]
+        if self.path == root / "config/sdk-capabilities.json":
+            return browser41_matrix_history(raw)
+        cookie = browser41_registration_delta()["cookieDelta"]
+        if self.path == root / cookie["path"] and sdk.sha(raw) == cookie["afterSha256"]:
+            prior = cookie["beforeRaw"].encode()
+            assert sdk.sha(prior) == cookie["beforeSha256"]
+            return prior
+        return browser41_historical_source_raw(self.path, raw)
+
+
+def test_browser41_exact_inverse_keeps93_plans180_gap_identities_and_partial_release():
+    delta = browser41_registration_delta()
+    current = direct11_history(sdk.load_trust())
+    prior = restore_before_browser41_registration(current)
+    assert delta["beforeSha256"] == "76895b01df692f5fa82f0a40c9141f48d4da964e780b8e31c32e728100ea3915"
+    assert {k: len(prior[k]) for k in delta["beforeCounts"]} == {"programs": 394, "contracts": 97, "plan": 93, "gaps": 180}
+    assert {k: len(current[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
+    assert current["plan"] == prior["plan"] == delta["originalPlans"]
+    assert prior["gaps"] == delta["originalGaps"]
+    assert len(current["gaps"]) == len(prior["gaps"]) == 180
+    assert len(delta["gapDeltas"]) == 3
+    for change in delta["gapDeltas"]:
+        assert change["before"].startswith("sdk.session-client [")
+        assert change["after"] == change["before"] + "; " + delta["matrixDelta"]["obligation"]
+    assert {k: v for k, v in current.items() if k not in ("programs", "contracts", "gaps")} == {k: v for k, v in prior.items() if k not in ("programs", "contracts", "gaps")}
+    assert delta["activated"] is delta["releaseEligible"] is False
+    assert delta["newExecutionPlans"] == delta["newCapabilityFamilies"] == delta["actualRuntimeExecutions"] == 0
+    assert delta["futureFacadeGenuineTestsSchedulerCancelVisualExcluded"] is True
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_browser41_strict_inverse_refuses_unknown_scope_and_authority(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_browser41_registration(wrong)
+    assert browser41_history(wrong) == wrong
+
+
+def test_browser41_source_map_unknown_bytes_and_paths_cannot_gain_history():
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    delta = browser41_registration_delta()
+    assert len(delta["sourceMap"]) == len({r["path"] for r in delta["sourceMap"]}) == 41
+    for row in delta["sourceMap"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["afterSha256"]
+    for change in delta["sourceInverse"]:
+        path = root / change["path"]
+        raw = path.read_bytes()
+        assert browser41_historical_source_raw(path, raw) == change["beforeRaw"].encode()
+        assert browser41_historical_source_raw(path, raw + b"\n") == raw + b"\n"
+        assert browser41_historical_source_raw(root / "unknown", raw) == raw
+
+
+def test_browser41_unchanged_loader_rejects_every_mutated_or_stale_pin(tmp_path):
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    for bucket in ("programs", "contracts"):
+        for name, change in browser41_registration_delta()["pinDeltas"][bucket].items():
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            raw = (root / name).read_bytes()
+            trust = {"programs": {}, "contracts": {}}
+            trust[bucket][name] = change["after"]
+            path.write_bytes(raw)
+            sdk.verify_programs(tmp_path, trust)
+            path.write_bytes(raw + b"\n")
+            with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                sdk.verify_programs(tmp_path, trust)
+            if change["before"] is not None:
+                trust[bucket][name] = change["before"]
+                path.write_bytes(raw)
+                with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                    sdk.verify_programs(tmp_path, trust)
+
+
+def test_browser41_actual_api_inputs_and_classification_preserve_rich_and_foreign_apis(monkeypatch):
+    cli_json_header_historical_reads(monkeypatch)
+    delta = browser41_registration_delta()
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    for row in delta["exactApiInventorySources"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["sha256"]
+    current = json.loads((root / "config/sdk-capabilities.json").read_bytes())
+    prior = json.loads(delta["matrixDelta"]["beforeRaw"])
+    for old, new in zip(prior["capabilities"], current["capabilities"]):
+        assert old["id"] == new["id"]
+        if old["id"] != "sdk.session-client":
+            assert old == new
+            continue
+        assert new["description"] == old["description"] + delta["matrixDelta"]["descriptionSuffix"]
+        for language in ("rust", "npm", "python"):
+            a = old["languages"][language]
+            b = new["languages"][language]
+            assert b["status"] == a["status"] == "partial"
+            assert b["conformance"] == a["conformance"] is False
+            assert b["evidence"] == a["evidence"]
+            assert b["api"] == sorted(a["api"] + delta["matrixDelta"]["apiAdded"][language])
+            assert b["gaps"] == a["gaps"] + [delta["matrixDelta"]["obligation"]]
+    for language in ("rust", "npm", "python"):
+        classified = [api for family in current["capabilities"] for api in family["languages"][language]["api"]]
+        assert len(classified) == len(set(classified))
+        assert set(classified) == set(delta["exactApiInventory"][language])
+    assert {language: len(names) for language, names in delta["matrixDelta"]["apiAdded"].items()} == {"rust": 10, "npm": 0, "python": 0}
+    matrix_raw = (root / "config/sdk-capabilities.json").read_bytes()
+    assert restore_before_browser41_matrix_raw(matrix_raw).decode() == delta["matrixDelta"]["beforeRaw"]
+    with pytest.raises(AssertionError):
+        restore_before_browser41_matrix_raw(matrix_raw + b"\n")
+
+
+def test_browser41_disjoint_compact_composition_keeps_rich_context_compiler2_and103_vectors(monkeypatch):
+    cli_json_header_historical_reads(monkeypatch)
+    delta = browser41_registration_delta()
+    proof = delta["compositionProof"]
+    assert proof["browserCompactOverlap"] == []
+    assert proof["unionFiles"] == 82 and proof["ownedFiles"] == 41
+    assert {tuple(row["order"]) for row in proof["bothOrders"]} == {("browser", "compact"), ("compact", "browser")}
+    assert all(row["all82AfterimagesExact"] and row["inverseOrderRestoresActualRich768"] for row in proof["bothOrders"])
+    prior = delta["priorBrowserRichProof"]
+    assert prior["overlap"] == ["packages/openmates-rust/src/client.rs"]
+    assert prior["wholeFileReplacementFromStaleBrowserSupplier"] is False
+    assert all(row["all81PostimagesExact"] and row["bothExactInversesRestoreCommon"] for row in prior["bothOrders"])
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    assert len(delta["richPreservation"]) == 45
+    assert sum(row["exactUnchanged"] for row in delta["richPreservation"]) == 41
+    expected = {"packages/openmates-rust/src/client.rs", "packages/openmates-rust/src/client/chat_details.rs", "packages/openmates-rust/src/client/chat_details_json.rs", "packages/openmates-rust/src/client/chat_details_tests.rs"}
+    assert {row["path"] for row in delta["richPreservation"] if not row["exactUnchanged"]} == expected
+    for row in delta["richPreservation"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["newCompositeSha256"]
+    assert b"pub mod chat_details;\n" in (root / "packages/openmates-rust/src/client.rs").read_bytes()
+    current = direct11_history(sdk.load_trust())
+    for row in delta["protectedCompiler2"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == current["programs"][row["path"]] == row["sha256"]
+        assert row["path"] not in {source["path"] for source in delta["sourceMap"]}
+    fixture = root / "tests/sdk-conformance/fixtures/session-saved-chat-read.json"
+    assert sdk.sha(fixture.read_bytes()) == delta["rich103FixtureSha256"] == "2d1b181b90f7ceb2c00394381395c4a3881b9b6ad660877b02a2f52cdd82cea6"
+    assert len(json.loads(fixture.read_bytes())["capabilities"]["session.saved-chat-read.v1"]["vectors"]) == 103
+    assert all(len(row["vectors"]) == 103 for row in current["plan"] if row["capability"] == "session.saved-chat-read.v1")
+
+
+def test_browser41_policy_fixture_mirrors_do_not_create_executable_plan_authority():
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    a = (root / "packages/openmates-rust/tests/fixtures/browser-assistant-candidate-policy.json").read_bytes()
+    b = (root / "tests/sdk-conformance/fixtures/browser-assistant-candidate-policy.json").read_bytes()
+    assert a == b
+    assert sdk.sha(a) == "c088f195b34ba556c49427ab105ed7b4eece95ea9c21235d740a4fc60c170783"
+    current = direct11_history(sdk.load_trust())
+    assert current["plan"] == browser41_registration_delta()["originalPlans"]
+    assert "browser-assistant-candidate-policy.json" not in json.dumps(current["plan"])
+
+
+
+def test_browser41_compact14_is_internal_with_no_api_number_lock_or_plan_promotion():
+    delta = browser41_registration_delta()
+    assert delta["compactManifestSha256"] == "67e8dda2f2e539fd75ba683567fffc761dbdc6445ac8e8374a6629a010030f5d"
+    proof = delta["compactSourceProof"]
+    assert proof["proposal_sha256"] == "8c0144810adf9f2fbb2277615af619bfe299f5e158373188925ecf1bc0c7e1e1"
+    assert proof["public_API_number_admission_metadata_Cargo_changes"] is False
+    assert proof["owned_paths"] == 4 and proof["shared_vectors_unchanged"] == 103
+    root = Direct11HistoricalPath(Path(__file__).resolve().parents[2])
+    raw = (root / "packages/openmates-rust/tests/fixtures/chat-details-string-escaping.json").read_bytes()
+    assert sdk.sha(raw) == delta["compactInternal14Sha256"]
+    assert len(json.loads(raw)["vectors"]) == 14
+    assert len(delta["fourLocks"]) == 4
+    for row in delta["fourLocks"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["sha256"]
+        assert row["path"] not in {source["path"] for source in delta["sourceMap"]}
+    current = direct11_history(sdk.load_trust())
+    assert current["plan"] == delta["originalPlans"]
+    assert "chat-details-string-escaping.json" not in json.dumps(current["plan"])
+
+
+# Metadata-only successor: historical assertions still evaluate exact prior source.
+def cli_json_header_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-cli-json-header-delta.json", "ad0ed05f84103751776fdf6b85874ede39d7d67a94e057292f6886c86bb439cb")
+
+
+def restore_before_cli_json_header(trust):
+    trust = direct11_history(trust)
+    delta = cli_json_header_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterTrustSha256"]
+    prior = copy.deepcopy(trust)
+    assert prior["programs"][delta["path"]] == delta["afterSourceSha256"]
+    prior["programs"][delta["path"]] = delta["beforeSourceSha256"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeTrustSha256"]
+    return prior
+
+
+def cli_json_header_history(trust):
+    trust = direct11_history(trust)
+    delta = cli_json_header_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterTrustSha256"]:
+        return restore_before_cli_json_header(trust)
+    return trust
+
+
+def cli_json_header_source_history(path, raw):
+    raw = direct11_source_history(path, raw)
+    delta = cli_json_header_delta()
+    if path == Path(__file__).resolve().parents[2] / delta["path"] and sdk.sha(raw) == delta["afterSourceSha256"]:
+        prior = delta["beforeSourceRaw"].encode()
+        assert sdk.sha(prior) == delta["beforeSourceSha256"]
+        return prior
+    return raw
+
+
+def test_cli_json_header_exact_inverse_preserves_every_other_authority():
+    delta = cli_json_header_delta()
+    current = direct11_history(sdk.load_trust())
+    prior = restore_before_cli_json_header(current)
+    assert {k: len(current[k]) for k in delta["counts"]} == delta["counts"]
+    assert {k: len(prior[k]) for k in delta["counts"]} == delta["counts"]
+    assert {k: v for k, v in current.items() if k != "programs"} == {k: v for k, v in prior.items() if k != "programs"}
+    assert {k: v for k, v in current["programs"].items() if k != delta["path"]} == {k: v for k, v in prior["programs"].items() if k != delta["path"]}
+    assert delta["publicApiChanges"] == delta["actualRuntimeExecutions"] == 0
+    assert delta["releaseEligible"] is False
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_cli_json_header_unknown_authority_cannot_be_projected(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_cli_json_header(wrong)
+    assert cli_json_header_history(wrong) == wrong
+
+
+def test_cli_json_header_preserves_all_source_statements_and_assertions():
+    import ast
+    delta = cli_json_header_delta()
+    path = Path(__file__).resolve().parents[2] / delta["path"]
+    raw = path.read_bytes()
+    old = cli_json_header_source_history(path, raw)
+    assert old.decode() == delta["beforeSourceRaw"]
+    assert ast.dump(ast.parse(raw), include_attributes=False) == ast.dump(ast.parse(old), include_attributes=False)
+    assert raw.count(b"# contract-test: supporting surface=cli assertions=cli.surface.semantic-parity") == delta["markers"] == 5
+    assert cli_json_header_source_history(path, raw + b"\n") == raw + b"\n"
+    assert cli_json_header_source_history(path.parent / "unknown.py", raw) == raw
+
+
+def test_cli_json_header_actual_strict_loader_binds_new_annotation_bytes():
+    root = Path(__file__).resolve().parents[2]
+    delta = cli_json_header_delta()
+    assert sdk.sha((root / delta["path"]).read_bytes()) == delta["afterSourceSha256"]
+    sdk.verify_programs(root, sdk.load_trust())
+
+
+def cli_json_header_historical_reads(monkeypatch):
+    """Project only the exact approved comment successor for historical byte proofs."""
+    delta = cli_json_header_delta()
+    target = Path(__file__).resolve().parents[2] / delta["path"]
+    original = Path.read_bytes
+    prior = delta["beforeSourceRaw"].encode()
+    assert sdk.sha(prior) == delta["beforeSourceSha256"]
+
+    def historical_read(path):
+        raw = original(path)
+        if path == target and sdk.sha(raw) == delta["afterSourceSha256"]:
+            return prior
+        return raw
+
+    monkeypatch.setattr(Path, "read_bytes", historical_read)
+
+
+def test_cli_json_header_historical_reads_are_exact_and_scoped(monkeypatch, tmp_path):
+    delta = cli_json_header_delta()
+    root = Path(__file__).resolve().parents[2]
+    target = root / delta["path"]
+    current = target.read_bytes()
+    unrelated = tmp_path / "unrelated.py"
+    unrelated.write_bytes(current)
+    cli_json_header_historical_reads(monkeypatch)
+    assert target.read_bytes() == delta["beforeSourceRaw"].encode()
+    assert unrelated.read_bytes() == current
+    with monkeypatch.context() as inner:
+        plain = Path.read_bytes
+        inner.setattr(Path, "read_bytes", lambda path: current + b"\n" if path == target else plain(path))
+        cli_json_header_historical_reads(inner)
+        assert target.read_bytes() == current + b"\n"
+
+
+def direct11_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-direct11-delta.json", "f281e38dd1a2eede63bfb22ae382094ab7daf19aac76797bd8a4db428bf47789")
+
+
+def restore_before_direct11(trust):
+    trust = security41_history(trust)
+    delta = direct11_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    for change in delta["gapDeltas"]:
+        assert prior["gaps"][change["index"]] == change["after"]
+        prior["gaps"][change["index"]] = change["before"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def direct11_history(trust):
+    trust = security41_history(trust)
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == direct11_delta()["afterSha256"]:
+        return restore_before_direct11(trust)
+    return trust
+
+
+def direct11_source_history(path, raw):
+    raw = security41_source_history(path, raw)
+    root = Path(__file__).resolve().parents[2]
+    path = getattr(path, "path", path)
+    for row in direct11_delta()["sourceInverse"]:
+        if path == root / row["path"] and sdk.sha(raw) == row["afterSha256"]:
+            before = row["beforeRaw"].encode()
+            assert sdk.sha(before) == row["beforeSha256"]
+            return before
+    return raw
+
+
+def direct11_matrix_history(raw):
+    raw = security41_matrix_history(raw)
+    delta = direct11_delta()["matrixDelta"]
+    if sdk.sha(raw) == delta["afterSha256"]:
+        before = delta["beforeRaw"].encode()
+        assert sdk.sha(before) == delta["beforeSha256"]
+        return before
+    return raw
+
+
+class Direct11HistoricalPath:
+    def __init__(self, path):
+        self.path = path
+
+    def __truediv__(self, child):
+        return Direct11HistoricalPath(self.path / child)
+
+    def __eq__(self, other):
+        return self.path == getattr(other, "path", other)
+
+    def __hash__(self):
+        return hash(self.path)
+
+    def read_bytes(self):
+        raw = self.path.read_bytes()
+        if self.path == Path(__file__).resolve().parents[2] / "config/sdk-capabilities.json":
+            return direct11_matrix_history(raw)
+        return direct11_source_history(self.path, raw)
+
+
+def test_direct11_exact_inverse_retains_all93plans180gaps_and_prior_authority():
+    delta = direct11_delta()
+    current = security41_history(sdk.load_trust())
+    prior = restore_before_direct11(current)
+    assert delta["beforeSha256"] == "2b00ed8247066f76518171fd52fea54e3451ebdc3806128bfbcac49c885d32a4"
+    assert {k: len(current[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
+    assert {k: len(prior[k]) for k in delta["beforeCounts"]} == delta["beforeCounts"]
+    assert current["plan"] == prior["plan"] == delta["originalPlans"]
+    assert prior["gaps"] == delta["originalGaps"]
+    assert len(current["gaps"]) == 180 and len(delta["gapDeltas"]) == 1
+    assert delta["gapDeltas"][0]["before"].startswith("sdk.apps [rust] partial:")
+    assert delta["gapDeltas"][0]["after"].startswith(delta["gapDeltas"][0]["before"] + "; ")
+    assert delta["newExecutionPlans"] == delta["actualRuntimeExecutions"] == 0
+    assert delta["releaseEligible"] is delta["activated"] is False
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_direct11_strict_inverse_refuses_unknown_authority(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_direct11(wrong)
+    assert direct11_history(wrong) == wrong
+
+
+def test_direct11_source_and_matrix_history_refuse_unknown_paths_and_bytes():
+    root = Security41HistoricalPath(Path(__file__).resolve().parents[2])
+    delta = direct11_delta()
+    assert len(delta["sourceMap"]) == 11
+    for row in delta["sourceMap"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["afterSha256"]
+    for row in delta["sourceInverse"]:
+        path = root / row["path"]
+        raw = path.read_bytes()
+        assert direct11_source_history(path, raw) == row["beforeRaw"].encode()
+        assert direct11_source_history(path, raw + b"\n") == raw + b"\n"
+        assert direct11_source_history(root / "unknown", raw) == raw
+    matrix = (root / "config/sdk-capabilities.json").read_bytes()
+    assert direct11_matrix_history(matrix).decode() == delta["matrixDelta"]["beforeRaw"]
+    assert direct11_matrix_history(matrix + b"\n") == matrix + b"\n"
+
+
+def test_direct11_actual_unchanged_loader_rejects_all_new_changed_and_stale_pins(tmp_path):
+    root = Security41HistoricalPath(Path(__file__).resolve().parents[2])
+    delta = direct11_delta()
+    sdk.verify_programs(root, sdk.load_trust())
+    for bucket in ("programs", "contracts"):
+        for name, change in delta["pinDeltas"][bucket].items():
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            raw = (root / name).read_bytes()
+            trust = {"programs": {}, "contracts": {}}
+            trust[bucket][name] = change["after"]
+            path.write_bytes(raw)
+            sdk.verify_programs(tmp_path, trust)
+            path.write_bytes(raw + b"\n")
+            with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                sdk.verify_programs(tmp_path, trust)
+            if change["before"] is not None:
+                path.write_bytes(raw)
+                trust[bucket][name] = change["before"]
+                with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                    sdk.verify_programs(tmp_path, trust)
+
+
+def test_direct11_only_sdk_apps_rust_shape_changes_and_all_languages_remain_partial():
+    root = Security41HistoricalPath(Path(__file__).resolve().parents[2])
+    delta = direct11_delta()
+    current = json.loads((root / "config/sdk-capabilities.json").read_bytes())
+    prior = json.loads(delta["matrixDelta"]["beforeRaw"])
+    for a, b in zip(prior["capabilities"], current["capabilities"]):
+        assert a["id"] == b["id"]
+        if a["id"] != "sdk.apps":
+            assert a == b
+            continue
+        assert {k: v for k, v in a.items() if k != "languages"} == {k: v for k, v in b.items() if k != "languages"}
+        for language in ("rust", "npm", "python"):
+            old, new = a["languages"][language], b["languages"][language]
+            assert old["status"] == new["status"] == "partial"
+            assert old["conformance"] == new["conformance"] is False
+            if language != "rust":
+                assert old == new
+                continue
+            overlay = delta["matrixDelta"]["overlay"]
+            assert new["api"] == sorted(old["api"] + overlay["append_api"])
+            assert new["evidence"] == old["evidence"] + overlay["append_evidence"]
+            assert new["gaps"] == old["gaps"] + overlay["append_gaps"]
+    assert len(delta["matrixDelta"]["apiAdded"]["rust"]["added"]) == 6
+    assert not any(v["removed"] for v in delta["matrixDelta"]["apiAdded"].values())
+    assert delta["newAPICounts"] == {"rust": 2020, "npm": 1542, "python": 1174}
+
+
+def test_direct11_internal_fixture_no_invented_three_sdk_runner_and_preserved_context():
+    delta = direct11_delta()
+    root = Security41HistoricalPath(Path(__file__).resolve().parents[2])
+    path = "tests/sdk-conformance/fixtures/direct-skill-retention.json"
+    assert sdk.sha((root / path).read_bytes()) == delta["newInternalFixtureSha256"]
+    assert path not in json.dumps(sdk.load_trust()["plan"])
+    assert all(row["capability"] != "sdk.apps" for row in sdk.load_trust()["plan"])
+    assert len(delta["fourLocks"]) == 4
+    for row in delta["fourLocks"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["sha256"]
+    rich = root / "tests/sdk-conformance/fixtures/session-saved-chat-read.json"
+    assert sdk.sha(rich.read_bytes()) == "2d1b181b90f7ceb2c00394381395c4a3881b9b6ad660877b02a2f52cdd82cea6"
+    assert len(json.loads(rich.read_bytes())["capabilities"]["session.saved-chat-read.v1"]["vectors"]) == 103
+    client = (root / "packages/openmates-rust/src/client.rs").read_bytes()
+    assert b"pub use apps::DirectAppSkillAdmission;" in client
+    assert b"pub mod chat_details;" in client
+    assert b"pub use monitor::BrowserIncomingCachePublication;" in client
+
+
+def security41_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-security41-delta.json", "3b4247f77720665088de41db3e3e426ccad0db6d1d500c0d1a06ed10747eb1bc")
+
+
+def restore_before_security41(trust):
+    trust = compiler_publication11_history(trust)
+    delta = security41_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    for bucket, key in (("plan", "planDeltas"), ("gaps", "gapDeltas")):
+        for row in delta[key]:
+            assert prior[bucket][row["index"]] == row["after"]
+            prior[bucket][row["index"]] = copy.deepcopy(row["before"])
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def security41_history(trust):
+    trust = compiler_publication11_history(trust)
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == security41_delta()["afterSha256"]:
+        return restore_before_security41(trust)
+    return trust
+
+
+def security41_source_history(path, raw):
+    raw = compiler_publication11_source_history(path, raw)
+    root = Path(__file__).resolve().parents[2]
+    path = getattr(path, "path", path)
+    for row in security41_delta()["sourceInverse"]:
+        if path == root / row["path"] and sdk.sha(raw) == row["afterSha256"]:
+            before = row["beforeRaw"].encode()
+            assert sdk.sha(before) == row["beforeSha256"]
+            return before
+    return raw
+
+
+def security41_matrix_history(raw):
+    delta = security41_delta()["matrixDelta"]
+    if sdk.sha(raw) == delta["afterSha256"]:
+        before = delta["beforeRaw"].encode()
+        assert sdk.sha(before) == delta["beforeSha256"]
+        return before
+    return raw
+
+
+class Security41HistoricalPath:
+    def __init__(self, path):
+        self.path = path
+
+    def __truediv__(self, child):
+        return Security41HistoricalPath(self.path / child)
+
+    def __eq__(self, other):
+        return self.path == getattr(other, "path", other)
+
+    def __hash__(self):
+        return hash(self.path)
+
+    def __fspath__(self):
+        return str(self.path)
+
+    def __getattr__(self, name):
+        return getattr(self.path, name)
+
+    def read_bytes(self):
+        raw = self.path.read_bytes()
+        if self.path == Path(__file__).resolve().parents[2] / "config/sdk-capabilities.json":
+            return security41_matrix_history(raw)
+        return security41_source_history(self.path, raw)
+
+
+def test_security41_exact_inverse_preserves93_plan_and180_gap_identities():
+    delta = security41_delta()
+    current = compiler_publication11_history(sdk.load_trust())
+    prior = restore_before_security41(current)
+    assert delta["beforeSha256"] == "a2d53842be02e9c3a3a6dc16afddf11ce9db750751253cfb4b779fd5cbad4ea3"
+    assert {k: len(current[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
+    assert {k: len(prior[k]) for k in delta["beforeCounts"]} == delta["beforeCounts"]
+    assert prior["plan"] == delta["originalPlans"] and prior["gaps"] == delta["originalGaps"]
+    assert len(current["plan"]) == 93 and len(current["gaps"]) == 180
+    assert len(delta["planDeltas"]) == 3 and len(delta["gapDeltas"]) == 6
+    for row in delta["planDeltas"]:
+        a, b = row["before"], row["after"]
+        assert a["capability"] == b["capability"] == "session.work-crud.v1"
+        assert len(a["vectors"]) == 10 and len(b["vectors"]) == 23
+        assert set(a["vectors"]) < set(b["vectors"])
+        assert {k: v for k, v in a.items() if k not in ("fixtureSha256", "vectors")} == {k: v for k, v in b.items() if k not in ("fixtureSha256", "vectors")}
+    for row in delta["gapDeltas"]:
+        assert row["after"] == row["before"] + "; " + delta["matrixDelta"]["obligation"]
+    assert delta["newExecutionPlans"] == delta["actualRuntimeExecutions"] == 0
+    assert delta["releaseEligible"] is delta["activated"] is False
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_security41_inverse_refuses_unknown_authority(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_security41(wrong)
+    assert security41_history(wrong) == wrong
+
+
+def test_security41_source_map_exact_scopes_and_private_dependencies_only():
+    delta = security41_delta()
+    root = CompilerPublication11HistoricalPath(Path(__file__).resolve().parents[2])
+    assert len(delta["sourceMap"]) == 41
+    for row in delta["sourceMap"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["afterSha256"]
+    for row in delta["sourceInverse"]:
+        path = root / row["path"]
+        raw = path.read_bytes()
+        assert security41_source_history(path, raw) == row["beforeRaw"].encode()
+        assert security41_source_history(path, raw + b"\n") == raw + b"\n"
+        assert security41_source_history(root / "unknown", raw) == raw
+    raw = (root / "config/sdk-capabilities.json").read_bytes()
+    assert security41_matrix_history(raw).decode() == delta["matrixDelta"]["beforeRaw"]
+    assert security41_matrix_history(raw + b"\n") == raw + b"\n"
+    union = delta["dependencyUnion"]
+    assert union["sourceUnion"] == 41 and union["sdk"] == 21 and union["scheduler"] == 16 and union["facade"] == union["decoder"] == 3
+    assert len(union["facadeSchedulerOverlap"]) == 2 and union["facadeBeforeThenSchedulerFinalAfterimagesOnce"] is True
+    assert delta["clientCommutation"]["bothOrdersExact"] is True
+    assert delta["clientCommutation"]["wholeStaleClientReplacement"] is False
+
+
+def test_security41_unchanged_strict_loader_rejects_all_new_changed_and_stale_pins(tmp_path):
+    delta = security41_delta()
+    root = CompilerPublication11HistoricalPath(Path(__file__).resolve().parents[2])
+    sdk.verify_programs(root, sdk.load_trust())
+    for bucket in ("programs", "contracts"):
+        for name, change in delta["pinDeltas"][bucket].items():
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            raw = (root / name).read_bytes()
+            trust = {"programs": {}, "contracts": {}}
+            trust[bucket][name] = change["after"]
+            path.write_bytes(raw)
+            sdk.verify_programs(tmp_path, trust)
+            path.write_bytes(raw + b"\n")
+            with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                sdk.verify_programs(tmp_path, trust)
+            if change["before"] is not None:
+                path.write_bytes(raw)
+                trust[bucket][name] = change["before"]
+                with pytest.raises(sdk.Refused, match="reviewed_.*_changed"):
+                    sdk.verify_programs(tmp_path, trust)
+
+
+def test_security41_truthful_three_language_api_classification_and_partial_states():
+    delta = security41_delta()
+    root = CompilerPublication11HistoricalPath(Path(__file__).resolve().parents[2])
+    current = json.loads((root / "config/sdk-capabilities.json").read_bytes())
+    prior = json.loads(delta["matrixDelta"]["beforeRaw"])
+    for a, b in zip(prior["capabilities"], current["capabilities"]):
+        assert a["id"] == b["id"]
+        if a["id"] not in ("sdk.session-client", "session.work-crud.v1"):
+            assert a == b
+            continue
+        assert {k: v for k, v in a.items() if k != "languages"} == {k: v for k, v in b.items() if k != "languages"}
+        for language in ("rust", "npm", "python"):
+            old, new = a["languages"][language], b["languages"][language]
+            assert old["status"] == new["status"] == "partial"
+            assert old["conformance"] == new["conformance"]
+            assert new["evidence"] == old["evidence"]
+            assert new["gaps"] == old["gaps"] + [delta["matrixDelta"]["obligation"]]
+            added = delta["matrixDelta"]["apiDelta"][language]["added"] if a["id"] == "sdk.session-client" else []
+            assert new["api"] == sorted(old["api"] + added)
+    api = delta["matrixDelta"]["apiDelta"]
+    assert len(api["rust"]["added"]) == 39
+    assert not any(v["removed"] for v in api.values())
+    assert api["npm"]["added"] == api["python"]["added"] == []
+    assert delta["newAPICounts"] == {"rust": 2059, "npm": 1542, "python": 1174}
+
+
+def test_security41_work23_schema_enforced_with_exact_original10_and_savedread103():
+    import importlib.util
+    delta = security41_delta()
+    root = CompilerPublication11HistoricalPath(Path(__file__).resolve().parents[2])
+    name = "tests/sdk-conformance/fixtures/session-work.json"
+    raw = (root / name).read_bytes()
+    values = json.loads(raw)["capabilities"]["session.work-crud.v1"]["vectors"]
+    assert values == delta["workFixture"]["vectors23"] and len(values) == 23
+    assert values[:10] == delta["workFixture"]["original10"]
+    spec = importlib.util.spec_from_file_location("security41_schema_gate", root / "scripts/check_sdk_conformance.py")
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    assert gate.FIXTURE_SCHEMAS[name] == "tests/sdk-conformance/schemas/session-work.schema.json"
+    assert gate.validate_fixture_document(name, json.loads(raw), root) is None
+    bad = json.loads(raw)
+    del bad["capabilities"]
+    with pytest.raises(gate.jsonschema.ValidationError):
+        gate.validate_fixture_document(name, bad, root)
+    rich = root / "tests/sdk-conformance/fixtures/session-saved-chat-read.json"
+    assert sdk.sha(rich.read_bytes()) == "2d1b181b90f7ceb2c00394381395c4a3881b9b6ad660877b02a2f52cdd82cea6"
+    assert len(json.loads(rich.read_bytes())["capabilities"]["session.saved-chat-read.v1"]["vectors"]) == 103
+
+
+# Exact reviewed compiler corrections: tests-only history, never runtime policy.
+def compiler_publication11_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-compiler_publication11-delta.json", "8f6d4449c9c32551baf13d4a8261a1ad344a25645f43946986b24ee8692bbab5")
+
+
+def restore_before_compiler_publication11(trust):
+    delta = compiler_publication11_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for path, change in delta["pinDeltas"].items():
+        assert prior["programs"][path] == change["after"]
+        if change["before"] is None:
+            del prior["programs"][path]
+        else:
+            prior["programs"][path] = change["before"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def compiler_publication11_history(trust):
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == compiler_publication11_delta()["afterSha256"]:
+        return restore_before_compiler_publication11(trust)
+    return trust
+
+
+def compiler_publication11_source_history(path, raw):
+    root = Path(__file__).resolve().parents[2]
+    path = getattr(path, "path", path)
+    for row in compiler_publication11_delta()["sourceInverse"]:
+        if path == root / row["path"] and sdk.sha(raw) == row["afterSha256"]:
+            before = row["beforeRaw"].encode()
+            assert sdk.sha(before) == row["beforeSha256"]
+            return before
+    return raw
+
+
+class CompilerPublication11HistoricalPath:
+    def __init__(self, path):
+        self.path = path
+
+    def __truediv__(self, child):
+        return CompilerPublication11HistoricalPath(self.path / child)
+
+    def __eq__(self, other):
+        return self.path == getattr(other, "path", other)
+
+    def __hash__(self):
+        return hash(self.path)
+
+    def __fspath__(self):
+        return str(self.path)
+
+    def __getattr__(self, name):
+        return getattr(self.path, name)
+
+    def read_bytes(self):
+        return compiler_publication11_source_history(self.path, self.path.read_bytes())
+
+
+def test_compiler_publication11_inverse_changes_only_eleven_reviewed_program_pins():
+    delta = compiler_publication11_delta()
+    current = sdk.load_trust()
+    prior = restore_before_compiler_publication11(current)
+    assert delta["beforeSha256"] == "9dc0ea9fb3afc1d0a5843c6682d538508e272b5e568a9ac48c919344ddf13a92"
+    assert {key: len(current[key]) for key in delta["counts"]} == {"programs": 439, "contracts": 102, "plan": 93, "gaps": 180}
+    assert set(prior["programs"]) < set(current["programs"])
+    assert set(current["programs"]) - set(prior["programs"]) == {row["path"] for row in delta["sourceMap"] if row["beforeSha256"] is None}
+    assert {name for name in current["programs"] if current["programs"][name] != prior["programs"].get(name)} == set(delta["pinDeltas"])
+    assert len(delta["pinDeltas"]) == len(delta["sourceMap"]) == 11
+    assert {key: value for key, value in current.items() if key != "programs"} == {key: value for key, value in prior.items() if key != "programs"}
+    assert current["plan"] == delta["originalPlans"] and current["gaps"] == delta["originalGaps"]
+    assert delta["apiCounts"] == {"rust": 2059, "npm": 1542, "python": 1174}
+    assert all(row == {"added": [], "removed": []} for row in delta["apiDelta"].values())
+    assert delta["publicApiAdded"] == delta["newExecutionPlans"] == delta["newCapabilityFamilies"] == delta["actualRuntimeExecutions"] == 0
+    assert delta["releaseEligible"] is delta["activated"] is False
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_compiler_publication11_inverse_refuses_unknown_authority(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_compiler_publication11(wrong)
+    assert compiler_publication11_history(wrong) == wrong
+
+
+def test_compiler_publication11_source_history_is_exact_path_and_hash_only():
+    delta = compiler_publication11_delta()
+    root = Path(__file__).resolve().parents[2]
+    for row in delta["sourceInverse"]:
+        path = root / row["path"]
+        raw = path.read_bytes()
+        assert sdk.sha(raw) == row["afterSha256"]
+        assert compiler_publication11_source_history(path, raw) == row["beforeRaw"].encode()
+        assert compiler_publication11_source_history(path, raw + b"\n") == raw + b"\n"
+        assert compiler_publication11_source_history(root / "unknown", raw) == raw
+        assert compiler_publication11_source_history(path, row["beforeRaw"].encode()) == row["beforeRaw"].encode()
+
+
+def test_compiler_publication11_strict_actual_loader_keeps_raw_source_and_stale_pin_refusals(tmp_path):
+    delta = compiler_publication11_delta()
+    root = Path(__file__).resolve().parents[2]
+    sdk.verify_programs(root, sdk.load_trust())
+    # The historical read_bytes view cannot change sdk.regular()/os.open IO.
+    sdk.verify_programs(CompilerPublication11HistoricalPath(root), sdk.load_trust())
+    for name, change in delta["pinDeltas"].items():
+        raw = (root / name).read_bytes()
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        trust = {"programs": {name: change["after"]}, "contracts": {}}
+        path.write_bytes(raw)
+        sdk.verify_programs(tmp_path, trust)
+        path.write_bytes(raw + b"\n")
+        with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
+            sdk.verify_programs(tmp_path, trust)
+        path.write_bytes(raw)
+        if change["before"] is not None:
+            trust["programs"][name] = change["before"]
+            with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
+                sdk.verify_programs(tmp_path, trust)
+    with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
+        sdk.verify_programs(root, restore_before_compiler_publication11(sdk.load_trust()))
+
+
+def test_compiler_publication11_signature_and_namespace_changes_preserve_original_bodies():
+    delta = compiler_publication11_delta()
+    root = Path(__file__).resolve().parents[2]
+    originals = {row["path"]: row["beforeRaw"] for row in delta["sourceInverse"]}
+    node = "packages/openmates-session-bindings/src/node.rs"
+    source = (root / node).read_text()
+    new = "pub fn release_json<'env>(&self, env: &'env napi::Env) -> napi::Result<napi::JsString<'env>>"
+    old = "pub fn release_json(&self, env: napi::Env) -> napi::Result<napi::JsString>"
+    assert source.count(new) == 3 and new not in originals[node]
+    assert source.replace(new, old) == originals[node]
+    browser = "packages/openmates-rust/src/client/browser.rs"
+    source = (root / browser).read_text()
+    extra = ["pub(super) use cache_metadata::BrowserMetadataOwnedTransition;\n", "pub(super) fn validate_local_json(encoded:&str)->Result<()> {local_json::validate(encoded)}\n"]
+    assert all(source.count(line) == 1 for line in extra)
+    for line in extra:
+        source = source.replace(line, "", 1)
+    assert source == originals[browser]
+    monitor = "packages/openmates-rust/src/client/browser_monitor.rs"
+    source = (root / monitor).read_text()
+    assert source.replace("crate::client::browser::BrowserMetadataOwnedTransition", "crate::client::browser_cache_metadata::BrowserMetadataOwnedTransition") == originals[monitor]
+    incoming = "packages/openmates-rust/src/client/browser_incoming_sync.rs"
+    source = (root / incoming).read_text()
+    assert source.replace("crate::client::browser::validate_local_json", "crate::client::local_json::validate") == originals[incoming]
+
+
+def test_compiler_publication11_protected_cookie_vectors_compiler2_and_locks_are_unchanged():
+    delta = compiler_publication11_delta()
+    root = Path(__file__).resolve().parents[2]
+    assert sdk.sha((root / "config/sdk-capabilities.json").read_bytes()) == delta["matrixSha256"]
+    for name, digest in delta["protected"].items():
+        assert sdk.sha((root / name).read_bytes()) == digest
+    saved = json.loads((root / "tests/sdk-conformance/fixtures/session-saved-chat-read.json").read_bytes())
+    work = json.loads((root / "tests/sdk-conformance/fixtures/session-work.json").read_bytes())
+    assert len(saved["capabilities"]["session.saved-chat-read.v1"]["vectors"]) == 103
+    assert len(work["capabilities"]["session.work-crud.v1"]["vectors"]) == 23
+    assert delta["supplierManifests"] == {"NAPI-borrowed-Env-V2": "0330ad6700ae0c1dfdcfb25128c70fea1150787601b9278103ebb9d496cfa0b1", "browser-namespace3": "4e8cc871db9d5658af07ed35bf65f7ea8f00756b173410d8df5290937a4b178b", "publication-post-gate7": "f1e9c7afd387a48d034d1e9b2568a398a1436cc5377361a47b1267e146407a72"}
+
+
+def test_compiler_publication11_guard_test_annotations_are_per_function_without_tooling_exclusion():
+    delta = compiler_publication11_delta()
+    root = Path(__file__).resolve().parents[2]
+    tests = [row for row in delta["sourceMap"] if row["beforeSha256"] is None]
+    assert len(tests) == 3
+    expected = "// contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only,auth.session.isolation"
+    total = 0
+    for row in tests:
+        source = (root / row["path"]).read_text()
+        assert "contract-test-file: tooling" not in source
+        count = source.count("#[test]") + source.count("#[tokio::test]")
+        assert source.count(expected) == count and count > 0
+        total += count
+    assert total == 8

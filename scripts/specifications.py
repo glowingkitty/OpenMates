@@ -444,6 +444,14 @@ _TYPESCRIPT_TEST = re.compile(
     r"(?:\.each\s*\(.*?\))?\s*\(\s*['\"`]([^'\"`]+)",
     re.DOTALL,
 )
+# Rust test identity comes from the test attribute, never a helper's fn name.
+_RUST_TEST_START = re.compile(r"^\s*#\[\s*(?:test|tokio::test)\s*(?=[(\]])")
+_RUST_TEST = re.compile(
+    r"^\s*#\[\s*(?:test|tokio::test)\s*(?:\([^\]]*\))?\s*\]\s*"
+    r"(?:(?:#\[[^\]]*\]|//[^\n]*)\s*)*"
+    r"(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+    re.DOTALL,
+)
 _VALID_TEST_CLASSIFICATIONS = {"direct", "supporting", "infrastructure", "tooling", "legacy_unmapped"}
 _VALID_TEST_SURFACES = {"rest_api", "cli", "sdks.npm", "sdks.pip", "sdks.rust", "gui.web", "gui.apple", "tooling"}
 
@@ -454,6 +462,8 @@ def _test_name(source: str, path: Path) -> str | None:
         patterns = (_PYTHON_TEST,)
     elif name.endswith(".swift"):
         patterns = (_SWIFT_TEST, _SWIFT_MACRO_TEST)
+    elif name.endswith(".rs"):
+        patterns = (_RUST_TEST,)
     else:
         patterns = (_TYPESCRIPT_TEST,)
     for pattern in patterns:
@@ -469,6 +479,8 @@ def _could_start_test(line: str, path: Path) -> bool:
         return stripped.startswith(("def test_", "async def test_"))
     if path.name.endswith(".swift"):
         return stripped.startswith(("func test", "@Test"))
+    if path.name.endswith(".rs"):
+        return _RUST_TEST_START.match(line) is not None
     return stripped.startswith(("test(", "test.", "it(", "it."))
 
 

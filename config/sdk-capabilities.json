@@ -513,6 +513,12 @@
         "rust": {
           "status": "partial",
           "api": [
+            "client.Client.direct_app_skill_admission",
+            "client.Client.run_direct_app_skill",
+            "client.Client.run_direct_app_skill_with_task_receipt",
+            "client.Client.stream_generated_app_file",
+            "client.apps.DirectAppSkillAdmission",
+            "client.apps.DirectAppSkillAdmission.check",
             "generated",
             "generated.AiSkills",
             "generated.AiSkills.ask",
@@ -650,9 +656,12 @@
             "generated.app_skill_metadata",
             "sdk.OpenMates.apps"
           ],
-          "evidence": [],
+          "evidence": [
+            "packages/openmates-rust/tests/apps_unit/mod.rs"
+          ],
           "gaps": [
-            "Native public APIs exist, but complete cross-language behavioral conformance is not established for this family."
+            "Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+            "Personal Cookie direct execution and generated-file streaming source added; new shared direct-result/retention vectors and real Rust/npm/Python execution remain unverified. No release/conformance claim."
           ],
           "conformance": false
         },
@@ -3654,7 +3663,7 @@
     },
     {
       "id": "sdk.session-client",
-      "description": "Reviewed public SDK capability family: sdk.session-client; support must be proved by actual library conformance. Rust browser platform draft APIs belong to this Client session-authority family; actual browser/WASM runtime and storage integration remain unverified. Classification adds no npm/Python browser API or parity/release claim. Ordinary fresh-password key retention is required partial under the same auth/storage capability. Rust policy/public-consumer tests and genuine Worker/CryptoKey/IndexedDB login/read proof are authored unrun; equivalent direct npm/Python functional retention interfaces, a shared executable three-SDK fixture family/schema and all actual adapter execution remain missing. Language API shapes may differ; foreign enum/helper names are not required. The maintained two-case effect fixture validates synthetic plans only, not storage success, credential ACK, key/account enrollment or cross-database association. Default login remains unchanged; generated WASM/package and full application lifecycle/performance acceptance remain open. Selected Personal metadata-cache restore/persist and full-ID saved-embed reads remain required partial session/state operations. New Rust public capabilities are classified here pending genuine three-SDK fixtures and runtime proof; no separate executable family is invented from core-only source. Required-partial owning-Worker browser cache source adds selected metadata restore/read, authoritative incoming-window cache policy and actual-retained-row projection/monitor stages; independent core semantic review and all real runtime/platform conformance remain required. Source/pure policy fixtures do not establish a new executable family.",
+      "description": "Reviewed public SDK capability family: sdk.session-client; support must be proved by actual library conformance. Rust browser platform draft APIs belong to this Client session-authority family; actual browser/WASM runtime and storage integration remain unverified. Classification adds no npm/Python browser API or parity/release claim. Ordinary fresh-password key retention is required partial under the same auth/storage capability. Rust policy/public-consumer tests and genuine Worker/CryptoKey/IndexedDB login/read proof are authored unrun; equivalent direct npm/Python functional retention interfaces, a shared executable three-SDK fixture family/schema and all actual adapter execution remain missing. Language API shapes may differ; foreign enum/helper names are not required. The maintained two-case effect fixture validates synthetic plans only, not storage success, credential ACK, key/account enrollment or cross-database association. Default login remains unchanged; generated WASM/package and full application lifecycle/performance acceptance remain open. Selected Personal metadata-cache restore/persist and full-ID saved-embed reads remain required partial session/state operations. New Rust public capabilities are classified here pending genuine three-SDK fixtures and runtime proof; no separate executable family is invented from core-only source. Required-partial owning-Worker browser cache source adds selected metadata restore/read, authoritative incoming-window cache policy and actual-retained-row projection/monitor stages; independent core semantic review and all real runtime/platform conformance remain required. Source/pure policy fixtures do not establish a new executable family. Inactive continuous selected-cache and local terminal-observer additions are registered only as required partial source; per-context writer integration, genuine runtime and direct three-SDK equivalence remain open.",
       "domain": "auth",
       "languages": {
         "rust": {
@@ -3682,6 +3691,7 @@
             "client.Client.browser_authoritative_message_cache_json",
             "client.Client.browser_cached_chat_items_json",
             "client.Client.browser_chat_monitor_metadata_json",
+            "client.Client.browser_incoming_cache_publication_json",
             "client.Client.browser_local_checkpoint_summary_with_io_json",
             "client.Client.browser_local_message_window_json",
             "client.Client.browser_local_saved_chat_read_json",
@@ -3689,6 +3699,7 @@
             "client.Client.browser_metadata_cache_json",
             "client.Client.browser_password_session",
             "client.Client.browser_restore_cached_metadata_json",
+            "client.Client.browser_retained_cache_publication_json",
             "client.Client.browser_retained_saved_chat_with_io_json",
             "client.Client.browser_saved_chat_read_json",
             "client.Client.browser_session",
@@ -3717,13 +3728,19 @@
             "client.Client.open_chat_with_fresh_chat_inventory",
             "client.Client.options",
             "client.Client.poll_pair",
+            "client.Client.prepare_browser_cold_retained_saved_chat_with_io",
             "client.Client.prepare_browser_credential_cas",
             "client.Client.prepare_browser_credential_snapshot",
+            "client.Client.prepare_browser_incoming_cache_update",
+            "client.Client.prepare_browser_monitored_retained_saved_chat_with_io",
             "client.Client.prepare_browser_ordinary_key_retention",
+            "client.Client.prepare_scoped_saved_send",
+            "client.Client.prepare_validated_scoped_saved_send",
             "client.Client.refresh_browser_chat_monitor_metadata",
             "client.Client.reset",
             "client.Client.restore_authenticated_ciphertext_snapshot",
             "client.Client.restore_ciphertext_snapshot",
+            "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
             "client.Client.saved_embed",
             "client.Client.search_chats",
@@ -3744,6 +3761,7 @@
             "client.Client.start_monitor",
             "client.Client.submit_pair_pin",
             "client.Client.supports_cached_default_chat_list",
+            "client.Client.take_scoped_saved_send_terminal",
             "client.Client.take_session",
             "client.Client.tasks",
             "client.Client.try_cached_default_chat_list",
@@ -3764,6 +3782,41 @@
             "client.CredentialSnapshot",
             "client.CredentialSnapshot.revision",
             "client.CredentialSnapshot.session",
+            "client.MAX_SCOPED_SAVED_SEND_QUARANTINES",
+            "client.MAX_SCOPED_SAVED_SEND_QUARANTINE_BYTES",
+            "client.PreparedSavedSend",
+            "client.PreparedSavedSend.cancellation_request",
+            "client.PreparedSavedSend.id",
+            "client.PreparedSavedSend.publication_guard",
+            "client.SavedSendDisposition",
+            "client.SavedSendDisposition.can_continue_parent",
+            "client.SavedSendDisposition.check_current",
+            "client.SavedSendDisposition.encode_result_json",
+            "client.SavedSendDisposition.operation_id",
+            "client.SavedSendDisposition.original_cancelled_result",
+            "client.SavedSendDisposition.original_turn_settled",
+            "client.SavedSendDisposition.outcome",
+            "client.SavedSendDisposition.publication_guard",
+            "client.SavedSendDisposition.receipt_id",
+            "client.SavedSendDisposition.recovery_identity",
+            "client.SavedSendDisposition.reusable",
+            "client.SavedSendDisposition.scope_epoch",
+            "client.SavedSendDisposition.take_result",
+            "client.SavedSendOutcome",
+            "client.SavedSendOutcome.Backpressure",
+            "client.SavedSendOutcome.Cancelled",
+            "client.SavedSendOutcome.Completed",
+            "client.SavedSendOutcome.SessionExpired",
+            "client.SavedSendOutcome.Unavailable",
+            "client.SavedSendOutcome.Uncertain",
+            "client.SavedSendPublicationGuard",
+            "client.SavedSendPublicationGuard.check_release",
+            "client.SavedSendRecoveryIdentity",
+            "client.SavedSendRecoveryIdentity.chat_id",
+            "client.SavedSendRecoveryIdentity.message_id",
+            "client.SavedSendRecoveryIdentity.turn_id",
+            "client.SavedSendTerminal",
+            "client.SavedSendTerminal.outcome",
             "client.auth_handoff.FreshSessionHandoff",
             "client.browser.BrowserPersistence",
             "client.browser.BrowserPersistence.MemoryOnly",
@@ -3781,12 +3834,16 @@
             "client.browser_cache_metadata.BrowserMetadataCacheMode.PersistCurrent",
             "client.browser_cache_metadata.BrowserMetadataCacheMode.Restore",
             "client.browser_cache_metadata.BrowserMetadataCacheScope",
+            "client.browser_cache_replacement.BrowserCandidateFailures",
+            "client.browser_cache_replacement.BrowserCandidateFailures.is_current",
+            "client.browser_incoming_sync.BrowserIncomingCachePublication",
             "client.browser_message_policy.browser_message_merge_policy_json",
             "client.browser_monitor.BrowserMetadataMonitorPublication",
             "client.browser_monitor.BrowserMetadataMonitorRefresh",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.effect_json",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.take_key",
+            "client.browser_retained_view.BrowserRetainedCachePublication",
             "client.browser_snapshot.BrowserCredentialCasEffect",
             "client.browser_snapshot.BrowserCredentialCasEffect.Cas",
             "client.browser_snapshot.BrowserCredentialCasEffect.Read",
@@ -3834,6 +3891,7 @@
             "client.message_window.MessageWindowOptions.limit",
             "client.message_window.MessageWindowOptions.respect_compression_boundary",
             "client.message_window.valid_message_id",
+            "client.monitor.ChatMonitor.changed_or_idle",
             "client.pair.PairChallenge",
             "client.pair.PairChallenge.expires_at",
             "client.pair.PairChallenge.login_url",
@@ -3952,7 +4010,9 @@
             "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: native policy/public-consumer and genuine WASM/CryptoKey/Worker/IndexedDB retention/read tests are authored unrun; executable shared three-SDK functional retention conformance and generated package/runtime/performance acceptance remain unverified.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
-            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration."
+            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
+            "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": false
         },
@@ -4376,7 +4436,9 @@
             "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
-            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration."
+            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
+            "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": false
         },
@@ -4411,7 +4473,9 @@
             "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
-            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration."
+            "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
+            "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": false
         }
@@ -5940,7 +6004,8 @@
             "tests/sdk-conformance/test_session_work.py"
           ],
           "gaps": [
-            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified."
+            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": true
         },
@@ -5977,7 +6042,8 @@
             "tests/sdk-conformance/test_session_work.py"
           ],
           "gaps": [
-            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified."
+            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": true
         },
@@ -6021,7 +6087,8 @@
             "tests/sdk-conformance/test_session_work.py"
           ],
           "gaps": [
-            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified."
+            "Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
           ],
           "conformance": true
         }
@@ -6914,7 +6981,7 @@
     },
     {
       "id": "session.saved-chat-read.v1",
-      "description": "Bounded saved-chat aggregation with stored or page-local PII content and explicit exact oversized-row reads; executable shared source vectors are staged, runtime acceptance pending. Full saved-chat JSON also carries the exact optional decrypted saved slug; original-policy admission and final native/foreign publication remain required partial until matching compiled runtime proof.",
+      "description": "Bounded saved-chat aggregation with stored or page-local PII content and explicit exact oversized-row reads; executable shared source vectors are staged, runtime acceptance pending. Full saved-chat JSON also carries the exact optional decrypted saved slug; original-policy admission and final native/foreign publication remain required partial until matching compiled runtime proof. Maintained rich selected-read source adds metadata, message wrappers, optional focus and lossless stored JSON/UTF16 values with distinct CLI stringify versus SDK binary64 projection; original final allocation/persistence admission remains required partial.",
       "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
       "domain": "operations",
       "languages": {
@@ -6925,9 +6992,75 @@
             "client.Client.open_chat_with_metadata",
             "client.Client.open_chat_with_metadata_and_admission",
             "client.Client.open_chat_with_metadata_and_fresh_inventory",
+            "client.Client.read_chat_details",
+            "client.Client.read_chat_details_and_fresh_inventory",
             "client.Client.saved_chat_exact_message",
             "client.Client.saved_chat_read",
             "client.Client.saved_chat_read_admission",
+            "client.chat_details.ChatDetailsHistory",
+            "client.chat_details.ChatDetailsHistory.Full",
+            "client.chat_details.ChatDetailsHistory.Latest",
+            "client.chat_details.ChatDetailsMessage",
+            "client.chat_details.ChatDetailsMessage.category",
+            "client.chat_details.ChatDetailsMessage.chat_id",
+            "client.chat_details.ChatDetailsMessage.client_message_id",
+            "client.chat_details.ChatDetailsMessage.content",
+            "client.chat_details.ChatDetailsMessage.created_at",
+            "client.chat_details.ChatDetailsMessage.embed_ids",
+            "client.chat_details.ChatDetailsMessage.hashed_sender_user_id",
+            "client.chat_details.ChatDetailsMessage.id",
+            "client.chat_details.ChatDetailsMessage.model_name",
+            "client.chat_details.ChatDetailsMessage.pii_mappings",
+            "client.chat_details.ChatDetailsMessage.role",
+            "client.chat_details.ChatDetailsMessage.sender_name",
+            "client.chat_details.ChatDetailsMetadata",
+            "client.chat_details.ChatDetailsMetadata.active_focus_id",
+            "client.chat_details.ChatDetailsMetadata.category",
+            "client.chat_details.ChatDetailsMetadata.chat_visibility",
+            "client.chat_details.ChatDetailsMetadata.created_at",
+            "client.chat_details.ChatDetailsMetadata.draft_preview",
+            "client.chat_details.ChatDetailsMetadata.has_draft",
+            "client.chat_details.ChatDetailsMetadata.id",
+            "client.chat_details.ChatDetailsMetadata.is_hidden",
+            "client.chat_details.ChatDetailsMetadata.is_hidden_candidate",
+            "client.chat_details.ChatDetailsMetadata.is_sub_chat",
+            "client.chat_details.ChatDetailsMetadata.mate_name",
+            "client.chat_details.ChatDetailsMetadata.metadata_updated_at",
+            "client.chat_details.ChatDetailsMetadata.parent_id",
+            "client.chat_details.ChatDetailsMetadata.participant_user_hashes",
+            "client.chat_details.ChatDetailsMetadata.pinned",
+            "client.chat_details.ChatDetailsMetadata.short_id",
+            "client.chat_details.ChatDetailsMetadata.slug",
+            "client.chat_details.ChatDetailsMetadata.summary",
+            "client.chat_details.ChatDetailsMetadata.title",
+            "client.chat_details.ChatDetailsMetadata.updated_at",
+            "client.chat_details.ChatDetailsOptions",
+            "client.chat_details.ChatDetailsOptions.content_mode",
+            "client.chat_details.ChatDetailsOptions.history",
+            "client.chat_details.ChatDetailsRead",
+            "client.chat_details.ChatDetailsRead.chat",
+            "client.chat_details.ChatDetailsRead.check",
+            "client.chat_details.ChatDetailsRead.follow_up_suggestions",
+            "client.chat_details.ChatDetailsRead.has_more_before",
+            "client.chat_details.ChatDetailsRead.messages",
+            "client.chat_details.ChatDetailsRead.sdk_json",
+            "client.chat_details.ChatDetailsRead.take_admission",
+            "client.chat_details.ChatDetailsText",
+            "client.chat_details.ChatDetailsText.encoded_json",
+            "client.chat_details.ChatDetailsText.utf16_units",
+            "client.chat_details_json.ChatDetailsJson",
+            "client.chat_details_json.ChatDetailsJson.encoded_json",
+            "client.chat_details_json.ChatDetailsJson.sdk_encoded_json",
+            "client.chat_details_json.ChatDetailsJson.value",
+            "client.chat_details_json.ChatDetailsJsonString",
+            "client.chat_details_json.ChatDetailsJsonString.utf16_units",
+            "client.chat_details_json.ChatDetailsJsonValue",
+            "client.chat_details_json.ChatDetailsJsonValue.Array",
+            "client.chat_details_json.ChatDetailsJsonValue.Bool",
+            "client.chat_details_json.ChatDetailsJsonValue.Null",
+            "client.chat_details_json.ChatDetailsJsonValue.Number",
+            "client.chat_details_json.ChatDetailsJsonValue.Object",
+            "client.chat_details_json.ChatDetailsJsonValue.String",
             "client.full_chat_read.FullChatRead",
             "client.full_chat_read.FullChatRead.chat",
             "client.full_chat_read.FullChatRead.check",
@@ -7032,13 +7165,15 @@
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Restricting saved-output admission is shared Rust platform glue; foreign SessionClient operations use the same locked native return fence. Authoritative revocation/cancellation/owner/key/expiry tests are authored but compiled direct-three-SDK/runtime and comparative performance proof remains required. No cache or persistence receipt is exposed.",
             "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
-            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications.",
+            "Maintained rich selected-read source and shared103 vectors remain required partial: every original74 and private98 vector object is retained; same3 existing saved-read adapter plans extend to103 without a new family. Latest performs one requested30/compression=true window (ordinary backend cap20); Full drains100/compression=false windows. Preserve exact optional focus, stored PII null/arrays/scalars/objects, decoded duplicate-key last-wins, binary64 rounding/overflow/negative-zero and UTF16 units. CLI uses ordinary Serialize with JSON.stringify null/zero projection; direct SDK raw output retains binary64 overflow and negative-zero tokens through shared sdk_json, without foreign normalization. Original pre-IO FullChatReadAdmission/WorkGuard/policy, owner/key/request/private-denial/cancel/successor evidence, ambient restoration and actual final String allocation/native persistence remain mandatory. PageLocal nonrepresentable UTF16 mapping originals, private parser scratch allocator lifetime (only app-owned buffers wiped), existing cold Direct/no-key-draft/memory-locale bounds and all prior gaps remain open. Compiled genuine Rust/npm/Python103-vector execution, final-boundary/scheduler/cancellation/revocation/owner/backend-coherence/native CLI stdout/E2E, Linux/Mac distribution and equal-work/security/cache CPU/end-to-end/RAM performance remain required or UNRUN. No full inventory/history/sync/recovery/durability or release acceptance follows source, syntax, pure facade or schema checks; browser37 and future scheduler/cancel work are excluded."
           ],
           "conformance": true
         },
         "npm": {
           "status": "partial",
           "api": [
+            "SessionClient.chatDetails",
             "SessionClient.savedChatExactMessage",
             "SessionClient.savedChatRead"
           ],
@@ -7049,13 +7184,22 @@
           "gaps": [
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
-            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications.",
+            "Maintained rich selected-read source and shared103 vectors remain required partial: every original74 and private98 vector object is retained; same3 existing saved-read adapter plans extend to103 without a new family. Latest performs one requested30/compression=true window (ordinary backend cap20); Full drains100/compression=false windows. Preserve exact optional focus, stored PII null/arrays/scalars/objects, decoded duplicate-key last-wins, binary64 rounding/overflow/negative-zero and UTF16 units. CLI uses ordinary Serialize with JSON.stringify null/zero projection; direct SDK raw output retains binary64 overflow and negative-zero tokens through shared sdk_json, without foreign normalization. Original pre-IO FullChatReadAdmission/WorkGuard/policy, owner/key/request/private-denial/cancel/successor evidence, ambient restoration and actual final String allocation/native persistence remain mandatory. PageLocal nonrepresentable UTF16 mapping originals, private parser scratch allocator lifetime (only app-owned buffers wiped), existing cold Direct/no-key-draft/memory-locale bounds and all prior gaps remain open. Compiled genuine Rust/npm/Python103-vector execution, final-boundary/scheduler/cancellation/revocation/owner/backend-coherence/native CLI stdout/E2E, Linux/Mac distribution and equal-work/security/cache CPU/end-to-end/RAM performance remain required or UNRUN. No full inventory/history/sync/recovery/durability or release acceptance follows source, syntax, pure facade or schema checks; browser37 and future scheduler/cancel work are excluded."
           ],
           "conformance": true
         },
         "python": {
           "status": "partial",
           "api": [
+            "SessionChatDetailsFullHistory",
+            "SessionChatDetailsHistory",
+            "SessionChatDetailsLatestHistory",
+            "SessionChatDetailsMessage",
+            "SessionChatDetailsMetadata",
+            "SessionChatDetailsOptions",
+            "SessionChatDetailsRead",
+            "SessionClient.chat_details",
             "SessionClient.saved_chat_exact_message",
             "SessionClient.saved_chat_read",
             "SessionFullChatRead",
@@ -7073,7 +7217,8 @@
           "gaps": [
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
-            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications.",
+            "Maintained rich selected-read source and shared103 vectors remain required partial: every original74 and private98 vector object is retained; same3 existing saved-read adapter plans extend to103 without a new family. Latest performs one requested30/compression=true window (ordinary backend cap20); Full drains100/compression=false windows. Preserve exact optional focus, stored PII null/arrays/scalars/objects, decoded duplicate-key last-wins, binary64 rounding/overflow/negative-zero and UTF16 units. CLI uses ordinary Serialize with JSON.stringify null/zero projection; direct SDK raw output retains binary64 overflow and negative-zero tokens through shared sdk_json, without foreign normalization. Original pre-IO FullChatReadAdmission/WorkGuard/policy, owner/key/request/private-denial/cancel/successor evidence, ambient restoration and actual final String allocation/native persistence remain mandatory. PageLocal nonrepresentable UTF16 mapping originals, private parser scratch allocator lifetime (only app-owned buffers wiped), existing cold Direct/no-key-draft/memory-locale bounds and all prior gaps remain open. Compiled genuine Rust/npm/Python103-vector execution, final-boundary/scheduler/cancellation/revocation/owner/backend-coherence/native CLI stdout/E2E, Linux/Mac distribution and equal-work/security/cache CPU/end-to-end/RAM performance remain required or UNRUN. No full inventory/history/sync/recovery/durability or release acceptance follows source, syntax, pure facade or schema checks; browser37 and future scheduler/cancel work are excluded."
           ],
           "conformance": true
         }
