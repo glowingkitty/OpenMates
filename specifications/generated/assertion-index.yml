@@ -4840,7 +4840,7 @@ assertions:
       path: frontend/packages/openmates-cli/tests/cli.test.ts
       line: 3846
       name: forwards shopping reference images through generated typed flags with
-        provider and price filters
+        category and price filters
       surface: cli
     - &id665
       path: frontend/packages/openmates-cli/tests/jobsSdkGenerator.test.ts
@@ -6149,7 +6149,7 @@ assertions:
       path: frontend/packages/openmates-cli/tests/cli.test.ts
       line: 3846
       name: forwards shopping reference images through generated typed flags with
-        provider and price filters
+        category and price filters
       surface: cli
     - &id816
       path: frontend/packages/ui/src/components/embeds/home/homeListingData.test.ts
@@ -11849,19 +11849,19 @@ assertions:
       surface: cli
     - &id1502
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 164
+      line: 165
       name: validates before changing files and records the revision only after public
         verification
       surface: cli
     - &id1503
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 176
+      line: 177
       name: adopts a dual-origin upload Caddyfile through the atomic host transaction
         and persists its profile
       surface: cli
     - &id1504
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 196
+      line: 197
       name: rolls back upload Caddy changes and withholds profile state when unknown
         Origin is accepted
       surface: cli
@@ -12051,36 +12051,36 @@ assertions:
       surface: cli
     - &id1517
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 98
+      line: 99
       name: proves both trusted upload preflights and denies an unknown Origin before
         accepting Caddy
       surface: cli
     - &id1518
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 164
+      line: 165
       name: validates before changing files and records the revision only after public
         verification
       surface: cli
     - &id1519
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 176
+      line: 177
       name: adopts a dual-origin upload Caddyfile through the atomic host transaction
         and persists its profile
       surface: cli
     - &id1520
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 196
+      line: 197
       name: rolls back upload Caddy changes and withholds profile state when unknown
         Origin is accepted
       surface: cli
     - &id1521
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 278
+      line: 279
       name: requires the exact account-key preflight independently of disabled Workflows
       surface: cli
     - &id1522
       path: frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-      line: 307
+      line: 308
       name: rejects ${failure} account-key preflight instead of accepting route drift
       surface: cli
     tests:

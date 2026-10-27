@@ -460,11 +460,12 @@ export function getEmbedFileReferences(embed: ResolvableChatEmbed): ChatFileRefe
   const embedId = cleanString(embed.embed_id ?? embed.embedId ?? embed.id);
   if (!embedId) return [];
   const decoded = decodeEmbedContent(embed.content);
-  const type = (
+  const rawType = (
     stringField(decoded, ["type", "embed_type", "embedType"]) ||
     cleanString(embed.type) ||
     "file"
   ).toLowerCase();
+  const type = rawType === "generated_audio" ? "audio" : rawType;
   if (!FILE_LIKE_TYPES.has(type)) return [];
 
   const title = inferTitle(embedId, type, decoded, embed.content);
