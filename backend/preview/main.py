@@ -473,7 +473,7 @@ async def root():
     """Root endpoint - redirects to health check."""
     return {
         "service": "OpenMates Preview Server",
-        "version": "0.28.0",
+        "version": "0.29.0",
         "docs": "/docs" if settings.debug else "disabled",
         "health": "/health"
     }

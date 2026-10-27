@@ -280,11 +280,11 @@ Context events are for display only. No calendar account or network call is requ
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.28`, in the web app.
+OpenMates shows the short product line, for example `v0.29`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.28.0aN` is an alpha prerelease from the `dev` branch.
-- `0.28.0` is a stable release from `main`.
+- `0.29.0aN` is an alpha prerelease from the `dev` branch.
+- `0.29.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.
