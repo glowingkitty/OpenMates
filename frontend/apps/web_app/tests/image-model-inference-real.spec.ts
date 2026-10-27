@@ -35,7 +35,8 @@ const IMAGE_FIXTURE = path.resolve(
 	'../../../../docs/images/architecture/messaging/messageinputfield/large_message.jpg'
 );
 
-const PROMPT = 'Evaluate the design and give recommendations for improvements.';
+// Conversational wording must retain images.view even when semantic routing misses it.
+const PROMPT = 'So tell me more about this.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
 const DEFAULT_SMOKE_MODEL_LABELS = ['auto', 'gemini-38-flash'];
@@ -260,8 +261,11 @@ async function typePromptAndSendAfterAttachment(
 }
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
-	const imageViewEmbed = page.locator('[data-app-id="images"][data-skill-id="view"]').last();
+	// An uploaded-image preview also advertises skill=view; require the assistant's
+	// completed tool embed so attachment display cannot stand in for inspection.
+	const imageViewEmbed = page.getByTestId('message-assistant').locator('[data-app-id="images"][data-skill-id="view"]').last();
 	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
+	await expect(imageViewEmbed).toHaveAttribute('data-status', 'finished', { timeout: IMAGE_VIEW_TIMEOUT_MS });
 	log('images.view embed is visible.');
 
 	const assistantMessage = await waitForAssistantMessage(page, {
@@ -281,7 +285,7 @@ test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
-		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles
+		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles,app-skills.images.reference-handoff,images-view.response.post-tool-inference
 		test(`real image inference ${model.label} trial ${trial}`, async ({ page }: { page: any }, testInfo: any) => {
 			test.slow();
 			test.setTimeout(420000);

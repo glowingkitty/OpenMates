@@ -2538,7 +2538,8 @@ test.describe('Voice mode through ordinary chat', () => {
       await page.getByTestId('voice-call-mute').click();await page.getByTestId('voice-call-video').click();
       await expect.poll(async()=>(await cameraCallEvidence(page)).sent.filter(frame=>frame.type==='camera_frame').length).toBeGreaterThan(0);
       await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','true');
-      const userId=await sendCameraCallText(page,PASTED_TEXT);
+      const cameraQuestion='So tell me more about this.';
+      const userId=await sendCameraCallText(page,cameraQuestion);
       // Canonical admission follows this turn's exact source upload/encryption.
       // Check provenance only after the ordinary response confirms that work.
       await waitForCanonicalAssistant(page,userId);
@@ -2549,7 +2550,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(user).toHaveCount(1);await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
       const thumbnail=user.locator(`[data-testid="embed-preview"][data-embed-id="${source.embedId}"]`);
       await assertOpenOriginalSource(page,thumbnail,source.embedId,source.hash,testInfo);
-      await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
+      await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+cameraQuestion})).toHaveCount(1);
       await page.getByTestId('voice-call-video').click();await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','false');
       await expect(page.getByTestId('voice-call-bar')).toBeVisible();
       expect((await evidence(page)).sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===userId)).toHaveLength(1);

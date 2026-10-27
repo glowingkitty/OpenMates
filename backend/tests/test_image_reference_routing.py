@@ -93,6 +93,35 @@ def test_inspection_and_photo_only_turn_keep_viewer_fallback(text, current):
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
+@pytest.mark.parametrize("text", [
+    "So tell me more about this.",
+    "Tell me more about this book.",
+    "Erzähl mir mehr darüber.",
+    "请告诉我更多关于这本书的信息。",
+    "Parle-moi de cet objet.",
+])
+@pytest.mark.parametrize("attachment", ["turn_flag", "inline_embed"])
+def test_current_upload_keeps_viewer_available_without_inspection_keywords(text, attachment):
+    request = _request(
+        text if attachment == "turn_flag" else f"{IMAGE_EMBED}\n{text}",
+        current=attachment == "turn_flag",
+    )
+    selected = ["web-search"]
+    assert _image_inspection_fallback_skills(
+        request, selected, ["web-search", "images-view"], _catalog(),
+    ) == ["images-view", "web-search"]
+    assert selected == ["web-search"]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
+def test_current_upload_cannot_enable_an_unavailable_viewer():
+    assert _image_inspection_fallback_skills(
+        _request("Tell me more about this book.", current=True),
+        ["web-search"], ["web-search"], _catalog(),
+    ) == ["web-search"]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
 @pytest.mark.parametrize("text", ["Beschreibe das Bild und finde ähnliche Stoffe", "请分析这张图片", "Explique cette photo"])
 def test_semantically_selected_inspection_is_preserved_in_every_language(text):
     selected = ["images-view", "shopping-search_products"]

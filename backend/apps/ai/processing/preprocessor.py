@@ -333,11 +333,12 @@ def _image_inspection_fallback_skills(
     available_skill_ids: List[str],
     discovered_apps_metadata: Optional[Dict[str, AppYAML]],
 ) -> List[str]:
-    """Offer inspection for an image question, never for image history alone.
+    """Offer viewing for current uploads and explicit image questions.
 
     Existing semantic viewer selection remains authoritative in every language.
-    The deterministic fallback covers a photo-only turn and common explicit
-    inspection wording; it does not remove semantically selected tools.
+    A current upload must not depend on inspection keywords to make viewing
+    available. Reference consumers retain direct handoff, and unrelated image
+    history alone does not enable viewing. Availability does not load pixels.
     """
     selected = list(selected_skills)
     if "images-view" in selected or "images-view" not in available_skill_ids:
@@ -348,6 +349,10 @@ def _image_inspection_fallback_skills(
     if not isinstance(latest, str):
         latest = _latest_user_text_from_history(request_data.message_history)
     current_image = bool(getattr(request_data, "has_image_upload_embed", False)) or _content_has_image_upload_embed(latest)
+    consumers = _image_reference_consumer_skills(selected, discovered_apps_metadata)
+    if current_image and not consumers:
+        return ["images-view", *selected]
+
     # Resolved attachment captions/metadata are data, not user inspection intent.
     prose = re.sub(
         r"```(?:toon|json|json_embed)\s*\n[\s\S]*?```",
@@ -356,8 +361,6 @@ def _image_inspection_fallback_skills(
     ).strip()
     if _content_has_image_upload_embed(prose) and prose.startswith(("app_id:", "type:", "{")):
         prose = ""
-    consumers = _image_reference_consumer_skills(selected, discovered_apps_metadata)
-    photo_only = current_image and not prose and not consumers
     def targets_image(text: str) -> bool:
         return bool(
             re.search(r"\b(?:image|photo|picture|screenshot|chart|diagram|label)\b", text, re.IGNORECASE)
@@ -382,12 +385,8 @@ def _image_inspection_fallback_skills(
         (action and targets_image(prose[action.end():]))
         or (question and targets_image(question.group()))
     )
-    # New image + 'describe it'/'what is this?' is a useful inspection fallback
-    # when no reference-consuming task was selected. Mixed requests retain a
-    # viewer when either a command or a question positively targets the image.
-    deictic_inspection = bool(current_image and not consumers and (action or question))
-    inspection = targeted_inspection or deictic_inspection
-    if photo_only or inspection:
+    # Mixed requests and historical images still need explicit inspection intent.
+    if targeted_inspection:
         return ["images-view", *selected]
     return selected
 
