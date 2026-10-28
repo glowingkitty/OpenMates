@@ -597,7 +597,7 @@ jobs:
             sudo apt-get install -y ffmpeg xvfb zutty
           fi
       - name: Provision empty runner-local Codex thread
-        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
+        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs start
       - name: Install installer workflow parser
         if: inputs.mode == 'selfhost'
@@ -610,7 +610,7 @@ jobs:
           CI_SPECS_JSON: ${{ inputs.specs_json }}
         run: python3 ../tooling/scripts/ci_run_tests.py
       - name: Stop runner-private Codex daemon
-        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
+        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts'))))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
         if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
