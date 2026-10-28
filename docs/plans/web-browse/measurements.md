@@ -688,3 +688,82 @@ context is unchanged and no input outcome is uncertain. Upstream's focus
 emulation addresses background desktop tabs; no evidence yet makes it relevant
 to our dedicated headless VM. These are proposed changes, not deployed or
 benchmarked improvements.
+
+
+## Latest deployed status: 00c1f01, 28 October
+
+The release is deployed to dev, its frontend is ready, and coordinated operation
+`docker-ac003ce2` completed with all 17 affected services healthy. Backend source
+and translation mounts were refreshed without rebuilding images. The operation
+took 163.077 seconds, including 6.609 seconds Compose and 82.587 seconds health
+checks; this engineering deployment duration is not browser startup latency.
+
+The corrected public catalog API check and existing first-party authorization
+case both passed isolated run `40683662151` against candidate `212cbca1`. The
+first API attempt incorrectly requested the protected developer metadata URL;
+its 401 was correct. The corrected test uses the public `/details` catalog path,
+without changing authentication. Backend run `40681944353` passed the focused
+service, dispatch and metadata checks.
+
+All four new Browse catalog cases passed run `40681954302`: two actual CLI
+examples at 1280 and 390 pixels, each displaying saved JPEG/JSON without any
+owner-session request or live control. The full catalog suite had 11 passes,
+six failures in other catalog/settings/audio cases and one skip; it is not
+reported as fully green. The existing clone-on-send spec is held by the CI
+coverage registry because its original scenario requires live inference; no
+provider credential was added to CI or scenario replaced with a mock.
+
+After deployment, all four logged-out example-page checks passed: the SEO page,
+real transcript, screenshot preview, fullscreen, readable JSON, close and reload.
+Screenshots were reviewed on laptop and phone, and no owner browser endpoint was
+contacted. Verified pages:
+
+- https://app.dev.openmates.org/example/browse-example-domain
+- https://app.dev.openmates.org/example/browse-heading-json
+
+A fresh automatically routed CLI extraction, chat `9a56b812`, verified the exact
+deployed backend source under a shared runtime lease and completed Browse with
+JSON. Its new stage instrumentation measured:
+
+| Stage | Seconds |
+| --- | ---: |
+| Prepared-pool claim | 0.190 |
+| Native resume and readiness | 1.869 |
+| Owner/pristine control check | 1.063 |
+| Provisioning, including the above and persistence | 3.182 |
+| Initial navigation RPC | 4.180 |
+| Duplicate initial control RPC | 0.000 |
+| Startup before observation | 7.449 |
+| Observation RPC | 1.258 |
+| Startup through first observation | 8.744 |
+| Entire Browse execution | 18.175 |
+| Outer assistant/CLI response | 49.819 |
+
+Provisioning is below four seconds but not consistently below three; the first
+page observation remains substantially too slow. The navigation RPC still
+combines destination/robots work with page loading. Further measurements must
+split that work and connection setup before claiming a root cause. Removing
+one duplicate control round trip did not materially improve this total.
+
+At task completion, supplier estimates were $0.0036007768 total: $0.0007739159
+runtime and $0.0028268640 internal inference. Accrual was seven credits. The
+script closed its browser immediately after the outer response and embed read,
+settling at nine Browse credits with no pending accounting. The ledger contains
+exactly one Browse and one assistant entry, with ten assistant credits: 19
+credits ($0.019) total. The new Browse billing trigger matches the assistant's
+trigger, the ledger matches the close receipt, and the original 40-credit cap is
+preserved. No per-minute rounding is involved. The longer-lived final sign-in
+checks cost 45 credits (14 Browse + 31 assistant) on desktop and 40 credits
+(13 Browse + 27 assistant) on phone. These are measured examples, not a general
+price or reliability guarantee.
+
+Remaining work is deeper navigation/transport profiling, qualification beyond
+these permitted fixtures, supplier pause-deadline reconciliation, and the
+chat-independent execution/workflow refactor. Code Run already provides the
+standalone route/shared admission/optional chat-delivery precedent. Keep Browse's
+stronger deterministic admission and owner-encrypted stores; do not copy Code
+Run's non-idempotent random start IDs or broaden browser credentials to generic
+developer keys. Workflow takeover belongs in the workflow run view, with durable
+node continuation that preserves completed upstream effects. Together/DeepSeek
+remains unqualified while its organization ZDR flag is false; measured text
+helper runs used the Gemini fallback. Rust parity remains explicitly deferred.
