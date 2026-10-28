@@ -275,6 +275,32 @@ class E2BBrowser:
     async def rpc(
         self, provider: dict[str, Any], body: dict[str, Any], *, timeout: float = 25
     ) -> dict[str, Any]:
+        started = time.monotonic()
+        pending: dict[str, float] = {}
+        timings: dict[str, float] = {}
+        events = {
+            "connection.connect_tcp": "connect_tcp_seconds",
+            "connection.start_tls": "tls_seconds",
+            "http11.receive_response_headers": "response_headers_seconds",
+            "http2.receive_response_headers": "response_headers_seconds",
+            "http11.receive_response_body": "response_body_seconds",
+            "http2.receive_response_body": "response_body_seconds",
+        }
+
+        async def trace(name: str, _info: dict[str, Any]) -> None:
+            # Never retain trace payloads: they can contain authenticated
+            # requests, URLs, headers and upstream exception objects.
+            event, _, phase = name.rpartition(".")
+            key = events.get(event)
+            if key is None:
+                return
+            if phase == "started":
+                pending[event] = time.monotonic()
+            elif phase in {"complete", "failed"} and event in pending:
+                timings[key] = timings.get(key, 0) + max(
+                    0, time.monotonic() - pending.pop(event)
+                )
+
         try:
             async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
                 response = await client.post(
@@ -284,6 +310,7 @@ class E2BBrowser:
                         "Authorization": "Bearer " + provider["token"],
                         "e2b-traffic-access-token": provider["traffic_access_token"],
                     },
+                    extensions={"trace": trace},
                 )
             if response.status_code != 200:
                 raise BrowserRpcUnavailable(
@@ -297,6 +324,11 @@ class E2BBrowser:
             result = response.json()
             if not isinstance(result, dict):
                 raise ValueError
+            timings["total_seconds"] = time.monotonic() - started
+            # Overwrite this reserved field rather than trusting remote values.
+            result["_rpc_timings"] = {
+                key: round(value, 4) for key, value in timings.items()
+            }
             return result
         except BrowserUnavailable:
             raise

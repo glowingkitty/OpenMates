@@ -774,10 +774,12 @@ class BrowseService:
                             await self.store.save(record)
                             raise
                         navigation_started = time.monotonic()
-                        await driver.rpc(
+                        navigation = await driver.rpc(
                             record["provider"],
                             {"operation": "navigate", "url": request.start_url},
                         )
+                        for key, value in navigation.get("_rpc_timings", {}).items():
+                            stage_times["navigation_" + key] = value
                         stage_times["initial_navigation_seconds"] = round(
                             time.monotonic() - navigation_started, 3
                         )
@@ -830,6 +832,10 @@ class BrowseService:
                                 stage_times["first_observation_seconds"] = (
                                     time.monotonic() - startup_started
                                 )
+                                for key, value in observation.get(
+                                    "_rpc_timings", {}
+                                ).items():
+                                    stage_times["first_observation_" + key] = value
                             stage_times["observation_seconds"] += (
                                 time.monotonic() - observation_started
                             )
