@@ -1506,7 +1506,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "f8de503e49d10ce4ef651e42ca1172839f955291bbb470f2678baa3551033571"
+    assert sdk.sha(live_bytes) == "f36f64c7eb6671681fab6db482bea05d7c7bc675777c167e89d33e23d1fbd3db"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -8175,6 +8175,7 @@ def sdk_unit_compile_delta():
 
 
 def restore_before_sdk_unit_compile(trust):
+    trust = sdk_runtime_unit_history(trust)
     delta = sdk_unit_compile_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == delta['afterSha256']
     prior = copy.deepcopy(trust)
@@ -8189,12 +8190,14 @@ def restore_before_sdk_unit_compile(trust):
 
 
 def sdk_unit_compile_history(trust):
+    trust = sdk_runtime_unit_history(trust)
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == 'f8de503e49d10ce4ef651e42ca1172839f955291bbb470f2678baa3551033571':
         return restore_before_sdk_unit_compile(trust)
     return trust
 
 
 def sdk_unit_compile_source_history(path, raw):
+    raw = sdk_runtime_unit_source_history(path, raw)
     root = Path(__file__).resolve().parents[2]
     actual = getattr(path, 'path', path)
     closed = {'packages/openmates-rust/src/client/monitor_live_tests.rs': 'a91a1546a7f47b7ad036bca138051fb0457fef3cea0c07f7f5cf38f827e96ff1', 'packages/openmates-rust/src/client/transport_owned_socket_tests.rs': '1819a6d9bb1a2cf773e5b4c8b34f958ee4b93b855ad5ff3480ab31d323562ba3', 'packages/openmates-rust/src/sdk_skill_release_tests.rs': '538af145bff51730b4c1fce18dadc585ca83af0cdcc7489d411790c0f162dd80', 'packages/openmates-rust/src/client/browser_owned_message_read_tests.rs': '325c2cdf9b185f63cf053aa3618711fba65504e89f727c012a826f5aa51f5242', 'frontend/packages/ui/src/services/personalChatTurnBarrier.ts': '32f4e0438ca23375f07c950b8b3ae311d1366a192d856e89cc1324b217ada411', 'packages/openmates-rust/src/client/completion_recovery/original_result_tests.rs': '18cc0add0739ba615880d8115488a07506f59b8b04f2a0f5e4526706ed5f3ee2', 'packages/openmates-rust/src/client/completion_recovery/owned_phase_tests.rs': '67cb0c4fda1df59efa9ac84f09f2c76ea700b0749af4ec60b367b08e6b15092c', 'packages/openmates-rust/src/client/owned_saved_send.rs': '50f887d50e46420741831b88b2d868b84b4bb5d70f852ce9a01b534308058bb2', 'packages/openmates-rust/src/client/owned_saved_send_phase.rs': 'baa0be7451e9c2a2a272f23dc56534768ef9c250ee2fcce4457080614b49c198', 'frontend/packages/openmates-tui-native/src/main.rs': '7e9f20be80fa89a52a460b60d0c8880d433d2c992bc79738eac7b1834bb5f649', 'frontend/apps/web_app/scripts/__tests__/rust-core-assets.test.mjs': 'ee57b0a786932683717ab30bccc145e1e3ddb8993c28c31bdb55dfcfc1ca3d80', 'frontend/apps/web_app/scripts/vite-plugin-rust-core.mjs': 'f19ca24db6f44c5dd9a078a8be3c96c34ea104e2986c4a3284e59ce3afe7c5a9', 'frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts': 'c41a0726210a5f68f3c33a5b2704622e9290ec12390a33ee0e5d3dfdd3a78673', 'frontend/apps/web_app/tests/helpers/native-core-unit-coverage.test.cjs': '14041f6be6dc1e331d7e1c7615e609174c63e2864d17c0d775c31f96ee4cf28b', '.github/workflows/isolated-tests.yml': '94c3293ea57dc221117edb19bddff19aa4ac122ce36125814ab05b7017f7d827', 'scripts/ci_coverage_manifest.json': '4805c2f5f059c2d3e4d0a81431949e110fb9bb50178d7d7cf6ce08f17a8b4118', 'frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts': 'bcbb9681678cbc93224c6d1ac88aa26410d11b6eedf35eef76e686af84be6932'}
@@ -8208,7 +8211,7 @@ def sdk_unit_compile_source_history(path, raw):
 
 
 def test_sdk_unit_compile_closed_source_inverse_preserves_all_other_scope_and_runtime_status():
-    current = sdk.load_trust()
+    current = sdk_runtime_unit_history(sdk.load_trust())
     delta = sdk_unit_compile_delta()
     prior = restore_before_sdk_unit_compile(current)
     assert {key: len(current[key]) for key in delta['afterCounts']} == {'programs': 747, 'contracts': 125, 'plan': 102, 'gaps': 183}
@@ -8217,9 +8220,9 @@ def test_sdk_unit_compile_closed_source_inverse_preserves_all_other_scope_and_ru
     assert len(delta['sourceInverse']) == 19 and delta['scenariosRemoved'] is False
     assert delta['productAPIChanged'] is False and delta['runtimeExecutions'] == 0
     root = Path(__file__).resolve().parents[2]
-    sdk.verify_programs(root, current)
+    sdk.verify_programs(root, sdk.load_trust())
     for row in delta['sourceInverse']:
-        actual = (root / row['path']).read_bytes()
+        actual = sdk_runtime_unit_source_history(root / row['path'], (root / row['path']).read_bytes())
         assert sdk.sha(actual) == row['afterSha256']
         if row['beforeExists']:
             assert sdk_unit_compile_source_history(root / row['path'], actual) == row['beforeRaw'].encode()
@@ -8260,3 +8263,78 @@ def test_sdk_unit_compile_canonical_turn_barrier_exports_match_actual_consumers(
         assert 'hasPendingPersonalChatTurn' in names and names <= exported
     old = next(row for row in sdk_unit_compile_delta()['sourceInverse'] if row['path'] == name)['beforeRaw']
     assert 'hasPendingPersonalChatTurn' not in set(re.findall(r'^export function ([A-Za-z_][A-Za-z_0-9]*)\(', old, re.MULTILINE))
+
+
+# Closed test-compiler repair inverse; source presence is independent of prior pin presence.
+def sdk_runtime_unit_delta():
+    return immutable_trust_test_fixture('sdk-conformance-trust-sdk-runtime-unit-delta.json', 'a9a1c100704fecb75824e4b62adb5bcfbab949745ed6f0dc5c83e1dd41aebf89')
+
+
+def restore_before_sdk_runtime_unit(trust):
+    delta = sdk_runtime_unit_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == delta['afterSha256']
+    prior = copy.deepcopy(trust)
+    for row in delta['sourceInverse']:
+        assert prior[row['bucket']][row['path']] == row['afterSha256']
+        if row['beforePin'] is None:
+            prior[row['bucket']].pop(row['path'])
+        else:
+            prior[row['bucket']][row['path']] = row['beforePin']
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + '\n').encode()) == delta['beforeSha256']
+    return prior
+
+
+def sdk_runtime_unit_history(trust):
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == 'f36f64c7eb6671681fab6db482bea05d7c7bc675777c167e89d33e23d1fbd3db':
+        return restore_before_sdk_runtime_unit(trust)
+    return trust
+
+
+def sdk_runtime_unit_source_history(path, raw):
+    root = Path(__file__).resolve().parents[2]
+    actual = getattr(path, 'path', path)
+    closed = {'packages/openmates-rust/src/client/browser_cache_replacement_tests.rs': 'dc845a81d7b775860fbf5b91b79542e6edfd2b1ef96c30e372934c4bac6825ca', 'packages/openmates-rust/src/client/auth_handoff_tests.rs': 'b709f921e31944cbac743edf84445c112d953c604c283e09ce5757f1530cb4bf', 'packages/openmates-rust/src/account/settings_read/ordered.rs': '17b0e6a7d061e5485a8b250befa919921db87f247343917946723d2919a5f77d', 'packages/openmates-rust/src/client/chat_details.rs': 'f84839b25053b35bceb62ad3320671aba03f10f118d643d8d0ab055d0268b910', 'packages/openmates-rust/src/client/chat_details_tests.rs': '085bbca6e7bfe46a3602885e7a0b37810306323f98186aa94667bf11009750f3', 'packages/openmates-rust/Cargo.toml': 'cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f', 'packages/openmates-rust/src/client/completion_recovery/tests.rs': 'a8bdc82f3b07e71bbd02500d838439dc1d64be929b1ce3fed09af9f071e6036c', 'frontend/apps/web_app/scripts/__tests__/rust-core-assets.test.mjs': '3c8460522becff81ba6d17a9292ea47d095a934fdc2efb4917b361f008e742cd', 'frontend/apps/web_app/scripts/rust-recovery-module-closure.mjs': 'c60b63102924f230288a06c62ed17bed4c71964abae97d9ddddeed4be007daad', 'frontend/apps/web_app/scripts/vite-plugin-rust-core.mjs': '4c7a3281311e774d6d43b42f11d288746455b3c934173caf387c530ea7413e8b'}
+    for name, expected in closed.items():
+        if actual == root / name and sdk.sha(raw) == expected:
+            row = next(row for row in sdk_runtime_unit_delta()['sourceInverse'] if row['path'] == name)
+            before = row['beforeRaw'].encode()
+            assert row['beforeExists'] is True and sdk.sha(before) == row['beforeSha256']
+            return before
+    return raw
+
+
+def test_sdk_runtime_unit_closed_source_inverse_preserves_all_other_scope_and_runtime_status():
+    current = sdk.load_trust()
+    delta = sdk_runtime_unit_delta()
+    prior = restore_before_sdk_runtime_unit(current)
+    assert {key: len(current[key]) for key in delta['afterCounts']} == {'programs': 748, 'contracts': 125, 'plan': 102, 'gaps': 183}
+    assert {key: value for key, value in current.items() if key not in {'programs', 'contracts'}} == {key: value for key, value in prior.items() if key not in {'programs', 'contracts'}}
+    assert {(bucket, name) for bucket in ['programs', 'contracts'] for name in current[bucket] if current[bucket][name] != prior[bucket].get(name)} == {(row['bucket'], row['path']) for row in delta['sourceInverse']}
+    assert len(delta['sourceInverse']) == 10 and delta['scenariosRemoved'] is False
+    assert delta['productAPIChanged'] is False and delta['runtimeExecutions'] == 0
+    root = Path(__file__).resolve().parents[2]
+    sdk.verify_programs(root, current)
+    for row in delta['sourceInverse']:
+        actual = (root / row['path']).read_bytes()
+        assert sdk.sha(actual) == row['afterSha256']
+        if row['beforeExists']:
+            assert sdk_runtime_unit_source_history(root / row['path'], actual) == row['beforeRaw'].encode()
+        else:
+            assert row['beforeRaw'] is row['beforeSha256'] is row['beforePin'] is None
+            assert sdk_runtime_unit_source_history(root / row['path'], actual) == actual
+        assert sdk_runtime_unit_source_history(root / row['path'], actual + b'\n') == actual + b'\n'
+        assert sdk_runtime_unit_source_history(root / 'unknown-sdk-unit-history', actual) == actual
+    assert len(_COMPRESSED_TRUST_WITNESSES) == 8 and _MAX_CACHED_COMPRESSED_TRUST_WITNESSES == 2
+
+
+@pytest.mark.parametrize('bucket', ['programs', 'contracts', 'plan', 'gaps'])
+def test_sdk_runtime_unit_unknown_authority_refuses(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ['programs', 'contracts']:
+        wrong[bucket][next(iter(wrong[bucket]))] = '0' * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_sdk_runtime_unit(wrong)
+    assert sdk_runtime_unit_history(wrong) == wrong
+
