@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import fcntl
 import json
@@ -18,6 +19,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -196,7 +198,63 @@ class Coordinator(CoordinatorState):
                 report["error"] = "Worktree cleanup did not return a valid structured report"
         return report
 
-    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN):
+    def _execute_cleanup(self, repository, kind, cleaner):
+        """Record maintenance only after the elected worker actually finishes."""
+        self._assert_leader()
+        try:
+            result = cleaner(repository, kind)
+        except Exception as error:
+            result = {"error": str(error)[:300]}
+        failed = bool(isinstance(result, dict) and (
+            result.get("error") or result.get("returncode", 0) or result.get("failures")
+        ))
+        with self.db(write=True) as db:
+            self._assert_leader()
+            self._event(db, "cleanup", {"repository": repository, "kind": kind, **(result or {})})
+            db.execute(
+                "UPDATE maintenance SET state=?,reason=? WHERE repository=? AND kind=?",
+                ("waiting" if failed else "complete", json.dumps(result), repository, kind),
+            )
+            if failed:
+                db.execute(
+                    "INSERT INTO pressure(filesystem,next_cleanup) VALUES (?,?) ON CONFLICT(filesystem) DO UPDATE SET next_cleanup=MAX(next_cleanup,excluded.next_cleanup)",
+                    (filesystem(repository), self.clock() + CLEANUP_BACKOFF),
+                )
+        return {"repository": repository, "kind": kind, "result": result}
+
+    @contextmanager
+    def background_cleanup(self):
+        """One supervised worker coalesces cleanup while admission keeps ticking."""
+        self._assert_leader()
+        inflight = set()
+        lock = threading.Lock()
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="disk-cleanup") as executor:
+            def dispatch(repository, kind, cleaner):
+                self._assert_leader()
+                key = (repository, kind)
+                with lock:
+                    if key in inflight:
+                        return
+                    inflight.add(key)
+                def execute():
+                    try:
+                        return self._execute_cleanup(repository, kind, cleaner)
+                    finally:
+                        with lock:
+                            inflight.discard(key)
+                def observe(future):
+                    error = future.exception()
+                    if error is not None:
+                        print(f"Disk cleanup worker failed: {type(error).__name__}", file=sys.stderr)
+                try:
+                    executor.submit(execute).add_done_callback(observe)
+                except BaseException:
+                    with lock:
+                        inflight.discard(key)
+                    raise
+            yield dispatch
+
+    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN, cleanup_dispatch=None):
         self._assert_leader()
         cleaner = cleaner or self._cleanup
         now = self.clock()
@@ -331,22 +389,12 @@ class Coordinator(CoordinatorState):
                     )
         results = []
         for repository, kind in dict.fromkeys(cleanup_jobs):
-            try:
-                result = cleaner(repository, kind)
-            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-                result = {"error": str(error)[:300]}
-            with self.db(write=True) as db:
-                self._event(
-                    db,
-                    "cleanup",
-                    {"repository": repository, "kind": kind, **(result or {})},
-                )
-                db.execute(
-                    "UPDATE maintenance SET state='complete',reason=? WHERE repository=? AND kind=?",
-                    (json.dumps(result), repository, kind),
-                )
-            results.append({"repository": repository, "kind": kind, "result": result})
+            if cleanup_dispatch is not None:
+                cleanup_dispatch(repository, kind, cleaner)
+            else:
+                results.append(self._execute_cleanup(repository, kind, cleaner))
         return results
+
 
 
 def run_command(repository, amount, operation, command, *, write_paths=()):
@@ -512,9 +560,9 @@ def main():
 
         signal.signal(signal.SIGTERM, shutdown)
         signal.signal(signal.SIGINT, shutdown)
-        with coordinator.leadership():
+        with coordinator.leadership(), coordinator.background_cleanup() as dispatch:
             while not stop:
-                coordinator.tick()
+                coordinator.tick(cleanup_dispatch=dispatch)
                 time.sleep(1)
     elif args.action == "owner-check":
         return 0 if owner_check(coordinator) else 1

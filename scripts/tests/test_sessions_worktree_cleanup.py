@@ -35,6 +35,9 @@ def load_sessions_module():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    import tempfile
+    module._test_expiry_directory = tempfile.TemporaryDirectory(prefix="openmates-expiry-test-")
+    module.WORKTREE_EXPIRY_LOCK_FILE = Path(module._test_expiry_directory.name) / "expiry.lock"
     # Expiry unit tests own a synthetic runtime; dedicated tests below exercise
     # the real probes without consulting host services during filesystem tests.
     module._expiry_worktree_has_runtime_references = lambda _path: False
@@ -617,6 +620,27 @@ def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):
     assert path.exists()
     assert report["deleted"] == []
     assert report["failures"][0]["session_id"] == "old"
+
+
+@pytest.mark.parametrize("failure", ["archive_size", "free_space"])
+def test_recovery_archive_allocation_is_bounded_before_writing(monkeypatch, tmp_path, failure):
+    sessions = load_sessions_module()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "unique-proof").write_text("preserve")
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _p: True)
+    monkeypatch.setattr(sessions, "_expiry_archive_snapshot", lambda _p: ("head", b"", b"", []))
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_ARCHIVE_DIR", tmp_path / "recovery")
+    if failure == "archive_size":
+        monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES", 100)
+    else:
+        from collections import namedtuple
+        usage = namedtuple("Usage", "total used free")
+        monkeypatch.setattr(sessions.shutil, "disk_usage", lambda _p: usage(1000, 900, 100))
+    with pytest.raises(RuntimeError, match="worktree retained"):
+        sessions._archive_expired_worktree({"path": str(source), "session_id": "source"})
+    assert (source / "unique-proof").read_text() == "preserve"
+    assert not (tmp_path / "recovery").exists()
 
 
 def test_hard_expiry_serializes_other_process_and_releases_lock(tmp_path):

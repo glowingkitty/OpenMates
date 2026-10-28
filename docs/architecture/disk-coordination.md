@@ -42,6 +42,11 @@ Diagnostics include both the percentage ceiling and the absolute shortfall.
 Impossible peaks are
 rejected before queueing. Only requests with reserved space can resume.
 
+The supervised service runs cleanup through one coalesced worker; admission keeps
+ticking while a sweep runs. Recovery snapshots are capped at 256 MiB of input
+plus metadata and must preserve the free-space reserve. Larger unique payloads
+stay in their original worktree while cleanup proceeds to other candidates.
+
 ## Safe allocations and cleanup
 
 Leases reserve future additional allocation. Writers without dependable

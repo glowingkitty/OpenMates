@@ -378,3 +378,54 @@ def test_disable_preserves_waits_and_refuses_live_grants(tmp_path):
         c.disable(root)
         assert disk.configured(root) is None
         assert c.get(row["id"])["state"] == "waiting"
+
+
+def test_background_cleanup_does_not_block_admission_and_coalesces_inflight(tmp_path):
+    c, root, now, usage = fixture(tmp_path, free=20, used=980, kinds=('managed',))
+    started = threading.Event()
+    finish = threading.Event()
+    calls = []
+    def cleaner(repository, kind):
+        calls.append((repository, kind))
+        started.set()
+        assert finish.wait(5)
+        return {'deleted': []}
+    with c.leadership(), c.background_cleanup() as dispatch:
+        c.enqueue_maintenance(root, 'managed')
+        c.tick(cleaner=cleaner, cleanup_dispatch=dispatch, recovery_margin=0)
+        assert started.wait(2)
+        try:
+            c.enqueue_maintenance(root, 'managed')
+            now[0] += disk.CLEANUP_BACKOFF + 1
+            allocation = request(c, root)
+            usage[0] = Usage(1000, 500, 500)
+            c.tick(cleaner=cleaner, cleanup_dispatch=dispatch, recovery_margin=0)
+            with c.db() as db:
+                assert db.execute("SELECT state FROM requests WHERE id=?", (allocation['id'],)).fetchone()[0] == 'granted'
+            assert len(calls) == 1
+            with c.db() as db:
+                assert db.execute("SELECT COUNT(*) FROM events WHERE kind='cleanup'").fetchone()[0] == 0
+        finally:
+            finish.set()
+    with c.db() as db:
+        assert db.execute("SELECT state FROM maintenance").fetchone()[0] == 'complete'
+        assert db.execute("SELECT COUNT(*) FROM events WHERE kind='cleanup'").fetchone()[0] == 1
+
+
+def test_background_cleanup_worker_failure_is_recorded_and_retried_after_backoff(tmp_path):
+    c, root, now, _ = fixture(tmp_path, kinds=('managed',))
+    def broken(*_):
+        raise ValueError('bounded worker failure')
+    with c.leadership():
+        c.enqueue_maintenance(root, 'managed')
+        with c.background_cleanup() as dispatch:
+            c.tick(cleaner=broken, cleanup_dispatch=dispatch)
+        with c.db() as db:
+            row = db.execute("SELECT state,reason FROM maintenance").fetchone()
+            assert row['state'] == 'waiting' and 'bounded worker failure' in row['reason']
+        calls = []
+        c.tick(cleaner=lambda *args: calls.append(args))
+        assert calls == []
+        now[0] += disk.CLEANUP_BACKOFF + 1
+        c.tick(cleaner=lambda *args: calls.append(args))
+        assert len(calls) == 1

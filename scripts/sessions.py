@@ -4845,6 +4845,7 @@ WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({
     "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache",
     ".mypy_cache", ".ruff_cache", ".svelte-kit", ".next", ".turbo",
 })
+WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES = 256 * 1024**2
 
 
 def _expiry_sha256_stream(stream: Any) -> str:
@@ -4956,6 +4957,19 @@ def _archive_expired_worktree(record: dict) -> str:
     if not (is_valid_managed_worktree_path(path) or _is_integration_worktree_path(path)):
         raise RuntimeError(f"Refusing to archive unmanaged worktree: {path}")
     head, staged_patch, working_patch, entries = _expiry_archive_snapshot(path)
+    # Recovery is itself an allocation. Never amplify a capacity incident by
+    # copying gigabytes of unique proof into a second local archive. Retain that
+    # worktree and continue with smaller, safely recoverable candidates.
+    archive_peak = (len(staged_patch) + len(working_patch)
+                    + sum(entry["size"] for entry in entries)
+                    + len(entries) * 4096 + 65536)
+    if archive_peak > WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES:
+        raise RuntimeError("Recovery snapshot exceeds the bounded archive budget; worktree retained")
+    archive_volume = WORKTREE_EXPIRY_ARCHIVE_DIR
+    while not archive_volume.exists():
+        archive_volume = archive_volume.parent
+    if shutil.disk_usage(archive_volume).free < WORKTREE_MIN_FREE_BYTES + 2 * archive_peak:
+        raise RuntimeError("Recovery snapshot would cross the disk reserve; worktree retained")
     session = record.get("session") if isinstance(record.get("session"), dict) else {}
     target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
     if not _git_is_ancestor(head, target_ref):
