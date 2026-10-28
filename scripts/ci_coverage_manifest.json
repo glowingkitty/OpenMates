@@ -217,6 +217,7 @@
     },
     "browser_component_contract": {
       "specs": [
+        "components/message-input-url-conversion.spec.ts",
         "components/audio-recording-compact-send.spec.ts",
         "components/results-view-source-validation.spec.ts",
         "components/embed-preview-visual-fixes.spec.ts",

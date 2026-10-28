@@ -1083,6 +1083,7 @@
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
+    let urlConversionPending = false;
 
     interface AutoConvertedPasteCandidate {
         embedId: string;
@@ -1760,10 +1761,14 @@
     async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
         console.debug('[MessageInput] Processing closed URLs:', closedUrls);
         
-        if (closedUrls.length === 0) return;
-        
-        // Set flag to prevent originalMarkdown updates during processing
-        isConvertingEmbeds = true;
+        if (closedUrls.length === 0 || urlConversionPending) return;
+
+        // URL offsets belong to this exact draft. Keep edits/serialization live
+        // while metadata loads, and never apply the offsets to a newer document.
+        const sourceMarkdown = originalMarkdown || editor.getText();
+        const sourceDocument = editor.state.doc;
+        const sourceChatId = currentChatId;
+        urlConversionPending = true;
         
         try {
             // Create embeds for all URLs in parallel to improve performance
@@ -1780,11 +1785,18 @@
             });
             
             const embedResults = await Promise.all(embedPromises);
+
+            if (editor.isDestroyed || currentChatId !== sourceChatId ||
+                editor.state.doc !== sourceDocument ||
+                (originalMarkdown || editor.getText()) !== sourceMarkdown) {
+                console.debug('[MessageInput] Discarding stale URL conversion');
+                return;
+            }
             
             // Replace URLs with embed reference blocks in the preserved markdown content
             // Process URLs from end to beginning to maintain position integrity when replacing
             const sortedResults = [...embedResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
-            let currentText = originalMarkdown || editor.getText();
+            let currentText = sourceMarkdown;
             
             for (const { urlInfo, embedResult } of sortedResults) {
                 if (!embedResult) {
@@ -1846,6 +1858,7 @@
                 hasEmbedRef: currentText.includes('"embed_id"'),
                 preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
             });
+            isConvertingEmbeds = true;
             originalMarkdown = currentText;
             
             // Re-parse the updated markdown with unified parser to create embed nodes
@@ -1866,8 +1879,8 @@
             }
             
         } finally {
-            // Always reset the flag
             isConvertingEmbeds = false;
+            urlConversionPending = false;
         }
     }
     
