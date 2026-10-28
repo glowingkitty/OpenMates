@@ -72832,13 +72832,13 @@ assertions:
     direct_tests:
     - &id9183
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 338
+      line: 343
       name: the second answer fades in two marks and assistant icons use shared tooltips
         without expanding
       surface: gui.web
     - &id9184
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 390
+      line: 395
       name: phone disclosure preserves full-width messages and keeps the pill open
         after touch navigation and outside scrolling
       surface: gui.web
@@ -72879,13 +72879,13 @@ assertions:
       surface: gui.web
     - &id9188
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 236
+      line: 241
       name: catalogue growth preserves the previewed exchange through touch release
         and mouse click
       surface: gui.web
     - &id9189
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 276
+      line: 281
       name: real history positions compact marks beside the column and reliably opens
         non-rendered long exchanges
       surface: gui.web
@@ -72939,25 +72939,25 @@ assertions:
     direct_tests:
     - &id9194
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 163
+      line: 168
       name: phone hold-and-slide keeps the preview clear of the finger and commits
         once on release; cancellation does not jump
       surface: gui.web
     - &id9195
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 195
+      line: 200
       name: held touch at the stack edge scrolls to individual offscreen marks and
         releases at the previewed identity
       surface: gui.web
     - &id9196
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 236
+      line: 241
       name: catalogue growth preserves the previewed exchange through touch release
         and mouse click
       surface: gui.web
     - &id9197
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 390
+      line: 395
       name: phone disclosure preserves full-width messages and keeps the pill open
         after touch navigation and outside scrolling
       surface: gui.web
@@ -72988,13 +72988,13 @@ assertions:
       surface: gui.web
     - &id9206
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 195
+      line: 200
       name: held touch at the stack edge scrolls to individual offscreen marks and
         releases at the previewed identity
       surface: gui.web
     - &id9208
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 276
+      line: 281
       name: real history positions compact marks beside the column and reliably opens
         non-rendered long exchanges
       surface: gui.web
@@ -73031,13 +73031,13 @@ assertions:
       surface: gui.web
     - &id9205
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 136
+      line: 141
       name: keyboard reaches individual entries in a ten-thousand-exchange rail with
         reduced motion
       surface: gui.web
     - &id9207
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 218
+      line: 223
       name: empty, pending and unavailable previews remain truthful and offer retry
       surface: gui.web
     - &id9209
@@ -73101,13 +73101,13 @@ assertions:
       surface: gui.web
     - &id9216
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 163
+      line: 168
       name: phone hold-and-slide keeps the preview clear of the finger and commits
         once on release; cancellation does not jump
       surface: gui.web
     - &id9217
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 276
+      line: 281
       name: real history positions compact marks beside the column and reliably opens
         non-rendered long exchanges
       surface: gui.web
@@ -73159,18 +73159,18 @@ assertions:
       surface: gui.web
     - &id9226
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 236
+      line: 241
       name: catalogue growth preserves the previewed exchange through touch release
         and mouse click
       surface: gui.web
     - &id9227
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 264
+      line: 269
       name: preview text follows the chat PII visibility setting
       surface: gui.web
     - &id9228
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 480
+      line: 485
       name: a narrow laptop pane uses the light pill and accessible toggle while wide
         mode retains the bare rail
       surface: gui.web
@@ -73336,31 +73336,31 @@ assertions:
       surface: gui.web
     - &id9242
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 163
+      line: 168
       name: phone hold-and-slide keeps the preview clear of the finger and commits
         once on release; cancellation does not jump
       surface: gui.web
     - &id9243
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 276
+      line: 281
       name: real history positions compact marks beside the column and reliably opens
         non-rendered long exchanges
       surface: gui.web
     - &id9244
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 338
+      line: 343
       name: the second answer fades in two marks and assistant icons use shared tooltips
         without expanding
       surface: gui.web
     - &id9245
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 390
+      line: 395
       name: phone disclosure preserves full-width messages and keeps the pill open
         after touch navigation and outside scrolling
       surface: gui.web
     - &id9246
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 480
+      line: 485
       name: a narrow laptop pane uses the light pill and accessible toggle while wide
         mode retains the bare rail
       surface: gui.web
@@ -73401,13 +73401,13 @@ assertions:
       surface: gui.web
     - &id9248
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 390
+      line: 395
       name: phone disclosure preserves full-width messages and keeps the pill open
         after touch navigation and outside scrolling
       surface: gui.web
     - &id9249
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 480
+      line: 485
       name: a narrow laptop pane uses the light pill and accessible toggle while wide
         mode retains the bare rail
       surface: gui.web
@@ -73448,13 +73448,13 @@ assertions:
       surface: gui.web
     - &id9256
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 276
+      line: 281
       name: real history positions compact marks beside the column and reliably opens
         non-rendered long exchanges
       surface: gui.web
     - &id9257
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 338
+      line: 343
       name: the second answer fades in two marks and assistant icons use shared tooltips
         without expanding
       surface: gui.web
@@ -73571,7 +73571,7 @@ assertions:
     direct_tests:
     - &id9267
       path: frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
-      line: 338
+      line: 343
       name: the second answer fades in two marks and assistant icons use shared tooltips
         without expanding
       surface: gui.web

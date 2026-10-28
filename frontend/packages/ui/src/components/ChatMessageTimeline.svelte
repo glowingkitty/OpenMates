@@ -276,9 +276,6 @@
       {#if compressionBoundary !== null && selected.created_at <= compressionBoundary}
         <div class="compression-label" data-testid="timeline-before-compression">{$text('chat.timeline.before_compression')}</div>
       {/if}
-      {#if catalogueIncomplete && !catalogueLoading}
-        <button type="button" class="history-retry" data-testid="timeline-load-earlier" onclick={onLoadEarlier}>{$text('chat.timeline.load_earlier')}</button>
-      {/if}
     </div>
   {/if}
 </div>
@@ -307,7 +304,6 @@
   .preview-user { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.5; font-weight: 500; color: var(--color-font-primary); }
   .preview-response { margin: var(--spacing-3) 0 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; line-height: 1.5; white-space: pre-line; font-weight: 400; color: var(--color-grey-70); }
   .compression-label { color: var(--color-font-tertiary); font-size: var(--font-size-xs); margin-top: var(--spacing-3); line-height: 1.3; }
-  .history-retry { margin-top: var(--spacing-3); }
   @keyframes timeline-appear { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .timeline-rail { animation: none; } .timeline-mark { transition: none; } }
 </style>
