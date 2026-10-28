@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers,
   completePersonalChatTurn, completePersonalChatMessage, failMatchingPersonalChatTurn, failPersonalChatTurn,
-  reservePersonalChatTurn, observePersonalChatCanonicalVersion,
+  reservePersonalChatTurn, observePersonalChatCanonicalVersion, hasRecoveryBoundPersonalChatMessage,
 } from '../personalChatTurnBarrier';
 
 afterEach(() => clearPersonalChatTurnBarriers());
@@ -16,7 +16,10 @@ describe('personal encrypted chat turn barrier', () => {
     const second = reservePersonalChatTurn('chat-a', 'user-2');
     const enteredPreflight = vi.fn();
     const queued = awaitPersonalChatPredecessor(second).then(enteredPreflight);
+    expect(hasRecoveryBoundPersonalChatMessage('chat-a', 'user-1')).toBe(false);
     bindPersonalChatTurn(first, 'turn-1');
+    expect(hasRecoveryBoundPersonalChatMessage('chat-a', 'user-1')).toBe(true);
+    expect(hasRecoveryBoundPersonalChatMessage('other-chat', 'user-1')).toBe(false);
     expect(completePersonalChatTurn('chat-a', 'other-turn', 2)).toBe(false);
     expect(completePersonalChatTurn('chat-b', 'turn-1', 2)).toBe(false);
     await Promise.resolve();
@@ -26,6 +29,7 @@ describe('personal encrypted chat turn barrier', () => {
     expect(completePersonalChatTurn('chat-a', 'turn-1', 7)).toBe(true);
     await queued;
     expect(enteredPreflight).toHaveBeenCalledWith(7);
+    expect(hasRecoveryBoundPersonalChatMessage('chat-a', 'user-1')).toBe(false);
     expect(completePersonalChatTurn('chat-a', 'turn-1', 8)).toBe(false);
     bindPersonalChatTurn(second, 'turn-2');
     expect(completePersonalChatTurn('chat-a', 'turn-2', 9)).toBe(true);

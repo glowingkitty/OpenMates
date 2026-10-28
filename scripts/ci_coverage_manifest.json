@@ -608,6 +608,7 @@
         "unified-detail-metadata-sync.spec.ts",
         "maps-discovery-chat.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
+        "chat-interrupted-followup.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "voice-call.spec.ts",
         "cli-recovery-fixtures.spec.ts",

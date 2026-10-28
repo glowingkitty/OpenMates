@@ -70,7 +70,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
-import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
@@ -3397,6 +3397,13 @@ export async function sendCompletedAIResponseImpl(
 	serviceInstance: ChatSynchronizationService,
 	aiMessage: Message
 ): Promise<void> {
+	// Stop can finalize the local bubble before the worker seals its partial
+	// output. Its bound preflight still owns persistence; legacy storage cannot
+	// authorize that reply and would leave the following send waiting forever.
+	if (aiMessage.role === "assistant" && aiMessage.user_message_id &&
+		hasRecoveryBoundPersonalChatMessage(aiMessage.chat_id, aiMessage.user_message_id)) {
+		return;
+	}
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		// Queue for replay on reconnect instead of silently dropping — a dropped
 		// ai_response_completed leaves messages_v permanently stale on the server,

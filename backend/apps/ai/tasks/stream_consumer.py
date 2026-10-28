@@ -3538,7 +3538,71 @@ def _create_redis_payload(
             "interrupted_by_revocation": interrupted_revoke
         })
     
+    remember_recovery_stream_payload(request_data, payload)
     return payload
+
+
+def remember_recovery_stream_payload(request_data: AskSkillRequest, payload: dict) -> None:
+    """Retain only the latest rendered response in this worker's request memory.
+
+    Cancellation can interrupt embed finalization before the normal sealed job
+    is written. This checkpoint never enters broker payloads or durable plaintext.
+    """
+    if _recovery_inference_task_id(request_data):
+        object.__setattr__(request_data, "_recovery_stream_checkpoint", {
+            key: payload[key] for key in (
+                "task_id", "full_content_so_far", "sequence", "created_at", "model_name", "category",
+            ) if key in payload
+        })
+
+
+async def persist_cancelled_recovery_reply(
+    request_data: AskSkillRequest, task_id: str, directus_service: DirectusService,
+    cache_service: CacheService,
+) -> None:
+    """Seal a cancelled personal reply before its preflight becomes FAILED.
+
+    Use server-rendered content only, including an empty response when Stop
+    precedes the first chunk. Existing jobs remain the authoritative output.
+    """
+    if not _recovery_inference_task_id(request_data) or request_data.is_sub_chat:
+        return
+    assistant_id = _assistant_message_id(task_id, request_data)
+    receipt = await directus_service.chat.get_sealed_job_receipt(
+        request_data.chat_id, request_data.user_id,
+        _recovery_inference_task_id(request_data), assistant_id,
+        hashed_team_id=request_data.team_id_hash,
+    )
+    if receipt.get("status") not in {"found", "not_found"}:
+        raise RequiredRecoveryOutputError("Cancelled reply recovery receipt unavailable")
+    checkpoint = getattr(request_data, "_recovery_stream_checkpoint", {})
+    if checkpoint and checkpoint.get("task_id") != task_id:
+        raise RequiredRecoveryOutputError("Cancelled reply checkpoint belongs to another delivery")
+    thinking = getattr(request_data, "_recovery_thinking_checkpoint", {})
+    if thinking and thinking.get("task_id") != task_id:
+        raise RequiredRecoveryOutputError("Cancelled thinking checkpoint belongs to another delivery")
+    content = checkpoint.get("full_content_so_far", "")
+    # Stop may land after sealing but before normal final publication. Reannounce
+    # that exact job so the live client discovers it without needing reconnect.
+    job = receipt if receipt.get("status") == "found" else await _persist_sealed_recovery_job(
+        directus_service=directus_service, request_data=request_data,
+        task_id=task_id, content=content, category=checkpoint.get("category"),
+        model_name=checkpoint.get("model_name"), cache_service=cache_service,
+        thinking_content="".join(thinking.get("parts", [])) or None,
+        thinking_signature=thinking.get("signature"),
+        thinking_token_count=thinking.get("total_tokens"),
+    )
+    if not job or not job.get("job_id"):
+        raise RequiredRecoveryOutputError("Cancelled reply has no sealed recovery job")
+    payload = _create_redis_payload(
+        task_id, request_data, content, checkpoint.get("sequence", 0) + 1,
+        is_final=True, interrupted_revoke=True,
+        model_name=checkpoint.get("model_name"), category=checkpoint.get("category"),
+        assistant_created_at=checkpoint.get("created_at"),
+    )
+    payload.update(recovery_job_id=job["job_id"], recovery_protocol_version=1)
+    if not await cache_service.publish_event(f"chat_stream::{request_data.chat_id}", payload):
+        raise RequiredRecoveryOutputError("Cancelled reply recovery announcement failed")
 
 
 def _create_thinking_redis_payload(
@@ -3569,6 +3633,19 @@ def _create_thinking_redis_payload(
     Returns:
         Dict payload for Redis publishing
     """
+    # Preserve already-observed thinking in the same worker-private lifecycle as
+    # rendered text. It must survive Stop in the owner-encrypted recovery job.
+    if _recovery_inference_task_id(request_data):
+        checkpoint = getattr(request_data, "_recovery_thinking_checkpoint", None)
+        if checkpoint is None:
+            checkpoint = {"task_id": task_id, "parts": []}
+            object.__setattr__(request_data, "_recovery_thinking_checkpoint", checkpoint)
+        if not is_complete and content:
+            checkpoint["parts"].append(content)
+        if signature is not None:
+            checkpoint["signature"] = signature
+        if total_tokens is not None:
+            checkpoint["total_tokens"] = total_tokens
     assistant_message_id = _assistant_message_id(task_id, request_data)
     if is_complete:
         return {

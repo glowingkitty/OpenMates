@@ -1,0 +1,70 @@
+{
+  "fixture_id": "chat_interrupt_followup",
+  "recorded_at": "2026-07-24T21:25:00Z",
+  "speed_profile": "instant",
+  "initial_delay_ms": 15000,
+  "chunk_delay_ms": 1500,
+  "user_message_snippet": "Kyoto and Osaka quick tip test",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Kyoto and Osaka Weekend Plan",
+    "icon_names": [
+      "map"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked for a deterministic weekend trip planning response.",
+    "chat_tags": [
+      "travel",
+      "planning"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {
+        "step": "title_generated",
+        "data": {
+          "title": "Kyoto and Osaka Weekend Plan"
+        }
+      },
+      {
+        "step": "mate_selected",
+        "data": {
+          "mate_id": "default"
+        }
+      },
+      {
+        "step": "model_selected",
+        "data": {
+          "model_name": "Claude Sonnet",
+          "provider_name": "Anthropic"
+        }
+      }
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "This partial response must survive interruption. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. ",
+  "postprocessing": {
+    "chat_summary": "User is planning a balanced weekend trip around Kyoto and Osaka.",
+    "quick_tip_slugs": [
+      "travel-can-add-local-context"
+    ]
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 48,
+    "completion_tokens": 18,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  },
+  "defer_recovery_until_final": true
+}

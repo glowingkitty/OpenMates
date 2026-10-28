@@ -11,6 +11,7 @@ import type { ChatSynchronizationService } from "../chatSyncService";
 import type { Message } from "../../types/chat";
 
 const mocks = vi.hoisted(() => ({
+	recoveryBound: false,
 	chatDB: {
 		getChat: vi.fn(),
 		getEncryptedFields: vi.fn(),
@@ -23,6 +24,8 @@ const mocks = vi.hoisted(() => ({
 	},
 	ensureChatKeySafeForWrite: vi.fn(),
 	webSocketService: {
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
 		on: vi.fn(),
 		off: vi.fn(),
 		sendMessage: vi.fn(),
@@ -32,6 +35,13 @@ const mocks = vi.hoisted(() => ({
 		startSpan: vi.fn(() => ({ end: vi.fn() })),
 	})),
 }));
+
+vi.mock("../personalChatTurnBarrier", () => ({
+	hasRecoveryBoundPersonalChatMessage: () => mocks.recoveryBound,
+}));
+// Persistence sender checks do not bootstrap auth, application UI or enrollment.
+vi.mock("../chatSyncService", () => ({ chatSyncService: new EventTarget(), recordSendPreparationPhase: vi.fn() }));
+vi.mock("../directChatService", () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
 vi.mock("../websocketService", () => ({ webSocketService: mocks.webSocketService }));
@@ -59,7 +69,6 @@ vi.mock("../chatKeyWriteGuard", () => ({
 	ensureChatKeySafeForWrite: mocks.ensureChatKeySafeForWrite,
 }));
 vi.mock("../chatErrorReportConsent", () => ({ promptChatErrorReportConsent: vi.fn() }));
-vi.mock("svelte/store", () => ({ get: vi.fn() }));
 vi.mock("../../stores/serverStatusStore", () => ({
 	initializeServerStatus: vi.fn(),
 	serverStatusStore: {},
@@ -103,6 +112,7 @@ describe("sendCompletedAIResponseImpl", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.recoveryBound = false;
 		mocks.chatDB.getChat.mockResolvedValue({
 			chat_id: "chat-1",
 			messages_v: 3,
@@ -114,6 +124,18 @@ describe("sendCompletedAIResponseImpl", () => {
 		});
 		mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
 		mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chat-processing-feedback.turn-lifecycle
+	it("leaves interrupted recovery replies to sealed persistence instead of legacy storage or retry", async () => {
+		mocks.recoveryBound = true;
+		for (const connected of [true, false]) {
+			const service = makeService({ webSocketConnected_FOR_SENDERS_ONLY: connected });
+			await sendCompletedAIResponseImpl(service, makeAIMessage({ content: "Partial response" }));
+			expect(service.markMessageSyncing).not.toHaveBeenCalled();
+		}
+		expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+		expect(mocks.addPendingAIResponse).not.toHaveBeenCalled();
 	});
 
 	// contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.message.identity-idempotent

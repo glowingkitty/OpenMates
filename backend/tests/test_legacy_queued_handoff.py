@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import json
 import base64
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from types import SimpleNamespace
 
 import pytest
@@ -297,6 +297,77 @@ async def test_two_first_sends_claim_one_active_chat_before_dispatch():
     assert await cache.queue_message("chat", {"message_id": "follower"}, expected_active_task_id=winner)
     assert await cache.has_queued_messages("chat")
     assert not await cache.try_claim_active_ai_task("chat", "parallel-task")
+
+
+async def _cancel_task(monkeypatch, cache, task_id="stopped-task"):
+    from backend.core.api.app.routes.handlers.websocket_handlers import cancel_ai_task_handler as handler
+    from backend.apps.ai.tasks import async_skill_continuation
+    from backend.shared.python_utils import focus_continuation_history
+    monkeypatch.setattr(async_skill_continuation, "cancel_same_turn_source", AsyncMock(return_value=False))
+    monkeypatch.setattr(focus_continuation_history, "cancel_focus_execution", AsyncMock(return_value=False))
+    # The intent must be visible before SIGUSR1, independently of result state.
+    def assert_intent_then_revoke(*_args, **_kwargs):
+        cache.set.assert_awaited_once_with(
+            f"ai_task_cancel_requested:owner:chat:{task_id}", "1", ttl=3600,
+        )
+    revoke = Mock(side_effect=assert_intent_then_revoke)
+    monkeypatch.setattr(handler.celery_app.control, "revoke", revoke)
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    # An empty chat also fences optional continuations after the owned clear.
+    cache.set = AsyncMock(return_value=True)
+    await handler.handle_cancel_ai_task(
+        websocket=None, manager=manager, user_id="owner", device_fingerprint_hash="device",
+        payload={"task_id": task_id, "chat_id": "chat"}, cache_service=cache,
+    )
+    revoke.assert_called_once_with(task_id, terminate=True, signal="SIGUSR1")
+    assert manager.send_personal_message.call_args.kwargs["message"]["type"] == "ai_task_cancel_requested"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced,chat-processing-feedback.turn-lifecycle
+async def test_stop_preserves_accepted_follower_for_failure_handoff(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
+    from backend.apps.ai.processing import queued_steering
+    monkeypatch.setattr(queued_steering, "reconcile_queued_revision_quarantine", AsyncMock(return_value=True))
+    cache = _Cache()
+    cache.get_user_vault_key_id = AsyncMock(return_value="owner-vault-key")
+    assert await cache.try_claim_active_ai_task("chat", "stopped-task")
+    assert await cache.queue_message("chat", _member("follower", "Follow-up"),
+                                     expected_active_task_id="stopped-task")
+    await _cancel_task(monkeypatch, cache)
+    assert await cache.get_active_ai_task("chat") == "stopped-task"
+    cache.set.assert_awaited_once()
+    previous = AskSkillRequest(**_member("old", "Original"))
+    previous.legacy_cutover_task_id = "first-admission"
+    resumed = AsyncMock()
+    async def resume(**kwargs):
+        return await cache.get_active_ai_task("chat")
+    resumed.side_effect = resume
+    monkeypatch.setattr(ask_skill_task, "resume_legacy_queued_handoff", resumed)
+    assert await ask_skill_task._handoff_queued_after_task_failure(
+        previous, {}, "stopped-task", cache, SimpleNamespace(chat=SimpleNamespace()),
+    )
+    follower_task = await cache.get_active_ai_task("chat")
+    assert follower_task and follower_task != "stopped-task"
+    resumed.assert_awaited_once()
+    # An old cancellation arriving after handoff cannot release the new task.
+    await _cancel_task(monkeypatch, cache)
+    assert await cache.get_active_ai_task("chat") == follower_task
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced,chat-processing-feedback.turn-lifecycle
+async def test_stop_empty_queue_allows_new_turn_but_late_cancel_cannot_clear_it(monkeypatch):
+    cache = _Cache()
+    assert await cache.try_claim_active_ai_task("chat", "stopped-task")
+    await _cancel_task(monkeypatch, cache)
+    assert await cache.get_active_ai_task("chat") is None
+    assert cache.set.await_count == 2
+    assert await cache.try_claim_active_ai_task("chat", "new-task")
+    await _cancel_task(monkeypatch, cache)
+    assert await cache.get_active_ai_task("chat") == "new-task"
+    cache.set.assert_awaited_once()
 
 
 @pytest.mark.asyncio

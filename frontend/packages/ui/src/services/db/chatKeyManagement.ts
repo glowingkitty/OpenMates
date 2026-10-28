@@ -533,8 +533,8 @@ export async function encryptMessageFields(
   }
 
   // CRITICAL FIX: await all async encryption calls to prevent storing Promises in IndexedDB
-  // Encrypt content if present - ZERO-KNOWLEDGE: Remove plaintext content
-  if (message.content) {
+  // An interrupted reply can be empty and still requires authenticated ciphertext.
+  if (message.content != null) {
     // Content is now a markdown string (never Tiptap JSON on server!)
     const contentString =
       typeof message.content === "string"
@@ -665,8 +665,8 @@ export async function getEncryptedFields(
   } = {};
 
   // CRITICAL FIX: await all async encryption calls to prevent storing Promises
-  // Encrypt content if present
-  if (message.content) {
+  // Empty replies are present content; recovery persistence requires ciphertext.
+  if (message.content != null) {
     const contentString =
       typeof message.content === "string"
         ? message.content

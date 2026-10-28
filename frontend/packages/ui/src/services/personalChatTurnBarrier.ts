@@ -29,6 +29,11 @@ export function hasPendingPersonalChatTurn(chatId: string): boolean {
   return [...turns.values()].some(turn => turn.chatId === chatId);
 }
 
+/** A bound preflight must finish through sealed recovery, including on Stop. */
+export function hasRecoveryBoundPersonalChatMessage(chatId: string, messageId: string): boolean {
+  return !!turns.get(key(chatId, messageId))?.turnId;
+}
+
 function key(chatId: string, messageId: string): string {
   return `${chatId}:${messageId}`;
 }
@@ -52,7 +57,7 @@ export function reservePersonalChatTurn(chatId: string, messageId: string): Pers
 export async function awaitPersonalChatPredecessor(turn: PersonalChatTurn): Promise<number | null> {
   if (!turn.predecessor) return null;
   const result = await turn.predecessor;
-  if ('error' in result) throw new Error('The previous encrypted reply has not been saved. Retry this message after recovery.', { cause: result.error });
+  if ('error' in result) throw Object.defineProperty(new Error('The previous encrypted reply has not been saved. Retry this message after recovery.'), 'cause', { value: result.error, configurable: true, writable: true });
   return result.version;
 }
 

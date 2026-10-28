@@ -20,6 +20,7 @@ from backend.shared.python_utils.chat_failure_notifications import (
     terminal_class as classify_terminal_result,
 )
 from backend.shared.python_utils.team_log_correlation import team_correlation_fields
+from backend.shared.python_utils.ai_task_cancellation import cancellation_intent_key
 
 import logging
 import asyncio
@@ -1915,6 +1916,21 @@ async def _update_user_task_execution_state_with_new_directus(
         await directus_service.close()
 
 
+async def _was_task_cancelled(request_data: AskSkillRequest, task_id: str) -> bool:
+    """Recognize Stop even while Celery's REVOKED result is still in flight."""
+    cache_service = CacheService()
+    try:
+        if await cache_service.get(cancellation_intent_key(
+            request_data.user_id, request_data.chat_id, task_id,
+        )):
+            return True
+    except Exception:
+        logger.warning("[Task ID: %s] Cancellation intent unavailable", task_id, exc_info=True)
+    finally:
+        await cache_service.close()
+    return celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED
+
+
 async def _mark_recovery_inference_failed(
     request_data: AskSkillRequest,
     task_id: str,
@@ -1925,6 +1941,15 @@ async def _mark_recovery_inference_failed(
         return
     directus_service = DirectusService()
     try:
+        if failure_category == "user_cancelled":
+            from .stream_consumer import persist_cancelled_recovery_reply
+            cache_service = CacheService()
+            try:
+                await persist_cancelled_recovery_reply(
+                    request_data, task_id, directus_service, cache_service,
+                )
+            finally:
+                await cache_service.close()
         await ChatRecoveryService(directus_service).execute(
             "mark_inference_failed",
             {
@@ -5554,6 +5579,16 @@ def process_ai_skill_ask_task(
                 stage_one_routing_ref=(getattr(self.request, "headers", None) or {}).get("x-openmates-stage-one-ref"),
             )
         )
+        if (task_result_dict.get("interrupted_by_soft_time_limit")
+                and loop.run_until_complete(_was_task_cancelled(request_data, task_id))):
+            task_result_dict["interrupted_by_revocation"] = True
+            task_result_dict["interrupted_by_soft_time_limit"] = False
+        if task_result_dict.get("interrupted_by_revocation"):
+            # An orderly early Stop can return without ever entering the main
+            # stream. It still needs a sealed terminal receipt for its successor.
+            loop.run_until_complete(_mark_recovery_inference_failed(
+                request_data, task_id, "user_cancelled",
+            ))
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
         alert_stage = failure_stage(task_result_dict, STANDARDIZED_USER_ERROR_MESSAGE)
         terminal_class = classify_terminal_result(
@@ -5630,7 +5665,7 @@ def process_ai_skill_ask_task(
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else "soft_limited"
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
@@ -5687,7 +5722,7 @@ def process_ai_skill_ask_task(
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else (
             "billing_failed" if completion_timing.billing_failed
             else "failed_during_main" if completion_timing.first_token_ms is not None
@@ -5763,7 +5798,7 @@ def process_ai_skill_ask_task(
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else (
             "billing_failed" if completion_timing.billing_failed
             else "failed_during_main" if completion_timing.first_token_ms is not None

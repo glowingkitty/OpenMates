@@ -101,6 +101,7 @@ MARKER_CHAT_EPOCH_SPECS = frozenset({
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
     "chat-queued-followups-protocol.spec.ts",
+    "chat-interrupted-followup.spec.ts",
     "workflow-metadata-warmup.spec.ts",
     "connection-resilience.spec.ts",
     "chat-saved-followup-admission.spec.ts",
