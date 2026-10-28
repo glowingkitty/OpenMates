@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "浏览",
         "description": {
-          "text": "浏览网站并以 JSON 返回观察到的信息。"
+          "text": "浏览网站并返回 JSON。浏览器计算按秒计费，外加 AI 使用费。暂停计算不收费。"
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "比较格森星人与欧安卡利人的外星生物特征"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "以 JSON 格式提取网站信息"
+      },
+      "summary": {
+        "text": "浏览 Example Domain 并以结构化 JSON 形式返回其完整声明及来源 URL。"
+      },
+      "message_1": {
+        "text": "使用 Web 应用的 Browse 技能从 [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) 中提取完整的可见英文声明。返回包含两个必填字段的 JSON：purpose（逐字包含完整声明及其注意事项）和 source_url（包含当前页面 URL）。这是一项提取任务，不需要额外的网站交互。将浏览器会话限制在 40 个额度内。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n提取已完成。结果如下：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\n该页面是标准的 Example Domain 占位符，上述声明是其完整的可见英文文本，包括关于它不是一项服务且不应依赖其进行测试或监控的注意事项。"
+      },
+      "follow_up_1": {
+        "text": "搜索其他占位符域名和标准模板"
+      },
+      "follow_up_2": {
+        "text": "解释 Example Domain 通常如何用于文档编写"
+      },
+      "follow_up_3": {
+        "text": "浏览另一个网站 URL 以获取其文本内容"
+      },
+      "follow_up_4": {
+        "text": "列出 Web 开发中常见的占位文本惯例"
+      },
+      "follow_up_5": {
+        "text": "直接从提供的 URL 读取公开的 HTTPS 页面"
+      },
+      "follow_up_6": {
+        "text": "将 Example Domain 与其他保留的测试域名进行比较"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "使用“浏览”功能阅读网页"
+      },
+      "summary": {
+        "text": "使用浏览器查找页面标题，并以 JSON 格式返回结果及其源 URL。"
+      },
+      "message_1": {
+        "text": "使用“浏览”技能打开 [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)，并以 JSON 格式返回准确的主标题和源 URL。请在此任务中使用浏览器会话。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n“浏览”会话已打开页面并返回以下内容：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n位于 `https://httpbin.org/html` 的页面提供了一个示例 HTML 文档，其主标题为 **“Herman Melville - Moby-Dick”**（该小说第一章“Loomings”的片段）。"
+      },
+      "follow_up_1": {
+        "text": "搜索赫尔曼·梅尔维尔《白鲸》的历史分析"
+      },
+      "follow_up_2": {
+        "text": "解释《白鲸》开篇章节的意义"
+      },
+      "follow_up_3": {
+        "text": "阅读关于网页浏览器自动化技术的公开文档"
+      },
+      "follow_up_4": {
+        "text": "比较阅读经典文学作品的不同数字格式"
+      },
+      "follow_up_5": {
+        "text": "搜索包含经典美国小说的在线文学档案"
+      },
+      "follow_up_6": {
+        "text": "总结赫尔曼·梅尔维尔作品的主要主题"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"

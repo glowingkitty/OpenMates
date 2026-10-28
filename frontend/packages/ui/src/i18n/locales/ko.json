@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "탐색",
         "description": {
-          "text": "웹사이트를 탐색하고 확인한 정보를 JSON으로 반환합니다."
+          "text": "웹사이트를 탐색하고 JSON을 반환합니다. 브라우저 연산 비용은 초당 과금되며 AI 사용료가 추가됩니다. 일시 중지된 연산은 무료입니다."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "게텐인과 오안칼리의 외계 생물학 비교"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "웹사이트 정보를 JSON으로 추출"
+      },
+      "summary": {
+        "text": "Example Domain을 탐색하고 소스 URL이 포함된 구조화된 JSON 형식으로 전체 문장을 반환합니다."
+      },
+      "message_1": {
+        "text": "웹 앱의 탐색(Browse) 기능을 사용하여 [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a)에서 보이는 전체 영어 문장을 추출하세요. 두 개의 필수 필드를 포함한 JSON을 반환해야 합니다. purpose 필드에는 주의 사항을 포함한 전체 문장을 토씨 하나 틀리지 않고 그대로 담고, source_url 필드에는 현재 페이지 URL을 담으세요. 이 작업은 추출 작업이며 추가적인 웹사이트 상호작용은 필요하지 않습니다. 브라우저 세션은 40크레딧으로 제한하세요."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n추출이 완료되었습니다. 결과는 다음과 같습니다.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\n해당 페이지는 표준 Example Domain 플레이스홀더이며, 위의 문장은 서비스가 아니므로 테스트나 모니터링 용도로 의존해서는 안 된다는 주의 사항을 포함하여 페이지에 보이는 전체 영어 텍스트입니다."
+      },
+      "follow_up_1": {
+        "text": "추가적인 플레이스홀더 도메인 및 표준 템플릿 검색"
+      },
+      "follow_up_2": {
+        "text": "Example Domain이 문서화에 일반적으로 어떻게 사용되는지 설명"
+      },
+      "follow_up_3": {
+        "text": "다른 웹사이트 URL을 탐색하여 텍스트 콘텐츠 확인"
+      },
+      "follow_up_4": {
+        "text": "웹 개발에서 흔히 쓰이는 플레이스홀더 텍스트 관례 목록화"
+      },
+      "follow_up_5": {
+        "text": "제공된 URL에서 공개 HTTPS 페이지를 직접 읽기"
+      },
+      "follow_up_6": {
+        "text": "Example Domain을 다른 예약된 테스트 도메인과 비교"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Browse로 웹 페이지 읽기"
+      },
+      "summary": {
+        "text": "브라우저를 사용하여 페이지 제목을 찾고 그 결과와 소스 URL을 JSON으로 반환합니다."
+      },
+      "message_1": {
+        "text": "Browse 기능을 사용하여 [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)을 열고 정확한 메인 제목과 소스 URL을 JSON으로 반환해 줘. 이 작업에는 브라우저 세션을 사용해."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nBrowse 세션에서 페이지를 열어 다음 내용을 반환했습니다:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n`https://httpbin.org/html` 페이지는 샘플 HTML 문서를 제공하며, 메인 제목은 **\"Herman Melville - Moby-Dick\"** (소설의 첫 장인 \"Loomings\"의 발췌본)입니다."
+      },
+      "follow_up_1": {
+        "text": "허먼 멜빌의 모비딕에 대한 역사적 분석 검색"
+      },
+      "follow_up_2": {
+        "text": "모비딕 첫 장의 중요성 설명"
+      },
+      "follow_up_3": {
+        "text": "웹 브라우저 자동화 기술에 관한 공개 문서 읽기"
+      },
+      "follow_up_4": {
+        "text": "고전 문학 독서를 위한 다양한 디지털 형식 비교"
+      },
+      "follow_up_5": {
+        "text": "미국 고전 소설을 다루는 온라인 문학 아카이브 검색"
+      },
+      "follow_up_6": {
+        "text": "허먼 멜빌 작품의 주요 주제 요약"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "무료로 테스트"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "이메일 도메인이 허용되지 않습니다."

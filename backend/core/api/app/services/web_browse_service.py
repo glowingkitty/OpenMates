@@ -396,6 +396,7 @@ class BrowseService:
                     "supplier_cost_usd": intent["supplier_cost_usd"],
                     "multiplier": 2,
                     "chat_id": record["chat_id"],
+                    "message_id": record.get("billing_message_id"),
                 },
             )
             # The charge atomically settles its reservation. An outbox receipt
@@ -615,6 +616,7 @@ class BrowseService:
                         record["max_credits"] - record["charged_credits"]
                     )
                 record["billing_actor"] = billing_actor
+                record["billing_message_id"] = message_id
             await self.reserve(record)
             record.update(
                 active_run=run_id,
@@ -695,6 +697,7 @@ class BrowseService:
         failure = {}
         try:
             startup_started = time.monotonic()
+            initial_control_established = False
             driver = await self.browser()
             async with asyncio.timeout(90):
                 async with self.store.lease(session_id):
@@ -719,14 +722,23 @@ class BrowseService:
                             provisioning_started = time.monotonic()
                             if pool_size():
                                 async with asyncio.timeout(5):
+                                    claim_started = time.monotonic()
                                     claimed = await BrowsePool(
                                         self.store, driver
                                     ).claim(session_id, created)
+                                    stage_times["pool_claim_seconds"] = (
+                                        time.monotonic() - claim_started
+                                    )
                                     if claimed is None:
                                         raise BrowserAdmissionRejected(
                                             "Prepared browser capacity is temporarily unavailable. Please try again shortly."
                                         )
+                                    resume_started = time.monotonic()
                                     await self.resume_compute(record)
+                                    stage_times["resume_seconds"] = (
+                                        time.monotonic() - resume_started
+                                    )
+                                    readiness_started = time.monotonic()
                                     checked = await driver.rpc(
                                         record["provider"],
                                         {
@@ -740,6 +752,10 @@ class BrowseService:
                                         raise BrowserUnavailable(
                                             "The blank browser could not be verified."
                                         )
+                                    stage_times["pristine_check_seconds"] = (
+                                        time.monotonic() - readiness_started
+                                    )
+                                    initial_control_established = True
                                     record["provider"]["pool_verified"] = True
                                     await self.store.save(record)
                             else:
@@ -777,8 +793,16 @@ class BrowseService:
                             )
                         await self.resume_compute(record)
                     await self.keep_running(record)
-                    await driver.rpc(
-                        record["provider"], {"operation": "control", "mode": "ai"}
+                    control_started = time.monotonic()
+                    # The fresh pool handoff already established AI control
+                    # under this same exclusive session lease. Navigation does
+                    # not change it; avoid repeating that ingress round trip.
+                    if not initial_control_established:
+                        await driver.rpc(
+                            record["provider"], {"operation": "control", "mode": "ai"}
+                        )
+                    stage_times["initial_control_seconds"] = (
+                        time.monotonic() - control_started
                     )
                     await self.store.save(record)
 
@@ -802,6 +826,10 @@ class BrowseService:
                             observation = await driver.rpc(
                                 record["provider"], {"operation": "observe"}
                             )
+                            if "first_observation_seconds" not in stage_times:
+                                stage_times["first_observation_seconds"] = (
+                                    time.monotonic() - startup_started
+                                )
                             stage_times["observation_seconds"] += (
                                 time.monotonic() - observation_started
                             )

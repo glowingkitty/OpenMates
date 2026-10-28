@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Jelajahi",
         "description": {
-          "text": "Jelajahi situs web dan kembalikan informasi yang diamati sebagai JSON."
+          "text": "Jelajahi situs web dan kembalikan JSON. Biaya komputasi browser dihitung per detik, ditambah penggunaan AI. Komputasi yang dijeda tidak dikenakan biaya."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Bandingkan biologi alien Gethenian dan Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Ekstrak informasi situs web sebagai JSON"
+      },
+      "summary": {
+        "text": "Jelajahi Example Domain dan kembalikan pernyataan lengkapnya dengan URL sumber sebagai JSON terstruktur."
+      },
+      "message_1": {
+        "text": "Gunakan skill Browse aplikasi Web untuk mengekstrak pernyataan bahasa Inggris lengkap yang terlihat dari [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Kembalikan JSON dengan dua kolom wajib: purpose, yang berisi pernyataan lengkap kata demi kata termasuk peringatannya, dan source_url, yang berisi URL halaman saat ini. Ini adalah tugas ekstraksi tanpa permintaan interaksi situs web tambahan. Batasi sesi browser hingga 40 kredit."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nEkstraksi selesai. Berikut hasilnya:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nHalaman tersebut adalah placeholder standar Example Domain, dan pernyataan di atas adalah teks bahasa Inggris lengkap yang terlihat, termasuk peringatan bahwa ini bukan layanan dan tidak boleh diandalkan untuk pengujian atau pemantauan."
+      },
+      "follow_up_1": {
+        "text": "Cari domain placeholder tambahan dan templat standar"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana Example Domain biasanya digunakan untuk dokumentasi"
+      },
+      "follow_up_3": {
+        "text": "Jelajahi URL situs web lain untuk konten teksnya"
+      },
+      "follow_up_4": {
+        "text": "Daftar konvensi teks placeholder umum dalam pengembangan web"
+      },
+      "follow_up_5": {
+        "text": "Baca halaman HTTPS publik secara langsung dari URL yang diberikan"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan Example Domain dengan domain pengujian cadangan lainnya"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Baca halaman web dengan Browse"
+      },
+      "summary": {
+        "text": "Gunakan browser untuk menemukan judul halaman dan mengembalikan hasilnya beserta URL sumbernya sebagai JSON."
+      },
+      "message_1": {
+        "text": "Gunakan fitur Browse untuk membuka [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) dan mengembalikan judul utama yang tepat serta URL sumber sebagai JSON. Gunakan sesi browser untuk tugas ini."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nSesi Browse membuka halaman tersebut dan mengembalikan hal berikut:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nHalaman di `https://httpbin.org/html` menyediakan contoh dokumen HTML yang judul utamanya adalah **\"Herman Melville - Moby-Dick\"** (cuplikan dari bab pertama novel tersebut, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Cari analisis sejarah Herman Melville Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan signifikansi bab pembuka Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Baca dokumentasi publik tentang teknik otomatisasi browser web"
+      },
+      "follow_up_4": {
+        "text": "Bandingkan berbagai format digital untuk membaca sastra klasik"
+      },
+      "follow_up_5": {
+        "text": "Cari arsip sastra online yang menampilkan novel klasik Amerika"
+      },
+      "follow_up_6": {
+        "text": "Ringkas tema-tema utama karya Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."

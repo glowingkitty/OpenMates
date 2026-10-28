@@ -17,7 +17,7 @@ class AppPricing(BaseModel):
     tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
     cache_pricing: Optional[Dict[str, Any]] = None  # Optional activation/write policy; absent preserves legacy token billing.
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
-    per_minute: Optional[int] = None # credits per minute
+    per_minute: Optional[float] = None # Display rate; metering can accumulate fractional credits.
     per_second: Optional[int] = None # credits per second
     fixed: Optional[int] = None # fixed credits per call
 

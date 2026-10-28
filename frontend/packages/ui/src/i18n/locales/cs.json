@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Procházet",
         "description": {
-          "text": "Procházejte weby a vracejte zjištěné informace jako JSON."
+          "text": "Procházejte webové stránky a získejte výsledky v JSON. Výpočetní čas prohlížeče je účtován po sekundách, plus využití AI. Pozastavený výpočet je zdarma."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Porovnej mimozemskou biologii Getheňanů a Oankaliů"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extrahovat informace z webu jako JSON"
+      },
+      "summary": {
+        "text": "Procházejte Example Domain a vraťte její úplné prohlášení se zdrojovou URL jako strukturovaný JSON."
+      },
+      "message_1": {
+        "text": "Použijte dovednost Procházení webové aplikace k extrakci úplného viditelného anglického prohlášení z [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Vraťte JSON se dvěma povinnými poli: purpose, obsahující doslovné úplné prohlášení včetně jeho výhrad, a source_url, obsahující URL aktuální stránky. Jedná se o úkol extrakce bez požadavku na další interakci s webem. Omezte relaci prohlížeče na 40 kreditů."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nExtrakce je dokončena. Zde je výsledek:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nStránka je standardní zástupný symbol Example Domain a výše uvedené prohlášení je jeho úplný viditelný anglický text, včetně výhrady, že se nejedná o službu a nemělo by se na ni spoléhat při testování nebo monitorování."
+      },
+      "follow_up_1": {
+        "text": "Vyhledat další zástupné domény a standardní šablony"
+      },
+      "follow_up_2": {
+        "text": "Vysvětlit, jak se Example Domain obvykle používá v dokumentaci"
+      },
+      "follow_up_3": {
+        "text": "Procházet jinou URL adresu webu pro získání textového obsahu"
+      },
+      "follow_up_4": {
+        "text": "Seznam běžných konvencí pro zástupný text ve vývoji webu"
+      },
+      "follow_up_5": {
+        "text": "Číst veřejné HTTPS stránky přímo z poskytnuté URL adresy"
+      },
+      "follow_up_6": {
+        "text": "Porovnat Example Domain s jinými vyhrazenými testovacími doménami"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Přečti si webovou stránku pomocí Prohlížení"
+      },
+      "summary": {
+        "text": "Použij prohlížeč k nalezení nadpisu stránky a vrať výsledek se zdrojovou URL adresou ve formátu JSON."
+      },
+      "message_1": {
+        "text": "Použij dovednost Prohlížení k otevření [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) a vrať přesný hlavní nadpis a zdrojovou URL adresu jako JSON. Pro tento úkol použij relaci prohlížeče."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nRelace Prohlížení otevřela stránku a vrátila následující:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nStránka na `https://httpbin.org/html` poskytuje ukázkový HTML dokument, jehož hlavním nadpisem je **„Herman Melville - Moby-Dick“** (úryvek z první kapitoly románu „Loomings“)."
+      },
+      "follow_up_1": {
+        "text": "Vyhledej historickou analýzu díla Bílá velryba od Hermana Melvilla"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli význam úvodní kapitoly Bílé velryby"
+      },
+      "follow_up_3": {
+        "text": "Přečti si veřejnou dokumentaci o technikách automatizace webového prohlížeče"
+      },
+      "follow_up_4": {
+        "text": "Porovnej různé digitální formáty pro čtení klasické literatury"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej online literární archivy s klasickými americkými romány"
+      },
+      "follow_up_6": {
+        "text": "Shrň hlavní témata díla Hermana Melvilla"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."

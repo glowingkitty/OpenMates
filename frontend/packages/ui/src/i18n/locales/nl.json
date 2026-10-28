@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Bladeren",
         "description": {
-          "text": "Doorzoek websites en geef waargenomen informatie terug als JSON."
+          "text": "Browse websites en retourneer JSON. Browsergebruik wordt per seconde gefactureerd, plus AI-verbruik. Gepauzeerd gebruik is gratis."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Vergelijk de buitenaardse biologie van Gethenianen en Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Website-informatie extraheren als JSON"
+      },
+      "summary": {
+        "text": "Browse naar Example Domain en retourneer de volledige verklaring met een bron-URL als gestructureerde JSON."
+      },
+      "message_1": {
+        "text": "Gebruik de Browse-skill van de Web-app om de volledige zichtbare Engelse verklaring te extraheren uit [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Retourneer JSON met twee verplichte velden: purpose, met de volledige verklaring letterlijk inclusief de voorbehouden, en source_url, met de huidige pagina-URL. Dit is een extractietaak waarbij geen aanvullende website-interactie is vereist. Beperk de browsersessie tot 40 credits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDe extractie is voltooid. Hier is het resultaat:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nDe pagina is de standaard Example Domain-placeholder, en de bovenstaande verklaring is de volledige zichtbare Engelse tekst, inclusief het voorbehoud dat het geen service is en dat er niet op mag worden vertrouwd voor testen of monitoring."
+      },
+      "follow_up_1": {
+        "text": "Zoek naar extra placeholder-domeinen en standaardtemplates"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe Example Domain doorgaans wordt gebruikt voor documentatie"
+      },
+      "follow_up_3": {
+        "text": "Browse naar een andere website-URL voor de tekstinhoud ervan"
+      },
+      "follow_up_4": {
+        "text": "Lijst met veelvoorkomende placeholder-tekstconventies in webontwikkeling"
+      },
+      "follow_up_5": {
+        "text": "Lees openbare HTTPS-pagina's rechtstreeks vanaf een opgegeven URL"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk Example Domain met andere gereserveerde testdomeinen"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Een webpagina lezen met Browse"
+      },
+      "summary": {
+        "text": "Gebruik een browser om een paginakop te vinden en retourneer het resultaat met de bron-URL als JSON."
+      },
+      "message_1": {
+        "text": "Gebruik de Browse-vaardigheid om [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) te openen en de exacte hoofdkop en bron-URL als JSON te retourneren. Gebruik de browsersessie voor deze taak."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDe Browse-sessie heeft de pagina geopend en het volgende geretourneerd:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nDe pagina op `https://httpbin.org/html` toont een voorbeeld van een HTML-document waarvan de hoofdkop **\"Herman Melville - Moby-Dick\"** is (een fragment uit het eerste hoofdstuk van de roman, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Zoek naar historische analyses van Herman Melvilles Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Leg de betekenis van het openingshoofdstuk van Moby-Dick uit"
+      },
+      "follow_up_3": {
+        "text": "Lees publieke documentatie over technieken voor webbrowserautomatisering"
+      },
+      "follow_up_4": {
+        "text": "Vergelijk verschillende digitale formaten voor het lezen van klassieke literatuur"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar online literaire archieven met klassieke Amerikaanse romans"
+      },
+      "follow_up_6": {
+        "text": "Vat de hoofdthema's van het werk van Herman Melville samen"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."

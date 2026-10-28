@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Bläddra",
         "description": {
-          "text": "Besök webbplatser och returnera observerad information som JSON."
+          "text": "Surfa på webbplatser och returnera JSON. Webbläsaranvändning debiteras per sekund, plus AI-användning. Pausad användning är gratis."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Jämför den utomjordiska biologin hos gethenianer och oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extrahera webbplatsinformation som JSON"
+      },
+      "summary": {
+        "text": "Surfa till Example Domain och returnera dess fullständiga meddelande med en käll-URL som strukturerad JSON."
+      },
+      "message_1": {
+        "text": "Använd webbappens Browse-färdighet för att extrahera hela det synliga engelska meddelandet från [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Returnera JSON med två obligatoriska fält: purpose, som innehåller hela meddelandet ordagrant inklusive dess förbehåll, och source_url, som innehåller den aktuella sidans webbadress. Detta är en extraheringsuppgift utan krav på ytterligare interaktion med webbplatsen. Begränsa webbläsarsessionen till 40 krediter."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nExtraheringen är klar. Här är resultatet:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nSidan är den vanliga platshållaren för Example Domain, och meddelandet ovan är dess fullständiga synliga engelska text, inklusive förbehållet att det inte är en tjänst och inte bör användas för testning eller övervakning."
+      },
+      "follow_up_1": {
+        "text": "Sök efter ytterligare platshållardomäner och standardmallar"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur Example Domain vanligtvis används för dokumentation"
+      },
+      "follow_up_3": {
+        "text": "Surfa till en annan webbadress för dess textinnehåll"
+      },
+      "follow_up_4": {
+        "text": "Lista vanliga konventioner för platshållartext inom webbutveckling"
+      },
+      "follow_up_5": {
+        "text": "Läs offentliga HTTPS-sidor direkt från en angiven webbadress"
+      },
+      "follow_up_6": {
+        "text": "Jämför Example Domain med andra reserverade testdomäner"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Läs en webbsida med Browse"
+      },
+      "summary": {
+        "text": "Använd en webbläsare för att hitta en sidrubrik och returnera resultatet med dess käll-URL som JSON."
+      },
+      "message_1": {
+        "text": "Använd Browse-färdigheten för att öppna [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) och returnera den exakta huvudrubriken och käll-URL:en som JSON. Använd webbläsarsessionen för denna uppgift."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nBrowse-sessionen öppnade sidan och returnerade följande:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nSidan på `https://httpbin.org/html` tillhandahåller ett exempel på ett HTML-dokument vars huvudrubrik är **\"Herman Melville - Moby-Dick\"** (ett utdrag från romanens första kapitel, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Sök efter historisk analys av Herman Melvilles Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Förklara betydelsen av det inledande kapitlet i Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Läs offentlig dokumentation om tekniker för webbläsarautomatisering"
+      },
+      "follow_up_4": {
+        "text": "Jämför olika digitala format för att läsa klassisk litteratur"
+      },
+      "follow_up_5": {
+        "text": "Sök efter litterära arkiv online med klassiska amerikanska romaner"
+      },
+      "follow_up_6": {
+        "text": "Sammanfatta huvudtemana i Herman Melvilles verk"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Testa gratis"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-postdomän är inte tillåten."

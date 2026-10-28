@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Gezin",
         "description": {
-          "text": "Web sitelerinde gezinin ve gözlemlenen bilgileri JSON olarak alın."
+          "text": "Web sitelerine göz atın ve JSON döndürün. Tarayıcı kullanımı saniye başına, artı yapay zeka kullanımı üzerinden ücretlendirilir. Duraklatılan kullanım ücretsizdir."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Gethenliler ve Oankalilerin uzaylı biyolojilerini karşılaştır"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Web sitesi bilgilerini JSON olarak çıkar"
+      },
+      "summary": {
+        "text": "Example Domain'e göz atın ve kaynak URL'si ile birlikte tam ifadesini yapılandırılmış JSON olarak döndürün."
+      },
+      "message_1": {
+        "text": "[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) adresindeki görünür İngilizce ifadenin tamamını çıkarmak için Web uygulaması Göz Atma yeteneğini kullan. İki zorunlu alan içeren bir JSON döndür: uyarıları da dahil olmak üzere ifadenin tamamını kelimesi kelimesine içeren `purpose` ve mevcut sayfa URL'sini içeren `source_url`. Bu bir veri çıkarma görevidir ve ek bir web sitesi etkileşimi istenmemektedir. Tarayıcı oturumunu 40 krediyle sınırla."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nVeri çıkarma işlemi tamamlandı. İşte sonuç:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nSayfa, standart Example Domain yer tutucusudur ve yukarıdaki ifade, bir hizmet olmadığı ve test veya izleme için güvenilmemesi gerektiği uyarısı da dahil olmak üzere, görünür İngilizce metnin tamamıdır."
+      },
+      "follow_up_1": {
+        "text": "Ek yer tutucu alan adlarını ve standart şablonları ara"
+      },
+      "follow_up_2": {
+        "text": "Example Domain'in dokümantasyon için genellikle nasıl kullanıldığını açıkla"
+      },
+      "follow_up_3": {
+        "text": "Metin içeriği için başka bir web sitesi URL'sine göz at"
+      },
+      "follow_up_4": {
+        "text": "Web geliştirmedeki yaygın yer tutucu metin kurallarını listele"
+      },
+      "follow_up_5": {
+        "text": "Sağlanan bir URL'den herkese açık HTTPS sayfalarını doğrudan oku"
+      },
+      "follow_up_6": {
+        "text": "Example Domain'i diğer ayrılmış test alan adlarıyla karşılaştır"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Gözat ile bir web sayfasını oku"
+      },
+      "summary": {
+        "text": "Bir sayfa başlığını bulmak için tarayıcı kullan ve sonucu kaynak URL'si ile birlikte JSON olarak döndür."
+      },
+      "message_1": {
+        "text": "[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) adresini açmak için Gözat yeteneğini kullan ve tam ana başlığı ve kaynak URL'yi JSON olarak döndür. Bu görev için tarayıcı oturumunu kullan."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nGözat oturumu sayfayı açtı ve şunları döndürdü:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n`https://httpbin.org/html` adresindeki sayfa, ana başlığı **\"Herman Melville - Moby-Dick\"** (romanının ilk bölümü olan \"Loomings\"den bir kesit) olan örnek bir HTML belgesi sunar."
+      },
+      "follow_up_1": {
+        "text": "Herman Melville Moby Dick'in tarihsel analizini ara"
+      },
+      "follow_up_2": {
+        "text": "Moby-Dick'in açılış bölümünün önemini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Web tarayıcı otomasyon teknikleri hakkındaki genel belgeleri oku"
+      },
+      "follow_up_4": {
+        "text": "Klasik edebiyat okumak için farklı dijital formatları karşılaştır"
+      },
+      "follow_up_5": {
+        "text": "Klasik Amerikan romanlarını içeren çevrimiçi edebiyat arşivlerini ara"
+      },
+      "follow_up_6": {
+        "text": "Herman Melville'in eserlerinin ana temalarını özetle"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."

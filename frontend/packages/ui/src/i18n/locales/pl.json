@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Przeglądaj",
         "description": {
-          "text": "Przeglądaj witryny i zwracaj zaobserwowane informacje w JSON."
+          "text": "Przeglądaj strony internetowe i zwracaj dane w formacie JSON. Koszt obliczeń przeglądarki jest naliczany za sekundę, plus użycie AI. Wstrzymane obliczenia są bezpłatne."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "Porównaj biologię obcych: Getheńczyków i Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Wyodrębnij informacje ze strony jako JSON"
+      },
+      "summary": {
+        "text": "Przeglądaj Example Domain i zwróć jej pełne oświadczenie wraz z adresem URL źródła jako ustrukturyzowany JSON."
+      },
+      "message_1": {
+        "text": "Użyj umiejętności Przeglądania aplikacji Web, aby wyodrębnić pełne widoczne oświadczenie w języku angielskim z [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Zwróć JSON z dwoma wymaganymi polami: purpose, zawierające pełne oświadczenie dosłownie wraz z zastrzeżeniami, oraz source_url, zawierające aktualny adres URL strony. Jest to zadanie wyodrębniania danych bez dodatkowych interakcji ze stroną. Ogranicz sesję przeglądarki do 40 kredytów."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nWyodrębnianie zakończone. Oto wynik:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nStrona jest standardowym symbolem zastępczym Example Domain, a powyższe oświadczenie to jej pełny widoczny tekst w języku angielskim, w tym zastrzeżenie, że nie jest to usługa i nie należy na niej polegać w celach testowych ani monitorowania."
+      },
+      "follow_up_1": {
+        "text": "Wyszukaj dodatkowe domeny zastępcze i standardowe szablony"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij, jak domena Example Domain jest zazwyczaj używana w dokumentacji"
+      },
+      "follow_up_3": {
+        "text": "Przejdź pod inny adres URL, aby pobrać jego treść tekstową"
+      },
+      "follow_up_4": {
+        "text": "Wymień typowe konwencje tekstów zastępczych w tworzeniu stron WWW"
+      },
+      "follow_up_5": {
+        "text": "Czytaj publiczne strony HTTPS bezpośrednio z podanego adresu URL"
+      },
+      "follow_up_6": {
+        "text": "Porównaj Example Domain z innymi zarezerwowanymi domenami testowymi"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Przeczytaj stronę internetową za pomocą funkcji Przeglądaj"
+      },
+      "summary": {
+        "text": "Użyj przeglądarki, aby znaleźć nagłówek strony i zwróć wynik wraz z adresem URL źródła w formacie JSON."
+      },
+      "message_1": {
+        "text": "Użyj umiejętności Przeglądaj, aby otworzyć [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) i zwróć dokładny nagłówek główny oraz adres URL źródła jako JSON. Wykorzystaj do tego zadania sesję przeglądarki."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nSesja przeglądania otworzyła stronę i zwróciła następujące dane:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nStrona pod adresem `https://httpbin.org/html` udostępnia przykładowy dokument HTML, którego głównym nagłówkiem jest **„Herman Melville – Moby Dick”** (fragment pierwszego rozdziału powieści pt. „Majaki”)."
+      },
+      "follow_up_1": {
+        "text": "Wyszukaj analizę historyczną powieści Moby Dick Hermana Melville'a"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij znaczenie pierwszego rozdziału Moby Dicka"
+      },
+      "follow_up_3": {
+        "text": "Przeczytaj publiczną dokumentację na temat technik automatyzacji przeglądarek internetowych"
+      },
+      "follow_up_4": {
+        "text": "Porównaj różne formaty cyfrowe do czytania klasyki literatury"
+      },
+      "follow_up_5": {
+        "text": "Wyszukaj internetowe archiwa literackie zawierające klasyczne powieści amerykańskie"
+      },
+      "follow_up_6": {
+        "text": "Podsumuj główne motywy twórczości Hermana Melville'a"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."

@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Navegar",
         "description": {
-          "text": "Navega por sitios web y devuelve la información observada en JSON."
+          "text": "Navega por sitios web y devuelve JSON. El cómputo del navegador se factura por segundo, además del uso de la IA. El cómputo en pausa es gratuito."
         }
       }
     },
@@ -9119,6 +9119,70 @@
       },
       "follow_up_6": {
         "text": "Compara la biología alienígena de los guethenianos y los oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extraer información de un sitio web como JSON"
+      },
+      "summary": {
+        "text": "Navega por Example Domain y devuelve su declaración completa con una URL de origen como JSON estructurado."
+      },
+      "message_1": {
+        "text": "Usa la función Browse de la aplicación Web para extraer la declaración completa visible en inglés de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Devuelve un JSON con dos campos obligatorios: purpose, que contenga la declaración completa textualmente incluyendo sus advertencias, y source_url, que contenga la URL de la página actual. Esta es una tarea de extracción sin interacción adicional solicitada con el sitio web. Limita la sesión del navegador a 40 créditos."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nLa extracción se ha completado. Aquí está el resultado:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nLa página es el marcador de posición estándar de Example Domain, y la declaración anterior es su texto completo visible en inglés, incluyendo la advertencia de que no es un servicio y no se debe confiar en él para pruebas o monitoreo."
+      },
+      "follow_up_1": {
+        "text": "Buscar dominios de marcador de posición adicionales y plantillas estándar"
+      },
+      "follow_up_2": {
+        "text": "Explicar cómo se utiliza habitualmente Example Domain para documentación"
+      },
+      "follow_up_3": {
+        "text": "Navegar por otra URL de sitio web para obtener su contenido de texto"
+      },
+      "follow_up_4": {
+        "text": "Listar convenciones comunes de texto de marcador de posición en desarrollo web"
+      },
+      "follow_up_5": {
+        "text": "Leer páginas HTTPS públicas directamente desde una URL proporcionada"
+      },
+      "follow_up_6": {
+        "text": "Comparar Example Domain con otros dominios de prueba reservados"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Leer una página web con Navegar"
+      },
+      "summary": {
+        "text": "Usa un navegador para encontrar el encabezado de una página y devuelve el resultado con su URL de origen en formato JSON."
+      },
+      "message_1": {
+        "text": "Usa la función Navegar para abrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) y devuelve el encabezado principal exacto y la URL de origen en formato JSON. Usa la sesión del navegador para esta tarea."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nLa sesión de Navegar abrió la página y devolvió lo siguiente:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nLa página en `https://httpbin.org/html` ofrece un documento HTML de muestra cuyo encabezado principal es **\"Herman Melville - Moby-Dick\"** (un fragmento del primer capítulo de la novela, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Busca análisis históricos de Moby Dick de Herman Melville"
+      },
+      "follow_up_2": {
+        "text": "Explica la importancia del capítulo inicial de Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Lee documentación pública sobre técnicas de automatización de navegadores web"
+      },
+      "follow_up_4": {
+        "text": "Compara diferentes formatos digitales para leer literatura clásica"
+      },
+      "follow_up_5": {
+        "text": "Busca archivos literarios en línea que incluyan novelas clásicas estadounidenses"
+      },
+      "follow_up_6": {
+        "text": "Resume los temas principales de la obra de Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -20760,7 +20824,7 @@
       "text": "Probar gratis"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Dominio de correo electrónico no permitido."

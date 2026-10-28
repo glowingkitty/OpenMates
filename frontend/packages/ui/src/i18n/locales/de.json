@@ -2484,7 +2484,7 @@
       "browse": {
         "text": "Browsen",
         "description": {
-          "text": "Websites bedienen und gefundene Informationen als JSON zurückgeben."
+          "text": "Websites durchsuchen und JSON zurückgeben. Die Browser-Rechenleistung wird pro Sekunde abgerechnet, zuzüglich der KI-Nutzung. Pausierte Rechenleistung ist kostenlos."
         }
       }
     },
@@ -10678,6 +10678,70 @@
       },
       "follow_up_6": {
         "text": "Vergleiche die außerirdische Biologie der Gethenianer und Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Website-Informationen als JSON extrahieren"
+      },
+      "summary": {
+        "text": "Example Domain durchsuchen und die vollständige Erklärung mit einer Quell-URL als strukturiertes JSON zurückgeben."
+      },
+      "message_1": {
+        "text": "Verwende die Browse-Funktion der Web-App, um die vollständige sichtbare englische Erklärung von [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) zu extrahieren. Gib ein JSON mit zwei erforderlichen Feldern zurück: „purpose“ mit der vollständigen Erklärung im Wortlaut einschließlich aller Vorbehalte und „source_url“ mit der aktuellen Seiten-URL. Dies ist eine Extraktionsaufgabe ohne weitere angeforderte Website-Interaktion. Begrenze die Browser-Sitzung auf 40 Credits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDie Extraktion ist abgeschlossen. Hier ist das Ergebnis:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nDie Seite ist der Standard-Platzhalter für Example Domain, und die obige Erklärung ist der vollständige sichtbare englische Text, einschließlich des Hinweises, dass es sich nicht um einen Dienst handelt und man sich für Tests oder Monitoring nicht darauf verlassen sollte."
+      },
+      "follow_up_1": {
+        "text": "Nach weiteren Platzhalter-Domains und Standardvorlagen suchen"
+      },
+      "follow_up_2": {
+        "text": "Erklären, wie Example Domain typischerweise für Dokumentationen verwendet wird"
+      },
+      "follow_up_3": {
+        "text": "Eine andere Website-URL nach Textinhalten durchsuchen"
+      },
+      "follow_up_4": {
+        "text": "Gängige Platzhaltertext-Konventionen in der Webentwicklung auflisten"
+      },
+      "follow_up_5": {
+        "text": "Öffentliche HTTPS-Seiten direkt von einer bereitgestellten URL lesen"
+      },
+      "follow_up_6": {
+        "text": "Example Domain mit anderen reservierten Test-Domains vergleichen"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Webseite mit Browse lesen"
+      },
+      "summary": {
+        "text": "Verwende einen Browser, um eine Seitenüberschrift zu finden und das Ergebnis mit der Quell-URL als JSON zurückzugeben."
+      },
+      "message_1": {
+        "text": "Verwende den Browse-Skill, um [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) zu öffnen und die genaue Hauptüberschrift sowie die Quell-URL als JSON zurückzugeben. Nutze die Browser-Sitzung für diese Aufgabe."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDie Browse-Sitzung hat die Seite geöffnet und Folgendes zurückgegeben:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nDie Seite unter `https://httpbin.org/html` stellt ein Beispiel-HTML-Dokument bereit, dessen Hauptüberschrift **„Herman Melville - Moby-Dick“** lautet (ein Ausschnitt aus dem ersten Kapitel des Romans, „Loomings“)."
+      },
+      "follow_up_1": {
+        "text": "Suche nach einer historischen Analyse von Herman Melvilles Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Erkläre die Bedeutung des ersten Kapitels von Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Lies die öffentliche Dokumentation über Techniken zur Webbrowser-Automatisierung"
+      },
+      "follow_up_4": {
+        "text": "Vergleiche verschiedene digitale Formate zum Lesen klassischer Literatur"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Online-Literaturarchiven mit klassischen amerikanischen Romanen"
+      },
+      "follow_up_6": {
+        "text": "Fasse die Hauptthemen von Herman Melvilles Werk zusammen"
       }
     },
     "building_maintenance_email": {
@@ -24433,7 +24497,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."

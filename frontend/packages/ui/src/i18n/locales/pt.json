@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Navegar",
         "description": {
-          "text": "Navegue por sites e retorne as informações observadas em JSON."
+          "text": "Navegue em sites e retorne JSON. O processamento do navegador é cobrado por segundo, além do uso de IA. O processamento pausado é gratuito."
         }
       }
     },
@@ -9119,6 +9119,70 @@
       },
       "follow_up_6": {
         "text": "Comparar a biologia alienígena dos gethenianos e dos oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extrair informações de sites como JSON"
+      },
+      "summary": {
+        "text": "Navegue pelo Example Domain e retorne sua declaração completa com uma URL de origem como JSON estruturado."
+      },
+      "message_1": {
+        "text": "Use a skill Browse do app Web para extrair a declaração completa em inglês visível de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Retorne um JSON com dois campos obrigatórios: purpose, contendo a declaração completa na íntegra, incluindo suas ressalvas, e source_url, contendo a URL da página atual. Esta é uma tarefa de extração sem solicitação de interação adicional com o site. Limite a sessão do navegador a 40 créditos."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nA extração foi concluída. Aqui está o resultado:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nA página é o marcador de posição padrão do Example Domain, e a declaração acima é o seu texto completo em inglês visível, incluindo a ressalva de que não é um serviço e não deve ser usado para testes ou monitoramento."
+      },
+      "follow_up_1": {
+        "text": "Pesquisar domínios de marcador de posição adicionais e modelos padrão"
+      },
+      "follow_up_2": {
+        "text": "Explicar como o Example Domain é normalmente usado para documentação"
+      },
+      "follow_up_3": {
+        "text": "Navegar em outra URL de site para obter seu conteúdo de texto"
+      },
+      "follow_up_4": {
+        "text": "Listar convenções comuns de texto de marcador de posição no desenvolvimento web"
+      },
+      "follow_up_5": {
+        "text": "Ler páginas HTTPS públicas diretamente de uma URL fornecida"
+      },
+      "follow_up_6": {
+        "text": "Comparar o Example Domain com outros domínios de teste reservados"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Ler uma página web com o Browse"
+      },
+      "summary": {
+        "text": "Usa um navegador para encontrar o cabeçalho de uma página e devolve o resultado com o URL de origem em formato JSON."
+      },
+      "message_1": {
+        "text": "Usa a funcionalidade Browse para abrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) e devolve o cabeçalho principal exato e o URL de origem em formato JSON. Usa a sessão do navegador para esta tarefa."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nA sessão do Browse abriu a página e devolveu o seguinte:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nA página em `https://httpbin.org/html` apresenta um documento HTML de exemplo cujo cabeçalho principal é **\"Herman Melville - Moby-Dick\"** (um excerto do primeiro capítulo do romance, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Pesquisar análise histórica de Moby Dick de Herman Melville"
+      },
+      "follow_up_2": {
+        "text": "Explica o significado do capítulo de abertura de Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Ler documentação pública sobre técnicas de automação de navegadores web"
+      },
+      "follow_up_4": {
+        "text": "Comparar diferentes formatos digitais para ler literatura clássica"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar arquivos literários online com romances clássicos americanos"
+      },
+      "follow_up_6": {
+        "text": "Resume os temas principais da obra de Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -20760,7 +20824,7 @@
       "text": "Testar gratuitamente"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Domínio de e-mail não permitido."

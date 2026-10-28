@@ -2500,7 +2500,7 @@
       "browse": {
         "text": "Browse",
         "description": {
-          "text": "Browse websites and return observed information as JSON."
+          "text": "Browse websites and return JSON. Browser compute is billed per second, plus AI usage. Paused compute is free."
         }
       }
     },
@@ -10723,6 +10723,70 @@
       },
       "follow_up_6": {
         "text": "Compare the alien biology of Gethenians and Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extract website information as JSON"
+      },
+      "summary": {
+        "text": "Browse Example Domain and return its complete statement with a source URL as structured JSON."
+      },
+      "message_1": {
+        "text": "Use the Web app Browse skill to extract the full visible English statement from [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Return JSON with two required fields: purpose, containing the full statement verbatim including its caveats, and source_url, containing the current page URL. This is an extraction task with no additional website interaction requested. Limit the browser session to 40 credits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nThe extraction is complete. Here is the result:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nThe page is the standard Example Domain placeholder, and the statement above is its full visible English text, including the caveat that it is not a service and should not be relied on for testing or monitoring."
+      },
+      "follow_up_1": {
+        "text": "Search for additional placeholder domains and standard templates"
+      },
+      "follow_up_2": {
+        "text": "Explain how Example Domain is typically used for documentation"
+      },
+      "follow_up_3": {
+        "text": "Browse another website URL for its text content"
+      },
+      "follow_up_4": {
+        "text": "List common placeholder text conventions in web development"
+      },
+      "follow_up_5": {
+        "text": "Read public HTTPS pages directly from a provided URL"
+      },
+      "follow_up_6": {
+        "text": "Compare Example Domain with other reserved test domains"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Read a web page with Browse"
+      },
+      "summary": {
+        "text": "Use a browser to find a page heading and return the result with its source URL as JSON."
+      },
+      "message_1": {
+        "text": "Use the Browse skill to open [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) and return the exact main heading and source URL as JSON. Use the browser session for this task."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nThe Browse session opened the page and returned the following:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nThe page at `https://httpbin.org/html` serves a sample HTML document whose main heading is **\"Herman Melville - Moby-Dick\"** (a snippet from the novel's first chapter, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Search for historical analysis of Herman Melville Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Explain the significance of the opening chapter of Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Read public documentation about web browser automation techniques"
+      },
+      "follow_up_4": {
+        "text": "Compare different digital formats for reading classic literature"
+      },
+      "follow_up_5": {
+        "text": "Search for online literary archives featuring classic American novels"
+      },
+      "follow_up_6": {
+        "text": "Summarize the main themes of Herman Melville's work"
       }
     },
     "building_maintenance_email": {
@@ -25063,7 +25127,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."

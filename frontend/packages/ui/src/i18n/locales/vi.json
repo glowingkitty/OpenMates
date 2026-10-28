@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Duyệt",
         "description": {
-          "text": "Duyệt trang web và trả về thông tin quan sát được dưới dạng JSON."
+          "text": "Duyệt các trang web và trả về JSON. Chi phí tính toán của trình duyệt được tính theo giây, cộng với mức sử dụng AI. Thời gian tạm dừng tính toán là miễn phí."
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "So sánh đặc điểm sinh học ngoài hành tinh của người Gethen và người Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Trích xuất thông tin trang web dưới dạng JSON"
+      },
+      "summary": {
+        "text": "Duyệt Example Domain và trả về nội dung đầy đủ cùng với URL nguồn dưới dạng JSON có cấu trúc."
+      },
+      "message_1": {
+        "text": "Sử dụng kỹ năng Duyệt của ứng dụng Web để trích xuất toàn bộ nội dung tiếng Anh hiển thị từ [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Trả về JSON với hai trường bắt buộc: purpose, chứa nguyên văn toàn bộ nội dung bao gồm cả các lưu ý, và source_url, chứa URL của trang hiện tại. Đây là tác vụ trích xuất và không yêu cầu tương tác thêm với trang web. Giới hạn phiên trình duyệt ở mức 40 tín dụng."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nQuá trình trích xuất đã hoàn tất. Đây là kết quả:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nTrang này là nội dung giữ chỗ tiêu chuẩn của Example Domain và nội dung ở trên là toàn bộ văn bản tiếng Anh hiển thị của trang, bao gồm cả lưu ý rằng đây không phải là một dịch vụ và không nên dựa vào đó để thử nghiệm hoặc giám sát."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm thêm các miền giữ chỗ và mẫu chuẩn khác"
+      },
+      "follow_up_2": {
+        "text": "Giải thích cách Example Domain thường được dùng cho tài liệu hướng dẫn"
+      },
+      "follow_up_3": {
+        "text": "Duyệt một URL trang web khác để lấy nội dung văn bản"
+      },
+      "follow_up_4": {
+        "text": "Liệt kê các quy ước văn bản giữ chỗ phổ biến trong phát triển web"
+      },
+      "follow_up_5": {
+        "text": "Đọc trực tiếp các trang HTTPS công khai từ một URL được cung cấp"
+      },
+      "follow_up_6": {
+        "text": "So sánh Example Domain với các miền thử nghiệm được bảo lưu khác"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Đọc trang web bằng tính năng Duyệt web"
+      },
+      "summary": {
+        "text": "Sử dụng trình duyệt để tìm tiêu đề trang và trả về kết quả cùng với URL nguồn dưới dạng JSON."
+      },
+      "message_1": {
+        "text": "Sử dụng kỹ năng Duyệt web để mở [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) và trả về chính xác tiêu đề chính và URL nguồn dưới dạng JSON. Sử dụng phiên trình duyệt cho nhiệm vụ này."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nPhiên Duyệt web đã mở trang và trả về kết quả sau:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nTrang tại `https://httpbin.org/html` cung cấp một tài liệu HTML mẫu có tiêu đề chính là **\"Herman Melville - Moby-Dick\"** (một đoạn trích từ chương đầu tiên của tiểu thuyết, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm phân tích lịch sử về tác phẩm Moby Dick của Herman Melville"
+      },
+      "follow_up_2": {
+        "text": "Giải thích ý nghĩa của chương mở đầu trong Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Đọc tài liệu công khai về các kỹ thuật tự động hóa trình duyệt web"
+      },
+      "follow_up_4": {
+        "text": "So sánh các định dạng kỹ thuật số khác nhau để đọc văn học kinh điển"
+      },
+      "follow_up_5": {
+        "text": "Tìm kiếm các kho lưu trữ văn học trực tuyến có các tiểu thuyết kinh điển của Mỹ"
+      },
+      "follow_up_6": {
+        "text": "Tóm tắt các chủ đề chính trong tác phẩm của Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."

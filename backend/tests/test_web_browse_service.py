@@ -262,6 +262,8 @@ async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_veri
 
     async def rpc(provider, body):
         if body.get("require_pristine"):
+            service.driver.calls.append(deepcopy(body))
+            service.driver.mode = body["mode"]
             assert any(
                 r.get("provider", {}).get("sandbox_id") == "prepared-vm"
                 for r in service.store.records.values()
@@ -278,6 +280,17 @@ async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_veri
     )  # Platform preparation is not charged.
     if pristine:
         assert result.status == "completed" and record["provider"]["pool_verified"]
+        control_calls = [
+            call
+            for call in service.driver.calls
+            if isinstance(call, dict) and call.get("operation") == "control"
+        ]
+        assert len(control_calls) == 1
+        assert control_calls[0]["require_pristine"] is True
+        assert (
+            result.metrics["first_observation_seconds"]
+            >= result.metrics["startup_seconds"]
+        )
         with pytest.raises(HTTPException) as exc:
             await service.frame(result.session_id, "other-owner")
         assert exc.value.status_code == 404
@@ -586,6 +599,10 @@ async def test_pending_charge_keeps_same_intent_and_reservation_until_committed(
         call.kwargs["idempotency_key"] == reservation for call in charge.await_args_list
     )
     assert all(
+        call.kwargs["usage_details"]["message_id"] == "message"
+        for call in charge.await_args_list
+    )
+    assert all(
         call.args[1] != "/internal/billing/reservation/release"
         for call in service.app._make_internal_api_request.await_args_list
     )
@@ -743,6 +760,34 @@ def test_lifecycle_boundaries(idle, expected):
 def test_output_schema_is_bounded_local_object_or_array(schema):
     with pytest.raises(ValidationError):
         arguments(output_schema=schema)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+@pytest.mark.parametrize("seconds", [1, 17, 59, 60, 61, 90.5])
+def test_allocated_compute_is_metered_by_elapsed_seconds_without_minute_blocks(
+    service, monkeypatch, seconds
+):
+    monkeypatch.setattr(
+        "backend.core.api.app.services.web_browse_service.time.time",
+        lambda: 1000 + seconds,
+    )
+    record = {
+        "runtime_cost_usd": "0",
+        "provider": {
+            "cpu_count": 2,
+            "memory_mb": 4096,
+            "running_since": 1000,
+            "provider_deadline": 1120,
+        },
+    }
+    assert service.runtime_cost(record) == Decimal(str(seconds)) * Decimal("0.000046")
+    accumulated = service.runtime_cost(record)
+    record["runtime_cost_usd"] = str(accumulated)
+    record["provider"]["running_since"] = None
+    monkeypatch.setattr(
+        "backend.core.api.app.services.web_browse_service.time.time", lambda: 90000
+    )
+    assert service.runtime_cost(record) == accumulated
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting

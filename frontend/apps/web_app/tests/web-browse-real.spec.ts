@@ -64,16 +64,18 @@ async function expandActivities(page: Page) {
     if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
   }
 }
-async function openSession(page: Page, chatId: string, admitted: (sessionId: string) => void) {
+async function openSession(page: Page, chatId: string, admitted: (sessionId: string) => void, completed = false) {
   await page.goto(`/#chat-id=${chatId}`);
   await expandActivities(page);
-  await expect(preview(page).last()).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
-  const embedId = await preview(page).last().getAttribute('data-embed-id');
+  // Grouped cards display newest first, so DOM-last is the original run.
+  const card = completed ? preview(page).filter({ has: page.getByText('Completed', { exact: true }) }) : preview(page).last();
+  await expect(card).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
+  const embedId = await card.getAttribute('data-embed-id');
   expect(embedId).toBeTruthy();
   const response = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null && r.status() === 200,
     { timeout: 20_000 }).catch(() => null);
   const started = Date.now();
-  await preview(page).last().click();
+  await card.click();
   const reply = await response;
   expect(reply, 'The owner fullscreen must request its authenticated browser session').not.toBeNull();
   const session = await reply!.json();
@@ -122,6 +124,9 @@ function receipt(info: TestInfo, data: Record<string, unknown>) {
 }
 
 test.beforeAll(async () => {
+  // Authentication, a fresh native-key profile and saved-owner preflight are
+  // separate bounded operations; together they can exceed the default 30s hook.
+  test.setTimeout(180_000);
   expect(process.env.OPENMATES_CI_ISOLATED).not.toBe('1');
   expect(process.env.PLAYWRIGHT_TEST_BASE_URL).toBe(APP);
   expect(stateDir.startsWith('/tmp/openmates-browse-')).toBe(true);
@@ -285,9 +290,11 @@ for (const width of [1280, 390]) {
       await expect(page.getByTestId('browse-fullscreen')).toHaveCount(0);
       await expect.poll(async () => {
         await expandActivities(page);
-        return await preview(page).count() === 2 && await preview(page).last().getAttribute('data-status') === 'finished';
-      }, { timeout: 120_000 }).toBe(true);
-      const completed = await openSession(page, created.chatId, id => { sid = id; });
+        // The continuation message can also reference the original embed.
+        // Select the new terminal outcome independently of those references.
+        return await preview(page).filter({ has: page.getByText('Completed', { exact: true }) }).count();
+      }, { timeout: 120_000 }).toBe(1);
+      const completed = await openSession(page, created.chatId, id => { sid = id; }, true);
       expect(completed.session.session_id).toBe(sid);
       expect(completed.session.max_credits).toBe(opened.session.max_credits);
       await page.getByText('Structured data', { exact: true }).click();

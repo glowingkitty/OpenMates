@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "閲覧する",
         "description": {
-          "text": "ウェブサイトを操作し、確認した情報を JSON で返します。"
+          "text": "ウェブサイトを閲覧し、JSONを返します。ブラウザの計算料金は秒単位で請求され、別途AI使用料がかかります。一時停止中の計算は無料です。"
         }
       }
     },
@@ -9092,6 +9092,70 @@
       },
       "follow_up_6": {
         "text": "ゲセン人とオアンカリの異星人としての生物学的特徴を比較する"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "ウェブサイトの情報をJSONとして抽出する"
+      },
+      "summary": {
+        "text": "Example Domainを閲覧し、その全文をソースURLとともに構造化されたJSONとして返します。"
+      },
+      "message_1": {
+        "text": "WebアプリのBrowseスキルを使用して、[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) から表示されている英文の全文を抽出してください。2つの必須フィールドを持つJSONを返してください：purpose（注意事項を含む全文をそのまま格納）、source_url（現在のページのURLを格納）。これは抽出タスクであり、ウェブサイトとの追加のやり取りは不要です。ブラウザセッションは40クレジットに制限してください。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n抽出が完了しました。結果は以下の通りです：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nこのページは標準的なExample Domainのプレースホルダーであり、上記の記述は、これがサービスではなく、テストやモニタリングに依存すべきではないという注意事項を含む、表示されている英文の全文です。"
+      },
+      "follow_up_1": {
+        "text": "追加のプレースホルダー用ドメインや標準テンプレートを検索する"
+      },
+      "follow_up_2": {
+        "text": "Example Domainがドキュメントで一般的にどのように使用されるか説明する"
+      },
+      "follow_up_3": {
+        "text": "別のウェブサイトのURLを閲覧してテキストコンテンツを取得する"
+      },
+      "follow_up_4": {
+        "text": "ウェブ開発における一般的なプレースホルダーテキストの慣習をリストアップする"
+      },
+      "follow_up_5": {
+        "text": "提供されたURLから公開HTTPSページを直接読み込む"
+      },
+      "follow_up_6": {
+        "text": "Example Domainを他の予約済みテストドメインと比較する"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "「Browse」でウェブページを読み込む"
+      },
+      "summary": {
+        "text": "ブラウザを使用してページの見出しを見つけ、その結果をソースURLとともにJSON形式で返します。"
+      },
+      "message_1": {
+        "text": "Browseスキルを使用して[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)を開き、正確なメイン見出しとソースURLをJSON形式で返してください。このタスクにはブラウザセッションを使用してください。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nBrowseセッションでページを開き、以下を返しました：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n`https://httpbin.org/html`のページは、メイン見出しが**「Herman Melville - Moby-Dick」**（小説の第1章「Loomings」のスニペット）であるサンプルHTMLドキュメントを提供しています。"
+      },
+      "follow_up_1": {
+        "text": "ハーマン・メルヴィルの『白鯨』の歴史的分析を検索する"
+      },
+      "follow_up_2": {
+        "text": "『白鯨』の冒頭の章の重要性を説明する"
+      },
+      "follow_up_3": {
+        "text": "ウェブブラウザ自動化技術に関する公開ドキュメントを読む"
+      },
+      "follow_up_4": {
+        "text": "古典文学を読むためのさまざまなデジタル形式を比較する"
+      },
+      "follow_up_5": {
+        "text": "古典的なアメリカ小説を特集しているオンライン文学アーカイブを検索する"
+      },
+      "follow_up_6": {
+        "text": "ハーマン・メルヴィル作品の主なテーマを要約する"
       }
     },
     "building_maintenance_email": {
@@ -20733,7 +20797,7 @@
       "text": "無料で試す"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "メールドメインが許可されていません。"

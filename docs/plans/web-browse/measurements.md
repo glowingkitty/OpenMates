@@ -526,3 +526,165 @@ URL would not fix this host; the control API remains stable. Non-interactive
 sudo requires a password, and no privileged proxy reload or production service
 change was made. Real takeover and sign-in remain unverified until the proxy
 correction is applied and the live tests pass.
+
+An owner-scoped usage-ledger audit included the ordinary assistant charge as
+well as the settled browser charge:
+
+| Chat | Browse credits | Assistant credits | Total user price |
+| --- | ---: | ---: | ---: |
+| `110441e8` | 15 | 9 | $0.024 |
+| `ea57b800` | 18 | 9 | $0.027 |
+| `2acca599` | 13 | 10 | $0.023 |
+
+Each chat has exactly one Browse and one assistant ledger entry. Browser totals
+include the idle grace consumed while the web test failed; task-completion
+accrual alone was 5, 7 and 3 credits respectively. These are three successful
+static-page extractions, not a representative web-task success-rate estimate.
+The reviewed CORS patch is published at `c7df343`; 23 local configuration tests
+pass. The operator applied the scoped, coordinated helper at
+`/tmp/openmates-browse-d7bf-cli/apply-browse-caddy.py` after entering sudo's password
+locally. Live headers now preserve the exact dev origin and credentials. A
+read-only authenticated replay of a closed owner session returns 410 and shows
+the expected expired viewer instead of a CORS error. Fresh control-transfer
+acceptance is running. No production operation was performed.
+
+
+### Real control flow after the proxy correction
+
+The main real-inference browser acceptance passed for desktop controls and
+390-pixel saved history: exact HTTPBin JSON, authenticated watch, exclusive
+takeover, pause with free compute, resume, owner close and history reload. Chat
+`3ea7b625` took 43.853 seconds through the outer CLI; opening its completed
+owner viewer to its first live frame took 2.512 seconds. The closed session
+settled at ten Browse credits, with no pending accounting. The actual usage
+ledger adds seven assistant credits: 17 credits ($0.017) total.
+
+Two desktop manual demo-login runs (`3e554cff` and `ce3579d4`) entered only the
+fixture's published disposable credentials through owner controls, displayed
+the contextual consent notice, and continued the same browser to a genuinely
+completed Secure Area JSON result. The first continuation took 5.238 seconds.
+Their browser-test assertions failed because they first reopened the oldest
+card, then assumed exactly two cards despite the continuation message also
+referencing the initial embed. Those assertions are corrected to select the
+completed outcome, while retaining same-session, original-budget and exact-JSON
+checks. Final desktop/phone sign-in acceptance is pending coordinated runtime
+admission; no success is claimed for those full test cases yet.
+
+The two manual chats settled at 31 credits (8 Browse + 23 assistant) and
+36 credits (17 Browse + 19 assistant), including manual interaction and test
+waits. Session close cleanup completed. The first extraction example
+(`02a441f4`) settled at 87 credits (14 Browse + 73 assistant); this demonstrates
+why ordinary chat routing can dominate a simple browser task's full price.
+
+Native Browse ledger entries currently lack their triggering message identity.
+The account/chat totals above are complete, but response-level example pricing
+would omit Browse charges without a verified attribution. Correct that linkage
+before treating the response-price label as complete.
+
+Workflow investigation found that the current runner rejects async Browse and
+that scheduled report delivery allocates a chat ID before an owner client
+creates its encrypted chat. That pending ID cannot be used as a real source
+chat. Existing workflow input waits also do not resume dependent nodes. The
+workflow phase must provide an existing owned-chat binding or complete durable
+chat provisioning, plus explicit browser handoff/resumption; current delivery
+does not claim workflow support.
+
+
+### Confirmed web acceptance and billing audit, 28 October
+
+The final real manual-sign-in suite passed both desktop (1280 px) and phone
+(390 px) with no retries. It exercised contextual consent, owner-only private
+input, the same browser and original 250-credit cap on AI continuation, Secure
+Area JSON, and owner close. Both final sessions settled without pending
+accounting: 14 Browse credits on desktop and 13 on phone. The first viewer
+frames took 1.731 and 1.805 seconds respectively. These are viewer-open
+measurements after initial execution, not initial task startup. Recordings and
+representative consent/result screenshots were reviewed; selected recordings
+were uploaded privately with 48-hour links.
+
+The current-schema Example Domain CLI run (`588bd4b4`) genuinely completed
+in 17.514 seconds, with 2.336 seconds provisioning, 3.988 seconds initial
+navigation and 1.274 seconds of observation RPC time. Its `startup_seconds`
+was 7.152. Important correction: that timer stops **before** the first observe
+RPC. Earlier prose calling the startup timer “first observation” was inaccurate.
+The sum of those two latest measurements is at least 8.426 seconds; it excludes
+any iteration bookkeeping between them. New instrumentation explicitly measures
+startup through completion of the first observation, and separately records
+pool claim, resume, pristine readiness and initial control. A redundant initial
+control RPC on the verified fresh-pool path is removed under the same exclusive
+lease; its improvement is not yet measured. No destination/privacy checks were
+removed.
+
+This extraction accrued five credits at completion. Leaving its compute running
+through the existing idle grace and then closing it settled at 16 Browse
+credits; the ten-credit assistant response makes 26 credits ($0.026) in total.
+The final public example uses this current-schema result rather than the older
+extraction, whose saved envelope predates `data_json`. The two public-example
+price labels use complete account/chat ledger totals. For the two single-turn
+source chats only, otherwise unlinked Browse rows are attributed to the sole
+AI usage trigger without changing amounts or the real transcript. New Browse
+settlements now retain their reservation's triggering message ID so future
+response-level pricing can join normally.
+
+Billing is by elapsed resource seconds, not minute blocks. For the verified
+2-vCPU/4-GiB allocation, supplier compute is `2 × $0.000014 + 4 × $0.0000045 =
+$0.000046/second`; the 2× customer compute rate is 0.092 credits/second or
+5.52 credits/minute. Native internal model usage is added at 2× its effective
+supplier tariff. Existing wallet policy floors accumulated credits with a
+one-credit minimum for positive sub-credit usage; it does not impose a
+per-click or per-minute minimum. Confirmed paused time adds zero. Six added
+checks cover 1, 17, 59, 60, 61 and 90.5 elapsed seconds plus paused retention.
+The Browse listing previously advertised a zero fixed fee; the prepared
+correction preserves the fractional display rate and does not add a generic
+dispatch charge.
+
+Rates were rechecked against [E2B pricing](https://e2b.dev/pricing) and
+[billing documentation](https://docs.e2b.dev/billing). One lifecycle accounting
+assumption still needs investigation: local running-cost estimates cap at the
+planned provider deadline, while E2B documents a potential delayed auto-pause
+during snapshot backlog. A planned deadline is not always the actual stop
+event. Do not claim invoice-exact reconciliation for that edge case; retain
+separate measured supplier estimates and settled customer credits.
+
+The user explicitly clarified that standalone and workflow Browse must not
+require a chat. The recommended core authority is owner + execution scope +
+idempotent operation, with owner-encrypted results, lifecycle and billing
+independent of delivery. Chat embeds and workflow run views are adapters.
+Workflow handoff must use its own run/node occurrence and a resumable wait,
+not a fabricated chat or an unpersisted report-delivery ID. That refactor and
+durable workflow resume are not yet implemented.
+
+
+### Jev reference review
+
+Rechecked [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast),
+its [MIT license](https://github.com/browser-use/jev-ultrafast/blob/main/LICENSE),
+[source loop](https://github.com/browser-use/jev-ultrafast/blob/main/jev_ultrafast/agent.py)
+and [measurement boundaries](https://github.com/browser-use/jev-ultrafast/blob/main/docs/performance.md).
+Its 7.073-second demo excludes browser setup, initial navigation and initial
+observation, plus final independent verification. It cannot be compared directly
+with our startup/first-page timer. The optimized upstream loop uses structured
+DOM state without screenshots by default, a persistent browser session, one
+atomic snapshot and a single speculative operation/target decision request.
+It also uses event-aware settling and preserves generated text only for an
+identical field context. These are useful implementation patterns, not evidence
+of OpenMates speed or reliability. No upstream code was copied in this review.
+
+OpenMates already uses direct Jev 1.14 typed operation/target selection, with
+bounded generation/extraction through the separate text helper and independent
+completion checks. Earlier measured Jev calls were 0.170–0.224 seconds. Runtime
+screenshots/DOM observations precede the model call; local browser/network
+overhead must be measured separately from Jev inference. Follow-up optimizations
+should compare atomic snapshots, screenshot demand/cadence, connection reuse and
+state-aware settling while retaining isolation, fresh targets and secret masking.
+
+
+Additional source comparison found that our runtime already has atomic DOM
+capture, viewport text bounds, retained node identities and occlusion checks.
+The next meaningful Jev-loop improvements are stronger target/form/document
+freshness guards, fuller HTML/ARIA label recognition, bounded event-aware
+autocomplete settling, and reuse of a text result only when the complete helper
+context is unchanged and no input outcome is uncertain. Upstream's focus
+emulation addresses background desktop tabs; no evidence yet makes it relevant
+to our dedicated headless VM. These are proposed changes, not deployed or
+benchmarked improvements.

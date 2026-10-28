@@ -2464,7 +2464,7 @@
       "browse": {
         "text": "Navigare",
         "description": {
-          "text": "Naviga nei siti e restituisci le informazioni osservate in JSON."
+          "text": "Naviga nei siti web e restituisci JSON. Il calcolo del browser viene fatturato al secondo, oltre all'utilizzo dell'IA. Il calcolo in pausa è gratuito."
         }
       }
     },
@@ -9119,6 +9119,70 @@
       },
       "follow_up_6": {
         "text": "Confronta la biologia aliena dei Getheniani e degli Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Estrai informazioni dal sito web come JSON"
+      },
+      "summary": {
+        "text": "Naviga su Example Domain e restituisci la sua dichiarazione completa con un URL di origine come JSON strutturato."
+      },
+      "message_1": {
+        "text": "Usa la funzione Naviga dell'app Web per estrarre l'intera dichiarazione visibile in inglese da [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Restituisci un JSON con due campi obbligatori: purpose, contenente la dichiarazione completa testuale incluse le avvertenze, e source_url, contenente l'URL della pagina corrente. Questa è un'attività di estrazione senza ulteriori interazioni richieste con il sito web. Limita la sessione del browser a 40 crediti."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nL'estrazione è completa. Ecco il risultato:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nLa pagina è il segnaposto standard di Example Domain e la dichiarazione sopra riportata è il suo testo completo visibile in inglese, inclusa l'avvertenza che non si tratta di un servizio e che non deve essere utilizzato per test o monitoraggio."
+      },
+      "follow_up_1": {
+        "text": "Cerca altri domini segnaposto e modelli standard"
+      },
+      "follow_up_2": {
+        "text": "Spiega come viene solitamente utilizzato Example Domain per la documentazione"
+      },
+      "follow_up_3": {
+        "text": "Naviga in un altro URL di un sito web per leggerne il contenuto testuale"
+      },
+      "follow_up_4": {
+        "text": "Elenca le convenzioni comuni per i testi segnaposto nello sviluppo web"
+      },
+      "follow_up_5": {
+        "text": "Leggi le pagine HTTPS pubbliche direttamente da un URL fornito"
+      },
+      "follow_up_6": {
+        "text": "Confronta Example Domain con altri domini di test riservati"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Leggere una pagina web con Sfoglia"
+      },
+      "summary": {
+        "text": "Usa un browser per trovare l'intestazione di una pagina e restituisci il risultato con il suo URL di origine in formato JSON."
+      },
+      "message_1": {
+        "text": "Usa la funzione Sfoglia per aprire [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) e restituisci l'intestazione principale esatta e l'URL di origine in formato JSON. Usa la sessione del browser per questa attività."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nLa sessione di navigazione ha aperto la pagina e ha restituito quanto segue:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nLa pagina all'indirizzo `https://httpbin.org/html` fornisce un documento HTML di esempio la cui intestazione principale è **\"Herman Melville - Moby-Dick\"** (un frammento del primo capitolo del romanzo, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Cerca un'analisi storica di Moby Dick di Herman Melville"
+      },
+      "follow_up_2": {
+        "text": "Spiega il significato del capitolo di apertura di Moby Dick"
+      },
+      "follow_up_3": {
+        "text": "Leggi la documentazione pubblica sulle tecniche di automazione dei browser web"
+      },
+      "follow_up_4": {
+        "text": "Confronta diversi formati digitali per la lettura della letteratura classica"
+      },
+      "follow_up_5": {
+        "text": "Cerca archivi letterari online che presentano classici del romanzo americano"
+      },
+      "follow_up_6": {
+        "text": "Riassumi i temi principali dell'opera di Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -20760,7 +20824,7 @@
       "text": "Prova gratis"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Dominio e-mail non consentito."
