@@ -419,7 +419,7 @@ class CoordinatorState:
             db.execute(
                 """UPDATE requests SET state='waiting',grant_id='',expires_at=?,
                        updated_at=?,reason='Continuation is paused or ineligible',acknowledged=0
-                       WHERE id=? AND state='granted'""",
+                       WHERE id=? AND state IN ('waiting','granted')""",
                 (self.clock() + GRANT_SECONDS, self.clock(), identity),
             )
 

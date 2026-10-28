@@ -166,6 +166,18 @@ def test_paused_grant_does_not_reclaim_capacity_until_retry_or_backoff(tmp_path)
         assert c.get(first["id"])["state"] == "granted"
 
 
+def test_paused_waiter_does_not_earmark_capacity_for_other_work(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    first = request(c, root, amount=140)
+    now[0] += 61
+    c.defer(first["id"])
+    other = request(c, root, operation="ready", amount=70)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "waiting"
+        assert c.get(other["id"])["state"] == "granted"
+
+
 def test_cleanup_remeasures_before_resuming_and_keeps_recovery_margin(tmp_path):
     c, root, now, usage = fixture(tmp_path, free=100, used=900, kinds=("managed",))
     row = request(c, root)

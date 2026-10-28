@@ -462,6 +462,11 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None, re
             if not coordinator.bind_task(row["id"], owner, task["task_id"]):
                 continue  # A concurrent owner/state change cannot authorize routing.
             row["task_id"] = task["task_id"]
+        if (task.get("status") == "backlog" or
+                (task.get("status") == "blocked" and not disk_blocked_task(task)
+                 and (task.get("blocked_reason") or task.get("blocked_reason_code")))):
+            coordinator.defer(row["id"])
+            continue  # Approval and other blockers must not reserve queue priority.
         row["resolved_task_id"] = task["task_id"]
         key = identity([owner, task["task_id"], task.get("scope")])
         groups.setdefault(key, {"owner": owner, "task": task, "rows": []})["rows"].append(row)
@@ -470,8 +475,7 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None, re
         runtime = state["threads"][owner]
         if any(runtime.get(flag) for flag in ("paused", "deleted", "archived")):
             for row in members:
-                if row["state"] == "granted":
-                    coordinator.defer(row["id"])
+                coordinator.defer(row["id"])
                 for item in state["deliveries"].values():
                     if item["kind"] == "disk_ready" and item["data"]["id"] == row["id"] and item["state"] == "pending":
                         item["state"] = "superseded"

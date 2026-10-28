@@ -348,6 +348,7 @@ def test_informational_disk_ready_never_wakes_unrelated_or_human_blockers(code, 
     observe(state, ledger, tasks)
     assert not state["deliveries"]
     assert not state.get("disk_task_waits")
+    assert ledger.deferrals == ["request"]
 
 
 # contract-test: tooling
