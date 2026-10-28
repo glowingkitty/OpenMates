@@ -442,6 +442,17 @@ jobs:
           cache-from: type=gha,scope=ci-api
           cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-api,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.api }}
+      - name: Build restricted offline formula worker
+        if: inputs.mode == 'e2e' && inputs.specs_json == '["formula-sheet-editing.spec.ts"]'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject
+          file: ./subject/backend/formula_worker/Dockerfile
+          load: true
+          tags: openmates-ci-formula-worker:local
+          cache-from: type=gha,scope=ci-formula-worker
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-formula-worker,mode=max' || '' }}
+          labels: org.openmates.ci.source-commit=${{ inputs.source_commit }}
       - name: Build cached upload dependencies and current source
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e') &&

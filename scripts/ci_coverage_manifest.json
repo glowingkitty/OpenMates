@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "formula_calculation": {
+      "execution": "e2e",
+      "enabling_work": "Run the real pinned IronCalc worker in its own secret-free read-only container and internal network, with resource limits and default-deny per-request seccomp. The guarded AI fixture authors source only; authenticated API calculation, encrypted persistence and XLSX export use the real worker. No E2B or paid provider credentials.",
+      "specs": [
+        "formula-sheet-editing.spec.ts"
+      ]
+    },
     "specification_storage_lifecycle": {
       "execution": "e2e",
       "enabling_work": "Use fresh runner-private paired browser/CLI accounts and the isolated core API/CMS/cache/Vault. Create disposable Projects and real AES-GCM ciphertext, then verify Specification persistence, immutable approval/history, concurrent saves, pagination and authorization. No AI inference, provider credentials, E2B execution or shared dev service is used.",
@@ -685,9 +692,11 @@
       "execution": "e2e",
       "enabling_work": "Execute original signed cached-pipeline requests on the internal-network AI worker with fresh explicitly allowlisted users. Preserve real API/CLI/browser assertions; cache misses and provider configuration failures fail visibly, no recording, paid keys or external fallback.",
       "specs": [
+        "code-notebook-flow.spec.ts",
         "copy-message-flow.spec.ts",
         "embed-diff-editing.spec.ts",
         "diagram-html-editing.spec.ts",
+        "formula-sheet-editing.spec.ts",
         "models3d-search.spec.ts",
         "native-cache-selected-tools.spec.ts",
         "skill-code-docs.spec.ts",
@@ -804,7 +813,6 @@
         "cli-workflow-skill-safety.spec.ts",
         "cli-workflow-files.spec.ts",
         "cli-workflows-natural-language-guards.spec.ts",
-        "code-notebook-flow.spec.ts",
         "composer-workspace-layout.spec.ts",
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",

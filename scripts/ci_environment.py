@@ -42,6 +42,48 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "wiki-learning-flow.spec.ts",
 })
 DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"})
+
+
+def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
+    """Run the real restricted evaluator for the exact signed-authoring proof."""
+    if selected != ["formula-sheet-editing.spec.ts"]:
+        if "formula-sheet-editing.spec.ts" in selected:
+            raise RuntimeError("Formula calculation requires a separate batch")
+        return
+    services = profile.get("services", {})
+    api = services.get("api", {})
+    environment = api.get("environment", {})
+    if not (
+        environment.get("CI") == "true"
+        and environment.get("OPENMATES_CI_ISOLATED") == "1"
+        and environment.get("OPENMATES_CI_AI_FIXTURES") == "1"
+        and environment.get("MOCK_EXTERNAL_APIS") == "true"
+        and environment.get("SERVER_ENVIRONMENT") == "development"
+    ):
+        raise RuntimeError("Formula sheet proof requires isolated signed source authoring")
+    profile.setdefault("networks", {})["formula-calculation"] = {"internal": True}
+    for name in ("api", "ai-worker"):
+        service = services.get(name)
+        if service is None:
+            continue
+        environment = service.get("environment", {})
+        environment["FORMULA_SHEETS_WORKER_URL"] = "http://formula-worker:8020"
+        networks = service.setdefault("networks", ["default"])
+        if isinstance(networks, dict):
+            networks["formula-calculation"] = {}
+        elif "formula-calculation" not in networks:
+            networks.append("formula-calculation")
+    services["formula-worker"] = {
+        "image": "openmates-ci-formula-worker:local",
+        "user": "65532:65532", "read_only": True, "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "mem_limit": 384 * MIB, "cpus": 1.0, "pids_limit": 32,
+        "networks": ["formula-calculation"],
+        "healthcheck": {
+            "test": ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/health', timeout=2).read()"],
+            "interval": "5s", "timeout": "3s", "retries": 12,
+        },
+    }
 # Authenticated native CLI/TUI preparation requires a private backend without
 # enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
 # harness selector only strengthens network isolation; it grants no execution.
@@ -1510,6 +1552,7 @@ def main():
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
         data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)), web_read_fixture=web_read_fixture_selected(selected))
+        configure_formula_sheet_worker(data, selected)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -1594,6 +1637,21 @@ def main():
         if voice_camera and not {"ai-worker", "speech-worker"}.issubset(profile["services"]):
             raise RuntimeError("Voice camera fixture requires independent AI and speech workers")
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if "formula-worker" in profile["services"]:
+            required.append("formula-worker")
+            formula = profile["services"]["formula-worker"]
+            if (any(formula.get(field) for field in ("environment", "env_file", "volumes", "ports"))
+                    or formula.get("read_only") is not True
+                    or formula.get("cap_drop") != ["ALL"]
+                    or formula.get("networks") != ["formula-calculation"]):
+                raise RuntimeError("Formula worker lost its isolated secret-free runtime")
+            network = json.loads(subprocess.check_output(
+                ["docker", "network", "inspect", "openmates-ci_formula-calculation"], text=True))[0]
+            if network.get("Internal") is not True:
+                raise RuntimeError("Formula worker requires an internal network")
+            evidence["formula_calculation"] = {"engine": "ironcalc==0.9.1",
+                "execution": "real-restricted-worker", "provider_credentials": "absent",
+                "ai_authoring": "signed-fixture-only", "execution_credits": 0}
         if voice_camera:
             required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:

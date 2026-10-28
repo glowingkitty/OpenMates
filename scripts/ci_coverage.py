@@ -148,7 +148,7 @@ def verify_pilot(receipt: dict) -> dict:
 
 
 def runtime_batches(specs: list[str], batch_size: int) -> list[list[str]]:
-    """Keep live weather and internal Workflow runtime in separate batches.
+    """Keep specialized provider and restricted-worker runtimes in separate batches.
 
     Daily selection must not accidentally put a real weather request behind
     the offline fixture network or permit provider egress for a replay batch.
@@ -159,12 +159,14 @@ def runtime_batches(specs: list[str], batch_size: int) -> list[list[str]]:
     manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
     weather = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
     core = set(manifest["groups"].get("workflow_core", {}).get("specs", []))
-    groups = ([spec for spec in specs if spec not in weather and spec not in core],
+    formulas = set(manifest["groups"].get("formula_calculation", {}).get("specs", []))
+    groups = ([spec for spec in specs if spec not in weather and spec not in core and spec not in formulas],
               [spec for spec in specs if spec in weather],
-              [spec for spec in specs if spec in core])
+              [spec for spec in specs if spec in core],
+              [spec for spec in specs if spec in formulas])
     return [group[index:index + batch_size] for group in groups for index in range(0, len(group), batch_size)]
 
 
 def validate_runtime_batch(specs: list[str]) -> None:
     if len(runtime_batches(specs, max(1, len(specs)))) > 1:
-        raise ValueError("Workflow runtime tests require a separate batch; use the canonical daily/test dispatcher to partition automatically")
+        raise ValueError("Specialized runtime tests require a separate batch; use the canonical daily/test dispatcher to partition automatically")
