@@ -31,6 +31,11 @@ _MEDIA_CHILD_LIMITS = {
 _OTHER_HARD_LIMITS = {
     ("videos", "create"): 1260,
     ("code", "image_to_html"): 960,
+    # E2B phases total at most 600s: two installs (2*120), Python diagnostics
+    # (2*15), execution (300) and artifact discovery (30). Allow 360s for
+    # scanning, billing, setup/upload and encrypted persistence; the standard
+    # queue/callback/resume allowance is added by deadline_seconds_for_jobs.
+    ("code", "run"): 960,
     ("social_media", "search"): 360,
     ("social_media", "get-posts"): 360,
 }

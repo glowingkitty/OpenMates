@@ -600,6 +600,7 @@ class RunCodeSkill(BaseSkill):
             api_key_hash=kwargs.get("api_key_hash"),
             device_hash=kwargs.get("device_hash"),
             assistant_async_task=True,
+            same_turn_batch_id=kwargs.get("same_turn_batch_id"),
         )
         return RunCodeResponse(
             execution_id=execution.execution_id,

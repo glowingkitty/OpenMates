@@ -305,6 +305,72 @@ def test_deadline_uses_longest_job_envelope_in_mixed_batch():
     ]) == 1140
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.assistant.auto-debug-bounded,app-skills.assistant.bounded-private-failure
+def test_code_run_deadline_keeps_queue_slack_and_longer_mixed_job_envelopes():
+    code_job = {"app_id": "code", "skill_id": "run", "request_count": 1}
+    assert barrier.deadline_seconds_for_jobs([code_job]) == 1200
+    assert barrier.deadline_seconds_for_jobs([
+        {"app_id": "web", "skill_id": "search"}, code_job,
+    ]) == 1200
+    assert barrier.deadline_seconds_for_jobs([
+        code_job, {"app_id": "videos", "skill_id": "create"},
+    ]) == 1500
+    with pytest.raises(RuntimeError, match="Same-turn deadline has no envelope for code.unknown"):
+        barrier.deadline_seconds_for_jobs([{"app_id": "code", "skill_id": "unknown"}])
+
+
+@pytest.mark.parametrize("filename,output,artifacts", [
+    ("main.py", "integral=0.3333333333333333\n", [{"path": "outputs/chart.png", "asset_id": "asset"}]),
+    ("main.rs", "sum=55\n", []),
+])
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=code-run.assistant.auto-debug-bounded,app-skills.assistant.complete-result-barrier,app-skills.assistant.same-turn-completion
+async def test_code_run_pauses_until_terminal_then_restores_actual_result(monkeypatch, filename, output, artifacts):
+    job = {"task_id": "execution", "tool_call_id": "call-code", "app_id": "code", "skill_id": "run"}
+    deadline_seconds = barrier.deadline_seconds_for_jobs([job])
+    handoff_ttl = min(90 * 60, max(20 * 60, deadline_seconds + 6 * 60))
+    cache = FakeCache()
+    cache.values["async_skill_latest_user_turn:user:chat"] = "turn"
+    await register_barrier(
+        cache, batch_id="code-batch", user_id="user", chat_id="chat", turn_id="turn",
+        task_ids=["execution"], checkpoint_ref="sealed-checkpoint",
+        deadline=time.time() + deadline_seconds, handoff_ttl_seconds=handoff_ttl,
+        logical_task_id=LOGICAL, source_delivery_task_id=LOGICAL,
+    )
+    await arm_barrier(cache, "code-batch")
+    assert await claim_ready(cache, batch_id="code-batch") is None
+    await record_terminal(cache, batch_id="code-batch", task_id="execution",
+                          payload_ref="sealed-completion", status="finished")
+    ready = await claim_ready(cache, batch_id="code-batch")
+    assert ready["slots"] == [{"task_id": "execution", "payload_ref": "sealed-completion", "status": "finished"}]
+    completion = {"status": "finished", "results": [{
+        "execution_id": "execution", "target_filename": filename,
+        "target_embed_id": "source-embed", "status": "finished", "exit_code": 0,
+        "output": output, "output_safety_receipt": {"scan_status": "scanned"}, "artifacts": artifacts,
+    }]}
+
+    async def restore(payload):
+        assert payload["agentic_context_ref"] == "sealed-completion"
+        assert payload["agentic_context_request_id"] == "execution"
+        assert (payload["user_id"], payload["chat_id"], payload["message_id"]) == ("user", "chat", "turn")
+        return {"async_tool_completion": completion}
+
+    monkeypatch.setitem(sys.modules, "backend.shared.python_utils.recent_work_summary_client",
+                        SimpleNamespace(restore_private_context_payload=restore))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.utils.text_sanitization",
+                        SimpleNamespace(sanitize_text_payload_for_ascii_smuggling=lambda value: (value, {})))
+    request = SimpleNamespace(user_id="user", chat_id="chat", message_id="turn", same_turn_slots=ready["slots"])
+    checkpoint = {"jobs": [job], "current_message_history": [
+        {"role": "assistant", "tool_calls": [{"id": "call-code"}]},
+        {"role": "tool", "tool_call_id": "call-code", "name": "code-run", "content": "processing"},
+    ]}
+    history = await restore_ordered_tool_results(request, checkpoint)
+    assert [message["role"] for message in history] == ["assistant", "tool"]
+    assert history[1]["tool_call_id"] == "call-code"
+    assert json.loads(history[1]["content"]) == completion
+    assert (await claim_ready(cache, batch_id="code-batch"))["resume_task_id"] == ready["resume_task_id"]
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.media.visible-assistant-results
 def test_generated_refs_are_preserved_once_even_if_provider_omits_them():
     answer = "I made the image. [First image](embed:generated-images-first)"

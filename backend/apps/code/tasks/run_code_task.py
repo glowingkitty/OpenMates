@@ -634,7 +634,17 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                 output_safety=output_safety,
             )],
             result_status=str(final_status.get("status") or "finished"),
-            request_metadata={"target_filename": payload.get("target_path")},
+            # A fast producer can finish before the assistant registers its
+            # callback. Trusted worker identity lets the generic continuation
+            # seal that result and join it to this exact batch when registered.
+            request_metadata={
+                "target_filename": payload.get("target_path"),
+                "user_id": payload.get("user_id"),
+                "chat_id": payload.get("chat_id"),
+                "message_id": payload.get("message_id"),
+                **({"same_turn_batch_id": payload["same_turn_batch_id"]}
+                   if payload.get("same_turn_batch_id") else {}),
+            },
         ))
 
     def finalize_cancelled() -> None:

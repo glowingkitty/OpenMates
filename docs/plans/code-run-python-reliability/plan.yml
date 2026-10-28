@@ -24,6 +24,19 @@ findings:
       automatic-routing math check; no E2B run was started by those failed calls.
     repair: Keep code.run bundles atomic through the shared executor and test the real BaseApp dispatch
       boundary for Python source plus requirements and Rust source plus module.
+  live_assistant_completion_failure:
+    cause: code.run is an authenticated async producer handled by the same-turn completion barrier,
+      but its producer deadline envelope was absent. The stream failed after successful dispatch.
+    observed_result: The four-library math program completed in E2B with exit 0, NumPy 2.4.6, and a
+      captured 91787-byte chart. The assistant stream failed before returning those results.
+    repair: Register the bounded code.run envelope and verify waiting, terminal result restoration and
+      one-shot resume for Python and Rust without changing model routing or terminal safety checks.
+  early_completion_race:
+    finding: Code Run completion omitted the trusted turn identity and same-turn batch identifier
+      required to seal and replay a result that arrives before callback context registration.
+    evidence: Source review of the actual Code Run producer and shared callback early-result contract.
+    repair: Thread only server-injected batch context through the private worker payload and include
+      trusted callback identity, preserving private sealing and one-shot result delivery.
   historical_run:
     local_time: 2026-10-28 01:00:31 to 01:00:44 Europe/Berlin
     target_filename: math_demo.py
@@ -172,6 +185,33 @@ implementation_sequence:
   owned_paths:
   - backend/apps/ai/processing/skill_executor.py
   - backend/tests/test_code_run_executor_dispatch.py
+- step: 5
+  outcome: Completed sandbox results resume the assistant through the existing same-turn barrier.
+  changes:
+  - Add the missing code.run producer envelope using bounded sandbox phases and existing completion
+    overhead, retaining the shared queue/callback slack.
+  - Verify Python/Rust terminal result and artifact restoration, idempotent resume, mixed-job deadlines,
+    and continued rejection of unknown producers.
+  owned_paths:
+  - backend/apps/ai/tasks/same_turn_skill_barrier.py
+  - backend/tests/test_same_turn_skill_barrier.py
+- step: 6
+  outcome: A fast sandbox completion survives callback registration races.
+  changes:
+  - Pass the optional server-injected same-turn batch identifier through Code Run skill orchestration
+    and the private worker payload without adding public request fields.
+  - Provide trusted user/chat/turn identity on completion, matching the shared early sealed-result
+    contract used by other async producers.
+  - Verify completion-before-registration replay, exact one-shot delivery, and continued manual-run
+    compatibility and terminal safety enforcement.
+  owned_paths:
+  - backend/apps/code/skills/run_code_skill.py
+  - backend/apps/code/tasks/run_code_task.py
+  - backend/core/api/app/routes/code_execution.py
+  - backend/tests/test_code_run_executor_dispatch.py
+  - backend/tests/test_code_run_billing_attribution.py
+  - backend/tests/test_code_run_start_context.py
+  - backend/tests/test_code_run_early_completion.py
 required_acceptance:
 - Inferred Python imports default to unpinned compatible resolution even when registry latest requires
   newer Python.
@@ -205,7 +245,12 @@ verification:
     routing exposed the additional multi-file dispatcher defect. The focused repair passes 28 related
     local dispatch/context checks, including the real skill-dispatch regression. Follow-up isolated CI
     1ed7241c passed the multi-file dispatcher and BaseApp context tests. Final real Python/Rust verification
-    remains in progress after deploying this follow-up repair.
+    remains in progress. Dispatcher repair deployed at 43cf88b; the next live math run completed in E2B
+    with compatible packages and a captured plot, exposing the missing same-turn deadline envelope.
+    Its focused repair passes four local completion-barrier tests. The early-result callback repair
+    passes fourteen focused checks, including sealed replay, trusted batch matching, one-shot delivery,
+    manual compatibility and fail-closed scanning. Combined isolated CI and final real assistant result
+    checks remain in progress.
   real_inference_dev_required:
   - After scoped deploy, use isolated test account/Project/CLI state under shared dev-stack and exclusive
     account leases.

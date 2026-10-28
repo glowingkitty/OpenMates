@@ -240,8 +240,20 @@ def flow(input_path: Path) -> int:
     result = {"label": case["label"], "slug": data["slug"], "status": "failed"}
     try:
         print(f"Request: {case['prompt']}\n", flush=True)
-        sent = command(data["cli"], ["chats", "new", case["prompt"], "--project", data["project_id"],
-                       "--slug", data["slug"], "--personal", "--response-timeout-seconds", "240"], timeout=270)
+        deadline = time.monotonic() + data["timeout_seconds"]
+        try:
+            sent = command(data["cli"], ["chats", "new", case["prompt"], "--project", data["project_id"],
+                           "--slug", data["slug"], "--personal", "--response-timeout-seconds",
+                           str(data["timeout_seconds"])], timeout=data["timeout_seconds"]+30)
+        except (ProofError, subprocess.TimeoutExpired):
+            # Preserve identity for an admitted request even if collecting its
+            # response fails, allowing real CLI capture and scoped cleanup.
+            try:
+                admitted = command(data["cli"], ["chats", "show", data["slug"], "--personal"])
+                result["chat_id"] = admitted["chat"]["id"]
+            except (ProofError, subprocess.TimeoutExpired, KeyError, TypeError):
+                pass
+            raise
         write_receipt(directory / "initial-response.json", sent)
         chat_id = sent.get("chatId") if isinstance(sent, dict) else None
         if not isinstance(chat_id, str) or not chat_id:
@@ -251,7 +263,6 @@ def flow(input_path: Path) -> int:
         if sent.get("status") == "waiting_for_user":
             raise ProofError("assistant_action_approval_required")
         print(f"Saved chat {chat_id}; waiting for authenticated execution status and assistant continuation.", flush=True)
-        deadline = time.monotonic() + data["timeout_seconds"]
         snapshot, reason = {}, "execution_status_missing"
         known_executions: list[str] = []
         while time.monotonic() < deadline:

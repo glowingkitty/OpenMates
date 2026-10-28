@@ -45,9 +45,10 @@ class Cache:
         ]),
     ],
 )
+@pytest.mark.parametrize("server_batch", ["trusted-batch", None])
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded,code-run.execution.e2b-only,code-run.surface-parity
-async def test_executor_preserves_code_run_bundle_and_server_context(monkeypatch, entry, files):
+async def test_executor_preserves_code_run_bundle_and_server_context(monkeypatch, entry, files, server_batch):
     cache, encryption, secrets, directus = Cache(), object(), object(), object()
     created, dispatched, requests = [], [], []
     definition = SimpleNamespace(
@@ -108,6 +109,7 @@ async def test_executor_preserves_code_run_bundle_and_server_context(monkeypatch
         assert kwargs["current_user"].credits == 25
         assert kwargs["cache_service"] is cache
         assert kwargs["assistant_async_task"] is True
+        assert kwargs["same_turn_batch_id"] == server_batch
         assert kwargs["chat_id"] == "chat"
         assert kwargs["message_id"] == "message"
         assert kwargs["target_embed_id"] == f"embed-{entry}"
@@ -126,6 +128,8 @@ async def test_executor_preserves_code_run_bundle_and_server_context(monkeypatch
     monkeypatch.setattr(skill_executor, "sanitize_app_skill_output", sanitize)
     arguments = {
         "entry_path": entry, "files": files, "_user_vault_key_id": "trusted-vault-key",
+        "same_turn_batch_id": "model-forged-batch",
+        **({"_same_turn_batch_id": server_batch} if server_batch else {}),
         "_api_key_hash": "key-hash", "_device_hash": "device-hash",
         "_placeholder_embed_ids": ["placeholder-a", "placeholder-b"],
         "team_id": "forged-team", "_team_id": "forged-team",

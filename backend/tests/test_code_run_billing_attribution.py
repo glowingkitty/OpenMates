@@ -1,9 +1,10 @@
 # backend/tests/test_code_run_billing_attribution.py
 #
 # Focused tests for Code Run worker billing metadata.
-# The worker module normally imports Celery and the E2B provider at module load;
-# these tests stub those integration dependencies because they only verify the
-# internal billing payload assembled by _charge_run_credits().
+# The worker module imports runtime services at module load. Keep service stubs
+# inert, but use the real provider's pure dataclasses/helpers: its E2B SDK import
+# is already deferred until execution. A process-global partial provider module
+# would otherwise replace worker file types in subsequently collected tests.
 
 from __future__ import annotations
 
@@ -48,15 +49,6 @@ class _SecretsManagerStub:
 
 secrets_manager_stub.SecretsManager = _SecretsManagerStub
 sys.modules.setdefault("backend.core.api.app.utils.secrets_manager", secrets_manager_stub)
-
-e2b_runner_stub = types.ModuleType("backend.shared.providers.e2b_code_runner")
-e2b_runner_stub.CodeRunCancelled = type("CodeRunCancelled", (Exception,), {})
-e2b_runner_stub.CodeRunDependencyInstall = object
-e2b_runner_stub.CodeRunFile = object
-e2b_runner_stub.get_e2b_api_key_async = lambda *_args, **_kwargs: None
-e2b_runner_stub.redact_execution_output = lambda value: value
-e2b_runner_stub.run_code_in_e2b = lambda *_args, **_kwargs: None
-sys.modules.setdefault("backend.shared.providers.e2b_code_runner", e2b_runner_stub)
 
 from backend.apps.code.tasks.run_code_task import _charge_run_credits  # noqa: E402
 
@@ -185,7 +177,6 @@ def test_assistant_worker_continuation_delivers_checked_execution_result(
             output_truncated=False, artifacts=[], skipped_artifacts=[],
         )
 
-    monkeypatch.setattr(run_code_task, "CodeRunFile", SimpleNamespace)
     monkeypatch.setattr(run_code_task, "_store_execution", store_execution)
     monkeypatch.setattr(run_code_task, "_append_output", append_output)
     monkeypatch.setattr(run_code_task, "_is_cancel_requested", is_cancel_requested)
@@ -202,11 +193,15 @@ def test_assistant_worker_continuation_delivers_checked_execution_result(
         "user_id": "user-1", "chat_id": "chat-1", "message_id": "message-1",
         "target_embed_id": "embed-code-1", "target_path": path,
         "files": [{"path": path, "content": source, "language": language, "is_target": True}],
-        "assistant_async_task": True,
+        "assistant_async_task": True, "same_turn_batch_id": "trusted-batch",
     })
 
     assert len(continuations) == 1
     assert continuations[0]["async_task_id"] == "execution-1"
+    assert continuations[0]["request_metadata"] == {
+        "target_filename": path, "user_id": "user-1", "chat_id": "chat-1",
+        "message_id": "message-1", "same_turn_batch_id": "trusted-batch",
+    }
     completed = continuations[0]["completed_results"][0]
     assert completed["target_embed_id"] == "embed-code-1"
     assert completed["target_filename"] == path
