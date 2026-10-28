@@ -600,10 +600,12 @@ async def execute_skill_with_multiple_requests(
             # Empty requests array
             return [{"error": "Empty requests array"}]
 
-    # Names, regions and classes are data within one trademark search. Legacy
-    # list expansion would turn them into scalar kwargs and lose regional scope.
+    # A Code Run file/dependency/argv list belongs to one execution bundle.
+    # Legacy expansion would wrap the bundle in requests and move private Vault
+    # context off the top level, so RunCodeSkill cannot validate or execute it.
+    # Names, regions and classes likewise belong to one trademark search.
     if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
-        app_id == "business" and skill_id == "search_trademarks"
+        (app_id, skill_id) in {("business", "search_trademarks"), ("code", "run")}
     ):
         result = await execute_skill(
             app_id, skill_id, arguments, timeout,
