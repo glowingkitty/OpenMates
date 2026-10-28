@@ -76,10 +76,19 @@ authoring must consume those operations through a thin adapter.
 
 ## Verification limits
 
-Focused checks currently pass: 21 Python storage/privacy checks and three atomic
-transaction checks. `specifications-api-flow.spec.ts` exercises real API/CMS
-storage with disposable Projects and AES-GCM fixture ciphertext in isolated CI.
-Its wrapped keys are deliberately opaque fixtures: it does not prove SDK key
-restoration, a working editor or the complete agentic development journey.
-Final CI receipts and deployment identity belong in the Plan handoff and Task
-activity once the run completes.
+The backend source is published to dev in
+`7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5`. All 21 Python storage/privacy checks
+and three atomic transaction checks pass. The isolated API lifecycle
+[run 40670424848](https://github.com/glowingkitty/OpenMates/actions/runs/40670424848)
+also passes with zero skips/retries and verified cleanup, using exact source
+`8214d4aee6876e1df8287e724abd6f2afd1c97d9`. All 19 deployed backend and API test
+files match that source byte for byte. The uploaded recording and object identity
+are retained in the run's evidence receipt.
+
+`specifications-api-flow.spec.ts` exercises real API/CMS storage with disposable
+Projects and AES-GCM fixture ciphertext. Its wrapped keys are deliberately opaque
+fixtures: it does not prove SDK key restoration, a working editor or the complete
+agentic development journey. The shared Rust packages remain absent from the
+published dev tree at the backend commit above; the client source prerequisite
+is still open. This source publication does not claim shared-dev runtime
+activation or completion of TASK-1989.

@@ -32,7 +32,7 @@ first_slice_review:
   artifact: /tmp/openmates/specification-approvals/feature.specifications-94e759734d3d78ae.approval.json
   changes: Two explicit requirements for shared chat/direct authoring and conflict-preserving revision saves, each with two readable examples.
   approval: User explicitly approved the presented exact review on 2026-10-27; receipt recorded in session 9de5 on resumption.
-  evidence: Specification and Plan validation pass; encrypted record/revision schema, atomic save/approval transport and scoped first-party APIs are implemented. Focused storage and authorization unit checks pass; API integration and client coverage remain in progress.
+  evidence: Backend storage is published in 7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5. All 21 focused Python checks, three transaction checks and isolated API lifecycle run 40670424848 pass; that run has zero skips or retries and verified cleanup. Shared Rust operations and SDK/editor coverage remain required.
 
 scope:
   in:
@@ -273,8 +273,12 @@ follow_on_architecture:
 
 handoff:
   first_implementation_task: TASK-1989
-  first_action: Finish isolated API verification of the implemented encrypted storage slice, then extend the authoritative shared Rust Project operations and SDK/CLI conformance before connecting the editor.
+  first_action: Integrate the authoritative shared Rust Project source, then implement Specification operations and synchronized SDK/CLI conformance before connecting the editor. The backend slice already passes isolated API verification.
   storage_client_boundary: docs/plans/cloud-project-development/specification-storage-handoff.md
+  storage_backend_commit: 7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5
+  storage_api_run: https://github.com/glowingkitty/OpenMates/actions/runs/40670424848
+  storage_api_source: 8214d4aee6876e1df8287e724abd6f2afd1c97d9
+  storage_evidence_receipt: test-results/ci-runs/aa9aa298fe1b40251f33ed6c1b63c644ce0a9e1b006a7b85f322214df65dc101/receipt.json
   client_prerequisite: The shared Rust Project modules currently belong to the active native migration and are absent from this session base; obtain its exact supported source integration before client changes. Full native UI parity is not required first.
   blocker_policy: Preserve the patch and pause only dependent work for a material unresolved decision or exact-contract review; do not repeat product clarification already answered here.
   completion_policy: The delivery Task remains open until required acceptance passes; this Plan and Task creation alone do not mean the product lifecycle is implemented.
