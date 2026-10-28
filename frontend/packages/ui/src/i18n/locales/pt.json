@@ -8285,6 +8285,9 @@
       },
       "stopping": {
         "text": "A parar…"
+      },
+      "no_frame": {
+        "text": "Não há nenhuma captura guardada disponível."
       }
     }
   },

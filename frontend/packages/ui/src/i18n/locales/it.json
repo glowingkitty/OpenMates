@@ -8285,6 +8285,9 @@
       },
       "stopping": {
         "text": "Arresto in corso…"
+      },
+      "no_frame": {
+        "text": "Nessuna schermata salvata disponibile."
       }
     }
   },

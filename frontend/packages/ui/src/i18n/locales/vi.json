@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Đang dừng…"
+      },
+      "no_frame": {
+        "text": "Không có ảnh chụp màn hình đã lưu."
       }
     }
   },

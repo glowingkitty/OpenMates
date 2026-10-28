@@ -1,5 +1,5 @@
 /** Real inference/provider acceptance. Deliberately held out of isolated CI. */
-import { test, expect, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, chromium, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
@@ -15,10 +15,18 @@ const LOGIN = 'https://the-internet.herokuapp.com/login';
 const ORIGIN = new URL(LOGIN).origin;
 const execute = promisify(execFile);
 const stateDir = process.env.OPENMATES_STATE_DIR || '';
-const authFile = path.join(stateDir, 'browse-web-auth.json');
+const browserProfile = path.join(stateDir, 'browse-web-profile');
 const project = process.env.WEB_BROWSE_TEST_PROJECT || '';
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 420_000 });
 test.skip(!enabled, 'Requires explicit dev-only real-inference execution and a shared runtime lease.');
+
+async function guardDevApi(ctx: BrowserContext) {
+  await ctx.route('**/v1/**', route => {
+    const host = new URL(route.request().url()).hostname;
+    return host.startsWith('api.') && host.endsWith('.openmates.org') && host !== 'api.dev.openmates.org'
+      ? route.abort('blockedbyclient') : route.continue();
+  });
+}
 
 async function cli(args: string[]) {
   const result = await execute('openmates', args, { timeout: 240_000, maxBuffer: 12 * 1024 * 1024,
@@ -39,10 +47,14 @@ function preview(page: Page) {
 async function screenshot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({ path: info.outputPath(`${name}.png`) });
 }
-async function context(browser: Browser, info: TestInfo, width: number) {
-  return browser.newContext({ baseURL: APP, storageState: authFile,
+async function context(_browser: Browser, info: TestInfo, width: number) {
+  // A real Chrome profile preserves native IndexedDB CryptoKey objects. JSON
+  // storage snapshots cannot round-trip the authenticated encryption boundary.
+  const ctx = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP,
     viewport: { width, height: width < 600 ? 844 : 1000 },
     recordVideo: { dir: info.outputPath('recordings'), size: { width, height: width < 600 ? 844 : 1000 } } });
+  await guardDevApi(ctx);
+  return ctx;
 }
 async function openSession(page: Page, chatId: string) {
   await page.goto(`/#chat-id=${chatId}`);
@@ -85,14 +97,16 @@ function receipt(info: TestInfo, data: Record<string, unknown>) {
   fs.writeFileSync(info.outputPath('browse-runtime.json'), JSON.stringify({ target: APP, automaticRouting: true, ...data }, null, 2), { mode: 0o600 });
 }
 
-test.beforeAll(async ({ browser }) => {
+test.beforeAll(async () => {
   expect(process.env.OPENMATES_CI_ISOLATED).not.toBe('1');
   expect(process.env.PLAYWRIGHT_TEST_BASE_URL).toBe(APP);
   expect(stateDir.startsWith('/tmp/openmates-browse-')).toBe(true);
   expect(project).toMatch(/^[a-f0-9-]{36}$/);
   for (const key of ['OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL', 'OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD', 'OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY']) expect(process.env[key]).toBeTruthy();
   // No recordings or traces of personal-account authentication or its storage.
-  const ctx = await browser.newContext({ baseURL: APP, viewport: { width: 1280, height: 1000 } });
+  fs.mkdirSync(browserProfile, { recursive: true, mode: 0o700 });
+  const ctx = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP, viewport: { width: 1280, height: 1000 } });
+  await guardDevApi(ctx);
   try {
     const page = await ctx.newPage();
     await loginToTestAccount(page, () => {}, async () => {}, { credentials: {
@@ -100,18 +114,44 @@ test.beforeAll(async ({ browser }) => {
       password: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD,
       otpKey: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY,
     } });
-    await ctx.storageState({ path: authFile, indexedDB: true });
-    fs.chmodSync(authFile, 0o600);
   } finally { await ctx.close(); }
+  const restored = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP });
+  await guardDevApi(restored);
+  try {
+    const page = restored.pages()[0] || await restored.newPage(); await page.goto('/');
+    // Verify only the native key type, never key bytes or stored values. Do
+    // this before spending on another real inference request.
+    await expect.poll(() => page.evaluate(async () => {
+      const databases = await indexedDB.databases();
+      if (!databases.some(db => db.name === 'openmates_crypto')) return false;
+      return new Promise<boolean>(resolve => {
+        const opened = indexedDB.open('openmates_crypto');
+        opened.onerror = () => resolve(false);
+        opened.onsuccess = () => {
+          const db = opened.result;
+          if (!db.objectStoreNames.contains('keys')) { db.close(); resolve(false); return; }
+          const read = db.transaction('keys', 'readonly').objectStore('keys').get('master_key');
+          read.onerror = () => { db.close(); resolve(false); };
+          read.onsuccess = () => { const native = read.result instanceof CryptoKey; db.close(); resolve(native); };
+        };
+      });
+    }), { timeout: 20_000, message: 'The private browser profile must preserve its native master CryptoKey' }).toBe(true);
+    const probeChat = process.env.WEB_BROWSE_PROFILE_PROBE_CHAT;
+    if (probeChat) {
+      expect(probeChat).toMatch(/^[a-f0-9-]{36}$/);
+      await page.goto(`/#chat-id=${probeChat}`);
+      await expect(page.getByText('Use the Browse skill to open', { exact: false }).first()).toBeVisible({ timeout: 60_000 });
+    }
+  } finally { await restored.close(); }
 });
-test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-')) fs.rmSync(authFile, { force: true }); });
+test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-')) fs.rmSync(browserProfile, { recursive: true, force: true }); });
 
 // contract-test: direct surface=gui.web assertions=web-browse.structured-data,web-browse.embed-and-observation,web-browse.lifecycle,web-browse.private-storage-and-api
 test('real Browse JSON, watch, pause/resume and closed saved history on laptop and phone', async ({ browser }, info) => {
   const created = await createChat('Use the Browse skill to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
-  const ctx = await context(browser, info, 1280), page = await ctx.newPage();
+  const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
   try {
     const opened = await openSession(page, created.chatId); sid = opened.session.session_id;
     receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
@@ -161,7 +201,7 @@ for (const width of [1280, 390]) {
   test(`real Browse manual demo sign-in and same-session AI continuation at ${width}px`, async ({ browser }, info) => {
     const created = await createChat(`Use Browse to open ${LOGIN}. Stop and let me take control to sign in manually. After I let AI continue, read the heading of the signed-in page and return it with its source URL as JSON. Never enter credentials yourself.`);
     receipt(info, { ...created, phase: 'chat-created' });
-    const ctx = await context(browser, info, width), page = await ctx.newPage();
+    const ctx = await context(browser, info, width), page = ctx.pages()[0] || await ctx.newPage();
     let sid: string | undefined;
     try {
       const opened = await openSession(page, created.chatId); sid = opened.session.session_id;

@@ -8285,6 +8285,9 @@
       },
       "stopping": {
         "text": "Arrêt en cours…"
+      },
+      "no_frame": {
+        "text": "Aucune capture enregistrée n’est disponible."
       }
     }
   },

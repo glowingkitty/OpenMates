@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Durduruluyor…"
+      },
+      "no_frame": {
+        "text": "Kayıtlı ekran görüntüsü yok."
       }
     }
   },

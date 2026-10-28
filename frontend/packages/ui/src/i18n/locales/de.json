@@ -9813,6 +9813,9 @@
       },
       "stopping": {
         "text": "Wird angehalten…"
+      },
+      "no_frame": {
+        "text": "Kein gespeicherter Screenshot verfügbar."
       }
     }
   },

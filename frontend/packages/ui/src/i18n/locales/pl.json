@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Zatrzymywanie…"
+      },
+      "no_frame": {
+        "text": "Brak zapisanego zrzutu ekranu."
       }
     }
   },

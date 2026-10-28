@@ -97,3 +97,22 @@ Reviewed 2026-10-26. Use documented supplier APIs and their account terms; websi
 General public reading honors crawler exclusions and stops at access denial, paywall or CAPTCHA barriers. Manual login remains limited to permitted site access. Provider-specific collection requires the separately documented permission described in `docs/contributing/guides/add-api.md`; Browse is not a substitute for an unavailable licensed connector.
 
 The user warning is contextual, once per site/session: this is a cloud browser; resumed AI can access account information and send relevant page content to providers. It offers Continue to sign in and Cancel. Login consent does not authorize consequential submissions.
+
+The web embed is implemented by `BrowseEmbedPreview`, `BrowseEmbedFullscreen`
+and `BrowseSessionViewer`. Authenticated frame requests use first-party cookies
+and no-store transport; live object URLs are released on view/account changes.
+Public and read-only embeds use only their saved masked screenshot. A terminal
+result without one has an explicit missing-screenshot state. Watching does not
+resume compute or extend inactivity. Manual input stays in memory and is cleared
+before sending; an uncertain input is not automatically retried. Stop is shown
+as cancelled only after the owned session acknowledges its paused state.
+AI continuation uses the existing normal-chat handoff with the exact session,
+originating chat and original spending cap. The saved `data_json` field preserves
+arbitrary JSON independently of the shared TOON table's flattened keys.
+
+Text helpers accept a complete JSON document, optionally enclosed by one complete
+JSON code fence. Commentary and extra fences remain invalid. Protocol failures
+retain only allowlisted reason codes, shape/length and helper purpose; no raw
+provider response or page text enters these diagnostics. This normalization does
+not change factual confidence, answer coverage, literal-quotation matching or
+the separate semantic review.

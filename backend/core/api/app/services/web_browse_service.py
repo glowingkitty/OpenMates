@@ -1019,6 +1019,8 @@ class BrowseService:
             )
         except (BrowserModelError, BrowserUnavailable) as exc:
             failure = {"error_kind": type(exc).__name__, "error_phase": phase}
+            if isinstance(exc, BrowserModelError):
+                failure.update(exc.safe_details)
             if isinstance(getattr(exc, "status_code", None), int):
                 failure["rpc_status_code"] = exc.status_code
             status, reason = (

@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Stoppar…"
+      },
+      "no_frame": {
+        "text": "Ingen sparad skärmbild finns."
       }
     }
   },

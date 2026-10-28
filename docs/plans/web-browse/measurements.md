@@ -414,6 +414,39 @@ candidate has not yet established first-visible-frame latency or end-to-end UI
 performance. Do not substitute the earlier provider provisioning measurements for
 those user-visible measurements.
 
+## First real web run on 27 October
+
+Dev commit `970c0d6` is deployed and its backend workers are healthy. The
+preview/fullscreen/control components passed isolated laptop/mobile verification
+(run `40484678836`); the new dispatch case passed run `40479876763`.
+
+The first real CLI-created HTTPBin heading task, chat `8693ccf6`, failed Browse
+answer verification and the main assistant used Read instead. This is a failed
+Browse fulfillment, regardless of the successful outer chat response. Its first
+run measured 2.859 s provisioning, 15.868 s skill time and 78.587 s outer CLI time.
+The browser was closed through its owner API and settled at 13 credits with no
+pending accounting. Complete native usage was reported. The old failure receipt
+retained only `BrowserModelError` at verification, so its exact text-helper
+failure is unresolved. A prepared revision normalizes a single complete JSON
+code fence and records allowlisted error codes, response shape/length and helper
+purpose without page text, response text or credentials; acceptance thresholds
+are unchanged.
+
+The separate GUI check opened an authenticated shell with blank encrypted
+messages before reaching Browse. The harness had round-tripped IndexedDB through
+JSON; loss of the native master CryptoKey is the leading harness hypothesis,
+not a confirmed causal diagnosis. The correction uses a
+private persistent browser profile, checks the native key type and a known real
+chat before spending on inference, and keeps authentication unrecorded. The
+manual sign-in cases did not run. No real takeover/continuation success is
+claimed yet.
+
+Deployed visual review also found that a read-only terminal result with no
+screenshot incorrectly said it was waiting. The prepared UI correction gives an
+explicit missing-screenshot state; the existing successful extraction data is
+unaffected. This correction still needs its isolated check, deployment and visual
+review.
+
 ## Remaining acceptance
 
 Complete isolated component proof, authenticated web flows, dev deployment and

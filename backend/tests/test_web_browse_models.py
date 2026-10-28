@@ -16,7 +16,49 @@ from backend.shared.providers.browser_models import (
     BrowserModels,
     BrowserModelError,
     matched_quotations,
+    parse_browser_json,
 )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.parametrize(
+    "content",
+    [
+        '{"grounded":false,"answer_complete":true}',
+        '```json\n{"grounded":false,"answer_complete":true}\n```',
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+def test_text_helper_accepts_only_a_complete_json_document_or_single_fence(content):
+    assert parse_browser_json(content) == {"grounded": False, "answer_complete": True}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.private-storage-and-api
+@pytest.mark.parametrize(
+    "content",
+    [
+        None,
+        "",
+        'Private value before {"grounded":true}',
+        "```json\n{}\n``` trailing private value",
+        "```json\n{}\n```\n```json\n{}\n```",
+        '{"value":NaN}',
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.private-storage-and-api
+def test_invalid_helper_response_has_content_free_diagnostics(content):
+    with pytest.raises(BrowserModelError) as caught:
+        parse_browser_json(content, purpose="verify_quotes")
+    details = caught.value.safe_details
+    assert details["model_error_code"] == "invalid_json"
+    assert details["text_helper_purpose"] == "verify_quotes"
+    assert "Private value" not in str(details)
+    assert set(details) == {
+        "model_error_code",
+        "text_helper_purpose",
+        "text_response_chars",
+        "text_response_kind",
+    }
 
 
 @pytest.fixture

@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Bezig met stoppen…"
+      },
+      "no_frame": {
+        "text": "Er is geen opgeslagen schermafbeelding beschikbaar."
       }
     }
   },

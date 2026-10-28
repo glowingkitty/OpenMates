@@ -9858,6 +9858,9 @@
       },
       "stopping": {
         "text": "Stopping…"
+      },
+      "no_frame": {
+        "text": "No saved screenshot is available."
       }
     }
   },

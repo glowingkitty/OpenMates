@@ -73,6 +73,7 @@ test('Browse preview reports the task outcome and keeps saved structured results
   await expect(card).toHaveAttribute('data-status', 'cancelled');
   await page.unroute('**/v1/apps/web/browse/*/control');
   await preview(page, 'BrowseEmbedFullscreen', 1280);
+  await expect(page.getByTestId('browse-fullscreen')).toContainText('No saved screenshot is available.');
   await page.getByText('Structured data', { exact: true }).click();
   const output = page.getByTestId('browse-json');
   await expect(output).toContainText('"items": []');
@@ -143,6 +144,8 @@ for (const width of [1280, 390]) {
     await expect(input).toHaveValue('');
     await preview(page, 'BrowseSessionViewer', width, 'expired');
     await expect(viewer).toContainText('Session expired');
+    await expect(viewer).toContainText('No saved screenshot is available.');
+    await expect(viewer).not.toContainText('Waiting for the browser');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });

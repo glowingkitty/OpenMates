@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Zastavování…"
+      },
+      "no_frame": {
+        "text": "Uložený snímek není k dispozici."
       }
     }
   },

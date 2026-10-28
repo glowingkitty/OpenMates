@@ -143,7 +143,7 @@
         aria-label={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')}>
         <img src={frame || savedFrame} alt={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')} draggable="false" data-testid="browse-frame" />
       </button>
-    {:else}<p>{$text('embeds.browse.waiting_frame')}</p>{/if}
+    {:else}<p>{$text(terminal || ending ? 'embeds.browse.no_frame' : 'embeds.browse.waiting_frame')}</p>{/if}
   </div>
   {#if session?.status === 'user' && !ending}
     <p class="hint">{$text('embeds.browse.manual_hint')}</p>

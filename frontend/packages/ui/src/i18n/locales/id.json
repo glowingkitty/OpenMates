@@ -8258,6 +8258,9 @@
       },
       "stopping": {
         "text": "Menghentikan…"
+      },
+      "no_frame": {
+        "text": "Tidak ada tangkapan layar tersimpan."
       }
     }
   },

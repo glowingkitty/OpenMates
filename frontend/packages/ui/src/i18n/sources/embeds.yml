@@ -13593,3 +13593,28 @@ browse.stopping:
   sv: Stoppar…
   he: בתהליך עצירה…
   verified_by_human: []
+
+browse.no_frame:
+  context: Terminal or read-only Browse result without a saved screenshot
+  en: No saved screenshot is available.
+  de: Kein gespeicherter Screenshot verfügbar.
+  zh: 没有可用的已保存截图。
+  es: No hay ninguna captura guardada disponible.
+  fr: Aucune capture enregistrée n’est disponible.
+  pt: Não há nenhuma captura guardada disponível.
+  ru: Сохранённый снимок недоступен.
+  ja: 保存された画像はありません。
+  ko: 저장된 화면이 없습니다.
+  it: Nessuna schermata salvata disponibile.
+  tr: Kayıtlı ekran görüntüsü yok.
+  vi: Không có ảnh chụp màn hình đã lưu.
+  id: Tidak ada tangkapan layar tersimpan.
+  pl: Brak zapisanego zrzutu ekranu.
+  nl: Er is geen opgeslagen schermafbeelding beschikbaar.
+  ar: لا توجد لقطة شاشة محفوظة.
+  hi: कोई सहेजा गया स्क्रीनशॉट उपलब्ध नहीं है।
+  th: ไม่มีภาพหน้าจอที่บันทึกไว้
+  cs: Uložený snímek není k dispozici.
+  sv: Ingen sparad skärmbild finns.
+  he: אין צילום מסך שמור.
+  verified_by_human: []
