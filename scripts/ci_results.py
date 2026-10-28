@@ -736,7 +736,7 @@ def fetch(github, job: dict, root: Path) -> dict:
     diagnostic_reserve = 132 * 1024**2 if job.get("mode") == "rust-native-dev" else 512 * 1024 if (job.get("mode") == "rust-wasm" or
         _browser_package_job(job)) else 0
     with reserve(root, MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve, min_free=RESERVE,
-                 max_used_percent=100):
+                 max_used_percent=100, operation=f"ci-result:{job['id']}"):
         return _fetch_reserved(github, job, root)
 
 

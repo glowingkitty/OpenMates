@@ -18,6 +18,23 @@ import pytest
 from scripts import ci_results
 
 
+def test_result_downloads_have_distinct_durable_capacity_operations(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    from scripts import resource_budget
+    operations = []
+
+    @contextmanager
+    def reserve(_root, _amount, **policy):
+        operations.append(policy["operation"])
+        yield
+
+    monkeypatch.setattr(resource_budget, "reserve", reserve)
+    monkeypatch.setattr(ci_results, "_fetch_reserved", lambda _github, job, _root: job["id"])
+    assert ci_results.fetch(None, {"id": "first", "mode": "e2e"}, tmp_path) == "first"
+    assert ci_results.fetch(None, {"id": "second", "mode": "e2e"}, tmp_path) == "second"
+    assert operations == ["ci-result:first", "ci-result:second"]
+
+
 @pytest.mark.parametrize("fault", ["", "source", "frontend", "egress", "extra_actor", "missing_mount", "stopped"])
 def test_api_only_accountability_result_requires_exact_backend_runtime(fault):
     import json

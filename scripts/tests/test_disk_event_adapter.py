@@ -90,6 +90,36 @@ def test_snapshot_deduplicates_grant_and_acknowledges_without_claiming():
 
 
 # contract-test: tooling
+def test_rollout_cutoff_retains_old_context_and_allows_new_same_owner_event():
+    state, ledger, tasks = setup()
+    adapter.queue(state, OWNER, "ci_result", "historical", {})
+    old = next(iter(state["deliveries"].values()))
+    old["created_at"] = 10
+    observe(state, ledger, tasks)
+    ready = next(item for item in state["deliveries"].values() if item["kind"] == "disk_ready")
+    ready["created_at"] = 30
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger,
+                    execution_not_before=20)
+    assert len(rpc.starts) == 1
+    assert old["state"] == "pending"
+    assert ready["state"] == "accepted"
+
+
+# contract-test: tooling
+def test_rollout_cutoff_keeps_uncertain_start_reconciliation():
+    state, ledger, tasks = setup()
+    adapter.queue(state, OWNER, "ci_result", "historical", {})
+    old = next(iter(state["deliveries"].values()))
+    old.update(created_at=10, state="uncertain")
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger,
+                    execution_not_before=20)
+    assert not rpc.starts
+    assert old["state"] == "needs_review"
+
+
+# contract-test: tooling
 @pytest.mark.parametrize("flag", ["paused", "deleted", "archived"])
 def test_human_control_is_preserved_and_grant_deferred(flag):
     state, ledger, tasks = setup()

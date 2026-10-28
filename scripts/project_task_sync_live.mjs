@@ -122,10 +122,14 @@ finally:
     rpc.close()
 `;
 try {
+  const defaultFocus = { focus_id: randomUUID(), name: 'Disposable Task sync verification',
+    instructions: 'Work only on this disposable Task synchronization verification Project.', source: 'generated' };
   await client.createProject({ project_id: projectId, encrypted_project_key: await encryptBytesWithAesGcm(key, master),
     encrypted_name: await encryptWithAesGcmCombined('Task sync CI fixture', key), encrypted_description: await encryptWithAesGcmCombined('', key),
     encrypted_icon: await encryptWithAesGcmCombined('folder', key), encrypted_color: await encryptWithAesGcmCombined('default', key),
-    pinned: false, created_at: now, updated_at: now, last_opened_at: now, key_wrappers: [] });
+    pinned: false, created_at: now, updated_at: now, last_opened_at: now, key_wrappers: [],
+    write_mode: 'always_ask', default_focus_id: defaultFocus.focus_id,
+    encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({default_focus: defaultFocus}), key) });
   stage = 'create_source';
   await client.createProjectSource(projectId, {source_id: sourceId, source_type: 'local_folder',
     encrypted_display_name: await encryptWithAesGcmCombined('Task sync CI source', key), encrypted_metadata: await encryptWithAesGcmCombined('{}', key),

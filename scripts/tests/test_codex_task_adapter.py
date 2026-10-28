@@ -498,6 +498,6 @@ def test_disabled_presence_skips_inventory_and_status_updates_but_delivers(monke
     monkeypatch.setattr(adapter.presence, "observe_notification", lambda *_: pytest.fail(
         "disabled presence must not update peer status"))
     delivered = []
-    monkeypatch.setattr(adapter, "deliver", lambda *_: delivered.append(True))
+    monkeypatch.setattr(adapter, "deliver", lambda *_, **_kwargs: delivered.append(True))
     adapter.run(root, {})
     assert delivered == [True]

@@ -91,6 +91,13 @@ no new chat gets execution permissions. Only locally registered auto-wake owners
 continue automatically. Disconnection retains tickets/events; cleanup service
 lifetime is independent of the foreground connection.
 
+For a long-disconnected adapter, set the repository's optional
+`execution_not_before` Unix timestamp to the reviewed rollout boundary before
+reloading it. Older pending notifications remain durable and visible at normal
+context boundaries, but cannot automatically start historical work. Uncertain
+starts still reconcile their original delivery identities. Fresh events retain
+normal authorized continuation. Preserve existing registration and pause controls.
+
 Linux uses a supervised user systemd service. Enable user lingering separately
 only under existing host administrative policy if boot without login is required.
 On macOS use the platform's existing supervisor for `serve`; no unverified launchd

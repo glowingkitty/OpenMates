@@ -588,7 +588,8 @@ def reconcile_uncertain(rpc, item):
         )
 
 
-def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, revalidate=None):
+def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, revalidate=None,
+            execution_not_before=0):
     attempted = set()
     for item in state["deliveries"].values():
         owner = item["owner"]
@@ -599,6 +600,11 @@ def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, reval
         if item["state"] not in {"pending", "uncertain"} or time.time() < item.get(
             "retry_at", 0
         ):
+            continue
+        # An explicit rollout boundary retains historical notifications for
+        # context without launching old work when a long-disconnected adapter
+        # reconnects. Uncertain starts still require their original reconciliation.
+        if item["state"] == "pending" and item["created_at"] < execution_not_before:
             continue
         attempted.add(owner)
         if item["state"] == "uncertain":
@@ -895,7 +901,8 @@ def run(root, config):
                 save()
                 deliver(
                     state, rpc, allowed, config.get("auto_wake") is True, save, tasks,
-                    coordinator, lambda: refresh_disk_authorization(root, state)
+                    coordinator, lambda: refresh_disk_authorization(root, state),
+                    execution_not_before=float(config.get("execution_not_before", 0)),
                 )
                 state["connection"] = {"state": "connected"}
                 failures = 0
