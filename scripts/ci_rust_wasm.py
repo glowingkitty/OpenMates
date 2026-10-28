@@ -57,13 +57,97 @@ SNIPPET_BYTES = (b"\nexport function settlePrimitive(operation, settle) {\n"
                  b"  return operation.then(value => { settle(value, true); }, () => { settle(undefined, false); });\n}\n")
 
 
+# Exact current recovery module only. Physical output does not grant arbitrary
+# SDK imports: the finite namespace graph below must independently match.
+SDK_SNIPPET_PATH = r"snippets/openmates-sdk-[0-9a-f]{16}/inline0\.js"
+SDK_SNIPPET_SOURCE = "packages/openmates-rust/src/platform/browser_recovery_port.rs"
+SDK_SNIPPET_SOURCE_SHA256 = "fa3c9c6125b6a57ee1d2e98a800b034dbc8dc740da897e769c9780e775305fe3"
+SDK_SNIPPET_BODY_SHA256 = "f896283208ee2696872509a87d5256ec362ca8479ab24f410c6428322d5b3cbb"
+SDK_SNIPPET_BODY_BYTES = 3365
+SDK_PACKAGE_SOURCE = "packages/openmates-rust/Cargo.toml"
+SDK_PACKAGE_SOURCE_SHA256 = "adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af"
+
+
+SDK_FUNCTIONS = frozenset({"recoveryCapture", "recoveryListen", "recoveryUnlisten", "recoveryClose", "recoveryDefer", "recoveryRequest", "recoveryCancel", "recoveryStop", "recoveryRead"})
+
+
+def recovery_sdk_output(files, inputs, diagnostic=None):
+    """Validate exact module, finite producer header and every namespace use.
+
+    This returns a guard view only: files emitted/exported retain original bytes.
+    Numeric namespace order is a finite supported producer permutation, not a
+    claim that a generated root was observed. Other producer forms stay refused.
+    """
+    if not isinstance(files, dict) or not isinstance(inputs, dict):
+        return None
+    names = [name for name in files if type(name) is str and re.fullmatch(SDK_SNIPPET_PATH, name)]
+    source = inputs.get(SDK_SNIPPET_SOURCE)
+    if source is None and not names:
+        return files
+    source_match = (source == SDK_SNIPPET_SOURCE_SHA256 and len(names) == 1
+                    and inputs.get(SDK_PACKAGE_SOURCE) == SDK_PACKAGE_SOURCE_SHA256)
+    _package_note(diagnostic, "package-source", packageSdkSourceMatch=source_match)
+    if not source_match:
+        return None
+    name = names[0]
+    body = files[name]
+    body_match = (type(body) is bytes and len(body) == SDK_SNIPPET_BODY_BYTES
+                  and sdk.sha(body) == SDK_SNIPPET_BODY_SHA256)
+    _package_note(diagnostic, "package-body", packageSdkBodyMatch=body_match)
+    if not body_match:
+        return None
+    javascript = files.get(PACKAGE_FILES[0])
+    if type(javascript) is not bytes:
+        return None
+    headers = [(index, ('import * as import' + str(index) + ' from "./' + name + '"\n').encode()) for index in (1, 2)]
+    matched = [(index, header) for index, header in headers if javascript.count(header) == 1]
+    singleton = len(matched) == 1
+    _package_note(diagnostic, "package-import-header", packageSdkImportSingleton=singleton)
+    if not singleton:
+        return None
+    index, header = matched[0]
+    javascript = javascript.replace(header, b"", 1)
+    try:
+        text = javascript.decode("utf-8", errors="strict")
+    except UnicodeError:
+        return None
+    namespace = "import" + str(index)
+    token = r"(?<![A-Za-z0-9_$])" + namespace + r"(?![A-Za-z0-9_$])"
+    # Namespace tokens may only be fixed SDK function access or the exact
+    # matching module-map value. No computed access, alias or different map key.
+    approved = []
+    for match in re.finditer(token + r"\.(?:" + "|".join(sorted(SDK_FUNCTIONS)) + r")(?![A-Za-z0-9_$])", text):
+        approved.append((match.start(), match.start() + len(namespace)))
+    mapping = re.compile(r"[\"']" + re.escape("./" + name) + r"[\"']\s*:\s*(" + token + r")")
+    for match in mapping.finditer(text):
+        approved.append(match.span(1))
+    actual = [match.span() for match in re.finditer(token, text)]
+    uses_closed = bool(actual) and sorted(actual) == sorted(approved)
+    _package_note(diagnostic, "package-dependencies", packageSdkNamespaceUsesClosed=uses_closed)
+    if not uses_closed:
+        return None
+    crypto = [key for key in files if re.fullmatch(SNIPPET_PATH, key)]
+    if index == 1 and len(crypto) == 1:
+        # Additional namespace2 form is admitted only with the independently
+        # verified namespace1 SDK. Feed the original crypto guard its exact old
+        # header spelling; original executable files are never modified.
+        alternate = ('import * as import2 from "./' + crypto[0] + '"\n').encode()
+        if javascript.count(alternate) == 1:
+            javascript = javascript.replace(alternate, package_import_headers(crypto[0])[1], 1)
+    result = {key: data for key, data in files.items() if key != name}
+    result[PACKAGE_FILES[0]] = javascript
+    return result
+
+
 def package_names(names):
-    """Closed legacy files plus at most one reviewed production inline module."""
+    """Closed base plus at most one exact crypto and one exact SDK module."""
     if not isinstance(names, (set, dict)) or any(type(name) is not str for name in names):
         return False
     extras = set(names) - set(PACKAGE_FILES)
-    return (set(PACKAGE_FILES[:3]) <= set(names) and len(extras) <= 1
-            and all(re.fullmatch(SNIPPET_PATH, name) for name in extras))
+    crypto = {name for name in extras if re.fullmatch(SNIPPET_PATH, name)}
+    dormant = {name for name in extras if re.fullmatch(SDK_SNIPPET_PATH, name)}
+    return (set(PACKAGE_FILES[:3]) <= set(names) and len(crypto) <= 1
+            and len(dormant) <= 1 and extras == crypto | dormant)
 
 
 # Explicit ECMAScript WhiteSpace and LineTerminator sets (including BOM).
@@ -144,6 +228,10 @@ def package_modules(files, inputs, diagnostic=None):
     names_match = package_names(files)
     _package_note(diagnostic, "package-names", packageNamesMatch=names_match)
     if not names_match or not isinstance(inputs, dict):
+        return False
+    # Only the exact reviewed recovery SDK graph can reach the original crypto guard.
+    files = recovery_sdk_output(files, inputs, diagnostic)
+    if files is None:
         return False
     snippets = set(files) - set(PACKAGE_FILES)
     source = inputs.get(SNIPPET_SOURCE)
@@ -531,7 +619,7 @@ def package_inventory(folder, inputs=None, diagnostic=None):
     directories, names = [], set()
 
     def scan(directory, allowed, limit):
-        _package_note(diagnostic, "package-directory-stat", packageDirectoryIndex=min(len(directories), 2))
+        _package_note(diagnostic, "package-directory-stat", packageDirectoryIndex=min(len(directories), 3))
         before = directory.lstat()
         canonical = directory.resolve() == directory
         _package_note(diagnostic, "package-directory-policy", packageDirectoryCanonical=canonical,
@@ -554,13 +642,15 @@ def package_inventory(folder, inputs=None, diagnostic=None):
 
     for path in scan(folder, lambda name: name in {*PACKAGE_FILES, "snippets"}, 5):
         if path.name == "snippets":
-            crates = scan(path, lambda name: re.fullmatch(r"openmates-browser-bindings-[0-9a-f]{16}", name), 1)
+            crates = scan(path, lambda name: bool(re.fullmatch(r"openmates-browser-bindings-[0-9a-f]{16}", name)
+                                                 or re.fullmatch(r"openmates-sdk-[0-9a-f]{16}", name)), 2)
             _package_note(diagnostic, "package-crate-count")
-            sdk.require(len(crates) == 1, "outputs")
-            children = scan(crates[0], lambda name: name == "inline0.js", 1)
-            _package_note(diagnostic, "package-inline-count")
-            sdk.require(len(children) == 1, "outputs")
-            names.add(children[0].relative_to(folder).as_posix())
+            sdk.require(1 <= len(crates) <= 2, "outputs")
+            for crate in crates:
+                children = scan(crate, lambda name: name == "inline0.js", 1)
+                _package_note(diagnostic, "package-inline-count")
+                sdk.require(len(children) == 1, "outputs")
+                names.add(children[0].relative_to(folder).as_posix())
         else:
             names.add(path.name)
     matches = package_names(names)
@@ -569,12 +659,12 @@ def package_inventory(folder, inputs=None, diagnostic=None):
     rows, total, files = [], 0, {}
     for index, name in enumerate(sorted(names)):
         path = folder / name
-        _package_note(diagnostic, "package-file-stat", packageFileIndex=min(index, 4))
+        _package_note(diagnostic, "package-file-stat", packageFileIndex=min(index, 5))
         info = path.lstat()
         _package_note(diagnostic, "package-file-read", packageFileRegular=stat.S_ISREG(info.st_mode),
                       packageFileOwner=info.st_uid == os.getuid(), packageFileModeSafe=not bool(info.st_mode & 0o022),
                       packageFileSingleLink=info.st_nlink == 1, packageFileBytes=min(max(info.st_size, 0), 64 * 1024**2 + 1),
-                      packageFileIsSnippet=bool(re.fullmatch(SNIPPET_PATH, name)))
+                      packageFileIsSnippet=bool(re.fullmatch(SNIPPET_PATH, name) or re.fullmatch(SDK_SNIPPET_PATH, name)))
         raw = sdk.regular(path)
         info = path.lstat()
         _package_note(diagnostic, "package-file-policy")
@@ -629,8 +719,9 @@ DETACH_COUNTS = {"detachOriginalLinks": 65536, "detachDirectoryIndex": 5,
 PACKAGE_BOOLEANS = ("packageDirectoryCanonical", "packageDirectoryRegular", "packageDirectoryOwner", "packageDirectoryModeSafe",
                     "packageEntryNameMatches", "packageFileRegular", "packageFileOwner", "packageFileModeSafe",
                     "packageFileSingleLink", "packageFileIsSnippet", "packageNamesMatch", "packageSourceMatch",
-                    "packageSnippetBodyMatch", "packageImportSingleton", "packageDependenciesClosed")
-PACKAGE_COUNTS = {"packageDirectoryIndex": 2, "packageEntriesSeen": 6, "packageFileIndex": 4,
+                    "packageSnippetBodyMatch", "packageImportSingleton", "packageDependenciesClosed", "packageSdkSourceMatch",
+                    "packageSdkBodyMatch", "packageSdkImportSingleton", "packageSdkNamespaceUsesClosed")
+PACKAGE_COUNTS = {"packageDirectoryIndex": 3, "packageEntriesSeen": 6, "packageFileIndex": 5,
                   "packageFileBytes": 64 * 1024**2 + 1, "packageSnippetCount": 2,
                   "packageNamedImportCount": 2, "packageDirectImportCount": 2}
 

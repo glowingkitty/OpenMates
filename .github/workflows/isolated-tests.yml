@@ -680,6 +680,7 @@ jobs:
             subject/test-results/rust-wasm/package/openmates_browser.d.ts
             subject/test-results/rust-wasm/package/openmates_browser_bg.wasm.d.ts
             subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js
+            subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js
             subject/test-results/sdk-lockfiles/packages/openmates-rust/Cargo.lock
             subject/test-results/sdk-lockfiles/packages/openmates-session-bindings/Cargo.lock
             subject/test-results/sdk-lockfiles/frontend/packages/openmates-tui-native/Cargo.lock

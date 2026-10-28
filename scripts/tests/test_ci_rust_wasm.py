@@ -2475,3 +2475,239 @@ class DirectSnippetHeaderTests(unittest.TestCase):
                 state[name] = value
                 with self.assertRaises(lane.sdk.Refused):
                     lane.closed_provenance_diagnostic(state, RuntimeError())
+
+
+class RecoverySdkSnippetTests(unittest.TestCase):
+    """Exact reviewed SDK graph only; no generic module permission."""
+
+    name = "snippets/openmates-sdk-fedcba9876543210/inline0.js"
+    body = b"\nconst et=Object.getOwnPropertyDescriptor(Event.prototype,'target').get;\nconst ey=Object.getOwnPropertyDescriptor(Event.prototype,'type').get;\nconst md=Object.getOwnPropertyDescriptor(MessageEvent.prototype,'data').get;\nconst mp=Object.getOwnPropertyDescriptor(MessageEvent.prototype,'ports').get;\nconst post=MessagePort.prototype.postMessage, start=MessagePort.prototype.start, close=MessagePort.prototype.close;\nconst add=EventTarget.prototype.addEventListener, remove=EventTarget.prototype.removeEventListener;\nconst defer=globalThis.queueMicrotask.bind(globalThis);\nconst own=(v,ks)=>v!==null&&typeof v==='object'&&Object.getPrototypeOf(v)===Object.prototype&&Reflect.ownKeys(v).length===ks.length&&ks.every(k=>Object.hasOwn(v,k))&&Object.values(Object.getOwnPropertyDescriptors(v)).every(p=>'value'in p);\nexport function recoveryCapture(e){\n if(!(globalThis instanceof DedicatedWorkerGlobalScope)||ey.call(e)!=='message'||et.call(e)!==globalThis||e.isTrusted!==true)throw Error('unavailable');\n const d=md.call(e),ps=mp.call(e);\n if(!own(d,['version','operation','artifact','apiUrl','appOrigin','sessionId','expectedPrincipal'])||d.version!==1||d.operation!=='bootstrap_existing_key'||typeof d.artifact!=='string'||!/^[a-f0-9]{64}$/.test(d.artifact)||d.appOrigin!==globalThis.location.origin||![d.apiUrl,d.sessionId,d.expectedPrincipal].every(v=>typeof v==='string')||ps.length>1)throw Error('unavailable');\n return [ps.length===1?ps[0]:null,d.apiUrl,d.sessionId,d.expectedPrincipal];\n}\nexport function recoveryListen(p,f){add.call(p,'message',f);add.call(p,'messageerror',f);start.call(p);}\nexport function recoveryUnlisten(p,f){remove.call(p,'message',f);remove.call(p,'messageerror',f);}\nexport function recoveryClose(p){close.call(p);}\nexport function recoveryDefer(f){defer(f);}\nexport function recoveryRequest(p,c,s,o,e){post.call(p,{version:1,contextId:c,sequence:s,operationId:o,effect:JSON.parse(e)});}\nexport function recoveryCancel(p,c,s,o){post.call(p,{version:1,contextId:c,sequence:s,operationId:o,cancel:true});}\nexport function recoveryStop(p,c){post.call(p,{version:1,contextId:c,close:true});}\nexport function recoveryRead(p,e){\n const type=ey.call(e);if(et.call(e)!==p||e.isTrusted!==true)return ['untrusted'];\n if(type==='messageerror')return ['lost'];if(type!=='message')return ['untrusted'];\n const d=md.call(e);if(!d||typeof d!=='object'||d.version!==1)return ['invalid'];\n if(own(d,['version','admitted'])&&own(d.admitted,['contextId'])&&typeof d.admitted.contextId==='string')return ['admitted',d.admitted.contextId];\n if(own(d,['version','contextId','revoked'])&&d.revoked===true&&typeof d.contextId==='string')return ['revoked',d.contextId];\n if(own(d,['version','contextId','closed'])&&d.closed===true&&typeof d.contextId==='string')return ['closed',d.contextId];\n if(!own(d,['version','contextId','sequence','operationId','result'])||typeof d.contextId!=='string'||!Number.isSafeInteger(d.sequence)||d.sequence<1||typeof d.operationId!=='string')return ['invalid'];\n const r=d.result;\n if(own(r,['ok','record'])&&r.ok===true&&(r.record===null||typeof r.record==='string'))return ['reply',d.contextId,d.sequence,d.operationId,true,r.record];\n if(own(r,['ok','error'])&&r.ok===false&&['unavailable','cancelled','conflict'].includes(r.error))return ['reply',d.contextId,d.sequence,d.operationId,false,r.error];\n return ['invalid'];\n}\n"
+
+    def setUp(self):
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
+
+    def files(self):
+        files = GeneratedSnippetTests().files()
+        files[self.name] = self.body
+        files[lane.PACKAGE_FILES[0]] = (
+            ('import * as import2 from "./' + self.name + '"\n').encode()
+            + files[lane.PACKAGE_FILES[0]]
+            + (
+                '\nfunction sdkImports(){return {"./' + self.name + '": import2};}'
+            ).encode()
+        )
+        return files
+
+    def inputs(self):
+        return {
+            **GeneratedSnippetTests().inputs(),
+            lane.SDK_SNIPPET_SOURCE: lane.SDK_SNIPPET_SOURCE_SHA256,
+            lane.SDK_PACKAGE_SOURCE: lane.SDK_PACKAGE_SOURCE_SHA256,
+        }
+
+    def test_source_bound_two_modules_roundtrip_and_retrieval(self):
+        self.assertEqual(len(self.body), 3365)
+        self.assertEqual(
+            lane.sdk.sha(self.body),
+            "f896283208ee2696872509a87d5256ec362ca8479ab24f410c6428322d5b3cbb",
+        )
+        files, inputs = self.files(), self.inputs()
+        self.assertTrue(lane.package_names(files))
+        self.assertTrue(lane.package_modules(files, inputs))
+        with TemporaryDirectory() as temp:
+            folder = Path(temp) / "package"
+            GeneratedSnippetTests().write(folder, files)
+            inventory = lane.package_inventory(folder, inputs)
+            self.assertEqual(len(inventory["files"]), 6)
+            self.assertEqual({row["path"] for row in inventory["files"]}, set(files))
+        values = ModuleDependencyTokenizerTests().reseal(files, inputs)
+        self.assertTrue(WasmReceiptTests().valid(values))
+
+    def test_only_exact_sdk_namespace_permutations_are_admitted(self):
+        first = self.files()
+        sdk_header = ('import * as import2 from "./' + self.name + '"\n').encode()
+        crypto_name = GeneratedSnippetTests.name
+        forms = [
+            first[lane.PACKAGE_FILES[0]],
+            first[lane.PACKAGE_FILES[0]].replace(
+                lane.package_import_headers(crypto_name)[0],
+                ('import * as import1 from "./' + crypto_name + '"\n').encode(),
+            ),
+        ]
+        forms.append(
+            forms[1]
+            .replace(b"import2", b"namespace_swap")
+            .replace(b"import1", b"import2")
+            .replace(b"namespace_swap", b"import1")
+        )
+        for javascript in forms:
+            files = self.files()
+            files[lane.PACKAGE_FILES[0]] = javascript
+            self.assertTrue(lane.package_modules(files, self.inputs()))
+        for fault in (
+            "unknown-function",
+            "computed",
+            "alias",
+            "wrong-map",
+            "duplicate-sdk",
+            "duplicate-namespace",
+            "named-sdk",
+            "missing-sdk-import",
+            "missing-map",
+            "unknown-import",
+        ):
+            with self.subTest(fault=fault):
+                files = self.files()
+                javascript = files[lane.PACKAGE_FILES[0]]
+                if fault == "unknown-function":
+                    javascript += b"import2.otherFunction();"
+                elif fault == "computed":
+                    javascript += b'import2["recoveryCapture"]();'
+                elif fault == "alias":
+                    javascript += b"const copied=import2;"
+                elif fault == "wrong-map":
+                    javascript = javascript.replace(
+                        ('"./' + self.name + '":').encode(), b'"./unknown.js":'
+                    )
+                elif fault == "duplicate-sdk":
+                    javascript += sdk_header
+                elif fault == "duplicate-namespace":
+                    javascript = javascript.replace(
+                        lane.package_import_headers(crypto_name)[0],
+                        ('import * as import2 from "./' + crypto_name + '"\n').encode(),
+                    )
+                elif fault == "named-sdk":
+                    javascript = javascript.replace(
+                        sdk_header,
+                        (
+                            "import { recoveryCapture } from './" + self.name + "';\n"
+                        ).encode(),
+                    )
+                elif fault == "missing-sdk-import":
+                    javascript = javascript.replace(sdk_header, b"")
+                elif fault == "missing-map":
+                    javascript = javascript[
+                        : javascript.index(b"\nfunction sdkImports")
+                    ]
+                else:
+                    javascript += b'import x from "./unknown.js";'
+                files[lane.PACKAGE_FILES[0]] = javascript
+                self.assertFalse(lane.package_modules(files, self.inputs()))
+                self.assertFalse(
+                    WasmReceiptTests().valid(
+                        ModuleDependencyTokenizerTests().reseal(files, self.inputs())
+                    )
+                )
+        for function in lane.SDK_FUNCTIONS:
+            files = self.files()
+            files[lane.PACKAGE_FILES[0]] += ("import2." + function + "();").encode()
+            self.assertTrue(lane.package_modules(files, self.inputs()))
+        for attack in DEPENDENCY_ATTACKS:
+            files = self.files()
+            files[lane.PACKAGE_FILES[0]] += attack.encode()
+            self.assertFalse(lane.package_modules(files, self.inputs()))
+
+    def test_source_body_package_name_and_closed_paths_refuse_tampering(self):
+        for fault in (
+            "source",
+            "package",
+            "absent-source",
+            "absent-package",
+            "body",
+            "missing",
+            "duplicate",
+            "unknown",
+            "nested",
+            "other-inline",
+            "uppercase",
+        ):
+            with self.subTest(fault=fault):
+                files, inputs = self.files(), self.inputs()
+                if fault == "source":
+                    inputs[lane.SDK_SNIPPET_SOURCE] = "0" * 64
+                elif fault == "package":
+                    inputs[lane.SDK_PACKAGE_SOURCE] = "0" * 64
+                elif fault == "absent-source":
+                    del inputs[lane.SDK_SNIPPET_SOURCE]
+                elif fault == "absent-package":
+                    del inputs[lane.SDK_PACKAGE_SOURCE]
+                elif fault == "body":
+                    files[self.name] += b" "
+                elif fault == "missing":
+                    del files[self.name]
+                elif fault == "duplicate":
+                    files[self.name.replace("fedcba9876543210", "0123456789abcdef")] = (
+                        self.body
+                    )
+                else:
+                    replacement = {
+                        "unknown": "snippets/other-fedcba9876543210/inline0.js",
+                        "nested": self.name.replace(
+                            "/inline0.js", "/deeper/inline0.js"
+                        ),
+                        "other-inline": self.name.replace("inline0.js", "inline1.js"),
+                        "uppercase": self.name.replace("fedcba", "FEDCBA"),
+                    }[fault]
+                    files[replacement] = files.pop(self.name)
+                self.assertFalse(lane.package_modules(files, inputs))
+                with TemporaryDirectory() as temp:
+                    folder = Path(temp) / "package"
+                    GeneratedSnippetTests().write(folder, files)
+                    with self.assertRaises((lane.sdk.Refused, OSError)):
+                        lane.package_inventory(folder, inputs)
+
+    def test_sdk_file_and_directory_identity_guards_stay_active(self):
+        for fault in (
+            "symlink",
+            "directory-symlink",
+            "hardlink",
+            "writable-file",
+            "writable-directory",
+        ):
+            with self.subTest(fault=fault), TemporaryDirectory() as temp:
+                root = Path(temp)
+                folder = root / "package"
+                GeneratedSnippetTests().write(folder, self.files())
+                target = folder / self.name
+                if fault == "symlink":
+                    target.unlink()
+                    outside = root / "outside.js"
+                    outside.write_bytes(self.body)
+                    target.symlink_to(outside)
+                elif fault == "directory-symlink":
+                    outside = root / "outside"
+                    target.parent.rename(outside)
+                    target.parent.symlink_to(outside, target_is_directory=True)
+                elif fault == "hardlink":
+                    os.link(target, root / "linked.js")
+                elif fault == "writable-file":
+                    target.chmod(0o620)
+                else:
+                    target.parent.chmod(0o720)
+                with self.assertRaises((lane.sdk.Refused, OSError)):
+                    lane.package_inventory(folder, self.inputs())
+
+    def test_exact_upload_shape_preserves_old_and_adds_only_sdk(self):
+        import yaml
+
+        steps = next(
+            iter(
+                yaml.safe_load(
+                    (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+                )["jobs"].values()
+            )
+        )["steps"]
+        paths = next(
+            step
+            for step in steps
+            if step.get("with", {}).get("name") == "isolated-test-results"
+        )["with"]["path"].splitlines()
+        snippets = [name for name in paths if "/rust-wasm/package/snippets/" in name]
+        self.assertEqual(
+            snippets,
+            [
+                "subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js",
+                "subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js",
+            ],
+        )
