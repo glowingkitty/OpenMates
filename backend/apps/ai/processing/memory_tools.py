@@ -228,6 +228,41 @@ class MemoryToolRuntime:
                 for m in applied], "message": "Complete instructions are included in your next system prompt. Use them now."}
 
 
+def diagram_source_requested(request: str) -> bool:
+    """Honor explicit source/ASCII requests, including privacy-redacted names."""
+    request = re.sub(r"\bopen[- ]source\b", "", request, flags=re.I)
+    # Ignore negated format clauses rather than treating a prohibition as a
+    # request. Keep later affirmative clauses such as "but return Mermaid".
+    clauses = re.split(r"[.!?;\n]|\bbut\b", request, flags=re.I)
+    affirmative = " ".join(clause for clause in clauses if not re.search(
+        r"\b(?:do not|don't|no|without|avoid|never)\b.{0,100}\b(?:source|syntax|ascii|mermaid|plantuml|graphviz)\b",
+        clause, re.I))
+    return bool(re.search(r"\b(?:source(?:\s+code)?|syntax|ascii|text[- ](?:diagram|sketch|art))\b", affirmative, re.I)
+                or re.search(r"\b(?:give|show|return|draw|write|use|provide|generate|output|create)\b.{0,60}\b(?:mermaid|plantuml|graphviz)\b",
+                             affirmative, re.I))
+
+
+def diagram_prose_only_requested(request: str) -> bool:
+    return bool(re.search(
+        r"\b(?:prose|text)[- ]only\b|\bwithout\s+(?:(?:a|any)\s+)?(?:diagram|visual)\b|"
+        r"\b(?:do not|don't|never)\s+(?:draw|create|include|generate|show)\s+(?:(?:a|any)\s+)?(?:diagram|visual)\b",
+        request, re.I)) and not diagram_source_requested(request)
+
+
+def _text_diagram_type(language: str, body: str) -> str | None:
+    if language in {"mermaid", "plantuml", "dot", "graphviz"}:
+        return "type-flowchart"
+    if language not in {"", "text", "plaintext", "plain", "ascii", "code"}:
+        return None
+    # A conservative admission check for fenced flow sketches. Bracketed nodes
+    # plus connecting arrows distinguish these from file trees and normal code.
+    lines = [line for line in body.splitlines() if line.strip()]
+    nodes = re.findall(r"\[[^\[\]\n]{2,100}\]", body)
+    arrow = re.search(r"[↓↑→←▼▲]", body) or any(
+        (stroke := re.search(r"[─━═-]{2}", line)) and re.search(r"[►▶>]", line[stroke.end():]) for line in lines)
+    return "type-flowchart" if len(lines) >= 3 and len(nodes) >= 2 and arrow else None
+
+
 class NativeDiagramContextGuard:
     """Admit whole native artifacts only after matching guide/schema validation.
 
@@ -235,8 +270,10 @@ class NativeDiagramContextGuard:
     only native diagram blocks, preserving ordinary prose and provider events.
     """
 
-    def __init__(self, prepared_types: Iterable[str]):
+    def __init__(self, prepared_types: Iterable[str], *, user_request: str = "", native_available: bool = True):
         self.prepared_types = set(prepared_types)
+        self.prose_only = diagram_prose_only_requested(user_request)
+        self.allow_source = (diagram_source_requested(user_request) or not native_available) and not self.prose_only
         self.required_type: str | None = None
         self.reason: str | None = None
 
@@ -245,6 +282,7 @@ class NativeDiagramContextGuard:
             MAX_DIAGRAM_HTML_BYTES, DiagramHtmlValidationError, validate_diagram_html_source,
         )
         pending = ""
+        language = ""
         forfeit = False
         async for chunk in stream:
             if not isinstance(chunk, str):
@@ -252,31 +290,57 @@ class NativeDiagramContextGuard:
                 continue
             if forfeit:
                 continue
-            if not pending and not re.match(r"^\s*```openmates_diagram\b", chunk):
-                yield chunk
-                continue
+            if not pending:
+                fence = re.match(r"^\s*```([^\n`]*)\n", chunk)
+                language = fence[1].strip().split(maxsplit=1)[0].lower() if fence and fence[1].strip() else ""
+                if not fence or (language != "openmates_diagram" and (
+                        self.allow_source or language not in {"", "text", "plaintext", "plain", "ascii", "code",
+                                                             "mermaid", "plantuml", "dot", "graphviz"})):
+                    yield chunk
+                    continue
             pending += chunk
             opening = pending.find("\n")
             closing = pending.find("```", opening + 1) if opening >= 0 else -1
             if len(pending.encode("utf-8")) > MAX_DIAGRAM_HTML_BYTES:
-                self.required_type, self.reason = "type-flowchart", "size_limit"
+                if language != "openmates_diagram":
+                    yield pending
+                    pending = ""
+                    continue
+                self.required_type, self.reason = "type-flowchart", "unrequested_diagram" if self.prose_only else "size_limit"
                 forfeit, pending = True, ""
                 continue
             if closing < 0:
                 continue
             source = pending[opening + 1:closing]
+            if language != "openmates_diagram":
+                text_type = _text_diagram_type(language, source)
+                if text_type:
+                    text_type = next(iter(sorted(self.prepared_types)), text_type)
+                    self.required_type, self.reason = text_type, "unrequested_diagram" if self.prose_only else "non_native_diagram"
+                    forfeit, pending = True, ""
+                else:
+                    yield pending
+                    pending = ""
+                continue
             kind = re.search(r'data-om-diagram\s*=\s*[\"\']([a-z0-9-]+)[\"\']', source)
             type_id = "type-" + (kind[1] if kind else "flowchart")
             try:
                 validate_diagram_html_source(source)
-                reason = None if type_id in self.prepared_types else "missing_context"
+                reason = ("unrequested_diagram" if self.prose_only else
+                          None if type_id in self.prepared_types else "missing_context")
             except DiagramHtmlValidationError:
-                reason = "invalid_source"
+                reason = "unrequested_diagram" if self.prose_only else "invalid_source"
             if reason:
                 self.required_type, self.reason = type_id, reason
                 forfeit, pending = True, ""
             else:
                 yield pending
                 pending = ""
-        if pending:
-            self.required_type, self.reason = "type-flowchart", "incomplete_source"
+        if pending and language != "openmates_diagram":
+            if _text_diagram_type(language, pending):
+                self.required_type = next(iter(sorted(self.prepared_types)), "type-flowchart")
+                self.reason = "unrequested_diagram" if self.prose_only else "non_native_diagram"
+            else:
+                yield pending
+        elif pending:
+            self.required_type, self.reason = "type-flowchart", "unrequested_diagram" if self.prose_only else "incomplete_source"

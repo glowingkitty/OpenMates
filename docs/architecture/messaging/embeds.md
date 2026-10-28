@@ -167,6 +167,13 @@ Ordinary client writes carry an absence or version/digest precondition, compared
 inside the existing embed transaction lock. A racing acknowledgement or writer
 therefore cannot invalidate a preflight decision by overwriting protected bytes.
 
+Ordinary `store_embed_diff` initialization also uses that database embed lock,
+shared with atomic diagram revision commits. The caller waits for the correlated
+version-row digest receipt. Browser observers reuse canonical ciphertext only
+after decrypting and verifying the expected source or patch; different proposed
+content remains a conflict. This prevents competing randomized encryptions from
+becoming duplicate initial history rows or spurious global error notifications.
+
 Fullscreen preview enrichment is a bounded, memory-only display projection tied
 to its source content and revision. It never replaces canonical ciphertext,
 rewraps a key, queues a write, or persists decrypted data. Projections expire on

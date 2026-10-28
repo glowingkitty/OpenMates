@@ -15,7 +15,7 @@ const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { email, password, otpKey } = getTestAccount();
 
 // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set,chats.rendering.assistant-document-convergence,chats.persistence.client-encrypted,storage.versions.bounded-reconstruction,chats.layout.responsive-history
-test('missed diagram preselection recovers through on-demand memories and keeps editable encrypted history', async ({ page }: { page: any }, testInfo: any) => {
+test('missed diagram preselection and ASCII output recover through memories and keep editable encrypted history', async ({ page }: { page: any }, testInfo: any) => {
   test.setTimeout(300_000);
   skipWithoutCredentials(test, email, password, otpKey);
   const log = createSignupLogger('DIAGRAM_HTML_EDITING');
@@ -66,15 +66,20 @@ test('missed diagram preselection recovers through on-demand memories and keeps 
       'Create a dark editable architecture diagram of the ingestion, query and storage layers. DIAGRAM_HTML_E2E:on_demand <<<TEST_LIVE_MOCK:diagram_html_web>>>', log);
     await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30_000 });
     const chatUrl = page.url();
+    await otherTab.goto(chatUrl);
+    await waitForChatReady(otherTab, log);
     const assistant = page.getByTestId('message-assistant').last();
     const preview = assistant.locator('[data-testid="embed-preview"][data-app-id="diagrams"][data-status="finished"]').first();
     await expect(preview).toBeVisible({ timeout: 90_000 });
     await expect(preview.getByTestId('diagram-html-preview')).toBeVisible();
+    await expect(otherTab.locator('[data-testid="embed-preview"][data-app-id="diagrams"][data-status="finished"]').first()
+      .getByTestId('diagram-html-preview')).toBeVisible({ timeout: 90_000 });
     expect(historyErrors).toEqual([]);
     await expect(page.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
     await expect(otherTab.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
     await expect(page.locator('[data-testid="assistant-memory-app-icon"][data-app-id="diagrams"]').first()).toBeVisible();
     await expect(assistant.locator('[data-testid="embed-preview"][data-app-id="system"]')).toHaveCount(0);
+    await expect(assistant.locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
     await expect(assistant).not.toContainText('<!DOCTYPE');
     await expect(assistant).not.toContainText('flowchart TD');
     await preview.getByTestId('result-preview-expand').click({ trial: true });
@@ -175,6 +180,8 @@ test('missed diagram preselection recovers through on-demand memories and keeps 
     await screenshot(page, 'chat-phone-preview');
     await testInfo.attach('diagram-revision-receipts', { body: JSON.stringify(revisions), contentType: 'application/json' });
     expect([...new Set(revisions.filter(receipt => receipt.status === 'committed').map(receipt => receipt.version))]).toEqual([2, 3]);
+    expect(historyErrors).toEqual([]);
+    await expect(otherTab.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
   } catch (error) {
     // Preserve the failure state before best-effort chat cleanup changes it.
     await screenshot(page, 'failure-before-cleanup').catch(() => {});

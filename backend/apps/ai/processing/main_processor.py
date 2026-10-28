@@ -5035,6 +5035,7 @@ async def handle_main_processing(
             turn_id=authoritative_context_turn_id(request_data),
         )
         prompt_parts.append(MEMORY_TOOL_INSTRUCTION)
+        logger.info("%s [MEMORY_CONTEXT] on-demand tools available", log_prefix)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5046,6 +5047,8 @@ async def handle_main_processing(
         if diagram_prompt:
             prompt_parts.append(diagram_prompt)
             diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
+            if memory_runtime is not None:
+                memory_runtime.variant = diagram_variant
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
     _has_diffable_embeds = await _diffable_embeds_for_main_prompt(
@@ -7202,7 +7205,10 @@ async def handle_main_processing(
         if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
             prepared_diagram_types.update(m.id.removeprefix("app:diagrams:") for m in memory_runtime.applied
                                           if m.app_id == "diagrams")
-        diagram_context_guard = NativeDiagramContextGuard(prepared_diagram_types)
+        diagram_context_guard = NativeDiagramContextGuard(
+            prepared_diagram_types, user_request=request_data.current_user_content or "",
+            native_available=memory_runtime is not None and "diagrams" in discovered_apps_metadata,
+        )
         current_turn_text_buffer = []
         suggested_followup_stream = SuggestedFollowupStream()
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
@@ -8027,19 +8033,26 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
         if diagram_context_guard.required_type and not tool_calls_for_this_turn:
-            if memory_runtime is not None and not diagram_context_repair_used:
+            prose_repair = diagram_context_guard.reason == "unrequested_diagram"
+            if not diagram_context_repair_used and (memory_runtime is not None or prose_repair):
                 diagram_context_repair_used = True
                 try:
-                    await memory_runtime.execute("load_memories", {
-                        "memory_ids": ["app:diagrams:" + diagram_context_guard.required_type],
-                    })
+                    if not prose_repair:
+                        await memory_runtime.execute("load_memories", {
+                            "memory_ids": ["app:diagrams:" + diagram_context_guard.required_type],
+                        })
                     if final_buffered_text_for_turn:
                         current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
-                    current_message_history.append({"role": "user", "content": (
-                        "The pending diagram was withheld because its required context or native schema was incomplete. "
+                    correction = (
+                        "The unrequested diagram was withheld. Respect the user's prose-only request. "
+                        "Continue only with any necessary remaining prose; do not repeat already published text. "
+                        "Do not create a diagram, text sketch or diagram source."
+                    ) if prose_repair else (
+                        "The pending diagram was withheld because its native format, required context or schema was incomplete. "
                         "The complete matching drawing guide is now loaded. Emit the corrected native diagram only; "
                         "do not repeat already published prose. Do not replace it with ASCII or Mermaid source."
-                    )})
+                    )
+                    current_message_history.append({"role": "user", "content": correction})
                     logger.info("%s [DIAGRAM_CONTEXT] bounded repair reason=%s", log_prefix, diagram_context_guard.reason)
                     continue
                 except (ValueError, OSError, RuntimeError):

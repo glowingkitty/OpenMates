@@ -1,6 +1,7 @@
 """Whole-document delivery, discovery and revocation for internal Memory tools."""
 
 # contract-test-file: infrastructure
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -123,3 +124,75 @@ def test_legacy_native_segments_cannot_reintroduce_preselected_or_on_demand_memo
     for body in ("--- On-demand Memory context ---\nPrivate text", "--- Memory: project:p:guide | Private text"):
         assert not native_memory_context_matches({"events": [{"system_suffix": body}]}, "")
     assert native_memory_context_matches({"events": [{"system_suffix": "Ordinary public context"}]}, "")
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations,chats.rendering.assistant-document-convergence
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fence", [
+    "```text\nUser Query\n    ▼\n[Assistant] ──(code)──► [Python Runtime]\n```",
+    "```\n[Question]\n    |\n    v\n[Assistant] --> [Result]\n```",
+    "```mermaid\nflowchart TD\nAssistant --> Runtime\n```",
+])
+async def test_unsolicited_fenced_diagrams_require_native_repair_but_explicit_source_survives(fence):
+    from backend.apps.ai.processing.memory_tools import NativeDiagramContextGuard
+    async def stream():
+        yield "Published explanation.\n\n"
+        yield fence[:35]
+        yield fence[35:]
+    guard = NativeDiagramContextGuard([])
+    assert [chunk async for chunk in guard.filter(stream())] == ["Published explanation.\n\n"]
+    assert guard.required_type == "type-flowchart" and guard.reason == "non_native_diagram"
+    preloaded = NativeDiagramContextGuard(["type-architecture"])
+    assert [chunk async for chunk in preloaded.filter(stream())] == ["Published explanation.\n\n"]
+    assert preloaded.required_type == "type-architecture"
+    explicit = NativeDiagramContextGuard([], user_request="Give me source code for this flow.")
+    assert "".join([chunk async for chunk in explicit.filter(stream())]) == "Published explanation.\n\n" + fence
+    unavailable = NativeDiagramContextGuard([], native_available=False)
+    assert "".join([chunk async for chunk in unavailable.filter(stream())]) == "Published explanation.\n\n" + fence
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fence", ["```python\nnodes = ['a', 'b']\nprint(nodes)\n```", "```text\nsrc/\n├── app.py\n└── tests/\n```"])
+async def test_native_admission_preserves_programming_and_file_trees(fence):
+    from backend.apps.ai.processing.memory_tools import NativeDiagramContextGuard
+    async def stream():
+        yield fence
+    guard = NativeDiagramContextGuard([])
+    assert [chunk async for chunk in guard.filter(stream())] == [fence]
+    assert guard.required_type is None
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations
+@pytest.mark.parametrize("user_request,allowed", [
+    ("Draw this in Mermaid", True), ("Return PlantUML", True),
+    ("Give me source code for this flow", True),
+    ("Do not include source code", False), ("No Mermaid; use a native diagram", False),
+    ("What open source libraries can do this?", False),
+    ("Avoid ASCII, but return Mermaid source", True),
+])
+def test_diagram_source_intent_preserves_affirmative_requests_and_negation(user_request, allowed):
+    from backend.apps.ai.processing.memory_tools import diagram_source_requested
+    assert diagram_source_requested(user_request) is allowed
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
+def test_text_diagram_admission_handles_long_plain_text_separators():
+    from backend.apps.ai.processing.memory_tools import _text_diagram_type
+    assert _text_diagram_type("text", "[First]\n" + "-" * 50_000 + "\n[Second]") is None
+    assert _text_diagram_type("text", "[First] > ---- [Second]\nPlain text\nMore text") is None
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations,chats.rendering.assistant-document-convergence
+@pytest.mark.asyncio
+async def test_prose_only_output_never_recovers_to_a_native_diagram():
+    from backend.apps.ai.processing.memory_tools import NativeDiagramContextGuard
+    source = (Path(__file__).parents[1] / "apps/ai/testing/fixtures/diagram_html_web.html").read_text()
+    for fence in ("```text\n[Assistant]\n    ▼\n[Runtime] --> [Answer]\n```",
+                  "```openmates_diagram\n" + source + "\n```", "```openmates_diagram\n" + source):
+        async def stream():
+            yield "Published prose.\n\n"
+            yield fence
+        guard = NativeDiagramContextGuard(["type-architecture"], user_request="Answer in prose only, without any diagram.")
+        assert [chunk async for chunk in guard.filter(stream())] == ["Published prose.\n\n"]
+        assert guard.reason == "unrequested_diagram"

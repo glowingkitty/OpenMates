@@ -94,12 +94,21 @@ async def test_on_demand_replay_deliberately_misses_jev_and_requires_complete_lo
     assert second["function_name"] == "load_memories"
     await loader.execute(second["function_name"], second["function_arguments_parsed"])
     messages.insert(0, {"role": "system", "content": loader.prompt})
+    sketch = llm_fixture("llm/fixture", kwargs)["response"]["chunks"]
+    assert "[Assistant]" in "".join(chunk["value"] for chunk in sketch)
+    await loader.execute("load_memories", {"memory_ids": ["app:diagrams:type-flowchart"]})
+    messages[0]["content"] = loader.prompt
+    messages.append({"role": "user", "content": "The pending diagram was withheld because its native format was incomplete."})
     final = llm_fixture("llm/fixture", kwargs)["response"]["chunks"]
     assert "".join(chunk["value"] for chunk in final).startswith("```openmates_diagram\n")
 
 
 # contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations
-@pytest.mark.parametrize("placeholder", ["[PERSON_NAME_1]", "[PERSON_NAME_17]"])
+@pytest.mark.parametrize("placeholder", [
+    "[PERSON_NAME_1]", "[PERSON_NAME_17]",
+    "[PERSON_NAME_1_0123456789abcdef]",
+    "[PERSON_NAME_17_0123456789abcdef_2_0123456789abcdef0123456789abcdef]",
+])
 def test_explicit_source_replay_survives_the_known_pii_placeholder(diagram_replay, placeholder):
     from backend.apps.ai.testing.diagram_html_fixture import jev_response
     prompt = SOURCE_PROMPT.replace("Mermaid", placeholder)

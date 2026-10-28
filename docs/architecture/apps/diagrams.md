@@ -19,6 +19,18 @@ guides. Manifest allowlists and SHA-256 checks pin the loaded resources. The
 `memories_loaded` event records which type revisions entered the generation
 context. Existing generic Memory selection/context limits remain in place.
 
+A compact protocol also makes Diagram Design discoverable to first-party main
+inference when JEV misses the app or type. Internal `find_memories` and
+`load_memories` calls resolve the same manifest-backed type, common references
+and template into the next system prompt. They produce Loaded memories receipts,
+without an app skill card. Continuations retain type/variant identities, and
+native transcript reuse requires a matching Memory context fingerprint.
+
+Native diagram fences are withheld until their complete source passes validation
+and the matching type guide is present. Missing preparation or invalid source
+allows one bounded repair generation while preserving surrounding prose. Explicit
+source-code requests and prose-only answers retain their existing behavior.
+
 The model returns a complete static HTML document in an `openmates_diagram`
 fence. Streaming first publishes a processing embed; finalization validates the
 document before publishing its source. Its stored type is `diagram_html`, app
@@ -77,6 +89,13 @@ expected version and source-hash checks reject stale or unauthorized writes.
 Legacy writers cannot overwrite a finished diagram. Project-file approval gates
 remain authoritative. Version selection reconstructs encrypted history locally;
 restoring creates another revision through the same atomic save operation.
+
+Ordinary initial history writes use the same database embed lock as editor
+commits. Clients wait for a correlated durable receipt. A second tab first reads
+the canonical encrypted row and verifies decrypted source equivalence before
+adopting it; a competing create repeats that comparison. Different content remains
+an immutable-version conflict. Encryption remains randomized and history is not
+overwritten.
 
 The CLI can import/export HTML, summarize the embed and restore versions. Apple
 and TUI graphical editors can reuse the canonical source, stable component IDs

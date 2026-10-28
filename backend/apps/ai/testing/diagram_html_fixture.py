@@ -30,6 +30,7 @@ ON_DEMAND_PROMPT = (
     "Create a dark editable architecture diagram of the ingestion, query and storage layers. "
     "DIAGRAM_HTML_E2E:on_demand"
 )
+ON_DEMAND_ASCII_RESPONSE = "```text\nUser Query\n    ▼\n[Assistant] ──(code)──► [Python Runtime]\n```"
 PROSE_PROMPT = (
     "Discuss the architecture of a planner, researcher and implementation worker. "
     "Answer in prose only, without a visual. DIAGRAM_HTML_E2E:architecture_prose"
@@ -59,7 +60,7 @@ _HTML_PATH = Path(__file__).parent / "fixtures" / "diagram_html_web.html"
 def _fixture_text(value: Any) -> str:
     """Recognize the one known anonymized sentence without bypassing PII."""
     return re.sub(
-        r"Give me \[PERSON_NAME_\d+\] source code for a planner-to-worker architecture flow\. "
+        r"Give me \[PERSON_NAME_[1-9][0-9]*(?:_[0-9a-f]{16}(?:_[1-9][0-9]*_[0-9a-f]{32})*)?\] source code for a planner-to-worker architecture flow\. "
         r"DIAGRAM_HTML_E2E:explicit_mermaid_source",
         SOURCE_PROMPT, str(value or ""),
     )
@@ -81,8 +82,12 @@ def _latest_user_contains_prompt(messages: Any) -> bool:
         return False
     for message in reversed(messages):
         if isinstance(message, dict) and message.get("role") == "user":
-            return any(prompt in _fixture_text(message.get("content"))
-                       for prompt in _PROMPTS)
+            text = _fixture_text(message.get("content"))
+            if any(prompt in text for prompt in _PROMPTS):
+                return True
+            return text.startswith("The pending diagram was withheld") and any(
+                isinstance(prior, dict) and prior.get("role") == "user"
+                and ON_DEMAND_PROMPT in _fixture_text(prior.get("content")) for prior in messages)
     return False
 
 
@@ -215,13 +220,18 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     latest_user_text = next((_fixture_text(message.get("content"))
                              for message in reversed(kwargs.get("messages", []))
                              if isinstance(message, Mapping) and message.get("role") == "user"), "")
-    if ON_DEMAND_PROMPT in latest_user_text:
+    on_demand = any(ON_DEMAND_PROMPT in _fixture_text(message.get("content"))
+                    for message in kwargs.get("messages", [])
+                    if isinstance(message, Mapping) and message.get("role") == "user")
+    if on_demand:
         from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
         system = "\n".join(str(message.get("content") or "")
                            for message in kwargs.get("messages", [])
                            if isinstance(message, Mapping) and message.get("role") == "system")
-        guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
-        if guide not in system:
+        guides = [diagram_guidance_prompt(types, variant="minimal_dark") for types in (
+            ["type-architecture"], ["type-architecture", "type-flowchart"],
+        )]
+        if not any(guide in system for guide in guides):
             tools_seen = [message for message in kwargs.get("messages", [])
                           if isinstance(message, Mapping) and message.get("role") == "tool"]
             found = any('app:diagrams:type-architecture' in str(message.get("content")) for message in tools_seen)
@@ -238,6 +248,11 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                     "parsing_error": None,
                 },
             }]}}
+        if not latest_user_text.startswith("The pending diagram was withheld"):
+            # Deliberately disobey the format instruction after loading. The
+            # runtime must withhold this sketch and perform its bounded repair.
+            return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
+                                  "chunks": [{"kind": "text", "value": ON_DEMAND_ASCII_RESPONSE}]}}
     discussion = any(prompt in latest_user_text
                      for prompt in (DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT))
     if discussion:
