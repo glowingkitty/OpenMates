@@ -767,3 +767,91 @@ developer keys. Workflow takeover belongs in the workflow run view, with durable
 node continuation that preserves completed upstream effects. Together/DeepSeek
 remains unqualified while its organization ZDR flag is false; measured text
 helper runs used the Gemini fallback. Rust parity remains explicitly deferred.
+
+
+## Connection profiling release: 56005ce
+
+The timing-only transport patch passed 88 isolated backend checks in run
+`40688496181` (candidate `df280c8f`) and is published as `56005ce`. HTTPX trace
+callbacks retain only an allowlisted set of numeric TCP/DNS, TLS, response-header,
+response-body and total durations. Request/response objects, URLs, headers and
+exception details are discarded; locally generated measurements override any
+remote `_rpc_timings` field. Both HTTP/1.1 and HTTP/2 traces are covered by the
+privacy regression test. Navigation and first observation expose these numeric
+stage durations without changing connection/retry/authorization behavior.
+
+Further optimization should test owner/session-scoped persistent connections and
+fewer RPC round trips, retaining all ownership, pristine-browser, robots and
+fresh-target checks. The runtime currently closes its HTTP/1.1 connection after
+every RPC, and the backend creates a fresh client for every operation. These are
+observed implementation facts, not a measured causal explanation yet. Runtime
+protocol changes require rebuilding and qualifying the immutable prepared E2B
+template, rather than merely restarting backend services.
+
+[E2B's current region documentation](https://docs.e2b.dev/faq/egress-ip-ranges)
+lists US West as the default and an EU region enabled through support. Confirm
+this workspace's actual placement before attributing latency to distance. EU
+placement is a potential experiment within the preferred E2B infrastructure;
+no region migration or support message has been performed.
+
+
+### Live transport trace and direct-runtime comparison
+
+Coordinated development operation `docker-51c841d6` completed with all targeted
+services healthy. It took 584.242 seconds, dominated by 485.609 seconds waiting
+for other authorized development work. Compose took 4.390 seconds and health
+checks 33.657 seconds. This is engineering deployment time, not browser startup.
+A subsequent paid extraction held the shared runtime lease and verified all
+nine owned backend files against release `56005ce` before calling inference.
+
+Automatically routed chat `ebbe08ec` completed with verified JSON. Browser
+`543959b1` was closed in the script's finally path, with eight settled Browse
+credits and no pending accounting. An independent owner usage read confirmed
+exactly two ledger entries, eight Browse plus eleven assistant credits (19 total,
+$0.019), matching the close receipt and billing trigger. The original 40-credit
+session cap remained intact. This is another measured example, not a flat fee.
+
+| Stage | Seconds |
+| --- | ---: |
+| Pool claim | 0.203 |
+| Resume/readiness | 1.918 |
+| Pristine control check | 1.567 |
+| Provisioning | 3.747 |
+| Navigation TCP/DNS | 0.0170 |
+| Navigation TLS | 0.0090 |
+| Navigation response-header wait | 4.5030 |
+| Navigation RPC total | 4.5420 |
+| First observation response-header wait | 1.0970 |
+| First observation response-body transfer | 0.1740 |
+| First observation RPC total | 1.3390 |
+| Startup through first observation | 9.749 |
+| Entire Browse execution | 17.765 |
+| Outer assistant/CLI response | 48.210 |
+
+TCP/TLS connection establishment is not the main bottleneck in this sample.
+The response-header interval still includes E2B forwarding, browser/controller
+work, crawler-policy checking and destination loading; it does not isolate them.
+A fast edge handshake also does not exclude distance in E2B's internal forwarding.
+The page-ready target remains unmet. Connection reuse alone is not a supported
+solution to this result.
+
+A separate inference-free provider diagnostic created an empty isolated browser,
+read public Example Domain and compared fixed operations remotely and through
+localhost inside that same VM. It destroyed the VM in finally. Remote metadata
+requests took 0.2180 and 0.7064 seconds, versus 0.0081 and 0.0008 locally. Remote
+observations took 1.2646 and 1.0171 seconds; local observations took 0.4849 and
+0.0255 seconds. Remote navigation took 3.8279 seconds, of which 3.7601 was waiting
+for headers. Only durations and response-byte counts were printed, with no page
+contents, control secrets or provider handles.
+
+This small sequential comparison is not an alternating benchmark; cache and
+screenshot warmup can affect observations. It nevertheless establishes that a
+nearly immediate local metadata operation can have material remote overhead.
+The next bounded optimization should combine native-resume readiness with the
+required live pristine/control verification in one authenticated request. It
+must still persist the paid handle first, prove Chromium readiness and blank
+storage, and destroy a rejected handoff. Ordinary existing-session resume must
+retain its controller-safe read-only readiness behavior. Combining navigation
+with its first observation can remove another round trip, but requires a new
+runtime/template and direct isolation/privacy qualification. Measure crawler
+policy and browser navigation separately before changing navigation waits.

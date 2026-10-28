@@ -15,6 +15,7 @@ decisions:
   - Use two times effective metered supplier cost, pause idle compute after 120 seconds and delete after 86400 seconds of inactivity.
   - Reuse session d7bf and existing provider, encryption, app-skill, billing, embed and CI infrastructure.
   - OpenMates Tasks owns implementation status and dependencies; this Plan has no duplicate task ledger.
+  - On 2026-10-28 the user clarified that Browse execution and workflow handoff must be independent of a chat. The remaining refactor uses trusted owner/execution/operation identity, optional chat delivery and the workflow run view; no existing or fabricated chat is a prerequisite. Preserve ownership isolation, deterministic admission and the original session budget.
   - On 2026-10-26 the user set a browser startup target below three seconds, acceptable below four and a hard ceiling around four to five. Measure provisioning separately from page loading, queueing and inference.
   - The user explicitly approved a prepared paused pool conditional on no cross-user cache or login access. Each public blank VM is claimed atomically for one owner and chat for its entire lifetime, never recycled after any claim, and destroyed on a failed handoff. No template may contain user state. Pool preparation overhead is absorbed by the platform; the existing user tariff applies only after the admitted ownership resume.
 scope:
