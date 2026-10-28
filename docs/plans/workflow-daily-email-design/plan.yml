@@ -18,7 +18,7 @@ references:
 scope:
   in:
     - One automatic email per eligible user and daily reporting window across all scheduled Workflows, with no empty digest.
-    - Remove automatic per-run completion email, including terminal handling of already-pending email outboxes; retain completion history and push behavior.
+    - Remove automatic per-run completion email, including pending outboxes, already-queued completion jobs and old workers in flight; retain sent history and pending event/push delivery.
     - Group runs into one card per Workflow with all-run totals, outcomes, latest relevant times, and authenticated Workflow/run destinations.
     - Match the approved reminder/newsletter shell, notification bell, spacing, rounded cards and orange actions using bounded email-safe HTML.
     - Include late completions and running work overlapping the previous 24-hour window; retain scheduled-only eligibility and the fixed daily cutoff.
@@ -63,7 +63,8 @@ approvals:
     reason: Concrete proposal prepared for the user's review; implementation was not requested in this turn.
 checks:
   - "Required backend regression: 24 hourly successful runs across several Workflows produce zero immediate completion emails and exactly one daily email per eligible user/window."
-  - "Required backend regression: independent push/history, old pending outboxes, simultaneous dispatchers, retries, consent withdrawal, disabled categories and empty windows remain correct."
+  - "Required backend regression: independent push/history, old pending outboxes, already-queued completion jobs, simultaneous dispatchers, retries, consent withdrawal, disabled categories and empty windows remain correct."
+  - "Required retirement verification: coordinate worker drain/rollout or a compatible final send gate so old in-flight senders cannot continue per-run mail after cutover; historical sent state and pending event/push reconciliation survive."
   - "Required window/scale coverage: late completion, running/waiting overlap, exact UTC boundaries, missed-current-window recovery, more than 200 runs/deliveries and bounded grouped overflow."
   - "Required rendering checks: shared header/footer and bell, escaped identifying text, grouped counts, orange actions, HTML/plain text and readable blocked-image output in light/dark themes."
   - "Required isolated GitHub checks: extend workflow-email-digest.spec.ts and completion probes to assert the combined total email count; verify signed-in and cold-login run/Workflow links."

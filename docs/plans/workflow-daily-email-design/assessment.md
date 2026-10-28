@@ -31,7 +31,7 @@ verifying every production sender or inbox.
 | Bounds | Complete selected-run totals, but only the oldest 50 runs appear individually | workflow_digest_service.py:119 |
 | Privacy | Verified account address and fresh preferences; Workflow names and intended message excerpts require explicit includeContent consent | workflow_digest_email_task.py:51; workflow_digest_service.py:175 |
 | Dedupe | Durable user/date digest identity, fixed-cutoff bounded retries and transport guard | workflow_digest_email_task.py:130 |
-| Extra email | Every successful scheduled run separately queues completion email using run_id identity | backend/core/api/app/tasks/workflow_tasks.py:247; workflow_completion_notification_service.py:372 |
+| Extra email | Every successful scheduled run queues completion dispatch, which sends per-run email when eligible using run_id identity | backend/core/api/app/tasks/workflow_tasks.py:247; workflow_completion_notification_service.py:372 |
 | Design | Shared brand header/footer and gray shell, but a text-heavy per-run list without the reminder bell or compact Workflow cards | backend/core/api/templates/email/workflow-run-digest.mjml:10 |
 | Disclosure | Current settings explicitly promise completion emails plus a daily summary | frontend/packages/ui/src/i18n/sources/settings/chat.yml:856 |
 | Contract | Current completed-delivery assertion expressly requires immediate email independently of the digest | specifications/features/notifications/specification.yml:200 |
@@ -66,6 +66,10 @@ capability gap and does not currently add another working flood path.
    and history semantics. Settle basic-title consent and activity-window meaning.
 2. Suppress automatic per-run mail and terminate/reclassify old pending email
    outboxes so reconciliation cannot emit the old behavior after deployment.
+   Cover already-queued completion jobs and old workers that already loaded their
+   send state with coordinated worker drain/rollout or a compatible final send
+   gate. Preserve historical sent state and pending event/push reconciliation;
+   changing database outboxes alone cannot stop an old sender already in flight.
 3. Improve the existing digest collection: activity overlap, grouping, complete
    counts, bounded cards, stable pagination and recovery of the current window.
 4. Reuse the reminder/newsletter shell, bell and orange actions. Adapt the actual
