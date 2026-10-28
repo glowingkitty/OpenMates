@@ -194,7 +194,37 @@ test.describe('Local PII composer integration', () => {
     } finally {
       await context.setOffline(false);
     }
+    // Large pastes keep complete basic protection without starting another
+    // semantic pass. Returning to a short draft reuses the healthy warm model.
+    await fillDraft(editor, `${'Background context for the request. '.repeat(150)} Our customer Nadia Rahman needs help. Reply to case.reference@example.net.`);
+    await expect(highlights.filter({ hasText: 'case.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    await expect(highlights.filter({ hasText: /Nadia|Rahman/ })).toHaveCount(0);
+    await expect(page.getByTestId('pii-model-status')).toHaveCount(0);
+    await fillDraft(editor, 'Our customer Nadia Rahman needs help with her appointment.');
+    await expect(highlights.filter({ hasText: /Nadia/ })).toHaveAttribute('data-pii-type', 'PERSON_NAME', { timeout: MODEL_TIMEOUT });
     await finishOutboundAudit(page, testInfo);
+  });
+
+  // A deliberately nonresponsive worker verifies the latency guard; the case
+  // above independently verifies actual model inference and warm recovery.
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+  test('falls back within the scan budget when inference stalls, using one normal notification', async ({ page, context }) => {
+    await context.route('**/pii-runtime/redact-4.1.0-litert-2.6.0/worker.js', route => route.fulfill({
+      contentType: 'application/javascript',
+      body: "self.onmessage = ({data}) => { if (data.kind === 'load') self.postMessage({id: data.id, items: []}); };",
+    }));
+    const editor = await openComposer(page);
+    await fillDraft(editor, 'Our customer Nadia Rahman needs help. Reply to protected.reference@example.net.');
+    const highlights = page.getByTestId('pii-highlight');
+    await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    const notice = page.getByTestId('notification').filter({ hasText: FALLBACK_NOTICE });
+    await expect(notice).toBeVisible({ timeout: 4000 });
+    await expect(notice).toHaveCount(1);
+    await expect(highlights.filter({ hasText: /Nadia|Rahman/ })).toHaveCount(0);
+    await expect(page.getByTestId('pii-model-status')).toHaveCount(0);
+    await fillDraft(editor, 'Reply to protected.reference@example.net. New draft after fallback.');
+    await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    await expect(notice).toHaveCount(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude

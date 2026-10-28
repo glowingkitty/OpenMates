@@ -171,7 +171,12 @@ test('shows compact address labels while preserving unique wire tokens and owner
 		page,
 		withMockMarker(SEED_TEXT, 'pii_detection_check'),
 		logCheckpoint,
-		undefined,
+		async () => {
+			// A cold download may now correctly fall back within 2.5 seconds.
+			// This case explicitly exercises the warmed semantic send path.
+			await expect(page.getByTestId('pii-highlight').filter({ hasText: /Maple Avenue/ }).first())
+				.toHaveAttribute('data-pii-type', 'ADDRESS', { timeout: 90000 });
+		},
 		'pii-rewrite-seed'
 	);
 
@@ -214,7 +219,10 @@ test('shows compact address labels while preserving unique wire tokens and owner
 		page,
 		withMockMarker(FOLLOW_UP_TEXT, 'manual_follow_up_hides_suggestions'),
 		logCheckpoint,
-		undefined,
+		async () => {
+			await expect(page.getByTestId('pii-highlight').filter({ hasText: /Cedar Lane/ }).first())
+				.toHaveAttribute('data-pii-type', 'ADDRESS', { timeout: 90000 });
+		},
 		'pii-rewrite-followup'
 	);
 

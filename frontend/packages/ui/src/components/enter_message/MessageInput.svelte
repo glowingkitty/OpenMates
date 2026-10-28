@@ -2370,8 +2370,17 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        let previousModelStatus: string | undefined;
         const stopModelState = webPIIDetectorState.subscribe((state) => {
-            if (state.status !== 'error' || !cachedPIISettings?.masterEnabled
+            const finishedBackgroundLoad = previousModelStatus === 'loading' && state.status === 'ready';
+            previousModelStatus = state.status;
+            if (finishedBackgroundLoad && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
+                // A bounded preview can finish with basic checks while assets
+                // keep downloading. Recheck the current draft once they arrive.
+                lastPIIText = '';
+                void runPIIDetectionImmediate(editor);
+            }
+            if ((state.status !== 'error' && !state.fallbackReason) || !cachedPIISettings?.masterEnabled
                 || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
             notificationStore.addNotificationWithOptions('info', {
                 message: get(text)('enter_message.pii.basic_detection_notice'),

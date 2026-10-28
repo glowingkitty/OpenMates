@@ -114,8 +114,12 @@ vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.sto
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
 vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: mocks.notifyError, addNotificationWithOptions: mocks.notify, updateNotification: mocks.updateNotification, cancelAutoDismiss: mocks.cancelNotificationAutoDismiss, removeNotification: mocks.removeNotification } }));
 vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store(mocks.privacySettings), enabledEntries: mocks.store([]) } }));
-vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
+vi.mock('../services/piiDetectionService', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../services/piiDetectionService')>(),
+  detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []),
+}));
 vi.mock('../services/webPIIDetectionService', () => ({
+  createWebPIIScanContext: () => ({ purpose: 'send' as const }),
   isWebPIIModelEnabled: mocks.webPIIEnabled,
   resetWebPIIDetector: mocks.resetWebPIIDetector,
   detectPIIForWeb: vi.fn(async (value: string, options: unknown) => {
@@ -954,6 +958,22 @@ describe('on-device send privacy preparation', () => {
     expect(setContent).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.outbound.known-original-rewrite
+  it('preserves a known semantic exclusion when the bounded scan returns only basic matches', async () => {
+    const { modelPIIMatchId } = await import('../services/webPIIMatches');
+    const rewrite = await import('../services/placeholderRewriteService');
+    const original = 'Maple Avenue';
+    const mapping = { type: 'ADDRESS', original, placeholder: '[ADDRESS_1_existing]' };
+    mocks.getActivePIIMappingsForRewrite.mockReturnValue([mapping]);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(`Send deliveries to ${original}`);
+    const { editor } = makeEditor(false);
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth', new Set([
+      modelPIIMatchId('ADDRESS', original),
+    ]))).toBe(true);
+    const rewriteOptions = vi.mocked(rewrite.rewriteKnownPIIPlaceholders).mock.calls.at(-1)![1];
+    expect(rewriteOptions.excludedOriginals).toEqual(new Set([original]));
+  });
+
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context,message-input.send.ownership
   it('rejects when both privacy detectors fail before transport and restores the submitted draft', async () => {
     mocks.scanGate.mockRejectedValueOnce(new Error('Both detectors failed containing private input'));
@@ -1013,6 +1033,7 @@ describe('on-device send privacy preparation', () => {
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
   it('redacts recording text in TOON while preserving opaque upload metadata and encrypted mappings', async () => {
+    const facade = await import('../services/webPIIDetectionService');
     const pii = await import('../services/piiDetectionService');
     vi.mocked(pii.detectPII).mockImplementation((value) => value.includes('person@example.test') ? [{
       id: 'email', type: 'EMAIL', match: 'person@example.test', placeholder: '[EMAIL_1]',
@@ -1044,6 +1065,12 @@ describe('on-device send privacy preparation', () => {
       type: 'EMAIL', original: 'person@example.test', placeholder: '[EMAIL_1]',
     });
     expect(pii.detectPII).not.toHaveBeenCalledWith('opaque-person@example.test', expect.anything());
+    // Multiple transcript variants and the final message share one budget;
+    // giving each field its own timeout would multiply send latency.
+    const scanContexts = vi.mocked(facade.detectPIIForWeb).mock.calls.map(call => call[2]);
+    expect(scanContexts.length).toBeGreaterThan(3);
+    expect(scanContexts[0]).toEqual({ purpose: 'send' });
+    expect(scanContexts.every(context => context === scanContexts[0])).toBe(true);
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context

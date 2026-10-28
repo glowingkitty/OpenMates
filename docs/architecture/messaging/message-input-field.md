@@ -116,7 +116,7 @@ Opening a saved Study goal flushes the composer before entering the Apps workspa
 
 ### PII Detection
 
-[piiDetectionService.ts](../../frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts) scans message content for personally identifiable information before sending. When PII is detected, [PIIWarningBanner.svelte](../../frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte) shows a warning banner.
+The synchronous `piiDetectionService.ts` keeps supported patterns and configured private entries immediate. The development-only `webPIIDetectionService.ts` adds local Redact inference for short composer and recording/transcript text; production and Linux document scanning remain outside that trial. Inputs above 2,048 UTF-16 code units use basic detection. One lazy 2,500 ms enhancement budget is shared across each send's exclusions, recording fields and message body; slow downloads continue in the background. Basic fallback uses the existing one-time notification, without another status row. Final send uses immutable ownership/settings snapshots, retains exclusions, and stores originals only in encrypted owner mappings. Read-only messages display compact labels such as `[ADDRESS_1]` while retaining unique canonical tokens for copy, transport and restoration. See [the trial boundary and privacy assessment](../privacy/redact-browser-dev-trial.md).
 
 ## Edge Cases
 

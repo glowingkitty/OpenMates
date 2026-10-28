@@ -43,7 +43,8 @@ import {
   type PIIMatch,
   type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
-import { detectPIIForWeb, isWebPIIModelEnabled, resetWebPIIDetector } from "../services/webPIIDetectionService";
+import { createWebPIIScanContext, detectPIIForWeb, isWebPIIModelEnabled, resetWebPIIDetector, type WebPIIScanContext } from "../services/webPIIDetectionService";
+import { modelPIIMatchId } from "../services/webPIIMatches";
 import { rewriteKnownPIIPlaceholders } from "../services/placeholderRewriteService";
 import { getActivePIIMappingsForRewrite } from "../../../stores/embedPIIStore";
 import {
@@ -481,6 +482,8 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
   return {
     enabled: settings.masterEnabled,
     enhanced,
+    // One lazy budget covers exclusions, recording fields and message text.
+    scanContext: createWebPIIScanContext(),
     options,
     mappings: mappingSnapshot,
     failureNotificationId: undefined as string | undefined,
@@ -529,13 +532,21 @@ async function redactTextForSend(markdown: string, privacy: SendPrivacySnapshot)
   if (!privacy.enabled) return { markdown, mappings: [] as PIIMapping[], excludedOriginals: new Set<string>() };
   try {
     const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
-    const excludedOriginals = await getExcludedOriginalsForCurrentSend(safeMarkdown, privacy.options);
+    const excludedOriginals = await getExcludedOriginalsForCurrentSend(safeMarkdown, privacy.options, privacy.scanContext);
+    // A basic-only fallback cannot rediscover an excluded semantic span. Known
+    // mappings still have its exact original, so preserve that explicit choice
+    // before the history rewrite without depending on another model scan.
+    for (const mapping of privacy.mappings) {
+      if (privacy.options.excludedIds?.has(modelPIIMatchId(mapping.type as PIIMatch["type"], mapping.original))) {
+        excludedOriginals.add(mapping.original);
+      }
+    }
     privacy.assertCurrent();
     const rewrite = rewriteKnownPIIPlaceholders(safeMarkdown, {
       mappings: privacy.mappings,
       excludedOriginals,
     });
-    const detected = await detectPIIForWeb(rewrite.markdown, privacy.options);
+    const detected = await detectPIIForWeb(rewrite.markdown, privacy.options, privacy.scanContext);
     privacy.assertCurrent();
     const matches = privacy.uniqueMatches(detected);
     return {
@@ -633,6 +644,7 @@ async function redactRecordingFieldsForSend(document: JSONContent, privacy: Send
 async function getExcludedOriginalsForCurrentSend(
   markdown: string,
   detectionOptions: PIIDetectionOptions,
+  scanContext: WebPIIScanContext,
 ): Promise<Set<string>> {
   const excludedIds = detectionOptions.excludedIds;
   if (!excludedIds || excludedIds.size === 0) return new Set<string>();
@@ -640,7 +652,7 @@ async function getExcludedOriginalsForCurrentSend(
   const matchesWithoutExclusions = await detectPIIForWeb(markdown, {
     ...detectionOptions,
     excludedIds: new Set<string>(),
-  });
+  }, scanContext);
 
   return new Set(
     matchesWithoutExclusions

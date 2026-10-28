@@ -43,8 +43,16 @@ scanning on Linux servers is deferred, including small-file and optional full-sc
 integration. The native evaluation and resource-policy prototype remain
 engineering evidence; they do not enable a product feature. Existing document
 and code embed paths retain basic detection wherever already supported. CLI/TUI
-model activation remains deferred. Very large pasted messages can still be
-slow; restricting the feature to inputs does not itself enforce a latency limit.
+model activation remains deferred. Inputs longer than 2,048 UTF-16 code units use complete basic detection plus
+configured private entries, without semantic inference. Short inputs share a
+2,500 ms enhanced-work deadline across queueing, model readiness, exclusions,
+recording fields and final message text for one send. This is an enhancement
+budget, not a promise that all serialization, basic scanning or transport finishes
+in that time. Slow first-use asset downloads continue in the background; stalled
+inference terminates its worker and falls back. Short drafts can reuse a healthy
+model after an oversized paste, and a completed background download rechecks the
+current draft. The 2,048-code-unit ceiling is a conservative trial limit, not a
+measured universal token or performance threshold.
 
 Owner-visible message placeholders use compact labels such as `[ADDRESS_1]` and
 `[ADDRESS_2]` for generated semantic tokens. Numbering is local to the rendered

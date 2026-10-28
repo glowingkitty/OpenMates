@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { detectPIIForWeb, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
+import { createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
 import * as basicDetector from '../piiDetectionService';
 
 class FakeWorker {
@@ -23,7 +23,7 @@ beforeEach(() => {
   FakeWorker.workers = [];
   resetWebPIIDetector();
 });
-afterEach(() => { resetWebPIIDetector(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { resetWebPIIDetector(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('dev browser PII runtime lifecycle', () => {
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
@@ -126,19 +126,137 @@ describe('dev browser PII runtime lifecycle', () => {
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
   it('coalesces queued previews while preserving every send and snapshots options', async () => {
+    const loading = preloadWebPIIDetector();
+    const worker = FakeWorker.workers[0];
+    worker.respond(0); await loading;
     const active = detectPIIForWeb('Amina', {}, { purpose: 'preview' });
+    await tick();
     const superseded = detectPIIForWeb('old preview', {}, { purpose: 'preview' });
     const disabledCategories = new Set(['names']);
     const send = detectPIIForWeb('Amina', { disabledCategories });
     const latest = detectPIIForWeb('new preview', {}, { purpose: 'preview' });
     disabledCategories.clear();
     await expect(superseded).resolves.toEqual([]);
-    const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
     const name = [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }];
     worker.respond(1, { items: name }); await active; await tick();
     worker.respond(2, { items: name }); await expect(send).resolves.toEqual([]); await tick();
     worker.respond(3); await latest;
     expect(worker.messages.map(m => m.text).filter(Boolean)).toEqual(['Amina', 'Amina', 'new preview']);
   });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('bypasses enhancement for large pastes without posting text and preserves all basic options', async () => {
+    const text = `Amina anna@example.com bob@example.com +1 202-555-0183 ${'x'.repeat(WEB_PII_MAX_ENHANCED_CHARS)}`;
+    const options = {
+      personalDataEntries: [{ id: 'name', textToHide: 'Amina', replaceWith: 'MY_NAME' }],
+      disabledCategories: new Set(['phone_numbers']),
+      excludedIds: new Set([basicDetector.detectPII(text).find(match => match.match === 'bob@example.com')!.id]),
+    };
+    await expect(detectPIIForWeb(text, options)).resolves.toEqual(basicDetector.detectPII(text, options).filter(match => match.match !== 'bob@example.com'));
+    expect(FakeWorker.workers).toHaveLength(0);
+    expect(get(webPIIDetectorState).fallbackReason).toBe('size');
+    const loading = preloadWebPIIDetector();
+    const worker = FakeWorker.workers[0];
+    worker.respond(0); await loading;
+    await detectPIIForWeb(text, options);
+    expect(worker.messages.map(message => message.kind)).toEqual(['load']);
+    expect(worker.terminated).toBe(false);
+    expect(get(webPIIDetectorState).status).toBe('ready');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('bounds queue and first-load waits while allowing background loading to finish', async () => {
+    vi.useFakeTimers();
+    const first = detectPIIForWeb('anna@example.com');
+    const queued = detectPIIForWeb('bob@example.com');
+    const worker = FakeWorker.workers[0];
+    await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
+    await expect(first).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
+    await expect(queued).resolves.toEqual(basicDetector.detectPII('bob@example.com'));
+    expect(worker.terminated).toBe(false);
+    expect(get(webPIIDetectorState).fallbackReason).toBe('timeout');
+    worker.respond(0); await tick();
+    expect(get(webPIIDetectorState).status).toBe('ready');
+    expect(worker.messages.map(message => message.kind)).toEqual(['load']);
+    const recovered = detectPIIForWeb('Amina'); await tick();
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
+    expect((await recovered)[0].match).toBe('Amina');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('releases hung inference at the shared send deadline and ignores late results until retry', async () => {
+    vi.useFakeTimers();
+    const context = createWebPIIScanContext();
+    await vi.advanceTimersByTimeAsync(10_000);
+    const first = detectPIIForWeb('Amina', {}, context);
+    const worker = FakeWorker.workers[0];
+    worker.respond(0); await tick();
+    await vi.advanceTimersByTimeAsync(1_500);
+    worker.respond(1); await first;
+    const second = detectPIIForWeb('anna@example.com', {}, context); await tick();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(worker.terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(second).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
+    expect(worker.terminated).toBe(true);
+    worker.respond(2); worker.onmessage?.({ data: { kind: 'progress', progress: 0.8 } });
+    expect(get(webPIIDetectorState).status).toBe('error');
+    await detectPIIForWeb('next');
+    expect(FakeWorker.workers).toHaveLength(1);
+    resetWebPIIDetector();
+    const retry = detectPIIForWeb('new');
+    const current = FakeWorker.workers[1];
+    worker.respond(2); worker.onerror?.();
+    current.respond(0); await tick(); current.respond(1); await retry;
+    expect(get(webPIIDetectorState).status).toBe('ready');
+    expect(current.terminated).toBe(false);
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('uses basic protection for later fields after the shared budget expires without restarting a healthy worker', async () => {
+    vi.useFakeTimers();
+    const context = createWebPIIScanContext();
+    const first = detectPIIForWeb('Amina', {}, context);
+    const worker = FakeWorker.workers[0];
+    worker.respond(0); await tick(); worker.respond(1); await first;
+    await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
+    await expect(detectPIIForWeb('anna@example.com', {}, context)).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
+    expect(worker.messages.map(message => message.kind)).toEqual(['load', 'scan']);
+    expect(worker.terminated).toBe(false);
+    expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'timeout' });
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('does not publish enhancement arriving after its deadline even before the timeout callback runs', async () => {
+    vi.useFakeTimers();
+    const scan = detectPIIForWeb('Amina anna@example.com');
+    const worker = FakeWorker.workers[0];
+    worker.respond(0); await tick();
+    vi.setSystemTime(Date.now() + WEB_PII_SCAN_BUDGET_MS + 1);
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
+    await expect(scan).resolves.toEqual(basicDetector.detectPII('Amina anna@example.com'));
+    expect(get(webPIIDetectorState).fallbackReason).toBe('timeout');
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('supersedes the active loading preview so ready-state rescans never infer obsolete drafts', async () => {
+    const old = detectPIIForWeb('obsolete draft', {}, { purpose: 'preview' });
+    const current = detectPIIForWeb('Amina', {}, { purpose: 'preview' });
+    await expect(old).resolves.toEqual([]);
+    const worker = FakeWorker.workers[0];
+    let refreshed: Promise<basicDetector.PIIMatch[]> | undefined;
+    const unsubscribe = webPIIDetectorState.subscribe(state => {
+      if (state.status === 'ready' && !refreshed) refreshed = detectPIIForWeb('Amina', {}, { purpose: 'preview' });
+    });
+    worker.respond(0); await tick();
+    await expect(current).resolves.toEqual([]);
+    expect(worker.messages.map(message => message.text).filter(Boolean)).toEqual(['Amina']);
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
+    expect((await refreshed!)[0].match).toBe('Amina');
+    unsubscribe();
+  });
+
 });
