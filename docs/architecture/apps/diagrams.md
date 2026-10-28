@@ -30,6 +30,9 @@ Native diagram fences are withheld until their complete source passes validation
 and the matching type guide is present. Missing preparation or invalid source
 allows one bounded repair generation while preserving surrounding prose. Explicit
 source-code requests and prose-only answers retain their existing behavior.
+Recognized unsolicited fenced flow sketches and diagram source use the same
+bounded preparation path. A prose-only request instead receives a prose
+continuation, without loading drawing guides or forcing a visual.
 
 The model returns a complete static HTML document in an `openmates_diagram`
 fence. Streaming first publishes a processing embed; finalization validates the

@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: diagram-instruction-reliability
 title: On-demand Memory loading with verified diagram preparation
-status: implementing
+status: verified
 goal: >-
   Address issue 7B8F7 (diagram not shown and error notification). But before we
   implement anything, let's first propose a permanent solution for this, so the
@@ -253,4 +253,33 @@ proposal_validation:
   method: scripts/plan_validate.py
   result: passed
   product_changes: none
-  product_tests: Not run; this is an investigation and design proposal.
+  product_tests: Not run during proposal review; implementation evidence follows.
+implementation_verification:
+  dev_commit: 33839538087658a74adabf9d5a427ac826d1210f
+  ci_source: ce952cd0e1dff69d335c28bb04773ec3039b673a
+  browser:
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/40691757573
+    result: Two cases passed, with no failures, retries or skipped cases.
+    coverage: >-
+      Forced missed preselection, find/load calls, deliberately wrong ASCII,
+      bounded native recovery, both-tab rendering, editable encrypted history,
+      reload, restore, phone views, prose, native mind maps and explicit source.
+  live_inference:
+    routing: Existing automatic routing, isolated CLI state and disposable Project.
+    result: >-
+      The exact reported prompt triggered bounded preparation and produced a
+      finished native flowchart. Its natural follow-up produced another native
+      diagram. Decrypted HTML passed validation. Prose-only and explicit Mermaid
+      requests preserved their requested output formats.
+  focused_checks: >-
+    Provider-request, Memory access/revocation, continuation, source/prose intent
+    and fixture regressions passed. Persistence checks (105), Directus transaction
+    checks (71), authorization checks (8), lint and source comparison passed.
+  runtime: >-
+    Coordinated dev refresh completed healthy. Running Memory, main processor and
+    history transaction hashes matched the deployed source; owned product files
+    matched the successful CI candidate.
+  evidence: >-
+    Latest browser and real CLI recordings were uploaded privately. The exact
+    source/run/harness and cleanup receipt was validated using bounded temporary
+    RAM storage, preserving the root-disk reserve and recovery archives.
