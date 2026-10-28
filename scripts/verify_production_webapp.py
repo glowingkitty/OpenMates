@@ -94,9 +94,21 @@ def verify(url: str, output: Path, expected_version: str | None = None) -> dict:
                             raise RuntimeError("Served version differs from the reviewed deployment")
                         for navigate in [lambda: page.goto(browser_url, wait_until="domcontentloaded"),
                                          lambda: page.reload(wait_until="domcontentloaded")]:
-                            response = navigate()
+                            # Hydration schedules this read after navigation. Wait
+                            # for its real response before our reload can abort it;
+                            # an early network-idle event alone is insufficient.
+                            with page.expect_response(
+                                lambda response: response.url.split("?")[0]
+                                    == "https://api.openmates.org/v1/anonymous/free-usage/status",
+                                timeout=30_000,
+                            ) as usage_response:
+                                response = navigate()
                             if response is None or not response.ok:
                                 raise RuntimeError("App navigation did not return a successful response")
+                            usage = usage_response.value
+                            view.setdefault("anonymous_usage_responses", []).append(usage.status)
+                            if not usage.ok:
+                                raise RuntimeError("Anonymous startup status did not return a successful response")
                             expect(page.get_by_test_id("header-login-signup-btn")).to_be_visible(timeout=30_000)
                             # Do not abort the app's initial API reads with our own reload.
                             page.wait_for_load_state("networkidle")
