@@ -158,6 +158,8 @@ class Coordinator(CoordinatorState):
                 "expire",
                 "--max-age-hours",
                 "96",
+                "--format",
+                "json",
             ]
         )
         environment = {
@@ -172,11 +174,27 @@ class Coordinator(CoordinatorState):
             cwd=repository,
             env=environment,
             pass_fds=(self._leader.fileno(),),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE if not script else subprocess.DEVNULL,
+            stderr=subprocess.PIPE if not script else subprocess.DEVNULL,
+            text=True,
             timeout=1200,
         )
-        return {"kind": kind, "returncode": result.returncode}
+        report = {"kind": kind, "returncode": result.returncode}
+        if not script:
+            try:
+                if len(result.stdout) > 2 * 1024 * 1024:
+                    raise ValueError("Worktree cleanup report exceeds diagnostic limit")
+                detail = json.loads(result.stdout)
+                report.update(
+                    inspected=detail["inspected"],
+                    deleted=detail["deleted"],
+                    protected_live=len(detail.get("protected_live", [])),
+                    protected_unresolved=len(detail.get("protected_unresolved", [])),
+                    failures=detail.get("failures", []),
+                )
+            except (ValueError, TypeError, KeyError):
+                report["error"] = "Worktree cleanup did not return a valid structured report"
+        return report
 
     def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN):
         self._assert_leader()
@@ -220,7 +238,8 @@ class Coordinator(CoordinatorState):
                         (fs, now + CLEANUP_BACKOFF),
                     )
             waiting = db.execute(
-                "SELECT * FROM requests WHERE state='waiting' ORDER BY created_at,id"
+                "SELECT * FROM requests WHERE state='waiting' AND expires_at<=? ORDER BY created_at,id",
+                (now,),
             ).fetchall()
             by_fs = {}
             for row in waiting:

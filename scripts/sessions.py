@@ -4694,11 +4694,17 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
         rc, stdout, _stderr = _run_cmd([
             "docker", "run", "--pull=never", "--rm", "--network", "none", "--read-only",
             "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--security-opt", "no-new-privileges",
+            "--security-opt", "apparmor=unconfined",
             "--user", "0:0", "--pids-limit", "64", "--memory", "64m", "--cpus", "0.5",
             "--mount", "type=bind,source=/proc,target=/host-proc,readonly",
             "--entrypoint", "python3", image, "-c", code, str(int(pid)),
         ], timeout=30)
-        if rc or len(stdout) > 1048576 or not owner_check(coordinator):
+        if rc:
+            # Reference targets may contain private paths; report the bounded
+            # failure stage without exposing the helper's captured inventory.
+            print(f"Worktree expiry retained: process reference probe failed for PID {pid} (exit {rc})", file=sys.stderr)
+            return None
+        if len(stdout) > 1048576 or not owner_check(coordinator):
             return None
         result = json.loads(stdout)
         end = stat_path.read_text().rsplit(")", 1)[1].split()[19]

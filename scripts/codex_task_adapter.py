@@ -135,11 +135,18 @@ def execution_threads(root, config, disk_requests=()):
                     for row in disk_requests
                 )
             )
+            merged_wait = (
+                worktree.get("status") == "merged" and location and Path(location).is_dir()
+                and repository_checkout(root, location)
+                and any(row.get("thread") == thread and row.get("repository") == str(root.resolve())
+                        and row.get("state") in {"waiting", "granted"} for row in disk_requests)
+            )
             if (
                 thread
                 and record.get("codex_host") == host
-                and worktree.get("status") not in {"merged", "removed"}
-                and ((location and repository_checkout(root, location)) or provisioning_wait)
+                and worktree.get("status") != "removed"
+                and ((worktree.get("status") != "merged" and
+                      ((location and repository_checkout(root, location)) or provisioning_wait)) or merged_wait)
             ):
                 uuid.UUID(thread)
                 allowed.add(thread)
@@ -264,6 +271,25 @@ def disk_owner_task(row, tasks, allowed):
         and task.get("status") != "done"
     ]
     return candidates[0] if len(candidates) == 1 else None
+
+
+def disk_thread_task_set(row, tasks, allowed):
+    """Permit a thread notice without selecting among multiple owned Tasks."""
+    owner = row.get("thread")
+    if not owner or owner not in allowed or row.get("task_id"):
+        return None
+    owned = [task for task in tasks.values()
+             if (task.get("external_chat") or {}).get("provider") == "codex"
+             and (task.get("external_chat") or {}).get("id") == owner
+             and task.get("status") != "done"]
+    if len(owned) < 2 or not any(
+        task.get("status") in {"todo", "in_progress"}
+        and not task.get("blocked_reason") and not task.get("blocked_reason_code")
+        and not any(task.get(flag) for flag in ("paused", "deleted", "archived"))
+        for task in owned
+    ):
+        return None
+    return sorted(identity([task.get("scope"), task["task_id"]]) for task in owned)
 
 
 def disk_task_eligible(task):
@@ -422,6 +448,15 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None, re
         if owner:
             state["threads"].setdefault(owner, {})["resource_waiting"] = True
         if not task:
+            task_set = disk_thread_task_set(row, tasks, allowed)
+            runtime = state["threads"].get(owner, {})
+            if (task_set and row["state"] == "granted"
+                    and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
+                    and coordinator.valid_grant(row["id"], row.get("grant_id"))):
+                queue(state, owner, "disk_ready", [row["id"], row["grant_id"], task_set], {
+                    **row, "task_status_policy": "notify_thread", "owned_task_set": task_set,
+                    "notice": "Disk capacity is reserved for this chat's existing requested operation. No Task was selected or changed. Continue only authorized work already underway, honor current personal focus policy and human pauses, and claim this grant on the next gated operation.",
+                })
             continue
         if not row.get("task_id") and hasattr(coordinator, "bind_task"):
             if not coordinator.bind_task(row["id"], owner, task["task_id"]):
@@ -477,6 +512,13 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None, re
 
 
 def disk_delivery_valid(item, state, tasks, allowed, coordinator):
+    if item["data"].get("task_status_policy") == "notify_thread":
+        current_set = disk_thread_task_set(item["data"], tasks, allowed)
+        runtime = state["threads"].get(item["owner"], {})
+        return bool(current_set and current_set == item["data"].get("owned_task_set")
+                    and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
+                    and coordinator and coordinator.available()
+                    and coordinator.valid_grant(item["data"]["id"], item["data"].get("grant_id")))
     task = disk_owner_task(item["data"], tasks, allowed)
     runtime = state["threads"].get(item["owner"], {})
     wait = state.get("disk_task_waits", {}).get(item["data"].get("task_wait_id", item["data"]["id"]))

@@ -364,7 +364,7 @@ class CoordinatorState:
                 )
             elif prior["state"] != "claimed":
                 db.execute(
-                    "UPDATE requests SET pid=?,start=?,updated_at=? WHERE id=?",
+                    "UPDATE requests SET pid=?,start=?,updated_at=?,expires_at=CASE WHEN state='waiting' THEN 0 ELSE expires_at END WHERE id=?",
                     (pid, start, now, identity),
                 )
             return dict(
@@ -417,10 +417,10 @@ class CoordinatorState:
     def defer(self, identity):
         with self.db(write=True) as db:
             db.execute(
-                """UPDATE requests SET state='waiting',grant_id='',expires_at=0,
+                """UPDATE requests SET state='waiting',grant_id='',expires_at=?,
                        updated_at=?,reason='Continuation is paused or ineligible',acknowledged=0
                        WHERE id=? AND state='granted'""",
-                (self.clock(), identity),
+                (self.clock() + GRANT_SECONDS, self.clock(), identity),
             )
 
     def cancel(self, identity, reason="Cancelled by owner"):

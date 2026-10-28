@@ -143,6 +143,29 @@ def test_old_workspace_ceiling_does_not_freeze_ci_and_keeps_its_peak(tmp_path):
         assert c.get(oldest["id"])["state"] == "granted"
 
 
+def test_paused_grant_does_not_reclaim_capacity_until_retry_or_backoff(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    first = request(c, root)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        c.defer(first["id"])
+        next_row = request(c, root, operation="other", amount=140)
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "waiting"
+        assert c.get(next_row["id"])["state"] == "granted"
+        granted = c.get(next_row["id"])
+        c.claim(next_row["id"], granted["grant_id"])
+        c.release(next_row["id"])
+        # A real owner retry reactivates its durable ticket immediately.
+        assert request(c, root, thread=first["thread"])["id"] == first["id"]
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "granted"
+        c.defer(first["id"])
+        now[0] += disk.GRANT_SECONDS + 1
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "granted"
+
+
 def test_cleanup_remeasures_before_resuming_and_keeps_recovery_margin(tmp_path):
     c, root, now, usage = fixture(tmp_path, free=100, used=900, kinds=("managed",))
     row = request(c, root)

@@ -1131,6 +1131,7 @@ def test_expiry_privileged_probe_requires_elected_owner_and_stable_process(monke
         assert cmd[cmd.index('--cap-drop') + 1] == 'ALL'
         assert cmd[cmd.index('--cap-add') + 1] == 'SYS_PTRACE'
         assert cmd[cmd.index('--security-opt') + 1] == 'no-new-privileges'
+        assert 'apparmor=unconfined' in cmd
         assert cmd[cmd.index('--mount') + 1] == 'type=bind,source=/proc,target=/host-proc,readonly'
         assert cmd[-1] == '123'
         if outcome == 'error':

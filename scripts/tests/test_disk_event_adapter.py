@@ -192,16 +192,20 @@ def test_final_start_guard_rechecks_owner_and_grant(change):
 
 
 # contract-test: tooling
-def test_missing_task_identity_requires_unique_active_owned_task():
+def test_missing_task_identity_notifies_thread_and_binds_only_a_unique_task():
     state, ledger, tasks = setup()
     ledger.rows[0]["task_id"] = None
     tasks["other"] = {**tasks["task"], "task_id": "other"}
     observe(state, ledger, tasks)
-    assert not state["deliveries"]
+    notice = next(iter(state["deliveries"].values()))
+    assert notice["data"]["task_status_policy"] == "notify_thread"
+    assert not ledger.bindings
     assert state["disk_requests"]
     tasks["other"]["status"] = "done"
     observe(state, ledger, tasks)
-    assert len(state["deliveries"]) == 1
+    assert not adapter.disk_delivery_valid(notice, state, tasks, {OWNER}, ledger)
+    assert any(item["data"].get("task_id") == "task" for item in state["deliveries"].values())
+    assert ledger.bindings == [("request", OWNER, "task")]
 
 
 # contract-test: tooling
@@ -402,3 +406,72 @@ def test_human_can_pause_registered_owner_waiting_for_first_workspace(tmp_path, 
     adapter.main()
     control = tmp_path / "codex-adapter-controls" / adapter.identity(str(root)) / f"{OWNER}.json"
     assert json.loads(control.read_text())["paused"] is True
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("change", ["reassigned", "deleted", "paused", "all_done", "all_blocked"])
+def test_multi_task_thread_notice_rechecks_active_task_set_and_human_stop(change):
+    state, ledger, tasks = setup()
+    ledger.rows[0]["task_id"] = ""
+    tasks["other"] = {**tasks["task"], "task_id": "other"}
+    before = copy.deepcopy(tasks)
+    observe(state, ledger, tasks)
+    item = next(iter(state["deliveries"].values()))
+    assert item["data"]["task_status_policy"] == "notify_thread"
+    assert not ledger.bindings
+    assert tasks == before
+    if change == "reassigned":
+        tasks["other"]["external_chat"] = {"provider": "codex", "id": "another"}
+    if change == "deleted":
+        del tasks["other"]
+    if change == "paused":
+        state["threads"][OWNER]["paused"] = True
+    if change == "all_done":
+        for task in tasks.values():
+            task["status"] = "done"
+    if change == "all_blocked":
+        for task in tasks.values():
+            task.update(status="blocked", blocked_reason_code="needs_user_input")
+    assert not adapter.disk_delivery_valid(item, state, tasks, {OWNER}, ledger)
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger)
+    assert not rpc.starts
+
+
+# contract-test: tooling
+def test_multi_task_thread_notice_starts_once_without_task_selection_or_mutation():
+    state, ledger, tasks = setup()
+    ledger.rows[0]["task_id"] = ""
+    tasks["other"] = {**tasks["task"], "task_id": "other", "status": "blocked", "blocked_reason_code": "needs_user_input"}
+    before = copy.deepcopy(tasks)
+    observe(state, ledger, tasks)
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger)
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger)
+    assert len(rpc.starts) == 1
+    assert not ledger.bindings and not state.get("disk_task_waits")
+    assert tasks == before
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("invalid", [None, "no_request", "retired", "removed", "foreign_host", "missing_checkout"])
+def test_merged_checkout_requires_existing_local_checkout_and_live_same_owner_request(tmp_path, monkeypatch, invalid):
+    import json
+    monkeypatch.setattr(adapter.socket, "gethostname", lambda: "local-host")
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    record = {"codex_task_id": OWNER, "codex_host": "local-host", "repo_root": str(tmp_path),
+              "worktree": {"path": str(checkout), "status": "merged"}}
+    row = {"thread": OWNER, "repository": str(tmp_path), "operation": "ci-source:fixture", "state": "granted"}
+    if invalid == "retired":
+        row["state"] = "complete"
+    if invalid == "removed":
+        record["worktree"]["status"] = "removed"
+    if invalid == "foreign_host":
+        record["codex_host"] = "foreign-host"
+    if invalid == "missing_checkout":
+        checkout.rmdir()
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude/sessions.json").write_text(json.dumps({"sessions": {"fixture": record}}))
+    rows = [] if invalid == "no_request" else [row]
+    assert adapter.execution_threads(tmp_path, {"all_threads": True}, rows) == ({OWNER} if invalid is None else set())
