@@ -8,11 +8,13 @@ const authMocks = vi.hoisted(() => ({
 vi.mock('../../config/api', () => ({ getApiUrl: () => 'https://api.dev.openmates.org' }));
 vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => authMocks.token }));
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => 'test-session' }));
+vi.mock('../anonymousChatIdentity', () => ({ getAnonymousClientId: () => 'existing-guest-id' }));
 vi.mock('../../stores/authSessionActions', () => ({ checkAuth: authMocks.checkAuth }));
 
 import {
   downsampleAudio,
   startAudioRealtimeTranscription,
+  AnonymousTranscriptionUsageError,
 } from '../audioRealtimeTranscription';
 
 class FakeWebSocket {
@@ -78,6 +80,39 @@ describe('audio realtime transcription', () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  // contract-test: direct surface=gui.web assertions=message-input.audio.guest-admission
+  it('uses the existing guest identity without account tokens, metadata or workflow context', () => {
+    const handle = startAudioRealtimeTranscription({} as MediaStream, { anonymous: true, correctionContext: 'workflow' });
+    const socket = FakeWebSocket.last;
+    const url = new URL(socket.url);
+    expect(url.searchParams.get('anonymous_id')).toBe('existing-guest-id');
+    expect(url.searchParams.has('token')).toBe(false);
+    expect(url.searchParams.has('correction_context')).toBe(false);
+    expect(authMocks.checkAuth).not.toHaveBeenCalled();
+    socket.emit({ type: 'session.ready' });
+    handle.setChatId('private-account-chat');
+    expect(socket.sent).toEqual([]);
+    handle.cancel();
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.audio.guest-admission
+  it('does not attempt account refresh or reconnect when a guest handshake is denied', async () => {
+    const handle = startAudioRealtimeTranscription({} as MediaStream, { anonymous: true });
+    FakeWebSocket.last.rejectHandshake();
+    await expect(handle.correction).rejects.toThrow('Realtime transcription ended early');
+    expect(authMocks.checkAuth).not.toHaveBeenCalled();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.audio.guest-admission
+  it('preserves structured guest allowance denial for signup guidance and rejects both results', async () => {
+    const handle = startAudioRealtimeTranscription({} as MediaStream, { anonymous: true });
+    FakeWebSocket.last.emit({ type: 'session.error', code: 'per_identity_exhausted', signup_required: true, message: 'Free usage limit reached' });
+    await expect(handle.correction).rejects.toBeInstanceOf(AnonymousTranscriptionUsageError);
+    await expect(handle.transcription).rejects.toMatchObject({ code: 'per_identity_exhausted', signupRequired: true });
+    expect(authMocks.checkAuth).not.toHaveBeenCalled();
+  });
 
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
   it('downsamples browser audio to the provider sample rate', () => {

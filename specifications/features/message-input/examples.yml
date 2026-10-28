@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@10
+specification: feature.message-input@11
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -266,12 +266,12 @@ immediate_submission:
 editable_transcript:
 - id: transcript-among-existing-notes
   assertion_ids: [message-input.audio.editable-transcript]
-  given: Alice has typed meeting notes and places the caret where she wants her recording’s words.
+  given: Alice is signed in or visiting with free allowance, has typed meeting notes, and places the caret where she wants her recording’s words.
   when: She chooses Finish or presses Enter, or chooses the same small round orange up-arrow Send button used by the minimized composer while recording.
   then: Both paths preserve her notes and insert the corrected transcript at her caret without an audio embed or permanent audio upload. Finish or Enter leaves an editable unsent draft; Send stops capture and submits the complete corrected draft once without a second press, subject to the normal send gates.
 - id: stale-recording-result
   assertion_ids: [message-input.audio.editable-transcript]
-  given: Alice chooses the round Send button for a recording in chat A, and correction is still pending.
+  given: Alice is signed in or visiting with free allowance and chooses the round Send button for a recording in chat A while correction is pending.
   when: She cancels, correction fails, or she switches to chat B and starts another draft before the old result arrives.
   then: The pending recording send is discarded, no message is sent, chat B and newer drafts stay unchanged, and temporary recording resources are released.
 gated_attachments:
@@ -324,12 +324,24 @@ october_apple_privacy:
     when: The exact turn retries within its original account and workspace, or account, key, server or Team ownership changes.
     then: A valid retry keeps the same protected payload and deliberate exclusion only after a fresh scoped receipt; replacement ownership cannot consume the turn, draft or prepared privacy.
 
+guest_dictation:
+- id: guest-editable-dictation
+  assertion_ids: [message-input.audio.guest-admission]
+  given: A signed-out visitor has free usage remaining and has typed "Please " in the official-cloud composer.
+  when: The visitor starts dictation with the microphone button or keyboard shortcut, speaks, and chooses Finish.
+  then: Live words appear and the corrected text is inserted after the existing note, ready to edit and still unsent. No signup, recording embed or permanent audio upload occurs; admitted transcription and correction work uses the same guest allowance.
+- id: guest-denial-and-interruption
+  assertion_ids: [message-input.audio.guest-admission]
+  given: A guest's identity or shared allowance is exhausted, another guest is already recording from the same IP, or an admitted guest recording is interrupted.
+  when: The guest attempts to start or continue dictation, rotates the local identity, or closes the recording after audio has reached the provider.
+  then: Exhausted, unavailable or duplicate admission starts no provider work and shows the appropriate usage guidance. Rotating the local identity does not bypass IP limits. Known interrupted work settles once against the guest budget; uncertain dispatched work is not refunded as unused, and a signed-in user with credits can still dictate normally.
+
 voxtral3_dictation:
 - id: preview-and-editable-result
   assertion_ids: [message-input.audio.realtime-voxtral3]
-  given: A signed-in user with one credit starts microphone dictation in an unsent draft.
+  given: A signed-in user with one credit, or an official-cloud guest with available free allowance, starts microphone dictation in an unsent draft.
   when: The user speaks for one second and then stops the recording.
-  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation. The recording settles once for one credit.
+  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation. The recording settles once for one credit against the account or guest allowance, respectively.
 - id: realtime-price-and-separate-batch
   assertion_ids: [message-input.audio.realtime-voxtral3]
   given: A user streams 10 seconds of dictation, disconnects after 61 seconds of another recording, ends an empty recording, and later transcribes an uploaded file with the Audio transcribe app skill.

@@ -15,6 +15,9 @@ from backend.shared.providers.gemini_transcript_correction import (
     clean_transcript_title,
     correct_transcript_with_gemini,
 )
+from backend.shared.providers.transcript_correction_accounting import (
+    admitted_correction, correction_output_limit, settle_correction, CorrectionAccountingError, correction_dispatch_transport,
+)
 from backend.shared.providers.inception import InceptionClient, InceptionRequest, resolve_api_key
 
 logger = logging.getLogger(__name__)
@@ -45,7 +48,7 @@ async def correct_transcript_with_mercury(
         ],
         temperature=0.5,
         reasoning_effort="low",
-        max_completion_tokens=8192,
+        max_completion_tokens=correction_output_limit(8192),
         tools=[{
             "type": "function",
             "function": {
@@ -62,10 +65,20 @@ async def correct_transcript_with_mercury(
         tool_choice={"type": "function", "function": {"name": GEMINI_TRANSCRIPT_TOOL_NAME}},
     )
     # A total deadline also bounds any network activity and connection setup.
-    async with asyncio.timeout(MERCURY_CORRECTION_TIMEOUT_SECONDS):
-        result = await InceptionClient(
-            api_key, timeout=MERCURY_CORRECTION_TIMEOUT_SECONDS, max_retries=0,
-        ).complete(request)
+    async with admitted_correction(
+        MERCURY_CORRECTION_MODEL,
+        len(build_transcript_correction_prompt(detected_language).encode("utf-8")) + len(raw_transcript.encode("utf-8")) + 8192,
+        request.max_completion_tokens,
+    ) as accounting:
+        async with asyncio.timeout(MERCURY_CORRECTION_TIMEOUT_SECONDS):
+            client = InceptionClient(
+                api_key, timeout=MERCURY_CORRECTION_TIMEOUT_SECONDS, max_retries=0,
+                **({"transport": correction_dispatch_transport(accounting)} if accounting is not None else {}),
+            )
+            result = await client.complete(request)
+        if accounting is not None:
+            usage = result.usage
+            await settle_correction(accounting, getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None))
     # Native nonstream Mercury may report "stop" for a completed forced function call.
     # Still reject truncated/blocked results before validating the sole tool and its fields.
     if len(result.choices) != 1 or result.choices[0].get("finish_reason") not in {"stop", "tool_calls"}:
@@ -103,6 +116,8 @@ async def correct_transcript(
                 key = await resolve_api_key(secrets_manager)
                 result = await correct_transcript_with_mercury(raw_transcript, key, detected_language)
             return {**result, "model": MERCURY_CORRECTION_MODEL}
+        except CorrectionAccountingError:
+            raise
         except Exception as exc:
             logger.warning("Mercury transcript correction failed (%s); trying Gemini", type(exc).__name__)
     key = await secrets_manager.get_secret("kv/data/providers/google_ai_studio", "api_key")

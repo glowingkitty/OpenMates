@@ -46,6 +46,7 @@
         };
         close: void;
         cancel: void;
+        transcriptionerror: Error;
         overlayremoved: { recordingGeneration: number };
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
@@ -57,6 +58,7 @@
         initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
         enableRealtime?: boolean;
+        anonymous?: boolean;
         previewTranscript?: string | null;
         previewProcessing?: boolean;
         /** Text composers keep the overlay until corrected text is available. */
@@ -73,6 +75,7 @@
         initialPosition,
         externalStream = null,
         enableRealtime = false,
+        anonymous = false,
         previewTranscript = null,
         previewProcessing = false,
         retainUntilCorrection = false,
@@ -295,9 +298,15 @@
 
             if (enableRealtime) {
                 realtimeHandle = startAudioRealtimeTranscription(streamToUse, {
+                    anonymous,
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
                     correctionContext,
+                });
+                void realtimeHandle.correction.catch((error: Error) => {
+                    if (isCancelled || realtimeHandedOff || overlayCloseNotified) return;
+                    dispatch('transcriptionerror', error);
+                    stopInternal(true);
                 });
             }
 

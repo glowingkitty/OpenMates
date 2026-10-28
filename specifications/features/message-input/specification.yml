@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 10
+version: 11
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -390,8 +390,10 @@ assertions:
     after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
     cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
     error, context switches and stale completions clear any pending recording Send request and cannot send or overwrite
-    another chat or newer submitted draft; release temporary recording resources. Historical recording embeds remain readable. If transcription
-    requires authentication, use the existing login/signup gate before recording instead of a simulated result.
+    another chat or newer submitted draft; release temporary recording resources. Historical recording embeds remain readable.
+    On the official-cloud web app, guests with available anonymous allowance can use the same microphone and keyboard
+    recording entry points without signing in. Transcription remains ordinary text input rather than a private file attachment.
+    Exhausted or unavailable allowance displays the existing usage-limit or signup guidance without a simulated transcript.
   depends_on:
   - models.RecordingState
   - examples.editable_transcript
@@ -417,8 +419,12 @@ assertions:
   depends_on: [examples.composer_ghost]
 - id: message-input.audio.realtime-voxtral3
   type: behavior
-  must: Web microphone dictation streams through the authenticated first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation.
+  must: Web microphone dictation streams through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
   depends_on: [examples.voxtral3_dictation]
+- id: message-input.audio.guest-admission
+  type: security
+  must: Official-cloud guests can dictate without an account session while their existing anonymous identity/IP and shared daily, weekly and monthly budgets have room. Require an allowed first-party Origin, bounded session duration and idle time, and identity/IP rate and concurrency admission. Every transcription and correction provider operation, including fallback attempts, must have a conservative atomic reservation before dispatch; denial dispatches no provider work and shows existing usage-limit or signup guidance. Completion, cancellation, disconnect and failure settle known work idempotently and retain ambiguous dispatched work without storing audio or transcript content. Invalid supplied account credentials must not silently become guest access. Guest access cannot authorize account-owned chat state or workflow actions, and exhausting guest allowance does not affect authenticated users with credits.
+  depends_on: [examples.guest_dictation]
 
 
 - id: message-input.audio.single-line-preview

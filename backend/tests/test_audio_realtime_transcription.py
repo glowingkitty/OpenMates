@@ -285,7 +285,7 @@ def test_authenticated_websocket_settles_ten_seconds_for_two_credits(
 
     app = FastAPI()
     app.include_router(audio_realtime.router)
-    app.dependency_overrides[audio_realtime.get_current_user_ws] = authenticate
+    app.dependency_overrides[audio_realtime._optional_transcription_actor] = authenticate
     app.state.allowed_origins = ["https://app.dev.openmates.org"]
     app.state.cache_service = object()
     app.state.secrets_manager = SimpleNamespace(get_secret=secret)
