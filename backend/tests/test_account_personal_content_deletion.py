@@ -24,6 +24,8 @@ class Directus:
         self.messages = [{"id": f"message-{i:03d}", "chat_id": "chat-000"} for i in range(121)]
         self.messages.append({"id": "team-message", "chat_id": "team-chat"})
         self.keys = []
+        self.specifications = []
+        self.specification_revisions = []
 
     async def get_items(self, collection, *, params, **kwargs):
         self.calls.append((collection, params, kwargs))
@@ -36,13 +38,18 @@ class Directus:
         elif collection == "messages":
             assert collection == "messages"
             rows = [row for row in self.messages if row["chat_id"] == params["filter[chat_id][_eq]"]]
-            if self.fail_read and params.get("filter[id][_gt]"):
+            if self.fail_read and params.get("filter[id][_nin]"):
                 raise RuntimeError("database unavailable")
+        elif collection in {"user_specifications", "user_specification_revisions"}:
+            assert params["filter[hashed_user_id][_eq]"] == "creator"
+            assert params["filter[hashed_team_id][_null]"] is True
+            source = self.specifications if collection == "user_specifications" else self.specification_revisions
+            rows = [row for row in source if row["hashed_team_id"] is None and row["hashed_user_id"] == "creator"]
         else:
             assert collection == "embed_keys"
             assert params["filter[hashed_user_id][_eq]"] == "creator"
             rows = self.keys
-        return [row for row in rows if row["id"] > params.get("filter[id][_gt]", "")][:20]
+        return [row for row in rows if row["id"] not in params.get("filter[id][_nin]", [])][:20]
 
     async def bulk_delete_items(self, collection, ids):
         assert 0 < len(ids) <= 20
@@ -59,12 +66,35 @@ async def test_account_content_deletes_complete_personal_scope_in_bounded_batche
     result = await delete_account_personal_content(
         directus_service=directus, user_id_hash="creator", eligible_embed_rows=eligible,
     )
-    assert result == {"messages": 121, "embeds": 1, "chats": 21}
+    assert result == {"user_specification_revisions": 0, "user_specifications": 0, "messages": 121, "embeds": 1, "chats": 21}
     deleted = {value for _, ids in directus.deleted for value in ids}
     assert {"team-chat", "team-message", "team-project-embed"}.isdisjoint(deleted)
     assert "message-120" in deleted and "chat-020" in deleted
     collections = [collection for collection, _ in directus.deleted]
     assert collections == ["messages"] * 7 + ["embeds"] + ["chats"] * 2
+
+
+# contract-test: supporting surface=rest_api assertions=contracts.project.encrypted-embed,storage.deletion.global-authoritative
+@pytest.mark.asyncio
+async def test_account_deletion_removes_personal_specifications_and_history_but_preserves_team_scope():
+    directus = Directus()
+    directus.specifications = [
+        {"id": "spec-personal", "hashed_user_id": "creator", "hashed_team_id": None},
+        {"id": "spec-team", "hashed_user_id": "creator", "hashed_team_id": "team"},
+    ]
+    directus.specification_revisions = [
+        {"id": f"revision-{i:03d}", "hashed_user_id": "creator", "hashed_team_id": None}
+        for i in range(23)
+    ] + [{"id": "team-revision", "hashed_user_id": "creator", "hashed_team_id": "team"}]
+    result = await delete_account_personal_content(
+        directus_service=directus, user_id_hash="creator", eligible_embed_rows=SimpleNamespace(embeds=[], versions=[]),
+    )
+    assert result["user_specifications"] == 1 and result["user_specification_revisions"] == 23
+    assert [collection for collection, _ in directus.deleted][:3] == [
+        "user_specification_revisions", "user_specification_revisions", "user_specifications",
+    ]
+    deleted = {value for _, ids in directus.deleted for value in ids}
+    assert {"spec-team", "team-revision"}.isdisjoint(deleted)
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative

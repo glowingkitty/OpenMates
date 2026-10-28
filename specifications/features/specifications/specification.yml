@@ -210,6 +210,14 @@ assertions:
     type: invariant
     must: Approval binds an immutable Specification revision and content hash; later material edits create a new draft revision and cannot inherit approval from superseded content.
     depends_on: [models.SpecificationRevision, examples.specification_revisions]
+  - id: contracts.authoring.shared-direct-and-chat
+    type: behavior
+    must: A user may create or refine a Project Specification through authorized chat requests or direct editing of its readable detail view; both paths save revisions of the same authoritative Specification, show pending or failed saves truthfully, and make the saved revision available after reopening the chat or Project.
+    depends_on: [models.SpecificationRecord, models.SpecificationRevision, examples.specification_authoring, applies_to.gui]
+  - id: contracts.revision.optimistic-conflict
+    type: invariant
+    must: A Specification edit identifies the revision it was based on; if another accepted edit has advanced that revision, the stale edit reports a visible conflict and preserves both the current saved revision and the user's proposed changes instead of silently overwriting newer work or inheriting its approval.
+    depends_on: [models.SpecificationRevision, examples.specification_edit_conflicts]
   - id: contracts.composition.capability-first
     type: behavior
     must: One primary capability Specification contains its related domain and UI flows; sub-Specifications are linked only for independently reusable, independently versioned, or independently approved behavior, never merely because a feature has several screens.

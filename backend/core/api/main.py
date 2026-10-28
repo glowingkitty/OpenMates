@@ -86,6 +86,7 @@ from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wi
 from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
+from backend.core.api.app.routes import user_specifications  # noqa: E402
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
 from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
 from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
@@ -1448,6 +1449,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
     app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only

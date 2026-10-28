@@ -223,6 +223,13 @@ USER_WORK_CONTROL_MIGRATION_PATH = os.getenv(
     '/usr/src/app/migrations/migrate_user_work_control_indexes.sql',
 )
 USER_WORK_CONTROL_INDEXES = ('user_work_dependencies_source_target_uq',)
+USER_SPECIFICATION_MIGRATION_PATH = os.getenv(
+    'USER_SPECIFICATION_MIGRATION_PATH', '/usr/src/app/migrations/migrate_user_specification_indexes.sql',
+)
+USER_SPECIFICATION_INDEXES = (
+    'user_specification_revision_number_uq', 'user_specification_personal_project_idx',
+    'user_specification_team_project_idx', 'user_specification_revision_owner_idx',
+)
 USAGE_OVERVIEW_MIGRATION_PATH = os.getenv(
     'USAGE_OVERVIEW_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_usage_overview_indexes.sql',
@@ -1647,6 +1654,25 @@ def apply_and_verify_user_work_control_indexes():
     print(f"Verified {len(USER_WORK_CONTROL_INDEXES)} work-control indexes")
 
 
+def apply_and_verify_user_specification_indexes():
+    """Install and verify immutable revision and bounded Project-read indexes."""
+    if not os.path.isfile(USER_SPECIFICATION_MIGRATION_PATH):
+        raise RuntimeError("Required Specification index migration is missing")
+    with open(USER_SPECIFICATION_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY(%s)",
+                (list(USER_SPECIFICATION_INDEXES),),
+            )
+            installed = {row[0] for row in cursor.fetchall()}
+    if set(USER_SPECIFICATION_INDEXES) - installed:
+        raise RuntimeError("Specification index verification failed")
+
+
 def apply_and_verify_usage_overview_indexes():
     """Apply usage overview rollup and hot-path read indexes."""
     if not os.path.isfile(USAGE_OVERVIEW_MIGRATION_PATH):
@@ -2081,6 +2107,7 @@ def setup_schemas():
 
         print("\n--- Applying user work-control database indexes ---")
         apply_and_verify_user_work_control_indexes()
+        apply_and_verify_user_specification_indexes()
 
         print("\n--- Applying usage overview database indexes ---")
         apply_and_verify_usage_overview_indexes()

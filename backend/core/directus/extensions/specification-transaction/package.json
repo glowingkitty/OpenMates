@@ -1,0 +1,12 @@
+{
+  "name": "directus-extension-specification-transaction",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "directus:extension": {
+    "type": "endpoint",
+    "path": "dist/index.js",
+    "source": "src/index.js",
+    "host": "^11.5.0"
+  }
+}

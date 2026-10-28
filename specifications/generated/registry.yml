@@ -739,7 +739,7 @@ specifications:
     version: 1
     status: draft
     path: features/specifications
-    fingerprint: acecc3a927b54f6859210d30fab5d310780c24db666c49f0d4170389c758ccc5
+    fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
     required_applies_to:
     - rest_api
     - cli
@@ -9421,6 +9421,28 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  contracts.authoring.shared-direct-and-chat:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: behavior
+    fingerprint: 4d8e8968ac50b60d91b8e3728273d19e377234d1978dc228006e4118a7cb4643
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.revision.optimistic-conflict:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: invariant
+    fingerprint: afbf10d97be7bf8493e6357368999af5ccc8c21986f03c150f1c0958bcbffe28
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   contracts.composition.capability-first:
     specification: feature.specifications@1
     specification_id: feature.specifications
@@ -9546,7 +9568,7 @@ assertions:
     specification: feature.specifications@1
     specification_id: feature.specifications
     type: parity
-    fingerprint: a125a9035a986fc7fa9b20b09915201c9bd0e208a30e6afc5035a090ed157cc9
+    fingerprint: 272dcbe3c07bc49223ea60bfe77e88dd7cd8592e3fbec1ba7b7545fb35a3d406
     required_applies_to:
     - rest_api
     - cli

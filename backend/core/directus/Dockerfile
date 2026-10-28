@@ -40,6 +40,9 @@ RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
     && mkdir -p /directus/extensions/workflow-authoring-transaction/dist \
     && cp /directus/extensions/workflow-authoring-transaction/src/*.js \
         /directus/extensions/workflow-authoring-transaction/dist/ \
+    && mkdir -p /directus/extensions/specification-transaction/dist \
+    && cp /directus/extensions/specification-transaction/src/*.js \
+        /directus/extensions/specification-transaction/dist/ \
     && mkdir -p /directus/extensions/storage-usage-metering/dist \
     && cp /directus/extensions/storage-usage-metering/src/*.js \
         /directus/extensions/storage-usage-metering/dist/ \
@@ -64,6 +67,7 @@ test -r /directus/extensions/embed-version-transaction/package.json
 test -r /directus/extensions/embed-version-transaction/dist/index.js
 test -r /directus/extensions/workflow-authoring-transaction/package.json
 test -r /directus/extensions/workflow-authoring-transaction/dist/index.js
+test -r /directus/extensions/specification-transaction/dist/index.js
 test -r /directus/extensions/storage-usage-metering/package.json
 test -r /directus/extensions/storage-usage-metering/dist/index.js
 test -r /directus/extensions/email-delivery-feedback/package.json

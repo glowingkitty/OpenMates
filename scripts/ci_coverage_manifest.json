@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "specification_storage_lifecycle": {
+      "execution": "e2e",
+      "enabling_work": "Use fresh runner-private paired browser/CLI accounts and the isolated core API/CMS/cache/Vault. Create disposable Projects and real AES-GCM ciphertext, then verify Specification persistence, immutable approval/history, concurrent saves, pagination and authorization. No AI inference, provider credentials, E2B execution or shared dev service is used.",
+      "specs": [
+        "specifications-api-flow.spec.ts"
+      ]
+    },
     "web_browse_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare Browse preview/fullscreen and browser viewer fixtures. Synthetic local page images and typed in-memory session controls prove component behavior without backend, E2B, account credentials or AI inference. Actual owner HTTP and deployed provider flows are verified separately.",

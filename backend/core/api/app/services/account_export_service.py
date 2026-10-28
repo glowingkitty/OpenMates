@@ -104,6 +104,7 @@ FORBIDDEN_EXPORT_SECRET_FIELDS = {
     "encrypted_embed_key",
     "encrypted_master_key",
     "encrypted_plan_key",
+    "encrypted_specification_key",
     "encrypted_project_key",
     "encrypted_task_key",
     "encrypted_workflow_secret_key",
@@ -132,6 +133,7 @@ FORBIDDEN_EXPORT_SECRET_FIELDS = {
 # These fields contain client-encrypted user data, not reusable key material.
 EXPORT_CIPHERTEXT_FIELDS = {
     "encrypted_content", "encrypted_snapshot", "encrypted_patch", "encrypted_diff",
+    "encrypted_specification_document",
     "encrypted_type", "encrypted_text_preview", "encrypted_title", "encrypted_slug",
     "encrypted_summary", "encrypted_chat_summary", "encrypted_listing_metadata",
     "encrypted_sender_name", "encrypted_category", "encrypted_model_name",
@@ -489,6 +491,27 @@ class AccountExportService:
                 source="projects",
             ):
                 yield payload
+                for project in payload.get("items", []):
+                    project_id = project.get("project_id")
+                    if not isinstance(project_id, str):
+                        continue
+                    scope = {"home_project_hash": {"_eq": _hash_id(project_id)}}
+                    if team_id:
+                        scope["hashed_team_id"] = {"_eq": _hash_id(team_id)}
+                    else:
+                        scope["hashed_user_id"] = {"_eq": _hash_id(user_id)}
+                        scope["hashed_team_id"] = {"_null": True}
+                    for collection in ("user_specifications", "user_specification_revisions"):
+                        buffer = []
+                        async for row in self._iter_items_bounded(
+                            collection=collection, params={"filter": scope, "sort": "id"}, admin_required=True,
+                        ):
+                            buffer.append(row)
+                            if len(buffer) >= self.part_item_limit:
+                                yield {"source": collection, "items": buffer}
+                                buffer = []
+                        if buffer:
+                            yield {"source": collection, "items": buffer}
             async for payload in self._cold_archive_payload_chunks(user_id=user_id, team_id=team_id, domain=domain, filters=filters):
                 yield payload
             return
