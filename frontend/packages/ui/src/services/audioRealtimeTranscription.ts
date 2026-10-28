@@ -1,6 +1,7 @@
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
+import { getAnonymousClientId } from './anonymousChatIdentity';
 
 export const REALTIME_TRANSCRIPTION_MODEL = 'voxtral-mini-transcribe-realtime-3-0';
 const TARGET_SAMPLE_RATE = 16_000;
@@ -31,18 +32,27 @@ export interface AudioRealtimeTranscriptionHandle {
 }
 
 interface StartOptions {
+  anonymous?: boolean;
   onTranscript?: (transcript: string) => void;
   onStatus?: (status: 'connecting' | 'listening' | 'correcting' | 'failed') => void;
   correctionContext?: 'workflow';
 }
 
-function websocketUrl(token: string | null, correctionContext?: 'workflow'): string {
+export class AnonymousTranscriptionUsageError extends Error {
+  constructor(readonly code: string, readonly signupRequired: boolean, message: string) {
+    super(message);
+    this.name = 'AnonymousTranscriptionUsageError';
+  }
+}
+
+function websocketUrl(token: string | null, correctionContext?: 'workflow', anonymousId?: string): string {
   const url = new URL(
     getApiUrl().replace(/^http/, 'ws') + '/v1/apps/audio/realtime-transcription',
   );
   url.searchParams.set('sessionId', getSessionId());
   if (token) url.searchParams.set('token', token);
-  if (correctionContext) url.searchParams.set('correction_context', correctionContext);
+  if (anonymousId) url.searchParams.set('anonymous_id', anonymousId);
+  else if (correctionContext) url.searchParams.set('correction_context', correctionContext);
   return url.toString();
 }
 
@@ -160,12 +170,12 @@ export function startAudioRealtimeTranscription(
     if (closing && closing.state !== 'closed') void closing.close().catch(() => undefined);
   };
 
-  const fail = (message: string) => {
+  const fail = (message: string | Error) => {
     if (settledTranscription && settledCorrection) return;
     cancelled = true;
     options.onStatus?.('failed');
     stopAudioGraph();
-    const error = new Error(message);
+    const error = message instanceof Error ? message : new Error(message);
     if (!settledTranscription) {
       settledTranscription = true;
       rejectTranscription(error);
@@ -255,7 +265,10 @@ export function startAudioRealtimeTranscription(
           activeSocket.close(1000, 'complete');
           break;
         case 'session.error':
-          fail(String(message.message || 'Realtime transcription failed'));
+          fail(options.anonymous && typeof message.code === 'string'
+            ? new AnonymousTranscriptionUsageError(message.code, message.signup_required === true,
+              String(message.message || 'Realtime transcription failed'))
+            : String(message.message || 'Realtime transcription failed'));
           break;
       }
     };
@@ -267,7 +280,7 @@ export function startAudioRealtimeTranscription(
     };
     activeSocket.onclose = () => {
       if (activeSocket !== socket) return;
-      if (!ready && !cancelled && !authenticationRetryStarted) {
+      if (!options.anonymous && !ready && !cancelled && !authenticationRetryStarted) {
         authenticationRetryStarted = true;
         options.onStatus?.('connecting');
         void refreshWebSocketToken()
@@ -286,17 +299,20 @@ export function startAudioRealtimeTranscription(
     };
   };
 
-  const openSocket = (token: string) => {
+  const openSocket = (token: string | null) => {
     if (cancelled) return;
-    const activeSocket = new WebSocket(websocketUrl(token, options.correctionContext));
+    const activeSocket = new WebSocket(websocketUrl(token, options.correctionContext,
+      options.anonymous ? getAnonymousClientId() : undefined));
     socket = activeSocket;
     attachSocketHandlers(activeSocket);
   };
 
   try {
     options.onStatus?.('connecting');
-    const currentToken = getWebSocketToken();
-    if (websocketTokenNeedsRefresh(currentToken)) {
+    const currentToken = options.anonymous ? null : getWebSocketToken();
+    if (options.anonymous) {
+      openSocket(null);
+    } else if (websocketTokenNeedsRefresh(currentToken)) {
       void freshWebSocketToken().then(openSocket).catch((error) => {
         fail(error instanceof Error ? error.message : 'Realtime transcription authentication failed');
       });
@@ -354,6 +370,7 @@ export function startAudioRealtimeTranscription(
       fail('Realtime transcription cancelled');
     },
     setChatId(chatId: string) {
+      if (options.anonymous) return;
       pendingChatId = chatId;
       if (ready && socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'session.metadata', chat_id: chatId }));

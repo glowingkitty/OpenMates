@@ -65,11 +65,12 @@ async function flushMount() {
     await tick();
 }
 
-function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean; retainUntilSend?: boolean; allowSend?: boolean } = {}) {
+function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; anonymous?: boolean; retainUntilCorrection?: boolean; retainUntilSend?: boolean; allowSend?: boolean } = {}) {
     const close = vi.fn();
     const cancel = vi.fn();
     const audioRecorded = vi.fn();
     const sendRequested = vi.fn();
+    const transcriptionError = vi.fn();
     const target = document.createElement('div');
     document.body.appendChild(target);
     const component = mount(RecordAudio, {
@@ -78,6 +79,7 @@ function mountRecorder(options: { externalStream?: MediaStream; realtime?: boole
             initialPosition: { x: 0, y: 0 },
             externalStream: options.externalStream,
             enableRealtime: options.realtime ?? false,
+            anonymous: options.anonymous ?? false,
             retainUntilCorrection: options.retainUntilCorrection ?? true,
             retainUntilSend: options.retainUntilSend ?? false,
             previewTranscript: null,
@@ -88,9 +90,10 @@ function mountRecorder(options: { externalStream?: MediaStream; realtime?: boole
             cancel,
             audiorecorded: audioRecorded,
             sendrequested: sendRequested,
+            transcriptionerror: transcriptionError,
         },
     });
-    return { component, target, close, cancel, audioRecorded, sendRequested };
+    return { component, target, close, cancel, audioRecorded, sendRequested, transcriptionError };
 }
 
 describe('RecordAudio finalization', () => {
@@ -120,6 +123,23 @@ describe('RecordAudio finalization', () => {
         vi.unstubAllGlobals();
         vi.useRealTimers();
         document.body.innerHTML = '';
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.audio.guest-admission,message-input.recording.lifecycle
+    it('reports early guest admission failure and releases the microphone without waiting for Finish', async () => {
+        let rejectCorrection!: (error: Error) => void;
+        realtimeMocks.correction = new Promise((_resolve, reject) => { rejectCorrection = reject; });
+        const mounted = mountRecorder({ realtime: true, anonymous: true });
+        await flushMount();
+        const error = new Error('Free usage limit reached');
+        rejectCorrection(error);
+        await flushMount();
+        expect(mounted.transcriptionError).toHaveBeenCalledOnce();
+        expect(mounted.transcriptionError.mock.calls[0][0].detail).toBe(error);
+        expect(ownedTrackStop).toHaveBeenCalledOnce();
+        expect(mounted.cancel).toHaveBeenCalledOnce();
+        expect(mounted.audioRecorded).not.toHaveBeenCalled();
+        await unmount(mounted.component);
     });
 
     // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.embeds.gated-send

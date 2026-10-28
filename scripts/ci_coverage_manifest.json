@@ -1,6 +1,11 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "guest_dictation_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare composer preview with fake microphone input, mocked realtime WebSocket frames and mocked public guest allowance responses. Proves guest editable text and quota guidance without a backend, account, provider credentials, live inference or audio upload. Real provider accounting is verified separately.",
+      "specs": ["components/guest-audio-transcription.spec.ts"]
+    },
     "web_browse_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare Browse preview/fullscreen and browser viewer fixtures. Synthetic local page images and typed in-memory session controls prove component behavior without backend, E2B, account credentials or AI inference. Actual owner HTTP and deployed provider flows are verified separately.",

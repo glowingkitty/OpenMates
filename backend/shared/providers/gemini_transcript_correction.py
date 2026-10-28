@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import re
+import json
 from typing import Optional
 
 import httpx
+
+from backend.shared.providers.transcript_correction_accounting import (
+    admitted_correction, correction_accountant, correction_output_limit, settle_correction, CorrectionAccountingError, mark_correction_dispatched,
+)
 
 GEMINI_CORRECTION_MODEL = "gemini-3.8-flash"
 GEMINI_TRANSCRIPT_TOOL_NAME = "finalize_transcript"
@@ -122,13 +127,25 @@ async def correct_transcript_with_gemini(
             "thinkingConfig": {"thinkingLevel": "low", "includeThoughts": False},
         },
     }
+    if correction_accountant.get() is not None:
+        body["generationConfig"]["maxOutputTokens"] = correction_output_limit(8192)
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{GEMINI_CORRECTION_MODEL}:generateContent"
     )
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, params={"key": google_api_key}, json=body)
+        async with admitted_correction(
+            GEMINI_CORRECTION_MODEL, len(json.dumps(body, ensure_ascii=False).encode("utf-8")) + 8192,
+            correction_output_limit(8192),
+        ) as accounting:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                mark_correction_dispatched(accounting)
+                response = await client.post(url, params={"key": google_api_key}, json=body)
+            if response.status_code == 200:
+                usage = response.json().get("usageMetadata") or {}
+                candidates, thoughts = usage.get("candidatesTokenCount"), usage.get("thoughtsTokenCount", 0)
+                output = candidates + thoughts if isinstance(candidates, int) and isinstance(thoughts, int) else None
+                await settle_correction(accounting, usage.get("promptTokenCount"), output)
         if response.status_code != 200:
             raise RuntimeError(
                 f"Gemini correction API failed: {response.status_code} {response.text[:500]}"
@@ -161,5 +178,7 @@ async def correct_transcript_with_gemini(
         raise RuntimeError(
             f"Gemini correction did not call {GEMINI_TRANSCRIPT_TOOL_NAME}"
         )
+    except CorrectionAccountingError:
+        raise
     except Exception as exc:
         raise RuntimeError(f"Failed to run Gemini correction: {exc}") from exc

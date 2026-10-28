@@ -1,6 +1,6 @@
 """First-party realtime audio transcription WebSocket proxy.
 
-The browser streams ephemeral PCM to this authenticated endpoint. The API key,
+The browser streams ephemeral PCM to this first-party endpoint. The API key,
 provider connection, billing, and transcript correction remain server-side.
 Plaintext audio and transcript text are never persisted by this route.
 """
@@ -15,7 +15,7 @@ import logging
 import os
 import struct
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 import aiohttp
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
@@ -28,6 +28,11 @@ from backend.apps.audio.pricing import (
     calculate_realtime_transcription_credits,
 )
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
+from backend.core.api.app.services.guest_transcription_meter import (
+    GuestTranscriptionDenied, GuestTranscriptionMeter, GUEST_IDLE_SECONDS,
+    GUEST_WALL_SECONDS, GUEST_MAX_TRANSCRIPT_CHARACTERS,
+)
+from backend.shared.providers.transcript_correction_accounting import correction_accountant, CorrectionAccountingError
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.streaming_transcript_correction import StreamingTranscriptCorrection
 from backend.core.api.app.utils.server_mode import is_payment_enabled
@@ -292,6 +297,7 @@ async def _correct_and_send(
     language: Optional[str],
     context: Optional[str] = None,
     streaming_correction: Optional[StreamingTranscriptCorrection] = None,
+    success_guard: Optional[Callable[[], None]] = None,
 ) -> None:
     if not _correction_enabled(context):
         await websocket.send_json(
@@ -307,20 +313,40 @@ async def _correct_and_send(
             if streaming_correction is not None
             else await _correct_segment(websocket, raw_transcript, language, context)
         )
+        if success_guard is not None:
+            success_guard()
         await websocket.send_json({"type": "correction.done", **result})
     except Exception as exc:
+        # Both correction completion frames resolve the browser's pending draft.
+        # Propagate guest admission/accounting failures before either can permit
+        # raw-text insertion or a pending Send to complete.
+        if success_guard is not None:
+            success_guard()
         logger.warning("Realtime transcript correction failed: %s", type(exc).__name__)
         await websocket.send_json({"type": "correction.failed"})
 
 
+async def _optional_transcription_actor(websocket: WebSocket) -> Optional[dict]:
+    # Only a genuinely credential-free connection may select guest admission.
+    # Invalid/expired supplied credentials keep the existing close-and-return path.
+    if ("auth_refresh_token" in websocket.cookies or "token" in websocket.query_params
+            or "authorization" in websocket.headers):
+        actor = await get_current_user_ws(websocket)
+        return actor if actor is not None else {"authentication_failed": True}
+    return None
+
+
+# First-party browser surface. Guests get no account/file/workflow ownership;
+# every paid provider attempt is guarded by atomic anonymous budget admission.
 @router.websocket("/realtime-transcription")
 async def realtime_transcription(
     websocket: WebSocket,
-    auth_data: Optional[dict] = Depends(get_current_user_ws),
+    auth_data: Optional[dict] = Depends(_optional_transcription_actor),
 ) -> None:
-    if auth_data is None:
+    if auth_data is not None and auth_data.get("authentication_failed"):
         return
-    if not await _browser_request_is_allowed(websocket, auth_data):
+    guest = GuestTranscriptionMeter(websocket) if auth_data is None else None
+    if not (_origin_is_allowed(websocket) if guest else await _browser_request_is_allowed(websocket, auth_data)):
         logger.warning(
             "Realtime audio WebSocket rejected: neither first-party Origin nor "
             "a user-bound short-lived token was present"
@@ -330,9 +356,9 @@ async def realtime_transcription(
         )
         return
 
-    user_id = auth_data["user_id"]
+    user_id = auth_data["user_id"] if auth_data else ""
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
-    user_data = auth_data.get("user_data") or {}
+    user_data = (auth_data.get("user_data") or {}) if auth_data else {}
     credits = user_data.get("credits")
     if (
         is_payment_enabled()
@@ -344,33 +370,73 @@ async def realtime_transcription(
         )
         return
 
-    lock_client, lock_key, lock_token = await _acquire_stream_lock(
-        websocket.app.state.cache_service, user_id_hash
-    )
+    if guest:
+        await websocket.accept()
+        try:
+            await asyncio.wait_for(guest.admit(), timeout=10)
+        except asyncio.CancelledError:
+            await guest.release_locks()
+            raise
+        except Exception as exc:
+            await guest.release_locks()
+            code = exc.code if isinstance(exc, GuestTranscriptionDenied) else "anonymous_meter_unavailable"
+            await websocket.send_json({"type": "session.error", "code": code, "signup_required": isinstance(exc, GuestTranscriptionDenied) and exc.signup_required,
+                                       "message": "Free recording allowance unavailable. Please try again or create an account."})
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        lock_client, lock_key, lock_token = None, "", ""
+    else:
+        lock_client, lock_key, lock_token = await _acquire_stream_lock(
+            websocket.app.state.cache_service, user_id_hash
+        )
     if lock_client is False:
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION, reason="A recording is already active"
         )
         return
 
-    await websocket.accept()
+    if not guest:
+        await websocket.accept()
     bytes_received = 0
+    guest_forwarded_bytes = 0
+    guest_audio_ambiguous = False
+    guest_deadline = asyncio.get_running_loop().time() + GUEST_WALL_SECONDS
+    guest_failure = asyncio.Event()
+    guest_correction_error: Optional[Exception] = None
     peak_pcm = 0
     transcript_deltas: list[str] = []
     provider_request_id = uuid.uuid4().hex
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
-    chat_id = websocket.query_params.get("chat_id") or None
+    chat_id = (websocket.query_params.get("chat_id") or None) if not guest else None
     correction_context = (
         "workflow"
-        if websocket.query_params.get("correction_context") == "workflow"
+        if not guest and websocket.query_params.get("correction_context") == "workflow"
         else None
     )
-    # First-party authenticated stream: existing user-bound admission lock,
-    # credit checks, duration cap and billing apply to all background batches.
+    # First-party stream: account billing or guest atomic reservations guard
+    # the audio and every background correction provider attempt.
     # Audio, raw text and corrected batches stay ephemeral in this connection.
     async def correct_batch(text: str, language: Optional[str]) -> dict[str, str]:
-        return await _correct_segment(websocket, text, language, correction_context)
+        nonlocal guest_correction_error
+        token = correction_accountant.set(guest) if guest else None
+        try:
+            return await _correct_segment(websocket, text, language, correction_context)
+        except Exception as exc:
+            if guest and isinstance(exc, (CorrectionAccountingError, GuestTranscriptionDenied)):
+                cause = exc.__cause__ if isinstance(exc, CorrectionAccountingError) else exc
+                guest_correction_error = cause if isinstance(cause, GuestTranscriptionDenied) else exc
+                guest_failure.set()
+            raise
+        finally:
+            if token is not None:
+                correction_accountant.reset(token)
+
+    def guest_correction_success_guard() -> None:
+        # A later rejected batch must not turn an earlier successful batch into
+        # an apparently successful final correction containing unadmitted text.
+        if guest_correction_error is not None:
+            raise guest_correction_error
 
     async def correction_progress(processed_chars: int) -> None:
         # Progress is additive protocol metadata. Existing clients retain their
@@ -385,13 +451,12 @@ async def realtime_transcription(
         else None
     )
     try:
-        mistral_key = await websocket.app.state.secrets_manager.get_secret(
-            "kv/data/providers/mistral_ai", "api_key"
-        )
+        secret_request = websocket.app.state.secrets_manager.get_secret("kv/data/providers/mistral_ai", "api_key")
+        mistral_key = await asyncio.wait_for(secret_request, timeout=10) if guest else await secret_request
         if not mistral_key:
             raise RuntimeError("Realtime transcription is unavailable")
 
-        timeout = aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=90)
+        timeout = aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=GUEST_IDLE_SECONDS if guest else 90)
         provider_url = f"{MISTRAL_REALTIME_URL}?model={MISTRAL_REALTIME_MODEL}"
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.ws_connect(
@@ -400,7 +465,18 @@ async def realtime_transcription(
                 heartbeat=20,
                 max_msg_size=2 * 1024 * 1024,
             ) as provider:
-                created = await provider.receive_json()
+                async def receive_setup_event() -> dict[str, Any]:
+                    if not guest:
+                        return await provider.receive_json()
+                    remaining = guest_deadline - asyncio.get_running_loop().time()
+                    try:
+                        return await asyncio.wait_for(
+                            provider.receive_json(), timeout=max(0, min(GUEST_IDLE_SECONDS, remaining)),
+                        )
+                    except asyncio.TimeoutError:
+                        raise GuestTranscriptionDenied("recording_timeout") from None
+
+                created = await receive_setup_event()
                 if created.get("type") != "session.created":
                     raise RuntimeError("Provider did not create a realtime session")
                 session_data = created.get("session") or {}
@@ -421,7 +497,7 @@ async def realtime_transcription(
                         },
                     }
                 )
-                updated = await provider.receive_json()
+                updated = await receive_setup_event()
                 if updated.get("type") != "session.updated":
                     raise RuntimeError("Provider did not accept realtime settings")
                 await websocket.send_json(
@@ -434,14 +510,29 @@ async def realtime_transcription(
 
                 client_receive = asyncio.create_task(websocket.receive_text())
                 provider_receive = asyncio.create_task(provider.receive())
+                guest_failure_wait = asyncio.create_task(guest_failure.wait()) if guest else None
+                last_client_activity = asyncio.get_running_loop().time()
+                input_ended = False
                 try:
                     while not provider_done:
+                        receive_tasks = {client_receive, provider_receive}
+                        if guest_failure_wait is not None:
+                            receive_tasks.add(guest_failure_wait)
+                        now = asyncio.get_running_loop().time()
+                        timeout_seconds = min(guest_deadline - now, last_client_activity + GUEST_IDLE_SECONDS - now) if guest else None
                         done, _ = await asyncio.wait(
-                            {client_receive, provider_receive},
+                            receive_tasks, timeout=max(0, timeout_seconds) if timeout_seconds is not None else None,
                             return_when=asyncio.FIRST_COMPLETED,
                         )
+                        if guest and (not done or guest_failure_wait in done):
+                            if guest_correction_error:
+                                raise guest_correction_error
+                            raise GuestTranscriptionDenied("recording_timeout")
                         if client_receive in done:
                             raw_message = client_receive.result()
+                            last_client_activity = asyncio.get_running_loop().time()
+                            if guest and len(raw_message) > MAX_CHUNK_BYTES * 2:
+                                raise GuestTranscriptionDenied("audio_chunk_limit")
                             message = json.loads(raw_message)
                             event_type = message.get("type")
                             if event_type == "input_audio.append":
@@ -451,6 +542,10 @@ async def realtime_transcription(
                                 decoded = base64.b64decode(encoded, validate=True)
                                 if not decoded or len(decoded) > MAX_CHUNK_BYTES:
                                     raise ValueError("Audio chunk size is invalid")
+                                if guest and (input_ended or len(decoded) % 2):
+                                    raise GuestTranscriptionDenied("invalid_audio_chunk")
+                                if guest:
+                                    await guest.reserve_audio((guest_forwarded_bytes + len(decoded)) / PCM_BYTES_PER_SECOND)
                                 bytes_received += len(decoded)
                                 peak_pcm = max(peak_pcm, max((abs(sample) for (sample,) in
                                     struct.iter_unpack("<h", decoded[:len(decoded) // 2 * 2])), default=0))
@@ -459,12 +554,20 @@ async def realtime_transcription(
                                     > PCM_BYTES_PER_SECOND * MAX_AUDIO_SECONDS
                                 ):
                                     raise ValueError("Recording is too long")
+                                if guest:
+                                    guest_audio_ambiguous = True
                                 await provider.send_json(
                                     {"type": event_type, "audio": encoded}
                                 )
+                                if guest:
+                                    guest_forwarded_bytes += len(decoded)
+                                    guest_audio_ambiguous = False
                             elif event_type == "input_audio.end":
+                                if guest and input_ended:
+                                    raise GuestTranscriptionDenied("invalid_audio_end")
+                                input_ended = True
                                 await provider.send_json({"type": "input_audio.end"})
-                            elif event_type == "session.metadata":
+                            elif event_type == "session.metadata" and not guest:
                                 candidate_chat_id = message.get("chat_id")
                                 if (
                                     isinstance(candidate_chat_id, str)
@@ -490,7 +593,11 @@ async def realtime_transcription(
                                     str(event.get("text") or ""),
                                     log_prefix="[AudioRealtime][Mistral delta] ",
                                 )
+                                if guest and not guest_forwarded_bytes:
+                                    delta = ""
                                 if delta:
+                                    if guest and sum(map(len, transcript_deltas)) + len(delta) > GUEST_MAX_TRANSCRIPT_CHARACTERS:
+                                        raise GuestTranscriptionDenied("transcript_limit")
                                     transcript_deltas.append(delta)
                                     if streaming_correction is not None:
                                         streaming_correction.append(delta, event.get("language"))
@@ -511,7 +618,13 @@ async def realtime_transcription(
                                     if provider_final_text.startswith(streamed_transcript)
                                     else streamed_transcript
                                 )
+                                if guest and not guest_forwarded_bytes:
+                                    raw_transcript = ""
+                                if guest and len(raw_transcript) > GUEST_MAX_TRANSCRIPT_CHARACTERS:
+                                    raise GuestTranscriptionDenied("transcript_limit")
                                 language = event.get("language")
+                                if guest and isinstance(language, str) and len(language) > 64:
+                                    language = None
                                 usage = (
                                     event.get("usage")
                                     if isinstance(event.get("usage"), dict)
@@ -538,7 +651,7 @@ async def realtime_transcription(
                                 )
                                 provider_done = True
                                 billing_task = asyncio.create_task(
-                                    _bill_realtime_usage(
+                                    guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND) if guest else _bill_realtime_usage(
                                         websocket,
                                         user_id=user_id,
                                         user_id_hash=user_id_hash,
@@ -548,17 +661,20 @@ async def realtime_transcription(
                                     )
                                 )
                                 if raw_transcript:
-                                    await _correct_and_send(
-                                        websocket,
-                                        raw_transcript,
-                                        language,
-                                        correction_context,
-                                        streaming_correction,
+                                    correction = _correct_and_send(
+                                        websocket, raw_transcript, language, correction_context, streaming_correction,
+                                        guest_correction_success_guard if guest else None,
                                     )
+                                    if guest:
+                                        await asyncio.wait_for(correction, timeout=max(0.001, guest_deadline - asyncio.get_running_loop().time()))
+                                    else:
+                                        await correction
                                 else:
                                     await websocket.send_json(
                                         {"type": "correction.failed"}
                                     )
+                                if guest_correction_error:
+                                    raise guest_correction_error
                                 try:
                                     await billing_task
                                 except Exception:
@@ -571,6 +687,9 @@ async def realtime_transcription(
                 finally:
                     client_receive.cancel()
                     provider_receive.cancel()
+                    if guest_failure_wait is not None:
+                        guest_failure_wait.cancel()
+                        await asyncio.gather(guest_failure_wait, return_exceptions=True)
                     await asyncio.gather(
                         client_receive, provider_receive, return_exceptions=True
                     )
@@ -582,7 +701,9 @@ async def realtime_transcription(
         logger.warning("Realtime transcription ended with %s", type(exc).__name__)
         try:
             await websocket.send_json(
-                {"type": "session.error", "message": str(exc)[:240]}
+                {"type": "session.error", "message": ("Free recording unavailable. Please try again or create an account." if guest else str(exc)[:240]),
+                 **({"code": exc.code if isinstance(exc, GuestTranscriptionDenied) else "anonymous_meter_unavailable",
+                     "signup_required": isinstance(exc, GuestTranscriptionDenied) and exc.signup_required} if guest else {})}
             )
         except Exception:
             pass
@@ -600,17 +721,26 @@ async def realtime_transcription(
         # The provider may have accepted audio before either side disconnects.
         # Settle that usage even when no transcription.done event arrives; the
         # provider request ID keeps a retry idempotent.
-        if bytes_received and billing_task is None:
+        if (bytes_received or guest) and billing_task is None:
             try:
-                await _bill_realtime_usage(
-                    websocket,
-                    user_id=user_id,
-                    user_id_hash=user_id_hash,
-                    request_id=provider_request_id,
-                    audio_seconds=bytes_received / PCM_BYTES_PER_SECOND,
-                    chat_id=chat_id,
-                    interrupted=True,
-                )
+                if guest:
+                    if guest_audio_ambiguous:
+                        await guest.settle_ambiguous_audio()
+                    else:
+                        await guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND)
+                else:
+                    await _bill_realtime_usage(
+                        websocket,
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        request_id=provider_request_id,
+                        audio_seconds=bytes_received / PCM_BYTES_PER_SECOND,
+                        chat_id=chat_id,
+                        interrupted=True,
+                    )
             except Exception:
                 logger.exception("Realtime audio disconnect billing failed")
-        await _release_stream_lock(lock_client, lock_key, lock_token)
+        if guest:
+            await guest.release_locks()
+        else:
+            await _release_stream_lock(lock_client, lock_key, lock_token)

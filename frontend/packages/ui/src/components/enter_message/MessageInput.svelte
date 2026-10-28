@@ -53,7 +53,7 @@
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { notificationStore } from '../../stores/notificationStore';
     import { demoMode } from '../../stores/demoModeStore';
-    import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
+    import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus, markAnonymousFreeUsageExhausted } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
     import { composerFocusRequested } from '../../stores/composerFocusStore';
 
@@ -98,7 +98,7 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
-    import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+    import { AnonymousTranscriptionUsageError, type AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
     import { voiceCallController } from '../../services/voiceCall';
@@ -404,6 +404,7 @@
     let recordingStartedWithDraft = $state(false);
     let recordingShowsDraft = $derived(recordingLayoutActive && recordingStartedWithDraft);
     let recordingContext = $state.raw<{
+        owner: string;
         generation: number;
         editor: Editor;
         chatId: string | undefined;
@@ -5202,6 +5203,7 @@
         let resolveOverlayRemoved = () => {};
         const overlayRemoved = new Promise<void>((resolve) => { resolveOverlayRemoved = resolve; });
         const context = {
+            owner: `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}:${$activeTeamContext.epoch}`,
             generation: recordingDraftGeneration,
             editor: activeEditor,
             chatId: currentChatId,
@@ -5225,8 +5227,7 @@
         recordingContext = context;
         context.releaseEmptyDraftProtection = protectEmptyRecordingDraft(activeEditor, context.chatId, () =>
             recordingContext === context && context.generation === recordingDraftGeneration &&
-            editor === activeEditor && !activeEditor.isDestroyed && currentChatId === context.chatId &&
-            $authStore.isAuthenticated,
+            editor === activeEditor && !activeEditor.isDestroyed && currentChatId === context.chatId,
         );
         recordRecordingDiagnostic('capture', context);
     }
@@ -5251,6 +5252,7 @@
 
     function isCurrentRecordingContext(context: NonNullable<typeof recordingContext>) {
         const current = recordingContext === context &&
+            context.owner === `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}:${$activeTeamContext.epoch}` &&
             context.generation === recordingDraftGeneration &&
             editor === context.editor && !editor.isDestroyed &&
             (currentChatId === context.chatId ||
@@ -5286,15 +5288,17 @@
         recordRecordingDiagnostic('correction-pending', context);
 
         // Associate billing with the draft without creating an audio file or embed.
-        let chatIdForRecording = currentChatId ?? context.draftChatId;
-        if (!chatIdForRecording) {
-            chatIdForRecording = crypto.randomUUID();
-            draftEditorUIState.update((state) => ({ ...state, currentChatId: chatIdForRecording }));
-            context.draftChatId = chatIdForRecording;
-            recordRecordingDiagnostic('assign-recording-draft-id', context);
+        if ($authStore.isAuthenticated) {
+            let chatIdForRecording = currentChatId ?? context.draftChatId;
+            if (!chatIdForRecording) {
+                chatIdForRecording = crypto.randomUUID();
+                draftEditorUIState.update((state) => ({ ...state, currentChatId: chatIdForRecording }));
+                context.draftChatId = chatIdForRecording;
+                recordRecordingDiagnostic('assign-recording-draft-id', context);
+            }
+            if (!currentChatId) markChatIdAsDraftAudio(chatIdForRecording);
+            realtime.setChatId(chatIdForRecording);
         }
-        if (!currentChatId) markChatIdAsDraftAudio(chatIdForRecording);
-        realtime.setChatId(chatIdForRecording);
 
         try {
             const result = await realtime.correction;
@@ -5345,10 +5349,11 @@
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
         } catch (error) {
             if (isCurrentRecordingContext(context)) {
-                console.error('[MessageInput] Recording transcription failed:', error);
-                notificationStore.error($text('common.try_again'));
+                if (!(error instanceof AnonymousTranscriptionUsageError)) console.error('[MessageInput] Recording transcription failed:', error);
+                void showTranscriptionError(error);
             }
         } finally {
+            if (!$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
             // Context switches and failed admission must also release this
             // recording's retained overlay, never a newer component instance.
             if (context.sendRequested) await overlayAtRecording?.completeSend();
@@ -5358,6 +5363,32 @@
             }
         }
     }
+
+    async function showTranscriptionError(error: unknown) {
+        if (!$authStore.isAuthenticated && error instanceof AnonymousTranscriptionUsageError && error.signupRequired) {
+            const availability = await refreshAnonymousFreeUsageStatus();
+            if (availability?.can_send_text === false) markAnonymousFreeUsageExhausted(availability.reason ?? error.code);
+            notificationStore.addNotificationWithOptions('warning', {
+                message: $text('chat.anonymous_free_usage.daily_credits_exhausted'),
+                actionLabel: $text('signup.sign_up'),
+                duration: 10000,
+                dedupeKey: 'anonymous-daily-credits-exhausted',
+                onAction: () => window.dispatchEvent(new CustomEvent('openSignupInterface')),
+            });
+        } else {
+            notificationStore.error($text('common.try_again'));
+        }
+    }
+
+    $effect(() => {
+        const owner = `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}:${$activeTeamContext.epoch}`;
+        if (recordingContext && recordingContext.owner !== owner) {
+            untrack(() => {
+                invalidateRecordingContext('recording-owner-changed');
+                stopRecordingForVoiceCall();
+            });
+        }
+    });
     function handleLocationClick() { showMaps = true; }
 
     /** Open the sketch canvas overlay. */
@@ -6318,11 +6349,6 @@
 
         const action = event.detail.action;
         if (action === 'start') {
-            if (!$authStore.isAuthenticated) {
-                window.dispatchEvent(new Event('recordingShortcutFinished'));
-                await handleSignUpClick();
-                return;
-            }
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
             prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
             prepareEditorForRecording();
@@ -6461,7 +6487,7 @@
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
         }
-        recordingLayoutPending = $authStore.isAuthenticated;
+        recordingLayoutPending = true;
         isMessageFieldFocused = false;
         isFocused = true;
         if (isFullscreen && !recordingStartedWithDraft) {
@@ -6472,10 +6498,6 @@
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         if (callOwnsAudio) return;
-        if (!$authStore.isAuthenticated) {
-            await handleSignUpClick();
-            return;
-        }
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
@@ -6505,10 +6527,6 @@
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         if (callOwnsAudio) return;
-        if (!$authStore.isAuthenticated) {
-            await handleSignUpClick();
-            return;
-        }
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
@@ -7729,7 +7747,8 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
-                enableRealtime={$authStore.isAuthenticated}
+                enableRealtime={true}
+                anonymous={!$authStore.isAuthenticated}
                 retainUntilCorrection={true}
                 retainUntilSend={true}
                 compact={true}
@@ -7737,6 +7756,7 @@
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
                 on:sendrequested={handleRecordingSendRequested}
                 on:audiorecorded={handleAudioRecorded}
+                on:transcriptionerror={(event) => showTranscriptionError(event.detail)}
                 on:close={handleStopRecordingCleanup}
                 on:overlayremoved={handleRecordingOverlayRemoved}
                 on:cancel={() => { invalidateRecordingContext('recording-cancelled'); handleStopRecordingCleanup(); }}
