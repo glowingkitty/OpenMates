@@ -24,9 +24,10 @@
     },
     "web_pii_local_trial": {
       "execution": "e2e",
-      "enabling_work": "Account-free runner-local bare composer with the normal notification deck. Download pinned public Redact model/runtime assets and run only on-device token classification with synthetic text, including full regex fallback, one-time notice, network-disabled warm inference and download failure/retry. The vendor SDK may send required content-free licensing metadata. No OpenMates chat inference, paid model provider, backend, signup, account or provider credential is required.",
+      "enabling_work": "Account-free bare composer and Privacy settings; real pinned local inference, persisted enhanced opt-out/basic fallback, brokered content-free licensing, self-hosted verified assets, native worker CSP network denial, offline warm inference and download recovery. No OpenMates chat inference, paid provider, backend or account credentials.",
       "specs": [
-        "components/composer-local-pii.spec.ts"
+        "components/composer-local-pii.spec.ts",
+        "components/privacy-enhanced-pii.spec.ts"
       ]
     },
     "guest_dictation_components": {

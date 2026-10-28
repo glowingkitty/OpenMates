@@ -21,6 +21,9 @@
  *   App start/sync -> IndexedDB <- WebSocket <- Directus -> decrypt -> Store
  */
 
+import { authStore } from "./authState";
+import { userProfile } from "./userProfile";
+import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
 import { getWorkspaceCacheIdentity } from "../services/workspaceQueryCache";
 import { writable, derived, get } from "svelte/store";
 import { chatDB } from "../services/db";
@@ -98,6 +101,8 @@ export interface LocationSettings {
 export interface PIIDetectionSettings {
   /** Master toggle — if false, no PII detection at all */
   masterEnabled: boolean;
+  /** Optional on-device model; baseline regex and configured entries stay active. */
+  enhancedEnabled: boolean;
   /** Per-category toggles for auto-detected patterns */
   categories: Record<string, boolean>;
 }
@@ -148,6 +153,7 @@ const personalDataEntries = writable<PersonalDataEntry[]>([]);
 /** Store for PII detection settings (master toggle + per-category toggles) */
 const piiDetectionSettings = writable<PIIDetectionSettings>({
   masterEnabled: true,
+  enhancedEnabled: true,
   categories: { ...DEFAULT_PII_CATEGORIES },
 });
 
@@ -186,9 +192,81 @@ let locationSettingsVersion: number = 0;
 let locationSettingsCreatedAt: number = 0;
 
 /** Loading state to prevent duplicate concurrent loads */
-let isLoading = false;
+const enhancementReadyStore = writable(false);
+const ANONYMOUS_ENHANCEMENT_KEY = "openmates:anonymous:enhanced-pii";
+let enhancementOwner: string | null | undefined;
+let hydrationSequence = 0;
+let privacyMutationEpoch = 0;
+let deferredLoading: { owner: string | null; generation: number; work: Promise<void> } | null = null;
+let privacySyncOwner: string | null = null;
+let loading: { owner: string | null; mutation: number; work: Promise<void> } | null = null;
+function isEnhancementOwnerCurrent(owner: string | null): boolean {
+  const auth = get(authStore);
+  return auth.isInitialized && owner === getWorkspaceCacheIdentity()
+    && (owner !== null ? auth.isAuthenticated : !auth.isAuthenticated);
+}
+
+/** Reuse the current owner's hydration; never initialize a model from defaults
+ * while encrypted account preferences are still loading. */
+function loadFromStorage(): Promise<void> {
+  return loadOwnedPreferences();
+}
+
+function loadOwnedPreferences(forMutationInitialization = false): Promise<void> {
+  const owner = getWorkspaceCacheIdentity();
+  if (!isEnhancementOwnerCurrent(owner)) return Promise.resolve();
+  if (privacyPersistenceError?.scope === owner) {
+    enhancementReadyStore.set(false);
+    return Promise.resolve();
+  }
+  if (hasPendingPrivacyMutations()) {
+    enhancementReadyStore.set(false);
+    // An initializing action enters here before its own work is registered.
+    // Existing work therefore belongs to another mutation; do not wait on a
+    // registry that will subsequently include this action itself.
+    if (forMutationInitialization) return Promise.resolve();
+    return deferHydrationUntilMutationsSettle(owner);
+  }
+  if (loading?.owner === owner && loading.mutation === privacyMutationEpoch) return loading.work;
+  const work = performLoadFromStorage(owner).finally(() => {
+    if (loading?.work === work) loading = null;
+  });
+  loading = { owner, mutation: privacyMutationEpoch, work };
+  return work;
+}
+
+/** Keep deferred work separate from the active read registry: an initializing
+ * mutator must never await a deferred reload that is waiting for that mutator. */
+function deferHydrationUntilMutationsSettle(owner: string | null): Promise<void> {
+  const generation = hydrationSequence;
+  if (deferredLoading?.owner === owner && deferredLoading.generation === generation) return deferredLoading.work;
+  const work = waitForPrivacyMutations().then(saved => {
+    if (saved && generation === hydrationSequence && isEnhancementOwnerCurrent(owner)) return loadOwnedPreferences();
+  }).catch(() => {
+    // A failed or superseded write cannot authorize older encrypted defaults.
+  }).finally(() => {
+    if (deferredLoading?.work === work) deferredLoading = null;
+  });
+  deferredLoading = { owner, generation, work };
+  return work;
+}
+
+/** A sync event changes encrypted authority even when an older read is pending.
+ * Close model readiness and fence that read before fetching the updated rows. */
+function reloadFromStorage(): Promise<void> {
+  hydrationSequence += 1;
+  enhancementReadyStore.set(false);
+  loading = null;
+  return loadFromStorage();
+}
 
 // ─── Persistence: Load from IndexedDB ───────────────────────────────────────
+
+async function ensureEnhancementReady(): Promise<void> {
+  if (enhancementOwner !== undefined && isEnhancementOwnerCurrent(enhancementOwner)
+      && get(enhancementReadyStore)) return;
+  await loadFromStorage();
+}
 
 /**
  * Load all privacy entries from IndexedDB, decrypt them, and populate the stores.
@@ -196,15 +274,27 @@ let isLoading = false;
  *
  * Safe to call multiple times — reloads fresh data to pick up cross-device changes.
  */
-async function loadFromStorage(): Promise<void> {
-  if (isLoading) return;
-  isLoading = true;
-  const privacyOwner = getWorkspaceCacheIdentity();
+async function performLoadFromStorage(privacyOwner: string | null): Promise<void> {
+  const sequence = ++hydrationSequence;
+  const mutation = privacyMutationEpoch;
+  const current = () => sequence === hydrationSequence && mutation === privacyMutationEpoch
+    && isEnhancementOwnerCurrent(privacyOwner);
+  let hydrated = false;
+  enhancementReadyStore.set(false);
+  enhancementOwner = privacyOwner;
+  if (privacyOwner === null) {
+    let enhancedEnabled = true;
+    try { enhancedEnabled = localStorage.getItem(ANONYMOUS_ENHANCEMENT_KEY) !== "false"; }
+    catch { /* A storage-restricted browser still gets privacy-first defaults. */ }
+    piiDetectionSettings.update(settings => ({ ...settings, enhancedEnabled }));
+    enhancementReadyStore.set(current());
+    return;
+  }
 
   try {
     // Check if master key is available (user is authenticated)
     const masterKey = await getKeyFromStorage();
-    if (!privacyOwner || privacyOwner !== getWorkspaceCacheIdentity()) return;
+    if (!current()) return;
     if (!masterKey) {
       console.warn(
         "[PersonalDataStore] No master key available — skipping load",
@@ -216,10 +306,14 @@ async function loadFromStorage(): Promise<void> {
     const encryptedEntries =
       await chatDB.getAppSettingsMemoriesEntriesByApp(PRIVACY_APP_ID);
 
+    if (!current()) return;
     if (!encryptedEntries || encryptedEntries.length === 0) {
-      // No entries saved yet — keep defaults
+      // A cold cache is not evidence that the account has no opt-out.
+      // The initial encrypted sync must first establish the missing default.
+      hydrated = privacySyncOwner === privacyOwner;
       return;
     }
+    let settingsFailed = false;
 
     const loadedEntries: PersonalDataEntry[] = [];
     const loadedMetadata = new Map<string, StorageMetadata>();
@@ -229,8 +323,9 @@ async function loadFromStorage(): Promise<void> {
         const decryptedJson = await decryptWithMasterKey(
           entry.encrypted_item_json,
         );
-        if (privacyOwner !== getWorkspaceCacheIdentity()) return;
+        if (!current()) return;
         if (!decryptedJson) {
+          if (entry.item_type === PII_SETTINGS_ITEM_TYPE) settingsFailed = true;
           console.warn(
             `[PersonalDataStore] Failed to decrypt entry ${entry.id}`,
           );
@@ -248,6 +343,7 @@ async function loadFromStorage(): Promise<void> {
 
           piiDetectionSettings.set({
             masterEnabled: data.masterEnabled ?? true,
+            enhancedEnabled: data.enhancedEnabled ?? true,
             categories: {
               ...DEFAULT_PII_CATEGORIES,
               ...(data.categories || {}),
@@ -293,6 +389,7 @@ async function loadFromStorage(): Promise<void> {
           });
         }
       } catch (error) {
+        if (entry.item_type === PII_SETTINGS_ITEM_TYPE) settingsFailed = true;
         console.error(
           `[PersonalDataStore] Error processing entry ${entry.id}:`,
           error,
@@ -300,7 +397,7 @@ async function loadFromStorage(): Promise<void> {
       }
     }
 
-    if (privacyOwner !== getWorkspaceCacheIdentity()) return;
+    if (!current()) return;
     // Update stores with loaded data
     personalDataEntries.set(loadedEntries);
 
@@ -310,13 +407,14 @@ async function loadFromStorage(): Promise<void> {
       entryStorageMetadata.set(id, meta);
     });
 
+    hydrated = !settingsFailed && (piiSettingsEntryId !== null || privacySyncOwner === privacyOwner);
     console.info(
       `[PersonalDataStore] Loaded ${loadedEntries.length} personal data entries from storage`,
     );
   } catch (error) {
     console.error("[PersonalDataStore] Error loading from storage:", error);
   } finally {
-    isLoading = false;
+    if (current() && hydrated) enhancementReadyStore.set(true);
   }
 }
 
@@ -431,6 +529,7 @@ async function persistPiiSettings(): Promise<void> {
 
   const itemData = {
     masterEnabled: settings.masterEnabled,
+    enhancedEnabled: settings.enhancedEnabled,
     categories: settings.categories,
     _original_item_key: "pii_detection_settings",
     settings_group: PII_SETTINGS_ITEM_TYPE,
@@ -445,13 +544,16 @@ async function persistPiiSettings(): Promise<void> {
     );
   }
 
+  assertOwner();
   // Create or update the singleton entry
   const isNew = !piiSettingsEntryId;
   if (isNew) {
-    piiSettingsEntryId = crypto.randomUUID();
+    const entryId = crypto.randomUUID();
     const rawHash = await hashString(
       `${PRIVACY_APP_ID}-pii_detection_settings-${nowSeconds}`,
     );
+    assertOwner();
+    piiSettingsEntryId = entryId;
     piiSettingsItemKey = rawHash.substring(0, 32);
     piiSettingsVersion = 1;
     piiSettingsCreatedAt = nowSeconds;
@@ -721,6 +823,7 @@ const enabledEntries = derived(personalDataEntries, ($entries) =>
  * Updates in-memory state immediately, persists asynchronously.
  */
 async function toggleMaster(): Promise<void> {
+  await requireHydratedPreferences();
   const privacyOwner = getWorkspaceCacheIdentity();
   // Update in-memory state immediately
   piiDetectionSettings.update((settings) => ({
@@ -744,6 +847,7 @@ async function toggleMaster(): Promise<void> {
  * Set the master PII detection switch to a specific value.
  */
 async function setMasterEnabled(enabled: boolean): Promise<void> {
+  await requireHydratedPreferences();
   const privacyOwner = getWorkspaceCacheIdentity();
   piiDetectionSettings.update((settings) => ({
     ...settings,
@@ -761,11 +865,33 @@ async function setMasterEnabled(enabled: boolean): Promise<void> {
   }
 }
 
+async function requireHydratedPreferences(): Promise<void> {
+  const owner = getWorkspaceCacheIdentity();
+  if (!get(enhancementReadyStore)) await loadOwnedPreferences(true);
+  if (!isEnhancementOwnerCurrent(owner) || !get(enhancementReadyStore)) {
+    throw new Error("Personal privacy preferences are not ready");
+  }
+}
+
+/** Persist the enhanced preference through the same owner and write fences. */
+async function setEnhancedEnabled(enabled: boolean): Promise<void> {
+  const owner = getWorkspaceCacheIdentity();
+  await requireHydratedPreferences();
+  if (!isEnhancementOwnerCurrent(owner)) throw new Error("Personal privacy owner changed during save");
+  piiDetectionSettings.update(settings => ({ ...settings, enhancedEnabled: enabled }));
+  if (owner === null) {
+    localStorage.setItem(ANONYMOUS_ENHANCEMENT_KEY, String(enabled));
+    return;
+  }
+  await persistPiiSettings();
+}
+
 /**
  * Toggle a specific PII detection category.
  * Updates in-memory state immediately, persists asynchronously.
  */
 async function toggleCategory(category: string): Promise<void> {
+  await requireHydratedPreferences();
   const privacyOwner = getWorkspaceCacheIdentity();
   piiDetectionSettings.update((settings) => ({
     ...settings,
@@ -803,13 +929,18 @@ function isCategoryEnabled(category: string): boolean {
  */
 if (typeof window !== "undefined") {
   window.addEventListener("appSettingsMemoriesSyncReady", () => {
+    privacySyncOwner = getWorkspaceCacheIdentity();
     console.debug(
       "[PersonalDataStore] Sync event received — reloading from storage",
     );
-    loadFromStorage().catch((error) => {
+    reloadFromStorage().catch((error) => {
       console.error("[PersonalDataStore] Error reloading after sync:", error);
     });
   });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("appSettingsMemoriesEntrySynced", () => { void reloadFromStorage(); });
 }
 
 // ─── Reset ──────────────────────────────────────────────────────────────────
@@ -839,10 +970,16 @@ async function updateLocationSettings(
 }
 
 function reset(): void {
+  hydrationSequence += 1;
+  loading = null;
+  deferredLoading = null;
+  enhancementOwner = undefined;
+  enhancementReadyStore.set(false);
   privacyPersistenceError = null;
   personalDataEntries.set([]);
   piiDetectionSettings.set({
     masterEnabled: true,
+    enhancedEnabled: true,
     categories: { ...DEFAULT_PII_CATEGORIES },
   });
   locationSettingsStore.set({ impreciseByDefault: true });
@@ -862,7 +999,10 @@ function reset(): void {
 let privacyPersistenceError: { scope: string | null; error: unknown } | null = null;
 const privacyMutationWork = new Map<Promise<unknown>, string | null>();
 function recordPrivacyFailure(error: unknown, owner: string | null): void {
-  if (owner === getWorkspaceCacheIdentity()) privacyPersistenceError = { scope: owner, error };
+  if (owner === getWorkspaceCacheIdentity()) {
+    privacyPersistenceError = { scope: owner, error };
+    enhancementReadyStore.set(false);
+  }
 }
 function hasPendingPrivacyMutations(): boolean {
   const owner = getWorkspaceCacheIdentity();
@@ -871,6 +1011,7 @@ function hasPendingPrivacyMutations(): boolean {
 function privacyMutation<Args extends unknown[], Result>(action: (...args: Args) => Promise<Result>) {
   return (...args: Args): Promise<Result> => {
     const owner = getWorkspaceCacheIdentity();
+    privacyMutationEpoch += 1;
     const work = action(...args).catch(error => {
       recordPrivacyFailure(error, owner);
       throw error;
@@ -906,6 +1047,10 @@ export const personalDataStore = {
   settings: {
     subscribe: piiDetectionSettings.subscribe,
   },
+  /** False until this exact account/key owner has hydrated its preference. */
+  enhancementReady: derived([enhancementReadyStore, authStore, userProfile], ([ready]) =>
+    ready && enhancementOwner !== undefined && isEnhancementOwnerCurrent(enhancementOwner)),
+  ensureEnhancementReady,
 
   /**
    * Subscribe to location precision settings.
@@ -932,6 +1077,8 @@ export const personalDataStore = {
   toggleMaster: privacyMutation(toggleMaster),
   setMasterEnabled: privacyMutation(setMasterEnabled),
   toggleCategory: privacyMutation(toggleCategory),
+  setEnhancedEnabled: privacyMutation(setEnhancedEnabled),
+  toggleEnhanced: privacyMutation(() => setEnhancedEnabled(!get(piiDetectionSettings).enhancedEnabled)),
   isCategoryEnabled,
   hasPendingPrivacyMutations,
   waitForPrivacyMutations,
@@ -946,3 +1093,25 @@ export const personalDataStore = {
   // Reset (on logout)
   reset,
 };
+
+// Fence readiness synchronously at account/key changes. Hydration starts only
+// after auth initialization; pre-auth defaults must never trigger model traffic.
+registerWorkspaceCacheClear(() => {
+  reset();
+  queueMicrotask(() => { void loadFromStorage(); });
+});
+let observedOwner: string | null | undefined;
+function refreshEnhancementOwner(): void {
+  const owner = getWorkspaceCacheIdentity();
+  if (!isEnhancementOwnerCurrent(owner)) {
+    enhancementReadyStore.set(false);
+    return;
+  }
+  if (observedOwner !== owner || enhancementOwner === undefined) {
+    observedOwner = owner;
+    reset();
+    queueMicrotask(() => { void loadFromStorage(); });
+  }
+}
+authStore.subscribe(refreshEnhancementOwner);
+userProfile.subscribe(refreshEnhancementOwner);

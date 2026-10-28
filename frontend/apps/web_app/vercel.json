@@ -22,15 +22,35 @@
 			]
 		},
 		{
-			"source": "/pii-runtime/:version/worker.js",
+			"source": "/pii-runtime/redact-4.1.0-litert-2.6.0/worker.js",
 			"headers": [
-				{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+				{
+					"key": "Cache-Control",
+					"value": "no-cache, must-revalidate"
+				},
+				{
+					"key": "Content-Security-Policy",
+					"value": "default-src 'none'; connect-src 'none'; script-src blob: 'wasm-unsafe-eval'; worker-src 'none'; child-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+				},
+				{
+					"key": "X-Content-Type-Options",
+					"value": "nosniff"
+				}
 			]
 		},
 		{
 			"source": "/pii-runtime/:version/version.json",
 			"headers": [
 				{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+			]
+		},
+		{
+			"source": "/pii-runtime/redact-4.1.0-litert-2.6.0/integrity.json",
+			"headers": [
+				{
+					"key": "Cache-Control",
+					"value": "no-cache, must-revalidate"
+				}
 			]
 		},
 		{

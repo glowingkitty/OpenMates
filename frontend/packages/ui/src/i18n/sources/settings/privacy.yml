@@ -4388,3 +4388,16 @@ enhanced_pii_model.verifying:
   en: Checking personal data on this device…
   de: Personenbezogene Daten werden auf diesem Gerät geprüft…
   verified_by_human: []
+
+enhanced_protection:
+  context: Independent default-on toggle for optional on-device model enhancement; baseline personal-data protection remains active when disabled
+  en: Enhanced personal data protection
+  verified_by_human: []
+enhanced_protection.description:
+  context: Transparent disclosure shown whether optional enhancement is enabled or disabled
+  en: Redact from Desert Ant Labs detects personal data locally in messages and recording text. Mandatory licensing traffic includes an installation identifier and model, SDK, platform and application metadata; the provider also sees IP address, headers and timing. Your scanned text stays on your device. Existing audio and file provider flows remain unchanged. Turning this off keeps full pattern detection, your configured entries and exclusions active when Hide personal data is on.
+  verified_by_human: []
+enhanced_protection.provider_privacy:
+  context: External link to the optional on-device model provider privacy policy
+  en: Desert Ant Labs privacy policy
+  verified_by_human: []

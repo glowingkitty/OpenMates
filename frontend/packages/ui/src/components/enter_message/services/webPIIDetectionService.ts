@@ -1,7 +1,9 @@
-/** Lazy, dev-only model detector. Input/results exist only in worker/page memory. */
+/** Local model detector. Input/results exist only in worker/page memory. */
 import { get, writable } from 'svelte/store';
+import { personalDataStore } from '../../../stores/personalDataStore';
 import { detectPII, type PIIDetectionOptions, type PIIMatch } from './piiDetectionService';
 import { mergeWebPIIMatches, type WebPIIEntity } from './webPIIMatches';
+import { createWebPIINetworkBroker, type WebPIIBrokerFailure } from './webPIINetworkBroker';
 
 export const WEB_PII_ASSET_BASE = '/pii-runtime/redact-4.1.0-litert-2.6.0/';
 export const WEB_PII_SCAN_BUDGET_MS = 2_500;
@@ -9,19 +11,28 @@ export const WEB_PII_SCAN_BUDGET_MS = 2_500;
 // 2,048 UTF-16 code units is roughly two windows of typical prose, not a token
 // guarantee. Token-dense text is additionally bounded by the shared deadline.
 export const WEB_PII_MAX_ENHANCED_CHARS = 2_048;
-export interface WebPIIScanContext { purpose?: 'preview' | 'send'; deadline?: number }
+export interface WebPIIScanContext { purpose?: 'preview' | 'send'; deadline?: number; enhancedEnabled?: boolean }
 /** Share one lazily started budget across every text field in a captured send. */
-export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send' }; }
-export interface WebPIIDetectorState { status: 'disabled' | 'loading' | 'ready' | 'error'; progress?: number; fallbackReason?: 'size' | 'timeout' }
+export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send', enhancedEnabled: isWebPIIModelEnabled() }; }
+export interface WebPIIDetectorState { status: 'disabled' | 'loading' | 'ready' | 'error'; progress?: number; fallbackReason?: 'size' | 'timeout'; failureCode?: WebPIIBrokerFailure }
 const state = writable<WebPIIDetectorState>({ status: 'disabled' });
 export const webPIIDetectorState = { subscribe: state.subscribe };
 
+export function isWebPIIModelSupported(): boolean {
+  return typeof window !== 'undefined' &&
+    ['openmates.org', 'app.openmates.org', 'app.dev.openmates.org', 'localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
 export function isWebPIIModelEnabled(): boolean {
-  return typeof window !== 'undefined' && import.meta.env.VITE_ENV !== 'production' &&
-    ['app.dev.openmates.org', 'localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (!isWebPIIModelSupported()) return false;
+  installPreferenceLifecycle();
+  const settings = get(personalDataStore.settings);
+  return get(personalDataStore.enhancementReady) && settings.masterEnabled && settings.enhancedEnabled !== false;
 }
 
 let worker: Worker | undefined;
+let broker: ReturnType<typeof createWebPIINetworkBroker> | undefined;
+let brokerReady: Promise<void> | undefined;
 let ready: Promise<void> | undefined;
 let requestId = 0;
 let generation = 0;
@@ -29,15 +40,32 @@ let failure: Error | undefined;
 type Pending = { resolve: (value: WebPIIEntity[]) => void; reject: (reason: Error) => void; timer: ReturnType<typeof setTimeout> };
 const pending = new Map<number, Pending>();
 
-function failWorker(expectedGeneration = generation): void {
+let preferenceLifecycleInstalled = false;
+function installPreferenceLifecycle(): void {
+  if (preferenceLifecycleInstalled) return;
+  preferenceLifecycleInstalled = true;
+  let previous: string | undefined;
+  const changed = () => {
+    const settings = get(personalDataStore.settings);
+    const current = JSON.stringify([settings.masterEnabled, settings.enhancedEnabled !== false,
+      get(personalDataStore.enhancementReady)]);
+    if (previous !== undefined && previous !== current) resetWebPIIDetector();
+    previous = current;
+  };
+  personalDataStore.settings.subscribe(changed);
+  personalDataStore.enhancementReady.subscribe(changed);
+}
+
+function failWorker(expectedGeneration = generation, failureCode?: WebPIIBrokerFailure): void {
   if (expectedGeneration !== generation) return;
   const error = new Error('Enhanced private data detection is unavailable. Basic protection remains active.');
   failure = error;
+  broker?.dispose(); broker = undefined; brokerReady = undefined;
   worker?.terminate(); worker = undefined; ready = undefined;
   for (const scan of queue.splice(0)) scan.reject(error);
   for (const item of pending.values()) { clearTimeout(item.timer); item.reject(error); }
   pending.clear();
-  state.set({ status: 'error' });
+  state.set({ status: 'error', ...(failureCode ? { failureCode } : {}) });
 }
 
 function getWorker(): Worker {
@@ -46,11 +74,21 @@ function getWorker(): Worker {
   worker = new Worker(`${WEB_PII_ASSET_BASE}worker.js`, { name: 'openmates-private-data' });
   const workerGeneration = generation;
   const target = worker;
-  worker.onerror = () => failWorker(workerGeneration);
+  broker = createWebPIINetworkBroker(worker, { onViolation: code => {
+    if (worker === target) failWorker(workerGeneration, code);
+  } });
+  brokerReady = broker.initialize();
+  // Initialization can fail before a load request attaches its continuation.
+  void brokerReady.catch(() => { if (worker === target) failWorker(workerGeneration); });
+  worker.onerror = event => { event?.preventDefault(); failWorker(workerGeneration); };
   worker.onmessageerror = () => failWorker(workerGeneration);
   worker.onmessage = ({ data }) => {
     if (workerGeneration !== generation || worker !== target) return;
-    if (data.kind === 'progress') { state.set({ status: 'loading', progress: data.progress }); return; }
+    if (broker?.handleMessage(data)) return;
+    if (data?.kind === 'progress') {
+      state.set({ status: 'loading', progress: typeof data.progress === 'number' && Number.isFinite(data.progress) ? data.progress : undefined }); return;
+    }
+    if (!data || typeof data !== 'object') return;
     const item = pending.get(data.id);
     if (!item) return;
     clearTimeout(item.timer); pending.delete(data.id);
@@ -68,7 +106,11 @@ function request(kind: 'load' | 'scan', text?: string): Promise<WebPIIEntity[]> 
       const target = getWorker();
       const id = ++requestId;
       pending.set(id, { resolve, reject, timer: setTimeout(() => failWorker(requestGeneration), kind === 'load' ? 180_000 : 60_000) });
-      target.postMessage({ id, kind, ...(text === undefined ? {} : { text }) });
+      void brokerReady!.then(() => {
+        if (requestGeneration === generation && worker === target && !failure && isWebPIIModelEnabled()) {
+          target.postMessage({ id, kind, ...(text === undefined ? {} : { text }) });
+        }
+      }).catch(() => failWorker(requestGeneration));
     } catch { failWorker(requestGeneration); reject(new Error('The private data detector could not start.')); }
   });
 }
@@ -125,7 +167,9 @@ async function drain(): Promise<void> {
 }
 
 export async function detectPIIForWeb(text: string, options: PIIDetectionOptions = {}, context: WebPIIScanContext = {}): Promise<PIIMatch[]> {
-  if (!isWebPIIModelEnabled()) return detectPII(text, options);
+  if (!isWebPIIModelSupported()) return detectPII(text, options);
+  const enhancementEnabled = isWebPIIModelEnabled();
+  context.enhancedEnabled ??= enhancementEnabled;
   if (!text) return [];
   const operationGeneration = generation;
   const purpose = context.purpose ?? 'send';
@@ -137,6 +181,7 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   // Capture the complete existing detector result with the same options before
   // asynchronous model work. If basic detection itself fails, propagate it.
   const basic = mergeWebPIIMatches(text, [], snapshot);
+  if (!context.enhancedEnabled || !enhancementEnabled) return basic;
   // Supersede obsolete previews before inference starts; sends are never dropped.
   if (purpose === 'preview') {
     if (activeScan?.purpose === 'preview' && activeScan.phase === 'loading') activeScan.resolve([]);
@@ -189,6 +234,7 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
 /** Settings disable/retry destroys all model and request memory. Asset cache stays. */
 export function resetWebPIIDetector(): void {
   generation++; failure = undefined;
+  broker?.dispose(); broker = undefined; brokerReady = undefined;
   worker?.terminate(); worker = undefined; ready = undefined;
   const error = new Error('Private data detection was reset');
   for (const item of pending.values()) { clearTimeout(item.timer); item.reject(error); }

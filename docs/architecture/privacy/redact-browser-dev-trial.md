@@ -1,7 +1,10 @@
 # Redact browser development trial
 
-Task TASK-6119, session 678f. The user requested a working development integration
-before making a production decision. Production activation remains disabled.
+Task TASK-6119, session 678f. The initial development trial and its evidence are
+retained below. On 2026-10-28 the user authorized default-on production use and
+approved feature.pii-protection@3, including a persistent basic-only setting,
+network-isolated inference, validated licensing and explicit privacy disclosure.
+Release readiness and actual domain promotion must be verified separately.
 
 The published browser SDK is `@desert-ant-labs/redact` 4.1.0 with LiteRT.js 2.6.0.
 Model revision `v0.4.0` is approximately 24.5 MB, plus tokenizer and runtime files.
@@ -91,7 +94,42 @@ editable composer stage. URL metadata fetching also precedes final chat send;
 this trial does not claim to retrofit privacy filtering into all existing
 external read/metadata operations.
 
-## Network audit of the pinned browser runtime
+## Approved production implementation
+
+Enhanced personal data protection defaults on in the official production web app.
+Its Privacy setting persists independently of the master protection switch. Off
+retains the complete basic pattern detector, configured private entries and
+exclusions. Saved encrypted preferences are hydrated before model/licensing
+initialization; sync and pending-write generations prevent an older enabled
+snapshot from overriding an opt-out. Anonymous preference storage is browser-local.
+Prepared-send receipts also include the enhanced preference.
+
+The inference Worker has a response CSP with `connect-src 'none'`, blob-only
+script loading and no nested workers. Its fetch bridge has no native-network
+reference. Trusted OpenMates page code brokers only exact self-hosted asset GETs
+and the pinned license/activation POST protocol. It verifies reviewed runtime
+and model hashes on cache reads and downloads, owns the installation UUID,
+validates signed genuine vendor tokens and reconstructs only fixed approved
+metadata. Unknown fields, destinations, headers or protocol changes fail closed
+to basic protection. Required valid SDK reporting remains intact.
+
+The installation UUID and narrowly validated licensing state may persist in
+browser storage. Neither is tied to an OpenMates account identifier. This replaces
+the initial trial's worker-only identity and avoids treating every worker restart
+as another installation. Private text and detections remain transient. Native
+browser headers, IP address and request timing remain visible to the licensing
+recipient; this boundary does not control server retention or promise protection
+against arbitrary browser exploits or covert timing signals.
+
+Model files now come from the same OpenMates origin as runtime assets. Build
+packaging pins the public immutable Hugging Face revision and exact bytes; web
+users do not need a separate Hugging Face connection. The published privacy
+policy and Privacy description name Redact/Desert Ant Labs and explain the
+licensing fields, independent-controller role, opt-out and audio/file exceptions.
+The following trial network inventory is historical evidence, not the current
+production networking design.
+
+## Network audit of the initial pinned browser trial
 
 Read-only source and artifact inspection on 2026-10-26 found no inference-input,
 detected-original, result or log-upload request in the examined execution path.
@@ -225,9 +263,9 @@ native memory, latency, detection misses, and OS-enforced offline proof.
 
 The subsequent [licensing/privacy review](redact-licensing-privacy-review-2026-10-26.md)
 confirms that users' browsers directly contact the licensing service. The vendor's
-website privacy page does not document key SDK telemetry details. Production
-approval remains withheld. The user prefers retaining the current enabled dev
-trial with a settings switch back to regex. The [vendor inquiry](desert-ant-privacy-questions-unsent-2026-10-26.md)
+website privacy page does not document key SDK telemetry details. The initial
+production hold was superseded by the user's explicit approval of Specification
+version 3, with a persisted basic-only option and provider disclosure. The [vendor inquiry](desert-ant-privacy-questions-unsent-2026-10-26.md)
 is an unsent draft, not an approved change to the SDK's mandatory reporting.
 
 The user explicitly requested checking the October 2026 decoder vulnerability,
@@ -240,8 +278,10 @@ provide a complete dependency attestation.
 Local and isolated CI Node use the patched 24.22.1 release. Its embedded Brotli
 version still reports 1.2.0, so version text alone is insufficient. A shared
 web helper requires Node 24.22.1 or later within 24.x and the backported
-`BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH=-17` constant. Both runtime preparation
-and the server hook assert this before application processing. Vercel's API
+`BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH=-17` constant. Runtime preparation
+asserts this before downloading assets; the server hook asserts it before ordinary
+server fetches. Public-share metadata uses a bounded raw HTTPS adapter that rejects
+encoded responses before consumption on unpatched hosts. Vercel's API
 reported the deployed runtime family as 24.x, without exposing an exact patch;
 the new guard checks the actual executing runtime rather than assuming its patch
 from the platform alias or WAF status.
@@ -254,11 +294,14 @@ still return HTTP 200; the worker hash matches the candidate above. A fresh
 deployment of the same commit explicitly skipped the build cache and again
 reported Node 24.21.0 in the hosted function. No malformed Brotli input was sent.
 
-The remaining blocker is Vercel's managed runtime patch rollout. Its documented
-project setting selects only a major version, and its security advisory still
-describes the rollout as in progress. Keep the guard enforced and do not call
-hosted verification complete until a real server request succeeds on the patched
-runtime. Production model activation remains disabled. The sanitized
+The current server hook no longer performs that startup assertion. The guarded
+fetch boundary and raw metadata adapter avoid the affected decoder on the reviewed
+paths. Vercel's [updated advisory](https://vercel.com/kb/bulletin/node-js-security-advisory)
+also documents pre-decompression Brotli rejection for fresh managed deployments.
+For this browser-only release, retain the guarded build and server paths and verify
+a fresh deployment's environment bootstrap, worker CSP and public-share metadata.
+Successful requests do not establish the hosted Node patch version; managed-runtime
+patch tracking remains separate. The sanitized historical
 [hosted receipt](evaluations/2026-10-26-redact/security-web-brotli-2026-10-26/manifest.json)
 and [unsent support draft](vercel-brotli-runtime-support-draft-2026-10-26.md)
 record the exact affected deployments without user content or credentials.

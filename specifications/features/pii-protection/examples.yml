@@ -1,5 +1,53 @@
 schema_version: 1
-specification: feature.pii-protection@2
+specification: feature.pii-protection@3
+
+web_enhanced_preference:
+  - id: production-default-and-persistent-off
+    assertion_ids: [pii.web.enhanced-default-and-opt-out]
+    given: An existing production user has no enhanced preference saved and has basic personal-data protection enabled.
+    when: They open Privacy, turn Enhanced personal data protection off, and reload the app.
+    then: Enhancement initially defaults on; after their change the switch stays off, emails and configured private values still receive placeholders, and no model worker or licensing request starts during reload.
+  - id: opt-out-during-preparation
+    assertion_ids: [pii.web.enhanced-default-and-opt-out]
+    given: A user has a message being verified locally and begins typing a separate draft.
+    when: They turn enhancement off before verification finishes.
+    then: The obsolete enhanced result cannot be sent or published, the newer draft remains intact, and a fresh send uses the current basic-only preference.
+
+web_bounded_inference:
+  - id: short-message-and-transcript
+    assertion_ids: [pii.web.local-bounded-inference]
+    given: The local model is ready and a short message or recording transcript contains a detected name and address.
+    when: The user sends the text and later reveals it in their own chat.
+    then: Detected originals are replaced before chat-model transmission and restored exactly from the existing owner-only mappings; this does not change earlier audio transcription service calls.
+  - id: large-or-stalled-input
+    assertion_ids: [pii.web.local-bounded-inference]
+    given: A user pastes more than 2,048 UTF-16 code units, or several recording fields exhaust one send's 2,500 ms enhancement budget.
+    when: The text is checked before send.
+    then: All text retains basic patterns and configured-value protection, no further enhanced work is awaited after the budget, and the existing one-time notification explains the fallback without another status element.
+
+web_licensing_boundary:
+  - id: ordinary-license-activation
+    assertion_ids: [pii.web.licensing-egress-boundary]
+    given: A production user enables enhancement and types a private name, address and email.
+    when: The SDK requests and activates its genuine license.
+    then: Trusted networking sends only the approved installation and fixed application/model metadata and the authentic returned license token; the private text and account identity do not appear in request URLs, bodies or headers.
+  - id: new-field-or-destination-denied
+    assertion_ids: [pii.web.licensing-egress-boundary]
+    given: A licensing request adds a transcript field, changes an identifier to input-derived data, or targets an unapproved destination.
+    when: Third-party code attempts the request.
+    then: No such request reaches the network, enhancement falls back to basic protection, and a protocol change requires review rather than silently expanding the transmitted data.
+
+web_provider_disclosure:
+  - id: informed-privacy-choice
+    assertion_ids: [pii.web.provider-disclosure]
+    given: A user opens Privacy to understand enhanced protection before changing its switch.
+    when: They read its description and linked privacy-policy section.
+    then: They can see that Redact processes text locally, Desert Ant Labs receives limited direct licensing metadata and connection information, and turning enhancement off retains basic detection.
+  - id: policy-retains-real-boundaries
+    assertion_ids: [pii.web.provider-disclosure]
+    given: A reader checks the provider disclosure for retention and whether all audio or uploaded files stay on the device.
+    when: They read the published privacy policy.
+    then: The notice links the provider's policy, makes no unsupported retention promise, preserves the distinct existing audio/file-processing disclosures, and does not describe licensing as anonymous or data-free.
 
 composer_detection:
   - id: active-email-phone-redacted

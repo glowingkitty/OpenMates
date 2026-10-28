@@ -4,7 +4,7 @@ import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import { focusComposer } from '../helpers/composer-focus';
 
-const MODEL_URL = 'https://huggingface.co/desert-ant-labs/redact/resolve/v0.4.0/redact.tflite';
+const MODEL_URL = '**/pii-runtime/redact-4.1.0-litert-2.6.0/model/redact.tflite';
 const MODEL_TIMEOUT = 90_000;
 const PREVIEW = '/dev/preview/enter_message/MessageInputPIIPreview?chrome=0&theme=light&background=%23dbeafe&width=680';
 const CUSTOMER_DRAFT = 'Our customer Amina Okafor needs help. Her address is 42 Maple Avenue, Bristol BS1 4QA.';
@@ -107,7 +107,106 @@ async function fillDraft(editor: Locator, text: string) {
   await expect(editor, 'the initialized composer must retain the complete draft').toHaveText(text);
 }
 
+async function expectSemanticHighlight(page: Page, highlight: Locator, type: string) {
+  // Stop on a terminal detector failure instead of spending another 90 seconds
+  // waiting for a semantic result that this worker can no longer produce.
+  let failed = false;
+  await expect.poll(async () => {
+    failed = await page.evaluate(() => {
+      const states = (window as typeof window & { __piiDetectorDiagnostics?: { status: string }[] }).__piiDetectorDiagnostics;
+      return states?.at(-1)?.status === 'error';
+    });
+    if (failed) return true;
+    return await highlight.count() === 1 && await highlight.getAttribute('data-pii-type') === type;
+  }, { timeout: MODEL_TIMEOUT }).toBe(true);
+  if (failed) throw new Error('Enhanced detector entered a terminal failure; see sanitized lifecycle attachment');
+  await expect(highlight).toHaveAttribute('data-pii-type', type);
+}
+
 test.describe('Local PII composer integration', () => {
+  // Retain protocol shapes when an assertion fails, without recording tokens,
+  // installation IDs, response values or private input/output text.
+  const diagnostics = new WeakMap<Page, { pending: Promise<void>[]; events: unknown[] }>();
+  test.beforeEach(async ({ page, context }) => {
+    const record = { pending: [] as Promise<void>[], events: [] as unknown[] };
+    diagnostics.set(page, record);
+    const started = Date.now();
+    await page.addInitScript(() => {
+      const state = window as typeof window & { __piiWorkerDiagnostics: unknown[] };
+      state.__piiWorkerDiagnostics = [];
+      window.Worker = new Proxy(window.Worker, { construct(target, args, newTarget) {
+        const worker = Reflect.construct(target, args, newTarget) as Worker;
+        if (!String(args[0]).includes('/pii-runtime/')) return worker;
+        const started = Date.now();
+        worker.addEventListener('message', ({ data }) => {
+          const kinds = ['progress', 'pii-network', 'pii-storage', 'pii-boundary-violation', 'pii-diagnostic'];
+          const event: Record<string, unknown> = { at: Date.now() - started,
+            kind: kinds.includes(data?.kind) ? data.kind : 'operation-result', error: data?.error === true };
+          if (data?.kind === 'pii-network') {
+            const allowed = ['sdk.js', 'RedactWeb.wasm', 'litert_wasm_compat_internal.js', 'litert_wasm_compat_internal.wasm',
+              'model/redact.tflite', 'model/redact_tokenizer.bin', 'model/labels.json'];
+            const path = typeof data.url === 'string' ? data.url.split('/pii-runtime/redact-4.1.0-litert-2.6.0/')[1] : undefined;
+            event.destination = allowed.includes(path) ? path
+              : data.url === 'https://events.desertant.com/api/v1/license' ? 'license'
+              : data.url === 'https://events.desertant.com/api/v1/activate' ? 'activate' : 'unrecognized';
+          }
+          if (data?.kind === 'pii-diagnostic') {
+            const codes = ['fetch-input', 'fetch-options', 'fetch-credentials', 'fetch-body', 'storage-input', 'transport',
+              'csp-connect', 'csp-script', 'csp-worker', 'csp-other', 'worker-sdk-asset', 'worker-sdk-import',
+              'worker-runtime-asset', 'worker-runtime-load', 'worker-model-load', 'worker-scan', 'worker-message', 'license-network-rejected',
+              'function-construction', 'normalization-input'];
+            event.code = codes.includes(data.code) ? data.code : 'unrecognized';
+          }
+          state.__piiWorkerDiagnostics.push(event);
+        });
+        return worker;
+      } });
+    });
+    page.on('console', message => {
+      const content = message.text();
+      if (content.includes('Content Security Policy') || content.includes('content-security-policy')) {
+        record.events.push({ event: 'browser-policy-message', at: Date.now() - started,
+          directive: ['worker-src', 'connect-src', 'script-src', 'wasm-unsafe-eval', 'unsafe-eval'].filter(value => content.includes(value)) });
+      }
+    });
+    page.on('worker', worker => {
+      record.events.push({ event: 'worker-created', at: Date.now() - started });
+      worker.on('close', () => record.events.push({ event: 'worker-closed', at: Date.now() - started }));
+    });
+    context.on('response', response => {
+      const url = new URL(response.url());
+      if (url.hostname !== 'events.desertant.com') return;
+      record.pending.push((async () => {
+        const body = await response.json() as Record<string, unknown>;
+        const shape = (value: unknown) => value && typeof value === 'object'
+          ? Object.fromEntries(Object.entries(value).map(([key, field]) => [key, typeof field])) : typeof value;
+        const event: Record<string, unknown> = {
+          event: 'license-response', at: Date.now() - started, path: url.pathname,
+          status: response.status(), shape: shape(body),
+        };
+        if (typeof body.token === 'string') {
+          const parts = body.token.split('.');
+          if (parts.length === 3) {
+            event.tokenHeaderShape = shape(JSON.parse(Buffer.from(parts[0], 'base64url').toString()));
+            event.tokenClaimsShape = shape(JSON.parse(Buffer.from(parts[1], 'base64url').toString()));
+          }
+        }
+        record.events.push(event);
+      })().catch(() => record.events.push({ event: 'license-response-unavailable', at: Date.now() - started })));
+    });
+  });
+  test.afterEach(async ({ page }, testInfo) => {
+    const record = diagnostics.get(page);
+    if (!record) return;
+    await Promise.all(record.pending);
+    if (!page.isClosed()) record.events.push({ event: 'worker-message-sequence', data: await page.evaluate(() => {
+      const fixture = window as typeof window & { __piiWorkerDiagnostics?: unknown[]; __piiDetectorDiagnostics?: unknown[] };
+      return { messages: fixture.__piiWorkerDiagnostics ?? [], states: fixture.__piiDetectorDiagnostics ?? [] };
+    }) });
+    await testInfo.attach('sanitized-license-and-worker-lifecycle', {
+      body: JSON.stringify(record.events, null, 2), contentType: 'application/json',
+    });
+  });
   // Downloads and runs the real pinned model; no detector or classification mocks.
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
   test('uses the latest draft, preserves exclusions, and classifies while offline after warmup', async ({ page, context }, testInfo) => {
@@ -149,7 +248,7 @@ test.describe('Local PII composer integration', () => {
     // surname and street spans. Assert semantic types without imposing grouping.
     const name = highlights.filter({ hasText: /Amina/ });
     const address = highlights.filter({ hasText: /Maple/ });
-    await expect(name).toHaveAttribute('data-pii-type', 'PERSON_NAME', { timeout: MODEL_TIMEOUT });
+    await expectSemanticHighlight(page, name, 'PERSON_NAME');
     await expect(address).toHaveAttribute('data-pii-type', 'ADDRESS');
     await expect(highlights.filter({ hasText: 'current.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
     await expect(secret).toHaveCount(0);
@@ -272,8 +371,7 @@ test.describe('Local PII composer integration', () => {
     const retry = notice.getByRole('button', { name: 'Retry enhanced detection', exact: true });
     await retry.focus();
     await retry.press('Enter');
-    await expect(page.getByTestId('pii-highlight').filter({ hasText: /Amina/ }))
-      .toHaveAttribute('data-pii-type', 'PERSON_NAME', { timeout: MODEL_TIMEOUT });
+    await expectSemanticHighlight(page, page.getByTestId('pii-highlight').filter({ hasText: /Amina/ }), 'PERSON_NAME');
     await expect(page.getByTestId('pii-model-status')).toHaveCount(0);
     await expect(excludedEmail).toHaveCount(0);
     await expect(protectedEmail).toHaveAttribute('data-pii-type', 'EMAIL');

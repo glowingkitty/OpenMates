@@ -255,6 +255,11 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.intro"));
   lines.push("");
 
+  // Local browser detection has separate, content-free licensing traffic.
+  renderProvider("legal.privacy.providers.local_privacy.desert_ant_labs", privacyPolicyLinks.desertAntLabs);
+  lines.push(`[${t("legal.privacy.providers.local_privacy.license_link")}](${privacyPolicyLinks.desertAntLabsLicense})`);
+  lines.push("");
+
   // Group A — Always active
   lines.push(`### ${t("legal.privacy.providers.always_active.heading")}`);
   lines.push("");

@@ -14493,6 +14493,19 @@
               "text": "JobTech receives selected job keywords, named location, remote preference, publication window and result count for Swedish vacancy search."
             }
           }
+        },
+        "local_privacy": {
+          "desert_ant_labs": {
+            "heading": {
+              "text": "Local text protection — Redact by Desert Ant Labs (Netherlands)"
+            },
+            "description": {
+              "text": "Enhanced text detection uses Redact by Desert Ant Labs and is enabled by default. Text inference runs locally in your browser. OpenMates hosts the approved model and runtime assets; web users do not need to download them from Hugging Face. Turning off enhanced detection in privacy settings stops Redact use and its licensing requests while keeping the complete basic text detector available.\n\nRedact requires SDK licensing and activation requests directly from your browser to Desert Ant Labs. These requests include a browser installation UUID used for license/device counting, model and SDK versions, platform, the application hostname and a signed license token. OpenMates controls local persistence of the installation identifier and uses it only as license metadata. The vendor also sees your IP address, browser request headers (including Origin) and request timing. Text being scanned, detection results, placeholder mappings and your OpenMates account ID are not included in these requests.\n\nDesert Ant Labs acts as an independent controller for this licensing telemetry under its license. This feature is not anonymous or wholly offline, and OpenMates does not promise a particular vendor retention period. Local detection can miss personal data. Typed-message protection does not cover voice audio, raw transcripts, uploaded files, reference images, calendar content or provider-specific inputs unless a feature explicitly says otherwise."
+            }
+          },
+          "license_link": {
+            "text": "Desert Ant Labs license (including licensing telemetry)"
+          }
         }
       },
       "title": {
@@ -15052,7 +15065,7 @@
             "text": "Do third-party providers receive my content?"
           },
           "answer": {
-            "text": "Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise."
+            "text": "Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise. Enhanced text detection uses Redact by Desert Ant Labs locally, with limited licensing metadata sent directly to the vendor as described below."
           }
         },
         "voice_recordings": {
@@ -22226,6 +22239,15 @@
           "days_remaining": {
             "text": "{count}d remaining"
           }
+        }
+      },
+      "enhanced_protection": {
+        "text": "Enhanced personal data protection",
+        "description": {
+          "text": "Redact from Desert Ant Labs detects personal data locally in messages and recording text. Mandatory licensing traffic includes an installation identifier and model, SDK, platform and application metadata; the provider also sees IP address, headers and timing. Your scanned text stays on your device. Existing audio and file provider flows remain unchanged. Turning this off keeps full pattern detection, your configured entries and exclusions active when Hide personal data is on."
+        },
+        "provider_privacy": {
+          "text": "Desert Ant Labs privacy policy"
         }
       }
     },

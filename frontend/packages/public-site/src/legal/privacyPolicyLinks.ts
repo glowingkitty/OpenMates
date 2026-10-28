@@ -7,6 +7,10 @@ export const privacyPolicyLinks = {
   sightengine: "https://sightengine.com/policies/privacy",
   apiVideo: "https://api.video/privacy-policy/", // verified 2026-04-14
 
+  // Local browser privacy protection — verified 2026-10-28
+  desertAntLabs: "https://desertant.com/privacy/",
+  desertAntLabsLicense: "https://license.desertant.com/1.0",
+
   // Group B — Payments
   stripe: "https://stripe.com/privacy",
   revolutBusiness: "https://www.revolut.com/en-LT/legal/privacy/", // Revolut Bank UAB (Lithuania) — verified 2026-04-14

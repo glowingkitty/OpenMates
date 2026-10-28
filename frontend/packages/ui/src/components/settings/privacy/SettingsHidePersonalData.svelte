@@ -21,12 +21,10 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
-    import SettingsItem from '../../SettingsItem.svelte';
-    import { SettingsSectionHeading } from '../../settings/elements';
+    import { SettingsItem, SettingsSectionHeading, SettingsInfoBox, SettingsGradientLink } from '../../settings/elements';
     import SecurityAuth from '../security/SecurityAuth.svelte';
     import { personalDataStore, type PersonalDataEntry } from '../../../stores/personalDataStore';
     import { isSensitiveAuthValid, recordSensitiveAuthSuccess } from '../../../stores/sensitiveAuthStore';
-    import { isWebPIIModelEnabled } from '../../enter_message/services/webPIIDetectionService';
 
     const dispatch = createEventDispatcher();
 
@@ -99,8 +97,18 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 
     // ─── Store Subscriptions ─────────────────────────────────────────────────
 
-    let piiSettings = $state({ masterEnabled: true, categories: {} as Record<string, boolean> });
+    let piiSettings = $state({ masterEnabled: true, enhancedEnabled: true, categories: {} as Record<string, boolean> });
     personalDataStore.settings.subscribe((s) => { piiSettings = s; });
+
+    let enhancementReady = $state(false);
+    const unsubscribeEnhancementReady = personalDataStore.enhancementReady.subscribe(value => { enhancementReady = value; });
+    onMount(() => unsubscribeEnhancementReady);
+
+    function handleEnhancedToggle() {
+        void personalDataStore.toggleEnhanced().catch(() => {
+            console.error("[SettingsHidePersonalData] Failed to save enhanced privacy preference");
+        });
+    }
 
     let allEntries: PersonalDataEntry[] = $state([]);
     personalDataStore.subscribe((entries) => { allEntries = entries; });
@@ -246,11 +254,13 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <div class="master-toggle-row">
     <SettingsItem
         type="heading"
-        icon="anonym"
+        icon="subsetting_icon anonym"
         title={$text('settings.privacy.hide_personal_data')}
         hasToggle={true}
         checked={masterEnabled}
+        disabled={!enhancementReady}
         onClick={handleMasterToggle}
+        data-testid="personal-data-master-protection"
     />
 </div>
 
@@ -258,13 +268,28 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <div class="description-section">
     <p class="description-text">
         {$text('settings.privacy.hide_personal_data.description')}
-        {#if isWebPIIModelEnabled()}
-            <a href="https://desertant.com" target="_blank" rel="noopener noreferrer"
-                data-testid="pii-model-attribution"
-                title={$text('enter_message.pii.model_usage_disclosure')}>{$text('enter_message.pii.model_credit')}</a>
-        {/if}
     </p>
 </div>
+
+<SettingsItem
+    type="subsubmenu"
+    icon="subsetting_icon anonym"
+    title={$text('settings.privacy.enhanced_protection')}
+    hasToggle={true}
+    checked={piiSettings.enhancedEnabled}
+    disabled={!enhancementReady}
+    onClick={handleEnhancedToggle}
+    data-testid="enhanced-personal-data-protection"
+/>
+<SettingsInfoBox plain data-testid="pii-model-disclosure">
+    {$text('settings.privacy.enhanced_protection.description')}
+</SettingsInfoBox>
+<SettingsGradientLink href="https://desertant.com" external dataTestid="pii-model-attribution">
+    {$text('enter_message.pii.model_credit')}
+</SettingsGradientLink>
+<SettingsGradientLink href="https://desertant.com/privacy/" external dataTestid="pii-provider-privacy">
+    {$text('settings.privacy.enhanced_protection.provider_privacy')}
+</SettingsGradientLink>
 
 <!-- ─── Contacts Section (unified Names, Addresses, Birthdays) ─────────────── -->
 <SettingsSectionHeading title={$text('settings.privacy.contacts')} icon="contact" />

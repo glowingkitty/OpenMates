@@ -1,7 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
+import { createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
 import * as basicDetector from '../piiDetectionService';
+
+const preferences = vi.hoisted(() => ({
+  set: (_value: { masterEnabled: boolean; enhancedEnabled: boolean; categories?: Record<string, boolean> }) => {},
+  ready: (_value: boolean) => {},
+}));
+const network = vi.hoisted(() => ({
+  initialize: vi.fn(async () => {}), dispose: vi.fn(),
+  onViolation: undefined as (() => void) | undefined,
+}));
+vi.mock('../../../../stores/personalDataStore', async () => {
+  const { writable } = await import('svelte/store');
+  const settings = writable({ masterEnabled: true, enhancedEnabled: true, categories: {} });
+  const enhancementReady = writable(true);
+  preferences.set = value => settings.set({ ...value, categories: value.categories ?? {} });
+  preferences.ready = value => enhancementReady.set(value);
+  return { personalDataStore: { settings, enhancementReady } };
+});
+vi.mock('../webPIINetworkBroker', () => ({ createWebPIINetworkBroker: (_worker: unknown, options: { onViolation: () => void }) => {
+  network.onViolation = options.onViolation;
+  return { initialize: network.initialize, dispose: network.dispose, handleMessage: () => false };
+} }));
 
 class FakeWorker {
   static workers: FakeWorker[] = [];
@@ -22,23 +43,88 @@ beforeEach(() => {
   vi.stubGlobal('Worker', FakeWorker);
   FakeWorker.workers = [];
   resetWebPIIDetector();
+  preferences.set({ masterEnabled: true, enhancedEnabled: true });
+  preferences.ready(true);
+  network.initialize.mockResolvedValue(undefined);
+  network.dispose.mockClear();
 });
 afterEach(() => { resetWebPIIDetector(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-describe('dev browser PII runtime lifecycle', () => {
-  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
-  it('uses the exact host and environment gate and never starts a production worker', async () => {
-    expect(isWebPIIModelEnabled()).toBe(true); // jsdom localhost
-    for (const [hostname, enabled] of [['app.dev.openmates.org', true], ['localhost', true], ['127.0.0.1', true], ['openmates.org', false], ['app.openmates.org', false], ['app.dev.openmates.org.evil.example', false], ['preview.openmates.org', false]] as const) {
-      vi.stubGlobal('window', { location: { hostname } });
-      expect(isWebPIIModelEnabled()).toBe(enabled);
-    }
-    vi.stubGlobal('window', { location: { hostname: 'app.dev.openmates.org' } });
-    vi.stubEnv('VITE_ENV', 'production');
+describe('browser PII runtime lifecycle', () => {
+  // contract-test: supporting surface=gui.web assertions=pii.web.enhanced-default-and-opt-out
+  it('keeps full basic options without creating a worker when opted out or preferences have not hydrated', async () => {
+    const text = 'Amina anna@example.com +1 202-555-0183';
+    const options = { personalDataEntries: [{ id: 'name', textToHide: 'Amina', replaceWith: 'MY_NAME' }], disabledCategories: new Set(['phone_numbers']) };
+    preferences.set({ masterEnabled: true, enhancedEnabled: false });
+    expect(isWebPIIModelSupported()).toBe(true);
     expect(isWebPIIModelEnabled()).toBe(false);
     await preloadWebPIIDetector();
+    await expect(detectPIIForWeb(text, options)).resolves.toEqual(basicDetector.detectPII(text, options));
+    preferences.set({ masterEnabled: true, enhancedEnabled: true });
+    preferences.ready(false);
+    const captured = createWebPIIScanContext();
+    await preloadWebPIIDetector();
+    preferences.ready(true);
+    await expect(detectPIIForWeb(text, options, captured)).resolves.toEqual(basicDetector.detectPII(text, options));
     expect(FakeWorker.workers).toHaveLength(0);
-    expect((await detectPIIForWeb('anna@example.com'))[0].type).toBe('EMAIL');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.licensing-egress-boundary
+  it('terminates and disposes active inference immediately on opt-out and rejects obsolete results', async () => {
+    const scan = detectPIIForWeb('anna@example.com');
+    const rejected = expect(scan).rejects.toThrow('reset');
+    const active = FakeWorker.workers[0];
+    await tick(); active.respond(0); await tick();
+    preferences.set({ masterEnabled: true, enhancedEnabled: false });
+    await rejected;
+    expect(active.terminated).toBe(true);
+    expect(network.dispose).toHaveBeenCalled();
+    active.respond(1, { items: [{ label: 'EMAIL', original: 'anna@example.com', start: 0, end: 16, confidence: 1 }] });
+    await expect(detectPIIForWeb('anna@example.com')).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
+    expect(FakeWorker.workers).toHaveLength(1);
+    expect(get(webPIIDetectorState).status).toBe('disabled');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.web.licensing-egress-boundary
+  it('falls back immediately on a broker policy violation even when SDK licensing would ignore it', async () => {
+    const scan = detectPIIForWeb('anna@example.com');
+    await tick();
+    network.onViolation!();
+    await expect(scan).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
+    expect(FakeWorker.workers[0].terminated).toBe(true);
+    expect(get(webPIIDetectorState).status).toBe('error');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.licensing-egress-boundary
+  it('cannot post a load after opt-out interrupts broker initialization', async () => {
+    let initialized!: () => void;
+    network.initialize.mockReturnValueOnce(new Promise<void>(resolve => { initialized = resolve; }));
+    const loading = preloadWebPIIDetector();
+    const rejected = expect(loading).rejects.toThrow('reset');
+    const original = FakeWorker.workers[0];
+    preferences.set({ masterEnabled: true, enhancedEnabled: false });
+    initialized();
+    await rejected; await tick();
+    expect(original.messages).toEqual([]);
+    expect(original.terminated).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+  it('enables official production hosts by default and rejects lookalike hosts', async () => {
+    expect(isWebPIIModelEnabled()).toBe(true); // jsdom localhost
+    for (const [hostname, enabled] of [['app.dev.openmates.org', true], ['localhost', true], ['127.0.0.1', true], ['openmates.org', true], ['app.openmates.org', true], ['app.dev.openmates.org.evil.example', false], ['preview.openmates.org', false]] as const) {
+      vi.stubGlobal('window', { location: { hostname } });
+      expect(isWebPIIModelSupported()).toBe(enabled);
+      expect(isWebPIIModelEnabled()).toBe(enabled);
+    }
+    vi.stubGlobal('window', { location: { hostname: 'app.openmates.org' } });
+    vi.stubEnv('VITE_ENV', 'production');
+    expect(isWebPIIModelEnabled()).toBe(true);
+    const loading = preloadWebPIIDetector();
+    await tick();
+    expect(FakeWorker.workers).toHaveLength(1);
+    FakeWorker.workers[0].respond(0);
+    await loading;
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
@@ -52,7 +138,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const secondBasic = basicDetector.detectPII(secondText, options);
     options.disabledCategories.clear();
     options.personalDataEntries[0].replaceWith = 'CHANGED_AFTER_ENQUEUE';
-    FakeWorker.workers[0].respond(0, { error: true });
+    await tick(); FakeWorker.workers[0].respond(0, { error: true });
     await expect(first).resolves.toEqual(firstBasic);
     await expect(second).resolves.toEqual(secondBasic);
     expect(get(webPIIDetectorState).status).toBe('error');
@@ -69,7 +155,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const expected = basicDetector.detectPII(text, options).filter(match => match.type === 'EMAIL');
     excludedIds.clear();
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     worker.respond(1, { error: true });
     await expect(scan).resolves.toEqual(expected);
     expect(get(webPIIDetectorState).status).toBe('error');
@@ -80,7 +166,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const text = 'Amina anna@example.com';
     const scan = detectPIIForWeb(text);
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 1, end: 6, confidence: 1 }] });
     await expect(scan).resolves.toEqual(basicDetector.detectPII(text));
     expect(get(webPIIDetectorState).status).toBe('error');
@@ -99,6 +185,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const stale = detectPIIForWeb('old text');
     const rejected = expect(stale).rejects.toThrow('reset');
     const old = FakeWorker.workers[0];
+    await tick();
     resetWebPIIDetector();
     const loading = preloadWebPIIDetector();
     const current = FakeWorker.workers[1];
@@ -107,7 +194,7 @@ describe('dev browser PII runtime lifecycle', () => {
     expect(get(webPIIDetectorState).status).toBe('loading');
     expect(current.terminated).toBe(false);
     expect(current.messages.map(m => m.kind)).toEqual(['load']);
-    current.respond(0); await loading;
+    await tick(); current.respond(0); await loading;
     expect(get(webPIIDetectorState).status).toBe('ready');
     expect(current.messages).toHaveLength(1);
   });
@@ -117,7 +204,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const scan = detectPIIForWeb('anna@example.com');
     const rejected = expect(scan).rejects.toThrow('reset');
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     resetWebPIIDetector();
     worker.respond(1, { error: true });
     await rejected;
@@ -128,7 +215,7 @@ describe('dev browser PII runtime lifecycle', () => {
   it('coalesces queued previews while preserving every send and snapshots options', async () => {
     const loading = preloadWebPIIDetector();
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await loading;
+    await tick(); worker.respond(0); await loading;
     const active = detectPIIForWeb('Amina', {}, { purpose: 'preview' });
     await tick();
     const superseded = detectPIIForWeb('old preview', {}, { purpose: 'preview' });
@@ -157,7 +244,7 @@ describe('dev browser PII runtime lifecycle', () => {
     expect(get(webPIIDetectorState).fallbackReason).toBe('size');
     const loading = preloadWebPIIDetector();
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await loading;
+    await tick(); worker.respond(0); await loading;
     await detectPIIForWeb(text, options);
     expect(worker.messages.map(message => message.kind)).toEqual(['load']);
     expect(worker.terminated).toBe(false);
@@ -175,7 +262,7 @@ describe('dev browser PII runtime lifecycle', () => {
     await expect(queued).resolves.toEqual(basicDetector.detectPII('bob@example.com'));
     expect(worker.terminated).toBe(false);
     expect(get(webPIIDetectorState).fallbackReason).toBe('timeout');
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     expect(get(webPIIDetectorState).status).toBe('ready');
     expect(worker.messages.map(message => message.kind)).toEqual(['load']);
     const recovered = detectPIIForWeb('Amina'); await tick();
@@ -190,7 +277,7 @@ describe('dev browser PII runtime lifecycle', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     const first = detectPIIForWeb('Amina', {}, context);
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     await vi.advanceTimersByTimeAsync(1_500);
     worker.respond(1); await first;
     const second = detectPIIForWeb('anna@example.com', {}, context); await tick();
@@ -207,7 +294,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const retry = detectPIIForWeb('new');
     const current = FakeWorker.workers[1];
     worker.respond(2); worker.onerror?.();
-    current.respond(0); await tick(); current.respond(1); await retry;
+    await tick(); current.respond(0); await tick(); current.respond(1); await retry;
     expect(get(webPIIDetectorState).status).toBe('ready');
     expect(current.terminated).toBe(false);
   });
@@ -219,7 +306,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const context = createWebPIIScanContext();
     const first = detectPIIForWeb('Amina', {}, context);
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick(); worker.respond(1); await first;
+    await tick(); worker.respond(0); await tick(); worker.respond(1); await first;
     await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
     await expect(detectPIIForWeb('anna@example.com', {}, context)).resolves.toEqual(basicDetector.detectPII('anna@example.com'));
     expect(worker.messages.map(message => message.kind)).toEqual(['load', 'scan']);
@@ -233,7 +320,7 @@ describe('dev browser PII runtime lifecycle', () => {
     vi.useFakeTimers();
     const scan = detectPIIForWeb('Amina anna@example.com');
     const worker = FakeWorker.workers[0];
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     vi.setSystemTime(Date.now() + WEB_PII_SCAN_BUDGET_MS + 1);
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
     await expect(scan).resolves.toEqual(basicDetector.detectPII('Amina anna@example.com'));
@@ -251,7 +338,7 @@ describe('dev browser PII runtime lifecycle', () => {
     const unsubscribe = webPIIDetectorState.subscribe(state => {
       if (state.status === 'ready' && !refreshed) refreshed = detectPIIForWeb('Amina', {}, { purpose: 'preview' });
     });
-    worker.respond(0); await tick();
+    await tick(); worker.respond(0); await tick();
     await expect(current).resolves.toEqual([]);
     expect(worker.messages.map(message => message.text).filter(Boolean)).toEqual(['Amina']);
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });

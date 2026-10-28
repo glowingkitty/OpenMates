@@ -670,10 +670,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.pii-protection:
-    version: 2
-    status: approved
+    version: 3
+    status: draft
     path: features/pii-protection
-    fingerprint: 54fc87d775e9398145d0ed6e8be9bd7ff3ed0e1fc99b65d83d8e8ee6d4d8fb77
+    fingerprint: 96477800c260db91761cbc49bae744f86f92dd2e932c5d8aacd8f9e3907c0a88
     required_applies_to:
     - cli
     - gui.web
@@ -8451,55 +8451,91 @@ assertions:
     - gui.web
     - gui.apple
   pii.composer.detect-redact-exclude:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 7b445e41ae3cb28502ade81e713ea3a815f8017593a910d6e9a7fcad321145ad
+    fingerprint: 1b025eee5975202c5778db2f3c39c0c3b91af15708638086729da27c6cab7213
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.web.enhanced-default-and-opt-out:
+    specification: feature.pii-protection@3
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: 087a2c5b6ddb938a55bb32c8a41a9f7cc80c36a5d2e30cad56f23af90bd6da7c
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.web.local-bounded-inference:
+    specification: feature.pii-protection@3
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: 62b23aeb481c0b48e1d9371d170bca84f5622ea4d7c314035f6ea9639935febf
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.web.licensing-egress-boundary:
+    specification: feature.pii-protection@3
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: 5bf5ae4f71a562f95f2e451e3b1d5541bff1a59123449492c4840f313aa66256
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.web.provider-disclosure:
+    specification: feature.pii-protection@3
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: 73df01757c1f9d6562c0b057798348551ce4ef500a16fef0b3ddf5820bacc251
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   pii.apple.enhanced-local-detection:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 7eebcd4a99ce1d68efc849ad575a0de6b1c36cadb6a3d694ab252856495adf3e
+    fingerprint: e8c3afc56c795579c76f35f7c9ff8164fcc3e51ca08b5a242fedf3643cc73521
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   pii.message.owner-local-reveal:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 5ceb4f6d9b6cfc7247e22a176b28168a4078975d083a8323125d78ce38669176
+    fingerprint: 6ec4ad5e9a77acef7d27640949c1df23d3e0e5aa3ca76c53da3dc8210d20daba
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   pii.embed.owner-local-reveal-sync:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 194b4b8c489d6d6d82bd08142f7a381fdccc53c88aa9cd216a1fea344104b582
+    fingerprint: 3ebb728ea3853a3594ed0a1099a154d4d81a3b801ea3dc05092b3148f44607e8
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   pii.outbound.known-original-rewrite:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 82885318ca611ec910557072d88aa073b6ba4f86ac5c04e2725299ed6caf57ac
+    fingerprint: 2798e6a6691a473c30383372aafe7f8c0b4b1299b5de6aa53060007d373be005
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   pii.surface.semantic-parity:
-    specification: feature.pii-protection@2
+    specification: feature.pii-protection@3
     specification_id: feature.pii-protection
     type: parity
-    fingerprint: 7f5dba7d7358ac9de3cf2b0996c21d32c8067e93cc40365b68387d90b7fb2a9e
+    fingerprint: 7094578ec4fc94e3b7b3b3073b2f30f05991abb1e215e452da4020eb0756dbeb
     required_applies_to:
     - cli
     - gui.web

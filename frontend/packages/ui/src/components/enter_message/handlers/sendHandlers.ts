@@ -43,7 +43,7 @@ import {
   type PIIMatch,
   type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
-import { createWebPIIScanContext, detectPIIForWeb, isWebPIIModelEnabled, resetWebPIIDetector, type WebPIIScanContext } from "../services/webPIIDetectionService";
+import { createWebPIIScanContext, detectPIIForWeb, isWebPIIModelEnabled, isWebPIIModelSupported, resetWebPIIDetector, type WebPIIScanContext } from "../services/webPIIDetectionService";
 import { modelPIIMatchId } from "../services/webPIIMatches";
 import { rewriteKnownPIIPlaceholders } from "../services/placeholderRewriteService";
 import { getActivePIIMappingsForRewrite } from "../../../stores/embedPIIStore";
@@ -455,6 +455,8 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
   const userId = get(userProfile).user_id;
   const authenticated = get(authStore).isAuthenticated;
   const enhanced = isWebPIIModelEnabled();
+  const supported = isWebPIIModelSupported();
+  const enhancementReady = get(personalDataStore.enhancementReady);
   // ActiveChat's Svelte state exposes mapping objects through reactive proxies.
   // Copy the primitive fields into an owner-local snapshot: structuredClone
   // rejects proxies even when their contents are plain serializable strings.
@@ -482,6 +484,7 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
   return {
     enabled: settings.masterEnabled,
     enhanced,
+    supported,
     // One lazy budget covers exclusions, recording fields and message text.
     scanContext: createWebPIIScanContext(),
     options,
@@ -490,7 +493,7 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
     uniqueMatches(matches: PIIMatch[]): PIIMatch[] {
       return matches.map((match) => {
         let placeholder = match.placeholder;
-        if (enhanced && placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match) {
+        if (supported && placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match) {
           do {
             placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replaceAll("-", "")}]`;
           } while (placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match);
@@ -502,7 +505,10 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
     assertAuthorityCurrent,
     assertCurrent() {
       assertAuthorityCurrent();
-      if (enhanced && settingsFingerprint !== JSON.stringify([
+      if (supported && (!enhancementReady || get(personalDataStore.enhancementReady) !== enhancementReady)) {
+        throw new PrivacySendContextChangedError();
+      }
+      if (supported && settingsFingerprint !== JSON.stringify([
         get(personalDataStore.settings), get(personalDataStore.enabledEntries),
       ])) {
         throw new PrivacySendContextChangedError();
@@ -563,7 +569,7 @@ async function redactTextForSend(markdown: string, privacy: SendPrivacySnapshot)
 
 /** Recording references include human text inside the protected embed JSON. */
 async function redactRecordingFieldsForSend(document: JSONContent, privacy: SendPrivacySnapshot): Promise<PIIMapping[]> {
-  if (!privacy.enabled || !privacy.enhanced) return [];
+  if (!privacy.enabled || !privacy.supported) return [];
   try {
     let mappings: PIIMapping[] = [];
     let recordingMappings: PIIMapping[] = [];
@@ -587,7 +593,7 @@ async function redactRecordingFieldsForSend(document: JSONContent, privacy: Send
       }
       // Deferred uploads have already registered their TOON. Sanitize only human
       // text in that cache too; opaque upload IDs and encryption material stay intact.
-      if (privacy.enhanced && typeof node.attrs.contentRef === "string") {
+      if (privacy.supported && typeof node.attrs.contentRef === "string") {
         const { embedStore } = await import("../../../services/embedStore");
         const piiKey = `embed_pii:${node.attrs.contentRef.replace(/^embed:/, "")}`;
         const previousPII = await embedStore.get(piiKey);
@@ -692,7 +698,7 @@ export async function prepareQueuedMessageRevision(
   if (!markdown.trim()) throw new Error("Queued message cannot be empty");
   markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
   privacy.assertCurrent();
-  const scanPrivacy = privacy.enhanced ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set());
+  const scanPrivacy = privacy.supported ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set());
   const redacted = await redactTextForSend(markdown, scanPrivacy);
   return { content: redacted.markdown, piiMappings: mergePIIMappingsForStorage(recordingMappings, redacted.mappings) };
 }
@@ -1282,7 +1288,7 @@ export async function handleSend(
     if (!contextIsCurrent()) {
       return;
     }
-    if (privacyAtClick.enhanced) deferredSendPrivacy.set(pendingContext, privacyAtClick);
+    if (privacyAtClick.supported) deferredSendPrivacy.set(pendingContext, privacyAtClick);
     addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
@@ -1295,7 +1301,7 @@ export async function handleSend(
     // already store embed data in EmbedStore independently.
     editor.commands.clearContent(false);
     setHasContent(false);
-    if (privacyAtClick.enhanced) {
+    if (privacyAtClick.supported) {
       deferredSubmittedDrafts.set(pendingContext, { editor, document: editor.state.doc, chatId: deferredChatId });
     }
     editor.commands.blur();
@@ -1617,14 +1623,14 @@ export async function handleSend(
   let privacyExcludedOriginals = new Set<string>();
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
-    // Outside the dev trial retain the existing final-stage settings read.
-    const scanPrivacy = privacyAtClick.enhanced ? privacyAtClick : captureSendPrivacy(privacyAtClick.options.excludedIds ?? new Set());
+    // Supported web hosts retain one immutable policy through the send.
+    const scanPrivacy = privacyAtClick.supported ? privacyAtClick : captureSendPrivacy(privacyAtClick.options.excludedIds ?? new Set());
     const redacted = await redactTextForSend(markdown, scanPrivacy);
     markdown = redacted.markdown;
     piiMappingsForStorage = mergePIIMappingsForStorage(recordingPIIMappings, redacted.mappings);
     privacyExcludedOriginals = redacted.excludedOriginals;
   } catch (error) {
-    if (privacyAtClick.enhanced || error instanceof PrivacySendContextChangedError) throw error;
+    if (privacyAtClick.supported || error instanceof PrivacySendContextChangedError) throw error;
     console.error("[handleSend] Error in PII anonymization:", error);
     recordSendDebugStep("pii_detection_failed", { currentChatId });
   } finally {
@@ -2683,16 +2689,16 @@ export async function handleSend(
 // Deferred Send Execution
 // =============================================================================
 
-/** Dispatch a retained trial queue head, preserving one actionable failure toast. */
+/** Dispatch a retained web queue head, preserving one actionable failure toast. */
 export async function dispatchPendingSendWithPrivacyRetry(
   context: import("../../../stores/pendingUploadStore").PendingSendContext,
   options: { retryPrivacy?: boolean } = {},
 ): Promise<void> {
   const { claimPendingSendPrivacy, markPendingSendPrivacyFailure, removePendingSend, getReadyPendingSend } =
     await import("../../../stores/pendingUploadStore");
-  const enhanced = deferredSendPrivacy.get(context)?.enhanced ?? isWebPIIModelEnabled();
-  if (!enhanced) {
-    // Keep the established production deferred path outside the trial.
+  const supported = deferredSendPrivacy.get(context)?.supported ?? isWebPIIModelSupported();
+  if (!supported) {
+    // Other hosts keep their established deferred dispatch behavior.
     removePendingSend(context.chatId, context.pendingId);
     try {
       await executeDeferredSend(context);
@@ -2767,7 +2773,7 @@ export async function executeDeferredSend(
   options: { retryPrivacy?: boolean } = {},
 ): Promise<void> {
   const originalPrivacy = deferredSendPrivacy.get(readyCtx) ?? captureSendPrivacy(readyCtx.piiExclusions, readyCtx.piiRewriteMappings ?? []);
-  if (originalPrivacy.enhanced && !deferredSendPrivacy.has(readyCtx)) deferredSendPrivacy.set(readyCtx, originalPrivacy);
+  if (originalPrivacy.supported && !deferredSendPrivacy.has(readyCtx)) deferredSendPrivacy.set(readyCtx, originalPrivacy);
   originalPrivacy.assertAuthorityCurrent();
   if (readyCtx.privacyScanState === "failed" && !options.retryPrivacy) throw new PrivacySendContextChangedError();
   // Only a fresh user action may adopt changed settings, retaining click authority.
@@ -2903,12 +2909,12 @@ export async function executeDeferredSend(
   let piiMappingsForStorage: PIIMapping[] = recordingPIIMappings;
   try {
     privacy.assertCurrent();
-    const scanPrivacy = privacy.enhanced ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set(), privacy.mappings);
+    const scanPrivacy = privacy.supported ? privacy : captureSendPrivacy(privacy.options.excludedIds ?? new Set(), privacy.mappings);
     const redacted = await redactTextForSend(markdown, scanPrivacy);
     markdown = redacted.markdown;
     piiMappingsForStorage = mergePIIMappingsForStorage(recordingPIIMappings, redacted.mappings);
   } catch (error) {
-    if (privacy.enhanced || error instanceof PrivacySendContextChangedError) throw error;
+    if (privacy.supported || error instanceof PrivacySendContextChangedError) throw error;
     console.error("[executeDeferredSend] PII anonymization error:", error);
   }
   privacy.assertCurrent();
@@ -3016,7 +3022,7 @@ export async function executeDeferredSend(
       `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
     );
   } catch (sendError) {
-    if (privacy.enhanced || sendError instanceof PrivacySendContextChangedError) throw sendError;
+    if (privacy.supported || sendError instanceof PrivacySendContextChangedError) throw sendError;
     console.error(
       "[executeDeferredSend] Failed to send deferred message:",
       sendError,
@@ -3038,7 +3044,7 @@ export async function executeDeferredSend(
     const submittedDraft = deferredSubmittedDrafts.get(readyCtx);
     // A retry may complete after navigation or after typing another draft in
     // the same chat. Only the exact cleared document still belongs to this send.
-    if (!privacy.enhanced || (submittedDraft && !submittedDraft.editor.isDestroyed &&
+    if (!privacy.supported || (submittedDraft && !submittedDraft.editor.isDestroyed &&
         submittedDraft.editor.state.doc === submittedDraft.document &&
         get(draftEditorUIState).currentChatId === readyCtx.chatId)) {
       privacy.assertAuthorityCurrent();

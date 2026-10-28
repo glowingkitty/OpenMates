@@ -149,7 +149,7 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
-    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState } from './services/webPIIDetectionService';
     import { mergeWebPIIMatches } from './services/webPIIMatches';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
@@ -659,7 +659,7 @@
         piiSettingsVersion += 1;
         if (editor && !editor.isDestroyed) {
             lastPIIText = '';
-            if (!s.masterEnabled) resetWebPIIDetector();
+            resetWebPIIDetector();
             void runPIIDetectionImmediate(editor);
         }
     });
@@ -670,6 +670,14 @@
             lastPIIText = '';
             void runPIIDetectionImmediate(editor);
         }
+    });
+    const unsubscribePIIReadiness = personalDataStore.enhancementReady.subscribe((ready) => {
+        if (!editor || editor.isDestroyed) return;
+        piiSettingsVersion += 1;
+        lastPIIText = '';
+        if (!ready) resetWebPIIDetector();
+        else if (isWebPIIModelEnabled()) void preloadWebPIIDetector().catch(() => {});
+        void runPIIDetectionImmediate(editor);
     });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
@@ -2412,10 +2420,10 @@
             stopModelState();
             window.removeEventListener('online', retryAfterReconnect);
         };
-        if (cachedPIISettings?.masterEnabled) {
-            // The worker publishes its loading/error state; no private input is logged.
-            void preloadWebPIIDetector().catch(() => {});
-        }
+        // Stored account opt-outs must be decrypted before any model/license request.
+        void personalDataStore.ensureEnhancementReady().then(() => {
+            if (!composerDestroyed && isWebPIIModelEnabled()) return preloadWebPIIDetector();
+        }).catch(() => {});
         lastAuthMethod = getLastAuthMethod();
         if ($authStore.isAuthenticated || $demoMode) {
             anonymousStatusChecked = true;
@@ -2920,6 +2928,7 @@
         composerDestroyed = true;
         piiPreviewGeneration += 1;
         unsubscribePIISettings();
+        unsubscribePIIReadiness();
         unsubscribePIIEntries();
         unsubscribePIIModelState();
         for (const cancel of pendingVoiceCallDraftWaits) cancel();
@@ -5739,7 +5748,7 @@
             `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
         );
 
-        if (isWebPIIModelEnabled()) {
+        if (isWebPIIModelSupported()) {
             await executePendingSendWithPrivacyRetry(readyCtx);
             return;
         }

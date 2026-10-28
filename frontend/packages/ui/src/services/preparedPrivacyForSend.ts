@@ -19,6 +19,7 @@ interface MemorySnapshot {
 }
 export interface PreparedPrivacy {
   enabled: boolean;
+  enhancedEnabled: boolean;
   options: PIIDetectionOptions;
   settings: Record<string, unknown>;
   memories: Array<{ id: string; app_id: string; item_type: string; data: Record<string, unknown> }>;
@@ -72,7 +73,7 @@ function installMutationObservers(): void {
   });
   let settingsRevision: string | undefined;
   personalDataStore.settings.subscribe(settings => {
-    const revision = JSON.stringify([settings.masterEnabled,
+    const revision = JSON.stringify([settings.masterEnabled, settings.enhancedEnabled,
       Object.entries(settings.categories).sort(([a], [b]) => a.localeCompare(b))]);
     if (settingsRevision !== revision) { settingsRevision = revision; invalidatePreparedPrivacy(); }
   });
@@ -130,6 +131,7 @@ export async function compilePersonalPrivacy(snapshot: MemorySnapshot): Promise<
   const categories = preferences?.categories as Record<string, boolean> | undefined;
   return {
     enabled: preferences?.masterEnabled !== false,
+    enhancedEnabled: preferences?.enhancedEnabled !== false,
     options: {
       disabledCategories: new Set(Object.entries(categories ?? {}).filter(([, enabled]) => enabled === false).map(([key]) => key)),
       personalDataEntries: memories.filter(row => row.app_id === 'privacy' && row.item_type === 'personal_data_entry').flatMap(row => {
@@ -250,7 +252,7 @@ export async function freshPersonalPrivacyForSend(turnId: string): Promise<Priva
       id: entry.id, textToHide: entry.textToHide, replaceWith: entry.replaceWith,
       additionalTexts: [...(entry.additionalTexts ?? [])].filter(Boolean).sort(),
     })).sort((a, b) => a.id.localeCompare(b.id));
-    if (local.masterEnabled !== privacy.enabled || JSON.stringify(disabled) !== JSON.stringify([...(privacy.options.disabledCategories ?? [])].sort())
+    if (local.masterEnabled !== privacy.enabled || local.enhancedEnabled !== privacy.enhancedEnabled || JSON.stringify(disabled) !== JSON.stringify([...(privacy.options.disabledCategories ?? [])].sort())
       || JSON.stringify(entries) !== JSON.stringify(verifiedEntries)) {
       throw new Error('Personal privacy changes are not yet confirmed by the server; retry after saving them');
     }

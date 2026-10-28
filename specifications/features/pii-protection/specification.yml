@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.pii-protection
-version: 2
-status: approved
+version: 3
+status: draft
 title: PII Placeholder Protection
 summary: >
   OpenMates first-party clients detect configured personal data before chat send,
@@ -11,6 +11,8 @@ summary: >
 scope:
   includes:
     - Web composer detection for supported PII patterns such as email addresses and phone numbers.
+    - Default-on enhanced personal data protection in the official production web app, with a persistent Privacy setting that switches back to complete basic detection.
+    - Local enhanced detection for message inputs and existing recording/transcript text fields, with bounded work, restricted licensing traffic and privacy-policy disclosure.
     - Optional Apple local enhanced detection using verified pinned assets, foreground warming, latest-only debounced snapshots and basic-pattern fallback.
     - Per-value manual exclusion before send, preserving the user's current-send visibility choice.
     - Message-level and embed-level placeholder mappings that default hidden in chat, previews, and fullscreen embeds.
@@ -21,6 +23,8 @@ scope:
     - Server-side restoration of original PII values.
     - Sharing owner-only originals with public or non-owner viewers.
     - SDK-owned consumer UI controls for PII reveal/hide.
+    - Enhanced Linux document scanning or CLI/TUI model activation.
+    - Changes to audio transcription/correction providers or a guarantee of complete anonymization.
 
 models:
   PIIMapping:
@@ -33,9 +37,20 @@ models:
       required: true
       constraints: {server_plaintext: forbidden, owner_only: true}
     type:
-      type: enum
+      type: string
       required: true
-      values: [EMAIL, PHONE, IBAN, API_KEY, MERCHANT, PAYEE, PAYER, TRANSFER_INTERNAL, OTHER]
+      constraints: {local_category_label: true, legacy_labels_preserved: true}
+
+  WebEnhancedProtection:
+    enabled:
+      type: boolean
+      required: true
+      default: true
+      constraints: {persistent_user_choice: true, missing_legacy_preference_defaults_on: true}
+    licensing_metadata:
+      type: object
+      required: true
+      constraints: {content_forbidden: true, installation_identifier_not_account_identifier: true, protocol_changes_require_review: true}
 
   ComposerDetection:
     detected_values:
@@ -63,6 +78,22 @@ assertions:
     type: privacy
     must: The web composer detects supported PII before send, replaces active detections with placeholders in the sent chat content, and does not re-redact a value the user explicitly excluded for that current send.
     depends_on: [models.ComposerDetection, models.PIIMapping, examples.composer_detection]
+  - id: pii.web.enhanced-default-and-opt-out
+    type: privacy
+    must: The official production web app enables Enhanced personal data protection by default, including for existing preferences without an enhanced flag. Its Privacy switch persists the user's choice. With the master protection switch on, turning enhancement off retains complete basic patterns, configured private entries and current-send exclusions. A restored off preference is respected before model initialization or licensing starts. Turning it off releases the worker and stops subsequent model downloads, scans and licensing requests; it cannot retract requests already sent. Changes invalidate obsolete previews and prepared sends without clearing newer typing. Existing master-off behavior remains unchanged.
+    depends_on: [models.WebEnhancedProtection, models.ComposerDetection, examples.web_enhanced_preference]
+  - id: pii.web.local-bounded-inference
+    type: privacy
+    must: Web enhancement processes message inputs and existing recording/transcript text locally, preserving encrypted owner mappings and exact restoration. Inputs above 2,048 UTF-16 code units use complete basic detection. Each send shares one lazy 2,500 ms enhancement budget across queueing, model readiness, exclusions and recording/message text. Slow asset loading can continue in the background; stalled inference releases its worker. Basic protection remains immediate and available on failure. Only current owner/document/settings results publish. The existing one-time fallback notification is used without adding a model status row. Audio services and document-upload protection retain their existing boundaries.
+    depends_on: [models.WebEnhancedProtection, models.ComposerDetection, models.PIIMapping, examples.web_bounded_inference]
+  - id: pii.web.licensing-egress-boundary
+    type: privacy
+    must: Web inference uses pinned, integrity-verified SDK, runtime and model assets. Third-party inference code cannot directly access the network. Trusted OpenMates code brokers only approved public asset reads and the published license/activation protocol, with exact endpoints, methods, fixed model/SDK/platform/application metadata, a browser installation identifier controlled independently of inference input, and authentic server-issued activation tokens. Requests cannot contain message text, transcripts, detections, mappings, account identifiers, arbitrary headers or additional fields. Unexpected requests or protocol changes are rejected before transmission and enhancement falls back to basic protection; valid required reporting remains intact. Browser connection metadata such as IP address and request timing remains visible to the recipient. This does not promise protection against arbitrary browser vulnerabilities, covert timing signals or the recipient's server-side retention.
+    depends_on: [models.WebEnhancedProtection, examples.web_licensing_boundary]
+  - id: pii.web.provider-disclosure
+    type: privacy
+    must: Privacy settings and the published privacy policy name Redact and Desert Ant Labs, explain local text inference and direct mandatory licensing traffic, describe the installation identifier and model/SDK/platform/application metadata plus unavoidable IP/header/timing exposure, and explain the enhanced-off basic-detection option. The policy links the provider's privacy notice, identifies its independent-controller role for licensing telemetry, and does not invent retention periods or imply that the provider receives no data. Required linked attribution remains discoverable. The notice distinguishes processed text from existing audio/file/provider flows.
+    depends_on: [models.WebEnhancedProtection, examples.web_provider_disclosure]
   - id: pii.apple.enhanced-local-detection
     type: privacy
     must: Apple offers the optional enhanced anonymization model through Privacy settings. Opening an active foreground composer warms an already downloaded model without forcing a download or blocking input. Basic patterns and configured personal entries remain immediate; enhanced detection uses a 400-600 ms debounce, one in-flight native operation and only the latest pending snapshot. Highlights publish only for the exact current text, settings, account generation and route. Disable, removal, leaving, logout and memory pressure invalidate obsolete publication, drain native ownership and release the loaded model when no active composer remains. Final send verifies its immutable document, settings and exclusion snapshot before preserving the existing encrypted mapping pipeline; typing during verification cannot be cleared or overwritten by an older completion. Final verification waits for an installed model to finish restoration, cleanup and warming; previews use basic detection during warming. Missing, unsupported or failed inference uses clearly described basic detection; private input never persists in detector caches, logs or network inference.
@@ -109,4 +140,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [apple_enhanced_detection, composer_detection, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity]
+  required_groups: [apple_enhanced_detection, composer_detection, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity, web_enhanced_preference, web_bounded_inference, web_licensing_boundary, web_provider_disclosure]

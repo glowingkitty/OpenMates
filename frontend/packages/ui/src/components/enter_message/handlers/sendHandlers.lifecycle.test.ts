@@ -59,13 +59,14 @@ const mocks = vi.hoisted(() => {
     resetWebPIIDetector: vi.fn(),
     scanGate: vi.fn(async () => undefined),
     webPIIEnabled: vi.fn(() => false),
+    webPIISupported: vi.fn(() => false),
     clearCurrentDraft: vi.fn(async () => undefined),
     embedStorePut: vi.fn(async (_key: string, _value: unknown, _type?: string) => undefined),
     embedStoreGet: vi.fn(async (_key?: string): Promise<Record<string, unknown> | undefined> => undefined),
     refreshAnonymousFreeUsageStatus: vi.fn(async () => ({ active: true, can_send_text: true })),
     tipTapToCanonicalMarkdown: vi.fn((_content: unknown) => 'Send these attachments'),
     createEmbedFromUrl: vi.fn(),
-    privacySettings: { masterEnabled: false, categories: {} },
+    privacySettings: { masterEnabled: false, enhancedEnabled: true, categories: {} },
     getActivePIIMappingsForRewrite: vi.fn((): Array<{ placeholder: string; original: string; type: string }> => []),
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
@@ -113,7 +114,7 @@ vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettin
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
 vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: mocks.notifyError, addNotificationWithOptions: mocks.notify, updateNotification: mocks.updateNotification, cancelAutoDismiss: mocks.cancelNotificationAutoDismiss, removeNotification: mocks.removeNotification } }));
-vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store(mocks.privacySettings), enabledEntries: mocks.store([]) } }));
+vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store(mocks.privacySettings), enhancementReady: mocks.store(true), enabledEntries: mocks.store([]) } }));
 vi.mock('../services/piiDetectionService', async (importOriginal) => ({
   ...await importOriginal<typeof import('../services/piiDetectionService')>(),
   detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []),
@@ -121,6 +122,7 @@ vi.mock('../services/piiDetectionService', async (importOriginal) => ({
 vi.mock('../services/webPIIDetectionService', () => ({
   createWebPIIScanContext: () => ({ purpose: 'send' as const }),
   isWebPIIModelEnabled: mocks.webPIIEnabled,
+  isWebPIIModelSupported: mocks.webPIISupported,
   resetWebPIIDetector: mocks.resetWebPIIDetector,
   detectPIIForWeb: vi.fn(async (value: string, options: unknown) => {
     // A rejection represents a facade failure after both model and regex protection fail.
@@ -153,6 +155,7 @@ import { addPendingSend, claimPendingSendPrivacy, getReadyPendingSend, markPendi
 
 beforeEach(() => {
   mocks.webPIIEnabled.mockReturnValue(false);
+  mocks.webPIISupported.mockReturnValue(false);
   mocks.scanGate.mockImplementation(async () => undefined);
   mocks.getActivePIIMappingsForRewrite.mockReturnValue([]);
 });
@@ -916,7 +919,9 @@ describe('on-device send privacy preparation', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.webPIIEnabled.mockReturnValue(true);
+    mocks.webPIISupported.mockReturnValue(true);
     mocks.privacySettings.masterEnabled = true;
+    mocks.privacySettings.enhancedEnabled = true;
     mocks.authState.isAuthenticated = true;
     mocks.teamContext.teamId = null;
     mocks.teamContext.epoch = 0;
@@ -1005,18 +1010,23 @@ describe('on-device send privacy preparation', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
-  it.each(['settings', 'team', 'account'] as const)('does not send a scan result after %s change', async (change) => {
+  it.each(['settings', 'enhanced', 'team', 'account'] as const)('does not send a scan result after %s change', async (change) => {
     let finishScan!: () => void;
     mocks.scanGate.mockImplementationOnce(() => new Promise<void>((resolve) => { finishScan = resolve; }));
     const { editor } = makeEditor(false);
     const sending = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
     await vi.waitFor(() => expect(mocks.scanGate).toHaveBeenCalled());
     if (change === 'settings') mocks.privacySettings.masterEnabled = false;
+    else if (change === 'enhanced') {
+      mocks.privacySettings.enhancedEnabled = false;
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Newer typing during opt-out' }] }] });
+    }
     else if (change === 'team') mocks.teamContext.epoch++;
     else mocks.profileState.user_id = 'other-account';
     finishScan();
     expect(await sending).toBe(false);
     expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    if (change === 'enhanced') expect(JSON.stringify(editor.getJSON())).toContain('Newer typing during opt-out');
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
@@ -1032,7 +1042,9 @@ describe('on-device send privacy preparation', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
-  it('redacts recording text in TOON while preserving opaque upload metadata and encrypted mappings', async () => {
+  it.each([true, false])('redacts recording text in TOON with enhancement %s while preserving opaque metadata and encrypted mappings', async enhanced => {
+    mocks.webPIIEnabled.mockReturnValue(enhanced);
+    mocks.privacySettings.enhancedEnabled = enhanced;
     const facade = await import('../services/webPIIDetectionService');
     const pii = await import('../services/piiDetectionService');
     vi.mocked(pii.detectPII).mockImplementation((value) => value.includes('person@example.test') ? [{

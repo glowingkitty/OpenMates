@@ -14415,6 +14415,19 @@
               "text": "JobTech erhält ausgewählte Job-Suchbegriffe, einen benannten Standort, die Homeoffice-Präferenz, den Veröffentlichungszeitraum und die Ergebnisanzahl für die schwedische Stellensuche."
             }
           }
+        },
+        "local_privacy": {
+          "desert_ant_labs": {
+            "heading": {
+              "text": "Lokaler Textschutz — Redact von Desert Ant Labs (Niederlande)"
+            },
+            "description": {
+              "text": "Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs und ist standardmäßig aktiviert. Die Textanalyse läuft lokal in deinem Browser. OpenMates stellt die freigegebenen Modell- und Laufzeitdateien bereit; im Web musst du sie nicht von Hugging Face herunterladen. Wenn du die erweiterte Erkennung in den Datenschutzeinstellungen ausschaltest, werden Redact und seine Lizenzanfragen nicht mehr genutzt. Der vollständige grundlegende Textdetektor bleibt verfügbar.\n\nRedact benötigt SDK-Lizenzierungs- und Aktivierungsanfragen direkt von deinem Browser an Desert Ant Labs. Diese Anfragen enthalten eine Browserinstallations-UUID für die Lizenz- und Gerätezählung, Modell- und SDK-Versionen, die Plattform, den Hostnamen der Anwendung und ein signiertes Lizenz-Token. OpenMates kontrolliert die lokale Speicherung der Installationskennung und nutzt sie ausschließlich als Lizenzmetadaten. Der Anbieter sieht außerdem deine IP-Adresse, Browser-Anfrageheader (einschließlich Origin) und den Zeitpunkt der Anfragen. Der untersuchte Text, Erkennungsergebnisse, Platzhalterzuordnungen und deine OpenMates-Konto-ID sind in diesen Anfragen nicht enthalten.\n\nDesert Ant Labs handelt gemäß seiner Lizenz als eigenständiger Verantwortlicher für diese Lizenztelemetrie. Diese Funktion ist weder anonym noch vollständig offline; OpenMates verspricht keine bestimmte Aufbewahrungsfrist beim Anbieter. Die lokale Erkennung kann personenbezogene Daten übersehen. Der Schutz eingetippter Nachrichten gilt nicht für Sprachaufnahmen, Rohtranskripte, hochgeladene Dateien, Referenzbilder, Kalenderinhalte oder anbieterspezifische Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+            }
+          },
+          "license_link": {
+            "text": "Lizenz von Desert Ant Labs (einschließlich Lizenztelemetrie)"
+          }
         }
       },
       "title": {
@@ -14974,7 +14987,7 @@
             "text": "Erhalten Drittanbieter meine Inhalte?"
           },
           "answer": {
-            "text": "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+            "text": "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt. Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs lokal; begrenzte Lizenzmetadaten werden wie unten beschrieben direkt an den Anbieter gesendet."
           }
         },
         "voice_recordings": {

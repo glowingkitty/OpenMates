@@ -1,12 +1,13 @@
 schema_version: 2
 profile: concise
 id: web-redact-dev-trial
-title: Browser Redact development trial
+title: Browser Redact personal data protection
 status: implementing
 goal: >
-  Implement the new way of detecting and replacing personal information in the
-  message input, including transcripts, so the user can test it on development
-  before deciding on production usage telemetry and attribution terms.
+  Enable enhanced personal data protection by default in production, with a
+  Privacy option that turns enhancement off and retains regex protection.
+  Mention the model and its basic telemetry in the privacy policy, and enforce
+  the limited licensing data in code before investigating telemetry-free terms.
 scope:
   in:
     - Pin the published Redact browser SDK and LiteRT runtime; run classification in a shared local worker.
@@ -15,30 +16,38 @@ scope:
     - Use current immutable composer snapshots for preview and send; stop sends if both detectors fail or ownership/settings change during verification.
     - Cover editable dictation and text fields in existing audio recording embeds before chat-model send.
     - Use one standard notification per browser session if enhanced detection is unavailable; add no composer status row. Keep linked attribution in the existing Privacy description.
-    - Reject known vulnerable Brotli decoder paths: require patched Node for web build/server startup and a verified private patched library for native evaluation.
+    - Reject known vulnerable Brotli decoder paths: require patched Node for web builds and ordinary server fetches, retain the raw identity-only public-metadata adapter on unpatched hosts, and require a verified private patched library for native evaluation.
     - Extend the Linux evaluation with a direct Rust native-ABI host, matched CPU/thread settings and bounded native-only chunking experiments; retain the working browser and iPhone behavior.
     - Bound enhanced input scanning to 2,048 UTF-16 code units and one lazy 2,500 ms send budget, using complete basic fallback without extra UI.
     - Display compact semantic placeholder labels such as '[ADDRESS_1]' while preserving unique stored/outbound tokens, configured replacements and owner-local restoration.
+    - Persist the enhanced preference; hydrate an existing opt-out before initializing the model or licensing, and invalidate obsolete previews and prepared sends on changes.
+    - Isolate inference under a network-denying Worker CSP and broker only validated genuine licensing traffic through trusted host code.
+    - Self-host and integrity-check the exact model, SDK and runtime assets; preserve required usage reporting and attribution.
+    - Publish explicit Redact/Desert Ant Labs telemetry disclosures in Privacy settings and the canonical generated privacy policy.
+    - Verify the scoped production frontend rollout without unrelated domain or backend changes.
   out:
-    - Production activation, production license acceptance decisions and permanent production privacy-policy changes.
+    - Removing required telemetry or contacting the vendor without a separate instruction; assess available telemetry-free terms after this rollout.
     - Apple, CLI or SDK model activation; server-side classification; changes to speech transcription/correction providers.
     - Enhanced scanning of document/file contents on Linux servers, including small files or an explicit full-scan product option; retain the native experiments as evaluation evidence only.
     - A promise of complete anonymization or cold-starting the entire application offline.
 decisions:
   - The user explicitly requested implementing the dev trial before deciding production telemetry and attribution terms.
-  - The model is enabled only on app.dev.openmates.org, localhost and 127.0.0.1, and is disabled for production builds.
+  - The initial trial limited the model to development hosts and disabled production builds. The explicitly approved production expansion below supersedes that restriction.
   - The SDK's mandatory content-free licensing telemetry stays intact; no model input, output or detected values enter application diagnostics or detector caches.
   - The user explicitly requested full regex fallback and a follow-up Linux memory, performance and reliability benchmark. TASK-906 owns that benchmark after this web trial; CLI model activation remains deferred.
-  - Existing feature.pii-protection@2 placeholder, exclusion and owner-only restoration assertions remain the privacy boundary. A permanent browser-model contract is deferred to the production decision.
+  - Existing placeholder, exclusion and owner-only restoration semantics remain the privacy boundary. The user approved feature.pii-protection@3 fingerprint 96477800c260db91761cbc49bae744f86f92dd2e932c5d8aacd8f9e3907c0a88 for the production expansion.
   - Existing public URL handling remains supported; Redact's blanket URL and organization labels are excluded from the trial.
   - The user explicitly requested checking CVE-2026-111497. Source and loader checks distinguish patched backports from version strings; native SDK loads cannot fall back to the old host decoder. Shared system package updates remain separate.
-  - Hosted verification remains blocked because Vercel serves Node 24.21.0 without the patch marker, including after a fresh build without cache. The static app works, but the new guard intentionally rejects server-rendered requests until Vercel patches the managed runtime. Keep this Plan implementing until that live check succeeds.
+  - The 2026-10-26 hosted probe found Node 24.21.0 without the patch marker. Subsequent server hardening moved the guard to the fetch decoding boundary and added a raw identity-only public-metadata adapter. The current browser-only release requires an exact guarded build and fresh deployment smoke evidence; harmless GET success does not establish the managed Node patch version. Vercel now documents pre-decompression Brotli rejection on fresh deployments, while hosted patch tracking remains separate.
   - The user explicitly requested real Rust tests and faster Linux processing. Benchmark the same published native engine directly from Rust, inspect serial chunking and measure DAL_LITERT_THREADS before attributing latency to the host language. Any SDK chunking override is a private Linux benchmark build with default behavior and licensing preserved.
-  - The user requested a renewed privacy assessment of direct browser licensing calls and the vendor privacy policy, then expressed a preference for enhanced detection enabled by default with a settings switch back to regex. Retain the current development trial; production approval still awaits adequate terms and the lawful-basis assessment. Do not silently strip reporting or assume a relay/custom Rust runtime is permitted without appropriate written terms.
+  - The initial renewed privacy assessment retained the development trial pending a production decision. The later explicit approval below supersedes that hold. Do not silently strip reporting or assume a relay/custom Rust runtime is permitted without appropriate written terms; document unresolved vendor retention details without claiming a general lawful-basis assessment is complete.
   - The user explicitly requested further parallel small-chunk optimization for large prose, code and documents before considering any large-document opt-out default. Those experiments preserved the original chunk boundaries, overlap, stable merge and whole-document postprocessing and compared independently compiled workers under the same total CPU budget without changing product file-size defaults.
   - The user clarified that full large-file scans must finish within 2–3 seconds and proposed native memory tiers of 2 GiB disabled, 4 GiB up to 300 MiB, 8 GiB up to 800 MiB and 16 GiB up to 1.5 GiB. Test conservative RAM/available-memory/cgroup/CPU selection and a 2500 ms calibrated full-file latency gate as headless Rust prototypes; memory eligibility does not imply acceptable latency. No uncalibrated file-size cutoff or product activation is authorized by these experiments.
   - On 2026-10-27, after the large-file target remained unmet, narrow current enhanced detection to message inputs and their existing recording/transcript text path. Defer Linux server document/file scanning entirely rather than adding a small-file threshold or optional full-scan integration now. Preserve existing basic detection wherever already supported, the fast browser/iPhone implementation and the production/privacy gates. CLI/TUI activation remains deferred; the RAM/latency policy is an experiment, not an integration requirement for this scope. Very long pasted messages need their own basic fallback because restricting integration to inputs alone does not bound scanning latency.
   - The user requested deploying the input-only boundary and replacing excessively long visible placeholder IDs with clear short counters. Chat history mappings are windowed and multiple devices can send, so local counters cannot safely replace unique stored/outbound tokens. Keep those tokens unchanged and use message-local compact display aliases with unambiguous owner restoration; preserve literal/custom and existing short tokens. Retain ADDRESS as the address category for now; the model exposes street/city/postcode labels but does not establish which spans belong to a numbered complete address. The original short-label deployment deferred an input cutoff. On 2026-10-28 the user requested continuing and completing the remaining work; apply the recommended basic-only large-paste guard and a shared 2,500 ms enhancement budget. A provisional 2,048 UTF-16 code-unit ceiling limits model work; it is not a universal calibrated threshold. Downloads continue in the background and the current draft is rechecked once ready.
+  - On 2026-10-28 the user accepted the limited telemetry tradeoff and explicitly authorized default-on production enhancement with a persistent basic-only setting and published disclosure. Exact Specification approval is recorded for version 3. The earlier production hold is superseded; runtime verification still needs evidence rather than an assumption that build success proves the hosted Node patch.
+  - The setting is named Enhanced personal data protection. Master-off still disables all detection; enhanced-off keeps basic patterns, configured values and exclusions. Previously saved off settings must load before any model/licensing initialization, including cold encrypted sync and concurrent preference changes.
+  - A pinned SDK alone cannot control a compromised or unexpectedly changed dependency's requests. The inference Worker therefore has no direct network capability; trusted page code owns fixed metadata, the installation UUID and validated signed activation tokens. Unknown fields, endpoints, headers, redirects, or unreviewed bytes fail closed to basic detection. Normal browser IP/header/timing exposure and vendor-side retention remain outside the app's control.
 verification:
   - Focused local model-adapter and send-lifecycle unit tests, component compilation, translation build and scoped lint.
   - Isolated GitHub bare component checks for normal notifications/retry and real browser inference, current-draft ownership, exclusions and mounted-page offline classification.
@@ -49,3 +58,7 @@ verification:
   - Rust verifier/codec/network-seal unit checks and direct native inference on synthetic fixtures, with CPU affinity, effective native thread settings, memory, span parity and long-input latency recorded separately from startup/licensing.
   - Direct Rust evaluation completed with 10 Rust and 9 Python unit checks passing. All 92 published-engine fingerprints match across 2-core/default, 2-core/2-thread and 8-core/8-thread runs. Larger chunks and zero carry were rejected after individual PII coverage regressions; native LiteRT 2.3.1 supplied no speed benefit. Results and immutable receipts are in docs/architecture/privacy/redact-rust-linux-evaluation-2026-10-26.md.
   - Further native optimization preserves all 122 completed published checkpoints, all 127 cases across parallel configurations, selected 512 KiB scans and the expanded 16-core sample. Early name-gap distance checks remove a large Markdown bottleneck; bulk-file latency still exceeds the user target. Both public dynamic-shape allocation probes reject the pinned export at its fixed 256-position reshape. Results and RAM/latency policy limits are recorded in docs/architecture/privacy/redact-parallel-linux-evaluation-2026-10-26.md.
+  - Focused encrypted/anonymous preference persistence, cold hydration, remote/local opt-out races, prepared-send invalidation and baseline recording-field tests.
+  - Genuine brokered licensing and local inference in isolated browser CI; negative native networking probes against the served Worker CSP, persisted off with zero Worker/licensing starts, and current short-input/offline/fallback/send restoration regressions.
+  - Exact runtime/model byte verification, forged/unrecognized licensing token and schema rejection, disposal/abort behavior, and production asset/CSP packaging tests.
+  - Rendered Privacy settings and EN/DE public privacy-policy copy with actual provider links, plus normal translation/public-site generation.

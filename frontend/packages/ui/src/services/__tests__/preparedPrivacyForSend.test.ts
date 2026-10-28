@@ -17,8 +17,8 @@ vi.mock('../../stores/userProfile', () => ({ userProfile: mocks.store }));
 vi.mock('../../stores/personalDataStore', async () => {
   const { writable } = await import('svelte/store');
   mocks.entries = writable<PersonalDataEntry[]>([]);
-  mocks.settings = writable<PIIDetectionSettings>({ masterEnabled: true, categories: { email: true, phone: true } });
-  return { personalDataStore: { subscribe: mocks.entries.subscribe, settings: mocks.settings,
+  mocks.settings = writable<PIIDetectionSettings>({ masterEnabled: true, enhancedEnabled: true, categories: { email: true, phone: true } });
+  return { personalDataStore: { subscribe: mocks.entries.subscribe, settings: mocks.settings, enabledEntries: mocks.entries,
     hasPendingPrivacyMutations: () => mocks.pending, waitForPrivacyMutations: mocks.waitMutations,
     acknowledgePrivacyPersistence: vi.fn() } };
 });
@@ -44,7 +44,36 @@ describe('prepared Personal privacy', () => {
   afterEach(() => { mocks.invalidators.forEach(fn => fn()); vi.useRealTimers(); vi.unstubAllGlobals(); });
   beforeEach(() => { vi.resetModules(); mocks.handlers.clear(); mocks.listeners.clear(); mocks.invalidators.length = 0;
     mocks.pending = false;
+    mocks.entries?.set([]);
+    mocks.settings?.set({ masterEnabled: true, enhancedEnabled: true, categories: { email: true, phone: true } });
     mocks.scope = 'account-a|key-1'; mocks.session = 'session-a'; mocks.send.mockReset(); mocks.decrypt.mockImplementation(async (value: string) => value); mocks.decrypt.mockClear(); mocks.waitMutations.mockReset().mockResolvedValue(true); mocks.checkAuth.mockReset().mockResolvedValue(false); mocks.serializeRead.mockClear(); });
+
+
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,ai-model-routing.preprocessing.prepared-privacy
+  it('decrypts the enhanced opt-out while retaining the complete basic policy', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    const privacy = await service.compilePersonalPrivacy({ ...snapshot(), memories: [...snapshot().memories,
+      { id: 'preferences', app_id: 'privacy', item_type: 'pii_detection_settings', encrypted_item_json:
+        JSON.stringify({ masterEnabled: true, enhancedEnabled: false, categories: { phone_numbers: false } }) },
+    ] });
+    expect(privacy).toMatchObject({ enabled: true, enhancedEnabled: false });
+    expect(privacy.options.personalDataEntries).toContainEqual(expect.objectContaining({ textToHide: 'Secret Orchard' }));
+    expect(privacy.options.disabledCategories).toEqual(new Set(['phone_numbers']));
+    expect((await service.compilePersonalPrivacy(snapshot())).enhancedEnabled).toBe(true);
+  });
+
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,ai-model-routing.preprocessing.prepared-privacy
+  it('rejects an unacknowledged enhanced opt-out when server authority still enables it', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.settings.update(value => ({ ...value, enhancedEnabled: false }));
+    mocks.waitMutations.mockResolvedValue(false);
+    mocks.send.mockImplementation(async (_type: string, request: any) =>
+      mocks.handlers.get('personal_send_context_snapshot_result')!({ ...full('send', request), personal_memories: {
+        encrypted_settings: null, memories: [],
+      } }));
+    await expect(service.freshPersonalPrivacyForSend('unconfirmed-opt-out')).rejects.toThrow('not yet confirmed');
+  });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
   it('retains a fresh receipt across equivalent writable policy reloads during snapshot compilation', async () => {
@@ -58,7 +87,7 @@ describe('prepared Personal privacy', () => {
     mocks.entries.set([entry]);
     mocks.decrypt.mockImplementation(async (value: string) => {
       mocks.entries.set([{ ...entry, title: 'Renamed label', updatedAt: 2 }]);
-      mocks.settings.set({ categories: { phone: true, email: true }, masterEnabled: true });
+      mocks.settings.set({ categories: { phone: true, email: true }, masterEnabled: true, enhancedEnabled: true });
       return value;
     });
     const receipt = await service.freshPersonalPrivacyForSend('equivalent-reload');
@@ -66,7 +95,7 @@ describe('prepared Personal privacy', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
-  it.each(['text', 'replacement', 'enabled', 'address', 'removal', 'category', 'master', 'pending'])(
+  it.each(['text', 'replacement', 'enabled', 'address', 'removal', 'category', 'master', 'enhanced', 'pending'])(
     'rejects a real %s policy change during snapshot compilation', async change => {
       const service = await import('../preparedPrivacyForSend');
       mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
@@ -82,8 +111,9 @@ describe('prepared Personal privacy', () => {
         if (change === 'enabled') mocks.entries.set([{ ...entry, enabled: false }]);
         if (change === 'address') mocks.entries.set([{ ...entry, addressLines: { street: 'Other', city: '', state: '', zip: '', country: '' } }]);
         if (change === 'removal') mocks.entries.set([]);
-        if (change === 'category') mocks.settings.set({ masterEnabled: true, categories: { email: false, phone: true } });
-        if (change === 'master') mocks.settings.set({ masterEnabled: false, categories: { email: true, phone: true } });
+        if (change === 'category') mocks.settings.set({ masterEnabled: true, enhancedEnabled: true, categories: { email: false, phone: true } });
+        if (change === 'master') mocks.settings.set({ masterEnabled: false, enhancedEnabled: true, categories: { email: true, phone: true } });
+        if (change === 'enhanced') mocks.settings.update(s => ({ ...s, enhancedEnabled: false }));
         if (change === 'pending') mocks.pending = true;
         return value;
       });
