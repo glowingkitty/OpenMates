@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import selectors
+import shutil
 import subprocess
 import sys
 import time
@@ -114,13 +115,54 @@ class Driver:
         finally:
             selector.close()
             if process.poll() is None:
-                process.kill()
+                if identity is not None and identity["capability"] == "session.settings-reminders-read":
+                    # Verified fixed adapter owns a separate native process group.
+                    # Failure remains failure; this grace permits only its cleanup.
+                    process.terminate()
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                else:
+                    process.kill()
             process.wait(timeout=3)
             if self.failure is not None:
                 self.failure["terminatedReturncode"] = process.returncode
             process.stdout.close()
             process.stderr.close()
             # The outer owned stage group handles descendant cleanup on failure.
+
+
+def run_packaged_sdk_v1(driver, destination):
+    """Fixed real package/native23 step INSIDE the existing bounded stage.
+
+    No new capability launch, candidate aggregate, tool installation or skip.
+    Driver/outer owned stage retain the same deadline/output/group cleanup.
+    """
+    root = driver.root
+    package = root / "frontend/packages/openmates-cli"
+    require((package / "dist/sdk-session-v1-entry.js").is_file()
+            and (package / "dist/sdk-session-v1-entry.d.ts").is_file(), "sdk_dist_missing")
+    npm = shutil.which("npm", path=os.environ.get("PATH", ""))
+    require(npm, "npm_setup_missing")
+    directory = destination.parent / "sdk-v1-package"
+    directory.mkdir(mode=0o700)
+    driver.run([npm, "pack", str(package), "--ignore-scripts", "--json", "--pack-destination", str(directory)],
+               cwd=root, capture_output=True, text=True, timeout=120)
+    archives = list(directory.glob("*.tgz"))
+    require(len(archives) == 1, "gate_result_identity")
+    archive = archives[0]
+    archive_hash = sha(regular(archive, 256 * 1024**2))
+    native_hash = sha(regular(package / "native/linux-x64.node", 256 * 1024**2))
+    output = destination.parent / "packaged-sdk-v1.json"
+    driver.run([sys.executable, str(root / "scripts/check_packaged_sdk_v1.py"), str(archive), "--output", str(output)],
+               cwd=root, capture_output=True, text=True, timeout=300)
+    value = json.loads(regular(output, LIMIT))
+    require(sha(regular(archive, 256 * 1024**2)) == archive_hash
+            and value.get("artifactSha256") == archive_hash and value.get("nativeSha256") == native_hash,
+            "artifact_changed")
+    verify_programs(root, driver.trust)
+    return value
 
 
 def execute(root, destination, deadline):
@@ -141,8 +183,10 @@ def execute(root, destination, deadline):
         (row["language"], row["capability"]), namespace["RUNNERS"][row["language"]])
         + ["--fixture", str(root / row["fixture"]), "--capability", row["capability"]] for row in plan]
     namespace["subprocess"] = types.SimpleNamespace(run=driver.run)
-    phase = "generated"
+    phase = "packaged"
     try:
+        packaged = run_packaged_sdk_v1(driver, destination)
+        phase = "generated"
         namespace["check_generated"](root)
         phase = "inventory"
         inventory = namespace["discover_inventory"](root)
@@ -154,7 +198,7 @@ def execute(root, destination, deadline):
         require(len(driver.launches) == len(plan)
                 and all(row["status"] == "passed" for row in driver.launches), "drivers_not_executed")
         verify_programs(root, trust)
-        write(destination, {"matrixSha256": sha(regular(root / "config/sdk-capabilities.json")),
+        write(destination, {"packagedSdkV1": packaged, "matrixSha256": sha(regular(root / "config/sdk-capabilities.json")),
                             "openGaps": independently_derived_gaps, "releaseEligible": not independently_derived_gaps,
                             "conformance": results, "actualLaunches": driver.launches,
                             "trustedProgramsSha256": sha(json.dumps(trust["programs"], sort_keys=True).encode()),

@@ -578,7 +578,21 @@ def valid_sdk_lockfiles_receipt(report, receipt, job, harness, *, expected_input
     return True
 
 
-def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: str, *, trust: dict, expected_inputs: dict) -> bool:
+def sdk_packaged_fixture_from_git(root: Path, source: str) -> bytes:
+    """Read raw immutable JOB-source fixture, never current checkout/receipt data."""
+    if not isinstance(source, str) or not re.fullmatch(r"[0-9a-f]{40}", source):
+        raise RuntimeError("invalid SDK source identity")
+    object_name = source + ":tests/sdk-conformance/fixtures/api-key-foundation.json"
+    size = subprocess.check_output(["git", "cat-file", "-s", object_name], cwd=root, text=True, timeout=15).strip()
+    if not re.fullmatch(r"[0-9]{1,12}", size) or not 0 < int(size) <= 64 * 1024**2:
+        raise RuntimeError("SDK fixture source bound")
+    raw = subprocess.check_output(["git", "cat-file", "blob", object_name], cwd=root, timeout=15)
+    if len(raw) != int(size):
+        raise RuntimeError("SDK fixture source changed")
+    return raw
+
+
+def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: str, *, trust: dict, expected_inputs: dict, expected_packaged_fixture: bytes) -> bool:
     """Require the exact reviewed plan, immutable candidate inputs and every stage."""
     try:
         from scripts.ci_sdk_conformance import LOCKS, LIBRARY_UNIT_MANIFESTS, library_unit_command
@@ -631,6 +645,34 @@ def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: s
                       "fixtureSha256": row["fixtureSha256"], "vectors": row["vectors"], "status": "passed"} for row in plan]
     def digest(value):
         return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+    packaged = gate.get("packagedSdkV1")
+    if (not isinstance(packaged, dict) or packaged.get("status") != "passed"
+            or packaged.get("entrypoint") != "openmates/sdk/v1"
+            or packaged.get("fixtureSha256") != trust["contracts"].get("tests/sdk-conformance/fixtures/api-key-foundation.json")
+            or type(packaged.get("vectorCount")) is not int or packaged["vectorCount"] != 23
+            or not digest(packaged.get("artifactSha256")) or not digest(packaged.get("vectorIdsSha256"))
+            or not isinstance(artifacts.get("npm"), dict)
+            or packaged.get("nativeSha256") != artifacts["npm"].get("sha256")
+            or packaged.get("ambientSyntheticCliStateAccess") is not False
+            or packaged.get("cliLauncherObserved") is not False or packaged.get("explicitFixtureCredentials") is not True):
+        return False
+    fixture_path = "tests/sdk-conformance/fixtures/api-key-foundation.json"
+    if (not isinstance(expected_packaged_fixture, bytes) or len(expected_packaged_fixture) > 64 * 1024**2
+            or hashlib.sha256(expected_packaged_fixture).hexdigest() != trust["contracts"].get(fixture_path)
+            or hashlib.sha256(expected_packaged_fixture).hexdigest() != expected_inputs.get(fixture_path)):
+        return False
+    try:
+        ordered_ids = [row["id"] for row in json.loads(expected_packaged_fixture)["capabilities"]["sdk.configuration"]["vectors"]]
+    except (KeyError, TypeError, ValueError):
+        return False
+    packaged_plan = [row for row in plan if row.get("capability") == "sdk.configuration" and row.get("language") == "npm"]
+    if (len(ordered_ids) != 23 or any(not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", value) for value in ordered_ids)
+            or len(set(ordered_ids)) != 23 or len(packaged_plan) != 1
+            or packaged_plan[0].get("fixture") != fixture_path
+            or packaged_plan[0].get("fixtureSha256") != trust["contracts"].get(fixture_path)
+            or packaged_plan[0].get("vectors") != sorted(ordered_ids)
+            or packaged.get("vectorIdsSha256") != hashlib.sha256(json.dumps(ordered_ids, separators=(",", ":")).encode()).hexdigest()):
+        return False
     return (gate.get("plan") == plan and rows == expected_rows
             and gate.get("matrixSha256") == trust["contracts"]["config/sdk-capabilities.json"]
             and gate.get("trustedProgramsSha256") == hashlib.sha256(json.dumps(trust["programs"], sort_keys=True).encode()).hexdigest()
@@ -966,7 +1008,8 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             except ModuleNotFoundError:
                 from ci_sdk_conformance import load_trust, source_inputs_from_git
             if not valid_sdk_conformance_receipt(report, sdk_data, job, expected_harness_commit,
-                    trust=load_trust(), expected_inputs=source_inputs_from_git(root, job["source"])):
+                    trust=load_trust(), expected_inputs=source_inputs_from_git(root, job["source"]),
+                    expected_packaged_fixture=sdk_packaged_fixture_from_git(root, job["source"])):
                 raise RuntimeError("Green SDK job lacks exact library/vector or cleanup evidence")
         if job["state"] == "success" and job.get("mode") == "artifact":
             if (report.get("runtime_profile") != "artifact"

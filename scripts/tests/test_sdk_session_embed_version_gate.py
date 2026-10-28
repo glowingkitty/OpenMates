@@ -19,7 +19,8 @@ FIXTURE = "tests/sdk-conformance/fixtures/session-embed-version-content.json"
 
 def cookie_registration_matrix():
     """Reverse exact later source witnesses for the original Cookie assertions only."""
-    matrix = json.loads((ROOT / gate.MATRIX).read_bytes())
+    from test_ci_sdk_conformance import apps_cookie_matrix_history
+    matrix = json.loads(apps_cookie_matrix_history((ROOT / gate.MATRIX).read_bytes()))
 
     def digest(value):
         return hashlib.sha256((json.dumps(value, indent=2) + "\n").encode()).hexdigest()

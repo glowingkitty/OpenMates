@@ -52,7 +52,7 @@ LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindi
          "frontend/packages/openmates-tui-native/Cargo.lock")
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
           "frontend/packages/openmates-cli", "backend/apps", "tests/sdk-conformance", "config/sdk-capabilities.json",
-          "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py",
+          "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py", "scripts/check_packaged_sdk_v1.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
           "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".npmrc", ".pnpmfile.cjs", ".pnpmfile.mjs", ".cargo", "rust-toolchain.toml",
           "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS)
@@ -431,6 +431,28 @@ class Commands:
         return self.private / (stage + ".log")
 
 
+def packaged_sdk_v1_receipt(root, value, *, trust):
+    """Closed packaging-only proof, separate from unchanged capability plans."""
+    fixture = "tests/sdk-conformance/fixtures/api-key-foundation.json"
+    raw = regular(root / fixture)
+    require(sha(raw) == trust["contracts"].get(fixture), "gate_reviewed_expectations")
+    ids = [row["id"] for row in json.loads(raw)["capabilities"]["sdk.configuration"]["vectors"]]
+    require(len(ids) == 23 and len(set(ids)) == 23 and isinstance(value, dict)
+            and value.get("status") == "passed" and value.get("entrypoint") == "openmates/sdk/v1"
+            and value.get("fixtureSha256") == sha(raw) and value.get("vectorIds") == ids
+            and value.get("nativeAdapter") == "actual-rust-api-key-library"
+            and value.get("ambientSyntheticCliStateAccess") is False
+            and value.get("explicitFixtureCredentials") is True
+            and value.get("cliLauncherObserved") is False and value.get("rawTracePublished") is False
+            and all(isinstance(value.get(key), str) and re.fullmatch(r"[0-9a-f]{64}", value[key])
+                    for key in ("artifactSha256", "nativeSha256")), "gate_result_vectors")
+    return {"status": "passed", "entrypoint": "openmates/sdk/v1", "fixtureSha256": sha(raw),
+            "artifactSha256": value["artifactSha256"], "nativeSha256": value["nativeSha256"],
+            "vectorCount": len(ids), "vectorIdsSha256": sha(json.dumps(ids, separators=(",", ":")).encode()),
+            "ambientSyntheticCliStateAccess": False, "explicitFixtureCredentials": True,
+            "cliLauncherObserved": False}
+
+
 def gate_receipt(root, report, *, trust):
     """Retain only complete reviewed matrix/fixture results, never raw output fields."""
     matrix_bytes = regular(root / "config/sdk-capabilities.json")
@@ -478,7 +500,8 @@ def gate_receipt(root, report, *, trust):
                     and value.get("language") == expected_row["language"] and value.get("status") == "passed"
                     and re.fullmatch(r"[0-9a-f]{64}", value.get("commandSha256", ""))
                     for value, expected_row in zip(launches, plan)), "gate_launches")
-    return {"matrixSha256": sha(matrix_bytes), "status": "migration-gaps" if gaps else "synchronized",
+    packaged = packaged_sdk_v1_receipt(root, report.get("packagedSdkV1"), trust=trust)
+    return {"packagedSdkV1": packaged, "matrixSha256": sha(matrix_bytes), "status": "migration-gaps" if gaps else "synchronized",
             "openGapCount": len(gaps), "releaseEligible": not gaps,
             "conformance": rows, "plan": plan, "actualLaunches": launches,
             "trustedProgramsSha256": report.get("trustedProgramsSha256"), "realRunCount": len(rows),
@@ -855,7 +878,9 @@ def run(root, results, node, *, verify_node, environ=None):
                 require(node_before == artifact(node_artifact) and python_before == artifact(python_artifact), "artifact_changed")
                 require(dist == {str(path.relative_to(root)): sha(regular(path))
                                  for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}, "dist_changed")
-                evidence.update(gate=gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust),
+                gate = gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust)
+                require(gate["packagedSdkV1"]["nativeSha256"] == node_before["sha256"], "gate_result_identity")
+                evidence.update(gate=gate,
                                 artifacts={"npm": node_before, "python": python_before}, dist=dist,
                                 loadIdentityVerified=True, sourceHeld=True, status="passed", stage="complete", code=None)
             except Exception:
