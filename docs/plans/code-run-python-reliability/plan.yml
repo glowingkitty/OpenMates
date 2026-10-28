@@ -16,6 +16,14 @@ findings:
 
     '
   confidence: confirmed_by_saved_terminal_output_and_source
+  live_assistant_dispatch_failure:
+    trigger: Assistant code.run includes source and requirements.txt in a files list with two entries.
+    cause: The shared legacy batching adapter mistakes a multi-file bundle for separate requests, moves
+      the injected vault context inside request rows, and loses the RunCodeRequest files payload.
+    evidence: Two actual code.run error embeds and matching legacy-conversion log entries in the deployed
+      automatic-routing math check; no E2B run was started by those failed calls.
+    repair: Keep code.run bundles atomic through the shared executor and test the real BaseApp dispatch
+      boundary for Python source plus requirements and Rust source plus module.
   historical_run:
     local_time: 2026-10-28 01:00:31 to 01:00:44 Europe/Berlin
     target_filename: math_demo.py
@@ -152,6 +160,18 @@ implementation_sequence:
   - backend/tests/test_e2b_code_runner.py
   - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
   - frontend/apps/web_app/tests/fixtures/
+- step: 4
+  outcome: Assistant multi-file execution retains the complete bundle and authenticated context.
+  changes:
+  - Exclude code.run files from the legacy list-to-batch heuristic while retaining existing batching for
+    other skills.
+  - Verify executor, BaseApp and RunCodeSkill together, including the source plus dependency manifest
+    case that failed during real inference.
+  - Preserve chat ownership, current-turn embed authorization, encrypted persistence and checked async
+    continuation.
+  owned_paths:
+  - backend/apps/ai/processing/skill_executor.py
+  - backend/tests/test_code_run_executor_dispatch.py
 required_acceptance:
 - Inferred Python imports default to unpinned compatible resolution even when registry latest requires
   newer Python.
@@ -179,8 +199,13 @@ verification:
   - Provider-free route, runner, assistant-dispatch and async-completion tests.
   - Authenticated browser dependency request and encrypted output reopen flow, with sandbox transport
     mocked and labelled; actual E2B verified separately.
-  current_evidence: Implementation in progress. Historical terminal evidence established the cause; focused
-    tests and CI results are recorded after execution.
+  current_evidence: Dependency repair deployed to dev at ac1145c66b6854d003b7136d1639b3ce3e8c979f. Local
+    checks passed 77 backend and 21 helper tests. Isolated CI component 89a58669 and backend a5da4c56
+    passed; authenticated browser ee422ca9 passed both cases without retries or skips. Real automatic
+    routing exposed the additional multi-file dispatcher defect. The focused repair passes 28 related
+    local dispatch/context checks, including the real skill-dispatch regression. Follow-up isolated CI
+    1ed7241c passed the multi-file dispatcher and BaseApp context tests. Final real Python/Rust verification
+    remains in progress after deploying this follow-up repair.
   real_inference_dev_required:
   - After scoped deploy, use isolated test account/Project/CLI state under shared dev-stack and exclusive
     account leases.

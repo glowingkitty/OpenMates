@@ -5,7 +5,7 @@
 Example (after deployment; paid inference requires explicit opt-in):
   python3 scripts/code_run_real_test.py --session ID --revision FULL_SHA \
     --state-dir /tmp/code-run-state-UNIQUE --receipt /tmp/code-run-proof/receipt.json \
-    --recording-dir /tmp/code-run-proof --allow-paid-dev-inference
+    --recording-dir /tmp/code-run-proof --personal-dev-test-account --allow-paid-dev-inference
 
 Uses the installed global CLI and its installed SDK with ordinary automatic
 routing. Never run in CI. Synthetic transcripts, recordings and receipts stay
@@ -28,11 +28,52 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from verify_chat_sidebar_title_live import test_account_environment
+from verify_chat_sidebar_title_live import safe_failure, test_account_environment
 from workflow_schedule_real_test import API_URL, ProofError, acquire_leases, sessions, write_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"finished", "failed", "cancelled"}
+
+
+def personal_test_environment() -> dict[str, str]:
+    """Map only the documented personal dev-test credentials in memory."""
+    env = dict(os.environ)
+    values: dict[str, str] = {}
+    for raw_line in sessions.ENV_FILE.read_text().splitlines():
+        key, separator, value = raw_line.strip().partition("=")
+        key = key.strip()
+        if not separator or key not in {
+            f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
+        }:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        values[key] = value
+    for suffix in ("EMAIL", "PASSWORD", "OTP_KEY"):
+        value = values.get(f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}")
+        if not value:
+            raise ProofError("personal_dev_test_credentials_missing")
+        env[f"OPENMATES_TEST_ACCOUNT_{suffix}"] = value
+    return env
+
+
+def personal_test_leases(session_id: str) -> list[tuple[str, str, set[str], str]]:
+    owner = f"repository-session-{session_id}"
+    leases: list[tuple[str, str, set[str], str]] = []
+    try:
+        for name, resources, mode in (
+            ("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
+            ("account", {"playwright-account:personal-dev"}, "exclusive"),
+        ):
+            lease_id = f"code-run-personal-{name}-{uuid4().hex[:12]}"
+            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=120)
+            leases.append((lease_id, owner, resources, mode))
+        return leases
+    except BaseException:
+        for lease_id, *_ in reversed(leases):
+            sessions.release_test_resource_lease(lease_id)
+        raise
 
 
 def fnv1a(text: str) -> str:
@@ -48,7 +89,7 @@ def prompts(nonce: str) -> list[dict]:
         "Do not ask me to click Run. Include the execution/task UUID returned by code.run in your acknowledgement "
         "and final explanation. Wait for the actual execution result before claiming success. "
         f"The source must calculate 64-bit FNV-1a over UTF-8 bytes of '{nonce}' "
-        "(offset 14695981039346656037, prime 1099511628211, wrapping unsigned 64-bit arithmetic), "
+        "(offset 0xcbf29ce484222325, prime 0x100000001b3, wrapping unsigned 64-bit arithmetic), "
         "and print proof=<16 lowercase hex digits>. After execution, include that exact returned proof line "
         "in your final explanation together with actual results and generated artifact references. "
     )
@@ -85,6 +126,14 @@ def command(cli: str, args: list[str], *, timeout: int = 120) -> dict | list:
         return json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise ProofError("cli_json_invalid") from exc
+
+
+def delete_owned_chat(cli: str, chat_id: str) -> None:
+    """The installed CLI's chat deletion command returns text even with --json."""
+    result = subprocess.run([cli, "chats", "delete", chat_id, "--yes", "--personal", "--api-url", API_URL],
+                            cwd=ROOT, capture_output=True, text=True, timeout=120, check=False)
+    if result.returncode or not re.search(r"(?m)^1/1 chat\(s\) deleted\.$", result.stdout):
+        raise ProofError("owned_chat_cleanup_failed")
 
 
 def require_runtime_revision(revision: str) -> None:
@@ -199,6 +248,8 @@ def flow(input_path: Path) -> int:
             raise ProofError("created_chat_id_missing")
         result["chat_id"] = chat_id
         write_receipt(directory / "result.json", result)
+        if sent.get("status") == "waiting_for_user":
+            raise ProofError("assistant_action_approval_required")
         print(f"Saved chat {chat_id}; waiting for authenticated execution status and assistant continuation.", flush=True)
         deadline = time.monotonic() + data["timeout_seconds"]
         snapshot, reason = {}, "execution_status_missing"
@@ -258,6 +309,10 @@ def main() -> int:
     parser.add_argument("--cli", default="openmates", help="Installed global CLI executable")
     parser.add_argument("--sdk-module", type=Path, help="Installed SDK index.js, if the CLI launcher cannot identify it")
     parser.add_argument("--slot", type=int, choices=range(1, 14))
+    parser.add_argument("--personal-dev-test-account", action="store_true",
+                        help="Use the documented personal dev-test account in fresh isolated CLI state")
+    parser.add_argument("--case", action="append", choices=("python-math", "rust-fibonacci", "rust-word-count"),
+                        help="Run only the selected case; repeat to select more than one")
     parser.add_argument("--timeout-seconds", type=int, default=600, help="Bounded continuation wait per flow")
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
     args = parser.parse_args()
@@ -265,6 +320,8 @@ def main() -> int:
         parser.error("real inference is dev-only and cannot run in CI")
     if not args.allow_paid_dev_inference or not 60 <= args.timeout_seconds <= 1200:
         parser.error("explicit paid-dev opt-in and a 60–1200 second timeout required")
+    if not args.slot and not args.personal_dev_test_account:
+        parser.error("choose a configured --slot or --personal-dev-test-account")
     if not re.fullmatch(r"[0-9a-f]{40}", args.revision):
         parser.error("--revision must be the full deployed dev SHA")
     state, receipt_path, recording = args.state_dir.resolve(), args.receipt.resolve(), args.recording_dir.resolve()
@@ -296,7 +353,15 @@ def main() -> int:
         os.environ.update(OPENMATES_STATE_DIR=str(state), OPENMATES_PROFILE="", OPENMATES_API_URL=API_URL)
         for key in ("OPENMATES_API_KEY", "OPENMATES_CLI_HOME", "OPENMATES_CLI_SESSION_PATH"):
             os.environ.pop(key, None)
-        leases, slot = acquire_leases(args.session, args.slot)
+        if args.personal_dev_test_account:
+            if args.slot:
+                raise ProofError("personal_account_cannot_use_numbered_slot")
+            login_env = personal_test_environment()
+            leases, slot = personal_test_leases(args.session), ""
+            receipt["account_role"] = "personal_dev_test"
+        else:
+            login_env = test_account_environment()
+            leases, slot = acquire_leases(args.session, args.slot)
         receipt["account_slot"] = slot
         require_runtime_revision(args.revision)
 
@@ -313,18 +378,21 @@ def main() -> int:
         heartbeat.start()
         login = subprocess.run(["node", str(ROOT / "scripts/openmates_cli_test_account.mjs"), "login",
                                 "--slot", str(slot), "--api-url", API_URL], cwd=ROOT,
-                               env=test_account_environment(), capture_output=True,
+                               env=login_env, capture_output=True,
                                text=True, check=False, timeout=180)
         if login.returncode:
+            receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("disposable_account_bootstrap_failed")
         project = command(cli, ["projects", "create", f"Code Run proof {uuid4().hex[:10]}",
-                               "--write-policy", "always_ask", "--personal"])
+                               "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id")
         if not isinstance(project_id, str) or not project_id:
             raise ProofError("disposable_project_missing")
         receipt["project_id"] = project_id
         nonce = uuid4().hex
         for case in prompts(nonce):
+            if args.case and case["label"] not in args.case:
+                continue
             if errors:
                 raise ProofError("lease_renewal_failed")
             directory = recording / case["label"]
@@ -336,21 +404,30 @@ def main() -> int:
             write_receipt(input_path, {"cli": cli, "sdk_module": str(sdk_module), "project_id": project_id,
                                       "case": case, "slug": slug, "nonce": nonce, "proof": fnv1a(nonce),
                                       "timeout_seconds": args.timeout_seconds})
-            print(f"Recording actual CLI flow: {case['label']}", flush=True)
+            print(f"Running actual CLI flow: {case['label']}", flush=True)
             capture_dir = directory / "terminal"
-            capture_timeout = args.timeout_seconds + 600
-            captured = subprocess.run([sys.executable, str(ROOT / "scripts/cli_video_capture.py"),
-                                      "--output-dir", str(capture_dir), "--target-environment", API_URL,
-                                      "--display-number", str(180 + slot), "--timeout-seconds", str(capture_timeout),
-                                      "--no-response-media", "--", sys.executable, str(Path(__file__).resolve()),
-                                      "--flow-input", str(input_path)], cwd=ROOT, capture_output=True,
-                                     text=True, check=False, timeout=capture_timeout+45)
+            executed = subprocess.run([sys.executable, str(Path(__file__).resolve()),
+                                       "--flow-input", str(input_path)], cwd=ROOT, capture_output=True,
+                                      text=True, check=False, timeout=args.timeout_seconds+600)
+            write_receipt(directory / "flow-diagnostic.json", {"stdout": executed.stdout, "stderr": executed.stderr})
             if (directory / "result.json").exists():
                 entry.update(json.loads((directory / "result.json").read_text()))
+            captured = None
+            if entry.get("chat_id"):
+                # Record the real product command reading the authenticated saved
+                # conversation, following the scheduled-workflow proof pattern.
+                # The capture helper intentionally rejects arbitrary script argv.
+                captured = subprocess.run([sys.executable, str(ROOT / "scripts/cli_video_capture.py"),
+                                          "--output-dir", str(capture_dir), "--target-environment", API_URL,
+                                          "--display-number", str(180 + (slot or 14)), "--timeout-seconds", "120",
+                                          "--no-response-media", "--", cli, "chats", "show", entry["chat_id"],
+                                          "--all", "--personal", "--api-url", API_URL], cwd=ROOT,
+                                         capture_output=True, text=True, check=False, timeout=165)
+                write_receipt(directory / "capture-diagnostic.json", {"stdout": captured.stdout, "stderr": captured.stderr})
             entry["recording_status"] = "captured" if (capture_dir / "raw-terminal.mp4").exists() else "failed"
             entry["terminal_recording"] = str(capture_dir / "raw-terminal.mp4")
             entry["terminal_manifest"] = str(capture_dir / "manifest.json")
-            if captured.returncode or entry["recording_status"] != "captured":
+            if executed.returncode or not captured or captured.returncode or entry["recording_status"] != "captured":
                 entry["status"] = "failed"
                 entry.setdefault("error_code", "terminal_capture_or_flow_failed")
             write_receipt(receipt_path, receipt)
@@ -373,7 +450,7 @@ def main() -> int:
                     chat_id = shown.get("chat", {}).get("id")
                 if not chat_id:
                     raise ProofError("owned_chat_cleanup_id_missing")
-                command(cli, ["chats", "delete", chat_id, "--yes", "--personal"])
+                delete_owned_chat(cli, chat_id)
                 receipt["cleanup"][case["label"]] = "deleted"
             except (ProofError, subprocess.TimeoutExpired):
                 receipt["cleanup"][case["label"]] = "failed"
