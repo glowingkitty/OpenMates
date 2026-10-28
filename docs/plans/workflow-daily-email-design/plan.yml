@@ -1,0 +1,76 @@
+schema_version: 2
+profile: concise
+id: workflow-daily-email-design
+title: One useful daily Workflow email with consistent reminder styling
+status: draft
+goal: >
+  Check what is already implemented and if there are some gaps, and if the workflow,
+  like the daily workflow overview email isn't set up yet or doesn't match the
+  updated design basically that we have. Let's plan this out so we can fix the gap.
+references:
+  - TASK-3248
+  - specifications/features/notifications/specification.yml
+  - specifications/features/workflows/specification.yml
+  - docs/plans/chat-email-workflow-digest/plan.yml
+  - docs/plans/workflow-completion-notifications/plan.yml
+  - docs/plans/reminder-email-redesign/plan.yml
+  - docs/plans/workflow-daily-email-design/assessment.md
+scope:
+  in:
+    - One automatic email per eligible user and daily reporting window across all scheduled Workflows, with no empty digest.
+    - Remove automatic per-run completion email, including terminal handling of already-pending email outboxes; retain completion history and push behavior.
+    - Group runs into one card per Workflow with all-run totals, outcomes, latest relevant times, and authenticated Workflow/run destinations.
+    - Match the approved reminder/newsletter shell, notification bell, spacing, rounded cards and orange actions using bounded email-safe HTML.
+    - Include late completions and running work overlapping the previous 24-hour window; retain scheduled-only eligibility and the fixed daily cutoff.
+    - Recover the current reporting window after a missed dispatch without replaying older windows as a burst of emails.
+    - Preserve verified-address, unsubscribe and explicit privacy choices; settle useful Workflow identity separately from optional private output excerpts.
+    - Update settings disclosure, translations, conflicting notification assertions/examples, focused coverage and dev verification.
+  out:
+    - Changes to reminder emails, chat-response emails, push cadence or in-app completion history.
+    - Enabling the currently unavailable explicit Send email Workflow action.
+    - Per-user send-time controls, new providers, browser rendering infrastructure or a new private image endpoint.
+    - Production mutation or rollout as part of this planning task.
+decisions:
+  - id: audit-not-implementation
+    status: active
+    decision: This is a proposal only. The current user request authorizes investigation and planning; no product behavior, preferences or Specification text was changed.
+  - id: existing-delivery-baseline
+    status: active
+    decision: Reuse the implemented daily dispatcher, verified-contact resolver, per-user/date reservation and delivery guard rather than adding a parallel mailer.
+    reason: The existing daily digest has isolated SMTP coverage and its 09:00 UTC registration is present in the running dev scheduler.
+  - id: proposed-email-cadence
+    status: active
+    decision: Proposed automatic Workflow email cadence is daily only. Immediate completion events and enabled push remain independent.
+    reason: Current completion dispatch and the current completed-delivery assertion intentionally add per-run email; both must change together.
+  - id: proposed-window
+    status: active
+    decision: Keep 09:00 UTC daily cutoff and half-open 24-hour windows, but include scheduled execution/activity overlapping the window instead of only newly accepted runs.
+    reason: A long run may be shown running on one day and completed on the next without another immediate email.
+  - id: proposed-layout
+    status: active
+    decision: Show a compact summary and at most ten Workflow cards, with attention-needed groups first and recent activity next; keep complete totals and an overflow link.
+    reason: An hourly Workflow should occupy one card containing its run count. Email-safe HTML keeps names, statuses and actions readable with images blocked and avoids per-run image work.
+  - id: proposed-content-policy
+    status: active
+    decision: Recommend basic Workflow names and statuses as useful identifying context, with prompts, node inputs and output excerpts excluded unless explicitly enabled. Preserve every explicit hide-content and email opt-out choice.
+    reason: Current includeContent consent also hides Workflow titles. The identifying-context default and any migration must be explicitly settled in the revised contract before implementation; no blanket reset is proposed.
+approvals:
+  specification:
+    status: pending
+    reason: The existing notifications.workflow-run.completed-delivery assertion requires prompt per-run email; daily-only email and the chosen identity/window semantics require revised assertions/examples before implementation.
+  plan:
+    status: pending
+    reason: Concrete proposal prepared for the user's review; implementation was not requested in this turn.
+checks:
+  - "Required backend regression: 24 hourly successful runs across several Workflows produce zero immediate completion emails and exactly one daily email per eligible user/window."
+  - "Required backend regression: independent push/history, old pending outboxes, simultaneous dispatchers, retries, consent withdrawal, disabled categories and empty windows remain correct."
+  - "Required window/scale coverage: late completion, running/waiting overlap, exact UTC boundaries, missed-current-window recovery, more than 200 runs/deliveries and bounded grouped overflow."
+  - "Required rendering checks: shared header/footer and bell, escaped identifying text, grouped counts, orange actions, HTML/plain text and readable blocked-image output in light/dark themes."
+  - "Required isolated GitHub checks: extend workflow-email-digest.spec.ts and completion probes to assert the combined total email count; verify signed-in and cold-login run/Workflow links."
+  - "Required isolated visual evidence: desktop and phone digest with multiple Workflows and a frequent-run case; retain only the latest successful recording per requested flow."
+  - "Proposed final dev verification after implementation approval: send one labeled test digest to the verified configured user address and record provider acceptance and delivery separately."
+handoff:
+  current_task_id: TASK-3248
+  next_action: Review the proposed cadence, identity policy and activity window; update the existing notification contract/examples before implementing the focused backend/template/settings changes.
+  command: python3 scripts/plan_validate.py docs/plans/workflow-daily-email-design/plan.yml
+  expected_outcome: A reviewed daily-only contract and design with one integrated no-flooding regression, not another independent digest implementation.
