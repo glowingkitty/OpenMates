@@ -64,7 +64,9 @@ run_docker "Current Docker usage:" system df || true
 
 if [ "$DISK_USE_PCT" -ge "$AGGRESSIVE_DISK_PERCENT" ]; then
     AGGRESSIVE=true
-    IMAGE_AGE_FILTER="until=24h"
+    # Keep recent build handoff images, but don't block the host all day on
+    # dangling intermediate images. Tagged rollback images remain protected.
+    IMAGE_AGE_FILTER="until=1h"
     run_docker "Pruning all unused BuildKit cache (disk pressure mode):" builder prune -a -f || true
 else
     AGGRESSIVE=false
