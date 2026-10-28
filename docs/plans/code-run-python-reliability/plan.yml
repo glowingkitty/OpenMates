@@ -1,0 +1,208 @@
+schema_version: 2
+profile: concise
+id: code-run-python-reliability
+title: Reliable Python dependency resolution for Code Run
+status: implementing
+goal: Implement the Python code-execution reliability fix, test the same math example use cases and Rust
+  example requests, and ensure the assistant can generate a code embed, auto-execute it in E2B when instructed,
+  and process the result in its response.
+phase_boundary: User approved implementation and expanded verification to Rust and assistant-requested
+  automatic execution.
+findings:
+  confirmed_root_cause: 'The web dependency picker turned inferred Python imports into exact pins of each
+    package''s independently advertised latest PyPI release. The submitted NumPy pin was numpy==2.5.4,
+    which required Python >=3.12. The sandbox used CPython 3.11. pip rejected the pinned version and exited
+    1 during installation; the target Python script never ran.
+
+    '
+  confidence: confirmed_by_saved_terminal_output_and_source
+  historical_run:
+    local_time: 2026-10-28 01:00:31 to 01:00:44 Europe/Berlin
+    target_filename: math_demo.py
+    imports:
+    - sympy
+    - numpy
+    - matplotlib.pyplot
+    - IPython.display
+    selected_pins_visible_in_terminal:
+    - IPython==9.17.1
+    - matplotlib==3.11.2
+    - numpy==2.5.4
+    runtime_evidence: 'The terminal selected a cp311 Matplotlib wheel, rejected NumPy >=2.5 releases with
+      Requires-Python >=3.12, and rejected older releases requiring Python <3.11. The exact Python patch
+      version and SymPy pin were not recorded in this output.
+
+      '
+    final_status: failed
+    exit_code: 1
+    reported_billable_duration_seconds: 8.0
+    charged_credits: 5
+    artifacts: none
+  interpretation_limits:
+  - No evidence of an ABI conflict, missing import, failed sandbox creation, or installation timeout in
+    this run.
+  - A Celery task SUCCESS means orchestration returned; it does not establish successful code execution.
+  - The code embed's finished status describes code generation; the separate execution sidecar records
+    failed.
+  - The pip update notice is incidental; upgrading pip does not make an explicit Python-incompatible NumPy
+    pin installable.
+  - No failed user execution was repeated, no personal chat was changed, and no model/provider override
+    was used.
+source_evidence:
+  inspected_revision: d29e12de160808528b68cbbeae1419cbdeca156b
+  paths:
+  - path: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    line: 1093
+    finding: dependencySuggestionCandidate preselects latest_version and turns it into an exact Python
+      pin.
+  - path: backend/core/api/app/routes/code_execution.py
+    line: 742
+    finding: _lookup_package reads PyPI info.version without sandbox Python or joint dependency compatibility.
+  - path: backend/core/api/app/routes/code_execution.py
+    line: 780
+    finding: The backend import-inference fallback already emits unpinned package names.
+  - path: backend/core/api/app/routes/code_execution.py
+    line: 796
+    finding: Merge order preserves explicit dependency selections ahead of inferred requirements.
+  - path: backend/shared/providers/e2b_code_runner.py
+    line: 172
+    finding: Python dependencies are installed together by python -m pip inside E2B.
+  - path: backend/shared/providers/e2b_code_runner.py
+    line: 496
+    finding: A nonzero install exit returns before executing the target script.
+  - path: frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    line: 52
+    finding: Existing terminal output persistence encrypts with the embed key.
+  authoritative_references:
+  - url: https://pip.pypa.io/en/stable/cli/pip_install/
+    use: Resolver honors the running interpreter by default and supports an installation report.
+  - url: https://pip.pypa.io/en/stable/topics/dependency-resolution/
+    use: Joint dependency resolution and backtracking should remain pip's responsibility inside E2B.
+existing_contract:
+  path: specifications/features/app-skills/code-run/specification.yml
+  version: 2
+  assertions:
+  - code-run.request.validated
+  - code-run.execution.e2b-only
+  - code-run.execution.stream-status-visible
+  - code-run.billing.rate-limits
+  - code-run.output.chat-bound-encrypted
+  - code-run.surface-parity
+  intent: Repair compatible default selection and verify existing assistant-created-code execution; no
+    new auto-execute flag or product contract is needed.
+implementation_sequence:
+- step: 1
+  outcome: Python import suggestions resolve compatible dependencies by default.
+  changes:
+  - Add an explicit Automatic compatible option, selected by default for inferred Python imports.
+  - Send bare package requirements for Automatic; install all selected Python packages in one pip invocation
+    in the actual E2B interpreter.
+  - Preserve exact user-selected versions, version ranges, install snippets, extras, and requirements.txt
+    precedence.
+  - Keep registry latest metadata informational; it must not become a version constraint until explicitly
+    selected.
+  - Extract dependency-choice construction into a small shared pure helper with focused unit coverage.
+  - Update the picker text and translations so Automatic and an explicit version choice are distinguishable.
+  owned_paths:
+  - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+  - frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
+  - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+  - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+- step: 2
+  outcome: Successful resolutions and installation failures are understandable and diagnosable.
+  changes:
+  - Emit the actual Python and pip versions from inside the sandbox before installing, using the same
+    interpreter used for the target.
+  - Record package names and actual installed versions after a successful installation; include already-satisfied
+    packages as well as newly installed ones.
+  - If using pip --report, parse only bounded allowlisted name/version fields and supplement already-installed
+    versions with importlib.metadata.
+  - Keep install failure distinct from target runtime failure; preserve original bounded pip stderr and
+    a concise phase-specific explanation.
+  - Explain an explicit incompatible version using known runtime and resolver evidence; suggest Automatic
+    without silently changing the pin or retrying.
+  - Preserve existing cancellation, timeout bounds, billing, output limits, authenticated status access,
+    and encrypted sidecar persistence.
+  - Keep interpreter/package diagnostics available through existing terminal events to all clients; avoid
+    new endpoint or SDK schema work unless existing events cannot carry them.
+  owned_paths:
+  - backend/shared/providers/e2b_code_runner.py
+  - backend/tests/test_e2b_code_runner.py
+  - backend/apps/code/tasks/run_code_task.py
+  - backend/tests/test_code_run_billing_attribution.py
+  implementation_note: Prefer existing status/stdout/stderr events; change task/status payloads only if
+    required to preserve new failure details.
+- step: 3
+  outcome: The reported failure and explicit-pin behavior are covered by deterministic and real sandbox
+    checks.
+  changes:
+  - Add a browser regression with a mocked latest NumPy release requiring newer Python; assert Automatic
+    sends numpy without an exact latest pin.
+  - Assert explicit selection still submits the exact chosen version and is never silently downgraded.
+  - Add backend tests that installation failure prevents target execution and retains useful phase/runtime
+    diagnostics.
+  - Run a sanitized copy of the four-library example through an explicitly requested assistant E2B run,
+    using an isolated test Project and normal automatic model routing.
+  - Include a deterministic companion that computes the derivative and writes a small PNG under outputs/
+    to exercise existing artifact capture.
+  - Verify failed-install output and successful output survive reopen/sync through the existing encrypted
+    sidecar flow.
+  owned_paths:
+  - backend/tests/test_code_execution.py
+  - backend/tests/test_e2b_code_runner.py
+  - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+  - frontend/apps/web_app/tests/fixtures/
+required_acceptance:
+- Inferred Python imports default to unpinned compatible resolution even when registry latest requires
+  newer Python.
+- Explicit versions and supplied dependency manifests retain their requested constraints.
+- The SymPy/NumPy/Matplotlib/IPython example installs compatible dependencies and completes in the actual
+  configured sandbox.
+- Installation failure never runs target code and reports the phase, runtime version, and original bounded
+  resolver error.
+- Successful output includes installed versions, including packages already present in the sandbox.
+- Output remains private, owner-scoped, bounded, and encrypted when persisted; credentials and raw install-report
+  URLs are excluded from diagnostics.
+- Two substantive Rust example requests compile and run in E2B; the final assistant response uses actual
+  execution output.
+- An explicit request to create and auto-execute a Python math embed starts E2B and returns the completed
+  result to the assistant, preserving terminal safety checks.
+verification:
+  local_required:
+  - Focused dependency-choice helper unit checks and TypeScript/Svelte checks for touched files.
+  - Focused Python route/provider/task unit tests; no user code or product integration execution on the
+    dev host.
+  - python3 scripts/plan_validate.py docs/plans/code-run-python-reliability/plan.yml
+  isolated_ci_required:
+  - Bare dependency-picker component selection regression with frozen registry metadata; explicit pins
+    preserved.
+  - Provider-free route, runner, assistant-dispatch and async-completion tests.
+  - Authenticated browser dependency request and encrypted output reopen flow, with sandbox transport
+    mocked and labelled; actual E2B verified separately.
+  current_evidence: Implementation in progress. Historical terminal evidence established the cause; focused
+    tests and CI results are recorded after execution.
+  real_inference_dev_required:
+  - After scoped deploy, use isolated test account/Project/CLI state under shared dev-stack and exclusive
+    account leases.
+  - Original Python math example plus plot artifact and two Rust requests using default automatic routing;
+    no model/provider overrides.
+  - Verify generated source embeds, successful actual E2B status/output, and assistant continuation informed
+    by those results; preserve actual CLI recording evidence.
+scope_limits:
+- Do not hard-code a NumPy downgrade or switch the sandbox runtime as the primary fix.
+- Do not build a separate backend package resolver or execute pip outside E2B.
+- Do not bypass Requires-Python, loosen explicit pins, or add blind retries.
+- Keep npm selection and unrelated notebook execution behavior outside this repair.
+- Do not alter billing/refunds, automatically rewrite user code, or change plot/LaTeX display contracts.
+- Do not change dedicated terminal-safety model/provider configuration or weaken fail-closed output scanning
+  to make a test pass.
+followup_reliability_options:
+- Assess a versioned E2B template/runtime inventory when next changing the template, so runtime drift
+  is deliberate and smoke-tested.
+- Evaluate per-run virtual environments only if template-package contamination is observed; no ABI failure
+  was found in this incident.
+- Consider an explicit rerun-with-recorded-versions feature separately; recording versions alone does
+  not guarantee reproducible future installs.
+privacy:
+- Keep personal chat/embed identifiers and full historical account logs in private incident artifacts,
+  outside committed source.

@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
 //
-// Shared Code Run capability checks for code embeds.
+// Shared Code Run capability checks and dependency selection for code embeds.
 // Keeps the fullscreen CTA decision testable and aligned with the backend
 // execution allowlist in backend/core/api/app/routes/code_execution.py.
 // Atopile is intentionally excluded until it has a dedicated check/build flow.
@@ -39,4 +39,18 @@ export function isCodeRunSupported(language: string, filename?: string): boolean
   const extensionIndex = filename.lastIndexOf(".");
   if (extensionIndex < 0) return false;
   return RUNNABLE_EXTENSIONS.has(filename.slice(extensionIndex).toLowerCase());
+}
+
+/** Let pip resolve against the sandbox interpreter unless the user chooses a pin. */
+export const AUTOMATIC_DEPENDENCY_VERSION = "automatic";
+
+export function defaultDependencyVersion(ecosystem: "python" | "npm", latestVersion: string): string {
+  return ecosystem === "python" ? AUTOMATIC_DEPENDENCY_VERSION : latestVersion;
+}
+
+export function dependencyPackageSpec(ecosystem: "python" | "npm", packageName: string, version: string): string {
+  if (ecosystem === "python") {
+    return version === AUTOMATIC_DEPENDENCY_VERSION ? packageName : `${packageName}==${version}`;
+  }
+  return `${packageName}@${version}`;
 }

@@ -1736,3 +1736,9 @@ get_project_overview.description:
   verified_by_human:
     - en
     - de
+
+run.automatic_compatible:
+  context: Python dependency version option; pip selects a release compatible with the sandbox Python interpreter
+  en: Automatic (compatible)
+  de: Automatisch (kompatibel)
+  verified_by_human: []

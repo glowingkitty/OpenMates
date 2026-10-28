@@ -325,11 +325,11 @@ class FakeManager:
 
 class FakeEncryption:
     async def encrypt_with_user_key(self, plaintext: str, key_id: str):
-        return f"vault:{plaintext}", None
+        return f"vault:v1:{plaintext}", None
 
     async def decrypt_with_user_key(self, ciphertext: str, key_id: str):
-        if ciphertext.startswith("vault:"):
-            return ciphertext.removeprefix("vault:")
+        if ciphertext.startswith("vault:v1:"):
+            return ciphertext.removeprefix("vault:v1:")
         raise AssertionError("Code Run must not try to Vault-decrypt Directus client ciphertext")
 
 
@@ -745,7 +745,7 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
 @pytest.mark.anyio
 async def test_collect_code_files_uses_vault_encrypted_recent_cache() -> None:
     toon = encode({"type": "code", "code": "print('ok')", "language": "python", "filename": "main.py"})
-    cached = _metadata(encrypted_content=f"vault:{toon}")
+    cached = _metadata(encrypted_content=f"vault:v1:{toon}")
 
     files, target_path = await _collect_code_files(
         CHAT_ID,
@@ -925,12 +925,12 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
         "output_safety_receipt_id": "server-receipt-1",
     })
     decoded_output = decode(output_toon)["output"]
-    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:v1:{code_toon}")})
     client = await cache.client
     await client.set(
         code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID),
         json.dumps({
-            "encrypted_content": f"vault:{output_toon}",
+            "encrypted_content": f"vault:v1:{output_toon}",
             "chat_id": CHAT_ID,
             "embed_id": TARGET_EMBED_ID,
             "output_safety_receipt": _scanned_output_receipt(decoded_output),
@@ -953,11 +953,11 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
 async def test_resolve_code_embed_references_withholds_legacy_unreviewed_code_run_output() -> None:
     code_toon = encode({"type": "code", "code": "print('source')", "language": "python", "filename": "main.py"})
     output_toon = encode({"type": "code_run_output", "status": "exited", "output": "unreviewed\n", "saved_at": 123})
-    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:v1:{code_toon}")})
     client = await cache.client
     await client.set(
         code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID),
-        json.dumps({"encrypted_content": f"vault:{output_toon}", "chat_id": CHAT_ID, "embed_id": TARGET_EMBED_ID}),
+        json.dumps({"encrypted_content": f"vault:v1:{output_toon}", "chat_id": CHAT_ID, "embed_id": TARGET_EMBED_ID}),
     )
     service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
 
@@ -973,7 +973,7 @@ async def test_resolve_code_embed_references_withholds_legacy_unreviewed_code_ru
 @pytest.mark.anyio
 async def test_resolve_code_embed_references_accepts_json_embed_fence() -> None:
     code_toon = encode({"type": "code", "code": "print('ok')", "language": "python", "filename": "main.py"})
-    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:v1:{code_toon}")})
     service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
 
     resolved, file_path_index = await service.resolve_embed_references_in_content(
@@ -1098,9 +1098,9 @@ async def test_collect_code_files_filters_cached_files_to_selected_embeds() -> N
     helper_toon = encode({"type": "code", "code": "print('helper')", "language": "python", "filename": "helper.py"})
     skipped_toon = encode({"type": "code", "code": "print('skip')", "language": "python", "filename": "skip.py"})
     embeds = {
-        TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{target_toon}"),
-        "embed-helper": {**_metadata(encrypted_content=f"vault:{helper_toon}"), "embed_id": "embed-helper"},
-        "embed-skip": {**_metadata(encrypted_content=f"vault:{skipped_toon}"), "embed_id": "embed-skip"},
+        TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:v1:{target_toon}"),
+        "embed-helper": {**_metadata(encrypted_content=f"vault:v1:{helper_toon}"), "embed_id": "embed-helper"},
+        "embed-skip": {**_metadata(encrypted_content=f"vault:v1:{skipped_toon}"), "embed_id": "embed-skip"},
     }
 
     files, target_path = await _collect_code_files(
@@ -1139,7 +1139,7 @@ async def test_collect_code_files_accepts_selected_client_attachment_fallback() 
         ],
         [TARGET_EMBED_ID, attachment_id],
         _user(),
-        FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{target_toon}")}),
+        FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:v1:{target_toon}")}),
         FakeDirectus({attachment_id: attachment_metadata}),
         FakeEncryption(),
     )
@@ -1251,6 +1251,27 @@ def test_dependency_installs_from_imports_adds_python_packages_without_manifest(
 
     assert [install.model_dump() for install in installs] == [
         {"ecosystem": "python", "packages": ["requests"]}
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated
+def test_math_dependencies_resolve_together_without_implicit_latest_pins() -> None:
+    inferred = _dependency_installs_from_imports([
+        {
+            "path": "math_demo.py",
+            "language": "python",
+            "content": "import sympy as sp\nimport numpy as np\nimport matplotlib.pyplot as plt\nfrom IPython.display import display, Math\n",
+        }
+    ])
+    assert [install.model_dump() for install in inferred] == [
+        {"ecosystem": "python", "packages": ["sympy", "numpy", "matplotlib", "IPython"]}
+    ]
+    selected = _merge_dependency_installs(
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["numpy==2.5.4"])],
+        inferred,
+    )
+    assert [install.model_dump() for install in selected] == [
+        {"ecosystem": "python", "packages": ["numpy==2.5.4", "sympy", "matplotlib", "IPython"]}
     ]
 
 

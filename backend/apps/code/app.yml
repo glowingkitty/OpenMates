@@ -591,8 +591,12 @@ skills:
       running unmodified user-supplied code or after the initial run plus two
       unprompted reruns. The sandbox installs supported dependency manifests,
       executes the selected file, streams terminal status, and returns safe
-      artifact metadata. Pricing is 5 credits per started minute of sandbox
-      runtime.
+      artifact metadata. The inline files are saved as code embeds and executed
+      automatically; no separate auto-execute flag is needed. A processing result
+      only acknowledges dispatch. Use the completed execution's checked terminal
+      output, exit code, and artifacts to explain the actual result; never claim
+      success or invent output while the execution is pending. Pricing is 5
+      credits per started minute of sandbox runtime.
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B

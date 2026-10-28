@@ -619,7 +619,8 @@
         "rust-core-production-saved-paging.spec.ts",
         "rust-core-ordinary-login-retention.spec.ts",
         "authored-results-flow.spec.ts",
-        "authored-results-media.spec.ts"
+        "authored-results-media.spec.ts",
+        "code-run-dependency-flow.spec.ts"
       ]
     },
     "external_integration": {
@@ -1079,6 +1080,13 @@
       "enabling_work": "Actual isolated CLI image uploads, private S3-compatible storage/ClamAV and committed deterministic AI fixture; exact full-storage epoch activation preserves selected media after source-message deletion and explicit sharing. No live AI/provider inference or external provider requests.",
       "specs": [
         "authored-results-media.spec.ts"
+      ]
+    },
+    "code_run_dependency_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare Code fullscreen preview tests real dependency preparation and start request serialization against intercepted HTTP fixtures. Frozen latest Python metadata covers automatic compatible selection and explicit pins; no sandbox execution, backend, account, provider credentials or AI inference is claimed. Actual Python/Rust execution and assistant continuation are verified separately on dev with isolated state and automatic routing.",
+      "specs": [
+        "components/code-run-dependencies.spec.ts"
       ]
     }
   },

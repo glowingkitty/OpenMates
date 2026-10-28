@@ -46,7 +46,7 @@
   import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
   import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
   import { chatDB } from '../../../services/db';
-  import { isCodeRunSupported } from './codeRunSupport';
+  import { AUTOMATIC_DEPENDENCY_VERSION, defaultDependencyVersion, dependencyPackageSpec, isCodeRunSupported } from './codeRunSupport';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -1078,10 +1078,6 @@
     };
   }
 
-  function dependencyPackageSpec(ecosystem: CodeRunDependencyInstall['ecosystem'], packageName: string, version: string): string {
-    return ecosystem === 'python' ? `${packageName}==${version}` : `${packageName}@${version}`;
-  }
-
   function formatDependencyReleaseDate(value?: string | null): string {
     if (!value) return '';
     const date = new Date(value);
@@ -1090,7 +1086,7 @@
   }
 
   function dependencySuggestionCandidate(suggestion: CodeRunDependencySuggestion): CodeRunFileCandidate {
-    const version = suggestion.latest_version;
+    const version = defaultDependencyVersion(suggestion.ecosystem, suggestion.latest_version);
     const packageSpec = dependencyPackageSpec(suggestion.ecosystem, suggestion.package, version);
     const released = formatDependencyReleaseDate(suggestion.latest_released_at);
     return {
@@ -1099,8 +1095,8 @@
       kind: 'dependency',
       title: suggestion.package,
       subtitle: released
-        ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
-        : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
+        ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version: suggestion.latest_version, releaseDate: released } })
+        : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version: suggestion.latest_version } }),
       selected: true,
       required: false,
       dependencyPackage: suggestion.package,
@@ -1755,10 +1751,14 @@
                                   <span class="code-run-dependency-version-row">
                                     <span>{$text('app_skills.code.run.version')}</span>
                                     <select
+                                      aria-label={`${candidate.title} · ${$text('app_skills.code.run.version')}`}
                                       value={candidate.selectedVersion}
                                       onclick={(event) => event.stopPropagation()}
                                       onchange={(event) => updateDependencyVersion(candidate.id, (event.currentTarget as HTMLSelectElement).value)}
                                     >
+                                      {#if candidate.dependencyInstall?.ecosystem === 'python'}
+                                        <option value={AUTOMATIC_DEPENDENCY_VERSION}>{$text('app_skills.code.run.automatic_compatible')}</option>
+                                      {/if}
                                       {#each candidate.dependencyVersionOptions as option}
                                         {@const released = formatDependencyReleaseDate(option.released_at)}
                                         <option value={option.version}>{option.version}{released ? ` · ${released}` : ''}</option>
