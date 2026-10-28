@@ -1,3 +1,11 @@
+import type { EmbedSourceChatContext } from '../../../types/embedFullscreen';
+
+/** An owner lookup is normal; only an explicit private chat permits live controls. */
+export function canViewBrowseSession(authenticated: boolean, userId: string | null, source?: EmbedSourceChatContext): boolean {
+  return !!(authenticated && userId && source?.chatId && source.isReadOnly === false && !source.exampleChatId
+    && (!source.lookupChatId || source.lookupChatId === source.chatId));
+}
+
 /** Read only known envelope fields; never guess how flattened JSON keys were nested. */
 export function browseContent(content: Record<string, unknown>) {
   const result = Array.isArray(content.results) && content.results[0] && typeof content.results[0] === 'object'

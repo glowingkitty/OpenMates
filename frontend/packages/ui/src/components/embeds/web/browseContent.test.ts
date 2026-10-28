@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { browseContent } from './browseContent';
+import { browseContent, canViewBrowseSession } from './browseContent';
+
+// contract-test: supporting surface=gui.web assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
+describe('Browse live owner boundary', () => {
+  const owner = { chatId: 'owner-chat', lookupChatId: 'owner-chat', isReadOnly: false };
+  // contract-test: supporting surface=gui.web assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
+  it('permits a normal owner chat whose lookup points to that same chat', () => {
+    expect(canViewBrowseSession(true, 'owner', owner)).toBe(true);
+    expect(canViewBrowseSession(true, 'owner', { ...owner, lookupChatId: null })).toBe(true);
+  });
+  // contract-test: supporting surface=gui.web assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
+  it('denies public, shared, cross-chat, missing-policy and unauthenticated views', () => {
+    expect(canViewBrowseSession(false, 'owner', owner)).toBe(false);
+    expect(canViewBrowseSession(true, null, owner)).toBe(false);
+    for (const source of [undefined, { ...owner, chatId: null }, { ...owner, isReadOnly: true },
+      { ...owner, isReadOnly: undefined }, { ...owner, exampleChatId: 'public-example' },
+      { ...owner, lookupChatId: 'another-chat' }]) {
+      expect(canViewBrowseSession(true, 'owner', source)).toBe(false);
+    }
+  });
+});
 
 // contract-test: supporting surface=gui.web assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.private-storage-and-api
 describe('saved Browse result boundary', () => {

@@ -6,7 +6,7 @@
   import { authStore } from '../../../stores/authState';
   import { userProfile } from '../../../stores/userProfile';
   import { activeTeamContext } from '../../../stores/teamStore';
-  import { browseContent, browseStatusKey } from './browseContent';
+  import { browseContent, browseStatusKey, canViewBrowseSession } from './browseContent';
   import { renderBrowse } from './browseEmbedText';
   import { webBrowseClient, type BrowseSession } from '../../../services/webBrowseService';
   import { queueAppsWorkspaceChatHandoff, captureAppsWorkspaceHandoffGuard } from '../../../services/appsWorkspaceChatHandoffService';
@@ -20,7 +20,7 @@
   let result = $derived(browseContent(updated || data.decodedContent));
   // Public examples and shared read-only results never open an authenticated
   // viewer. Account/team changes destroy the live frame and abort all requests.
-  let canView = $derived($authStore.isAuthenticated && !!$userProfile.user_id && !source?.exampleChatId && !source?.lookupChatId);
+  let canView = $derived(canViewBrowseSession($authStore.isAuthenticated, $userProfile.user_id, source));
   async function continueInChat(session: BrowseSession) {
     if (!ownerCurrent() || session.session_id !== result.sessionId || !session.chat_id
       || (source?.chatId && source.chatId !== session.chat_id)) throw new Error('browser_chat_changed');

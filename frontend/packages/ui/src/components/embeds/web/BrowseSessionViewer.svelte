@@ -161,7 +161,7 @@
       <button disabled={!manual} onclick={() => send({ kind: 'scroll', delta: -600 })}>{$text('embeds.browse.scroll_up')}</button>
       <button disabled={!manual} onclick={() => send({ kind: 'scroll', delta: 600 })}>{$text('embeds.browse.scroll_down')}</button>
     </div>
-  {:else if session && !ending}<p class="hint">{$text(session.status === 'paused' ? 'embeds.browse.paused_hint' : 'embeds.browse.watch_hint')}</p>{/if}
+  {:else if session && !ending && !terminal}<p class="hint">{$text(session.status === 'paused' ? 'embeds.browse.paused_hint' : 'embeds.browse.watch_hint')}</p>{/if}
 </section>
 
 <style>

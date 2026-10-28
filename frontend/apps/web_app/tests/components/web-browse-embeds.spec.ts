@@ -146,6 +146,7 @@ for (const width of [1280, 390]) {
     await expect(viewer).toContainText('Session expired');
     await expect(viewer).toContainText('No saved screenshot is available.');
     await expect(viewer).not.toContainText('Waiting for the browser');
+    await expect(viewer).not.toContainText('You are watching');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });

@@ -53,19 +53,32 @@ async function context(_browser: Browser, info: TestInfo, width: number) {
   const ctx = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP,
     viewport: { width, height: width < 600 ? 844 : 1000 },
     recordVideo: { dir: info.outputPath('recordings'), size: { width, height: width < 600 ? 844 : 1000 } } });
+  ctx.setDefaultTimeout(20_000);
+  ctx.setDefaultNavigationTimeout(45_000);
   await guardDevApi(ctx);
   return ctx;
 }
-async function openSession(page: Page, chatId: string) {
+async function expandActivities(page: Page) {
+  await expect(page.getByTestId('assistant-activity-toggle').first()).toBeVisible({ timeout: 90_000 });
+  for (const toggle of await page.getByTestId('assistant-activity-toggle').all()) {
+    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  }
+}
+async function openSession(page: Page, chatId: string, admitted: (sessionId: string) => void) {
   await page.goto(`/#chat-id=${chatId}`);
+  await expandActivities(page);
   await expect(preview(page).last()).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
   const embedId = await preview(page).last().getAttribute('data-embed-id');
   expect(embedId).toBeTruthy();
-  const response = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null && r.status() === 200);
+  const response = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null && r.status() === 200,
+    { timeout: 20_000 }).catch(() => null);
   const started = Date.now();
   await preview(page).last().click();
-  const session = await (await response).json();
+  const reply = await response;
+  expect(reply, 'The owner fullscreen must request its authenticated browser session').not.toBeNull();
+  const session = await reply!.json();
   expect(session.chat_id).toBe(chatId);
+  admitted(session.session_id);
   await expect(page.getByAltText('Live browser', { exact: true })).toBeVisible({ timeout: 60_000 });
   return { session, embedId: embedId!, viewerOpenToFrameMs: Date.now() - started };
 }
@@ -89,9 +102,20 @@ async function cleanup(ctx: BrowserContext, chatId: string, sessionId: string | 
   expect([200, 410]).toContain(closed.status());
 }
 async function saveVideo(page: Page, ctx: BrowserContext, info: TestInfo) {
-  const video = page.video();
-  await ctx.close();
-  if (video) await video.saveAs(info.outputPath('video.webm'));
+  // Persistent-context close also closes its browser connection, so obtain the
+  // local path first and copy the completed file without a later protocol call.
+  let recording: string | undefined;
+  try { recording = await page.video()?.path(); }
+  catch { info.annotations.push({ type: 'video_capture_failure', description: 'Recording path unavailable' }); }
+  try { await ctx.close(); }
+  catch { info.annotations.push({ type: 'video_capture_failure', description: 'Browser close failed' }); }
+  if (recording) {
+    try {
+      const target = info.outputPath('video.webm');
+      fs.copyFileSync(recording, target);
+      await info.attach('Browse real browser recording', { path: target, contentType: 'video/webm' });
+    } catch { info.annotations.push({ type: 'video_capture_failure', description: 'Recording copy unavailable' }); }
+  }
 }
 function receipt(info: TestInfo, data: Record<string, unknown>) {
   fs.writeFileSync(info.outputPath('browse-runtime.json'), JSON.stringify({ target: APP, automaticRouting: true, ...data }, null, 2), { mode: 0o600 });
@@ -141,6 +165,8 @@ test.beforeAll(async () => {
       expect(probeChat).toMatch(/^[a-f0-9-]{36}$/);
       await page.goto(`/#chat-id=${probeChat}`);
       await expect(page.getByText('Use the Browse skill to open', { exact: false }).first()).toBeVisible({ timeout: 60_000 });
+      await expandActivities(page);
+      await expect(preview(page).last()).toBeVisible({ timeout: 30_000 });
     }
   } finally { await restored.close(); }
 });
@@ -153,7 +179,7 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
   let sid: string | undefined;
   const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
   try {
-    const opened = await openSession(page, created.chatId); sid = opened.session.session_id;
+    const opened = await openSession(page, created.chatId, id => { sid = id; });
     receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
     await expect(page.getByTestId('browse-session-viewer')).toContainText('You are watching');
     await page.getByText('Structured data', { exact: true }).click();
@@ -169,6 +195,7 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
     await screenshot(page, info, 'closed-laptop');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
+    await expandActivities(page);
     await preview(page).last().click();
     await expect(page.getByTestId('browse-session-viewer')).toContainText('Session expired');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
@@ -204,7 +231,7 @@ for (const width of [1280, 390]) {
     const ctx = await context(browser, info, width), page = ctx.pages()[0] || await ctx.newPage();
     let sid: string | undefined;
     try {
-      const opened = await openSession(page, created.chatId); sid = opened.session.session_id;
+      const opened = await openSession(page, created.chatId, id => { sid = id; });
       receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
       const points = await loginGeometry(browser);
       await page.getByRole('button', { name: 'Take control', exact: true }).click();
@@ -231,7 +258,9 @@ for (const width of [1280, 390]) {
         }
       };
       const click = (point: { x: number; y: number }) => async () => {
-        const frame = page.getByTestId('browse-frame'), rect = await frame.boundingBox(); expect(rect).toBeTruthy();
+        const frame = page.getByRole('button', { name: 'Live browser', exact: true });
+        await expect(frame).toBeEnabled();
+        const rect = await frame.boundingBox(); expect(rect).toBeTruthy();
         await frame.click({ position: { x: point.x * rect!.width / 1280, y: point.y * rect!.height / 800 } });
       };
       const type = (value: string) => async () => {
@@ -245,9 +274,11 @@ for (const width of [1280, 390]) {
       await screenshot(page, info, `manual-login-${width}`);
       await page.getByRole('button', { name: 'Let AI continue', exact: true }).click();
       await expect(page.getByTestId('browse-fullscreen')).toHaveCount(0);
-      await expect(preview(page)).toHaveCount(2, { timeout: 120_000 });
-      await expect(preview(page).last()).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
-      const completed = await openSession(page, created.chatId);
+      await expect.poll(async () => {
+        await expandActivities(page);
+        return await preview(page).count() === 2 && await preview(page).last().getAttribute('data-status') === 'finished';
+      }, { timeout: 120_000 }).toBe(true);
+      const completed = await openSession(page, created.chatId, id => { sid = id; });
       expect(completed.session.session_id).toBe(sid);
       expect(completed.session.max_credits).toBe(opened.session.max_credits);
       await page.getByText('Structured data', { exact: true }).click();

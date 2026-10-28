@@ -453,3 +453,56 @@ Complete isolated component proof, authenticated web flows, dev deployment and
 reviewed laptop/mobile evidence, followed by the two real app-store examples.
 Workflow verification follows delivery of the regular skill and embeds. Rust SDK
 parity remains explicitly deferred by the user’s 2026-10-27 decision.
+
+## Resumed web verification on 28 October
+
+Hardening commit `d29e12d` is deployed to dev. Exact candidate `8fb0ff65`
+passed isolated component run `40662199554` (three laptop/phone cases) and
+backend run `40662282222`. The deployed fullscreen missing-screenshot state was
+reviewed on laptop and phone with no clipping, broken images or console/network
+errors. Managed backend operation `docker-a3eb0bd7` completed with all services
+healthy; live inference checks verify the owned backend source under a shared
+runtime lease.
+
+The native persistent-profile preflight preserved its real master CryptoKey and
+displayed an existing encrypted chat. A new automatically routed CLI chat
+`110441e8` returned a genuinely completed Browse result containing the exact
+HTTPBin heading and source URL. Its timings were 3.438 s provisioning, 3.600 s
+initial navigation, 7.816 s startup through first observation, 17.524 s total
+skill execution and 50.965 s outer chat. Provisioning met the below-four-second
+target; the first observed page and full task remain substantially slower.
+
+At skill completion, native supplier cost was $0.0029748241, including
+$0.0007129600 runtime and $0.0022618680 inference; accrued user cost was five
+credits. Five helper calls reported complete native usage. The session was
+closed after the failed UI harness waited through idle grace, with a final
+15-credit ($0.015) charge and no pending accounting. This final charge includes
+that additional running time; it is not the immediate task-completion price.
+Together ZDR remains unqualified, so the text helper used Gemini 3.8 Flash.
+
+The remaining UI assertion failure was a test interaction: the completed skill
+card was inside the standard collapsed assistant activity section. Authentication
+and chat hydration succeeded. Persistent-browser video finalization then masked
+that assertion by calling `video.saveAs` after its browser connection had closed.
+The prepared harness expands the existing accessible activity controls and copies
+the finalized local recording without a post-close protocol request. It also
+records the admitted session before waiting for a frame so failed checks can
+still close their own browser. Real takeover acceptance is still pending.
+
+A reviewed component screenshot also exposed an expired viewer's misleading
+watch/take-control hint. Its focused correction and assertion are preserved
+locally. Further CI source publication is waiting on the central disk coordinator
+(request `74484f99`); no independent cleanup or admission bypass is being used.
+
+The next run, chat `ea57b800`, also completed Browse with correct JSON: 3.230 s
+provisioning, 8.768 s through first observation, 28.882 s skill time and 58.948 s
+outer chat. Final owner-close settlement was 18 credits with no pending
+accounting, again including idle grace during the UI failure. It exposed the
+actual viewer integration bug: the normal owner fullscreen has both `chatId`
+and `lookupChatId` set to the originating chat. Rejecting every lookup hid all
+live controls, even though the saved screenshot and JSON rendered correctly.
+The prepared correction requires an explicitly private owner context, permits a
+lookup of that same chat, and continues to deny public, shared, cross-chat and
+unauthenticated views. Real test response waits are now bounded to surface a
+missing owner viewer promptly. Disk capacity was subsequently granted by the
+coordinator, allowing the corrected candidate to proceed to isolated verification.

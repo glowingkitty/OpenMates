@@ -5529,6 +5529,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         get chatId() { return showEmbedFullscreen && !fullscreenHasChatContext ? null : currentChat?.chat_id ?? null; },
         get exampleChatId() { return embedFullscreenData?.exampleChatId ?? null; },
         get lookupChatId() { return embedFullscreenData?.lookupChatId ?? null; },
+        get isReadOnly() {
+            return !currentChat?.chat_id || currentChat.is_shared_by_others === true || isPublicChat(currentChat.chat_id)
+                || !!embedFullscreenData?.exampleChatId || (showEmbedFullscreen && !fullscreenHasChatContext);
+        },
     });
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
