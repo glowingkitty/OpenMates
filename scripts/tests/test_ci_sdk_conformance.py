@@ -1506,7 +1506,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "5b4d44475fafbcb4b0a6d39b4cb186f0181e10a0a390494146c32573668e646a"
+    assert sdk.sha(live_bytes) == "fa2cb4db556adf72a35b7bb817161f4106a0e9418e3f2bb35ddee8ec5eaf0b6e"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -5090,7 +5090,7 @@ def test_security41_truthful_three_language_api_classification_and_partial_state
     assert delta["newAPICounts"] == {"rust": 2059, "npm": 1542, "python": 1174}
 
 
-def test_security41_work23_schema_enforced_with_exact_original10_and_savedread103():
+def test_security41_work23_schema_enforced_with_exact_original10_and_savedread103(tmp_path):
     import importlib.util
     delta = security41_delta()
     root = CompilerPublication11HistoricalPath(Path(__file__).resolve().parents[2])
@@ -5103,6 +5103,29 @@ def test_security41_work23_schema_enforced_with_exact_original10_and_savedread10
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
     assert gate.FIXTURE_SCHEMAS[name] == "tests/sdk-conformance/schemas/session-work.schema.json"
+    # The real gate resolves paths before reading: materialize the exact reviewed
+    # historical schema instead of changing runtime IO or today's 26-vector rule.
+    import base64
+    import zlib
+    schema_name = gate.FIXTURE_SCHEMAS[name]
+    schema_raw = zlib.decompress(base64.b64decode("eNrNWEtz2zYQvutXaBjfaj3s5BLP9NBDD53pTHtuRuVA5FJCBAIMAMp2PfrvXfAhk3iQlK3xJIdEWSwWux8+7IMvs/k8ulHJHnISPcyjvdaFelitvivBF7V4KeRulUqS6dX9+n69uLtfNfq3ZrOmmoHZ+vsTVZry3VyBUlTw5aOQh0Uiy3R5vJsXrFTzrSh5CulckSOkC6UlkHzOaAbJc8JgfoREC6kau89FZVZsv6O4lkn4UVIJKcq/4f9RUnsSH0GaIystlBZSHIETnkArSUhBtpRRTUFFKNpU9kiaokRwwv6WogBZrT7MM8IUVApFV/ziPbKVm0MEVxoFd5Xg5DrT0W3DQxAQs8ZNlOeU/wl8p/eOnV4IHksdoCq5A1btvedyomZ5c947BkwbmA1O+IiuRtjpsOO1W0mCDOqrG2NII1tGeVE6il2CdcQVHeOajlFnadNzawomQ7j0IrAXzCuUkBlIPq1uUsjUqlXt6Z18oXuMWfgO2qihGjdya68HL6reTdRBOZtqfIw9FVlLm0Eve5d0dWf9zGrd1SIRzHHXOWIqQ8ZYMsKUepmxvzJvLObPi1c6lWSBKxg1PgjxWUs8cpAxTaOAysbvy2yK5mno/gJIjhBnWmQRKYpYSLqjPPKjhs8MyUFYnOyJNuFPUTvAc1jPTXDnxUyC2sc5JmKyAxUfQ3qQb/FR+e9i40XiEo5P4bkN3kOYXm15PTcpuG0JTyQvGCwpPxIWItVp4pUMHB6o1y7yQuak8rIs3+WOufqH6Q/ZqF94mD/rXxyx27FMdcFh6YTLX190wpnfHxPnbIrMlpwGy17bsgxUPCIlcdOE8fcPDbnZev/ZWaXNkqfy2NSqXYiG3Z75fre/6n/N31V4UWX3taPuUz3YGhdEa5AmRUT/fvtt8Q9Z/LdefP1ltXn58vn0603U65bd8vm2RrmfqZGG4kChK8mJQq/izvu7bhvtsneIsQGWntwQrmqzA4JldzBPdU2c24ILHAslW4t3DSUaHr+ZEX0m5CKFK9/4tW+6ctGyCLzM3cHKTGn2VFTyA8dLscWYiDNqYH+dt18pm2BgtrAQjCbPjhkmlKOamCmZ+cczUwDKHCni3Vnr7IXSMdkKqUMjHmEQI1MROxI4Z8fE1tTgIVeMBzEXMc4iMvfrkFLv4xQ4DZ1TSIghy5B3gx6THOp+gGTmhZXoldSEcr/6jxJKU/DyAi2ie0dxgEHNOpQJiqpMEkxIQo7ARxJNj4gxDn+DGDZmc8LMI8ZfjQ8zX3vfJXVGcsqep9HaN4J6x0//UZ7h+vwit0IwINyfy+CpwBMwKHwpyEiQspd3+t1sjRKD1G+rzUUxUcokDdxmmxIcPLNgsF8INDoDDY7VlLyjE/lySSMy2pkN9mROT4gZjSLtWle0LCHYw/gJUT1EBcwuJAMU5PBoExCaD6XjBDzziKQ5rboBFeIj5Rp2IJ0SQfPKq3VfTp4a+b333NfHfp2ITRYbj1aWyuQsfFaYkuBIMXsm1+hTZtZRnm8nvSNo5n63G5xifYXWeeWmwk5voXtx6T24g/HQN4k2STovQFtfOPvfUE6+a/kAaOoy8WHgeLNz8HthN+/+JMh1B6G6mn4ceP2EcBvEtpOx3gDt7SVAjVdIb5l6xzy7eZ1nZ6fZ/+z+Kbs="))
+    assert sdk.sha(schema_raw) == "a12cdc36e03627009e697b33d9f5640658a878729b4ec4878b1c0ca0827d1cac"
+    schema_row = next(row for row in delta["sourceMap"] if row["path"] == schema_name)
+    assert sdk.sha(schema_raw) == schema_row["afterSha256"]
+    current_root = Path(__file__).resolve().parents[2]
+    current_schema = json.loads((current_root / schema_name).read_bytes())
+    assert current_schema["properties"]["capabilities"]["properties"]["session.work-crud.v1"]["properties"]["vectors"]["minItems"] == 26
+    with pytest.raises(gate.jsonschema.ValidationError):
+        gate.validate_fixture_document(name, json.loads(raw), current_root)
+    for relative, content in (
+        (schema_name, schema_raw),
+        ("tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+         (root / "tests/sdk-conformance/fixtures/session-saved-chat-read.json").read_bytes()),
+    ):
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    root = tmp_path
     assert gate.validate_fixture_document(name, json.loads(raw), root) is None
     bad = json.loads(raw)
     del bad["capabilities"]
@@ -7814,7 +7837,7 @@ def test_phase1_currentdev_exact_inverse_monitor_only_plans_and_complete_beforei
     matrix = json.loads((root / 'config/sdk-capabilities.json').read_bytes())
     assert sdk.execution_plan(root, matrix) == current['plan'] and sdk.matrix_gaps(matrix) == current['gaps']
     for row in delta['sourceInverse']:
-        raw = (root / row['path']).read_bytes()
+        raw = wasm_visibility_source_history(root / row['path'], (root / row['path']).read_bytes())
         assert sdk.sha(raw) == row['after_sha256']
         assert row['beforeExists'] is (row['beforeRaw'] is not None)
         if row['beforeExists']:
@@ -7863,6 +7886,7 @@ def ancillary_import_delta():
 
 
 def restore_before_ancillary_import(trust):
+    trust = wasm_visibility_history(trust)
     delta = ancillary_import_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == delta['afterSha256']
     prior = copy.deepcopy(trust)
@@ -7873,12 +7897,14 @@ def restore_before_ancillary_import(trust):
 
 
 def ancillary_import_history(trust):
+    trust = wasm_visibility_history(trust)
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == '5b4d44475fafbcb4b0a6d39b4cb186f0181e10a0a390494146c32573668e646a':
         return restore_before_ancillary_import(trust)
     return trust
 
 
 def ancillary_import_source_history(path, raw):
+    raw = wasm_visibility_source_history(path, raw)
     root = Path(__file__).resolve().parents[2]
     actual = getattr(path, 'path', path)
     if actual != root / 'scripts/tests/test_sdk_session_embed_version_gate.py' or sdk.sha(raw) != '3299d5affc1ee17b37112efb1962facefb5cfa31cca23013ecc00f09a0ec6416':
@@ -7890,7 +7916,7 @@ def ancillary_import_source_history(path, raw):
 
 
 def test_ancillary_import_hygiene_exact_pin_only_inverse_and_real_source():
-    current = sdk.load_trust()
+    current = wasm_visibility_history(sdk.load_trust())
     delta = ancillary_import_delta()
     prior = restore_before_ancillary_import(current)
     assert delta['beforeSha256'] == 'bb18462a3c18618ed7f7cbfb1dc7d7e73b51d6861954eecfc76b1004b5ecc571'
@@ -7899,7 +7925,7 @@ def test_ancillary_import_hygiene_exact_pin_only_inverse_and_real_source():
     assert {name for name in current['programs'] if current['programs'][name] != prior['programs'].get(name)} == {delta['path']}
     assert delta['productAPIChanged'] is False and delta['runtimeExecutions'] == 0
     root = Path(__file__).resolve().parents[2]
-    sdk.verify_programs(root, current)
+    sdk.verify_programs(root, sdk.load_trust())
     actual = (root / delta['path']).read_bytes()
     assert sdk.sha(actual) == delta['afterProgramSha256']
     assert ancillary_import_source_history(root / delta['path'], actual) == delta['beforeRaw'].encode()
@@ -7922,3 +7948,138 @@ def test_ancillary_import_hygiene_unknown_authority_refuses(bucket):
 
 def require_fixed_historical_manifest(raw, expected):
     assert sdk.sha(raw) == expected
+
+
+# Exact single-source visibility successor; no general historical fallback.
+def wasm_visibility_delta():
+    return immutable_trust_test_fixture('sdk-conformance-trust-wasm-visibility-delta.json', '0ba66af62b332066d5047a5fb52fc3c57d10514f39d155ecd1856b53da94f849')
+
+
+def restore_before_wasm_visibility(trust):
+    trust = canonical_preservation_history(trust)
+    delta = wasm_visibility_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == delta['afterSha256']
+    prior = copy.deepcopy(trust)
+    assert prior['programs'][delta['path']] == delta['afterProgramSha256']
+    prior['programs'][delta['path']] = delta['beforeProgramSha256']
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + '\n').encode()) == delta['beforeSha256']
+    return prior
+
+
+def wasm_visibility_history(trust):
+    trust = canonical_preservation_history(trust)
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == 'f4e3bedb5e4036588205ff48bdaf9eea2ea4bee4bf281ecf3ad8915ffef4084e':
+        return restore_before_wasm_visibility(trust)
+    return trust
+
+
+def wasm_visibility_source_history(path, raw):
+    raw = canonical_preservation_source_history(path, raw)
+    root = Path(__file__).resolve().parents[2]
+    actual = getattr(path, 'path', path)
+    if actual != root / 'packages/openmates-browser-bindings/src/browser_owned_send.rs' or sdk.sha(raw) != '765f38cbc8fa4cb1e37302f924b9ee97a473bd4583913601a02f78bf8c67967a':
+        return raw
+    delta = wasm_visibility_delta()
+    before = delta['beforeRaw'].encode()
+    assert sdk.sha(before) == delta['beforeProgramSha256']
+    return before
+
+
+def test_wasm_visibility_exact_one_pin_inverse_and_real_source():
+    current = canonical_preservation_history(sdk.load_trust())
+    delta = wasm_visibility_delta()
+    prior = restore_before_wasm_visibility(current)
+    assert delta['beforeSha256'] == '5b4d44475fafbcb4b0a6d39b4cb186f0181e10a0a390494146c32573668e646a'
+    assert {key: len(current[key]) for key in delta['counts']} == {'programs': 744, 'contracts': 124, 'plan': 102, 'gaps': 183}
+    assert {key: value for key, value in current.items() if key != 'programs'} == {key: value for key, value in prior.items() if key != 'programs'}
+    assert {name for name in current['programs'] if current['programs'][name] != prior['programs'].get(name)} == {delta['path']}
+    assert delta['productAPIChanged'] is False and delta['runtimeExecutions'] == 0
+    root = Path(__file__).resolve().parents[2]
+    sdk.verify_programs(root, sdk.load_trust())
+    actual = (root / delta['path']).read_bytes()
+    assert sdk.sha(actual) == delta['afterProgramSha256']
+    assert actual == delta['beforeRaw'].encode().replace(b'pub(super) fn prepare_owned', b'pub(in crate::browser) fn prepare_owned', 1)
+    assert wasm_visibility_source_history(root / delta['path'], actual) == delta['beforeRaw'].encode()
+    assert wasm_visibility_source_history(root / delta['path'], actual + b'\n') == actual + b'\n'
+    assert wasm_visibility_source_history(root / 'unknown-wasm-history', actual) == actual
+    assert len(_COMPRESSED_TRUST_WITNESSES) == 8 and _MAX_CACHED_COMPRESSED_TRUST_WITNESSES == 2
+
+
+@pytest.mark.parametrize('bucket', ['programs', 'contracts', 'plan', 'gaps'])
+def test_wasm_visibility_unknown_authority_refuses(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ['programs', 'contracts']:
+        wrong[bucket][next(iter(wrong[bucket]))] = '0' * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_wasm_visibility(wrong)
+    assert wasm_visibility_history(wrong) == wrong
+
+
+# Closed canonical-preservation inverse for exactly three already-declared source pins.
+def canonical_preservation_delta():
+    return immutable_trust_test_fixture('sdk-conformance-trust-canonical-preservation-delta.json', 'f1ebd8789f8bbcc19fbcf9382994dbb0850b523dbf71ede31d08061156c23fb9')
+
+
+def restore_before_canonical_preservation(trust):
+    delta = canonical_preservation_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == delta['afterSha256']
+    prior = copy.deepcopy(trust)
+    for row in delta['pinDeltas']:
+        assert prior[row['bucket']][row['path']] == row['afterSha256']
+        prior[row['bucket']][row['path']] = row['beforeSha256']
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + '\n').encode()) == delta['beforeSha256']
+    return prior
+
+
+def canonical_preservation_history(trust):
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + '\n').encode()) == 'fa2cb4db556adf72a35b7bb817161f4106a0e9418e3f2bb35ddee8ec5eaf0b6e':
+        return restore_before_canonical_preservation(trust)
+    return trust
+
+
+def canonical_preservation_source_history(path, raw):
+    root = Path(__file__).resolve().parents[2]
+    actual = getattr(path, 'path', path)
+    closed = {'.github/workflows/isolated-tests.yml': 'dc4d9dcd3bbf438fad5f392188e94b54005993470e743f6c2fea32a0501198bd', 'scripts/ci_environment.py': '1c0fb31d6e56d2b03cf1fbb0f6354502f742f23adb58ccc0c443444b8ddaad2d', 'scripts/ci_coverage_manifest.json': '956501a2a4f6c41aeea7310e491b0c0feab7967d42365b61ac1de631a2b353b7'}
+    for name, expected in closed.items():
+        if actual == root / name and sdk.sha(raw) == expected:
+            row = next(row for row in canonical_preservation_delta()['pinDeltas'] if row['path'] == name)
+            before = row['beforeRaw'].encode()
+            assert sdk.sha(before) == row['beforeSha256']
+            return before
+    return raw
+
+
+def test_canonical_preservation_exact_three_pin_inverse_and_source_closure():
+    current = sdk.load_trust()
+    delta = canonical_preservation_delta()
+    prior = restore_before_canonical_preservation(current)
+    assert delta['beforeSha256'] == 'f4e3bedb5e4036588205ff48bdaf9eea2ea4bee4bf281ecf3ad8915ffef4084e'
+    assert {key: len(current[key]) for key in delta['counts']} == {'programs': 744, 'contracts': 124, 'plan': 102, 'gaps': 183}
+    assert {key: value for key, value in current.items() if key not in {'programs', 'contracts'}} == {key: value for key, value in prior.items() if key not in {'programs', 'contracts'}}
+    assert {(bucket, name) for bucket in ['programs', 'contracts'] for name in current[bucket] if current[bucket][name] != prior[bucket].get(name)} == {(row['bucket'], row['path']) for row in delta['pinDeltas']}
+    assert len(delta['pinDeltas']) == 3 and delta['productAPIChanged'] is False and delta['runtimeExecutions'] == 0
+    root = Path(__file__).resolve().parents[2]
+    sdk.verify_programs(root, current)
+    for row in delta['pinDeltas']:
+        path = root / row['path']
+        actual = path.read_bytes()
+        assert sdk.sha(actual) == row['afterSha256']
+        assert canonical_preservation_source_history(path, actual) == row['beforeRaw'].encode()
+        assert canonical_preservation_source_history(path, actual + b'\n') == actual + b'\n'
+        assert canonical_preservation_source_history(root / 'unknown-canonical-history', actual) == actual
+    assert len(_COMPRESSED_TRUST_WITNESSES) == 8 and _MAX_CACHED_COMPRESSED_TRUST_WITNESSES == 2
+
+
+@pytest.mark.parametrize('bucket', ['programs', 'contracts', 'plan', 'gaps'])
+def test_canonical_preservation_unknown_authority_refuses(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ['programs', 'contracts']:
+        wrong[bucket][next(iter(wrong[bucket]))] = '0' * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_canonical_preservation(wrong)
+    assert canonical_preservation_history(wrong) == wrong

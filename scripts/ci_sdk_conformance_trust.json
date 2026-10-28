@@ -8,7 +8,7 @@
     "sdkCompilerChanges": false
   },
   "contracts": {
-    ".github/workflows/isolated-tests.yml": "c5db0bc7d182d65f369a32ac122696e2c4cb1ed611911ee77d73c69cfa4448fc",
+    ".github/workflows/isolated-tests.yml": "dc4d9dcd3bbf438fad5f392188e94b54005993470e743f6c2fea32a0501198bd",
     ".github/workflows/publish-cli.yml": "f41a0d8b0cf3463e74466e91f0d25dde173c2cda7e35079384b9335d31f606cf",
     ".github/workflows/publish-python-sdk.yml": "f5172d92a3c307bd7063af93958453878fcbb9f9f2f36681eadfac707f115c2a",
     ".github/workflows/selfhost-smoke-rust.yml": "7fe2abca15bc650eea5389e38274ddaa395f41a27d7a9d4285d80ba4fbb00678",
@@ -3612,7 +3612,7 @@
     "packages/openmates-browser-bindings/src/browser_draft.rs": "ceb413329b76f1974d10447a15fcddf02ad0b67a2b160ceff3f627bdd518679e",
     "packages/openmates-browser-bindings/src/browser_owned_message_read.rs": "1ce72cdad7d2bcec24e25d50bc68037b9f9197cad0e13d1e7240841c3ef13f1c",
     "packages/openmates-browser-bindings/src/browser_owned_recovery.rs": "7518064c41661739a59d5f02d9e9c12637094fc43f11df5ce39468694521d79d",
-    "packages/openmates-browser-bindings/src/browser_owned_send.rs": "399eef404d6761690b71dc714c153a2eb65b4245b6b49f88855716043002484e",
+    "packages/openmates-browser-bindings/src/browser_owned_send.rs": "765f38cbc8fa4cb1e37302f924b9ee97a473bd4583913601a02f78bf8c67967a",
     "packages/openmates-browser-bindings/src/browser_recovery_port.rs": "91f19278504740603082ff7434f971dcb7d6159ff5b85b69af2d48c5240b469b",
     "packages/openmates-browser-bindings/src/browser_send.rs": "611d2c9568ef62aa9f4db885b13538f1281e998e2de073556e367d175e06b6fb",
     "packages/openmates-browser-bindings/src/browser_socket_close_tests.rs": "0e9308ff7ca42eb4fc1a473059d61d3fcba95006c3e682755169ae87b7db748e",
@@ -3939,8 +3939,8 @@
     "scripts/check_sdk_conformance.py": "f0c75096f221fcd803954bc32e93abf8a9ac5c737b56c94f3922331b35cb4dc8",
     "scripts/ci_cargo_install_smoke.py": "b437842f614123a32fa858f3e9f3ea340d1c9b4595fa5877df9cefbe49fc04bf",
     "scripts/ci_chat_metadata_recovery.mjs": "c32c3d1fe562fce988bc0a1ec5fee07dfc7d27f40222ebdf0d00ecee6dcfbc72",
-    "scripts/ci_coverage_manifest.json": "8e11d4bd844ab56eebccb615ee93cc97ac4936c9cc3f7f2fef017bf05e430d56",
-    "scripts/ci_environment.py": "8b258d496dad2335b487c3fdbc1735491274c34020850dcfdfdff200b5acb53e",
+    "scripts/ci_coverage_manifest.json": "956501a2a4f6c41aeea7310e491b0c0feab7967d42365b61ac1de631a2b353b7",
+    "scripts/ci_environment.py": "1c0fb31d6e56d2b03cf1fbb0f6354502f742f23adb58ccc0c443444b8ddaad2d",
     "scripts/generate_rust_sdk_apps.py": "5c8225a1f0d8b970fd6af3c137dfb96d7d19a9e3fe488837ad354a828042fd7d",
     "scripts/generate_sdk_app_skills.py": "b026fc3d0b10ac278c2213f91700882b0cf8fd265f200821bb9b006d924182ce",
     "scripts/sdk_rust_inventory.py": "1915b55b31bd9dff688b74932161a5cb49b416514e6c7a04782f86ad59a82af1",
