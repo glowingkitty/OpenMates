@@ -38447,7 +38447,7 @@ assertions:
     direct_tests:
     - &id4818
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 176
+      line: 185
       name: real Browse JSON, watch, pause/resume and closed saved history on laptop
         and phone
       surface: gui.web
@@ -38666,7 +38666,7 @@ assertions:
       surface: rest_api
     - &id4843
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 228
+      line: 237
       name: real Browse manual demo sign-in and same-session AI continuation at ${width}px
       surface: gui.web
     supporting_tests:
@@ -39049,13 +39049,13 @@ assertions:
     direct_tests:
     - &id4877
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 176
+      line: 185
       name: real Browse JSON, watch, pause/resume and closed saved history on laptop
         and phone
       surface: gui.web
     - &id4878
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 228
+      line: 237
       name: real Browse manual demo sign-in and same-session AI continuation at ${width}px
       surface: gui.web
     supporting_tests:
@@ -39104,7 +39104,7 @@ assertions:
     direct_tests:
     - &id4886
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 228
+      line: 237
       name: real Browse manual demo sign-in and same-session AI continuation at ${width}px
       surface: gui.web
     supporting_tests:
@@ -39190,7 +39190,7 @@ assertions:
     direct_tests:
     - &id4893
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 228
+      line: 237
       name: real Browse manual demo sign-in and same-session AI continuation at ${width}px
       surface: gui.web
     supporting_tests:
@@ -39240,13 +39240,13 @@ assertions:
     direct_tests:
     - &id4912
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 176
+      line: 185
       name: real Browse JSON, watch, pause/resume and closed saved history on laptop
         and phone
       surface: gui.web
     - &id4913
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 228
+      line: 237
       name: real Browse manual demo sign-in and same-session AI continuation at ${width}px
       surface: gui.web
     supporting_tests:
@@ -39854,7 +39854,7 @@ assertions:
       surface: rest_api
     - &id4998
       path: frontend/apps/web_app/tests/web-browse-real.spec.ts
-      line: 176
+      line: 185
       name: real Browse JSON, watch, pause/resume and closed saved history on laptop
         and phone
       surface: gui.web

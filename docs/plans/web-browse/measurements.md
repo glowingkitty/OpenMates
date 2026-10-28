@@ -506,3 +506,23 @@ lookup of that same chat, and continues to deny public, shared, cross-chat and
 unauthenticated views. Real test response waits are now bounded to surface a
 missing owner viewer promptly. Disk capacity was subsequently granted by the
 coordinator, allowing the corrected candidate to proceed to isolated verification.
+
+Owner-viewer correction `f1b7809` is deployed, passed eight focused owner/frame
+tests and component run `40667470064`, and its expiry state was reviewed on both
+viewports. A third real task, chat `2acca599`, completed with correct JSON in
+14.567 s (3.069 s provisioning, 7.550 s first observation, 41.325 s outer chat).
+It accrued three credits at completion and settled at 13 after idle grace and
+owner close, with no pending accounting. The viewer now mounted, exposing a
+separate transport defect: Caddy's broad public API handler substituted wildcard
+CORS, which browsers reject with credentials. A read-only replay of an existing
+closed owner session confirmed CORS failure without further inference; an
+approved CLI read of the same session succeeded.
+
+The prepared transport correction adds the narrow Browse session path to the
+first-party proxy handlers for preflight and actual requests. A saved-owner CORS
+preflight now runs before paid acceptance requests. The live host also returned
+wildcard headers for the repository's generic app-skill ingress, so moving the
+URL would not fix this host; the control API remains stable. Non-interactive
+sudo requires a password, and no privileged proxy reload or production service
+change was made. Real takeover and sign-in remain unverified until the proxy
+correction is applied and the live tests pass.

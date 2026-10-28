@@ -167,6 +167,15 @@ test.beforeAll(async () => {
       await expect(page.getByText('Use the Browse skill to open', { exact: false }).first()).toBeVisible({ timeout: 60_000 });
       await expandActivities(page);
       await expect(preview(page).last()).toBeVisible({ timeout: 30_000 });
+      // Qualify cookie-authenticated CORS with existing saved history before
+      // spending on another real browser task. A closed owner session is 410.
+      const state = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null,
+        { timeout: 20_000 }).catch(() => null);
+      await preview(page).last().click();
+      await expect(page.getByTestId('browse-session-viewer')).toBeVisible();
+      const reply = await state;
+      expect(reply, 'Owner session CORS must work before paid inference').not.toBeNull();
+      expect([200, 410]).toContain(reply!.status());
     }
   } finally { await restored.close(); }
 });

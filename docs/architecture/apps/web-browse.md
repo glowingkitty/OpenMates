@@ -45,6 +45,13 @@ Routes are hidden from public developer documentation. An authenticated session 
 | Frame | `GET /v1/apps/web/browse/{session_id}/frame` | 90 |
 | Control | `POST /v1/apps/web/browse/{session_id}/control` | 120 |
 
+Session controls use first-party proxy handlers so browser cookies retain
+FastAPI's specific-origin credentialed CORS headers. The narrow
+`/v1/apps/web/browse/*` path must precede the public developer handler; its
+wildcard CORS cannot be used with browser credentials. Both preflight and actual
+requests must preserve FastAPI's headers. Authentication, owner checks and
+quotas remain authoritative in the backend.
+
 Direct library requests additionally supply an owned `chat_id` and stable `message_id`. Submission returns a normal async skill job; existing npm/Python library polling resolves the final JSON response. Three active browsers per owner are admitted. Controller operations are `take_control`, `resume`, `stop`, `close`, `input` and `sign_in`; manual input has a typed allowlist. Let AI continue must also send a normal follow-up to the originating chat with the exact session ID.
 
 ## E2B runtime and cost
