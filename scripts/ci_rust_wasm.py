@@ -66,6 +66,8 @@ SDK_SNIPPET_BODY_SHA256 = "f896283208ee2696872509a87d5256ec362ca8479ab24f410c642
 SDK_SNIPPET_BODY_BYTES = 3365
 SDK_PACKAGE_SOURCE = "packages/openmates-rust/Cargo.toml"
 SDK_PACKAGE_SOURCE_SHA256 = "adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af"
+# Exact second reviewed Cargo preimage: only serde_json float_roundtrip added.
+SDK_FLOAT_PACKAGE_SOURCE_SHA256 = "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f"
 
 
 SDK_FUNCTIONS = frozenset({"recoveryCapture", "recoveryListen", "recoveryUnlisten", "recoveryClose", "recoveryDefer", "recoveryRequest", "recoveryCancel", "recoveryStop", "recoveryRead"})
@@ -85,7 +87,7 @@ def recovery_sdk_output(files, inputs, diagnostic=None):
     if source is None and not names:
         return files
     source_match = (source == SDK_SNIPPET_SOURCE_SHA256 and len(names) == 1
-                    and inputs.get(SDK_PACKAGE_SOURCE) == SDK_PACKAGE_SOURCE_SHA256)
+                    and inputs.get(SDK_PACKAGE_SOURCE) in {SDK_PACKAGE_SOURCE_SHA256, SDK_FLOAT_PACKAGE_SOURCE_SHA256})
     _package_note(diagnostic, "package-source", packageSdkSourceMatch=source_match)
     if not source_match:
         return None
@@ -155,8 +157,8 @@ MODULE_SPACE = "\t\v\f \u00a0\ufeff\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2
 MODULE_LINES = "\n\r\u2028\u2029"
 
 
-def closed_module_dependencies(javascript):
-    """Conservative dependency-edge tokenizer, never a JS syntax/runtime proof.
+def module_dependency_reason(javascript):
+    """Finite diagnostic for the unchanged conservative dependency predicate.
 
     Scan raw text, including strings/comments/regex/templates: discarding those
     regions could hide an executable token. Every dynamic/static import has the
@@ -165,22 +167,22 @@ def closed_module_dependencies(javascript):
     Reject harmless lookalikes rather than attempt general JS lexical parsing.
     """
     if not isinstance(javascript, bytes) or not 0 < len(javascript) <= 64 * 1024**2:
-        return False
+        return 1
     try:
         text = javascript.decode("utf-8", errors="strict")
     except UnicodeError:
-        return False
+        return 2
     # Escaped contextual/reserved words are outside the reviewed glue grammar.
     # This intentionally also refuses harmless Unicode escapes inside literals.
     if "\\u" in text:
-        return False
+        return 3
     spent, budget = 0, len(text) * 8 + 128
     for token in re.finditer(r"(?<![A-Za-z0-9_$])(?:import|from)(?![A-Za-z0-9_$])", text):
         if token.group() == "import":
             end = token.start() + len("import.meta.url")
             if (not text.startswith("import.meta.url", token.start())
                     or end < len(text) and (text[end].isalnum() or text[end] in "_$\\.")):
-                return False
+                return 4
             continue
         cursor = token.end()
         while cursor < len(text):
@@ -190,7 +192,7 @@ def closed_module_dependencies(javascript):
             elif text.startswith("/*", cursor):
                 end = text.find("*/", cursor + 2)
                 if end < 0:
-                    return False
+                    return 5
                 cursor = end + 2
             elif text.startswith("//", cursor):
                 cursor += 2
@@ -200,10 +202,19 @@ def closed_module_dependencies(javascript):
                 break
             spent += cursor - before
             if spent > budget:
-                return False
+                return 6
         if cursor < len(text) and text[cursor] in "'\"":
-            return False
-    return True
+            return 7
+    return 0
+
+# Closed ordinal vocabulary. No token text, offsets, paths or source are emitted.
+# 0=closed, 1=input bounds/type, 2=UTF8, 3=Unicode escape, 4=import token,
+# 5=unterminated from-comment, 6=linear trivia budget, 7=quoted from source.
+DEPENDENCY_REASON_CODES = frozenset(range(8))
+
+
+def closed_module_dependencies(javascript):
+    return module_dependency_reason(javascript) == 0
 
 
 def _package_note(diagnostic, substage, **values):
@@ -258,8 +269,10 @@ def package_modules(files, inputs, diagnostic=None):
         if not singleton:
             return False
         javascript = javascript.replace(headers[counts.index(1)], b"", 1)
-    closed = closed_module_dependencies(javascript)
-    _package_note(diagnostic, "package-dependencies", packageDependenciesClosed=closed)
+    reason = module_dependency_reason(javascript)
+    closed = reason == 0
+    _package_note(diagnostic, "package-dependencies", packageDependenciesClosed=closed,
+                  packageDependencyRefusalKind=reason)
     return closed
 
 
@@ -723,7 +736,7 @@ PACKAGE_BOOLEANS = ("packageDirectoryCanonical", "packageDirectoryRegular", "pac
                     "packageSdkBodyMatch", "packageSdkImportSingleton", "packageSdkNamespaceUsesClosed")
 PACKAGE_COUNTS = {"packageDirectoryIndex": 3, "packageEntriesSeen": 6, "packageFileIndex": 5,
                   "packageFileBytes": 64 * 1024**2 + 1, "packageSnippetCount": 2,
-                  "packageNamedImportCount": 2, "packageDirectImportCount": 2}
+                  "packageNamedImportCount": 2, "packageDirectImportCount": 2, "packageDependencyRefusalKind": 7}
 
 
 def new_provenance_diagnostic():

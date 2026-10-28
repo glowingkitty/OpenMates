@@ -2711,3 +2711,75 @@ class RecoverySdkSnippetTests(unittest.TestCase):
                 "subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js",
             ],
         )
+
+
+class DependencyRefusalReasonTests(unittest.TestCase):
+    """Observation only: every old accept/refuse result remains unchanged."""
+
+    def test_finite_reason_vocabulary_and_original_predicate_equivalence(self):
+        # Compile only the original pure predicate from its exact preimage.
+        # This does not execute candidate product/compiler or load a SDK.
+        source = 'def closed_module_dependencies(javascript):\n    """Conservative dependency-edge tokenizer, never a JS syntax/runtime proof.\n\n    Scan raw text, including strings/comments/regex/templates: discarding those\n    regions could hide an executable token. Every dynamic/static import has the\n    literal reserved token import; every external export has FromClause, whose\n    literal from token is followed by ECMAScript trivia and a StringLiteral.\n    Reject harmless lookalikes rather than attempt general JS lexical parsing.\n    """\n    if not isinstance(javascript, bytes) or not 0 < len(javascript) <= 64 * 1024**2:\n        return False\n    try:\n        text = javascript.decode("utf-8", errors="strict")\n    except UnicodeError:\n        return False\n    # Escaped contextual/reserved words are outside the reviewed glue grammar.\n    # This intentionally also refuses harmless Unicode escapes inside literals.\n    if "\\\\u" in text:\n        return False\n    spent, budget = 0, len(text) * 8 + 128\n    for token in re.finditer(r"(?<![A-Za-z0-9_$])(?:import|from)(?![A-Za-z0-9_$])", text):\n        if token.group() == "import":\n            end = token.start() + len("import.meta.url")\n            if (not text.startswith("import.meta.url", token.start())\n                    or end < len(text) and (text[end].isalnum() or text[end] in "_$\\\\.")):\n                return False\n            continue\n        cursor = token.end()\n        while cursor < len(text):\n            before = cursor\n            if text[cursor] in MODULE_SPACE:\n                cursor += 1\n            elif text.startswith("/*", cursor):\n                end = text.find("*/", cursor + 2)\n                if end < 0:\n                    return False\n                cursor = end + 2\n            elif text.startswith("//", cursor):\n                cursor += 2\n                while cursor < len(text) and text[cursor] not in MODULE_LINES:\n                    cursor += 1\n            else:\n                break\n            spent += cursor - before\n            if spent > budget:\n                return False\n        if cursor < len(text) and text[cursor] in "\'\\"":\n            return False\n    return True'
+        original = {}
+        exec(compile(source, '<original-pure-predicate>', 'exec'), {
+            're': __import__('re'), 'MODULE_SPACE': lane.MODULE_SPACE,
+            'MODULE_LINES': lane.MODULE_LINES}, original)
+        old = original['closed_module_dependencies']
+        cases = [
+            (0, b"export function init(){return new URL('core.wasm', import.meta.url);}"),
+            (1, None), (1, b''), (2, b'\xff'),
+            (3, b"const value='\\u0061';"),
+            (4, b"import('./PRIVATE_PATH.js')"),
+            (5, b'export * from /*PRIVATE_SOURCE'),
+            (6, ('from /*' + 'from /*' * 1000 + '*/ local;').encode()),
+            (7, b"export * from './PRIVATE_PATH.js';"),
+        ]
+        for expected, raw in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(lane.module_dependency_reason(raw), expected)
+                self.assertEqual(lane.closed_module_dependencies(raw), old(raw))
+                self.assertEqual(expected == 0, old(raw))
+        for attack in DEPENDENCY_ATTACKS:
+            raw = attack.encode()
+            self.assertEqual(lane.closed_module_dependencies(raw), old(raw))
+            self.assertFalse(lane.closed_module_dependencies(raw))
+
+    def test_known_producer_module_map_paths_are_already_closed(self):
+        helper = RecoverySdkSnippetTests()
+        files = helper.files()
+        # The known pinned-producer shape uses exact string map keys. These
+        # paths do not contain a reserved import/from token and already pass.
+        javascript = (('import * as import2 from "./' + helper.name + '"\n').encode()
+            + ('import * as import1 from "./' + GeneratedSnippetTests.name + '"\n').encode()
+            + ('function __wbg_get_imports(){const import0={__proto__:null};return {__proto__:null,"./openmates_browser_bg.js":import0,"./'
+               + helper.name + '":import2,"./' + GeneratedSnippetTests.name + '":import1};}').encode())
+        files[lane.PACKAGE_FILES[0]] = javascript
+        self.assertTrue(lane.package_modules(files, helper.inputs()))
+        self.assertTrue(WasmReceiptTests().valid(ModuleDependencyTokenizerTests().reseal(files, helper.inputs())))
+
+    def test_refusal_reports_only_closed_kind_and_never_actual_token_or_path(self):
+        helper = RecoverySdkSnippetTests()
+        for raw, reason in [(b"import('./PRIVATE_PATH.js')", 4), (b"const v='\\u0061';", 3),
+                            (b"export * from './PRIVATE_PATH.js';", 7)]:
+            files = helper.files()
+            files[lane.PACKAGE_FILES[0]] += raw
+            state = lane.new_provenance_diagnostic()
+            self.assertFalse(lane.package_modules(files, helper.inputs(), state))
+            report = lane.closed_provenance_diagnostic(state, lane.sdk.Refused('outputs'))
+            self.assertEqual(report['packageDependencyRefusalKind'], reason)
+            self.assertIs(report['packageDependenciesClosed'], False)
+            serialized = json.dumps(report)
+            for private in ['PRIVATE_PATH', 'PRIVATE_SOURCE', helper.name, 'import(', '\\u0061']:
+                self.assertNotIn(private, serialized)
+
+    def test_only_two_independently_reviewed_cargo_hashes_are_accepted(self):
+        helper = RecoverySdkSnippetTests()
+        for digest in ('adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af',
+                       'cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f'):
+            inputs = helper.inputs()
+            inputs[lane.SDK_PACKAGE_SOURCE] = digest
+            self.assertTrue(lane.package_modules(helper.files(), inputs))
+        for digest in ('0' * 64, 'cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0e', None):
+            inputs = helper.inputs()
+            inputs[lane.SDK_PACKAGE_SOURCE] = digest
+            self.assertFalse(lane.package_modules(helper.files(), inputs))
