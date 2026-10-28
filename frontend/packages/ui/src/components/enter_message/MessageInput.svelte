@@ -659,7 +659,6 @@
         piiSettingsVersion += 1;
         if (editor && !editor.isDestroyed) {
             lastPIIText = '';
-            resetWebPIIDetector();
             void runPIIDetectionImmediate(editor);
         }
     });

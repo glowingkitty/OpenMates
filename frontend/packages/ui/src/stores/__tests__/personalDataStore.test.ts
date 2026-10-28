@@ -50,6 +50,24 @@ describe('enhanced personal-data preference hydration', () => {
     vi.stubGlobal("localStorage", { getItem: mocks.storageGet, setItem: mocks.storageSet });
   });
 
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.local-bounded-inference
+  it('keeps anonymous readiness stable through account sync and still reloads local opt-out', async () => {
+    mocks.owner = null;
+    const { personalDataStore } = await import('../personalDataStore');
+    await personalDataStore.ensureEnhancementReady();
+    const readiness: boolean[] = [];
+    const stop = personalDataStore.enhancementReady.subscribe(value => readiness.push(value));
+    window.dispatchEvent(new Event('appSettingsMemoriesSyncReady'));
+    window.dispatchEvent(new Event('appSettingsMemoriesEntrySynced'));
+    await Promise.resolve();
+    expect(readiness).toEqual([true]);
+    mocks.storageGet.mockReturnValue('false');
+    await personalDataStore.loadFromStorage();
+    expect(get(personalDataStore.settings).enhancedEnabled).toBe(false);
+    expect(get(personalDataStore.enhancementReady)).toBe(true);
+    stop();
+  });
+
   // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out
   it('holds readiness closed until the encrypted opt-out is decrypted and retains baseline settings', async () => {
     let finish!: (value: string) => void;

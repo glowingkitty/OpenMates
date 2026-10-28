@@ -6,6 +6,7 @@ import * as basicDetector from '../piiDetectionService';
 const preferences = vi.hoisted(() => ({
   set: (_value: { masterEnabled: boolean; enhancedEnabled: boolean; categories?: Record<string, boolean> }) => {},
   ready: (_value: boolean) => {},
+  beforeReady: undefined as ((value: boolean) => void) | undefined,
 }));
 const network = vi.hoisted(() => ({
   initialize: vi.fn(async () => {}), dispose: vi.fn(),
@@ -15,6 +16,8 @@ vi.mock('../../../../stores/personalDataStore', async () => {
   const { writable } = await import('svelte/store');
   const settings = writable({ masterEnabled: true, enhancedEnabled: true, categories: {} });
   const enhancementReady = writable(true);
+  // Model the composer subscriber registered before the detector lifecycle.
+  enhancementReady.subscribe(value => preferences.beforeReady?.(value));
   preferences.set = value => settings.set({ ...value, categories: value.categories ?? {} });
   preferences.ready = value => enhancementReady.set(value);
   return { personalDataStore: { settings, enhancementReady } };
@@ -42,6 +45,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_ENV', 'development');
   vi.stubGlobal('Worker', FakeWorker);
   FakeWorker.workers = [];
+  preferences.beforeReady = undefined;
   resetWebPIIDetector();
   preferences.set({ masterEnabled: true, enhancedEnabled: true });
   preferences.ready(true);
@@ -51,6 +55,26 @@ beforeEach(() => {
 afterEach(() => { resetWebPIIDetector(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('browser PII runtime lifecycle', () => {
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.local-bounded-inference
+  it('does not reset a warmup started by an earlier readiness subscriber', async () => {
+    isWebPIIModelEnabled();
+    preferences.ready(false);
+    let loading: Promise<void> | undefined;
+    preferences.beforeReady = value => {
+      if (value) { loading = preloadWebPIIDetector(); void loading.catch(() => {}); }
+    };
+    preferences.ready(true);
+    await tick();
+    const active = FakeWorker.workers[0];
+    expect(FakeWorker.workers).toHaveLength(1);
+    expect(active.terminated).toBe(false);
+    expect(active.messages.map(message => message.kind)).toEqual(['load']);
+    active.respond(0);
+    await expect(loading).resolves.toBeUndefined();
+    expect(get(webPIIDetectorState).status).toBe('ready');
+    preferences.beforeReady = undefined;
+  });
+
   // contract-test: supporting surface=gui.web assertions=pii.web.enhanced-default-and-opt-out
   it('keeps full basic options without creating a worker when opted out or preferences have not hydrated', async () => {
     const text = 'Amina anna@example.com +1 202-555-0183';

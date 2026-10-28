@@ -929,6 +929,9 @@ function isCategoryEnabled(category: string): boolean {
  */
 if (typeof window !== "undefined") {
   window.addEventListener("appSettingsMemoriesSyncReady", () => {
+    // Signed-out preferences come from local storage, not account ciphertext.
+    // An account-sync notification must not cancel their background warmup.
+    if (isEnhancementOwnerCurrent(null)) return;
     privacySyncOwner = getWorkspaceCacheIdentity();
     console.debug(
       "[PersonalDataStore] Sync event received — reloading from storage",
@@ -940,7 +943,9 @@ if (typeof window !== "undefined") {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("appSettingsMemoriesEntrySynced", () => { void reloadFromStorage(); });
+  window.addEventListener("appSettingsMemoriesEntrySynced", () => {
+    if (!isEnhancementOwnerCurrent(null)) void reloadFromStorage();
+  });
 }
 
 // ─── Reset ──────────────────────────────────────────────────────────────────

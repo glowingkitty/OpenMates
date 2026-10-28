@@ -84,7 +84,7 @@ function auditOutboundRequests(context: BrowserContext) {
   };
 }
 
-async function openComposer(page: Page) {
+async function openComposer(page: Page, variant = '') {
   // Isolate anonymous availability from the account-free component behavior.
   const availability = { active: true, can_send_text: true, reason: null };
   await page.route('**/v1/settings/server-status', route => route.fulfill({ json: {
@@ -92,7 +92,7 @@ async function openComposer(page: Page) {
     ai_models_configured: true, anonymous_free_usage: availability
   } }));
   await page.route('**/v1/anonymous/free-usage/status**', route => route.fulfill({ json: availability }));
-  await page.goto(PREVIEW, { waitUntil: 'domcontentloaded' });
+  await page.goto(PREVIEW + (variant ? `&variant=${encodeURIComponent(variant)}` : ''), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page);
   // The canvas mounts before draft restoration finishes. Reuse the production
   // draft fixture's context boundary so its initial restore cannot erase input.
@@ -206,6 +206,30 @@ test.describe('Local PII composer integration', () => {
     await testInfo.attach('sanitized-license-and-worker-lifecycle', {
       body: JSON.stringify(record.events, null, 2), contentType: 'application/json',
     });
+  });
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.local-bounded-inference
+  test('finishes background warmup when anonymous auth initializes after the composer mounts', async ({ page, context }, testInfo) => {
+    test.setTimeout(150_000);
+    const finishOutboundAudit = auditOutboundRequests(context);
+    const resetErrors: string[] = [];
+    page.on('console', message => {
+      if (message.type() === 'error' && message.text().includes('Private data detection was reset')) resetErrors.push('unhandled-reset');
+    });
+    const editor = await openComposer(page, 'coldStart');
+    // Prove the readiness subscriber itself finishes warming. Typing must not
+    // be needed to rescue a worker cancelled by a later store subscriber.
+    await expect.poll(() => page.evaluate(() => {
+      const states = (window as typeof window & { __piiDetectorDiagnostics?: { status: string }[] }).__piiDetectorDiagnostics;
+      return states?.at(-1)?.status;
+    }), { timeout: MODEL_TIMEOUT }).toBe('ready');
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('appSettingsMemoriesSyncReady'));
+      window.dispatchEvent(new Event('appSettingsMemoriesEntrySynced'));
+    });
+    await fillDraft(editor, CUSTOMER_DRAFT);
+    await expectSemanticHighlight(page, page.getByTestId('pii-highlight').filter({ hasText: /Amina/ }), 'PERSON_NAME');
+    expect(resetErrors).toEqual([]);
+    await finishOutboundAudit(page, testInfo);
   });
   // Downloads and runs the real pinned model; no detector or classification mocks.
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude

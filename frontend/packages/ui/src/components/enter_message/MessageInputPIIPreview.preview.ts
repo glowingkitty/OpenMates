@@ -3,7 +3,8 @@ import { personalDataStore } from '../../stores/personalDataStore';
 import { webPIIDetectorState } from './services/webPIIDetectionService';
 
 // Match an initialized signed-out app while preserving real browser preferences.
-authStore.set({ isInitialized: true, isAuthenticated: false });
+const coldStart = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('variant') === 'coldStart';
+authStore.set({ isInitialized: !coldStart, isAuthenticated: false });
 export const ready = personalDataStore.ensureEnhancementReady();
 if (typeof window !== 'undefined') {
   const fixture = window as typeof window & { __piiDetectorDiagnostics?: unknown[] };
@@ -16,3 +17,4 @@ if (typeof window !== 'undefined') {
   });
 }
 export default {};
+export const variants = { coldStart: { coldStart: true } };

@@ -41,19 +41,26 @@ type Pending = { resolve: (value: WebPIIEntity[]) => void; reject: (reason: Erro
 const pending = new Map<number, Pending>();
 
 let preferenceLifecycleInstalled = false;
+let previousPreferenceState: string | undefined;
+function synchronizePreferences(): void {
+  const settings = get(personalDataStore.settings);
+  const current = JSON.stringify([settings.masterEnabled, settings.enhancedEnabled !== false,
+    get(personalDataStore.enhancementReady)]);
+  const changed = previousPreferenceState !== undefined && previousPreferenceState !== current;
+  // Publish the authority first: reset notifications can synchronously read it.
+  previousPreferenceState = current;
+  if (changed) resetWebPIIDetector();
+}
 function installPreferenceLifecycle(): void {
-  if (preferenceLifecycleInstalled) return;
-  preferenceLifecycleInstalled = true;
-  let previous: string | undefined;
-  const changed = () => {
-    const settings = get(personalDataStore.settings);
-    const current = JSON.stringify([settings.masterEnabled, settings.enhancedEnabled !== false,
-      get(personalDataStore.enhancementReady)]);
-    if (previous !== undefined && previous !== current) resetWebPIIDetector();
-    previous = current;
-  };
-  personalDataStore.settings.subscribe(changed);
-  personalDataStore.enhancementReady.subscribe(changed);
+  if (!preferenceLifecycleInstalled) {
+    preferenceLifecycleInstalled = true;
+    personalDataStore.settings.subscribe(synchronizePreferences);
+    personalDataStore.enhancementReady.subscribe(synchronizePreferences);
+  }
+  // A composer subscriber may run before ours in Svelte's subscriber queue.
+  // Synchronize before it starts work so our later callback cannot reset the
+  // worker that it has just created for this same preference transition.
+  synchronizePreferences();
 }
 
 function failWorker(expectedGeneration = generation, failureCode?: WebPIIBrokerFailure): void {
@@ -122,6 +129,9 @@ export async function preloadWebPIIDetector(): Promise<void> {
     const loadGeneration = generation;
     state.set({ status: 'loading' });
     ready = request('load').then(() => { if (generation === loadGeneration && !failure) state.set({ status: 'ready' }); }).catch(error => { if (generation === loadGeneration) ready = undefined; throw error; });
+    // Hydration can cancel this shared promise before an async caller adopts
+    // it (including Zone-instrumented callers). Awaiters still get its error.
+    void ready.catch(() => {});
   }
   return ready;
 }
