@@ -31,8 +31,8 @@ first_slice_review:
   fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
   artifact: /tmp/openmates/specification-approvals/feature.specifications-94e759734d3d78ae.approval.json
   changes: Two explicit requirements for shared chat/direct authoring and conflict-preserving revision saves, each with two readable examples.
-  approval: Pending explicit confirmation of the presented exact review artifact; general product scope is already authorized.
-  evidence: Specification validation and Plan validation pass; generated Specification indexes were refreshed. Product behavior and E2E have not been implemented or verified by this planning work.
+  approval: User explicitly approved the presented exact review on 2026-10-27; receipt recorded in session 9de5 on resumption.
+  evidence: Specification and Plan validation pass; encrypted record/revision schema, atomic save/approval transport and scoped first-party APIs are implemented. Focused storage and authorization unit checks pass; API integration and client coverage remain in progress.
 
 scope:
   in:
@@ -273,6 +273,8 @@ follow_on_architecture:
 
 handoff:
   first_implementation_task: TASK-1989
-  first_action: Validate the current Specification contract and design the minimal encrypted record/revision operations against the existing Project storage and shared Rust core boundary; implement the smallest reviewable slice with focused coverage.
+  first_action: Finish isolated API verification of the implemented encrypted storage slice, then extend the authoritative shared Rust Project operations and SDK/CLI conformance before connecting the editor.
+  storage_client_boundary: docs/plans/cloud-project-development/specification-storage-handoff.md
+  client_prerequisite: The shared Rust Project modules currently belong to the active native migration and are absent from this session base; obtain its exact supported source integration before client changes. Full native UI parity is not required first.
   blocker_policy: Preserve the patch and pause only dependent work for a material unresolved decision or exact-contract review; do not repeat product clarification already answered here.
   completion_policy: The delivery Task remains open until required acceptance passes; this Plan and Task creation alone do not mean the product lifecycle is implemented.
