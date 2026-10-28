@@ -12,6 +12,35 @@ import re
 from playwright.sync_api import expect, sync_playwright
 
 
+def known_litert_diagnostic(text: str, source: str) -> bool:
+    """Pinned LiteRT 2.6.0 sends these successful CPU startup lines to stderr.
+
+    Keep them in the receipt, rather than treating the stderr transport as an
+    error severity. Unknown messages, ERROR lines and page exceptions stay fatal.
+    """
+    if not re.fullmatch(r"blob:https://app\.openmates\.org/[0-9a-f-]{36}", source):
+        return False
+    return any(re.fullmatch(pattern, text) for pattern in (
+        r"INFO: \[environment\.cc:36\] Creating LiteRT environment with options",
+        r"WARNING: \[npu_registry\.cc:34\] NPU accelerator could not be loaded and registered: kLiteRtStatusErrorNotFound\.",
+        r"INFO: \[accelerator_registry\.cc:54\] RegisterAccelerator: ptr=0x[0-9a-f]+, name=(?:GPU WebGPU|CpuAccelerator)",
+        r"INFO: \[gpu_registry\.cc:121\] Statically linked GPU accelerator registered\.",
+        r"INFO: \[cpu_registry\.cc:73\] XNNPACK CPU accelerator registered\.",
+        r"INFO: \[compiled_model\.cc:966\] Flatbuffer model initialized directly from incoming litert model\.",
+        r"INFO: Created TensorFlow Lite XNNPACK delegate for CPU\.",
+    ))
+
+
+def record_console(message, view: dict) -> None:
+    if message.type != "error":
+        return
+    source = message.location.get("url", "").split("?")[0]
+    if known_litert_diagnostic(message.text, source):
+        view["runtime_diagnostics"].append({"text": message.text, "source": source})
+    else:
+        view["errors"].append(message.text + " " + source)
+
+
 def validate_url(url: str) -> str:
     if not re.fullmatch(
         r"https://(?:app\.openmates\.org|open-mates-webapp-[a-z0-9-]+\.vercel\.app)/?", url
@@ -38,7 +67,7 @@ def verify(url: str, output: Path, expected_version: str | None = None) -> dict:
             browser = playwright.chromium.launch(**options)
             try:
                 for name, width, height in [("laptop", 1440, 1000), ("phone", 390, 844)]:
-                    view = {"name": name, "errors": [], "result": "failed"}
+                    view = {"name": name, "errors": [], "runtime_diagnostics": [], "result": "failed"}
                     receipt["views"].append(view)
                     context = browser.new_context(
                         viewport={"width": width, "height": height}, locale="en-US",
@@ -54,9 +83,7 @@ def verify(url: str, output: Path, expected_version: str | None = None) -> dict:
                         context.route(browser_url + "**", candidate_file)
                     page = context.new_page()
                     page.on("pageerror", lambda error: view["errors"].append(str(error)))
-                    page.on("console", lambda message: view["errors"].append(
-                        message.text + " " + message.location.get("url", "").split("?")[0])
-                            if message.type == "error" else None)
+                    page.on("console", lambda message: record_console(message, view))
                     try:
                         version_response = context.request.get(url + "_app/version.json")
                         if not version_response.ok:
