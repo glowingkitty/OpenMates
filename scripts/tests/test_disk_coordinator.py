@@ -123,6 +123,26 @@ def test_zero_progress_cleanup_is_coalesced_and_backs_off(tmp_path):
         assert len(calls) == 2  # pressure and cron request share one pass
 
 
+def test_old_workspace_ceiling_does_not_freeze_ci_and_keeps_its_peak(tmp_path):
+    c, root, now, usage = fixture(tmp_path)
+    oldest = c.request(root, 70, operation="workspace", thread=str(uuid.uuid4()),
+                       min_free=50, max_used_percent=85, min_inodes=10)
+    now[0] += 61
+    ci = request(c, root, operation="ci-source", amount=10)
+    large = request(c, root, operation="large", amount=140)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        assert c.get(oldest["id"])["state"] == "waiting"
+        assert "ceiling=85" in c.get(oldest["id"])["reason"]
+        assert "21 additional bytes" in c.get(oldest["id"])["reason"]
+        assert c.get(ci["id"])["state"] == "granted"
+        assert c.get(large["id"])["state"] == "waiting"
+        # The older workspace gets first use of capacity recovered by cleanup.
+        usage[0] = Usage(1000, 750, 250)
+        c.tick(recovery_margin=0)
+        assert c.get(oldest["id"])["state"] == "granted"
+
+
 def test_cleanup_remeasures_before_resuming_and_keeps_recovery_margin(tmp_path):
     c, root, now, usage = fixture(tmp_path, free=100, used=900, kinds=("managed",))
     row = request(c, root)

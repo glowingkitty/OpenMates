@@ -35,7 +35,11 @@ The existing 30 GiB floor has a 2 GiB recovery margin after pressure. Worktrees
 retain their 85% ceiling; CI publication retains its absolute floor. Free inodes
 have a separate 10,000 floor. Zero-progress cleanup backs off for five minutes;
 admission still checks capacity each second so independently freed space is used
-promptly. Oldest requests have priority with bounded bypass. Impossible peaks are
+promptly. An aged waiting request protects its allocation peak while later
+requests are checked against their own admission policy. A workspace's stricter
+percentage ceiling cannot freeze CI operations with adequate reserved capacity.
+Diagnostics include both the percentage ceiling and the absolute shortfall.
+Impossible peaks are
 rejected before queueing. Only requests with reserved space can resume.
 
 ## Safe allocations and cleanup
@@ -62,7 +66,10 @@ host processes. Cancelled commands use their application's checkpoint recovery.
 
 Active work, unfinished source, containers, archives and undelivered proof remain
 protected. Managed payloads retain reviewed opt-in and receipt revalidation.
-Worktrees use existing 96-hour expiry and recovery snapshots. Docker removes unused
+Worktrees use existing 96-hour expiry and verified recovery snapshots. A stale
+writing marker is not a permanent lease: recent activity, live edit leases,
+foreground Codex activity, process references and container mounts protect work.
+Unavailable relevant runtime inspection retains the worktree. Docker removes unused
 build cache and aged dangling images, preserving every tagged rollback candidate,
 container, volume and network.
 

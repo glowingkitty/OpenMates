@@ -140,3 +140,56 @@ def test_concurrent_same_task_waits_share_status_fence_and_serialize_grants(tmp_
     assert len(state["deliveries"]) == 2
     assert len(deliveries(tmp_path)) == 3  # No additional Task edits or activities.
     assert all(item["data"]["task_wait_id"] == "request" for item in state["deliveries"].values())
+
+
+# contract-test: tooling
+def test_waiting_block_receipts_are_refreshed_before_capacity_is_granted(tmp_path, monkeypatch):
+    state, task, row = setup(tmp_path, monkeypatch)
+    adapter.sync_disk_task(state, row, task, lambda: None)
+    acknowledge(tmp_path)
+    task.update(status="blocked", version=6)
+    refresh(task)
+    assert not adapter.sync_disk_task(state, row, task, lambda: None)
+    wait = state["disk_task_waits"][row["id"]]
+    assert wait["block_state"] == "acknowledged"
+    assert wait["activity_state"] == "acknowledged"
+    assert len(deliveries(tmp_path)) == 2
+
+
+# contract-test: tooling
+def test_replacement_request_adopts_exact_acknowledged_disk_status_owner(tmp_path, monkeypatch):
+    state, task, row = setup(tmp_path, monkeypatch)
+    adapter.sync_disk_task(state, row, task, lambda: None)
+    acknowledge(tmp_path)
+    adapter.refresh_disk_wait_receipts(state)
+    task.update(status="blocked", version=6)
+    assert adapter.prior_disk_status_owner(state, task, OWNER) == "request"
+    task["version"] = 7
+    assert adapter.prior_disk_status_owner(state, task, OWNER) is None
+    task["version"] = 6
+    task["blocked_reason_code"] = "needs_user_input"
+    assert adapter.prior_disk_status_owner(state, task, OWNER) is None
+
+
+# contract-test: tooling
+def test_granted_replacement_request_restores_original_disk_owned_status_fence(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    state, task, row = setup(tmp_path, monkeypatch)
+    adapter.sync_disk_task(state, row, task, lambda: None)
+    acknowledge(tmp_path)
+    task.update(status="blocked", version=6)
+    refresh(task)
+    replacement = {"id": "replacement", "thread": OWNER, "task_id": "task", "operation": "workspace:fixture",
+                   "state": "granted", "grant_id": "fresh-grant", "expires_at": 9999999999}
+    ledger = SimpleNamespace(requests=lambda _: [dict(replacement)], valid_grant=lambda *_: True)
+    adapter.observe_disk(tmp_path, state, {"task": task}, {OWNER}, ledger)
+    assert len(deliveries(tmp_path)) == 3
+    assert len(state["disk_task_waits"]) == 1
+    assert state["disk_task_waits"]["request"]["state"] == "restoring"
+    acknowledge(tmp_path)
+    task.update(status="in_progress", version=7)
+    refresh(task)
+    adapter.observe_disk(tmp_path, state, {"task": task}, {OWNER}, ledger)
+    event = next(iter(state["deliveries"].values()))
+    assert event["data"]["id"] == "replacement"
+    assert event["data"]["task_wait_id"] == "request"

@@ -314,3 +314,91 @@ def test_binding_race_never_creates_disk_status_or_ready_intents(monkeypatch):
     observe(state, ledger, tasks)
     assert not state["deliveries"]
     assert not state.get("disk_task_waits")
+
+
+# contract-test: tooling
+def test_disk_specific_environment_blocker_gets_informational_ready_without_task_mutation():
+    state, ledger, tasks = setup()
+    task = tasks["task"]
+    task.update(status="blocked", version=8, blocked_reason_code="environment_unavailable",
+                blocked_reason="Disk capacity is exhausted; workspace creation stopped.")
+    before = copy.deepcopy(task)
+    observe(state, ledger, tasks)
+    item = next(iter(state["deliveries"].values()))
+    assert item["data"]["task_status_policy"] == "notify_only"
+    assert not state.get("disk_task_waits")
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks, ledger)
+    assert len(rpc.starts) == 1
+    assert tasks["task"] == before
+    assert "blocker were preserved" in item["data"]["notice"]
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("code,reason", [("needs_user_input", "Disk cleanup needs my approval"),
+                                            ("environment_unavailable", "Credentials are missing"),
+                                            ("external_dependency", "Disk service migration needs approval")])
+def test_informational_disk_ready_never_wakes_unrelated_or_human_blockers(code, reason):
+    state, ledger, tasks = setup()
+    tasks["task"].update(status="blocked", blocked_reason_code=code, blocked_reason=reason)
+    observe(state, ledger, tasks)
+    assert not state["deliveries"]
+    assert not state.get("disk_task_waits")
+
+
+# contract-test: tooling
+def test_informational_disk_ready_rechecks_human_pause_and_current_blocker():
+    state, ledger, tasks = setup()
+    tasks["task"].update(status="blocked", blocked_reason_code="environment_unavailable", blocked_reason="No disk space")
+    observe(state, ledger, tasks)
+    item = next(iter(state["deliveries"].values()))
+    tasks["task"]["blocked_reason_code"] = "needs_user_input"
+    assert not adapter.disk_delivery_valid(item, state, tasks, {OWNER}, ledger)
+    tasks["task"]["blocked_reason_code"] = "environment_unavailable"
+    state["threads"][OWNER]["paused"] = True
+    assert not adapter.disk_delivery_valid(item, state, tasks, {OWNER}, ledger)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("invalid", [None, "host", "repository", "operation", "retired", "worktree_status"])
+def test_pending_workspace_owner_requires_exact_local_session_and_live_workspace_request(tmp_path, monkeypatch, invalid):
+    import json
+    monkeypatch.setattr(adapter.socket, "gethostname", lambda: "local-host")
+    record = {"codex_task_id": OWNER, "codex_host": "local-host", "repo_root": str(tmp_path), "worktree": None}
+    row = {"thread": OWNER, "repository": str(tmp_path), "operation": "workspace:fixture", "state": "waiting"}
+    if invalid == "host":
+        record["codex_host"] = "other-host"
+    if invalid == "repository":
+        record["repo_root"] = "/other-repository"
+    if invalid == "operation":
+        row["operation"] = "other-operation"
+    if invalid == "retired":
+        row["state"] = "cancelled"
+    if invalid == "worktree_status":
+        record["worktree"] = {"status": "removed"}
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude/sessions.json").write_text(json.dumps({"sessions": {"fixture": record}}))
+    assert adapter.execution_threads(tmp_path, {"all_threads": True}, [row]) == ({OWNER} if invalid is None else set())
+    assert adapter.execution_threads(tmp_path, {"all_threads": True}) == set()
+
+
+# contract-test: tooling
+def test_human_can_pause_registered_owner_waiting_for_first_workspace(tmp_path, monkeypatch):
+    import json
+    root = tmp_path / "repository"
+    root.mkdir()
+    (root / ".claude").mkdir()
+    (root / ".claude/sessions.json").write_text(json.dumps({"sessions": {"fixture": {
+        "codex_task_id": OWNER, "codex_host": "local-host", "repo_root": str(root), "worktree": None}}}))
+    monkeypatch.setattr(adapter, "state_root", lambda: tmp_path)
+    monkeypatch.setattr(adapter.socket, "gethostname", lambda: "local-host")
+    (tmp_path / "codex-adapter.json").write_text(json.dumps({"repositories": {str(root): {"enabled": True, "all_threads": True}}}))
+    state = adapter.empty_state()
+    state["disk_requests"] = [{"thread": OWNER, "repository": str(root), "operation": "workspace:fixture", "state": "waiting"}]
+    path = adapter.adapter_path(root)
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(state))
+    monkeypatch.setattr(adapter.sys, "argv", ["adapter", "pause", "--repository", str(root), "--thread", OWNER])
+    adapter.main()
+    control = tmp_path / "codex-adapter-controls" / adapter.identity(str(root)) / f"{OWNER}.json"
+    assert json.loads(control.read_text())["paused"] is True

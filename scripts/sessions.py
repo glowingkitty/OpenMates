@@ -4657,6 +4657,145 @@ def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
 
 
+def _expiry_privileged_process_references(pid: int) -> list[str] | None:
+    """Inspect one inaccessible process only under the elected disk owner."""
+    try:
+        try:
+            from scripts.disk_coordinator import configured, owner_check
+        except ModuleNotFoundError:
+            from disk_coordinator import configured, owner_check
+        coordinator = configured(CONTROL_PLANE_ROOT)
+        if coordinator is None or not owner_check(coordinator):
+            return None
+        stat_path = Path("/proc") / str(pid) / "stat"
+        start = stat_path.read_text().rsplit(")", 1)[1].split()[19]
+        rc, image, _stderr = _run_cmd(["docker", "inspect", "--format", "{{.Image}}", "api"], timeout=15)
+        image = image.strip()
+        if rc or not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
+            return None
+        # Fixed code, exact numeric PID, read-only proc mount and no shell.
+        code = (
+            "import os,json,sys; from pathlib import Path\n"
+            "p=Path('/host-proc')/str(int(sys.argv[1]))\n"
+            "start=p.joinpath('stat').read_text().rsplit(')',1)[1].split()[19]\n"
+            "refs=[os.readlink(p/'cwd')]\n"
+            "for fd in (p/'fd').iterdir():\n"
+            " if len(refs)>4096: raise RuntimeError('too many descriptors')\n"
+            " try: refs.append(os.readlink(fd))\n"
+            " except FileNotFoundError: pass\n"
+            "end=p.joinpath('stat').read_text().rsplit(')',1)[1].split()[19]\n"
+            "if start!=end: raise RuntimeError('process identity changed')\n"
+            "result=json.dumps({'start':start,'references':refs})\n"
+            "if len(result)>1048576: raise RuntimeError('reference inventory too large')\n"
+            "print(result)\n"
+        )
+        if not owner_check(coordinator):
+            return None
+        rc, stdout, _stderr = _run_cmd([
+            "docker", "run", "--pull=never", "--rm", "--network", "none", "--read-only",
+            "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--security-opt", "no-new-privileges",
+            "--user", "0:0", "--pids-limit", "64", "--memory", "64m", "--cpus", "0.5",
+            "--mount", "type=bind,source=/proc,target=/host-proc,readonly",
+            "--entrypoint", "python3", image, "-c", code, str(int(pid)),
+        ], timeout=30)
+        if rc or len(stdout) > 1048576 or not owner_check(coordinator):
+            return None
+        result = json.loads(stdout)
+        end = stat_path.read_text().rsplit(")", 1)[1].split()[19]
+        refs = result["references"]
+        if result["start"] != start or end != start or not isinstance(refs, list):
+            return None
+        if len(refs) > 4097 or not all(isinstance(ref, str) for ref in refs):
+            return None
+        return refs
+    except (OSError, ValueError, TypeError, KeyError, IndexError, subprocess.SubprocessError):
+        return None
+
+
+def _expiry_worktree_has_runtime_references(path: Path) -> bool:
+    """Protect host process references and Docker mounts; uncertainty retains work.
+
+    Linux exposes command lines across users; cwd and fd inspection is limited to
+    our own processes. Other users' containers are covered by Docker inspection.
+    """
+    path = path.resolve(strict=False)
+
+    def references(value: str, *, ancestor: bool = False) -> bool:
+        candidate = Path(value.removesuffix(" (deleted)"))
+        if not candidate.is_absolute():
+            return False
+        candidate = candidate.resolve(strict=False)
+        return candidate.is_relative_to(path) or (ancestor and path.is_relative_to(candidate))
+
+    try:
+        for process in Path("/proc").iterdir():
+            if not process.name.isdigit():
+                continue
+            try:
+                command_line = (process / "cmdline").read_bytes()
+                for arg in command_line.split(b"\0"):
+                    value = os.fsdecode(arg)
+                    if references(value) or references(value.partition("=")[2]):
+                        return True
+                if process.stat().st_uid != os.getuid():
+                    continue
+                if references(os.readlink(process / "cwd")):
+                    return True
+                for fd in (process / "fd").iterdir():
+                    try:
+                        if references(os.readlink(fd)):
+                            return True
+                    except FileNotFoundError:
+                        continue  # fd closed during inspection
+            except (FileNotFoundError, ProcessLookupError):
+                continue  # process exited during inspection
+            except PermissionError:
+                refs = _expiry_privileged_process_references(int(process.name))
+                if refs is None or any(references(ref) for ref in refs):
+                    return True
+        rc, stdout, _stderr = _run_cmd(["docker", "ps", "--quiet"], timeout=15)
+        if rc:
+            return True
+        container_ids = stdout.split()
+        if container_ids:
+            rc, stdout, _stderr = _run_cmd(["docker", "inspect", *container_ids], timeout=30)
+            if rc:
+                return True
+            containers = json.loads(stdout)
+            if not isinstance(containers, list) or len(containers) != len(container_ids):
+                return True
+            for container in containers:
+                for mount in container["Mounts"]:
+                    if references(str(mount.get("Source") or ""), ancestor=True):
+                        return True
+        return False
+    except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError):
+        return True
+
+
+def _expiry_codex_thread_is_live(session: dict) -> bool:
+    """Use fresh foreground-adapter presence for bound Codex workspaces."""
+    thread = str(session.get("codex_thread_id") or session.get("codex_task_id") or "")
+    if not thread:
+        return False
+    if thread == os.environ.get("CODEX_THREAD_ID"):
+        return True
+    try:
+        try:
+            from scripts.codex_task_adapter import adapter_path
+        except ModuleNotFoundError:
+            from codex_task_adapter import adapter_path
+        state_path = adapter_path(CONTROL_PLANE_ROOT)
+        presence = json.loads(state_path.read_text())["presence"]
+        fresh = time.time() - _parse_iso(presence["checked_at"]).timestamp() < 120
+        if not fresh or presence.get("connection") != "connected" or presence.get("complete") is not True:
+            return True
+        row = presence["threads"].get(thread)
+        return bool(row and row.get("status") not in {"idle", "notLoaded"})
+    except (OSError, ValueError, TypeError, KeyError):
+        return True
+
+
 def _hard_expiry_record_is_live(
     record: dict,
     data: dict,
@@ -4670,12 +4809,9 @@ def _hard_expiry_record_is_live(
     session = current if isinstance(current, dict) else (
         record.get("session") if isinstance(record.get("session"), dict) else {}
     )
-    if not session:
-        return False
-    if session.get("writing"):
-        return True
     if any(
         isinstance(lease, dict) and str(lease.get("session_id") or "") == session_id
+        and _edit_lease_is_active(lease)
         for lease in data.get("edit_leases", {}).values()
     ):
         return True
@@ -4692,7 +4828,11 @@ def _hard_expiry_record_is_live(
             continue
         if now_timestamp - last_active_timestamp < idle_hours * 3600:
             return True
-    return False
+    # A write marker is only historical intent, not a heartbeat. Even unbound
+    # orphan worktrees need live process/container inspection before expiry.
+    return _expiry_codex_thread_is_live(session) or _expiry_worktree_has_runtime_references(
+        Path(str(record.get("path") or worktree.get("path") or ""))
+    )
 
 
 WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({

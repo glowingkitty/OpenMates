@@ -239,7 +239,7 @@ class Coordinator(CoordinatorState):
                 ).fetchone()[0]
                 usage = self.usage(rows[0]["repository"])
                 pressure = bool(status["active"])
-                bypasses = 0
+                protected = 0
                 for row in rows:
                     decision = budget.admission(
                         Path(row["repository"]),
@@ -247,7 +247,7 @@ class Coordinator(CoordinatorState):
                         min_free=row["min_free"] + (recovery_margin if pressure else 0),
                         max_used_percent=row["max_percent"],
                         usage=usage,
-                        reserved=committed,
+                        reserved=committed + protected,
                     )
                     if (
                         decision["allowed"]
@@ -266,10 +266,14 @@ class Coordinator(CoordinatorState):
                             row["min_free"]
                             + recovery_margin
                             + row["amount"]
-                            + committed
+                            + committed + protected
                             - usage.free,
                         )
-                        reason = f"Waiting for disk capacity: {shortfall} additional bytes needed; free={usage.free}, committed={committed}, inodes={self.inodes(row['repository'])}"
+                        # Percentage admission can be stricter than the byte
+                        # floor (notably workspace creation). Report both.
+                        percent_shortfall = max(0, int(usage.used + committed + protected + row['amount'] - usage.total * row['max_percent'] / 100) + 1)
+                        shortfall = max(shortfall, percent_shortfall)
+                        reason = f"Waiting for disk capacity: {shortfall} additional bytes needed; free={usage.free}, committed={committed}, protected={protected}, ceiling={row['max_percent']}%, inodes={self.inodes(row['repository'])}"
                         db.execute(
                             "UPDATE requests SET reason=?,attempts=attempts+1 WHERE id=?",
                             (reason, row["id"]),
@@ -278,19 +282,12 @@ class Coordinator(CoordinatorState):
                             for repo, kinds in enabled.items():
                                 if filesystem(repo) == fs:
                                     cleanup_jobs.extend((repo, k) for k in kinds)
-                        bypasses += 1
-                        # Bounded small-job bypass; the oldest impossible request
-                        # becomes a barrier after a minute instead of starving.
-                        if bypasses >= 3 or now - row["created_at"] >= 60:
-                            db.execute(
-                                "UPDATE requests SET reason=? WHERE filesystem=? AND state='waiting' AND reason=''",
-                                (
-                                    "Waiting for disk capacity behind older requests; "
-                                    + reason,
-                                    fs,
-                                ),
-                            )
-                            break
+                        # Protect the oldest waiting peak, not its policy floor.
+                        # A stricter workspace ceiling must not freeze every CI
+                        # operation on this filesystem. Later grants still pass
+                        # their own guards and leave this peak uncommitted.
+                        if not protected and now - row["created_at"] >= 60:
+                            protected = row["outstanding"]
                 db.execute(
                     "UPDATE pressure SET active=?,last_free=?,next_cleanup=? WHERE filesystem=?",
                     (
