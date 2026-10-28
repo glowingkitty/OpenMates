@@ -3198,15 +3198,25 @@ def _integration_worktree_path(session_id: str) -> Path:
 
 def _is_integration_worktree_path(path: Path) -> bool:
     """Return whether path is a direct managed disposable integration checkout."""
+    if ".." in path.parts:
+        return False
     try:
         resolved = path.resolve(strict=False)
         parent = AGENT_WORKTREES_DIR.resolve(strict=False)
     except OSError:
         return False
-    return bool(
-        resolved.parent == parent
-        and re.fullmatch(r"integration-[A-Za-z0-9_-]+-[0-9a-f]{12}", resolved.name)
-    )
+    if resolved.parent != parent:
+        return False
+    if re.fullmatch(r"integration-[A-Za-z0-9_-]+-[0-9a-f]{12}", resolved.name):
+        return True
+    legacy = re.fullmatch(r"integration-[A-Za-z0-9_-]+-([0-9]{8}t[0-9]{4})", resolved.name)
+    if legacy is None:
+        return False
+    try:
+        datetime.strptime(legacy.group(1), "%Y%m%dt%H%M")
+    except ValueError:
+        return False
+    return True
 
 
 def _remove_integration_worktree(integration: dict) -> None:
