@@ -13,7 +13,7 @@ from backend.apps.ai.processing.jev_preprocessing import (
 )
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.testing.diagram_html_fixture import (
-    GROUP, PROMPT, DISCUSSION_PROMPT, PROSE_PROMPT, PROSE_RESPONSE,
+    GROUP, PROMPT, DISCUSSION_PROMPT, ON_DEMAND_PROMPT, PROSE_PROMPT, PROSE_RESPONSE,
     SOURCE_PROMPT, SOURCE_RESPONSE, MINDMAP_PROMPT, MINDMAP_RESPONSE, MINDMAP_SOURCE, active, llm_fixture,
 )
 from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
@@ -68,6 +68,54 @@ async def test_diagram_replay_selects_app_and_type_through_real_jev_questions(di
     assert selected["selected_app_ids"] == ["diagrams"]
     assert selected["relevant_diagram_types"] == ["type-architecture"]
     assert selected["relevant_diagram_variant"] == "minimal_dark"
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped
+@pytest.mark.asyncio
+async def test_on_demand_replay_deliberately_misses_jev_and_requires_complete_loaded_context(diagram_replay):
+    routing = await decide_app_and_project_routing_with_jev(
+        model_id="typesafe/jev-1.13", secrets_manager=None,
+        message_history=[{"role": "user", "content": ON_DEMAND_PROMPT}],
+        available_apps=["diagrams", "web"], available_skills=[], available_focus_modes=[],
+        topic_areas=["general_misc", "software_development"], is_first_message=True)
+    assert routing["selected_app_ids"] == []
+    from backend.apps.ai.processing.memory_tools import MemoryToolRuntime, memory_tools
+    from backend.shared.python_utils.memory_loader import load_app_memories
+    async def catalog():
+        return load_app_memories(["diagrams"])
+    loader = MemoryToolRuntime(catalog=catalog)
+    messages = [{"role": "user", "content": ON_DEMAND_PROMPT}]
+    kwargs = {"model": "fixture", "stream": True, "messages": messages, "tools": memory_tools()}
+    first = llm_fixture("llm/fixture", kwargs)["response"]["chunks"][0]["value"]
+    assert first["function_name"] == "find_memories"
+    found = await loader.execute(first["function_name"], first["function_arguments_parsed"])
+    messages.append({"role": "tool", "content": str(found)})
+    second = llm_fixture("llm/fixture", kwargs)["response"]["chunks"][0]["value"]
+    assert second["function_name"] == "load_memories"
+    await loader.execute(second["function_name"], second["function_arguments_parsed"])
+    messages.insert(0, {"role": "system", "content": loader.prompt})
+    final = llm_fixture("llm/fixture", kwargs)["response"]["chunks"]
+    assert "".join(chunk["value"] for chunk in final).startswith("```openmates_diagram\n")
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.precedence.obligations
+@pytest.mark.parametrize("placeholder", ["[PERSON_NAME_1]", "[PERSON_NAME_17]"])
+def test_explicit_source_replay_survives_the_known_pii_placeholder(diagram_replay, placeholder):
+    from backend.apps.ai.testing.diagram_html_fixture import jev_response
+    prompt = SOURCE_PROMPT.replace("Mermaid", placeholder)
+    answer = jev_response({"user_message": prompt}, {"app_0": {
+        "type": "noul", "instructions": {"app_id": "diagrams"},
+    }}, "jev")
+    assert answer is not None and answer.answers["app_0"].noul == 1.0
+    root = Path(__file__).parents[1] / "apps"
+    protocols = [yaml.safe_load((root / app / "app.yml").read_text())["instructions"][0]["instruction"]
+                 for app in ("mindmaps", "diagrams")]
+    guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
+    result = llm_fixture("llm/fixture", {"model": "fixture", "stream": True, "tools": [], "messages": [
+        {"role": "system", "content": "\n\n".join([*protocols, guide])},
+        {"role": "user", "content": prompt},
+    ]})
+    assert result["response"]["chunks"] == [{"kind": "text", "value": SOURCE_RESPONSE}]
 
 
 @pytest.mark.parametrize(("prompt", "previous_prompt"), [

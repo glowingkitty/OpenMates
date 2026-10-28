@@ -9,8 +9,14 @@ not from client-provided hashes.
 import hashlib
 import sys
 import types
+from types import SimpleNamespace
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def internal_history_token(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-internal-history-token")
 
 redis_stub = types.ModuleType("redis")
 redis_asyncio_stub = types.ModuleType("redis.asyncio")
@@ -58,6 +64,25 @@ class FakeDirectusService:
         self.embed = FakeEmbedMethods(existing_embed)
         self.rows = []
         self.project_linked = project_linked
+        self.base_url = "http://internal-directus"
+
+    async def _make_api_request(self, method, url, *, headers, json):
+        assert method == "POST" and url.endswith("/legacy-embed-diff-write")
+        assert headers["X-Internal-Service-Token"] == "synthetic-internal-history-token"
+        row = {"embed_id": json["embed_id"], "hashed_user_id": json["actor_user_hash"], **json["row"]}
+        existing = next((r for r in self.rows if r["embed_id"] == row["embed_id"]
+                         and r["version_number"] == row["version_number"]), None)
+        if existing and (any(existing.get(k) != row[k] for k in ("encrypted_snapshot", "encrypted_patch"))
+                         or (row.get("created_at") and existing.get("created_at") != row["created_at"])):
+            return SimpleNamespace(status_code=409, json=lambda: {"error": {"code": "immutable_version_mismatch"}})
+        if existing is None:
+            self.rows.append(row)
+        import json as json_module
+        digest = hashlib.sha256(json_module.dumps([row.get("encrypted_snapshot"), row.get("encrypted_patch")],
+            separators=(",", ":")).encode()).hexdigest()
+        return SimpleNamespace(status_code=200, json=lambda: {"data": {"embed_id": row["embed_id"],
+            "version_number": row["version_number"], "canonical_source": "version_row",
+            "canonical_digest": digest, "idempotent": existing is not None}})
 
     async def read_items(self, collection, params):
         assert collection == "embed_diffs"
@@ -280,13 +305,15 @@ async def test_store_embed_diff_rejects_mutation_of_existing_version_ciphertext(
         directus_service=directus,
         user_id=OWNER_ID,
         device_fingerprint_hash="device-1",
-        payload=diff_payload(encrypted_snapshot="new-ciphertext"),
+        payload=diff_payload(encrypted_snapshot="new-ciphertext", request_id="competing-write"),
     )
 
     assert len(directus.rows) == 1
     assert directus.rows[0]["encrypted_snapshot"] == "encrypted-snapshot"
     assert directus.rows[0]["encrypted_patch"] is None
     assert manager.personal_messages[0][0]["payload"]["message"] == "Immutable embed version mismatch"
+    assert manager.personal_messages[0][0]["payload"]["request_id"] == "competing-write"
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_diff_conflict"
     assert manager.broadcasts == []
 
 

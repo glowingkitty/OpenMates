@@ -25,6 +25,37 @@ export async function persistClientEncryptedEmbedDiffRows(
     const plaintext = await decryptWithEmbedKey(ciphertext, embedKey);
     return plaintext !== null && plaintext === expected;
   };
+  const adoptCanonicalRow = async (version: number, snapshot: string | null, patch: string | null): Promise<boolean> => {
+    const chat = await chatDB.getChat(embedData.chat_id);
+    const query = new URLSearchParams({ capability: "bounded-v1", chat_id: embedData.chat_id });
+    if (chat?.team_id) query.set("team_id", chat.team_id);
+    const { getApiEndpoint, storageArchiveFetch } = await import("../config/api");
+    const response = await storageArchiveFetch(getApiEndpoint(
+      `/v1/embeds/${encodeURIComponent(embedData.embed_id)}/versions/${version}?${query}`,
+    ), { credentials: "include" });
+    if (response.status === 404) return false;
+    if (response.status === 409) {
+      const error = await response.json();
+      if (version === 1 && error?.detail === "snapshot_required") return false;
+    }
+    if (!response.ok) throw new Error(`Canonical revision history read failed (${response.status}).`);
+    const page = await response.json();
+    if (page.embed_id !== embedData.embed_id || page.version_number !== version || !Array.isArray(page.rows)) {
+      throw new Error("Canonical revision history identity changed.");
+    }
+    const matching = page.rows.filter((row: { version_number?: number }) => row.version_number === version);
+    if (matching.length !== 1 || !await samePlaintext(matching[0].encrypted_snapshot, snapshot)
+      || !await samePlaintext(matching[0].encrypted_patch, patch)) {
+      throw new Error("Canonical revision history differs from streamed output.");
+    }
+    await storeEmbedDiff({
+      id: `${embedData.embed_id}_v${version}`, embed_id: embedData.embed_id, version_number: version,
+      encrypted_snapshot: matching[0].encrypted_snapshot ?? undefined,
+      encrypted_patch: matching[0].encrypted_patch ?? undefined,
+      created_at: normalizeToUnixSeconds(matching[0].created_at, Math.floor(Date.now() / 1000)),
+    });
+    return true;
+  };
   const seenVersions = new Set<number>();
   let sendStoreEmbedDiffFunction: typeof import("./chatSyncServiceSenders").sendStoreEmbedDiffImpl | undefined;
   if (!sealedRootRevision) {
@@ -70,6 +101,7 @@ export async function persistClientEncryptedEmbedDiffRows(
       // Typed sealed recovery owns the immutable server version row and ACK.
       continue;
     }
+    if (await adoptCanonicalRow(row.version_number, expectedSnapshot, expectedPatch)) continue;
     const encryptedSnapshot =
       typeof row.snapshot === "string"
         ? await encryptWithEmbedKey(row.snapshot, embedKey)
@@ -94,14 +126,16 @@ export async function persistClientEncryptedEmbedDiffRows(
     };
 
     await storeEmbedDiff(encryptedRow);
-    await sendStoreEmbedDiffFunction!(serviceInstance, {
-      embed_id: row.embed_id,
-      version_number: row.version_number,
-      encrypted_snapshot: encryptedSnapshot ?? null,
-      encrypted_patch: encryptedPatch ?? null,
-      hashed_user_id: hashedUserId,
-      created_at: createdAt,
-    });
+    try {
+      await sendStoreEmbedDiffFunction!(serviceInstance, {
+        embed_id: row.embed_id, version_number: row.version_number,
+        encrypted_snapshot: encryptedSnapshot ?? null, encrypted_patch: encryptedPatch ?? null,
+        hashed_user_id: hashedUserId, created_at: createdAt,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || (error as Error & { code?: string }).code !== "embed_diff_conflict"
+        || !await adoptCanonicalRow(row.version_number, expectedSnapshot, expectedPatch)) throw error;
+    }
   }
   if (sealedRootRevision && durableHead) {
     const expectedRows = rows.filter((row) => row.embed_id === embedData.embed_id

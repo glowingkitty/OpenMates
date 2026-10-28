@@ -90,6 +90,11 @@ from backend.apps.ai.processing.native_history_cache import (
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
 from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.apps.ai.processing.memory_tools import (
+    MEMORY_TOOL_INSTRUCTION, MEMORY_TOOL_NAMES, MemoryToolRuntime, NativeDiagramContextGuard,
+    NATIVE_MEMORY_FINGERPRINT_KEY, authorized_memory_catalog, has_memory_catalog,
+    memory_tools, native_memory_context_matches,
+)
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
 from backend.apps.ai.processing.related_work import (
     RelatedWorkCandidate, fetch_related_chat_summaries, fetch_related_task_candidates, select_related_work,
@@ -5016,6 +5021,20 @@ async def handle_main_processing(
     # truncate a chosen guide through the generic Memory prompt budget.
     diagram_prompt = ""
     diagram_receipt_memories = []
+    memory_runtime = None
+    on_demand_memory_prompt = ""
+    diagram_context_repair_used = False
+    if (agentic_context.first_party(request_data) and discovered_apps_metadata
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and has_memory_catalog(discovered_apps_metadata, request_data)):
+        memory_runtime = MemoryToolRuntime(
+            catalog=lambda: authorized_memory_catalog(request_data, directus_service, cache_service,
+                                                     list(discovered_apps_metadata)),
+            cache=None if request_data.is_incognito else cache_service,
+            owner_id=request_data.user_id, chat_id=request_data.chat_id,
+            turn_id=authoritative_context_turn_id(request_data),
+        )
+        prompt_parts.append(MEMORY_TOOL_INSTRUCTION)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5261,6 +5280,8 @@ async def handle_main_processing(
         tool.get("function", {}).get("name") for tool in available_tools_for_llm
         if tool.get("function", {}).get("name")
     }
+    if memory_runtime is not None:
+        available_tools_for_llm.extend(memory_tools())
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -5762,6 +5783,7 @@ async def handle_main_processing(
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
     for system_skill in (
+        *MEMORY_TOOL_NAMES,
         "activate_focus_mode",
         "deactivate_focus_mode",
         "start_sub_chats",
@@ -6831,10 +6853,33 @@ async def handle_main_processing(
                     if event:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, event)}
+                if memory_runtime is not None:
+                    await memory_runtime.refresh()
+                    next_memory_prompt = ("--- On-demand Memory context ---\n" + memory_runtime.prompt
+                                          + "\n--- End on-demand Memory context ---") if memory_runtime.prompt else ""
+                    if next_memory_prompt != on_demand_memory_prompt:
+                        if on_demand_memory_prompt:
+                            full_system_prompt = full_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                            iteration_system_prompt = iteration_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                            answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                        if next_memory_prompt:
+                            # A newly loaded diagram bundle replaces the preloaded one;
+                            # keep one complete selected variant instead of duplicating it.
+                            if diagram_prompt and any(m.app_id == "diagrams" for m in memory_runtime.applied):
+                                full_system_prompt = full_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                                iteration_system_prompt = iteration_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                                answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                            full_system_prompt += "\n\n" + next_memory_prompt
+                            iteration_system_prompt += "\n\n" + next_memory_prompt
+                            answer_recovery_system_prompt += "\n\n" + next_memory_prompt
+                        on_demand_memory_prompt = next_memory_prompt
                 if not agentic_section or agentic_section in iteration_system_prompt:
                     receipt_guides = [*applied_guides]
                     if diagram_prompt and diagram_prompt in iteration_system_prompt:
                         receipt_guides.extend(diagram_receipt_memories)
+                    if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
+                        receipt_guides.extend(memory_runtime.applied)
+                    receipt_guides = list({memory.id: memory for memory in receipt_guides}.values())
                     receipt = applied_rule_receipt(receipt_guides, previous_set_key=last_applied_rule_key)
                     new_rule_key = applied_rule_set_key(receipt_guides)
                     if new_rule_key != last_applied_rule_key:
@@ -6859,6 +6904,18 @@ async def handle_main_processing(
                 reservation_tools = iteration_tools
                 native_route = native_cache_route(current_model_id) if native_scope else None
                 native_admission_reason = "route_unavailable"
+                effective_memory_context = on_demand_memory_prompt
+                if applied_guides and agentic_section and agentic_section in iteration_system_prompt:
+                    effective_memory_context += applied_rule_set_key(applied_guides)
+                if diagram_prompt and diagram_prompt in iteration_system_prompt:
+                    effective_memory_context += diagram_prompt
+                if (not native_memory_context_matches(native_state, effective_memory_context)
+                        or not native_memory_context_matches(native_prior_state, effective_memory_context)):
+                    # Old dispatch events contain actual plaintext. Replacing the
+                    # latest system suffix cannot revoke those earlier bodies.
+                    native_state = native_prior_state = None
+                    native_main_cursor = native_main_snapshot = None
+                    logger.info("%s [MEMORY_CONTEXT] discarded incompatible native replay", log_prefix)
                 if (
                     native_route and current_model_index == 0 and not answer_recovery.active
                     # Answer-only recovery replaces the provider transcript
@@ -6935,6 +6992,8 @@ async def handle_main_processing(
                                 # Persist the provider-sanitized schemas that
                                 # were actually sent, preserving old prefixes.
                                 native_state = candidate
+                                native_state[NATIVE_MEMORY_FINGERPRINT_KEY] = hashlib.sha256(
+                                    effective_memory_context.encode()).hexdigest()
                                 native_prepared_context = candidate
                                 reservation_system_prompt = quote_system
                                 reservation_history = quote_history
@@ -7138,6 +7197,12 @@ async def handle_main_processing(
             break
 
         protocol_guard = ToolProtocolGuard()
+        prepared_diagram_types = set(getattr(preprocessing_results, "relevant_diagram_types", None) or []) if (
+            diagram_prompt and diagram_prompt in iteration_system_prompt) else set()
+        if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
+            prepared_diagram_types.update(m.id.removeprefix("app:diagrams:") for m in memory_runtime.applied
+                                          if m.app_id == "diagrams")
+        diagram_context_guard = NativeDiagramContextGuard(prepared_diagram_types)
         current_turn_text_buffer = []
         suggested_followup_stream = SuggestedFollowupStream()
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
@@ -7187,7 +7252,7 @@ async def handle_main_processing(
                "provider",
                provider_purpose="main",
            )
-           async for chunk in protocol_guard.filter(observed_llm_stream):
+           async for chunk in diagram_context_guard.filter(protocol_guard.filter(observed_llm_stream)):
             if isinstance(chunk, NativeCacheProviderOutput):
                 # Provider reasoning/output is private replay state. It is
                 # neither a product stream event nor a debug/usage payload.
@@ -7447,6 +7512,8 @@ async def handle_main_processing(
                                 len(omitted_inline_news_requests),
                             )
 
+                    if app_id == "system" and skill_id in MEMORY_TOOL_NAMES:
+                        continue  # Context loads use Memory receipts, never skill placeholders.
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif is_legacy_task_runtime_tool_name(tool_name):
@@ -7959,6 +8026,28 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        if diagram_context_guard.required_type and not tool_calls_for_this_turn:
+            if memory_runtime is not None and not diagram_context_repair_used:
+                diagram_context_repair_used = True
+                try:
+                    await memory_runtime.execute("load_memories", {
+                        "memory_ids": ["app:diagrams:" + diagram_context_guard.required_type],
+                    })
+                    if final_buffered_text_for_turn:
+                        current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+                    current_message_history.append({"role": "user", "content": (
+                        "The pending diagram was withheld because its required context or native schema was incomplete. "
+                        "The complete matching drawing guide is now loaded. Emit the corrected native diagram only; "
+                        "do not repeat already published prose. Do not replace it with ASCII or Mermaid source."
+                    )})
+                    logger.info("%s [DIAGRAM_CONTEXT] bounded repair reason=%s", log_prefix, diagram_context_guard.reason)
+                    continue
+                except (ValueError, OSError, RuntimeError):
+                    logger.warning("%s [DIAGRAM_CONTEXT] required drawing guide unavailable", log_prefix)
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("protocol_guard")
+            break
         if native_prepared_context is not None:
             if (
                 iteration_native_output is not None and native_state is not None
@@ -8668,6 +8757,18 @@ async def handle_main_processing(
                             "reason": "Unscoped Project search is unavailable. Request Project Focus first.",
                         }),
                     })
+                    continue
+
+                if app_id == "system" and skill_id in MEMORY_TOOL_NAMES and memory_runtime is not None:
+                    try:
+                        memory_result = await memory_runtime.execute(skill_id, parsed_args)
+                        logger.info("%s [MEMORY_CONTEXT] operation=%s status=%s count=%s",
+                            log_prefix, skill_id, memory_result["status"], len(memory_result.get("memories", [])))
+                    except (ValueError, OSError, RuntimeError):
+                        logger.warning("%s [MEMORY_CONTEXT] operation=%s failed; no speculative success", log_prefix, skill_id)
+                        memory_result = {"status": "unavailable", "message": "Memory unavailable or selection exceeds the context limit. Use only available IDs and fewer documents; do not claim it loaded."}
+                    current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
+                        "name": tool_name, "content": json.dumps(memory_result)})
                     continue
                 
                 # Validate that app_id and skill_id are non-empty after split

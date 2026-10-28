@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   chats: [] as Array<{ chat_id: string; team_id?: string | null }>,
   pageReads: 0,
   rawReads: 0,
+  diffConflict: false,
 }));
 
 const emit = (type: string, payload: Record<string, unknown>) => {
@@ -82,6 +83,14 @@ vi.mock("../websocketService", () => ({ webSocketService: {
         request_id: payload.request_id, embed_id: payload.embed_id,
         canonical_digest: `digest:${payload.encrypted_content}`,
       }));
+    } else if (type === "store_embed_diff") {
+      queueMicrotask(() => state.diffConflict ? emit("error", {
+        request_id: payload.request_id, code: "embed_diff_conflict",
+      }) : emit("store_embed_diff_confirmed", {
+        request_id: payload.request_id, embed_id: payload.embed_id, version_number: payload.version_number,
+        canonical_digest: `digest:${JSON.stringify([payload.encrypted_snapshot ?? null, payload.encrypted_patch ?? null])}`,
+        canonical_source: "version_row",
+      }));
     } else if (type === "store_embed_keys") {
       if (state.disconnectOnKeys) {
         queueMicrotask(() => {
@@ -98,7 +107,7 @@ vi.mock("../websocketService", () => ({ webSocketService: {
   }),
 } }));
 
-import { sendStoreEmbedImpl, flushPendingEmbedOperations } from "../embedSenders";
+import { sendStoreEmbedImpl, sendStoreEmbedDiffImpl, flushPendingEmbedOperations } from "../embedSenders";
 import { withCanonicalEmbedWrite } from "../canonicalEmbedWriteCoordinator";
 
 const payload = { embed_id: "embed-1", encrypted_content: "ciphertext", encrypted_type: "encrypted-type",
@@ -107,7 +116,28 @@ const payload = { embed_id: "embed-1", encrypted_content: "ciphertext", encrypte
 } as StoreEmbedPayload;
 const keys = { keys: [{ key_type: "master" }, { key_type: "chat" }] };
 
+// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.versions.metadata-and-payload
+it("waits for a matching encrypted version receipt before releasing its writer", async () => {
+  await sendStoreEmbedDiffImpl({ webSocketConnected_FOR_SENDERS_ONLY: true } as never, {
+    embed_id: "embed-1", version_number: 1, encrypted_snapshot: "snapshot", encrypted_patch: null,
+    hashed_user_id: "owner", created_at: 1,
+  });
+  expect(state.sent[0].type).toBe("store_embed_diff");
+  expect(state.sent[0].payload.request_id).toBeTruthy();
+  expect(state.handlers.get("store_embed_diff_confirmed")?.size).toBe(0);
+});
+
+// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.versions.metadata-and-payload
+it("returns a correlated immutable version conflict for canonical reconciliation", async () => {
+  state.diffConflict = true;
+  await expect(sendStoreEmbedDiffImpl({ webSocketConnected_FOR_SENDERS_ONLY: true } as never, {
+    embed_id: "embed-1", version_number: 1, encrypted_snapshot: "snapshot", encrypted_patch: null,
+    hashed_user_id: "owner", created_at: 1,
+  })).rejects.toMatchObject({ code: "embed_diff_conflict" });
+});
+
 beforeEach(() => {
+  state.diffConflict = false;
   state.queued.clear();
   state.sent.length = 0;
   state.handlers.clear();

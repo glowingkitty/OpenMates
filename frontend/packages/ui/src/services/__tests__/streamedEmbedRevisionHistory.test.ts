@@ -40,13 +40,41 @@ describe("streamed next-revision history", () => {
   beforeEach(() => { state.rows.length = 0; state.read.mockReset(); state.sent.mockReset(); });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
-  it("keeps the ordinary v1 history send path", async () => {
+  it("creates ordinary v1 history only when the canonical snapshot is missing", async () => {
+    state.read.mockResolvedValue({ ok: false, status: 409, json: async () => ({ detail: "snapshot_required" }) });
     await persistClientEncryptedEmbedDiffRows(service, {
       ...history, version_history_rows: [{ embed_id: "embed-1", version_number: 1,
         snapshot: "initial", created_at: 1 }],
     }, key, "owner-hash");
     expect(state.sent).toHaveBeenCalledTimes(1);
-    expect(state.read).not.toHaveBeenCalled();
+    expect(state.read).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.versions.bounded-reconstruction
+  it("adopts an equivalent canonical v1 after a competing encrypted write", async () => {
+    state.read.mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ detail: "snapshot_required" }) });
+    state.sent.mockRejectedValueOnce(Object.assign(new Error("competing version"), { code: "embed_diff_conflict" }));
+    state.read.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({
+      embed_id: "embed-1", version_number: 1, rows: [{ version_number: 1,
+        encrypted_snapshot: "cipher:initial", encrypted_patch: null, created_at: 1 }],
+    }) });
+    await persistClientEncryptedEmbedDiffRows(service, { ...history, version_history_rows: [
+      { embed_id: "embed-1", version_number: 1, snapshot: "initial", created_at: 1 },
+    ] }, key, "owner-hash");
+    expect(state.sent).toHaveBeenCalledTimes(1);
+    expect(state.rows[0].encrypted_snapshot).toBe("cipher:initial");
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.versions.bounded-reconstruction
+  it("rejects a different canonical v1 instead of overwriting immutable history", async () => {
+    state.read.mockResolvedValue({ ok: true, status: 200, json: async () => ({
+      embed_id: "embed-1", version_number: 1, rows: [{ version_number: 1,
+        encrypted_snapshot: "cipher:different", encrypted_patch: null }],
+    }) });
+    await expect(persistClientEncryptedEmbedDiffRows(service, { ...history, version_history_rows: [
+      { embed_id: "embed-1", version_number: 1, snapshot: "initial", created_at: 1 },
+    ] }, key, "owner-hash")).rejects.toThrow("Canonical revision history differs");
+    expect(state.sent).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted

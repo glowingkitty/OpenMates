@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { readScopedEmbedPage } from './scoped-reads.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy,
-  pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, ProtocolError } from './operations.js';
+  pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, writeLegacyEmbedDiff, ProtocolError } from './operations.js';
 
 const TOKEN_HEADER = 'x-internal-service-token';
 const tokenDigest = (value) => createHash('sha256').update(value, 'utf8').digest();
@@ -95,6 +95,20 @@ export default {
         if (error instanceof ProtocolError) return res.status(error.status).json({ error: { code: error.code } });
         logger.error({ code: 'key_transaction_failed' }, 'Legacy wrapper transaction failed');
         return res.status(500).json({ error: { code: 'key_transaction_failed' } });
+      }
+    });
+    // Internal-only; ciphertext from the authenticated first-party WebSocket.
+    // No developer/public route, paid inference, or new permission surface.
+    router.post('/legacy-embed-diff-write', async (req, res) => {
+      if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
+        return res.status(401).json({ error: { code: 'internal_auth_failed' } });
+      }
+      try {
+        return res.status(200).json({ data: await writeLegacyEmbedDiff(database, req.body) });
+      } catch (error) {
+        if (error instanceof ProtocolError) return res.status(error.status).json({ error: { code: error.code } });
+        logger.error({ code: 'history_transaction_failed' }, 'Legacy encrypted history transaction failed');
+        return res.status(500).json({ error: { code: 'history_transaction_failed' } });
       }
     });
     router.post('/legacy-embed-write', async (req, res) => {

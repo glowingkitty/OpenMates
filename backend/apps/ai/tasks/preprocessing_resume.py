@@ -112,6 +112,9 @@ async def store_preprocessing_resume(
             and isinstance(row.get("current_version_id"), str)
             and len(row["workflow_id"]) <= 256 and len(row["current_version_id"]) <= 128
         ],
+        "selected_diagram_types": [value for value in (getattr(result, "relevant_diagram_types", None) or [])[:3]
+                                   if isinstance(value, str) and value.startswith("type-") and len(value) <= 100],
+        "selected_diagram_variant": getattr(result, "relevant_diagram_variant", None),
         "stored_at": int(time.time()),
         "routing_only": bool(getattr(result, "routing_only", False)),
     }
@@ -186,6 +189,13 @@ async def load_preprocessing_resume(
     if not result.can_proceed or not result.selected_main_llm_model_id:
         return None
     result.selected_app_ids = list(selected_apps) if selected_apps is not None else None
+    diagram_types = record.get("selected_diagram_types")
+    if isinstance(diagram_types, list) and len(diagram_types) <= 3 and all(
+            isinstance(value, str) and value.startswith("type-") and len(value) <= 100 for value in diagram_types):
+        result.relevant_diagram_types = diagram_types
+    diagram_variant = record.get("selected_diagram_variant")
+    if diagram_variant in ("minimal_light", "minimal_dark", "full_editorial"):
+        result.relevant_diagram_variant = diagram_variant
     rules = record.get("selected_rules")
     workflows = record.get("selected_workflows")
     if isinstance(rules, list) and all(

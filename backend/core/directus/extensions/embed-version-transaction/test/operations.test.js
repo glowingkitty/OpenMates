@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { isAuthorized } from '../src/index.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy, pruneEmbedArchivePayload,
-  publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, ProtocolError, testing } from '../src/operations.js';
+  publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, writeLegacyEmbedDiff, ProtocolError, testing } from '../src/operations.js';
 
 const ACTOR = 'a'.repeat(64);
 const PROJECT_ID = 'project-1';
@@ -1309,6 +1309,42 @@ function chatDiagramFixture({ team = false } = {}) {
   };
   return { seed, body };
 }
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('concurrent initial history writes share the edit lock and preserve one immutable winner', async () => {
+  const { seed, body } = chatDiagramFixture();
+  seed.embed_diffs = [];
+  const db = fakeDatabase(seed);
+  const input = { embed_id: body.embed_id, actor_user_hash: ACTOR, row: {
+    version_number: 1, encrypted_snapshot: 'first-ciphertext', encrypted_patch: null, created_at: 10,
+  } };
+  const result = await Promise.allSettled([
+    writeLegacyEmbedDiff(db, input),
+    writeLegacyEmbedDiff(db, { ...input, row: { ...input.row, encrypted_snapshot: 'other-nonce' } }),
+  ]);
+  assert.equal(result.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.equal(result.find((r) => r.status === 'rejected').reason.code, 'immutable_version_mismatch');
+  assert.equal(db.rows.embed_diffs.length, 1);
+  assert.equal(db.rows.embed_diffs[0].encrypted_snapshot, 'first-ciphertext');
+  assert.equal((await writeLegacyEmbedDiff(db, input)).idempotent, true);
+  assert.equal(db.locks.filter((key) => key === `embed:${body.embed_id}`).length, 3);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.versions.bounded-reconstruction
+test('initial history and a concurrent diagram edit remain one complete two-version chain', async () => {
+  const { seed, body } = chatDiagramFixture();
+  seed.embed_diffs = [];
+  const db = fakeDatabase(seed);
+  await Promise.all([
+    writeLegacyEmbedDiff(db, { embed_id: body.embed_id, actor_user_hash: ACTOR, row: {
+      version_number: 1, encrypted_snapshot: 'encrypted-snapshot-v1', encrypted_patch: null, created_at: 10,
+    } }),
+    commitChatDiagramRevision(db, body),
+  ]);
+  assert.deepEqual(db.rows.embed_diffs.map((row) => row.version_number), [1, 2]);
+  assert.equal(db.rows.embeds[0].version_number, 2);
+  assert.equal(db.locks.filter((key) => key === `embed:${body.embed_id}`).length, 2);
+});
 
 // contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 test('chat diagram legacy writer finalizes a processing v1 but cannot rewrite a finished head', async () => {

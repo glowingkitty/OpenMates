@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -24,6 +25,10 @@ DISCUSSION_PROMPT = (
     "We are comparing the OpenMates stack's ingestion, query and storage layers "
     "for a dark presentation. What are the architectural relationships and tradeoffs? "
     "DIAGRAM_HTML_E2E:architecture_discussion"
+)
+ON_DEMAND_PROMPT = (
+    "Create a dark editable architecture diagram of the ingestion, query and storage layers. "
+    "DIAGRAM_HTML_E2E:on_demand"
 )
 PROSE_PROMPT = (
     "Discuss the architecture of a planner, researcher and implementation worker. "
@@ -47,8 +52,17 @@ MINDMAP_SOURCE = json.dumps({
     ], "edges": [], "view": {"layout": "radial-tree", "collapsedNodeIds": []},
 })
 MINDMAP_RESPONSE = f"```openmates_mindmap\n{MINDMAP_SOURCE}\n```"
-_PROMPTS = (PROMPT, DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT)
+_PROMPTS = (PROMPT, DISCUSSION_PROMPT, ON_DEMAND_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT)
 _HTML_PATH = Path(__file__).parent / "fixtures" / "diagram_html_web.html"
+
+
+def _fixture_text(value: Any) -> str:
+    """Recognize the one known anonymized sentence without bypassing PII."""
+    return re.sub(
+        r"Give me \[PERSON_NAME_\d+\] source code for a planner-to-worker architecture flow\. "
+        r"DIAGRAM_HTML_E2E:explicit_mermaid_source",
+        SOURCE_PROMPT, str(value or ""),
+    )
 
 
 def active() -> bool:
@@ -67,7 +81,7 @@ def _latest_user_contains_prompt(messages: Any) -> bool:
         return False
     for message in reversed(messages):
         if isinstance(message, dict) and message.get("role") == "user":
-            return any(prompt in str(message.get("content") or "")
+            return any(prompt in _fixture_text(message.get("content"))
                        for prompt in _PROMPTS)
     return False
 
@@ -77,7 +91,7 @@ def _state_matches(state: Any) -> bool:
         return False
     if _latest_user_contains_prompt(state.get("messages")):
         return True
-    return any(prompt in str(state.get("user_message") or "")
+    return any(prompt in _fixture_text(state.get("user_message"))
                for prompt in _PROMPTS)
 
 
@@ -102,6 +116,7 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
     if not active() or not _state_matches(state) or not questions:
         return None
     answers: dict[str, dict[str, Any]] = {}
+    on_demand = ON_DEMAND_PROMPT in json.dumps(state)
     for question_id, question in questions.items():
         question_type = question.get("type")
         instructions = question.get("instructions")
@@ -111,6 +126,8 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
                 question_id.startswith("app_")
                 and (candidate.get("candidate_id") or candidate.get("app_id")) in {"diagrams", "mindmaps"}
             )
+            if on_demand:
+                selected = False  # Deliberately miss all optional guide/app preselection.
             answers[question_id] = {"type": "noul", "noul": 1.0 if selected else 0.0}
         elif question_type == "choice":
             criteria = question.get("criteria")
@@ -195,9 +212,32 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if "generate_suggestions_and_metadata" in names:
         return None
-    latest_user_text = next((str(message.get("content") or "")
+    latest_user_text = next((_fixture_text(message.get("content"))
                              for message in reversed(kwargs.get("messages", []))
                              if isinstance(message, Mapping) and message.get("role") == "user"), "")
+    if ON_DEMAND_PROMPT in latest_user_text:
+        from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
+        system = "\n".join(str(message.get("content") or "")
+                           for message in kwargs.get("messages", [])
+                           if isinstance(message, Mapping) and message.get("role") == "system")
+        guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
+        if guide not in system:
+            tools_seen = [message for message in kwargs.get("messages", [])
+                          if isinstance(message, Mapping) and message.get("role") == "tool"]
+            found = any('app:diagrams:type-architecture' in str(message.get("content")) for message in tools_seen)
+            name = "load_memories" if found else "find_memories"
+            if name not in names:
+                raise AssertionError("Missed preselection did not expose internal Memory tools")
+            arguments = ({"memory_ids": ["app:diagrams:type-architecture"], "diagram_variant": "minimal_dark"}
+                         if found else {"query": "architecture"})
+            return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1, "chunks": [{
+                "kind": "pydantic", "module": "backend.apps.ai.llm_providers.openai_shared",
+                "class": "ParsedOpenAIToolCall", "value": {
+                    "tool_call_id": f"diagram-{name}-fixture", "function_name": name,
+                    "function_arguments_raw": json.dumps(arguments), "function_arguments_parsed": arguments,
+                    "parsing_error": None,
+                },
+            }]}}
     discussion = any(prompt in latest_user_text
                      for prompt in (DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT))
     if discussion:

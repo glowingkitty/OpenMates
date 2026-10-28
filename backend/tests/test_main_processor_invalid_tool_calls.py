@@ -2673,6 +2673,47 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.privacy.client-encrypted
+async def test_revoked_on_demand_memory_is_removed_from_actual_native_provider_payload(monkeypatch):
+    from backend.apps.ai.processing.memory_tools import MemoryToolRuntime
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+    private_body = "Synthetic private Project conventions that must disappear after revocation."
+    document = MemoryDefinition(id="project:p:guide", title="Conventions", description="Project conventions",
+        when_to_use="Project work", body=private_body, revision="a" * 64, source="project", project_id="p")
+    documents = [document]
+    async def catalog():
+        return list(documents)
+    runtime = MemoryToolRuntime(catalog=catalog)
+    runtime.selected = {document.id: document.revision}
+    runtime._restored = True  # An authorized selection restored at an internal turn boundary.
+    monkeypatch.setattr(main_processor, "MemoryToolRuntime", lambda **_kwargs: runtime)
+    monkeypatch.setattr(main_processor, "native_cache_route", lambda _model: ("openai", "fixture"))
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", lambda state, **_kwargs: state)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", lambda text: text)
+    seen = []
+    def provider_call(kwargs):
+        seen.append(copy.deepcopy(kwargs))
+        if len(seen) == 1:
+            documents.clear()
+    native_output = main_processor.NativeCacheProviderOutput(provider_prefix="openai", model_id="fixture",
+        output=[{"type": "function_call", "call_id": "fake-tool-call", "name": "find_memories",
+                 "arguments": '{"query":"conventions"}'}])
+    await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[[{"fake_google_tool_call": "find_memories", "arguments": {"query": "conventions"}}, native_output],
+                 ["A public answer after access changed."]],
+        discovered_apps_metadata={"code": SimpleNamespace(skills=[], instructions=[], focuses=[])},
+        request_overrides={"current_user_content": "Find guidance.", "message_history": [
+            {"role": "user", "message_id": "message-1", "content": "Find guidance."}]},
+        base_instructions={"base_ethics_instruction": "Stable safe instruction."}, on_provider_call=provider_call,
+    )
+    assert len(seen) == 2
+    assert private_body in json.dumps(seen[0]["native_cache_context"])
+    assert private_body not in seen[1]["system_prompt"]
+    assert private_body not in json.dumps(seen[1]["native_cache_context"])
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.images.reference-handoff,shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("flow", ["initial-answer", "tool-synthesis", "answer-recovery"])
 async def test_real_shopping_answer_policy_survives_every_model_dispatch(monkeypatch, flow):
@@ -3242,3 +3283,32 @@ async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypat
     assert diagnostics
     assert any('tool_code_fence' in message and 'body_chars' in message for message in diagnostics)
     assert all(private_fixture not in message and 'private-file-name' not in message for message in diagnostics)
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
+async def test_on_demand_memory_reaches_next_provider_call_and_answer_recovery(monkeypatch):
+    from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 4)
+    guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[
+            [{"fake_google_tool_call": "find_memories", "arguments": {"query": "architecture"}}],
+            [{"fake_google_tool_call": "load_memories", "arguments": {
+                "memory_ids": ["app:diagrams:type-architecture"], "diagram_variant": "minimal_dark"}}],
+            [{"fake_google_tool_call": "nonexistent_tool"}],
+            ["A prepared diagram answer."],
+        ],
+        discovered_apps_metadata={"diagrams": SimpleNamespace(skills=[], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": [], "relevant_diagram_types": []},
+    )
+    assert len(calls) == 4
+    assert guide not in calls[0]["system_prompt"]
+    assert guide not in calls[1]["system_prompt"]
+    assert all(guide in call["system_prompt"] for call in calls[2:])
+    assert calls[-1]["tools"] is None
+    assert any(message.get("role") == "tool" and '"status": "loaded"' in str(message.get("content"))
+               for message in calls[2]["message_history"])
+    receipts = [chunk["receipt"] for chunk in output if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    assert any(m["id"] == "app:diagrams:type-architecture" for r in receipts for m in r.get("memories", []))
+    assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)

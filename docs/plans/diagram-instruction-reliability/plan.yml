@@ -1,0 +1,256 @@
+schema_version: 2
+profile: concise
+id: diagram-instruction-reliability
+title: On-demand Memory loading with verified diagram preparation
+status: implementing
+goal: >-
+  Address issue 7B8F7 (diagram not shown and error notification). But before we
+  implement anything, let's first propose a permanent solution for this, so the
+  diagram instructions are always loaded correctly. We had similar issues
+  before and need to rethink this a bit better.
+tracking:
+  authority: OpenMates Tasks
+  task: TASK-3492
+review_boundary: >-
+  The user reviewed the shared on-demand Memory design and explicitly authorized
+  implementation and testing on 2026-10-28. Private incident evidence remains in
+  the gitignored issue findings note; this Plan records reusable architecture.
+recommendation: >-
+  Provide shared on-demand Memory discovery and loading to the main processor,
+  independently of Jev preselection. Present successful loading through existing
+  Loaded memories receipts, not an app skill card. Use that shared mechanism to
+  make diagram preparation a runtime prerequisite: keep a small native-visual
+  protocol available and verify complete selected guides in the actual provider
+  request before accepting a diagram. Keep Jev preloading as an optimization.
+design_clarification:
+  user_direction: >-
+    Allow the main processor to load memories on demand even when the
+    preprocessor has not pre-selected them, and consider this beyond diagrams.
+  examples: >-
+    Existing shipped Memories already include JavaScript, Python, Svelte and
+    TypeScript practices plus accessibility and mobile-first design guidance.
+    The same loading interface can serve eligible Project Memories. Personal
+    and team content retains its existing approval or explicit-mention path.
+  boundary: >-
+    Implementation is authorized. Loading a Memory supplies context; it does
+    not execute a skill, activate a Focus,
+    approve an action or make optional guidance authoritative platform policy.
+existing_contracts:
+  - specifications/features/app-memories/specification.yml
+  - specifications/features/chats/specification.yml
+  - docs/plans/editable-diagram-design/plan.yml
+  - docs/plans/native-visualization-routing/plan.yml
+source_review:
+  - path: backend/apps/ai/processing/jev_preprocessing.py
+    observation: >-
+      Stage one selects apps at 0.65. Only a selected diagrams app exposes the
+      type questions; stage two then requires guidance relevance of at least
+      0.6. A false negative at either gate can leave the main model without it.
+  - path: backend/apps/ai/processing/main_processor.py
+    observation: >-
+      Both app protocol injection and complete diagram guide injection depend
+      on app selection. The guide additionally needs nonempty selected type IDs.
+      Existing recovery tests preserve a guide that was already selected; that
+      does not establish recovery from a missed selection.
+  - path: backend/apps/ai/tasks/preprocessing_resume.py
+    observation: >-
+      Continuations explicitly preserve app, Rule and Workflow identities, but
+      omit diagram type IDs and the template variant. Diagram fields are also
+      excluded from ordinary PreprocessingResult serialization. This is a
+      separate source-level lifecycle gap, not an established incident cause.
+  - path: backend/apps/diagrams/diagram_guidance.py
+    observation: >-
+      The existing manifest already validates exact resources and hashes.
+      Preserve it. At the reviewed source, seven selected common resources
+      total 97,139 characters, plus 5,864 for the architecture type, before
+      the runtime wrapper. Loading the complete bundle on every turn is costly.
+  - path: frontend/packages/ui/src/services/streamedEmbedRevisionHistory.ts
+    observation: >-
+      The ordinary non-sealed path freshly encrypts and sends each streamed
+      revision. The sealed path already verifies plaintext equivalence and
+      reconciles canonical rows. Randomized encryption makes independently
+      encrypted copies unsuitable for byte-identical immutable replay.
+design:
+  - component: Shared on-demand Memory discovery and loading
+    behavior: >-
+      Offer internal read-only find_memories(query) and load_memories(ids)
+      operations. A compact capability directory tells the main model what
+      categories exist; discovery returns bounded authorized metadata with
+      exact IDs, titles, source, revision and when-to-use descriptions. Load
+      known IDs directly without a discovery round trip. Discovery and loading
+      remain available when Jev returned no selected Memories or omitted an app;
+      eligibility comes from actual registered capabilities and source access,
+      not that shortlist. Reuse the same resolver for automatic and requested
+      loading. Do not put every full Memory body or the entire growing catalog
+      in the baseline prompt.
+    enforcement: >-
+      Public app guides load from eligible registered packages. Project guides
+      require fresh active Project authority and exact source revisions.
+      Personal/team content uses its existing approval or explicit-mention
+      route; model interest is not consent. Discovery must not expose private
+      titles or metadata outside authorized scope. Loading checks access again,
+      deduplicates exact revisions and supplies complete bodies within a bounded
+      request budget. The user sees the existing expandable Loaded memories
+      receipt only for content actually included, with no app skill card.
+  - component: Small required capability protocol
+    behavior: >-
+      Install a versioned public protocol describing how to load the selected
+      Diagram Design Memories through load_memories whenever diagrams is
+      eligible, independently of the Jev shortlist. Respect actual app availability,
+      account settings and tool boundaries. The protocol explains that diagrams
+      use native editable output, text sketches count as diagrams, Mermaid/source
+      requires an explicit source request, and prose-only requests remain prose.
+      Target at most 1,000 tokens for protocol plus schema, measured with the
+      actual request tokenizer; do not include the full drawing references.
+      Give the protocol one canonical owner and retire the dormant contradictory
+      disabled-diagrams/ASCII fallback from the active instruction catalogue.
+    enforcement: >-
+      Validate the required protocol revision before dispatch, including cached
+      instruction bundles. Missing or stale content reloads from the shipped
+      package; a genuinely unavailable capability must not be advertised as ready.
+  - component: One diagram context resolver
+    behavior: >-
+      Route Jev preloading, explicit main-model preparation and runtime recovery
+      through a diagram bundle adapter behind the shared Memory resolver.
+      Loading a selected type includes its complete common prerequisites and
+      template; the model need not remember to fetch each dependency. Accept
+      only manifest type IDs and supported variants, with at most three complete
+      type guides. No arbitrary paths, network access, private Memory loading or
+      new user permission prompt is involved for these public guides.
+    enforcement: >-
+      Insert the validated public context through the trusted prompt assembler,
+      under existing instruction precedence. Imported guide text does not grant
+      tool authority. Do not return a bare success acknowledgement while leaving
+      the real provider request unchanged. Deduplicate repeated preparations.
+  - component: Explicit context state across inference lifecycle
+    behavior: >-
+      Keep a server-owned, versioned context record bound to owner, chat and turn,
+      containing selected type IDs, variant, protocol revision and complete
+      bundle fingerprint. Preserve its identities in internal continuations;
+      reload and revalidate resources on restoration. Recompute relevance for a
+      new user turn or changed scope rather than indefinitely pinning an old type.
+    enforcement: >-
+      Every primary, tool-continuation, fallback and answer-recovery request uses
+      the same resolved sections. Include the context fingerprint in native
+      transcript/cache compatibility checks. Invalidate incompatible cached
+      state when context changes. Recovery with tools disabled restores context
+      in server code without enabling skill execution. Never truncate a required
+      guide to fit a budget; reserve its space or return a bounded capability error.
+  - component: Check the provider request and the artifact before publication
+    behavior: >-
+      Before sending a diagram-producing request, verify that its final assembled
+      prompt contains the resolved complete sections at their recorded revisions.
+      Intercept native diagram fences, unsolicited Mermaid and unambiguous diagram
+      source blocks before publication. Missing context triggers preparation and
+      a bounded continuation; invalid HTML/SVG receives existing schema and safety
+      checks before a finished artifact is committed.
+    enforcement: >-
+      Allow at most one context-repair generation within the existing global
+      inference/time budget. Preserve already published prose, withhold only the
+      pending artifact and avoid duplicate embeds. Recovery exhaustion produces
+      an honest artifact failure, not an apparent successful code substitute.
+      Preserve explicit source-code requests and ordinary programming examples.
+  - component: Truthful receipts and diagnostics
+    behavior: >-
+      Produce the existing Loaded memories receipt from sections actually sent
+      to the provider, rather than from relevance selection or a loader call.
+      Record content-free stages: suggested, resolved, included, validated,
+      persisted. Include guide IDs, bundle revision, request kind, repair reason
+      and outcome; keep user text, source HTML and private context out of logs.
+  - component: Canonical initialization of immutable embed versions
+    behavior: >-
+      Reuse the existing canonical revision lifecycle for ordinary initial
+      versions instead of allowing every streaming observer to become a new
+      writer. Bind retries to a stable operation identity and make initial
+      creation atomic. Other tabs/devices consume the committed encrypted row.
+      On a competing create, return a correlated canonical-version outcome;
+      the authorized client decrypts and compares expected source/patch before
+      accepting it as an equivalent replay. Genuine content mismatch remains
+      an error. Preserve randomized encryption, ownership and immutable checks.
+    enforcement: >-
+      Verify the exact writer/replay cause with a controlled concurrent test
+      before patching. Reuse canonical ciphertext after verified equivalence;
+      never switch to deterministic encryption or overwrite committed history.
+      Add embed/version/request identities to content-free error correlation.
+      A guidance change cannot prove this storage conflict fixed. Do not merely
+      hide the error toast or weaken the backend check.
+tradeoffs:
+  - >-
+    Stronger relevance wording alone leaves the same probabilistic dependency.
+    Always loading all full guides spends substantial context on unrelated turns.
+    The proposed design pays a small baseline cost and loads the full bundle only
+    for relevant discussions or actual diagram preparation.
+  - >-
+    Jev preloading keeps existing discussion-based availability and usually avoids
+    an extra model round trip. If it misses, the main model can prepare guidance
+    itself. The runtime prevents a recognized diagram from bypassing preparation.
+  - >-
+    Instruction presence, revisions and native-output validation can be enforced
+    deterministically. Semantic relevance and arbitrary ASCII sketches cannot be
+    recognized perfectly by regex or promised as infallible. Evaluate those
+    cases with real inference; do not present a heuristic as a universal guarantee.
+scope:
+  in:
+    - Shared on-demand discovery/loading for public app and authorized Project Memories.
+    - Existing private-memory approval routing and unchanged Loaded memories presentation.
+    - Diagram protocol, shared resolver and lifecycle preservation.
+    - Bounded output admission and existing schema/safety validation.
+    - Focused regression coverage, applied-context evidence and privacy.
+    - Independently verify and correct canonical initial-version persistence.
+  out:
+    - A general rewrite of all Memory, tool or artifact infrastructure.
+    - A new diagram engine, Mermaid renderer or automatic source conversion.
+    - Bulk repairs to old chats or changes to private Memory consent.
+    - New inference model/provider defaults or overrides for verification.
+implementation_order_after_review:
+  - Add shared Memory discovery/loading, source access checks and actual-inclusion receipts.
+  - Add required compact diagram protocol, bundle adapter and typed context state.
+  - Integrate actual-request checks, continuation restore and bounded artifact recovery.
+  - Update focused regressions, then verify generated and persisted native output.
+  - Verify the competing-writer hypothesis and unify canonical initial-version persistence.
+required_verification_on_implementation:
+  - >-
+    Generic Memory coverage: discover and load an eligible code/design guide and
+    an authorized Project guide absent from Jev selection; verify complete exact
+    revisions in the provider request and the existing Loaded memories receipt,
+    with no app skill card. Repeated loads deduplicate. Unauthorized/private
+    metadata, forged IDs and stale/revoked Project access remain rejected;
+    personal/team requests preserve the existing consent/explicit-mention path.
+  - >-
+    Unit-level captured provider requests: force Jev to omit diagrams or all type
+    IDs; exercise main preparation and verify complete common/type/template
+    sections, revision checks, truthful receipts and deduplication.
+  - >-
+    Lifecycle coverage: async skill, Focus, Memory and permission continuations,
+    primary/fallback/answer-only recovery, cached transcript invalidation, new-turn
+    scope rejection and unavailable/stale resources. Keep tools disabled during
+    answer-only recovery and preserve existing access checks.
+  - >-
+    Output coverage: split fences, missing preparation, invalid HTML/SVG,
+    unsolicited Mermaid, explicit source requests, prose-only and ordinary code.
+    Exercise the single repair limit and assert no duplicate or unfinished
+    success embeds and no loss or repetition of already published text.
+  - >-
+    Update existing authenticated diagram E2E coverage and its contract metadata.
+    In isolated GitHub CI, force a routing miss and verify a finished native
+    preview, fullscreen, reload and unchanged immutable version history.
+      Add a two-tab concurrent initialization/reconnect case that proves both
+      clients converge to one canonical encrypted v1 without the spurious toast,
+      while a genuinely different proposed version is still rejected.
+  - >-
+    Real inference on dev only, in an isolated Project and CLI state, using
+    existing automatic routing: natural explicit diagrams, unsolicited visuals
+    in architecture/process discussions, contextual follow-ups, prose-only,
+    explicit Mermaid/source and unrelated controls. Repeat with a controlled
+    routing miss. Assert actual native output when a visual is requested/chosen;
+    absence of Mermaid alone is insufficient. Inspect applied-context evidence.
+  - >-
+    Measure baseline protocol/schema tokens, selected-bundle input size and added
+    preparation round trips. Verify unrelated turns omit full guide bodies and
+    repeated preparation does not duplicate them. Run focused relevant local
+    unit/lint checks; product/browser checks use the existing CI coordinator.
+proposal_validation:
+  method: scripts/plan_validate.py
+  result: passed
+  product_changes: none
+  product_tests: Not run; this is an investigation and design proposal.

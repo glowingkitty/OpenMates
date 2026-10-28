@@ -74,8 +74,8 @@ function scheduleCapacityDrain(): void {
 }
 
 async function sendWithReceipt(
-  type: "store_embed" | "store_embed_keys",
-  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed",
+  type: "store_embed" | "store_embed_keys" | "store_embed_diff",
+  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed" | "store_embed_diff_confirmed",
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const requestId = crypto.randomUUID();
@@ -665,22 +665,16 @@ export async function sendStoreEmbedDiffImpl(
   payload: StoreEmbedDiffPayload,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      `[EmbedSenders] WebSocket not connected - encrypted diff row for ${payload.embed_id} v${payload.version_number} was not sent`,
-    );
-    return;
+    throw new Error("Cannot confirm encrypted embed history while disconnected.");
   }
-
-  try {
-    console.debug(
-      `[EmbedSenders] Sending encrypted embed diff ${payload.embed_id} v${payload.version_number} to server`,
-    );
-    await webSocketService.sendMessage("store_embed_diff", payload);
-  } catch (error) {
-    console.error(
-      `[EmbedSenders] Error sending store_embed_diff for ${payload.embed_id} v${payload.version_number}:`,
-      error,
-    );
+  const receipt = await sendWithReceipt("store_embed_diff", "store_embed_diff_confirmed",
+    payload as unknown as Record<string, unknown>);
+  const expected = await computeSHA256(JSON.stringify([
+    payload.encrypted_snapshot ?? null, payload.encrypted_patch ?? null,
+  ]));
+  if (receipt.embed_id !== payload.embed_id || receipt.version_number !== payload.version_number
+    || receipt.canonical_digest !== expected || receipt.canonical_source !== "version_row") {
+    throw new Error("Canonical embed history receipt did not match the submitted version.");
   }
 }
 

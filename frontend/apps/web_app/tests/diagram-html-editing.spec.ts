@@ -7,7 +7,7 @@ const {
   createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl,
   installE2EServerContentOverrideGate,
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { reloadChatWorkspace } = require('./helpers/workspace-navigation');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
@@ -15,12 +15,25 @@ const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { email, password, otpKey } = getTestAccount();
 
 // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set,chats.rendering.assistant-document-convergence,chats.persistence.client-encrypted,storage.versions.bounded-reconstruction,chats.layout.responsive-history
-test('architecture discussion loads native guidance and its optional diagram keeps editable encrypted history', async ({ page }: { page: any }, testInfo: any) => {
+test('missed diagram preselection recovers through on-demand memories and keeps editable encrypted history', async ({ page }: { page: any }, testInfo: any) => {
   test.setTimeout(300_000);
   skipWithoutCredentials(test, email, password, otpKey);
   const log = createSignupLogger('DIAGRAM_HTML_EDITING');
   const screenshot = createStepScreenshotter(log, { filenamePrefix: 'diagram-design-web' });
   const revisions: Record<string, unknown>[] = [];
+  const historyErrors: string[] = [];
+  const observeHistoryErrors = (observedPage: any) => observedPage.on('websocket', (socket: any) => {
+    socket.on('framereceived', ({ payload }: { payload: string | Buffer }) => {
+      try {
+        const frame = JSON.parse(String(payload));
+        if (frame.type === 'error' && !frame.payload?.request_id
+          && /Immutable embed version mismatch/.test(String(frame.payload?.message))) {
+          historyErrors.push(String(frame.payload.message));
+        }
+      } catch { /* Only structured server errors matter. */ }
+    });
+  });
+  observeHistoryErrors(page);
   page.on('websocket', (socket: any) => {
     socket.on('framereceived', ({ payload }: { payload: string | Buffer }) => {
       try {
@@ -38,6 +51,10 @@ test('architecture discussion loads native guidance and its optional diagram kee
   await loginToTestAccount(page, log, screenshot);
   await installE2EServerContentOverrideGate(page, 'diagram-html-editing');
   await startNewChat(page, log);
+  const otherTab = await page.context().newPage();
+  observeHistoryErrors(otherTab);
+  await otherTab.goto(page.url());
+  await waitForChatReady(otherTab, log);
   try {
     await expect.poll(() => page.evaluate(() => {
       const raw = sessionStorage.getItem('openmates_e2e_log_forwarding');
@@ -46,14 +63,18 @@ test('architecture discussion loads native guidance and its optional diagram kee
       return Boolean(state.runId && state.token);
     }), { message: 'signed diagram fixture transport gate is installed' }).toBe(true);
     await sendMessage(page,
-      'We are comparing the OpenMates stack\'s ingestion, query and storage layers for a dark presentation. What are the architectural relationships and tradeoffs? DIAGRAM_HTML_E2E:architecture_discussion <<<TEST_LIVE_MOCK:diagram_html_web>>>', log);
+      'Create a dark editable architecture diagram of the ingestion, query and storage layers. DIAGRAM_HTML_E2E:on_demand <<<TEST_LIVE_MOCK:diagram_html_web>>>', log);
     await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30_000 });
     const chatUrl = page.url();
     const assistant = page.getByTestId('message-assistant').last();
     const preview = assistant.locator('[data-testid="embed-preview"][data-app-id="diagrams"][data-status="finished"]').first();
     await expect(preview).toBeVisible({ timeout: 90_000 });
     await expect(preview.getByTestId('diagram-html-preview')).toBeVisible();
+    expect(historyErrors).toEqual([]);
+    await expect(page.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
+    await expect(otherTab.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
     await expect(page.locator('[data-testid="assistant-memory-app-icon"][data-app-id="diagrams"]').first()).toBeVisible();
+    await expect(assistant.locator('[data-testid="embed-preview"][data-app-id="system"]')).toHaveCount(0);
     await expect(assistant).not.toContainText('<!DOCTYPE');
     await expect(assistant).not.toContainText('flowchart TD');
     await preview.getByTestId('result-preview-expand').click({ trial: true });
@@ -169,6 +190,7 @@ test('architecture discussion loads native guidance and its optional diagram kee
     }).catch(() => {});
     throw error;
   } finally {
+    await otherTab.close();
     const overlay = page.getByTestId('embed-fullscreen-overlay');
     if (await overlay.isVisible().catch(() => false)) await closeFullscreen(page, overlay);
     if (/chat-id=/.test(page.url())) await deleteActiveChat(page, log, screenshot, 'diagram-cleanup');

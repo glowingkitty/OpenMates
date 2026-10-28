@@ -342,6 +342,59 @@ async function requireLegacyChatWrite(trx, chat, actor) {
   }
 }
 
+/* Internal-only encrypted history write. Use the edit transaction's same lock,
+ * including the initial lookup, so concurrent initialization cannot add rows
+ * during an editor's complete-history check. Ciphertext is always immutable. */
+export async function writeLegacyEmbedDiff(database, raw) {
+  const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'row']),
+    ['embed_id', 'actor_user_hash', 'row']);
+  const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
+  if (UUID_V5_RE.test(embedId)) fail(403, 'project_context_required');
+  const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
+  const row = exactFields(input.row, HISTORY_FIELDS,
+    ['version_number', 'encrypted_snapshot', 'encrypted_patch']);
+  const version = safeInteger(row.version_number, 'invalid_version');
+  if (version < 1 || version > 2147483647) fail(400, 'invalid_version');
+  const snapshot = row.encrypted_snapshot === null ? null
+    : boundedString(row.encrypted_snapshot, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
+  const patch = row.encrypted_patch === null ? null
+    : boundedString(row.encrypted_patch, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
+  if ((version === 1 && (!snapshot || patch)) || (version > 1 && !patch)) fail(400, 'invalid_history');
+  const createdAt = row.created_at == null ? Math.floor(Date.now() / 1000)
+    : safeInteger(row.created_at, 'invalid_timestamp');
+  if (createdAt <= 0) fail(400, 'invalid_timestamp');
+  return database.transaction(async (trx) => {
+    await lockIdentity(trx, `embed:${embedId}`);
+    const heads = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().limit(2);
+    if (heads.length !== 1 || heads[0].hashed_user_id !== actor) fail(403, 'embed_access_denied');
+    const embed = heads[0];
+    if (await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
+      .whereIn('item_type', ['embed', 'upload']).first()) fail(403, 'project_context_required');
+    if (embed.app_id === 'diagrams' && embed.skill_id === 'html' && version > 1) {
+      fail(403, 'diagram_atomic_commit_required');
+    }
+    const chats = await trx(CHATS)
+      .whereRaw("encode(digest(id::text, 'sha256'), 'hex') = ?", [embed.hashed_chat_id]).forShare().limit(2);
+    if (chats.length !== 1 || (chats[0].hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)) {
+      fail(403, 'chat_write_denied');
+    }
+    await requireLegacyChatWrite(trx, chats[0], actor);
+    const existing = await trx(DIFFS).where({ embed_id: embedId, version_number: version }).forUpdate().limit(2);
+    if (existing.length > 1) fail(409, 'ambiguous_history');
+    if (existing.length && (existing[0].hashed_user_id !== actor
+      || (existing[0].encrypted_snapshot ?? null) !== snapshot
+      || (existing[0].encrypted_patch ?? null) !== patch
+      || (row.created_at != null && Number(existing[0].created_at) !== createdAt))) {
+      fail(409, 'immutable_version_mismatch');
+    }
+    if (!existing.length) await trx(DIFFS).insert({ id: randomUUID(), embed_id: embedId,
+      version_number: version, hashed_user_id: actor, encrypted_snapshot: snapshot,
+      encrypted_patch: patch, created_at: createdAt, has_snapshot: snapshot !== null, has_patch: patch !== null });
+    return { embed_id: embedId, version_number: version, canonical_source: 'version_row',
+      canonical_digest: sha256(JSON.stringify([snapshot, patch])), idempotent: existing.length === 1 };
+  });
+}
+
 /* Internal-only first-party wrapper write. Share the head writer's database lock:
  * two missing-row lookups must never race into duplicate cryptographic identities. */
 export async function writeLegacyEmbedKey(database, raw) {
