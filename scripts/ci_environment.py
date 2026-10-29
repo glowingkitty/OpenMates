@@ -108,6 +108,7 @@ def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
 # harness selector only strengthens network isolation; it grants no execution.
 PRIVATE_BACKEND_SPECS = frozenset(
     {
+        "cli-memory-readiness.spec.ts",
         "cli-rust-cli-performance.spec.ts",
         "cli-rust-tui-performance.spec.ts",
         "cli-rust-tui-proof.spec.ts",

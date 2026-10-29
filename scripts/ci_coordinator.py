@@ -1208,6 +1208,7 @@ def main():
         print_receipt(checkpoint, as_json=args.json)
     elif args.action == "wait":
         row = wait_for_job(queue, args.id, timeout=args.timeout, poll=args.poll)
+        terminal_state = row["state"]
         if row["state"] == "success":
             from ci_results import fetch
             # A green workflow is not sufficient: validate exact-source artifacts once.
@@ -1217,7 +1218,7 @@ def main():
             # and expose retrieval without making an absent artifact hide it.
             row = {**row, "result_command": f"python3 scripts/ci_coordinator.py result {args.id}"}
         print_receipt(row, as_json=args.json)
-        return 0 if row["state"] == "success" else 1
+        return 0 if terminal_state == "success" else 1
     elif args.action == "result":
         from ci_results import fetch
 

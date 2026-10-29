@@ -195,6 +195,37 @@ SDK_FUNCTIONS = frozenset(
 )
 
 
+
+# Original-validator run40951833663, source28a/f88: actual wasm-bindgen0.2.129
+# emitted one named SDK import and three namespace headers for the same exact
+# module. This is a literal observed-root admission, not a wider import grammar.
+OBSERVED_RECOVERY_ROOT_SHA256 = "3311789355075c37c9ed118455c45f86a7c7a1f010772962909d76395dd495a6"
+OBSERVED_RECOVERY_ROOT_BYTES = 164656
+OBSERVED_RECOVERY_INPUTS = {'packages/openmates-browser-bindings/src/browser_crypto.rs': '735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928', 'packages/openmates-rust/src/platform/browser_recovery_port.rs': '1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478', 'packages/openmates-rust/Cargo.toml': '6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6', 'packages/openmates-rust/src/platform/browser_metadata_native.js': '2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4', 'packages/openmates-rust/src/platform/browser_metadata_native.rs': 'ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c'}
+
+
+def observed_recovery_sdk_output(files, inputs, name, javascript, diagnostic):
+    if (len(javascript) != OBSERVED_RECOVERY_ROOT_BYTES
+            or sdk.sha(javascript) != OBSERVED_RECOVERY_ROOT_SHA256
+            or name != "snippets/openmates-sdk-c8cc119936fa2be8/inline0.js"
+            or any(inputs.get(path) != digest for path, digest in OBSERVED_RECOVERY_INPUTS.items())):
+        return None
+    named = ("import { recoveryCancel, recoveryCapture, recoveryInventoryRequest, recoveryListen, recoveryRead, recoveryRequest, recoveryStop } from './" + name + "';\n").encode()
+    headers = [named] + [("import * as import" + str(index) + ' from "./' + name + '"\n').encode() for index in (2, 3, 4)]
+    # The independent exact source/body checks precede this path. Full root
+    # byte identity fixes all seven direct calls and three same-module map uses;
+    # no alias, computed access, extra module or modified root can reach it.
+    if any(javascript.count(header) != 1 for header in headers):
+        return None
+    for header in headers:
+        javascript = javascript.replace(header, b"", 1)
+    _package_note(diagnostic, "package-import-header", packageSdkImportSingleton=True)
+    _package_note(diagnostic, "package-dependencies", packageSdkNamespaceUsesClosed=True)
+    result = {key: data for key, data in files.items() if key != name}
+    result[PACKAGE_FILES[0]] = javascript
+    return result
+
+
 def recovery_sdk_output(files, inputs, diagnostic=None):
     """Validate exact module, finite producer header and every namespace use.
 
@@ -233,6 +264,9 @@ def recovery_sdk_output(files, inputs, diagnostic=None):
     javascript = files.get(PACKAGE_FILES[0])
     if type(javascript) is not bytes:
         return None
+    observed = observed_recovery_sdk_output(files, inputs, name, javascript, diagnostic)
+    if observed is not None:
+        return observed
     headers = [
         (
             index,

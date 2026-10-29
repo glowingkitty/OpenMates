@@ -83,7 +83,7 @@ CORE_SPECS = frozenset({
     # Manual approval Workflow run and Tasks projection use core services only.
     "tasks-workflow-run-detail.spec.ts",
 })
-ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
+ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts", "cli-memory-readiness.spec.ts"})
 COMPONENT_MARKER = "// playwright-account: not_required reason=isolated_component_preview"
 
 

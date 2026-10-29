@@ -648,6 +648,87 @@ def rust_unit_diagnostics(data, root, inputs, stage):
     return report if locations or "reportedCounts" in report else None
 
 
+
+def rust_unit_progress_diagnostics(data, stage):
+    """Closed numeric progress and hashed identifiers; never acceptance proof.
+
+    No Rust source inventory or raw name/message/path leaves this boundary.
+    Missing start evidence does not establish that compilation failed or no test ran.
+    """
+    if stage not in LIBRARY_UNIT_MANIFESTS:
+        return None
+    total = None
+    finished, warned = {}, {}
+    compiled = binary = False
+    identifier = r"[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*"
+
+    def identifier_hashes(name):
+        return {
+            "fullSha256": sha(name.encode("ascii")),
+            "leafSha256": sha(name.rsplit("::", 1)[-1].encode("ascii")),
+        }
+
+    for row in data[:MAX_LOG].decode("utf-8", errors="replace").splitlines():
+        if re.fullmatch(
+            r"\s*Finished `test` profile \[[^\n]{1,80}\] target\(s\) in [0-9hms. ]{1,32}",
+            row,
+        ):
+            compiled = True
+        if re.fullmatch(r"\s*Running unittests [^\n]{1,1024}", row):
+            binary = True
+        start = re.fullmatch(r"running ([0-9]{1,7}) tests?", row)
+        if start is not None and int(start[1]) <= MAX_UNIT_DIAGNOSTIC_COUNT:
+            total = int(start[1])
+            finished.clear()
+            warned.clear()
+        if total is None:
+            continue
+        complete = re.fullmatch(
+            r"test (" + identifier + r") \.\.\. (ok|FAILED|ignored)", row
+        )
+        slow = re.fullmatch(
+            r"test (" + identifier + r") has been running for over [0-9]{1,7} seconds",
+            row,
+        )
+        if (
+            complete is not None
+            and len(complete[1]) <= 240
+            and len(finished) < MAX_UNIT_DIAGNOSTIC_COUNT
+        ):
+            finished.setdefault(complete[1], None)
+        if (
+            slow is not None
+            and len(slow[1]) <= 240
+            and len(warned) < MAX_UNIT_DIAGNOSTIC_COUNT
+        ):
+            warned.setdefault(slow[1], None)
+    report = {
+        "cargoCompilationFinishedObserved": compiled,
+        "testBinaryObserved": binary,
+        "libtestStartObserved": total is not None,
+    }
+    if total is not None:
+        active = [name for name in warned if name not in finished]
+        # Inconsistent producer text supplies no fabricated completion evidence.
+        if len(finished) > total or len(active) > total - len(finished):
+            return {**report, "countsConsistent": False}
+        slow_names = active[-16:]
+        complete_names = (
+            list(finished)[-(16 - len(slow_names)) :] if len(slow_names) < 16 else []
+        )
+        report.update(
+            reportedTotal=total,
+            observedCompleted=len(finished),
+            observedLongRunning=len(active),
+            countsConsistent=True,
+            longRunningIdentifiers=[identifier_hashes(name) for name in slow_names],
+            lastCompletedIdentifiers=[
+                identifier_hashes(name) for name in complete_names
+            ],
+        )
+    return report
+
+
 def project_vector_diagnostic(value, expected, failed_ids):
     """Accept capability-specific closed diagnostics for an actually failed vector."""
     capability = expected.get("capability")
@@ -710,6 +791,7 @@ def failure_diagnostics(private, root, stage, inputs, plan):
                                      "truncated": info.st_size > len(data), "lifetime": "isolated-runner-only"}
         report["compiler"] = compiler_diagnostics(data, root, inputs)
         if stage in LIBRARY_UNIT_MANIFESTS:
+            report["rustUnitProgress"] = rust_unit_progress_diagnostics(data, stage)
             units = rust_unit_diagnostics(data, root, inputs, stage)
             if units is not None:
                 report["rustUnits"] = units
