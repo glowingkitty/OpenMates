@@ -47,7 +47,7 @@ MAX_RECEIPT = 4 * 1024**2
 CLI = "frontend/packages/openmates-tui-native"
 SDK = "packages/openmates-rust"
 ROOTS = (CLI, SDK)
-OBJECTS = ("build.json", "openmates")
+OBJECTS = ("build.json", "openmates", "tui-benchmark")
 TICKET_DIR = Path("logs/ci-coordinator/native-dev")
 PREFIX = "candidates/native-dev/v2"
 STAGES = (
@@ -97,6 +97,9 @@ EXTRA = frozenset(
         *assets.FILES.values(),
         "config/cli-command-catalog.json",
         "frontend/packages/workflowFile.ts",
+        CLI + "/scripts/benchmark.py",
+        CLI + "/scripts/prepare-typescript-baseline.mjs",
+        "frontend/packages/openmates-cli/scripts/tui-rust-baseline.mjs",
         *("frontend/packages/openmates-cli/src/" + name for name in CATALOG),
     }
 )
@@ -135,16 +138,47 @@ def context_require(value, reason):
         raise ContextRefused(reason)
 
 
-SETUP_SUBSTAGES = frozenset({
-    "output-disk-usage", "tmp-disk-usage", "reserve-check", "runner-temp-input",
-    "private-parent-create", "private-parent-mode", "tmp-boundary-stat",
-    "tmp-boundary-check", "sandbox-create", "source-directory-create",
-    "source-read", "source-check", "source-parent-create", "source-write",
-    "private-home-create", "private-tmp-create", "rustup-locate", "rustup-check",
-    "environment-build", "manifest-check", "command-runner-create",
-})
-SETUP_ERRNOS = frozenset({"ENOENT", "EACCES", "ENOSPC", "EROFS", "EDQUOT", "EIO",
-                          "ENOTDIR", "EEXIST", "EMFILE", "ENFILE", "EINVAL", "EPERM"})
+SETUP_SUBSTAGES = frozenset(
+    {
+        "output-disk-usage",
+        "tmp-disk-usage",
+        "reserve-check",
+        "runner-temp-input",
+        "private-parent-create",
+        "private-parent-mode",
+        "tmp-boundary-stat",
+        "tmp-boundary-check",
+        "sandbox-create",
+        "source-directory-create",
+        "source-read",
+        "source-check",
+        "source-parent-create",
+        "source-write",
+        "private-home-create",
+        "private-tmp-create",
+        "rustup-locate",
+        "rustup-check",
+        "environment-build",
+        "manifest-check",
+        "command-runner-create",
+    }
+)
+SETUP_ERRNOS = frozenset(
+    {
+        "ENOENT",
+        "EACCES",
+        "ENOSPC",
+        "EROFS",
+        "EDQUOT",
+        "EIO",
+        "ENOTDIR",
+        "EEXIST",
+        "EMFILE",
+        "ENFILE",
+        "EINVAL",
+        "EPERM",
+    }
+)
 
 
 def setup_exception(error):
@@ -154,15 +188,24 @@ def setup_exception(error):
         return {"exceptionCategory": "policy-refused"}
     if isinstance(error, OSError):
         code = errno.errorcode.get(error.errno)
-        return {"exceptionCategory": "os-error", "osCode": code if code in SETUP_ERRNOS else "other"}
-    for kind, label in ((KeyError, "key-error"), (AttributeError, "attribute-error"),
-                        (TypeError, "type-error"), (ValueError, "value-error")):
+        return {
+            "exceptionCategory": "os-error",
+            "osCode": code if code in SETUP_ERRNOS else "other",
+        }
+    for kind, label in (
+        (KeyError, "key-error"),
+        (AttributeError, "attribute-error"),
+        (TypeError, "type-error"),
+        (ValueError, "value-error"),
+    ):
         if isinstance(error, kind):
             return {"exceptionCategory": label}
     return {"exceptionCategory": "other"}
 
 
-def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_substage=None):
+def diagnostic(
+    phase, error, *, recipe_stage=None, source_inputs=None, setup_substage=None
+):
     if isinstance(error, ContextRefused) and str(error) in DIAGNOSTIC_REASONS:
         reason = str(error)
     elif phase == "identity":
@@ -207,6 +250,25 @@ def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_sub
             ):
                 result["sourcePath"] = path
     return result
+
+
+def compile_failure_diagnostics(private, original_source, inputs, recipe_stage):
+    """Project the SAME failed parent log before private cleanup; never raw text.
+
+    This adds no compile/cleanup proof. Only existing closed rustc codes and held
+    source coordinates may enter the existing failed native JSON artifact.
+    """
+    if recipe_stage not in {"native-build", "renderer-build"} or not isinstance(
+        inputs, dict
+    ):
+        return []
+    try:
+        data = sdk.regular(private / (recipe_stage + ".log"), sdk.MAX_LOG)
+        return sdk.compiler_diagnostics(data, original_source, inputs)
+    except (OSError, ValueError, sdk.Refused):
+        # Missing/unsafe/oversized diagnostics cannot replace the original
+        # failure, alter cleanup, or be interpreted as successful compilation.
+        return []
 
 
 def validate_package_inputs(work, crate, names, inputs):
@@ -330,6 +392,7 @@ def source_inputs_from_git(root, source):
             for root in ROOTS
         )
         and CLI + "/src/main.rs" in result
+        and CLI + "/src/bin/tui-benchmark.rs" in result
         and SDK + "/src/lib.rs" in result,
         "source",
     )
@@ -431,6 +494,12 @@ def validate_manifests(work):
     package.validate_metadata(cli, lib)
     sdk.require(
         all(value["package"].get("rust-version") == VERSION for value in (cli, lib)),
+        "source",
+    )
+    sdk.require(
+        cli.get("example")
+        and {"name": "tui-benchmark", "path": "src/bin/tui-benchmark.rs"}
+        in cli["example"],
         "source",
     )
     assets.synchronize(work, check=True)
@@ -634,6 +703,21 @@ def _commands(cargo, rustc):
             TRIPLE,
             "--bin",
             "openmates",
+            "--jobs",
+            "2",
+        ],
+        [
+            cargo,
+            "build",
+            "--locked",
+            "--release",
+            "--offline",
+            "--manifest-path",
+            CLI + "/Cargo.toml",
+            "--target",
+            TRIPLE,
+            "--example",
+            "tui-benchmark",
             "--jobs",
             "2",
         ],
@@ -888,7 +972,7 @@ def run(root, results, *, environ=None):
         for stage, seconds in zip(supervisor.STAGES, supervisor.LIMITS):
             phase = (
                 "compile"
-                if stage == "native-build"
+                if stage in {"native-build", "renderer-build"}
                 else "fetch"
                 if stage in {"native-fetch", "sdk-fetch"}
                 else "package"
@@ -945,6 +1029,9 @@ def run(root, results, *, environ=None):
         )
         receipt["isolation"] = isolation
         receipt["binary"] = elf_metadata(data)
+        renderer_data = root_file(sandbox / "export/tui-benchmark", MAX_BINARY)
+        receipt["rendererArtifact"] = renderer_metadata(renderer_data, receipt)
+        validate_renderer(receipt, renderer_data)
         loader = Path(receipt["binary"]["dynamicLoader"]).resolve(strict=True)
         with sdk.admitted_command("native-loader", [str(loader)], env) as entry:
             os.lseek(entry.descriptor, 0, os.SEEK_SET)
@@ -986,6 +1073,12 @@ def run(root, results, *, environ=None):
             stream.flush()
             os.fsync(stream.fileno())
             sdk.require(os.fstat(stream.fileno()).st_nlink == 1, "outputs")
+        with (export / "tui-benchmark").open("xb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(renderer_data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            sdk.require(os.fstat(stream.fileno()).st_nlink == 1, "outputs")
         receipt.update(status="passed", code=None, compileProof=True)
     except Exception as error:
         receipt.update(
@@ -1001,6 +1094,13 @@ def run(root, results, *, environ=None):
                 setup_substage=setup_substage,
             ),
         )
+        if phase == "compile" and private is not None and sandbox is not None:
+            receipt["diagnostic"]["compiler"] = compile_failure_diagnostics(
+                private,
+                sandbox / "source",
+                before,
+                runner.steps[-1].get("stage") if runner and runner.steps else None,
+            )
     finally:
         if sandbox is not None:
             try:
@@ -1318,6 +1418,42 @@ def validate_result(
     return True
 
 
+def renderer_metadata(data, receipt):
+    metadata = elf_metadata(data)
+    metadata["name"] = "tui-benchmark"
+    metadata.update(
+        targetKind="example",
+        sourcePath=CLI + "/src/bin/tui-benchmark.rs",
+        sourceSha256=receipt["inputs"][CLI + "/src/bin/tui-benchmark.rs"],
+        harnessSha256=receipt["inputs"][CLI + "/scripts/benchmark.py"],
+        inputSetSha256=sdk.sha(
+            json.dumps(
+                {
+                    "domain": "isolated-renderer-example-v1",
+                    "sourceInputs": receipt["inputs"],
+                    "supervisorSha256": receipt["supervisorSha256"],
+                    "argv": _commands("cargo", "rustc")[-1],
+                },
+                sort_keys=True,
+            ).encode()
+        ),
+    )
+    return metadata
+
+
+def validate_renderer(receipt, data):
+    # This is additional to canonical application receipt validation, never a substitute.
+    expected = renderer_metadata(data, receipt)
+    sdk.require(
+        receipt.get("rendererArtifact") == expected
+        and expected["sha256"] != receipt["binary"]["sha256"]
+        and receipt.get("isolation", {}).get("rendererArtifact")
+        == {"sha256": expected["sha256"], "bytes": expected["bytes"]},
+        "outputs",
+    )
+    return True
+
+
 def retrieve(root, job, harness, destination):
     ticket_path = root.resolve() / TICKET_DIR / job["id"] / (job["token"] + ".json")
     ticket = json.loads(sdk.regular(ticket_path, 32768))
@@ -1361,6 +1497,19 @@ def retrieve(root, job, harness, destination):
                 )
             ),
         )
+        renderer = receipt.get("rendererArtifact", {})
+        sdk.require(
+            type(renderer.get("bytes")) is int
+            and 64 <= renderer["bytes"] <= MAX_BINARY,
+            "outputs",
+        )
+        transport.get_file(
+            ticket["objects"]["tui-benchmark"]["get_url"],
+            path / "tui-benchmark",
+            MAX_BINARY,
+            expected_size=renderer["bytes"],
+        )
+        validate_renderer(receipt, sdk.regular(path / "tui-benchmark", MAX_BINARY))
         result = {
             "request_id": job["id"],
             "source_commit": job["source"],
@@ -1374,6 +1523,13 @@ def retrieve(root, job, harness, destination):
                 **metadata,
                 "bucket": transport.BUCKET_NAME,
                 "key": _object_keys(job)["openmates"],
+            },
+            "renderer_artifact": {
+                "path": "tui-benchmark",
+                **renderer,
+                "bucket": transport.BUCKET_NAME,
+                "key": _object_keys(job)["tui-benchmark"],
+                "scope": "isolated offline renderer example only; no application equivalence",
             },
             "runtimeProof": False,
             "performanceProof": False,

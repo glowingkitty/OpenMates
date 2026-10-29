@@ -1,0 +1,15 @@
+{
+  "registrations": [
+    {
+      "authoritySha256": "172aaf41267b607f13b42c8e475adc9b3d96ee6f43322ec987492673b22371ce",
+      "sourceCommit": "7c867871255bb95c960f263bb2e96b3db7b6cf59",
+      "sourceTree": "6e76a11cff36298235a7a8cd268c223864d92703"
+    },
+    {
+      "authoritySha256": "f88c848c22fca0e2af0c15aba9efc7dd02586bd0fb544db37f971ba1e2946b05",
+      "sourceCommit": "28a1386dff030f13b82685de201fbed72793c65f",
+      "sourceTree": "cd43ee29359e25c3ffeb7dcac35b970447c5c104"
+    }
+  ],
+  "schemaVersion": 1
+}

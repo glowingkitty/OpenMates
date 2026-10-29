@@ -1,5 +1,6 @@
 # contract-test-file: tooling
 """Compilation receipt and runner tests; Cargo/network are mocked throughout."""
+
 import ast
 from contextlib import ExitStack
 import hashlib
@@ -30,34 +31,95 @@ retrieval = load("wasm_results", "ci_results.py")
 WASM = b"\0asm\x01\0\0\0\0\x01\0"
 # Explicit test-only replacement for the synthetic archive below. Expected
 # digest is a literal, never learned from the archive under validation.
-SYNTHETIC_BINDGEN_PIN = ("0.2.129", "dd4afd5b4ed89dd2daca833fd225acf0676450b28f3cc0849f835e9ada9745e8")
+SYNTHETIC_BINDGEN_PIN = (
+    "0.2.129",
+    "dd4afd5b4ed89dd2daca833fd225acf0676450b28f3cc0849f835e9ada9745e8",
+)
 
 
 def worker_proof_fixture():
     # Synthetic validator fixture only, never actual worker execution evidence.
     w = lane.worker
-    return {"schemaVersion": 1, "workerRuntimeProof": True, "context": "dedicated-worker",
-        "requiredTests": sorted("browser::browser_crypto_tests::" + name for name in w.REQUIRED_TESTS),
-        "passed": len(w.REQUIRED_TESTS), "failed": 0, "ignored": 0, "filteredOut": 0, "testWasmSha256": "1" * 64,
-        "controllerSha256": lane.sdk.sha(lane.sdk.regular(Path(w.__file__).with_suffix(".mjs"))),
-        "runnerProvenance": {"package": "wasm-bindgen-cli", "version": "0.2.129", "registry": "crates.io",
+    return {
+        "schemaVersion": 1,
+        "workerRuntimeProof": True,
+        "context": "dedicated-worker",
+        "requiredTests": sorted(
+            "browser::browser_crypto_tests::" + name for name in w.REQUIRED_TESTS
+        ),
+        "passed": len(w.REQUIRED_TESTS),
+        "failed": 0,
+        "ignored": 0,
+        "filteredOut": 0,
+        "testWasmSha256": "1" * 64,
+        "controllerSha256": lane.sdk.sha(
+            lane.sdk.regular(Path(w.__file__).with_suffix(".mjs"))
+        ),
+        "runnerProvenance": {
+            "package": "wasm-bindgen-cli",
+            "version": "0.2.129",
+            "registry": "crates.io",
             "url": "https://crates.io/crates/wasm-bindgen-cli/0.2.129",
             "crateSha256": "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c",
-            "publishedCargoLockSha256": "2" * 64, "binarySha256": "3" * 64,
-            "binaryIdentity": {"device": 1, "inode": 1, "bytes": 100, "mtimeNs": 1, "ctimeNs": 1, "mode": 0o100700, "uid": 1000, "links": 1}},
-        "playwright": {"version": w.PLAYWRIGHT_VERSION, "integrity": w.PLAYWRIGHT_INTEGRITY,
-            "browsersSha256": w.PLAYWRIGHT_BROWSERS_SHA256, "browserRevision": w.CHROMIUM_REVISION,
-            "browserVersion": w.CHROMIUM_VERSION, "browserBinarySha256": "4" * 64},
-        "cleanup": {"browserClosed": True, "serverStopped": True, "serverExitCode": None, "serverExitSignal": "SIGTERM"}}
+            "publishedCargoLockSha256": "2" * 64,
+            "binarySha256": "3" * 64,
+            "binaryIdentity": {
+                "device": 1,
+                "inode": 1,
+                "bytes": 100,
+                "mtimeNs": 1,
+                "ctimeNs": 1,
+                "mode": 0o100700,
+                "uid": 1000,
+                "links": 1,
+            },
+        },
+        "playwright": {
+            "version": w.PLAYWRIGHT_VERSION,
+            "integrity": w.PLAYWRIGHT_INTEGRITY,
+            "browsersSha256": w.PLAYWRIGHT_BROWSERS_SHA256,
+            "browserRevision": w.CHROMIUM_REVISION,
+            "browserVersion": w.CHROMIUM_VERSION,
+            "browserBinarySha256": "4" * 64,
+        },
+        "cleanup": {
+            "browserClosed": True,
+            "serverStopped": True,
+            "serverExitCode": None,
+            "serverExitSignal": "SIGTERM",
+        },
+    }
 
 
 def worker_step_fixtures():
-    return [{"stage": stage, "status": "passed", "started": True, "returncode": 0, "terminatedReturncode": 0,
-        "elapsedSeconds": 1, "command": {"tool": "cargo" if index == 0 else "wasm-bindgen-test-runner" if index == 1 else "node",
-            "admission": "strict-owner-mode", "entryPackage": None,
-            "argvSha256": hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest(),
-            "executableSha256": "3" * 64, "executableBytes": 100, "executableKind": "elf"}}
-        for index, (stage, command) in enumerate(zip(lane.worker.STAGES, lane.worker.commands()))]
+    return [
+        {
+            "stage": stage,
+            "status": "passed",
+            "started": True,
+            "returncode": 0,
+            "terminatedReturncode": 0,
+            "elapsedSeconds": 1,
+            "command": {
+                "tool": "cargo"
+                if index == 0
+                else "wasm-bindgen-test-runner"
+                if index == 1
+                else "node",
+                "admission": "strict-owner-mode",
+                "entryPackage": None,
+                "argvSha256": hashlib.sha256(
+                    json.dumps(command, separators=(",", ":")).encode()
+                ).hexdigest(),
+                "executableSha256": "3" * 64,
+                "executableBytes": 100,
+                "executableKind": "elf",
+            },
+        }
+        for index, (stage, command) in enumerate(
+            zip(lane.worker.STAGES, lane.worker.commands())
+        )
+    ]
 
 
 class SyntheticPinTests(unittest.TestCase):
@@ -77,9 +139,15 @@ def install_bindgen_fixture(private, work, executable=b"inert fixture binary"):
     binary.chmod(0o700)
     package = private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129"
     package.mkdir(parents=True)
-    (package / "Cargo.toml").write_text('[package]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n')
-    (package / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n')
-    archive = private / "cargo/registry/cache/inert-index/wasm-bindgen-cli-0.2.129.crate"
+    (package / "Cargo.toml").write_text(
+        '[package]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n'
+    )
+    (package / "Cargo.lock").write_text(
+        'version=4\n[[package]]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n'
+    )
+    archive = (
+        private / "cargo/registry/cache/inert-index/wasm-bindgen-cli-0.2.129.crate"
+    )
     archive.parent.mkdir(parents=True)
     archive.write_bytes(b"synthetic published crate fixture")
     return binary
@@ -89,56 +157,188 @@ class WasmReceiptTests(unittest.TestCase):
     def fixture(self):
         inputs = {root + "/Cargo.toml": "a" * 64 for root in lane.ROOTS}
         inputs.update({name: "b" * 64 for name in lane.LOCKS})
-        steps = [{"stage": stage, "status": "passed", "started": True, "returncode": 0,
-                  "terminatedReturncode": 0, "elapsedSeconds": 1,
-                  "command": {"tool": "cargo" if index in {2, 3} else "wasm-bindgen" if index in {4, 5} else "rustup", "admission": "strict-owner-mode",
-                              "entryPackage": None, "argvSha256": hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest(),
-                              "executableSha256": "c" * 64, "executableBytes": 100, "executableKind": "elf"}}
-                 for index, (stage, command) in enumerate(zip(lane.STAGES, lane.commands()))]
-        job = {"source": "d" * 40, "run_id": 123, "mode": "rust-wasm", "specs": '["rust-wasm"]'}
-        report = {"runtime_profile": "rust-wasm", "results": [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}]}
-        receipt = {"schemaVersion": 1, "runtime_profile": "rust-wasm", "status": "passed", "code": None,
-                   "source_commit": job["source"], "source_tree": "e" * 40, "harness_commit": "f" * 40, "run_id": "123",
-                   "compilationProof": True, "packagingProof": True, "browserRuntimeProof": False, "conformanceProof": False, "releaseProof": False,
-                   "publication": False, "services": {}, "cleanupVerified": True, "sourceHeld": True, "inputs": inputs,
-                   "requestedMode": "rust-wasm", "requestedTargets": ["rust-wasm"],
-                   "inputSetSha256": hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(),
-                   "locks": {name: inputs[name] for name in lane.LOCKS}, "artifact": lane.wasm_metadata(WASM), "steps": steps}
-        files = {lane.PACKAGE_FILES[0]: b"export default function init() {}", lane.PACKAGE_FILES[1]: WASM,
-                 lane.PACKAGE_FILES[2]: b"export default function init(): Promise<void>;"}
-        rows = [{"path": name, "sha256": hashlib.sha256(data).hexdigest(), "rawBytes": len(data)} for name, data in sorted(files.items())]
-        inventory = {"files": rows, "rawBytes": sum(len(data) for data in files.values()),
-                     "inventorySha256": hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
-        provenance = {"package": "wasm-bindgen-cli", "version": lane.BINDGEN_VERSION, "registry": "crates.io",
-                      "url": "https://crates.io/crates/wasm-bindgen-cli/" + lane.BINDGEN_VERSION,
-                      "crateSha256": "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c", "publishedCargoLockSha256": "2" * 64, "binarySha256": "c" * 64,
-                      "binaryIdentity": {"device": 1, "inode": 1, "bytes": 100, "mtimeNs": 1, "ctimeNs": 1, "mode": 0o100700, "uid": 1000, "links": 1}}
-        manifest = {"schemaVersion": 1, "status": "passed", "source_commit": job["source"], "source_tree": "e" * 40,
-                    "harness_commit": "f" * 40, "run_id": "123", "inputs": inputs, "inputSetSha256": receipt["inputSetSha256"],
-                    "locks": receipt["locks"], "target": "wasm32-unknown-unknown", "toolchain": "1.98.1",
-                    "inputWasmSha256": receipt["artifact"]["sha256"], "wasmBindgenVersion": lane.BINDGEN_VERSION,
-                    "toolSha256": provenance["binarySha256"], "toolProvenance": provenance, "inventory": inventory,
-                    "browserRuntimeProof": False, "requestedMode": "rust-wasm", "requestedTargets": ["rust-wasm"]}
+        steps = [
+            {
+                "stage": stage,
+                "status": "passed",
+                "started": True,
+                "returncode": 0,
+                "terminatedReturncode": 0,
+                "elapsedSeconds": 1,
+                "command": {
+                    "tool": "cargo"
+                    if index in {2, 3}
+                    else "wasm-bindgen"
+                    if index in {4, 5}
+                    else "rustup",
+                    "admission": "strict-owner-mode",
+                    "entryPackage": None,
+                    "argvSha256": hashlib.sha256(
+                        json.dumps(command, separators=(",", ":")).encode()
+                    ).hexdigest(),
+                    "executableSha256": "c" * 64,
+                    "executableBytes": 100,
+                    "executableKind": "elf",
+                },
+            }
+            for index, (stage, command) in enumerate(zip(lane.STAGES, lane.commands()))
+        ]
+        job = {
+            "source": "d" * 40,
+            "run_id": 123,
+            "mode": "rust-wasm",
+            "specs": '["rust-wasm"]',
+        }
+        report = {
+            "runtime_profile": "rust-wasm",
+            "results": [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}],
+        }
+        receipt = {
+            "schemaVersion": 1,
+            "runtime_profile": "rust-wasm",
+            "status": "passed",
+            "code": None,
+            "source_commit": job["source"],
+            "source_tree": "e" * 40,
+            "harness_commit": "f" * 40,
+            "run_id": "123",
+            "compilationProof": True,
+            "packagingProof": True,
+            "browserRuntimeProof": False,
+            "conformanceProof": False,
+            "releaseProof": False,
+            "publication": False,
+            "services": {},
+            "cleanupVerified": True,
+            "sourceHeld": True,
+            "inputs": inputs,
+            "requestedMode": "rust-wasm",
+            "requestedTargets": ["rust-wasm"],
+            "inputSetSha256": hashlib.sha256(
+                json.dumps(inputs, sort_keys=True).encode()
+            ).hexdigest(),
+            "locks": {name: inputs[name] for name in lane.LOCKS},
+            "artifact": lane.wasm_metadata(WASM),
+            "steps": steps,
+        }
+        files = {
+            lane.PACKAGE_FILES[0]: b"export default function init() {}",
+            lane.PACKAGE_FILES[1]: WASM,
+            lane.PACKAGE_FILES[2]: b"export default function init(): Promise<void>;",
+        }
+        rows = [
+            {
+                "path": name,
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "rawBytes": len(data),
+            }
+            for name, data in sorted(files.items())
+        ]
+        inventory = {
+            "files": rows,
+            "rawBytes": sum(len(data) for data in files.values()),
+            "inventorySha256": hashlib.sha256(
+                json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest(),
+        }
+        provenance = {
+            "package": "wasm-bindgen-cli",
+            "version": lane.BINDGEN_VERSION,
+            "registry": "crates.io",
+            "url": "https://crates.io/crates/wasm-bindgen-cli/" + lane.BINDGEN_VERSION,
+            "crateSha256": "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c",
+            "publishedCargoLockSha256": "2" * 64,
+            "binarySha256": "c" * 64,
+            "binaryIdentity": {
+                "device": 1,
+                "inode": 1,
+                "bytes": 100,
+                "mtimeNs": 1,
+                "ctimeNs": 1,
+                "mode": 0o100700,
+                "uid": 1000,
+                "links": 1,
+            },
+        }
+        manifest = {
+            "schemaVersion": 1,
+            "status": "passed",
+            "source_commit": job["source"],
+            "source_tree": "e" * 40,
+            "harness_commit": "f" * 40,
+            "run_id": "123",
+            "inputs": inputs,
+            "inputSetSha256": receipt["inputSetSha256"],
+            "locks": receipt["locks"],
+            "target": "wasm32-unknown-unknown",
+            "toolchain": "1.98.1",
+            "inputWasmSha256": receipt["artifact"]["sha256"],
+            "wasmBindgenVersion": lane.BINDGEN_VERSION,
+            "toolSha256": provenance["binarySha256"],
+            "toolProvenance": provenance,
+            "inventory": inventory,
+            "browserRuntimeProof": False,
+            "requestedMode": "rust-wasm",
+            "requestedTargets": ["rust-wasm"],
+        }
         manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
         receipt["workerProof"] = worker_proof_fixture()
         receipt["steps"].extend(worker_step_fixtures())
-        receipt["package"] = {"manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
-                              "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}
-        return report, receipt, job, {"expected_inputs": inputs, "expected_tree": "e" * 40, "artifact": WASM,
-                                     "package_manifest": manifest_bytes, "package_files": files}
+        receipt["package"] = {
+            "manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
+            "inventorySha256": inventory["inventorySha256"],
+            "toolProvenance": provenance,
+        }
+        return (
+            report,
+            receipt,
+            job,
+            {
+                "expected_inputs": inputs,
+                "expected_tree": "e" * 40,
+                "artifact": WASM,
+                "package_manifest": manifest_bytes,
+                "package_files": files,
+            },
+        )
 
     def valid(self, values):
         report, receipt, job, kwargs = values
-        return retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs)
+        return retrieval.valid_rust_wasm_receipt(
+            report, receipt, job, "f" * 40, **kwargs
+        )
 
     def test_exact_target_and_fixed_locked_build(self):
         lane.validate_targets(["rust-wasm"])
         for values in ([], ["sdk-conformance"], ["rust-wasm", "rust-wasm"]):
             with self.assertRaises(lane.sdk.Refused):
                 lane.validate_targets(values)
-        self.assertEqual(lane.commands()[2], ["cargo", "+1.98.1", "build", "--locked", "--release", "--manifest-path",
-                                               "packages/openmates-browser-bindings/Cargo.toml", "--target", "wasm32-unknown-unknown", "--lib"])
-        self.assertEqual(lane.commands()[1], ["rustup", "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"])
+        self.assertEqual(
+            lane.commands()[2],
+            [
+                "cargo",
+                "+1.98.1",
+                "build",
+                "--locked",
+                "--release",
+                "--manifest-path",
+                "packages/openmates-browser-bindings/Cargo.toml",
+                "--target",
+                "wasm32-unknown-unknown",
+                "--lib",
+            ],
+        )
+        self.assertEqual(
+            lane.commands()[1],
+            [
+                "rustup",
+                "target",
+                "add",
+                "--toolchain",
+                "1.98.1",
+                "wasm32-unknown-unknown",
+            ],
+        )
         self.assertTrue(self.valid(self.fixture()))
 
     def test_completed_report_rejects_missing_null_and_wrong_types(self):
@@ -147,34 +347,63 @@ class WasmReceiptTests(unittest.TestCase):
             if mode == "e2e":
                 report["runtime_profile"] = job["mode"] = mode
                 job["specs"] = json.dumps([lane.BROWSER_SPEC])
-                receipt.update(runtime_profile="rust-browser-package-for-e2e",
-                               requestedMode=mode, requestedTargets=[lane.BROWSER_SPEC])
+                receipt.update(
+                    runtime_profile="rust-browser-package-for-e2e",
+                    requestedMode=mode,
+                    requestedTargets=[lane.BROWSER_SPEC],
+                )
                 receipt["workerProof"] = None
-                receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
+                receipt["steps"] = receipt["steps"][: len(lane.STAGES)]
                 manifest = json.loads(kwargs["package_manifest"])
-                manifest.update(requestedMode=mode, requestedTargets=[lane.BROWSER_SPEC])
+                manifest.update(
+                    requestedMode=mode, requestedTargets=[lane.BROWSER_SPEC]
+                )
                 kwargs["package_manifest"] = json.dumps(manifest).encode()
-                receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
+                receipt["package"]["manifestSha256"] = hashlib.sha256(
+                    kwargs["package_manifest"]
+                ).hexdigest()
             self.assertTrue(self.valid((report, receipt, job, kwargs)), mode)
             # Retrieval uses None when ci-results.json is missing or JSON null.
-            for invalid in (None, {}, [], [report], "", "report", False, True, 0, 1,
-                            {"results": report["results"]}, {"runtime_profile": None}):
+            for invalid in (
+                None,
+                {},
+                [],
+                [report],
+                "",
+                "report",
+                False,
+                True,
+                0,
+                1,
+                {"results": report["results"]},
+                {"runtime_profile": None},
+            ):
                 with self.subTest(mode=mode, report=invalid):
                     self.assertFalse(self.valid((invalid, receipt, job, kwargs)))
             # A valid report still cannot bypass compiler identity/cleanup/provenance.
-            for key, value in (("source_commit", "0" * 40), ("sourceHeld", False),
-                               ("cleanupVerified", False)):
+            for key, value in (
+                ("source_commit", "0" * 40),
+                ("sourceHeld", False),
+                ("cleanupVerified", False),
+            ):
                 with self.subTest(mode=mode, receipt_field=key):
-                    self.assertFalse(self.valid((report, {**receipt, key: value}, job, kwargs)))
+                    self.assertFalse(
+                        self.valid((report, {**receipt, key: value}, job, kwargs))
+                    )
             receipt["package"]["toolProvenance"]["binarySha256"] = "0" * 64
             self.assertFalse(self.valid((report, receipt, job, kwargs)), mode)
 
     def test_worker_runner_provenance_is_same_install_and_exact_executed_binary(self):
         valid = self.fixture()
-        self.assertNotEqual(valid[1]["workerProof"]["runnerProvenance"]["binarySha256"],
-                            valid[1]["package"]["toolProvenance"]["binarySha256"])
+        self.assertNotEqual(
+            valid[1]["workerProof"]["runnerProvenance"]["binarySha256"],
+            valid[1]["package"]["toolProvenance"]["binarySha256"],
+        )
         self.assertTrue(self.valid(valid))
-        for key, value in (("binarySha256", "9" * 64), ("publishedCargoLockSha256", "8" * 64)):
+        for key, value in (
+            ("binarySha256", "9" * 64),
+            ("publishedCargoLockSha256", "8" * 64),
+        ):
             values = self.fixture()
             values[1]["workerProof"]["runnerProvenance"][key] = value
             self.assertFalse(self.valid(values), "worker " + key)
@@ -191,21 +420,40 @@ class WasmReceiptTests(unittest.TestCase):
         manifest = json.loads(values[3]["package_manifest"])
         manifest["toolProvenance"] = provenance
         values[3]["package_manifest"] = json.dumps(manifest, sort_keys=True).encode()
-        values[1]["package"]["manifestSha256"] = hashlib.sha256(values[3]["package_manifest"]).hexdigest()
-        self.assertFalse(self.valid(values), "well-formed different production published lock")
+        values[1]["package"]["manifestSha256"] = hashlib.sha256(
+            values[3]["package_manifest"]
+        ).hexdigest()
+        self.assertFalse(
+            self.valid(values), "well-formed different production published lock"
+        )
         values = self.fixture()
         provenance = values[1]["package"]["toolProvenance"]
         provenance["crateSha256"] = "7" * 64
         manifest = json.loads(values[3]["package_manifest"])
         manifest["toolProvenance"] = provenance
         values[3]["package_manifest"] = json.dumps(manifest, sort_keys=True).encode()
-        values[1]["package"]["manifestSha256"] = hashlib.sha256(values[3]["package_manifest"]).hexdigest()
-        self.assertFalse(self.valid(values), "well-formed different production shared crate")
+        values[1]["package"]["manifestSha256"] = hashlib.sha256(
+            values[3]["package_manifest"]
+        ).hexdigest()
+        self.assertFalse(
+            self.valid(values), "well-formed different production shared crate"
+        )
 
     def test_receipt_source_identity_and_proof_forgery(self):
-        for key, value in (("source_commit", "0" * 40), ("source_tree", "0" * 40), ("harness_commit", "0" * 40),
-                           ("run_id", "124"), ("sourceHeld", False), ("cleanupVerified", False), ("compilationProof", False),
-                           ("browserRuntimeProof", True), ("conformanceProof", True), ("releaseProof", True), ("locks", {}), ("inputs", {})):
+        for key, value in (
+            ("source_commit", "0" * 40),
+            ("source_tree", "0" * 40),
+            ("harness_commit", "0" * 40),
+            ("run_id", "124"),
+            ("sourceHeld", False),
+            ("cleanupVerified", False),
+            ("compilationProof", False),
+            ("browserRuntimeProof", True),
+            ("conformanceProof", True),
+            ("releaseProof", True),
+            ("locks", {}),
+            ("inputs", {}),
+        ):
             values = self.fixture()
             values[1][key] = value
             self.assertFalse(self.valid(values), key)
@@ -218,7 +466,12 @@ class WasmReceiptTests(unittest.TestCase):
             values = self.fixture()
             values[1]["artifact"][key] = value
             self.assertFalse(self.valid(values), key)
-        for key, value in (("argvSha256", "0" * 64), ("tool", "unreviewed-tool"), ("admission", "unchecked"), ("executableSha256", "bad")):
+        for key, value in (
+            ("argvSha256", "0" * 64),
+            ("tool", "unreviewed-tool"),
+            ("admission", "unchecked"),
+            ("executableSha256", "bad"),
+        ):
             values = self.fixture()
             values[1]["steps"][-1]["command"][key] = value
             self.assertFalse(self.valid(values), key)
@@ -234,15 +487,38 @@ class WasmReceiptTests(unittest.TestCase):
 
     def test_immutable_source_helper_requires_each_pinned_lock(self):
         names = [root + "/Cargo.toml" for root in lane.ROOTS] + list(lane.LOCKS)
-        names += [root + "/src/" + ("main.rs" if root == lane.ROOTS[2] else "lib.rs") for root in lane.ROOTS]
+        names += [
+            root + "/src/" + ("main.rs" if root == lane.ROOTS[2] else "lib.rs")
+            for root in lane.ROOTS
+        ]
+
         def attest(selected):
             data, oid = b"fixture", "a" * 40
-            listing = b"\0".join(("100644 blob " + oid + "\t" + name).encode() for name in selected) + b"\0"
+            listing = (
+                b"\0".join(
+                    ("100644 blob " + oid + "\t" + name).encode() for name in selected
+                )
+                + b"\0"
+            )
             check = ((oid + " blob " + str(len(data)) + "\n").encode()) * len(selected)
-            batch = ((oid + " blob " + str(len(data)) + "\n").encode() + data + b"\n") * len(selected)
-            with patch.object(lane.subprocess, "check_output", return_value=listing), patch.object(
-                    lane.subprocess, "run", side_effect=[SimpleNamespace(stdout=check), SimpleNamespace(stdout=batch)]):
-                return lane.source_inputs_from_git(Path("/unused-immutable-fixture"), "b" * 40)
+            batch = (
+                (oid + " blob " + str(len(data)) + "\n").encode() + data + b"\n"
+            ) * len(selected)
+            with (
+                patch.object(lane.subprocess, "check_output", return_value=listing),
+                patch.object(
+                    lane.subprocess,
+                    "run",
+                    side_effect=[
+                        SimpleNamespace(stdout=check),
+                        SimpleNamespace(stdout=batch),
+                    ],
+                ),
+            ):
+                return lane.source_inputs_from_git(
+                    Path("/unused-immutable-fixture"), "b" * 40
+                )
+
         self.assertEqual(set(attest(names)), set(names))
         for lock in lane.LOCKS:
             with self.assertRaises(lane.sdk.Refused):
@@ -270,7 +546,9 @@ class WasmReceiptTests(unittest.TestCase):
             self.assertNotEqual(destination.stat().st_ino, artifact.stat().st_ino)
             self.assertEqual(artifact.stat().st_nlink, 2)
 
-    def test_compiler_output_copy_rejects_symlinks_existing_aliases_and_source_mutation(self):
+    def test_compiler_output_copy_rejects_symlinks_existing_aliases_and_source_mutation(
+        self,
+    ):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "input.wasm"
@@ -283,15 +561,22 @@ class WasmReceiptTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 lane.copy_compiled_wasm(source, root / "existing.wasm")
             original_regular = lane.sdk.regular
+
             def read_and_mutate(path, *args):
                 data = original_regular(path, *args)
                 if path == source:
                     source.write_bytes(WASM + b"changed")
                 return data
-            with patch.object(lane.sdk, "regular", side_effect=read_and_mutate), self.assertRaises(lane.sdk.Refused):
+
+            with (
+                patch.object(lane.sdk, "regular", side_effect=read_and_mutate),
+                self.assertRaises(lane.sdk.Refused),
+            ):
                 lane.copy_compiled_wasm(source, root / "changed-output.wasm")
 
-    def test_compiler_output_copy_rejects_replacement_during_final_destination_read(self):
+    def test_compiler_output_copy_rejects_replacement_during_final_destination_read(
+        self,
+    ):
         for replacement in ("compiler-hardlink", "independent-inode"):
             with TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -299,6 +584,7 @@ class WasmReceiptTests(unittest.TestCase):
                 destination = root / "output.wasm"
                 source.write_bytes(WASM)
                 original_regular = lane.sdk.regular
+
                 def read_and_replace(path, *args):
                     data = original_regular(path, *args)
                     if path == destination:
@@ -308,200 +594,433 @@ class WasmReceiptTests(unittest.TestCase):
                         else:
                             destination.write_bytes(WASM)
                     return data
-                with patch.object(lane.sdk, "regular", side_effect=read_and_replace), self.assertRaises(lane.sdk.Refused):
+
+                with (
+                    patch.object(lane.sdk, "regular", side_effect=read_and_replace),
+                    self.assertRaises(lane.sdk.Refused),
+                ):
                     lane.copy_compiled_wasm(source, destination)
 
     def test_coordinator_refuses_mixed_requests_before_state(self):
         coordinator = load("wasm_coordinator", "ci_coordinator.py")
         queue = object.__new__(coordinator.Queue)
-        for fields in ({"specs": []}, {"specs": ["rust-wasm", "rust-wasm"]}, {"preparation": {"id": "x"}},
-                       {"runtime_seed_job": "x"}, {"capacity_configuration": {"x": 1}}, {"case_title": "x"}):
+        for fields in (
+            {"specs": []},
+            {"specs": ["rust-wasm", "rust-wasm"]},
+            {"preparation": {"id": "x"}},
+            {"runtime_seed_job": "x"},
+            {"capacity_configuration": {"x": 1}},
+            {"case_title": "x"},
+        ):
             with self.assertRaises(ValueError):
-                queue.enqueue(**{"owner": "session", "source": "a" * 40, "specs": ["rust-wasm"], "mode": "rust-wasm", **fields})
-        for fields in ({"prepared_builds": True}, {"runtime_seed_job": "x"}, {"capacity_configuration": {"x": 1}}, {"case_title": "x"}):
+                queue.enqueue(
+                    **{
+                        "owner": "session",
+                        "source": "a" * 40,
+                        "specs": ["rust-wasm"],
+                        "mode": "rust-wasm",
+                        **fields,
+                    }
+                )
+        for fields in (
+            {"prepared_builds": True},
+            {"runtime_seed_job": "x"},
+            {"capacity_configuration": {"x": 1}},
+            {"case_title": "x"},
+        ):
             with self.assertRaises(ValueError):
-                coordinator.enqueue_submission(queue, "session", "a" * 40, ["rust-wasm"], "rust-wasm", **fields)
-        for key in ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title"):
+                coordinator.enqueue_submission(
+                    queue, "session", "a" * 40, ["rust-wasm"], "rust-wasm", **fields
+                )
+        for key in (
+            "preparation_id",
+            "prepared_run_id",
+            "runtime_seed",
+            "capacity_configuration",
+            "case_title",
+        ):
             values = self.fixture()
             values[2][key] = "unexpected"
             self.assertFalse(self.valid(values), key)
 
-    def test_workflow_scoped_attested_node_without_workspace_browser_services_and_ast(self):
+    def test_workflow_scoped_attested_node_without_workspace_browser_services_and_ast(
+        self,
+    ):
         import yaml
-        workflow = yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())
+
+        workflow = yaml.safe_load(
+            (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+        )
         steps = next(iter(workflow["jobs"].values()))["steps"]
-        allowed = {"Create private Node supplier toolcache", "Download verified official Node supplier",
-                   "Stage attested runner Node before candidate code or dependencies", "Restore pinned Node after package-manager cache setup"}
-        self.assertEqual(allowed, {step.get("name") for step in steps if step.get("name") in allowed})
+        allowed = {
+            "Create private Node supplier toolcache",
+            "Download verified official Node supplier",
+            "Stage attested runner Node before candidate code or dependencies",
+            "Restore pinned Node after package-manager cache setup",
+        }
+        self.assertEqual(
+            allowed, {step.get("name") for step in steps if step.get("name") in allowed}
+        )
         for step in steps:
             description = step.get("name", "") + " " + step.get("uses", "")
             if step.get("name") in allowed:
                 self.assertNotIn("inputs.mode != 'rust-wasm'", step.get("if", ""))
-            elif any(word in description for word in ("Node", "setup-node", "pnpm/action", "Install workspace dependencies")) and "cleanup" not in step.get("run", ""):
-                self.assertIn("inputs.mode != 'rust-wasm'", step.get("if", ""), description)
-        clock = next(step for step in steps if step.get("name") == "Start bounded Rust WASM compilation clock")
+            elif any(
+                word in description
+                for word in (
+                    "Node",
+                    "setup-node",
+                    "pnpm/action",
+                    "Install workspace dependencies",
+                )
+            ) and "cleanup" not in step.get("run", ""):
+                self.assertIn(
+                    "inputs.mode != 'rust-wasm'", step.get("if", ""), description
+                )
+        clock = next(
+            step
+            for step in steps
+            if step.get("name") == "Start bounded Rust WASM compilation clock"
+        )
         self.assertIn("started + 2700", clock["run"])
         for name in ("Install browser", "Prepare isolated stack"):
-            self.assertNotIn("rust-wasm", next(step for step in steps if step.get("name") == name)["if"])
-        upload = next(step for step in steps if step.get("uses") == "actions/upload-artifact@v4")
-        self.assertIn("subject/test-results/rust-wasm/" + lane.WASM_NAME, upload["with"]["path"])
+            self.assertNotIn(
+                "rust-wasm",
+                next(step for step in steps if step.get("name") == name)["if"],
+            )
+        upload = next(
+            step for step in steps if step.get("uses") == "actions/upload-artifact@v4"
+        )
+        self.assertIn(
+            "subject/test-results/rust-wasm/" + lane.WASM_NAME, upload["with"]["path"]
+        )
         self.assertNotIn("rust-wasm/**", upload["with"]["path"])
         for path in (ROOT / "scripts").glob("ci_*.py"):
             ast.parse(path.read_text())
 
 
 class WasmRunTests(SyntheticPinTests):
-    def execute(self, scenario="success", diagnostic_probe=None, browser_e2e=False):
+    def execute(
+        self,
+        scenario="success",
+        diagnostic_probe=None,
+        browser_e2e=False,
+        metadata_package=None,
+    ):
+        metadata_profile = metadata_package is not None
         with TemporaryDirectory() as directory, ExitStack() as stack:
             base = Path(directory)
             subject, runtime = base / "subject", base / "runner"
             subject.mkdir()
             runtime.mkdir()
             (subject / "test-results").mkdir()
-            lock = b'version = 4\n[[package]]\nname = "openmates-sdk"\nversion = "0.1.0"\n'
+            lock = (
+                b'version = 4\n[[package]]\nname = "openmates-sdk"\nversion = "0.1.0"\n'
+            )
             lock += b'[[package]]\nname = "wasm-bindgen"\nversion = "0.2.129"\n'
             for root in lane.ROOTS:
                 crate = subject / root
                 (crate / "src").mkdir(parents=True)
-                (crate / "Cargo.toml").write_text('[package]\nname="openmates-browser-bindings"\nversion="0.1.0"\n')
-                (crate / "src" / ("main.rs" if root == lane.ROOTS[2] else "lib.rs")).write_text("// fixture\n")
+                (crate / "Cargo.toml").write_text(
+                    '[package]\nname="openmates-browser-bindings"\nversion="0.1.0"\n'
+                )
+                (
+                    crate / "src" / ("main.rs" if root == lane.ROOTS[2] else "lib.rs")
+                ).write_text("// fixture\n")
             for name in lane.LOCKS:
                 (subject / name).write_bytes(lock)
-            before = {str(path.relative_to(subject)): lane.sdk.sha(path.read_bytes())
-                      for path in subject.rglob("*") if path.is_file()}
+            if metadata_profile:
+                for name in (
+                    *lane.metadata.EXTRA_INPUTS,
+                    lane.metadata.CRYPTO_SOURCE,
+                    lane.metadata.RECOVERY_SOURCE,
+                ):
+                    path = subject / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(
+                        (ROOT / name).read_bytes()
+                        if (ROOT / name).is_file()
+                        else name.encode()
+                    )
+            before = {
+                str(path.relative_to(subject)): lane.sdk.sha(path.read_bytes())
+                for path in subject.rglob("*")
+                if path.is_file()
+            }
             source, tree, harness = "a" * 40, "b" * 40, "c" * 40
             budget = lane.BROWSER_BUDGET if browser_e2e else lane.BUDGET
             start = time.monotonic() - (budget + 1 if scenario == "expired" else 0)
-            ambient = {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted", "OPENMATES_CI_ISOLATED": "1",
-                       "CI_SPECS_JSON": '["rust-wasm"]', "BUILD_COMMIT_SHA": source, "CI_CANDIDATE_TREE": tree,
-                       "CI_HARNESS_COMMIT": harness, "GITHUB_RUN_ID": "123", "RUNNER_TEMP": str(runtime),
-                       "CI_RUST_WASM_STARTED_MONOTONIC": str(start), "CI_RUST_WASM_DEADLINE_MONOTONIC": str(start + lane.BUDGET),
-                       "SENTINEL_SECRET": "must-not-reach-cargo"}
+            ambient = {
+                "GITHUB_ACTIONS": "true",
+                "RUNNER_ENVIRONMENT": "github-hosted",
+                "OPENMATES_CI_ISOLATED": "1",
+                "CI_SPECS_JSON": '["rust-wasm"]',
+                "BUILD_COMMIT_SHA": source,
+                "CI_CANDIDATE_TREE": tree,
+                "CI_HARNESS_COMMIT": harness,
+                "GITHUB_RUN_ID": "123",
+                "RUNNER_TEMP": str(runtime),
+                "CI_RUST_WASM_STARTED_MONOTONIC": str(start),
+                "CI_RUST_WASM_DEADLINE_MONOTONIC": str(start + lane.BUDGET),
+                "SENTINEL_SECRET": "must-not-reach-cargo",
+            }
             if browser_e2e:
-                ambient.update(CI_TEST_MODE="e2e", CI_SPECS_JSON=json.dumps([lane.BROWSER_SPEC]),
-                    CI_BROWSER_PACKAGE_STARTED_MONOTONIC=str(start), CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC=str(start + budget))
+                ambient.update(
+                    CI_TEST_MODE="e2e",
+                    CI_SPECS_JSON=json.dumps(
+                        [lane.metadata.SPEC if metadata_profile else lane.BROWSER_SPEC]
+                    ),
+                    CI_BROWSER_PACKAGE_STARTED_MONOTONIC=str(start),
+                    CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC=str(start + budget),
+                )
             unchanged_ambient = dict(ambient)
             observed = []
             _, sample, _, _ = WasmReceiptTests().fixture()
+
             class FakeCommands:
                 def __init__(self, work, private, env, deadline):
-                    self.work, self.private, self.env, self.steps = work, private, env, []
+                    self.work, self.private, self.env, self.steps = (
+                        work,
+                        private,
+                        env,
+                        [],
+                    )
                     self.deadline = deadline
                     observed.append((work, dict(env)))
+
                 def run(self, stage, command, **kwargs):
                     index = lane.STAGES.index(stage)
-                    if command != lane.commands()[index]:
+                    if (
+                        command
+                        != lane.commands(metadata_profile=metadata_profile)[index]
+                    ):
                         raise AssertionError("fixed producer command changed")
                     row = json.loads(json.dumps(sample["steps"][index]))
+                    if metadata_profile:
+                        row["command"]["argvSha256"] = lane.sdk.sha(
+                            json.dumps(command, separators=(",", ":")).encode()
+                        )
                     if stage in {"bindgen-version", "bindgen-package"}:
                         binary = self.work / ".ci-bindgen/bin/wasm-bindgen"
-                        row["command"].update(executableSha256=hashlib.sha256(binary.read_bytes()).hexdigest(), executableBytes=binary.stat().st_size)
+                        row["command"].update(
+                            executableSha256=hashlib.sha256(
+                                binary.read_bytes()
+                            ).hexdigest(),
+                            executableBytes=binary.stat().st_size,
+                        )
                     self.steps.append(row)
                     log_path = self.private / (stage + ".log")
-                    log_path.write_text("wasm-bindgen 0.2.129\n" if stage == "bindgen-version" else "failed to select a version\n")
+                    log_path.write_text(
+                        "wasm-bindgen 0.2.129\n"
+                        if stage == "bindgen-version"
+                        else "failed to select a version\n"
+                    )
                     if stage == "bindgen-install":
                         install_bindgen_fixture(self.private, self.work)
-                    if stage == "bindgen-package":
+                    if stage == "bindgen-package" and metadata_profile:
                         generated = self.work / ".ci-packaging/pkg"
-                        (generated / lane.PACKAGE_FILES[0]).write_bytes(b"export default function init() {}")
+                        for name, data in metadata_package.items():
+                            path = generated / name
+                            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                            path.write_bytes(data)
+                    if stage == "bindgen-package" and not metadata_profile:
+                        generated = self.work / ".ci-packaging/pkg"
+                        (generated / lane.PACKAGE_FILES[0]).write_bytes(
+                            b"export default function init() {}"
+                        )
                         (generated / lane.PACKAGE_FILES[1]).write_bytes(WASM)
-                        (generated / lane.PACKAGE_FILES[2]).write_bytes(b"export default function init(): Promise<void>;")
+                        (generated / lane.PACKAGE_FILES[2]).write_bytes(
+                            b"export default function init(): Promise<void>;"
+                        )
                     if scenario in {"cargo", "large-cargo"} and stage == "wasm-build":
                         if scenario == "large-cargo":
-                            (self.private / (stage + ".log")).write_bytes(b"x" * (lane.DIAGNOSTIC_LIMIT + 16) + b"final compiler failure\n")
-                        row.update(status="failed", returncode=1, terminatedReturncode=1)
+                            (self.private / (stage + ".log")).write_bytes(
+                                b"x" * (lane.DIAGNOSTIC_LIMIT + 16)
+                                + b"final compiler failure\n"
+                            )
+                        row.update(
+                            status="failed", returncode=1, terminatedReturncode=1
+                        )
                         raise lane.sdk.Refused("child_failed")
                     if stage == "wasm-build" and scenario != "missing-output":
-                        target = Path(observed[0][1]["CARGO_TARGET_DIR"]) / lane.WASM_PATH
+                        target = (
+                            Path(observed[0][1]["CARGO_TARGET_DIR"]) / lane.WASM_PATH
+                        )
                         target.parent.mkdir(parents=True)
-                        target.write_bytes(b"invalid" if scenario == "invalid-output" else WASM)
+                        target.write_bytes(
+                            b"invalid" if scenario == "invalid-output" else WASM
+                        )
                     if stage == "wasm-build" and scenario == "copy-lock":
                         (self.work / lane.LOCKS[0]).write_bytes(lock + b"# changed\n")
                     if scenario == "mutation" and stage == "wasm-build":
-                        (subject / lane.ROOTS[0] / "src/lib.rs").write_text("// mutated\n")
+                        (subject / lane.ROOTS[0] / "src/lib.rs").write_text(
+                            "// mutated\n"
+                        )
                     return log_path
+
             def git(root, *args):
                 if root == subject:
                     return tree if args[-1] == "HEAD^{tree}" else source
                 return harness
+
             def snapshot(root, expected):
-                return {name: lane.sdk.sha((root / name).read_bytes()) for name in expected}
-            stack.enter_context(patch.object(lane, "source_inputs_from_git", return_value=before))
+                return {
+                    name: lane.sdk.sha((root / name).read_bytes()) for name in expected
+                }
+
+            stack.enter_context(
+                patch.object(lane, "source_inputs_from_git", return_value=before)
+            )
             stack.enter_context(patch.object(lane, "snapshot", side_effect=snapshot))
             stack.enter_context(patch.object(lane.sdk, "git", side_effect=git))
-            stack.enter_context(patch.object(lane.subprocess, "run", return_value=SimpleNamespace(returncode=1)))
-            stack.enter_context(patch.object(lane.shutil, "which", side_effect=lambda name: "/usr/bin/" + name))
-            stack.enter_context(patch.object(lane.shutil, "disk_usage", return_value=SimpleNamespace(free=lane.sdk.RESERVE * 2)))
-            stack.enter_context(patch.object(lane.platform, "machine", return_value="x86_64"))
+            stack.enter_context(
+                patch.object(
+                    lane.subprocess, "run", return_value=SimpleNamespace(returncode=1)
+                )
+            )
+            stack.enter_context(
+                patch.object(
+                    lane.shutil, "which", side_effect=lambda name: "/usr/bin/" + name
+                )
+            )
+            stack.enter_context(
+                patch.object(
+                    lane.shutil,
+                    "disk_usage",
+                    return_value=SimpleNamespace(free=lane.sdk.RESERVE * 2),
+                )
+            )
+            stack.enter_context(
+                patch.object(lane.platform, "machine", return_value="x86_64")
+            )
             stack.enter_context(patch.object(lane, "WasmCommands", FakeCommands))
             original_write = Path.write_bytes
+
             def write_bytes(path, data):
-                if (scenario in {"output", "artifact-cleanup"} and "rust-wasm" in path.parts
-                        and path.name == lane.WASM_NAME):
+                if (
+                    scenario in {"output", "artifact-cleanup"}
+                    and "rust-wasm" in path.parts
+                    and path.name == lane.WASM_NAME
+                ):
                     raise OSError("fixture output refusal")
                 return original_write(path, data)
+
             stack.enter_context(patch.object(Path, "write_bytes", write_bytes))
             original_open = lane.os.open
+
             def open_file(path, flags, *args, **kwargs):
-                if (scenario in {"output", "artifact-cleanup"} and "rust-wasm" in Path(path).parts
-                        and Path(path).name == lane.WASM_NAME):
+                if (
+                    scenario in {"output", "artifact-cleanup"}
+                    and "rust-wasm" in Path(path).parts
+                    and Path(path).name == lane.WASM_NAME
+                ):
                     raise OSError("fixture output refusal")
                 return original_open(path, flags, *args, **kwargs)
+
             stack.enter_context(patch.object(lane.os, "open", side_effect=open_file))
             original_remove = lane.shutil.rmtree
+
             def remove(path, *args, **kwargs):
-                if ((scenario == "cleanup" and Path(path).parent == runtime)
-                        or (scenario == "artifact-cleanup" and Path(path).name == "rust-wasm")):
+                if (scenario == "cleanup" and Path(path).parent == runtime) or (
+                    scenario == "artifact-cleanup" and Path(path).name == "rust-wasm"
+                ):
                     raise OSError("fixture cleanup refusal")
                 return original_remove(path, *args, **kwargs)
+
             stack.enter_context(patch.object(lane.shutil, "rmtree", side_effect=remove))
             if scenario == "receipt-output":
                 original_json_write = lane.sdk.write
+
                 def write_json(path, value):
                     if path.name == "ci-rust-wasm.json":
                         raise OSError("fixture receipt refusal")
                     return original_json_write(path, value)
-                stack.enter_context(patch.object(lane.sdk, "write", side_effect=write_json))
+
+                stack.enter_context(
+                    patch.object(lane.sdk, "write", side_effect=write_json)
+                )
+
             def fake_worker(runner, *_args):
                 # Inert orchestration fixture; real worker execution is a separate CI requirement.
                 if scenario == "worker":
                     raise lane.sdk.Refused("worker")
                 runner.steps.extend(worker_step_fixtures())
                 return worker_proof_fixture()
-            stack.enter_context(patch.object(lane.worker, "execute", side_effect=fake_worker))
+
+            stack.enter_context(
+                patch.object(lane.worker, "execute", side_effect=fake_worker)
+            )
             results = []
-            receipt = lane.run(subject, results, environ=ambient, browser_e2e=browser_e2e,
-                node="/synthetic/attested/node", verify_node=lambda: None)
+            receipt = lane.run(
+                subject,
+                results,
+                environ=ambient,
+                browser_e2e=browser_e2e,
+                node="/synthetic/attested/node",
+                verify_node=lambda: None,
+            )
             self.assertEqual(ambient, unchanged_ambient)
             receipt_path = subject / "test-results/ci-rust-wasm.json"
-            saved = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
+            saved = (
+                json.loads(receipt_path.read_text()) if receipt_path.exists() else None
+            )
             artifact = subject / "test-results/rust-wasm" / lane.WASM_NAME
             outputs = artifact.read_bytes() if artifact.is_file() else b""
-            original_held = all(lane.sdk.sha((subject / name).read_bytes()) == before[name] for name in lane.LOCKS)
-            private_dirs = [path for path in runtime.iterdir() if path.name.startswith("rust-wasm-") and not path.name.startswith("rust-wasm-failure-")]
+            original_held = all(
+                lane.sdk.sha((subject / name).read_bytes()) == before[name]
+                for name in lane.LOCKS
+            )
+            private_dirs = [
+                path
+                for path in runtime.iterdir()
+                if path.name.startswith("rust-wasm-")
+                and not path.name.startswith("rust-wasm-failure-")
+            ]
             if diagnostic_probe is not None:
                 diagnostic_probe(subject, receipt)
             # Remove mocks before TemporaryDirectory performs its own cleanup.
             stack.close()
-            return receipt, saved, results, outputs, observed, original_held, private_dirs
+            return (
+                receipt,
+                saved,
+                results,
+                outputs,
+                observed,
+                original_held,
+                private_dirs,
+            )
 
     def test_worker_failure_never_credits_full_gate_or_retains_package_output(self):
         receipt, saved, results, outputs, _, held, private = self.execute("worker")
         self.assertEqual(receipt["status"], "failed")
         self.assertEqual(receipt["code"], "worker")
         self.assertIsNone(receipt["workerProof"])
-        self.assertFalse(receipt["compilationProof"] or receipt["packagingProof"] or receipt["browserRuntimeProof"])
+        self.assertFalse(
+            receipt["compilationProof"]
+            or receipt["packagingProof"]
+            or receipt["browserRuntimeProof"]
+        )
         self.assertEqual(outputs, b"")
         self.assertEqual(results[0]["exit_code"], 1)
         self.assertTrue(held and receipt["cleanupVerified"])
         self.assertEqual(private, [])
 
     def test_success_isolated_compilation_preserves_four_source_locks(self):
-        receipt, saved, results, wasm, observed, original_held, private_dirs = self.execute()
+        receipt, saved, results, wasm, observed, original_held, private_dirs = (
+            self.execute()
+        )
         self.assertEqual(receipt["status"], "passed")
         self.assertEqual(saved, receipt)
-        self.assertTrue(receipt["compilationProof"] and receipt["sourceHeld"] and receipt["cleanupVerified"])
-        self.assertFalse(receipt["browserRuntimeProof"] or receipt["conformanceProof"] or receipt["releaseProof"])
+        self.assertTrue(
+            receipt["compilationProof"]
+            and receipt["sourceHeld"]
+            and receipt["cleanupVerified"]
+        )
+        self.assertFalse(
+            receipt["browserRuntimeProof"]
+            or receipt["conformanceProof"]
+            or receipt["releaseProof"]
+        )
         self.assertEqual(wasm, WASM)
         self.assertEqual(results[0]["exit_code"], 0)
         self.assertTrue(original_held)
@@ -511,11 +1030,23 @@ class WasmRunTests(SyntheticPinTests):
         self.assertNotEqual(env["HOME"], str(Path.home()))
         self.assertIn(str(work.parent), env["CARGO_HOME"])
 
-    def test_browser_e2e_preparation_preserves_real_selector_and_separate_deadline(self):
+    def test_browser_e2e_preparation_preserves_real_selector_and_separate_deadline(
+        self,
+    ):
         captured = {}
+
         def probe(subject, receipt):
-            captured.update(json.loads((subject / "test-results/rust-wasm/package-manifest.json").read_bytes()))
-        receipt, _, _, _, _, original_held, _ = self.execute(diagnostic_probe=probe, browser_e2e=True)
+            captured.update(
+                json.loads(
+                    (
+                        subject / "test-results/rust-wasm/package-manifest.json"
+                    ).read_bytes()
+                )
+            )
+
+        receipt, _, _, _, _, original_held, _ = self.execute(
+            diagnostic_probe=probe, browser_e2e=True
+        )
         self.assertEqual(receipt["status"], "passed")
         self.assertEqual(receipt["runtime_profile"], "rust-browser-package-for-e2e")
         self.assertEqual(captured["requestedMode"], "e2e")
@@ -535,8 +1066,14 @@ class WasmRunTests(SyntheticPinTests):
         self.assertEqual(results[0]["exit_code"], 1)
 
     def test_compile_failure_source_mutation_and_copied_lock_mutation(self):
-        for scenario, code in (("cargo", "compile"), ("mutation", "source"), ("copy-lock", "source")):
-            receipt, saved, results, wasm, _, original_held, private_dirs = self.execute(scenario)
+        for scenario, code in (
+            ("cargo", "compile"),
+            ("mutation", "source"),
+            ("copy-lock", "source"),
+        ):
+            receipt, saved, results, wasm, _, original_held, private_dirs = (
+                self.execute(scenario)
+            )
             self.assertEqual(receipt["code"], code, scenario)
             self.assertFalse(receipt["compilationProof"], scenario)
             self.assertTrue(original_held and receipt["cleanupVerified"], scenario)
@@ -547,7 +1084,12 @@ class WasmRunTests(SyntheticPinTests):
         self.assertTrue(self.execute("copy-lock")[0]["sourceHeld"])
 
     def test_missing_invalid_and_write_failed_output_never_proves_compilation(self):
-        for scenario in ("missing-output", "invalid-output", "output", "receipt-output"):
+        for scenario in (
+            "missing-output",
+            "invalid-output",
+            "output",
+            "receipt-output",
+        ):
             receipt, saved, results, _, _, _, _ = self.execute(scenario)
             self.assertEqual(receipt["code"], "outputs", scenario)
             self.assertFalse(receipt["compilationProof"], scenario)
@@ -561,44 +1103,72 @@ class WasmRunTests(SyntheticPinTests):
         for scenario in ("cleanup", "artifact-cleanup"):
             receipt, saved, results, _, _, _, _ = self.execute(scenario)
             self.assertEqual(receipt["code"], "cleanup", scenario)
-            self.assertFalse(receipt["cleanupVerified"] or receipt["compilationProof"], scenario)
+            self.assertFalse(
+                receipt["cleanupVerified"] or receipt["compilationProof"], scenario
+            )
             self.assertEqual(saved, receipt, scenario)
             self.assertEqual(results[0]["exit_code"], 1, scenario)
 
     def test_failed_compiler_log_is_private_bounded_and_survives_source_cleanup(self):
         for scenario in ("cargo", "large-cargo"):
             captured = {}
+
             def probe(subject, receipt):
                 folder = subject / "test-results/ci-rust-wasm-private"
                 captured["tail"] = (folder / "cargo-tail.log").read_bytes()
                 captured["identity"] = (folder / "identity.json").read_bytes()
-                captured["modes"] = [(folder / name).stat().st_mode & 0o777 for name in ("cargo-tail.log", "identity.json")]
-            receipt, saved, results, wasm, _, _, private_dirs = self.execute(scenario, probe)
+                captured["modes"] = [
+                    (folder / name).stat().st_mode & 0o777
+                    for name in ("cargo-tail.log", "identity.json")
+                ]
+
+            receipt, saved, results, wasm, _, _, private_dirs = self.execute(
+                scenario, probe
+            )
             self.assertEqual(receipt["code"], "compile")
             self.assertTrue(receipt["cleanupVerified"])
             self.assertFalse(receipt["compilationProof"])
             self.assertEqual((private_dirs, wasm), ([], b""))
             self.assertEqual(captured["modes"], [0o600, 0o600])
             self.assertLessEqual(len(captured["tail"]), lane.DIAGNOSTIC_LIMIT)
-            self.assertEqual(json.loads(captured["identity"])["truncated"], scenario == "large-cargo")
-            self.assertTrue(retrieval.valid_rust_wasm_diagnostic(receipt["diagnostics"], captured["identity"], captured["tail"],
-                            {"source": "a" * 40, "run_id": "123"}, "c" * 40, "b" * 40))
+            self.assertEqual(
+                json.loads(captured["identity"])["truncated"], scenario == "large-cargo"
+            )
+            self.assertTrue(
+                retrieval.valid_rust_wasm_diagnostic(
+                    receipt["diagnostics"],
+                    captured["identity"],
+                    captured["tail"],
+                    {"source": "a" * 40, "run_id": "123"},
+                    "c" * 40,
+                    "b" * 40,
+                )
+            )
             self.assertNotIn("final compiler failure", json.dumps(saved))
             self.assertEqual(results[0]["exit_code"], 1)
 
     def test_inert_owned_process_group_deadline_terminates_and_reaps(self):
         with TemporaryDirectory() as directory:
             private = Path(directory)
-            runner = lane.sdk.Commands(private, private, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 0.2)
-            code = ("import os,subprocess,sys,time; "
-                    "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); "
-                    "print(str(os.getpid())+' '+str(child.pid),flush=True); time.sleep(30)")
+            runner = lane.sdk.Commands(
+                private,
+                private,
+                {"PATH": os.defpath, "HOME": str(private)},
+                time.monotonic() + 0.2,
+            )
+            code = (
+                "import os,subprocess,sys,time; "
+                "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); "
+                "print(str(os.getpid())+' '+str(child.pid),flush=True); time.sleep(30)"
+            )
             with self.assertRaises(lane.sdk.Refused):
                 runner.run("inert-deadline", [sys.executable, "-c", code], seconds=5)
             row = runner.steps[0]
             self.assertTrue(row["started"])
             self.assertNotEqual(row["terminatedReturncode"], 0)
-            parent, child = map(int, (private / "inert-deadline.log").read_text().split())
+            parent, child = map(
+                int, (private / "inert-deadline.log").read_text().split()
+            )
             self.assertFalse(Path("/proc", str(parent)).exists())
             try:
                 child_stat = Path("/proc", str(child), "stat").read_text()
@@ -607,85 +1177,204 @@ class WasmRunTests(SyntheticPinTests):
             if child_stat is not None:
                 self.assertEqual(child_stat.split(") ", 1)[1].split()[0], "Z")
 
+
 class WasmDiagnosticTests(unittest.TestCase):
     def fixture(self):
         tail = b"actual compiler failure diagnostic\n"
         job, harness, tree = {"source": "a" * 40, "run_id": "123"}, "b" * 40, "c" * 40
-        identity = {"schemaVersion": 1, "source_commit": job["source"], "source_tree": tree, "harness_commit": harness,
-                    "run_id": "123", "stage": "wasm-build", "path": "cargo-tail.log", "bytes": len(tail),
-                    "originalBytes": len(tail), "sha256": hashlib.sha256(tail).hexdigest(), "truncated": False}
+        identity = {
+            "schemaVersion": 1,
+            "source_commit": job["source"],
+            "source_tree": tree,
+            "harness_commit": harness,
+            "run_id": "123",
+            "stage": "wasm-build",
+            "path": "cargo-tail.log",
+            "bytes": len(tail),
+            "originalBytes": len(tail),
+            "sha256": hashlib.sha256(tail).hexdigest(),
+            "truncated": False,
+        }
         raw = (json.dumps(identity, sort_keys=True, indent=2) + "\n").encode()
-        descriptor = {"artifactName": lane.DIAGNOSTIC_ARTIFACT, "identity": identity,
-                      "identitySha256": hashlib.sha256(raw).hexdigest(), "publicRawUpload": False}
+        descriptor = {
+            "artifactName": lane.DIAGNOSTIC_ARTIFACT,
+            "identity": identity,
+            "identitySha256": hashlib.sha256(raw).hexdigest(),
+            "publicRawUpload": False,
+        }
         return descriptor, raw, tail, job, harness, tree
 
     def test_private_diagnostic_identity_path_bounds_and_hash_tampering(self):
         self.assertTrue(retrieval.valid_rust_wasm_diagnostic(*self.fixture()))
-        for key, value in (("source_commit", "0" * 40), ("source_tree", "0" * 40), ("harness_commit", "0" * 40),
-                           ("run_id", "124"), ("path", "../cargo-tail.log"), ("bytes", 0), ("truncated", True)):
+        for key, value in (
+            ("source_commit", "0" * 40),
+            ("source_tree", "0" * 40),
+            ("harness_commit", "0" * 40),
+            ("run_id", "124"),
+            ("path", "../cargo-tail.log"),
+            ("bytes", 0),
+            ("truncated", True),
+        ):
             descriptor, _, tail, job, harness, tree = self.fixture()
             descriptor["identity"][key] = value
             raw = json.dumps(descriptor["identity"]).encode()
             descriptor["identitySha256"] = hashlib.sha256(raw).hexdigest()
-            self.assertFalse(retrieval.valid_rust_wasm_diagnostic(descriptor, raw, tail, job, harness, tree), key)
+            self.assertFalse(
+                retrieval.valid_rust_wasm_diagnostic(
+                    descriptor, raw, tail, job, harness, tree
+                ),
+                key,
+            )
         descriptor, raw, tail, job, harness, tree = self.fixture()
-        self.assertFalse(retrieval.valid_rust_wasm_diagnostic(descriptor, raw, tail + b"changed", job, harness, tree))
-        self.assertFalse(retrieval.valid_rust_wasm_diagnostic(descriptor, raw, b"x" * (lane.DIAGNOSTIC_LIMIT + 1), job, harness, tree))
-        self.assertFalse(retrieval.valid_rust_wasm_diagnostic(descriptor, raw + b" ", tail, job, harness, tree))
+        self.assertFalse(
+            retrieval.valid_rust_wasm_diagnostic(
+                descriptor, raw, tail + b"changed", job, harness, tree
+            )
+        )
+        self.assertFalse(
+            retrieval.valid_rust_wasm_diagnostic(
+                descriptor, raw, b"x" * (lane.DIAGNOSTIC_LIMIT + 1), job, harness, tree
+            )
+        )
+        self.assertFalse(
+            retrieval.valid_rust_wasm_diagnostic(
+                descriptor, raw + b" ", tail, job, harness, tree
+            )
+        )
 
-    def test_authenticated_private_retrieval_checks_archive_and_keeps_tail_mode_private(self):
+    def test_authenticated_private_retrieval_checks_archive_and_keeps_tail_mode_private(
+        self,
+    ):
         from io import BytesIO
         import zipfile
+
         descriptor, raw, tail, job, harness, tree = self.fixture()
         for variant in ("valid", "unsafe-path", "tampered-tail", "oversized", "extra"):
             packed = BytesIO()
             with zipfile.ZipFile(packed, "w") as bundle:
                 bundle.writestr("identity.json", raw)
-                bundle.writestr("../cargo-tail.log" if variant == "unsafe-path" else "cargo-tail.log",
-                                tail + b"changed" if variant == "tampered-tail" else b"x" * (lane.DIAGNOSTIC_LIMIT + 1) if variant == "oversized" else tail)
+                bundle.writestr(
+                    "../cargo-tail.log"
+                    if variant == "unsafe-path"
+                    else "cargo-tail.log",
+                    tail + b"changed"
+                    if variant == "tampered-tail"
+                    else b"x" * (lane.DIAGNOSTIC_LIMIT + 1)
+                    if variant == "oversized"
+                    else tail,
+                )
                 if variant == "extra":
                     bundle.writestr("extra.log", b"not admitted")
             archive = packed.getvalue()
-            artifacts = [{"id": 42, "name": lane.DIAGNOSTIC_ARTIFACT, "expired": False, "size_in_bytes": len(archive)}]
+            artifacts = [
+                {
+                    "id": 42,
+                    "name": lane.DIAGNOSTIC_ARTIFACT,
+                    "expired": False,
+                    "size_in_bytes": len(archive),
+                }
+            ]
             with TemporaryDirectory() as directory:
                 folder = Path(directory)
+
                 def download(command, root, stream, *, limit):
-                    self.assertEqual(command, ["gh", "api", "repos/org/repo/actions/artifacts/42/zip"])
+                    self.assertEqual(
+                        command,
+                        ["gh", "api", "repos/org/repo/actions/artifacts/42/zip"],
+                    )
                     self.assertEqual(limit, 256 * 1024)
                     stream.write(archive)
+
                 with patch.object(retrieval, "download", side_effect=download):
                     if variant != "valid":
                         with self.assertRaises(RuntimeError):
-                            retrieval.fetch_rust_wasm_diagnostic(SimpleNamespace(repo="org/repo"), job, folder,
-                                artifacts, descriptor, harness, tree, folder / "rust-wasm-private")
+                            retrieval.fetch_rust_wasm_diagnostic(
+                                SimpleNamespace(repo="org/repo"),
+                                job,
+                                folder,
+                                artifacts,
+                                descriptor,
+                                harness,
+                                tree,
+                                folder / "rust-wasm-private",
+                            )
                         continue
-                    result = retrieval.fetch_rust_wasm_diagnostic(SimpleNamespace(repo="org/repo"), job, folder,
-                        artifacts, descriptor, harness, tree, folder / "rust-wasm-private")
+                    result = retrieval.fetch_rust_wasm_diagnostic(
+                        SimpleNamespace(repo="org/repo"),
+                        job,
+                        folder,
+                        artifacts,
+                        descriptor,
+                        harness,
+                        tree,
+                        folder / "rust-wasm-private",
+                    )
                 self.assertEqual(result["status"], "verified")
                 self.assertEqual((folder / result["path"]).read_bytes(), tail)
-                self.assertEqual((folder / result["path"]).stat().st_mode & 0o777, 0o600)
+                self.assertEqual(
+                    (folder / result["path"]).stat().st_mode & 0o777, 0o600
+                )
                 self.assertNotIn(tail.decode().strip(), json.dumps(result))
 
     def test_missing_or_expired_private_artifact_is_reported_without_raw_content(self):
         descriptor, _, _, job, harness, tree = self.fixture()
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            for artifacts in ([], [{"name": lane.DIAGNOSTIC_ARTIFACT, "expired": True}]):
-                result = retrieval.fetch_rust_wasm_diagnostic(SimpleNamespace(repo="org/repo"), job, root,
-                    artifacts, descriptor, harness, tree, root / "rust-wasm-private")
+            for artifacts in (
+                [],
+                [{"name": lane.DIAGNOSTIC_ARTIFACT, "expired": True}],
+            ):
+                result = retrieval.fetch_rust_wasm_diagnostic(
+                    SimpleNamespace(repo="org/repo"),
+                    job,
+                    root,
+                    artifacts,
+                    descriptor,
+                    harness,
+                    tree,
+                    root / "rust-wasm-private",
+                )
                 self.assertEqual(result["status"], "unavailable")
                 self.assertFalse((root / "rust-wasm-private").exists())
             with self.assertRaises(RuntimeError):
-                retrieval.fetch_rust_wasm_diagnostic(SimpleNamespace(repo="org/repo"), job, root,
-                    [{"name": lane.DIAGNOSTIC_ARTIFACT}], None, harness, tree, root / "rust-wasm-private")
+                retrieval.fetch_rust_wasm_diagnostic(
+                    SimpleNamespace(repo="org/repo"),
+                    job,
+                    root,
+                    [{"name": lane.DIAGNOSTIC_ARTIFACT}],
+                    None,
+                    harness,
+                    tree,
+                    root / "rust-wasm-private",
+                )
 
     def test_workflow_uploads_only_two_exact_private_diagnostic_files(self):
         import yaml
-        steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
-        private = next(step for step in steps if step.get("with", {}).get("name") == lane.DIAGNOSTIC_ARTIFACT)
-        self.assertEqual(private["with"]["path"].splitlines(), [
-            "subject/test-results/ci-rust-wasm-private/cargo-tail.log", "subject/test-results/ci-rust-wasm-private/identity.json"])
-        public = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")
+
+        steps = next(
+            iter(
+                yaml.safe_load(
+                    (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+                )["jobs"].values()
+            )
+        )["steps"]
+        private = next(
+            step
+            for step in steps
+            if step.get("with", {}).get("name") == lane.DIAGNOSTIC_ARTIFACT
+        )
+        self.assertEqual(
+            private["with"]["path"].splitlines(),
+            [
+                "subject/test-results/ci-rust-wasm-private/cargo-tail.log",
+                "subject/test-results/ci-rust-wasm-private/identity.json",
+            ],
+        )
+        public = next(
+            step
+            for step in steps
+            if step.get("with", {}).get("name") == "isolated-test-results"
+        )
         self.assertNotIn("ci-rust-wasm-private", public["with"]["path"])
 
 
@@ -693,41 +1382,72 @@ class BrowserPackagingTests(SyntheticPinTests):
     def actual_producer(self, variant="valid"):
         with TemporaryDirectory() as directory:
             private = Path(directory)
-            work, logs, exported = private / "source", private / "logs", private / "export"
+            work, logs, exported = (
+                private / "source",
+                private / "logs",
+                private / "export",
+            )
             for folder in (work, logs, exported):
                 folder.mkdir(mode=0o700)
             crate = work / lane.ROOTS[-1]
             crate.mkdir(parents=True)
             version = "0.2.128" if variant == "lock-mismatch" else lane.BINDGEN_VERSION
-            (crate / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen"\nversion="' + version + '"\n')
+            (crate / "Cargo.lock").write_text(
+                'version=4\n[[package]]\nname="wasm-bindgen"\nversion="'
+                + version
+                + '"\n'
+            )
             artifact = private / "compiled.wasm"
             artifact.write_bytes(WASM)
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             receipt["artifact"] = lane.wasm_metadata(WASM)
             if variant in {"snippet", "direct-snippet"}:
                 receipt["inputs"][lane.SNIPPET_SOURCE] = lane.SNIPPET_SOURCE_SHA256
-                receipt["inputSetSha256"] = hashlib.sha256(json.dumps(receipt["inputs"], sort_keys=True).encode()).hexdigest()
+                receipt["inputSetSha256"] = hashlib.sha256(
+                    json.dumps(receipt["inputs"], sort_keys=True).encode()
+                ).hexdigest()
             if variant == "changed-input":
                 artifact.write_bytes(WASM + b"changed")
-            script = ("#!" + sys.executable + "\n" +
-                "import hashlib,pathlib,sys\n"
+            script = (
+                "#!" + sys.executable + "\n" + "import hashlib,pathlib,sys\n"
                 "args=sys.argv[1:]\n"
                 "if args==['--version']:\n"
-                " print('wasm-bindgen " + ("0.2.128" if variant == "version-mismatch" else lane.BINDGEN_VERSION) + "');sys.exit(0)\n"
+                " print('wasm-bindgen "
+                + ("0.2.128" if variant == "version-mismatch" else lane.BINDGEN_VERSION)
+                + "');sys.exit(0)\n"
                 "assert args==['.ci-packaging/input.wasm','--target','web','--remove-name-section','--out-dir','.ci-packaging/pkg','--out-name','openmates_browser']\n"
                 "raw=pathlib.Path(args[0]).read_bytes()\n"
                 "out=pathlib.Path(args[args.index('--out-dir')+1]);out.mkdir(exist_ok=True)\n"
                 "(out/'openmates_browser.js').write_text(\"export const inputSha='\"+hashlib.sha256(raw).hexdigest()+\"'; export default async function init() {}\")\n"
-                "(out/'openmates_browser_bg.wasm').write_bytes(raw)\n" +
-                ("" if variant == "missing-types" else "(out/'openmates_browser.d.ts').write_text('export default function init(): Promise<void>;')\n") +
-                ("(out/'undeclared-helper.js').write_text('extra')\n" if variant == "extra-helper" else ""))
+                "(out/'openmates_browser_bg.wasm').write_bytes(raw)\n"
+                + (
+                    ""
+                    if variant == "missing-types"
+                    else "(out/'openmates_browser.d.ts').write_text('export default function init(): Promise<void>;')\n"
+                )
+                + (
+                    "(out/'undeclared-helper.js').write_text('extra')\n"
+                    if variant == "extra-helper"
+                    else ""
+                )
+            )
             if variant in {"snippet", "direct-snippet"}:
                 name = "snippets/openmates-browser-bindings-0123456789abcdef/inline0.js"
-                script += ("snippet=out/" + repr(name) + ";snippet.parent.mkdir(parents=True)\n"
-                           "snippet.write_bytes(" + repr(lane.SNIPPET_BYTES) + ")\n"
-                           "main=out/'openmates_browser.js';main.write_bytes(" +
-                           repr(lane.package_import_headers(name)[int(variant == "direct-snippet")]) + "+main.read_bytes())\n")
+                script += (
+                    "snippet=out/"
+                    + repr(name)
+                    + ";snippet.parent.mkdir(parents=True)\n"
+                    "snippet.write_bytes(" + repr(lane.SNIPPET_BYTES) + ")\n"
+                    "main=out/'openmates_browser.js';main.write_bytes("
+                    + repr(
+                        lane.package_import_headers(name)[
+                            int(variant == "direct-snippet")
+                        ]
+                    )
+                    + "+main.read_bytes())\n"
+                )
             installed = []
+
             class ProducerRunner(lane.WasmCommands):
                 def run(self, stage, command, **options):
                     if stage == "bindgen-install":
@@ -737,51 +1457,110 @@ class BrowserPackagingTests(SyntheticPinTests):
                             binary = work / ".ci-bindgen/bin/wasm-bindgen"
                             release = work / ".ci-bindgen-target/release"
                             (release / "deps").mkdir(parents=True)
-                            for folder in (binary.parent, binary.parent.parent, release,
-                                           release.parent, release / "deps"):
+                            for folder in (
+                                binary.parent,
+                                binary.parent.parent,
+                                release,
+                                release.parent,
+                                release / "deps",
+                            ):
                                 folder.chmod(0o700)
                             os.link(binary, release / "wasm-bindgen")
                             if variant == "cargo-hardlink-deps":
-                                os.link(binary, release / "deps/wasm_bindgen-0123456789abcdef")
+                                os.link(
+                                    binary,
+                                    release / "deps/wasm_bindgen-0123456789abcdef",
+                                )
                         self.steps.append(json.loads(json.dumps(receipt["steps"][3])))
                         return logs / "bindgen-install.log"
                     result = super().run(stage, command, **options)
                     if variant == "tool-lock-tamper" and stage == "bindgen-version":
-                        package = private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129/Cargo.lock"
-                        package.write_text(package.read_text() + "# changed after admission\n")
+                        package = (
+                            private
+                            / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129/Cargo.lock"
+                        )
+                        package.write_text(
+                            package.read_text() + "# changed after admission\n"
+                        )
                     return result
-            runner = ProducerRunner(work, logs, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 10)
+
+            runner = ProducerRunner(
+                work,
+                logs,
+                {"PATH": os.defpath, "HOME": str(private)},
+                time.monotonic() + 10,
+            )
             runner.steps = receipt["steps"][:3]
-            if variant not in {"valid", "snippet", "direct-snippet", "cargo-hardlink", "cargo-hardlink-deps"}:
+            if variant not in {
+                "valid",
+                "snippet",
+                "direct-snippet",
+                "cargo-hardlink",
+                "cargo-hardlink-deps",
+            }:
                 with self.assertRaises(lane.sdk.Refused):
-                    lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
+                    lane.produce_browser_package(
+                        runner, private, work, artifact, exported, receipt
+                    )
                 if variant == "lock-mismatch":
                     self.assertEqual(installed, [])
                 return
-            package = lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
+            package = lane.produce_browser_package(
+                runner, private, work, artifact, exported, receipt
+            )
             receipt["package"], receipt["steps"] = package, runner.steps
             manifest = (exported / "package-manifest.json").read_bytes()
-            files = {path.relative_to(exported / "package").as_posix(): path.read_bytes()
-                     for path in (exported / "package").rglob("*") if path.is_file()}
-            self.assertIn(hashlib.sha256(WASM).hexdigest().encode(), files[lane.PACKAGE_FILES[0]])
+            files = {
+                path.relative_to(exported / "package").as_posix(): path.read_bytes()
+                for path in (exported / "package").rglob("*")
+                if path.is_file()
+            }
+            self.assertIn(
+                hashlib.sha256(WASM).hexdigest().encode(), files[lane.PACKAGE_FILES[0]]
+            )
             self.assertEqual(files[lane.PACKAGE_FILES[1]], WASM)
             # Packaging alone no longer credits the worker execution gate.
-            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40,
-                expected_inputs=kwargs["expected_inputs"], expected_tree="e" * 40, artifact=WASM,
-                package_manifest=manifest, package_files=files))
-            self.assertTrue(retrieval.valid_browser_package(manifest, files, receipt, job, "f" * 40,
-                kwargs["expected_inputs"], "e" * 40))
+            self.assertFalse(
+                retrieval.valid_rust_wasm_receipt(
+                    report,
+                    receipt,
+                    job,
+                    "f" * 40,
+                    expected_inputs=kwargs["expected_inputs"],
+                    expected_tree="e" * 40,
+                    artifact=WASM,
+                    package_manifest=manifest,
+                    package_files=files,
+                )
+            )
+            self.assertTrue(
+                retrieval.valid_browser_package(
+                    manifest,
+                    files,
+                    receipt,
+                    job,
+                    "f" * 40,
+                    kwargs["expected_inputs"],
+                    "e" * 40,
+                )
+            )
             self.assertEqual(installed, [lane.commands()[3]])
             self.assertIn("--locked", installed[0])
-            self.assertEqual(json.loads(manifest)["toolProvenance"]["version"], "0.2.129")
+            self.assertEqual(
+                json.loads(manifest)["toolProvenance"]["version"], "0.2.129"
+            )
             self.assertFalse(json.loads(manifest)["browserRuntimeProof"])
-            self.assertEqual((exported / "package-manifest.json").stat().st_mode & 0o777, 0o600)
+            self.assertEqual(
+                (exported / "package-manifest.json").stat().st_mode & 0o777, 0o600
+            )
 
     def test_real_producer_exports_reviewed_generated_snippet(self):
         self.actual_producer("snippet")
         self.actual_producer("direct-snippet")
 
-    def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(self):
+    def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(
+        self,
+    ):
         self.actual_producer()
 
     def test_real_producer_detaches_known_cargo_links_before_existing_provenance(self):
@@ -789,12 +1568,30 @@ class BrowserPackagingTests(SyntheticPinTests):
             with self.subTest(variant=variant):
                 self.actual_producer(variant)
 
-    def test_producer_refuses_lock_version_tool_version_and_unexpected_generated_content(self):
-        for variant in ("lock-mismatch", "version-mismatch", "missing-types", "extra-helper", "tool-lock-tamper", "changed-input"):
+    def test_producer_refuses_lock_version_tool_version_and_unexpected_generated_content(
+        self,
+    ):
+        for variant in (
+            "lock-mismatch",
+            "version-mismatch",
+            "missing-types",
+            "extra-helper",
+            "tool-lock-tamper",
+            "changed-input",
+        ):
             self.actual_producer(variant)
 
     def test_package_manifest_identity_provenance_and_byte_forgery_are_rejected(self):
-        for fault in ("missing-package", "changed-js", "extra-helper", "manifest-hash", "wrong-source", "wrong-mode", "tool-lock", "tool-binary"):
+        for fault in (
+            "missing-package",
+            "changed-js",
+            "extra-helper",
+            "manifest-hash",
+            "wrong-source",
+            "wrong-mode",
+            "tool-lock",
+            "tool-binary",
+        ):
             values = WasmReceiptTests().fixture()
             report, receipt, job, kwargs = values
             if fault == "missing-package":
@@ -816,32 +1613,75 @@ class BrowserPackagingTests(SyntheticPinTests):
                 else:
                     manifest["toolSha256"] = "0" * 64
                 kwargs["package_manifest"] = json.dumps(manifest).encode()
-                receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
-            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs), fault)
+                receipt["package"]["manifestSha256"] = hashlib.sha256(
+                    kwargs["package_manifest"]
+                ).hexdigest()
+            self.assertFalse(
+                retrieval.valid_rust_wasm_receipt(
+                    report, receipt, job, "f" * 40, **kwargs
+                ),
+                fault,
+            )
 
-    def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC, lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC, lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC):
+    def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(
+        self,
+    ):
+        for target in (
+            lane.BROWSER_SPEC,
+            lane.BROWSER_PASSWORD_SPEC,
+            lane.PRODUCTION_BROWSER_SPEC,
+            lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+            lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC,
+            lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC,
+            lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC,
+        ):
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             report["runtime_profile"] = job["mode"] = "e2e"
             job["specs"] = json.dumps([target])
-            receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            receipt.update(
+                runtime_profile="rust-browser-package-for-e2e",
+                requestedMode="e2e",
+                requestedTargets=[target],
+            )
             receipt["workerProof"] = None
-            receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
+            receipt["steps"] = receipt["steps"][: len(lane.STAGES)]
             manifest = json.loads(kwargs["package_manifest"])
             manifest.update(requestedMode="e2e", requestedTargets=[target])
             kwargs["package_manifest"] = json.dumps(manifest).encode()
-            receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
-            self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+            receipt["package"]["manifestSha256"] = hashlib.sha256(
+                kwargs["package_manifest"]
+            ).hexdigest()
+            self.assertTrue(
+                retrieval.valid_rust_wasm_receipt(
+                    report, receipt, job, "f" * 40, **kwargs
+                )
+            )
             self.assertFalse(receipt["browserRuntimeProof"])
             job["specs"] = '["other.spec.ts"]'
-            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+            self.assertFalse(
+                retrieval.valid_rust_wasm_receipt(
+                    report, receipt, job, "f" * 40, **kwargs
+                )
+            )
 
     def test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC, lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC, lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC):
+        for target in (
+            lane.BROWSER_SPEC,
+            lane.BROWSER_PASSWORD_SPEC,
+            lane.PRODUCTION_BROWSER_SPEC,
+            lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+            lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC,
+            lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC,
+            lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC,
+        ):
             _, receipt, _, kwargs = WasmReceiptTests().fixture()
-            receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            receipt.update(
+                runtime_profile="rust-browser-package-for-e2e",
+                requestedMode="e2e",
+                requestedTargets=[target],
+            )
             receipt["workerProof"] = None
-            receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
+            receipt["steps"] = receipt["steps"][: len(lane.STAGES)]
             manifest = json.loads(kwargs["package_manifest"])
             manifest.update(requestedMode="e2e", requestedTargets=[target])
             raw = json.dumps(manifest).encode()
@@ -853,21 +1693,48 @@ class BrowserPackagingTests(SyntheticPinTests):
                 (folder / "package-manifest.json").write_bytes(raw)
                 (folder / lane.WASM_NAME).write_bytes(WASM)
                 for name, data in kwargs["package_files"].items():
-                    (folder / "package" / name).parent.mkdir(parents=True, exist_ok=True)
+                    (folder / "package" / name).parent.mkdir(
+                        parents=True, exist_ok=True
+                    )
                     (folder / "package" / name).write_bytes(data)
-                env = {"CI_TEST_MODE": "e2e", "CI_SPECS_JSON": json.dumps([target]), "BUILD_COMMIT_SHA": "d" * 40,
-                       "CI_CANDIDATE_TREE": "e" * 40, "GITHUB_RUN_ID": "123", "CI_HARNESS_COMMIT": "f" * 40,
-                       "OPENMATES_BROWSER_PACKAGE_MANIFEST": "/untrusted/caller/path"}
+                env = {
+                    "CI_TEST_MODE": "e2e",
+                    "CI_SPECS_JSON": json.dumps([target]),
+                    "BUILD_COMMIT_SHA": "d" * 40,
+                    "CI_CANDIDATE_TREE": "e" * 40,
+                    "GITHUB_RUN_ID": "123",
+                    "CI_HARNESS_COMMIT": "f" * 40,
+                    "OPENMATES_BROWSER_PACKAGE_MANIFEST": "/untrusted/caller/path",
+                }
+
                 def git(_root, *args):
                     return "e" * 40 if args[-1] == "HEAD^{tree}" else "d" * 40
-                with patch.object(lane, "run", return_value=receipt) as producer, patch.object(lane.sdk, "git", side_effect=git), \
-                        patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]), \
-                        patch.object(lane, "snapshot", return_value=kwargs["expected_inputs"]), \
-                        patch.dict(sys.modules, {"scripts.ci_results": retrieval}):
+
+                with (
+                    patch.object(lane, "run", return_value=receipt) as producer,
+                    patch.object(lane.sdk, "git", side_effect=git),
+                    patch.object(
+                        lane,
+                        "source_inputs_from_git",
+                        return_value=kwargs["expected_inputs"],
+                    ),
+                    patch.object(
+                        lane, "snapshot", return_value=kwargs["expected_inputs"]
+                    ),
+                    patch.dict(sys.modules, {"scripts.ci_results": retrieval}),
+                ):
                     values = lane.prepare_browser_e2e_package(root, environ=env)
-                    producer.assert_called_once_with(root, [], environ=env, browser_e2e=True)
-                    self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST"], str(folder / "package-manifest.json"))
-                    self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256"], hashlib.sha256(raw).hexdigest())
+                    producer.assert_called_once_with(
+                        root, [], environ=env, browser_e2e=True
+                    )
+                    self.assertEqual(
+                        values["OPENMATES_BROWSER_PACKAGE_MANIFEST"],
+                        str(folder / "package-manifest.json"),
+                    )
+                    self.assertEqual(
+                        values["OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256"],
+                        hashlib.sha256(raw).hexdigest(),
+                    )
                     (folder / "package" / lane.PACKAGE_FILES[0]).write_bytes(b"forged")
                     with self.assertRaises(lane.sdk.Refused):
                         lane.prepare_browser_e2e_package(root, environ=env)
@@ -875,101 +1742,270 @@ class BrowserPackagingTests(SyntheticPinTests):
     def test_managed_result_retrieves_only_attested_real_package_inventory(self):
         from io import BytesIO
         import zipfile
+
         for fault in (None, "tampered-js", "extra-helper"):
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
-            report.update(source_commit=job["source"], harness_commit="f" * 40, run_id=123, success=True)
-            job.update(id="managed-inert-package", state="success", url="https://github.com/org/repo/actions/runs/123")
+            report.update(
+                source_commit=job["source"],
+                harness_commit="f" * 40,
+                run_id=123,
+                success=True,
+            )
+            job.update(
+                id="managed-inert-package",
+                state="success",
+                url="https://github.com/org/repo/actions/runs/123",
+            )
             packed = BytesIO()
             with zipfile.ZipFile(packed, "w") as bundle:
-                bundle.writestr("subject/test-results/ci-results.json", json.dumps(report))
-                bundle.writestr("subject/test-results/ci-rust-wasm.json", json.dumps(receipt))
-                bundle.writestr("subject/test-results/rust-wasm/" + lane.WASM_NAME, WASM)
-                bundle.writestr("subject/test-results/rust-wasm/package-manifest.json", kwargs["package_manifest"])
+                bundle.writestr(
+                    "subject/test-results/ci-results.json", json.dumps(report)
+                )
+                bundle.writestr(
+                    "subject/test-results/ci-rust-wasm.json", json.dumps(receipt)
+                )
+                bundle.writestr(
+                    "subject/test-results/rust-wasm/" + lane.WASM_NAME, WASM
+                )
+                bundle.writestr(
+                    "subject/test-results/rust-wasm/package-manifest.json",
+                    kwargs["package_manifest"],
+                )
                 for name, data in kwargs["package_files"].items():
-                    bundle.writestr("subject/test-results/rust-wasm/package/" + name,
-                                    data + b"forged" if fault == "tampered-js" and name.endswith(".js") else data)
+                    bundle.writestr(
+                        "subject/test-results/rust-wasm/package/" + name,
+                        data + b"forged"
+                        if fault == "tampered-js" and name.endswith(".js")
+                        else data,
+                    )
                 if fault == "extra-helper":
-                    bundle.writestr("subject/test-results/rust-wasm/package/helper.js", b"extra")
+                    bundle.writestr(
+                        "subject/test-results/rust-wasm/package/helper.js", b"extra"
+                    )
             archive = packed.getvalue()
+
             class GitHub:
                 repo = "org/repo"
+
                 def request(self, endpoint):
                     if endpoint.endswith("/jobs?per_page=100"):
-                        return {"jobs": [{"id": 1, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions inert"}]}
+                        return {
+                            "jobs": [
+                                {
+                                    "id": 1,
+                                    "labels": ["ubuntu-latest"],
+                                    "runner_name": "GitHub Actions inert",
+                                }
+                            ]
+                        }
                     if endpoint.endswith("/artifacts?per_page=100"):
-                        return {"artifacts": [{"id": 42, "name": "isolated-test-results", "expired": False, "size_in_bytes": len(archive)}]}
+                        return {
+                            "artifacts": [
+                                {
+                                    "id": 42,
+                                    "name": "isolated-test-results",
+                                    "expired": False,
+                                    "size_in_bytes": len(archive),
+                                }
+                            ]
+                        }
                     return {"head_sha": "f" * 40}
+
             def git(args, **options):
                 if args[1] == "show":
                     return b'version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n'
                 return "e" * 40 + "\n"
-            with TemporaryDirectory() as directory, patch.object(retrieval, "download", side_effect=lambda _cmd, _root, stream: stream.write(archive)), \
-                    patch.object(retrieval.shutil, "disk_usage", return_value=SimpleNamespace(free=retrieval.RESERVE * 2)), \
-                    patch.object(retrieval.subprocess, "check_output", side_effect=git), \
-                    patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]):
+
+            with (
+                TemporaryDirectory() as directory,
+                patch.object(
+                    retrieval,
+                    "download",
+                    side_effect=lambda _cmd, _root, stream: stream.write(archive),
+                ),
+                patch.object(
+                    retrieval.shutil,
+                    "disk_usage",
+                    return_value=SimpleNamespace(free=retrieval.RESERVE * 2),
+                ),
+                patch.object(retrieval.subprocess, "check_output", side_effect=git),
+                patch.object(
+                    lane,
+                    "source_inputs_from_git",
+                    return_value=kwargs["expected_inputs"],
+                ),
+            ):
                 if fault:
                     with self.assertRaises(RuntimeError):
                         retrieval._fetch_reserved(GitHub(), job, Path(directory))
-                    self.assertFalse((Path(directory) / "test-results/ci-runs/managed-inert-package").exists())
+                    self.assertFalse(
+                        (
+                            Path(directory)
+                            / "test-results/ci-runs/managed-inert-package"
+                        ).exists()
+                    )
                 else:
                     result = retrieval._fetch_reserved(GitHub(), job, Path(directory))
                     self.assertEqual(result["browser_package"]["status"], "verified")
                     self.assertFalse(result["browser_package"]["browserRuntimeProof"])
-                    manifest_path = Path(result["directory"]) / result["browser_package"]["manifest"]
-                    self.assertEqual(hashlib.sha256(manifest_path.read_bytes()).hexdigest(), result["browser_package"]["manifestSha256"])
+                    manifest_path = (
+                        Path(result["directory"])
+                        / result["browser_package"]["manifest"]
+                    )
+                    self.assertEqual(
+                        hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                        result["browser_package"]["manifestSha256"],
+                    )
 
     def test_browser_package_selector_is_exact_for_all_reviewed_specs(self):
         from itertools import permutations
+
         production_specs = sorted(lane.PRODUCTION_BROWSER_SPECS)
-        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC]) + tuple([name] for name in production_specs) + tuple(list(pair) for pair in permutations(production_specs, 2))
+        accepted = (
+            ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC])
+            + tuple([name] for name in production_specs)
+            + tuple(list(pair) for pair in permutations(production_specs, 2))
+        )
         for targets in accepted:
             self.assertTrue(lane.browser_e2e_targets(targets))
-            self.assertTrue(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
-        for targets in ([], [lane.BROWSER_SPEC,lane.BROWSER_PASSWORD_SPEC],
-                        ["rust-core-browser-password-entry-extra.spec.ts"],
-                        ["nested/"+lane.BROWSER_PASSWORD_SPEC], ["other.spec.ts"],
-                        lane.BROWSER_PASSWORD_SPEC, [{"unexpected":"value"}]):
+            self.assertTrue(
+                retrieval._browser_package_job(
+                    {"mode": "e2e", "specs": json.dumps(targets)}
+                )
+            )
+        for targets in (
+            [],
+            [lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC],
+            ["rust-core-browser-password-entry-extra.spec.ts"],
+            ["nested/" + lane.BROWSER_PASSWORD_SPEC],
+            ["other.spec.ts"],
+            lane.BROWSER_PASSWORD_SPEC,
+            [{"unexpected": "value"}],
+        ):
             self.assertFalse(lane.browser_e2e_targets(targets))
-            self.assertFalse(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
-        self.assertFalse(retrieval._browser_package_job({"mode":"component","specs":json.dumps([lane.BROWSER_PASSWORD_SPEC])}))
-        self.assertFalse(retrieval._browser_package_job({"mode":"e2e","specs":"not JSON"}))
+            self.assertFalse(
+                retrieval._browser_package_job(
+                    {"mode": "e2e", "specs": json.dumps(targets)}
+                )
+            )
+        self.assertFalse(
+            retrieval._browser_package_job(
+                {"mode": "component", "specs": json.dumps([lane.BROWSER_PASSWORD_SPEC])}
+            )
+        )
+        self.assertFalse(
+            retrieval._browser_package_job({"mode": "e2e", "specs": "not JSON"})
+        )
 
     def test_exact_e2e_hook_clock_private_backend_and_artifact_whitelist(self):
         import yaml
+
         source = (ROOT / "scripts/ci_run_tests.py").read_text()
         tree = ast.parse(source)
-        run = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "run_e2e")
+        run = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "run_e2e"
+        )
         segment = ast.get_source_segment(source, run)
-        self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("subprocess.Popen"))
-        self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("provision_account"))
+        self.assertLess(
+            segment.index("prepare_browser_e2e_package(ROOT)"),
+            segment.index("subprocess.Popen"),
+        )
+        self.assertLess(
+            segment.index("prepare_browser_e2e_package(ROOT)"),
+            segment.index("provision_account"),
+        )
         self.assertIn("len(specs) != 1", segment)
         self.assertIn("name in RUST_BROWSER_SPECS", segment)
         self.assertNotIn('os.environ["CI_SPECS_JSON"] =', source)
         environment = (ROOT / "scripts/ci_environment.py").read_text()
         parsed = ast.parse(environment)
-        private = next(node for node in parsed.body if isinstance(node, ast.Assign)
-                       and any(isinstance(target, ast.Name) and target.id == "PRIVATE_BACKEND_SPECS" for target in node.targets))
+        private = next(
+            node
+            for node in parsed.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "PRIVATE_BACKEND_SPECS"
+                for target in node.targets
+            )
+        )
         self.assertIn(lane.BROWSER_SPEC, ast.literal_eval(private.value.args[0]))
-        steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
-        clock = next(step for step in steps if step.get("name") == "Start bounded same-source browser package clock")
+        steps = next(
+            iter(
+                yaml.safe_load(
+                    (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+                )["jobs"].values()
+            )
+        )["steps"]
+        clock = next(
+            step
+            for step in steps
+            if step.get("name") == "Start bounded same-source browser package clock"
+        )
         from itertools import permutations
-        production_specs = [lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
-                            lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC]
-        production_targets = [[name] for name in production_specs[:2]] + [list(pair) for pair in permutations(production_specs[:2], 2)]
-        production_targets += [[production_specs[2]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[2] in pair]
+
+        production_specs = [
+            lane.PRODUCTION_BROWSER_SPEC,
+            lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+            lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC,
+        ]
+        production_targets = [[name] for name in production_specs[:2]] + [
+            list(pair) for pair in permutations(production_specs[:2], 2)
+        ]
+        production_targets += [[production_specs[2]]] + [
+            list(pair)
+            for pair in permutations(production_specs, 2)
+            if production_specs[2] in pair
+        ]
         production_specs.append(lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC)
-        production_targets += [[production_specs[3]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[3] in pair]
+        production_targets += [[production_specs[3]]] + [
+            list(pair)
+            for pair in permutations(production_specs, 2)
+            if production_specs[3] in pair
+        ]
         production_specs.append(lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC)
-        production_targets += [[production_specs[4]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[4] in pair]
-        predicate = "(" + " || ".join("inputs.specs_json == '" + json.dumps(targets, separators=(",", ":")) + "'" for targets in production_targets) + ")"
-        self.assertEqual(clock["if"], "inputs.mode == 'e2e' && (inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-browser-password-entry.spec.ts\"]' || " + predicate + ")")
+        production_targets += [[production_specs[4]]] + [
+            list(pair)
+            for pair in permutations(production_specs, 2)
+            if production_specs[4] in pair
+        ]
+        predicate = (
+            "("
+            + " || ".join(
+                "inputs.specs_json == '"
+                + json.dumps(targets, separators=(",", ":"))
+                + "'"
+                for targets in production_targets
+            )
+            + ")"
+        )
+        predicate = predicate.replace(
+            "inputs.specs_json == '[\"rust-core-production-saved-session.spec.ts\"]'",
+            "(inputs.specs_json == '[\"rust-core-production-saved-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]')",
+        )
+        predicate = predicate.replace(
+            "inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]'",
+            "(inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]' || inputs.specs_json == '[\"rust-core-initial-startup.spec.ts\"]')",
+        )
+        self.assertEqual(
+            clock["if"],
+            "inputs.mode == 'e2e' && (inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-browser-password-entry.spec.ts\"]' || "
+            + predicate
+            + ")",
+        )
         self.assertIn("started + 1800", clock["run"])
         self.assertEqual(lane.BUDGET, 2700)
-        upload = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")
+        upload = next(
+            step
+            for step in steps
+            if step.get("with", {}).get("name") == "isolated-test-results"
+        )
         for name in lane.PACKAGE_FILES:
-            self.assertIn("subject/test-results/rust-wasm/package/" + name, upload["with"]["path"])
+            self.assertIn(
+                "subject/test-results/rust-wasm/package/" + name, upload["with"]["path"]
+            )
         self.assertNotIn("rust-wasm/**", upload["with"]["path"])
-
 
 
 class ProvenanceDiagnosticTests(SyntheticPinTests):
@@ -1056,11 +2092,23 @@ class ProvenanceDiagnosticTests(SyntheticPinTests):
                         + '"\n'
                     )
                 elif fault == "pin-shape":
-                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ["PRIVATE_PIN"]))
+                    stack.enter_context(
+                        patch.object(lane, "BINDGEN_CRATE_PIN", ["PRIVATE_PIN"])
+                    )
                 elif fault == "pin-version":
-                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ("0.2.128", SYNTHETIC_BINDGEN_PIN[1])))
+                    stack.enter_context(
+                        patch.object(
+                            lane,
+                            "BINDGEN_CRATE_PIN",
+                            ("0.2.128", SYNTHETIC_BINDGEN_PIN[1]),
+                        )
+                    )
                 elif fault == "checksum-shape":
-                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ("0.2.129", "PRIVATE_CHECKSUM")))
+                    stack.enter_context(
+                        patch.object(
+                            lane, "BINDGEN_CRATE_PIN", ("0.2.129", "PRIVATE_CHECKSUM")
+                        )
+                    )
                 elif fault == "checksum-mismatch":
                     archive.write_bytes(b"altered archive")
                 elif fault == "archive-world-writable":
@@ -1404,17 +2452,25 @@ class ProvenanceDiagnosticTests(SyntheticPinTests):
             with self.assertRaises(lane.sdk.Refused):
                 lane.installed_bindgen_provenance(private, work, Forged())
 
+
 class OfficialRegistryPinTests(unittest.TestCase):
     """No synthetic override by default: exercise the independent production pin."""
 
     def test_version_and_digest_are_the_independently_verified_registry_pin(self):
-        self.assertEqual(lane.BINDGEN_CRATE_PIN, (
-            "0.2.129", "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c"))
+        self.assertEqual(
+            lane.BINDGEN_CRATE_PIN,
+            (
+                "0.2.129",
+                "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c",
+            ),
+        )
         self.assertEqual(lane.BINDGEN_CRATE_PIN[0], lane.BINDGEN_VERSION)
 
     def test_vendor_checksum_absence_is_valid_only_with_the_explicit_test_pin(self):
         with TemporaryDirectory() as directory:
-            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
+            private, work, binary, package, archive = (
+                ProvenanceDiagnosticTests().fixture(Path(directory))
+            )
             self.assertFalse((package / ".cargo-checksum.json").exists())
             diagnostic = lane.new_provenance_diagnostic()
             with self.assertRaises(lane.sdk.Refused):
@@ -1427,20 +2483,37 @@ class OfficialRegistryPinTests(unittest.TestCase):
 
     def test_tampered_archive_and_forged_vendor_checksum_cannot_replace_the_pin(self):
         with TemporaryDirectory() as directory:
-            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
+            private, work, binary, package, archive = (
+                ProvenanceDiagnosticTests().fixture(Path(directory))
+            )
             archive.write_bytes(b"tampered archive")
-            (package / ".cargo-checksum.json").write_text(json.dumps({
-                "package": hashlib.sha256(archive.read_bytes()).hexdigest()}))
-            with patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN), self.assertRaises(lane.sdk.Refused):
+            (package / ".cargo-checksum.json").write_text(
+                json.dumps(
+                    {"package": hashlib.sha256(archive.read_bytes()).hexdigest()}
+                )
+            )
+            with (
+                patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN),
+                self.assertRaises(lane.sdk.Refused),
+            ):
                 lane.installed_bindgen_provenance(private, work)
 
     def test_environment_cannot_override_the_production_pin(self):
         with TemporaryDirectory() as directory:
-            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
-            with patch.dict(os.environ, {"BINDGEN_CRATE_PIN": SYNTHETIC_BINDGEN_PIN[1],
-                                       "WASM_BINDGEN_CHECKSUM": SYNTHETIC_BINDGEN_PIN[1]}), self.assertRaises(lane.sdk.Refused):
+            private, work, binary, package, archive = (
+                ProvenanceDiagnosticTests().fixture(Path(directory))
+            )
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "BINDGEN_CRATE_PIN": SYNTHETIC_BINDGEN_PIN[1],
+                        "WASM_BINDGEN_CHECKSUM": SYNTHETIC_BINDGEN_PIN[1],
+                    },
+                ),
+                self.assertRaises(lane.sdk.Refused),
+            ):
                 lane.installed_bindgen_provenance(private, work)
-
 
 
 class WasmNameSectionTests(unittest.TestCase):
@@ -1451,30 +2524,61 @@ class WasmNameSectionTests(unittest.TestCase):
     """Pure synthetic producer contract; never executes bindgen or a WASM module."""
 
     def test_only_runtime_packaging_adds_pinned_metadata_flag(self):
-        expected = ["wasm-bindgen", ".ci-packaging/input.wasm", "--target", "web",
-                    "--remove-name-section", "--out-dir", ".ci-packaging/pkg", "--out-name", "openmates_browser"]
+        expected = [
+            "wasm-bindgen",
+            ".ci-packaging/input.wasm",
+            "--target",
+            "web",
+            "--remove-name-section",
+            "--out-dir",
+            ".ci-packaging/pkg",
+            "--out-name",
+            "openmates_browser",
+        ]
         self.assertEqual(lane.commands()[5], expected)
         self.assertEqual(lane.BINDGEN_VERSION, "0.2.129")
-        self.assertEqual(lane.commands()[2], ["cargo", "+1.98.1", "build", "--locked", "--release", "--manifest-path",
-                                             "packages/openmates-browser-bindings/Cargo.toml", "--target", "wasm32-unknown-unknown", "--lib"])
+        self.assertEqual(
+            lane.commands()[2],
+            [
+                "cargo",
+                "+1.98.1",
+                "build",
+                "--locked",
+                "--release",
+                "--manifest-path",
+                "packages/openmates-browser-bindings/Cargo.toml",
+                "--target",
+                "wasm32-unknown-unknown",
+                "--lib",
+            ],
+        )
         self.assertNotIn("--remove-name-section", sum(lane.commands()[:5], []))
         self.assertEqual(lane.STAGE_SECONDS, (300, 300, 1800, 900, 30, 180))
 
     def test_provenance_refuses_missing_flag_extra_flags_or_changed_input(self):
         helper = WasmReceiptTests()
         expected = lane.commands()[5]
-        for command in ([x for x in expected if x != "--remove-name-section"],
-                        expected + ["--keep-debug"], expected + ["--remove-producers-section"],
-                        ["wasm-bindgen", "/untrusted/input.wasm", *expected[2:]]):
+        for command in (
+            [x for x in expected if x != "--remove-name-section"],
+            expected + ["--keep-debug"],
+            expected + ["--remove-producers-section"],
+            ["wasm-bindgen", "/untrusted/input.wasm", *expected[2:]],
+        ):
             values = helper.fixture()
-            values[1]["steps"][-1]["command"]["argvSha256"] = hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest()
+            values[1]["steps"][-1]["command"]["argvSha256"] = hashlib.sha256(
+                json.dumps(command, separators=(",", ":")).encode()
+            ).hexdigest()
             self.assertFalse(helper.valid(values))
 
-    def test_mock_packaging_keeps_input_and_executable_sections_and_exports_without_runtime_claim(self):
+    def test_mock_packaging_keeps_input_and_executable_sections_and_exports_without_runtime_claim(
+        self,
+    ):
         # Valid minimal module: ()->(), exported run, body end. Optional debug
         # names are separate metadata. This fixture characterizes expected bytes,
         # not a locally executed optimizer or real bindgen transformation.
-        executable = bytes.fromhex("0061736d01000000010401600000030201000707010372756e00000a040102000b")
+        executable = bytes.fromhex(
+            "0061736d01000000010401600000030201000707010372756e00000a040102000b"
+        )
         names = bytes.fromhex("0005046e616d65")
         compiled = executable + names
         helper = WasmReceiptTests()
@@ -1488,13 +2592,17 @@ class WasmNameSectionTests(unittest.TestCase):
             output.mkdir()
             crate = work / lane.ROOTS[-1]
             crate.mkdir(parents=True)
-            (crate / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n')
+            (crate / "Cargo.lock").write_text(
+                'version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n'
+            )
             artifact = private / "compiled.wasm"
             artifact.write_bytes(compiled)
+
             class MockProducer:
                 steps = []
                 deadline = time.monotonic() + 10
                 env = {"PATH": os.defpath}
+
                 def run(self, stage, command, **options):
                     index = lane.STAGES.index(stage)
                     if command != lane.commands()[index]:
@@ -1504,25 +2612,46 @@ class WasmNameSectionTests(unittest.TestCase):
                     log.write_text("wasm-bindgen 0.2.129\n")
                     if stage == "bindgen-package":
                         if (work / ".ci-packaging/input.wasm").read_bytes() != compiled:
-                            raise AssertionError("compiled input was changed before bindgen")
+                            raise AssertionError(
+                                "compiled input was changed before bindgen"
+                            )
                         package = work / ".ci-packaging/pkg"
-                        (package / lane.PACKAGE_FILES[0]).write_text("export default async function init() {}")
+                        (package / lane.PACKAGE_FILES[0]).write_text(
+                            "export default async function init() {}"
+                        )
                         (package / lane.PACKAGE_FILES[1]).write_bytes(executable)
-                        (package / lane.PACKAGE_FILES[2]).write_text("export function run(): void;")
+                        (package / lane.PACKAGE_FILES[2]).write_text(
+                            "export function run(): void;"
+                        )
                     return log
+
             runner = MockProducer()
-            with patch.object(lane, "detach_installed_bindgen"), patch.object(lane, "installed_bindgen_provenance", return_value=provenance):
-                lane.produce_browser_package(runner, private, work, artifact, output, receipt)
+            with (
+                patch.object(lane, "detach_installed_bindgen"),
+                patch.object(
+                    lane, "installed_bindgen_provenance", return_value=provenance
+                ),
+            ):
+                lane.produce_browser_package(
+                    runner, private, work, artifact, output, receipt
+                )
             self.assertEqual(artifact.read_bytes(), compiled)
             self.assertEqual((work / ".ci-packaging/input.wasm").read_bytes(), compiled)
             runtime = (output / "package" / lane.PACKAGE_FILES[1]).read_bytes()
             self.assertEqual(runtime, executable)
             self.assertIn(b"run", runtime)
-            self.assertEqual(len(compiled)-len(runtime), len(names))
+            self.assertEqual(len(compiled) - len(runtime), len(names))
             manifest = json.loads((output / "package-manifest.json").read_text())
-            self.assertEqual(manifest["inputWasmSha256"], hashlib.sha256(compiled).hexdigest())
+            self.assertEqual(
+                manifest["inputWasmSha256"], hashlib.sha256(compiled).hexdigest()
+            )
             self.assertFalse(manifest["browserRuntimeProof"])
-            self.assertFalse(receipt["conformanceProof"] or receipt["releaseProof"] or receipt["browserRuntimeProof"])
+            self.assertFalse(
+                receipt["conformanceProof"]
+                or receipt["releaseProof"]
+                or receipt["browserRuntimeProof"]
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -1538,8 +2667,13 @@ class BindgenDetachmentTests(SyntheticPinTests):
         binary = install_bindgen_fixture(private, work)
         release = work / ".ci-bindgen-target/release"
         (release / "deps").mkdir(parents=True)
-        for folder in (binary.parent, binary.parent.parent, release,
-                       release.parent, release / "deps"):
+        for folder in (
+            binary.parent,
+            binary.parent.parent,
+            release,
+            release.parent,
+            release / "deps",
+        ):
             folder.chmod(0o700)
         target = release / "wasm-bindgen"
         os.link(binary, target)
@@ -1547,7 +2681,9 @@ class BindgenDetachmentTests(SyntheticPinTests):
             os.link(binary, release / "deps/wasm_bindgen-0123456789abcdef")
         return private, work, binary, target
 
-    def test_known_two_and_three_links_get_fresh_private_inode_and_pass_original_guard(self):
+    def test_known_two_and_three_links_get_fresh_private_inode_and_pass_original_guard(
+        self,
+    ):
         for deps in (False, True):
             with self.subTest(deps=deps), TemporaryDirectory() as directory:
                 private, work, binary, target = self.fixture(Path(directory), deps)
@@ -1558,7 +2694,9 @@ class BindgenDetachmentTests(SyntheticPinTests):
                     lane.installed_bindgen_provenance(private, work)
                 lane.detach_installed_bindgen(work, time.monotonic() + 10)
                 fresh = binary.lstat()
-                self.assertNotEqual((fresh.st_dev, fresh.st_ino), (original.st_dev, original.st_ino))
+                self.assertNotEqual(
+                    (fresh.st_dev, fresh.st_ino), (original.st_dev, original.st_ino)
+                )
                 self.assertEqual(fresh.st_nlink, 1)
                 self.assertEqual(fresh.st_mode & 0o777, 0o700)
                 self.assertEqual(binary.read_bytes(), raw)
@@ -1577,9 +2715,19 @@ class BindgenDetachmentTests(SyntheticPinTests):
             lane.detach_installed_bindgen(work, time.monotonic() + 10)
             self.assertEqual(before, lane.sdk.file_identity(binary.lstat()))
 
-    def test_unknown_links_symlinks_modes_and_preexisting_temp_refuse_before_publish(self):
-        for fault in ("extra-external", "missing-target", "target-symlink", "parent-symlink",
-                      "unsafe-mode", "temporary-file", "temporary-symlink", "extra-deps"):
+    def test_unknown_links_symlinks_modes_and_preexisting_temp_refuse_before_publish(
+        self,
+    ):
+        for fault in (
+            "extra-external",
+            "missing-target",
+            "target-symlink",
+            "parent-symlink",
+            "unsafe-mode",
+            "temporary-file",
+            "temporary-symlink",
+            "extra-deps",
+        ):
             with self.subTest(fault=fault), TemporaryDirectory() as directory:
                 root = Path(directory)
                 _, work, binary, target = self.fixture(root)
@@ -1604,8 +2752,12 @@ class BindgenDetachmentTests(SyntheticPinTests):
                 elif fault == "temporary-symlink":
                     temporary.symlink_to(target)
                 elif fault == "extra-deps":
-                    os.link(binary, target.parent / "deps/wasm_bindgen-0123456789abcdef")
-                    os.link(binary, target.parent / "deps/wasm_bindgen-fedcba9876543210")
+                    os.link(
+                        binary, target.parent / "deps/wasm_bindgen-0123456789abcdef"
+                    )
+                    os.link(
+                        binary, target.parent / "deps/wasm_bindgen-fedcba9876543210"
+                    )
                 before = lane.sdk.file_identity(binary.lstat())
                 with self.assertRaises((lane.sdk.Refused, OSError)):
                     lane.detach_installed_bindgen(work, time.monotonic() + 10)
@@ -1616,13 +2768,19 @@ class BindgenDetachmentTests(SyntheticPinTests):
                     self.assertTrue(temporary.is_symlink())
 
     def test_source_or_destination_mutation_and_deadline_never_publish(self):
-        for fault in ("source-mutation", "destination-replacement", "deadline", "fsync-error"):
+        for fault in (
+            "source-mutation",
+            "destination-replacement",
+            "deadline",
+            "fsync-error",
+        ):
             with self.subTest(fault=fault), TemporaryDirectory() as directory:
                 root = Path(directory)
                 _, work, binary, target = self.fixture(root)
                 original_inode = binary.stat().st_ino
                 original_regular = lane.sdk.regular
                 temporary = binary.with_name(".wasm-bindgen-detached")
+
                 def reading(path, *args):
                     raw = original_regular(path, *args)
                     if fault == "source-mutation" and path == target:
@@ -1633,12 +2791,24 @@ class BindgenDetachmentTests(SyntheticPinTests):
                         replacement.chmod(0o700)
                         os.replace(replacement, temporary)
                     return raw
+
                 with ExitStack() as stack:
-                    stack.enter_context(patch.object(lane.sdk, "regular", side_effect=reading))
+                    stack.enter_context(
+                        patch.object(lane.sdk, "regular", side_effect=reading)
+                    )
                     if fault == "fsync-error":
-                        stack.enter_context(patch.object(lane.os, "fsync", side_effect=OSError("PRIVATE")))
+                        stack.enter_context(
+                            patch.object(
+                                lane.os, "fsync", side_effect=OSError("PRIVATE")
+                            )
+                        )
                     with self.assertRaises((lane.sdk.Refused, OSError)):
-                        lane.detach_installed_bindgen(work, time.monotonic() - 1 if fault == "deadline" else time.monotonic() + 10)
+                        lane.detach_installed_bindgen(
+                            work,
+                            time.monotonic() - 1
+                            if fault == "deadline"
+                            else time.monotonic() + 10,
+                        )
                 self.assertEqual(binary.stat().st_ino, original_inode)
 
     def test_unexpected_alias_and_copy_limit_refuse(self):
@@ -1648,7 +2818,9 @@ class BindgenDetachmentTests(SyntheticPinTests):
                 _, work, binary, target = self.fixture(root)
                 if fault == "wrong-deps-inode":
                     os.link(binary, root / "unknown-link")
-                    (target.parent / "deps/wasm_bindgen-0123456789abcdef").write_bytes(b"different")
+                    (target.parent / "deps/wasm_bindgen-0123456789abcdef").write_bytes(
+                        b"different"
+                    )
                 elif fault == "oversize":
                     with binary.open("r+b") as stream:
                         stream.truncate(64 * 1024**2 + 1)
@@ -1665,7 +2837,9 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
     def fixture(self, root, deps=False):
         return BindgenDetachmentTests().fixture(root, deps)
 
-    def test_successful_known_alias_detachment_and_independent_file_keep_closed_observations(self):
+    def test_successful_known_alias_detachment_and_independent_file_keep_closed_observations(
+        self,
+    ):
         for deps in (False, True):
             with self.subTest(deps=deps), TemporaryDirectory() as directory:
                 _, work, binary, target = self.fixture(Path(directory), deps)
@@ -1677,7 +2851,9 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
                 self.assertTrue(state["detachAliasIdentityMatches"])
                 self.assertEqual(binary.stat().st_nlink, 1)
                 self.assertEqual(binary.read_bytes(), target.read_bytes())
-                result = lane.closed_provenance_diagnostic(state, lane.sdk.Refused("packaging"))
+                result = lane.closed_provenance_diagnostic(
+                    state, lane.sdk.Refused("packaging")
+                )
                 self.assertNotIn(str(work), json.dumps(result))
         with TemporaryDirectory() as directory:
             _, work, binary, target = self.fixture(Path(directory))
@@ -1689,11 +2865,15 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
             self.assertEqual(state["detachOriginalLinks"], 1)
             self.assertIsNone(state["detachAliasCount"])
 
-    def test_unknown_alias_and_directory_faults_report_exact_closed_boundary_and_keep_refusal(self):
-        for fault, expected in (("link-count", "detach-link-count"),
-                                ("wrong-alias", "detach-alias-identity"),
-                                ("directory-mode", "detach-directory-guard"),
-                                ("deadline", "detach-current-deadline")):
+    def test_unknown_alias_and_directory_faults_report_exact_closed_boundary_and_keep_refusal(
+        self,
+    ):
+        for fault, expected in (
+            ("link-count", "detach-link-count"),
+            ("wrong-alias", "detach-alias-identity"),
+            ("directory-mode", "detach-directory-guard"),
+            ("deadline", "detach-current-deadline"),
+        ):
             with self.subTest(fault=fault), TemporaryDirectory() as directory:
                 root = Path(directory)
                 _, work, binary, target = self.fixture(root)
@@ -1708,10 +2888,18 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
                 original = lane.sdk.file_identity(binary.lstat())
                 state = lane.new_provenance_diagnostic()
                 with self.assertRaises(lane.sdk.Refused) as caught:
-                    lane.detach_installed_bindgen(work, time.monotonic() - 1 if fault == "deadline" else time.monotonic() + 10, state)
+                    lane.detach_installed_bindgen(
+                        work,
+                        time.monotonic() - 1
+                        if fault == "deadline"
+                        else time.monotonic() + 10,
+                        state,
+                    )
                 result = lane.closed_provenance_diagnostic(state, caught.exception)
                 self.assertEqual(result["substage"], expected)
-                self.assertEqual(result["code"], "deadline" if fault == "deadline" else "packaging")
+                self.assertEqual(
+                    result["code"], "deadline" if fault == "deadline" else "packaging"
+                )
                 self.assertNotIn("PRIVATE", json.dumps(result))
                 self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
                 if fault == "wrong-alias":
@@ -1725,23 +2913,31 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
             for invalid in (-1, limit + 1, True, "PRIVATE"):
                 state = lane.new_provenance_diagnostic()
                 state[key] = invalid
-                with self.subTest(key=key, invalid=invalid), self.assertRaises(lane.sdk.Refused):
+                with (
+                    self.subTest(key=key, invalid=invalid),
+                    self.assertRaises(lane.sdk.Refused),
+                ):
                     lane.closed_provenance_diagnostic(state, RuntimeError("PRIVATE"))
         for key in lane.DETACH_BOOLEANS:
             state = lane.new_provenance_diagnostic()
             state[key] = 1
             with self.subTest(key=key), self.assertRaises(lane.sdk.Refused):
                 lane.closed_provenance_diagnostic(state, RuntimeError("PRIVATE"))
+
         class BrokenObserver(dict):
             def update(self, *args, **kwargs):
                 raise RuntimeError("PRIVATE_OBSERVER")
+
             def __setitem__(self, *args):
                 raise RuntimeError("PRIVATE_OBSERVER")
+
         with TemporaryDirectory() as directory:
             _, work, binary, target = self.fixture(Path(directory))
             os.link(binary, Path(directory) / "PRIVATE_UNKNOWN")
             with self.assertRaises(lane.sdk.Refused) as caught:
-                lane.detach_installed_bindgen(work, time.monotonic() + 10, BrokenObserver())
+                lane.detach_installed_bindgen(
+                    work, time.monotonic() + 10, BrokenObserver()
+                )
             self.assertEqual(caught.exception.args, ("packaging",))
 
 
@@ -1763,10 +2959,14 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
             independent = release
         return private, work, binary, release, deps, independent
 
-    def test_either_safe_separate_cargo_output_is_untouched_and_actual_alias_set_accounts_for_links(self):
+    def test_either_safe_separate_cargo_output_is_untouched_and_actual_alias_set_accounts_for_links(
+        self,
+    ):
         for role in ("release", "deps"):
             with self.subTest(role=role), TemporaryDirectory() as directory:
-                private, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), role)
+                private, work, binary, release, deps, independent = self.mixed_fixture(
+                    Path(directory), role
+                )
                 original = lane.sdk.file_identity(binary.lstat())
                 separate_identity = lane.sdk.file_identity(independent.lstat())
                 raw = binary.read_bytes()
@@ -1775,7 +2975,9 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
                 lane.detach_installed_bindgen(work, time.monotonic() + 10)
                 self.assertEqual(binary.stat().st_nlink, 1)
                 self.assertNotEqual(lane.sdk.file_identity(binary.lstat()), original)
-                self.assertEqual(lane.sdk.file_identity(independent.lstat()), separate_identity)
+                self.assertEqual(
+                    lane.sdk.file_identity(independent.lstat()), separate_identity
+                )
                 for path in (binary, release, deps):
                     self.assertEqual(path.read_bytes(), raw)
                 proof = lane.installed_bindgen_provenance(private, work)
@@ -1785,7 +2987,9 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
     def test_unaccounted_actual_link_is_never_covered_by_safe_name_candidate(self):
         for role in ("release", "deps"):
             with self.subTest(role=role), TemporaryDirectory() as directory:
-                _, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), role)
+                _, work, binary, release, deps, independent = self.mixed_fixture(
+                    Path(directory), role
+                )
                 os.link(binary, Path(directory) / "external-unknown")
                 original = lane.sdk.file_identity(binary.lstat())
                 with self.assertRaises(lane.sdk.Refused):
@@ -1793,10 +2997,22 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
                 self.assertEqual(lane.sdk.file_identity(binary.lstat()), original)
                 self.assertEqual(binary.stat().st_nlink, 3)
 
-    def test_separate_candidate_faults_and_midcopy_mutations_refuse_before_publish(self):
-        for fault in ("symlink", "unsafe-mode", "non-executable", "external-hardlink", "empty", "content-mutation", "replacement"):
+    def test_separate_candidate_faults_and_midcopy_mutations_refuse_before_publish(
+        self,
+    ):
+        for fault in (
+            "symlink",
+            "unsafe-mode",
+            "non-executable",
+            "external-hardlink",
+            "empty",
+            "content-mutation",
+            "replacement",
+        ):
             with self.subTest(fault=fault), TemporaryDirectory() as directory:
-                _, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), "deps")
+                _, work, binary, release, deps, independent = self.mixed_fixture(
+                    Path(directory), "deps"
+                )
                 if fault == "symlink":
                     independent.unlink()
                     independent.symlink_to(binary)
@@ -1811,17 +3027,26 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
                 original = lane.sdk.file_identity(binary.lstat())
                 real_regular = lane.sdk.regular
                 mutated = False
+
                 def mutate(path, *args, **kwargs):
                     nonlocal mutated
                     result = real_regular(path, *args, **kwargs)
-                    if path == binary and not mutated and fault in ("content-mutation", "replacement"):
+                    if (
+                        path == binary
+                        and not mutated
+                        and fault in ("content-mutation", "replacement")
+                    ):
                         mutated = True
                         if fault == "replacement":
                             independent.unlink()
                         independent.write_bytes(b"changed separate candidate")
                         independent.chmod(0o700)
                     return result
-                with patch.object(lane.sdk, "regular", side_effect=mutate), self.assertRaises((lane.sdk.Refused, OSError)):
+
+                with (
+                    patch.object(lane.sdk, "regular", side_effect=mutate),
+                    self.assertRaises((lane.sdk.Refused, OSError)),
+                ):
                     lane.detach_installed_bindgen(work, time.monotonic() + 10)
                 self.assertEqual(lane.sdk.file_identity(binary.lstat()), original)
                 self.assertEqual(binary.stat().st_nlink, 2)
@@ -1838,9 +3063,13 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
         release.unlink()
         return private, work, binary, release, deps
 
-    def test_missing_unused_release_with_all_actual_links_known_detaches_and_passes_provenance(self):
+    def test_missing_unused_release_with_all_actual_links_known_detaches_and_passes_provenance(
+        self,
+    ):
         with TemporaryDirectory() as directory:
-            private, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            private, work, binary, release, deps = self.missing_release_fixture(
+                Path(directory)
+            )
             original = binary.lstat()
             raw = binary.read_bytes()
             lane.detach_installed_bindgen(work, time.monotonic() + 10)
@@ -1848,15 +3077,25 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
             self.assertFalse(release.is_symlink())
             self.assertEqual(binary.stat().st_nlink, 1)
             self.assertEqual(deps.stat().st_nlink, 1)
-            self.assertNotEqual((binary.stat().st_dev, binary.stat().st_ino), (original.st_dev, original.st_ino))
+            self.assertNotEqual(
+                (binary.stat().st_dev, binary.stat().st_ino),
+                (original.st_dev, original.st_ino),
+            )
             self.assertEqual(raw, binary.read_bytes())
             self.assertEqual(raw, deps.read_bytes())
-            self.assertEqual(lane.installed_bindgen_provenance(private, work)["binaryIdentity"]["links"], 1)
+            self.assertEqual(
+                lane.installed_bindgen_provenance(private, work)["binaryIdentity"][
+                    "links"
+                ],
+                1,
+            )
 
     def test_absence_never_adopts_unaccounted_actual_links(self):
         for known_alias in (True, False):
             with self.subTest(known=known_alias), TemporaryDirectory() as directory:
-                _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                _, work, binary, release, deps = self.missing_release_fixture(
+                    Path(directory)
+                )
                 os.link(binary, Path(directory) / "unknown-actual-link")
                 if not known_alias:
                     deps.unlink()
@@ -1866,18 +3105,30 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
                 self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
                 self.assertFalse(release.exists())
 
-    def test_missing_candidate_created_or_recreated_during_copy_is_refused_before_publish(self):
+    def test_missing_candidate_created_or_recreated_during_copy_is_refused_before_publish(
+        self,
+    ):
         for when in ("source", "copy"):
             for recreated in (False, True):
-                with self.subTest(when=when, recreated=recreated), TemporaryDirectory() as directory:
-                    _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                with (
+                    self.subTest(when=when, recreated=recreated),
+                    TemporaryDirectory() as directory,
+                ):
+                    _, work, binary, release, deps = self.missing_release_fixture(
+                        Path(directory)
+                    )
                     original = lane.sdk.file_identity(binary.lstat())
                     regular = lane.sdk.regular
                     changed = False
+
                     def race(path, *args, **kwargs):
                         nonlocal changed
                         raw = regular(path, *args, **kwargs)
-                        trigger = path == binary if when == "source" else path.name == ".wasm-bindgen-detached"
+                        trigger = (
+                            path == binary
+                            if when == "source"
+                            else path.name == ".wasm-bindgen-detached"
+                        )
                         if trigger and not changed:
                             changed = True
                             release.write_bytes(b"unexpected independent output")
@@ -1885,17 +3136,26 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
                             if recreated:
                                 release.unlink()
                         return raw
-                    with patch.object(lane.sdk, "regular", side_effect=race), self.assertRaises(lane.sdk.Refused):
+
+                    with (
+                        patch.object(lane.sdk, "regular", side_effect=race),
+                        self.assertRaises(lane.sdk.Refused),
+                    ):
                         lane.detach_installed_bindgen(work, time.monotonic() + 10)
                     self.assertTrue(changed)
                     self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
-                    self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
+                    self.assertFalse(
+                        binary.with_name(".wasm-bindgen-detached").exists()
+                    )
 
     def test_creation_during_publication_fails_final_missing_guard(self):
         with TemporaryDirectory() as directory:
-            _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            _, work, binary, release, deps = self.missing_release_fixture(
+                Path(directory)
+            )
             replace = lane.os.replace
             changed = False
+
             def publish(*args, **kwargs):
                 nonlocal changed
                 result = replace(*args, **kwargs)
@@ -1904,7 +3164,11 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
                     release.write_bytes(b"unexpected after publication")
                     release.chmod(0o700)
                 return result
-            with patch.object(lane.os, "replace", side_effect=publish), self.assertRaises(lane.sdk.Refused):
+
+            with (
+                patch.object(lane.os, "replace", side_effect=publish),
+                self.assertRaises(lane.sdk.Refused),
+            ):
                 lane.detach_installed_bindgen(work, time.monotonic() + 10)
             self.assertTrue(changed)
             self.assertEqual(binary.stat().st_nlink, 1)
@@ -1912,32 +3176,45 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
 
     def test_present_candidate_removed_during_open_is_not_reclassified_absent(self):
         with TemporaryDirectory() as directory:
-            _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            _, work, binary, release, deps = self.missing_release_fixture(
+                Path(directory)
+            )
             release.write_bytes(b"initial separate output")
             release.chmod(0o700)
             original = lane.sdk.file_identity(binary.lstat())
             open_file = lane.os.open
             changed = False
+
             def remove_then_open(path, *args, **kwargs):
                 nonlocal changed
                 if path == release and not changed:
                     changed = True
                     release.unlink()
                 return open_file(path, *args, **kwargs)
-            with patch.object(lane.os, "open", side_effect=remove_then_open), self.assertRaises(FileNotFoundError):
+
+            with (
+                patch.object(lane.os, "open", side_effect=remove_then_open),
+                self.assertRaises(FileNotFoundError),
+            ):
                 lane.detach_installed_bindgen(work, time.monotonic() + 10)
             self.assertTrue(changed)
             self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
 
-    def test_dangling_symlink_permission_and_non_enoent_refuse_without_publication(self):
+    def test_dangling_symlink_permission_and_non_enoent_refuse_without_publication(
+        self,
+    ):
         import errno
+
         for fault in ("dangling-symlink", "permission", "wrong-errno"):
             with self.subTest(fault=fault), TemporaryDirectory() as directory:
-                _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                _, work, binary, release, deps = self.missing_release_fixture(
+                    Path(directory)
+                )
                 original = lane.sdk.file_identity(binary.lstat())
                 lstat = Path.lstat
                 if fault == "dangling-symlink":
                     release.symlink_to(Path(directory) / "absent-other")
+
                 def fail(path, *args, **kwargs):
                     if path == release:
                         if fault == "permission":
@@ -1945,7 +3222,11 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
                         if fault == "wrong-errno":
                             raise FileNotFoundError(errno.EIO, "synthetic non-ENOENT")
                     return lstat(path, *args, **kwargs)
-                with patch.object(Path, "lstat", fail), self.assertRaises((lane.sdk.Refused, PermissionError)):
+
+                with (
+                    patch.object(Path, "lstat", fail),
+                    self.assertRaises((lane.sdk.Refused, PermissionError)),
+                ):
                     lane.detach_installed_bindgen(work, time.monotonic() + 10)
                 self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
                 self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
@@ -2709,6 +3990,7 @@ class RecoverySdkSnippetTests(unittest.TestCase):
             [
                 "subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js",
                 "subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js",
+                "subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/src/platform/browser_metadata_native.js",
             ],
         )
 
@@ -2721,17 +4003,28 @@ class DependencyRefusalReasonTests(unittest.TestCase):
         # This does not execute candidate product/compiler or load a SDK.
         source = 'def closed_module_dependencies(javascript):\n    """Conservative dependency-edge tokenizer, never a JS syntax/runtime proof.\n\n    Scan raw text, including strings/comments/regex/templates: discarding those\n    regions could hide an executable token. Every dynamic/static import has the\n    literal reserved token import; every external export has FromClause, whose\n    literal from token is followed by ECMAScript trivia and a StringLiteral.\n    Reject harmless lookalikes rather than attempt general JS lexical parsing.\n    """\n    if not isinstance(javascript, bytes) or not 0 < len(javascript) <= 64 * 1024**2:\n        return False\n    try:\n        text = javascript.decode("utf-8", errors="strict")\n    except UnicodeError:\n        return False\n    # Escaped contextual/reserved words are outside the reviewed glue grammar.\n    # This intentionally also refuses harmless Unicode escapes inside literals.\n    if "\\\\u" in text:\n        return False\n    spent, budget = 0, len(text) * 8 + 128\n    for token in re.finditer(r"(?<![A-Za-z0-9_$])(?:import|from)(?![A-Za-z0-9_$])", text):\n        if token.group() == "import":\n            end = token.start() + len("import.meta.url")\n            if (not text.startswith("import.meta.url", token.start())\n                    or end < len(text) and (text[end].isalnum() or text[end] in "_$\\\\.")):\n                return False\n            continue\n        cursor = token.end()\n        while cursor < len(text):\n            before = cursor\n            if text[cursor] in MODULE_SPACE:\n                cursor += 1\n            elif text.startswith("/*", cursor):\n                end = text.find("*/", cursor + 2)\n                if end < 0:\n                    return False\n                cursor = end + 2\n            elif text.startswith("//", cursor):\n                cursor += 2\n                while cursor < len(text) and text[cursor] not in MODULE_LINES:\n                    cursor += 1\n            else:\n                break\n            spent += cursor - before\n            if spent > budget:\n                return False\n        if cursor < len(text) and text[cursor] in "\'\\"":\n            return False\n    return True'
         original = {}
-        exec(compile(source, '<original-pure-predicate>', 'exec'), {
-            're': __import__('re'), 'MODULE_SPACE': lane.MODULE_SPACE,
-            'MODULE_LINES': lane.MODULE_LINES}, original)
-        old = original['closed_module_dependencies']
+        exec(
+            compile(source, "<original-pure-predicate>", "exec"),
+            {
+                "re": __import__("re"),
+                "MODULE_SPACE": lane.MODULE_SPACE,
+                "MODULE_LINES": lane.MODULE_LINES,
+            },
+            original,
+        )
+        old = original["closed_module_dependencies"]
         cases = [
-            (0, b"export function init(){return new URL('core.wasm', import.meta.url);}"),
-            (1, None), (1, b''), (2, b'\xff'),
+            (
+                0,
+                b"export function init(){return new URL('core.wasm', import.meta.url);}",
+            ),
+            (1, None),
+            (1, b""),
+            (2, b"\xff"),
             (3, b"const value='\\u0061';"),
             (4, b"import('./PRIVATE_PATH.js')"),
-            (5, b'export * from /*PRIVATE_SOURCE'),
-            (6, ('from /*' + 'from /*' * 1000 + '*/ local;').encode()),
+            (5, b"export * from /*PRIVATE_SOURCE"),
+            (6, ("from /*" + "from /*" * 1000 + "*/ local;").encode()),
             (7, b"export * from './PRIVATE_PATH.js';"),
         ]
         for expected, raw in cases:
@@ -2749,37 +4042,108 @@ class DependencyRefusalReasonTests(unittest.TestCase):
         files = helper.files()
         # The known pinned-producer shape uses exact string map keys. These
         # paths do not contain a reserved import/from token and already pass.
-        javascript = (('import * as import2 from "./' + helper.name + '"\n').encode()
-            + ('import * as import1 from "./' + GeneratedSnippetTests.name + '"\n').encode()
-            + ('function __wbg_get_imports(){const import0={__proto__:null};return {__proto__:null,"./openmates_browser_bg.js":import0,"./'
-               + helper.name + '":import2,"./' + GeneratedSnippetTests.name + '":import1};}').encode())
+        javascript = (
+            ('import * as import2 from "./' + helper.name + '"\n').encode()
+            + (
+                'import * as import1 from "./' + GeneratedSnippetTests.name + '"\n'
+            ).encode()
+            + (
+                'function __wbg_get_imports(){const import0={__proto__:null};return {__proto__:null,"./openmates_browser_bg.js":import0,"./'
+                + helper.name
+                + '":import2,"./'
+                + GeneratedSnippetTests.name
+                + '":import1};}'
+            ).encode()
+        )
         files[lane.PACKAGE_FILES[0]] = javascript
         self.assertTrue(lane.package_modules(files, helper.inputs()))
-        self.assertTrue(WasmReceiptTests().valid(ModuleDependencyTokenizerTests().reseal(files, helper.inputs())))
+        self.assertTrue(
+            WasmReceiptTests().valid(
+                ModuleDependencyTokenizerTests().reseal(files, helper.inputs())
+            )
+        )
 
     def test_refusal_reports_only_closed_kind_and_never_actual_token_or_path(self):
         helper = RecoverySdkSnippetTests()
-        for raw, reason in [(b"import('./PRIVATE_PATH.js')", 4), (b"const v='\\u0061';", 3),
-                            (b"export * from './PRIVATE_PATH.js';", 7)]:
+        for raw, reason in [
+            (b"import('./PRIVATE_PATH.js')", 4),
+            (b"const v='\\u0061';", 3),
+            (b"export * from './PRIVATE_PATH.js';", 7),
+        ]:
             files = helper.files()
             files[lane.PACKAGE_FILES[0]] += raw
             state = lane.new_provenance_diagnostic()
             self.assertFalse(lane.package_modules(files, helper.inputs(), state))
-            report = lane.closed_provenance_diagnostic(state, lane.sdk.Refused('outputs'))
-            self.assertEqual(report['packageDependencyRefusalKind'], reason)
-            self.assertIs(report['packageDependenciesClosed'], False)
+            report = lane.closed_provenance_diagnostic(
+                state, lane.sdk.Refused("outputs")
+            )
+            self.assertEqual(report["packageDependencyRefusalKind"], reason)
+            self.assertIs(report["packageDependenciesClosed"], False)
             serialized = json.dumps(report)
-            for private in ['PRIVATE_PATH', 'PRIVATE_SOURCE', helper.name, 'import(', '\\u0061']:
+            for private in [
+                "PRIVATE_PATH",
+                "PRIVATE_SOURCE",
+                helper.name,
+                "import(",
+                "\\u0061",
+            ]:
                 self.assertNotIn(private, serialized)
 
     def test_only_two_independently_reviewed_cargo_hashes_are_accepted(self):
         helper = RecoverySdkSnippetTests()
-        for digest in ('adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af',
-                       'cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f'):
+        for digest in (
+            "adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af",
+            "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f",
+        ):
             inputs = helper.inputs()
             inputs[lane.SDK_PACKAGE_SOURCE] = digest
             self.assertTrue(lane.package_modules(helper.files(), inputs))
-        for digest in ('0' * 64, 'cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0e', None):
+        for digest in (
+            "0" * 64,
+            "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0e",
+            None,
+        ):
             inputs = helper.inputs()
             inputs[lane.SDK_PACKAGE_SOURCE] = digest
             self.assertFalse(lane.package_modules(helper.files(), inputs))
+
+
+class ComposedRecoveryTupleTests(unittest.TestCase):
+    def test_actual_composed_source_cargo_body_and_cross_pair_refusal(self):
+        root = Path(__file__).resolve().parents[2]
+        import re
+
+        source = (root / lane.SDK_SNIPPET_SOURCE).read_bytes()
+        cargo = (root / lane.SDK_PACKAGE_SOURCE).read_bytes()
+        self.assertEqual(
+            lane.sdk.sha(source),
+            "38bc86417aad3bf3115ba5f46655ddc9a5e98ab7d85f3a82718956b112c87386",
+        )
+        self.assertEqual(
+            lane.sdk.sha(cargo),
+            "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441",
+        )
+        raw = re.search(r'inline_js = "([\s\S]*?)"\)\]\s*extern', source.decode())[1]
+        body = json.loads(
+            '"' + raw.replace("\n", "\\n").replace("\r", "\\r") + '"'
+        ).encode()
+        self.assertEqual(
+            lane.recovery_sdk_variant(lane.sdk.sha(source), lane.sdk.sha(cargo)),
+            (lane.sdk.sha(body), len(body)),
+        )
+        self.assertEqual(len(body), 4310)
+        f = RecoverySdkSnippetTests()
+        files, inputs = f.files(), f.inputs()
+        files[f.name] = body
+        inputs[lane.SDK_SNIPPET_SOURCE] = lane.sdk.sha(source)
+        inputs[lane.SDK_PACKAGE_SOURCE] = lane.sdk.sha(cargo)
+        self.assertTrue(lane.package_modules(files, inputs))
+        for name, value in [
+            (lane.SDK_SNIPPET_SOURCE, lane.SDK_SNIPPET_SOURCE_SHA256),
+            (lane.SDK_PACKAGE_SOURCE, lane.SDK_FLOAT_PACKAGE_SOURCE_SHA256),
+        ]:
+            changed = dict(inputs)
+            changed[name] = value
+            self.assertFalse(lane.package_modules(files, changed))
+        files[f.name] += b" "
+        self.assertFalse(lane.package_modules(files, inputs))

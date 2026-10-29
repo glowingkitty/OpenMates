@@ -1,6 +1,7 @@
 # contract-test-file: tooling
 """Pure fixtures only: never install toolchains, build Cargo, or contact services."""
 
+import ast
 import copy
 from contextlib import ExitStack
 import datetime as dt
@@ -119,6 +120,12 @@ def isolation_fixture(sandbox=Path("/tmp/openmates-native-dev-" + "a" * 32)):
 def fixture():
     j = job()
     inputs = {root + "/Cargo.lock": "d" * 64 for root in lane.ROOTS}
+    inputs.update(
+        {
+            lane.CLI + "/src/bin/tui-benchmark.rs": "4" * 64,
+            lane.CLI + "/scripts/benchmark.py": "5" * 64,
+        }
+    )
     data = elf()
     sandbox = Path("/tmp/openmates-native-dev-" + "a" * 32)
     commands = [
@@ -178,7 +185,9 @@ def fixture():
         "toolchain": lane.VERSION,
         "inputs": inputs,
         "inputSetSha256": lane.sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
-        "locks": inputs.copy(),
+        "locks": {
+            root + "/Cargo.lock": inputs[root + "/Cargo.lock"] for root in lane.ROOTS
+        },
         "binary": lane.elf_metadata(data),
         "buildLoader": {
             "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
@@ -200,6 +209,12 @@ def fixture():
         "rustcVersionSha256": "2" * 64,
         "supervisorSha256": SUPERVISOR_SHA,
     }
+    renderer = elf() + b"renderer-fixture"
+    receipt["rendererArtifact"] = lane.renderer_metadata(renderer, receipt)
+    receipt["isolation"]["rendererArtifact"] = {
+        "sha256": lane.sdk.sha(renderer),
+        "bytes": len(renderer),
+    }
     return receipt, j, inputs, data
 
 
@@ -210,6 +225,48 @@ def validate(receipt, j, inputs, data):
 
 
 class NativeFixtureTests(unittest.TestCase):
+    def test_renderer_identity_rejects_wrong_cli_bytes_stale_source_and_old_receipt(
+        self,
+    ):
+        receipt, j, inputs, data = fixture()
+        renderer = elf() + b"renderer-fixture"
+        self.assertTrue(lane.validate_renderer(receipt, renderer))
+        with self.assertRaises(lane.sdk.Refused):
+            lane.validate_renderer(receipt, data)
+        for key in (
+            "sourceSha256",
+            "harnessSha256",
+            "inputSetSha256",
+            "targetKind",
+            "name",
+        ):
+            broken = copy.deepcopy(receipt)
+            broken["rendererArtifact"][key] = "wrong"
+            with self.subTest(key=key), self.assertRaises(lane.sdk.Refused):
+                lane.validate_renderer(broken, renderer)
+        old = copy.deepcopy(receipt)
+        old.pop("rendererArtifact")
+        with self.assertRaises(lane.sdk.Refused):
+            lane.validate_renderer(old, renderer)
+
+    def test_renderer_reuses_app_recipe_and_absolute_deadline(self):
+        self.assertEqual(lane.BUDGET, 2700)
+        self.assertEqual(lane.supervisor.LIMITS[-2:], (2100, 300))
+        commands = lane._commands("cargo", "rustc")
+        self.assertEqual(commands[-2][-4:], ["--bin", "openmates", "--jobs", "2"])
+        self.assertEqual(
+            commands[-1][-4:], ["--example", "tui-benchmark", "--jobs", "2"]
+        )
+        self.assertIn("--offline", commands[-1])
+        sandbox = Path("/fixture")
+        actual = lane.supervisor.commands(sandbox)
+        toolbin = (
+            sandbox / "rustup/toolchains" / (lane.VERSION + "-" + lane.TRIPLE) / "bin"
+        )
+        self.assertEqual(
+            actual, lane._commands(str(toolbin / "cargo"), str(toolbin / "rustc"))
+        )
+
     def test_canonical_like_harness_imports_without_worktree_or_pythonpath_extras(self):
         # Reconstruct the published harness dependency boundary, not the current
         # test interpreter's namespace/PYTHONPATH. First reproduce absent guards,
@@ -821,7 +878,11 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
 
             def get(url, path, limit, *, expected_size=None):
                 payload = (
-                    data if path.name == "openmates" else json.dumps(receipt).encode()
+                    data
+                    if path.name == "openmates"
+                    else elf() + b"renderer-fixture"
+                    if path.name == "tui-benchmark"
+                    else json.dumps(receipt).encode()
                 )
                 self.assertLessEqual(len(payload), limit)
                 if expected_size is not None:
@@ -880,6 +941,14 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 path.parent.mkdir(parents=True)
                 path.write_bytes(b"fixture-lock")
                 before[crate + "/Cargo.lock"] = lane.sdk.sha(b"fixture-lock")
+            for name in (
+                lane.CLI + "/src/bin/tui-benchmark.rs",
+                lane.CLI + "/scripts/benchmark.py",
+            ):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"fixture-source")
+                before[name] = lane.sdk.sha(b"fixture-source")
             ambient = {
                 "GITHUB_ACTIONS": "true",
                 "RUNNER_ENVIRONMENT": "github-hosted",
@@ -932,7 +1001,9 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                     )
                     if stage != "rust-toolchain":
                         state["sandbox"] = Path(command[8])
-                    if failure == "package-command" and stage == "cli-package-list":
+                    if (
+                        failure == "package-command" and stage == "cli-package-list"
+                    ) or (failure == "renderer-command" and stage == "renderer-build"):
                         self.steps[-1].update(
                             status="failed", returncode=1, terminatedReturncode=1
                         )
@@ -961,6 +1032,13 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 proof = isolation_fixture(state["sandbox"])
                 if failure == "compiler-replacement":
                     proof["tools"]["cargo"]["identity"][2] = 0o100755
+                renderer = elf() + b"renderer-fixture"
+                proof["rendererArtifact"] = {
+                    "sha256": lane.sdk.sha(renderer),
+                    "bytes": len(renderer),
+                }
+                if path.name == "tui-benchmark":
+                    return renderer
                 if path.name == "openmates":
                     return elf()
                 if path.name == "final.json":
@@ -1041,7 +1119,8 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
             else:
                 self.assertEqual(receipt["status"], "passed", receipt)
                 self.assertEqual(
-                    [name for name, _ in uploads], ["openmates", "build.json"]
+                    [name for name, _ in uploads],
+                    ["tui-benchmark", "openmates", "build.json"],
                 )
                 self.assertTrue(
                     lane.validate_result(
@@ -1050,7 +1129,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                         "1" * 40,
                         "f" * 40,
                         before,
-                        uploads[0][1],
+                        next(data for name, data in uploads if name == "openmates"),
                         expected_supervisor=lane.sdk.sha(
                             Path(lane.supervisor.__file__).read_bytes()
                         ),
@@ -1062,6 +1141,13 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 self.assertNotIn("inputs", public)
                 self.assertNotIn("binary", public)
             return receipt, uploads
+
+    def test_renderer_command_failure_does_not_upload_or_extend_budget(self):
+        receipt, uploads = self.producer_fixture("renderer-command")
+        self.assertEqual(receipt["code"], "compile")
+        self.assertFalse(receipt["compileProof"])
+        self.assertEqual(uploads, [])
+        self.assertEqual(lane.BUDGET, 2700)
 
     def test_mocked_producer_exports_only_after_uid_and_sandbox_removal(self):
         self.producer_fixture()
@@ -1260,6 +1346,132 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
             ".auth/account.json",
         ):
             self.assertFalse(lane.owned(name))
+
+
+class NativeCompileFailureProjectionTests(unittest.TestCase):
+    def test_owned_log_projects_codes_and_exact_held_paths_without_raw_body(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "original-source"
+            source.mkdir()
+            cli = "frontend/packages/openmates-tui-native/src/runtime.rs"
+            sdk = "packages/openmates-rust/src/client/owned_saved_send.rs"
+            data = (
+                "error[E0425]: https://private.example/secret\n"
+                f"  --> {cli}:12:7\n"
+                "error[E0308]: private error body\n"
+                f"  --> {source / sdk}:5:3\n"
+                "  ::: /outside/unknown.rs:1:1\n"
+            ).encode()
+            (root / "native-build.log").write_bytes(data)
+            observed = lane.compile_failure_diagnostics(
+                root, source, {cli: "a" * 64, sdk: "b" * 64}, "native-build"
+            )
+            self.assertEqual(
+                observed,
+                [
+                    {
+                        "kind": "rustc",
+                        "code": "E0425",
+                        "locations": [{"path": cli, "line": 12, "column": 7}],
+                    },
+                    {
+                        "kind": "rustc",
+                        "code": "E0308",
+                        "locations": [{"path": sdk, "line": 5, "column": 3}],
+                    },
+                ],
+            )
+            self.assertNotIn("private", json.dumps(observed))
+            self.assertNotIn("outside", json.dumps(observed))
+            self.assertEqual((root / "native-build.log").read_bytes(), data)
+
+    def test_unknown_stage_missing_symlink_oversized_and_unknown_source_refuse(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            for stage in ["native-fetch", "../../foreign", "native-build"]:
+                self.assertEqual(
+                    lane.compile_failure_diagnostics(root, source, {}, stage), []
+                )
+            foreign = root / "foreign.log"
+            foreign.write_text("error[E0425]: private\n")
+            target = root / "native-build.log"
+            target.symlink_to(foreign)
+            self.assertEqual(
+                lane.compile_failure_diagnostics(root, source, {}, "native-build"), []
+            )
+            target.unlink()
+            with target.open("wb") as stream:
+                stream.truncate(lane.sdk.MAX_LOG + 1)
+            self.assertEqual(
+                lane.compile_failure_diagnostics(root, source, {}, "native-build"), []
+            )
+            self.assertEqual(foreign.read_text(), "error[E0425]: private\n")
+            target.write_text("error[E0425]: private\n  --> unknown.rs:1:1\n")
+            self.assertEqual(
+                lane.compile_failure_diagnostics(root, source, {}, "native-build"),
+                [{"kind": "rustc", "code": "E0425", "locations": []}],
+            )
+
+    def test_existing_projection_bound_and_capture_before_cleanup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            (root / "renderer-build.log").write_text(
+                "".join(
+                    f"error[E{i:04d}]: private\n  --> packages/openmates-rust/src/lib.rs:1:1\n"
+                    for i in range(40)
+                )
+            )
+            rows = lane.compile_failure_diagnostics(
+                root,
+                source,
+                {"packages/openmates-rust/src/lib.rs": "a" * 64},
+                "renderer-build",
+            )
+            self.assertEqual(len(rows), 16)
+            self.assertTrue(
+                all(
+                    row["kind"] == "rustc" and len(row["locations"]) <= 16
+                    for row in rows
+                )
+            )
+        tree = ast.parse(Path(lane.__file__).read_text())
+        run = next(
+            n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run"
+        )
+        captures = [
+            n
+            for n in ast.walk(run)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name)
+            and n.func.id == "compile_failure_diagnostics"
+        ]
+        self.assertEqual(len(captures), 1)
+        cleanup = [
+            n
+            for n in ast.walk(run)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "rmtree"
+        ]
+        self.assertTrue(all(captures[0].lineno < n.lineno for n in cleanup))
+        self.assertTrue(
+            any(
+                isinstance(n, ast.Compare)
+                and isinstance(n.left, ast.Name)
+                and n.left.id == "phase"
+                and len(n.ops) == 1
+                and isinstance(n.ops[0], ast.Eq)
+                and len(n.comparators) == 1
+                and isinstance(n.comparators[0], ast.Constant)
+                and n.comparators[0].value == "compile"
+                for n in ast.walk(run)
+            )
+        )
 
 
 if __name__ == "__main__":

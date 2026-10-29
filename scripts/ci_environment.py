@@ -28,20 +28,24 @@ GIB = 1024**3
 TARGET_SLOTS = 500
 TARGET_SLOTS_PER_WORKER = 4
 TARGET_OPERATIONS = 1_700_000
-STORAGE_CAPACITY_SPECS = frozenset({
-    "storage-capacity-replay.spec.ts",
-    "storage-capacity-calibration.spec.ts",
-    "storage-message-embed-bundle.spec.ts",
-    "storage-team-portability.spec.ts",
-    "storage-archive-lifecycle.spec.ts",
-    "storage-capacity-target.spec.ts",
-    "storage-capacity-target-smoke.spec.ts",
-    "storage-recovery-replay.spec.ts",
-    "storage-recovery-canonical-receipts.spec.ts",
-    "storage-detached-producer.spec.ts",
-    "wiki-learning-flow.spec.ts",
-})
-DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"})
+STORAGE_CAPACITY_SPECS = frozenset(
+    {
+        "storage-capacity-replay.spec.ts",
+        "storage-capacity-calibration.spec.ts",
+        "storage-message-embed-bundle.spec.ts",
+        "storage-team-portability.spec.ts",
+        "storage-archive-lifecycle.spec.ts",
+        "storage-capacity-target.spec.ts",
+        "storage-capacity-target-smoke.spec.ts",
+        "storage-recovery-replay.spec.ts",
+        "storage-recovery-canonical-receipts.spec.ts",
+        "storage-detached-producer.spec.ts",
+        "wiki-learning-flow.spec.ts",
+    }
+)
+DIRECT_CHAT_SPECS = frozenset(
+    {"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"}
+)
 
 
 def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
@@ -60,7 +64,9 @@ def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
         and environment.get("MOCK_EXTERNAL_APIS") == "true"
         and environment.get("SERVER_ENVIRONMENT") == "development"
     ):
-        raise RuntimeError("Formula sheet proof requires isolated signed source authoring")
+        raise RuntimeError(
+            "Formula sheet proof requires isolated signed source authoring"
+        )
     profile.setdefault("networks", {})["formula-calculation"] = {"internal": True}
     for name in ("api", "ai-worker"):
         service = services.get(name)
@@ -75,43 +81,68 @@ def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
             networks.append("formula-calculation")
     services["formula-worker"] = {
         "image": "openmates-ci-formula-worker:local",
-        "user": "65532:65532", "read_only": True, "cap_drop": ["ALL"],
+        "user": "65532:65532",
+        "read_only": True,
+        "cap_drop": ["ALL"],
         "security_opt": ["no-new-privileges:true"],
-        "mem_limit": 384 * MIB, "cpus": 1.0, "pids_limit": 32,
+        "mem_limit": 384 * MIB,
+        "cpus": 1.0,
+        "pids_limit": 32,
         "networks": ["formula-calculation"],
         "healthcheck": {
-            "test": ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/health', timeout=2).read()"],
-            "interval": "5s", "timeout": "3s", "retries": 12,
+            "test": [
+                "CMD",
+                "python",
+                "-c",
+                "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/health', timeout=2).read()",
+            ],
+            "interval": "5s",
+            "timeout": "3s",
+            "retries": 12,
         },
     }
+
+
 # Authenticated native CLI/TUI preparation requires a private backend without
 # enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
 # harness selector only strengthens network isolation; it grants no execution.
-PRIVATE_BACKEND_SPECS = frozenset({
-    "cli-rust-cli-performance.spec.ts",
-    "cli-rust-tui-performance.spec.ts",
-    "cli-rust-tui-proof.spec.ts",
-    "cli-native-bounded-saved-read.spec.ts",
-    "cli-rust-native-keyring.spec.ts",
-    "cli-rust-core-essential.spec.ts",
-    "rust-core-browser-session.spec.ts",
-    "rust-core-browser-password-entry.spec.ts",
-    "rust-core-production-saved-session.spec.ts",
-    "rust-core-production-platform.spec.ts",
-    "rust-core-production-local-cursor.spec.ts",
-    "rust-core-production-saved-paging.spec.ts",
-    "rust-core-ordinary-login-retention.spec.ts",
-})
+PRIVATE_BACKEND_SPECS = frozenset(
+    {
+        "cli-rust-cli-performance.spec.ts",
+        "cli-rust-tui-performance.spec.ts",
+        "cli-rust-tui-proof.spec.ts",
+        "cli-native-bounded-saved-read.spec.ts",
+        "cli-rust-native-keyring.spec.ts",
+        "cli-rust-core-essential.spec.ts",
+        "rust-core-browser-session.spec.ts",
+        "rust-core-browser-password-entry.spec.ts",
+        "rust-core-production-saved-session.spec.ts",
+        "rust-core-production-platform.spec.ts",
+        "rust-core-production-local-cursor.spec.ts",
+        "rust-core-production-saved-paging.spec.ts",
+        "rust-core-ordinary-login-retention.spec.ts",
+        "rust-core-native-metadata-prototype.spec.ts",
+        "rust-core-initial-startup.spec.ts",
+        "web-essential-startup-performance.spec.ts",
+        "rust-core-first-session.spec.ts",
+        "rust-core-native-recovery-port.spec.ts",
+        "rust-core-activechat-send.spec.ts",
+        "rust-core-new-chat-send.spec.ts",
+    }
+)
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
     "billing-storage-logical.spec.ts": "logical",
 }
-CAPACITY_WORKLOAD_SPECS = frozenset({
-    "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
-    "storage-capacity-target.spec.ts",
-    "storage-capacity-target-smoke.spec.ts",
-})
+CAPACITY_WORKLOAD_SPECS = frozenset(
+    {
+        "storage-capacity-replay.spec.ts",
+        "storage-capacity-calibration.spec.ts",
+        "storage-capacity-target.spec.ts",
+        "storage-capacity-target-smoke.spec.ts",
+    }
+)
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
@@ -132,8 +163,12 @@ def mail_capture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]
     candidate_manifest = json.loads(
         (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
     )
-    harness_specs = harness_manifest["groups"].get("local_email_signup", {}).get("specs", [])
-    candidate_specs = candidate_manifest["groups"].get("local_email_signup", {}).get("specs", [])
+    harness_specs = (
+        harness_manifest["groups"].get("local_email_signup", {}).get("specs", [])
+    )
+    candidate_specs = (
+        candidate_manifest["groups"].get("local_email_signup", {}).get("specs", [])
+    )
     if any(
         not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
         for specs in (harness_specs, candidate_specs)
@@ -163,11 +198,16 @@ def ai_fixture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
         (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
     )
     required: set[str] = set()
-    for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
+    for group in (
+        "ai_committed_fixtures",
+        "ai_cached_pipeline",
+        "ai_cached_public_provider",
+    ):
         harness_specs = harness_manifest["groups"].get(group, {}).get("specs", [])
         candidate_specs = candidate_manifest["groups"].get(group, {}).get("specs", [])
         if any(
-            not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
+            not isinstance(specs, list)
+            or not all(isinstance(spec, str) for spec in specs)
             for specs in (harness_specs, candidate_specs)
         ):
             raise RuntimeError(f"Invalid {group} specs in CI coverage manifest")
@@ -176,7 +216,9 @@ def ai_fixture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
     return required
 
 
-def workflow_specs(harness_manifest: dict, candidate_root: Path, group: str = "workflow_weather") -> set[str]:
+def workflow_specs(
+    harness_manifest: dict, candidate_root: Path, group: str = "workflow_weather"
+) -> set[str]:
     """Add candidate Workflow dependencies without removing trusted harness gates."""
     if group not in {"workflow_weather", "workflow_core"}:
         raise ValueError("Unknown Workflow runtime dependency group")
@@ -302,8 +344,15 @@ except Exception as error:
 def verify_isolated_vault_provider_namespace() -> None:
     """Inspect only the authenticated disposable initializer's provider names."""
     try:
-        compose("run", "--rm", "--no-deps", "vault-init", "python", "-c",
-                ISOLATED_VAULT_PROVIDER_CHECK)
+        compose(
+            "run",
+            "--rm",
+            "--no-deps",
+            "vault-init",
+            "python",
+            "-c",
+            ISOLATED_VAULT_PROVIDER_CHECK,
+        )
     except subprocess.CalledProcessError as error:
         summary = f"exit={error.returncode}"
         output = error.stdout or b""
@@ -316,47 +365,86 @@ def verify_isolated_vault_provider_namespace() -> None:
                 details = None
             if isinstance(details, dict):
                 stage = details.get("stage")
-                if isinstance(stage, str) and stage in {"import", "auth", "list", "namespace"}:
+                if isinstance(stage, str) and stage in {
+                    "import",
+                    "auth",
+                    "list",
+                    "namespace",
+                }:
                     summary += f"; stage={stage}"
                 error_class = details.get("error_class")
-                if isinstance(error_class, str) and error_class in {"AssertionError", "HTTPError", "ConnectionError", "Timeout", "ConnectTimeout",
-                                   "ReadTimeout", "SSLError", "JSONDecodeError", "ModuleNotFoundError", "ImportError",
-                                   "KeyError", "ValueError", "TypeError", "AttributeError"}:
+                if isinstance(error_class, str) and error_class in {
+                    "AssertionError",
+                    "HTTPError",
+                    "ConnectionError",
+                    "Timeout",
+                    "ConnectTimeout",
+                    "ReadTimeout",
+                    "SSLError",
+                    "JSONDecodeError",
+                    "ModuleNotFoundError",
+                    "ImportError",
+                    "KeyError",
+                    "ValueError",
+                    "TypeError",
+                    "AttributeError",
+                }:
                     summary += f"; class={error_class}"
                 for field in ("http_status", "missing_count", "unexpected_count"):
                     value = details.get(field)
                     if type(value) is int and 0 <= value <= 1000:
                         summary += f"; {field}={value}"
-        raise RuntimeError("Isolated storage Vault provider namespace is unverified (" + summary + ")") from None
+        raise RuntimeError(
+            "Isolated storage Vault provider namespace is unverified (" + summary + ")"
+        ) from None
 
 
-CAPACITY_STARTUP_REASONS = frozenset({
-    "runtime_inventory_unverified", "runtime_inventory_bootstrap_failed",
-    "runtime_inventory_publish_failed", "runtime_inventory_json_invalid",
-    "runtime_inventory_subprocess_failed", "api_container_inventory_unavailable",
-    "api_container_identity_invalid", "api_process_inventory_unavailable",
-    "api_worker_count_unverified", "unexpected_api_worker_process",
-    "api_worker_inventory_incomplete", "api_process_inventory_ambiguous",
-    "api_source_provenance_unavailable", "api_instance_identity_invalid",
-    "api_deployment_inventory_incomplete", "api_deployment_source_mismatch",
-    "api_deployment_inspection_invalid", "api_deployment_inventory_ambiguous",
-    "api_deployment_publisher_source_mismatch", "api_process_inventory_exceeds_bound",
-    "api_deployment_publish_unverified", "api_deployment_inventory_exceeds_bound",
-})
+CAPACITY_STARTUP_REASONS = frozenset(
+    {
+        "runtime_inventory_unverified",
+        "runtime_inventory_bootstrap_failed",
+        "runtime_inventory_publish_failed",
+        "runtime_inventory_json_invalid",
+        "runtime_inventory_subprocess_failed",
+        "api_container_inventory_unavailable",
+        "api_container_identity_invalid",
+        "api_process_inventory_unavailable",
+        "api_worker_count_unverified",
+        "unexpected_api_worker_process",
+        "api_worker_inventory_incomplete",
+        "api_process_inventory_ambiguous",
+        "api_source_provenance_unavailable",
+        "api_instance_identity_invalid",
+        "api_deployment_inventory_incomplete",
+        "api_deployment_source_mismatch",
+        "api_deployment_inspection_invalid",
+        "api_deployment_inventory_ambiguous",
+        "api_deployment_publisher_source_mismatch",
+        "api_process_inventory_exceeds_bound",
+        "api_deployment_publish_unverified",
+        "api_deployment_inventory_exceeds_bound",
+    }
+)
 
 
 def record_capacity_startup(diagnostic_path, facts):
     if diagnostic_path is None:
         return
     path = Path(diagnostic_path)
-    previous = json.loads(path.read_text()) if path.exists() else {"schema": "agentic-storage-capacity-startup-v1", "checks": []}
+    previous = (
+        json.loads(path.read_text())
+        if path.exists()
+        else {"schema": "agentic-storage-capacity-startup-v1", "checks": []}
+    )
     previous["checks"].append(facts)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(previous, sort_keys=True) + "\n")
     path.chmod(0o600)
 
 
-def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit, diagnostic_path=None):
+def run_capacity_startup_guard(
+    stage, runner, *, expected_status, source_commit, diagnostic_path=None
+):
     """Require a typed success; expose only bounded, allowlisted failure facts."""
     if stage not in {"inventory_refresh", "fixture_setup"}:
         raise ValueError("Unknown capacity startup guard")
@@ -365,8 +453,13 @@ def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit,
     except subprocess.CalledProcessError as error:
         result = error
     except subprocess.TimeoutExpired:
-        record_capacity_startup(diagnostic_path, {"stage": stage, "admitted": False, "error_class": "TimeoutExpired"})
-        raise RuntimeError(f"Isolated capacity startup is unverified (stage={stage}; timeout)") from None
+        record_capacity_startup(
+            diagnostic_path,
+            {"stage": stage, "admitted": False, "error_class": "TimeoutExpired"},
+        )
+        raise RuntimeError(
+            f"Isolated capacity startup is unverified (stage={stage}; timeout)"
+        ) from None
     raw = result.stdout or ""
     details = None
     if isinstance(raw, str) and len(raw) <= 65536:
@@ -374,20 +467,39 @@ def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit,
             details = json.loads(raw)
         except (TypeError, ValueError):
             pass
-    valid = (isinstance(details, dict) and result.returncode == 0
-             and details.get("status") == expected_status
-             and details.get("source_commit") == source_commit)
+    valid = (
+        isinstance(details, dict)
+        and result.returncode == 0
+        and details.get("status") == expected_status
+        and details.get("source_commit") == source_commit
+    )
     if stage == "inventory_refresh":
-        valid = (valid and type(details.get("api_processes")) is int
-                 and 1 <= details["api_processes"] <= 128
-                 and details.get("expires_in_seconds") == 180)
+        valid = (
+            valid
+            and type(details.get("api_processes")) is int
+            and 1 <= details["api_processes"] <= 128
+            and details.get("expires_in_seconds") == 180
+        )
     elif valid:
-        valid = type(details.get("collections_count")) is int and 1 <= details["collections_count"] <= 128
-    facts = {"stage": stage, "admitted": bool(valid), "exit_code": result.returncode, "expected_source": source_commit}
+        valid = (
+            type(details.get("collections_count")) is int
+            and 1 <= details["collections_count"] <= 128
+        )
+    facts = {
+        "stage": stage,
+        "admitted": bool(valid),
+        "exit_code": result.returncode,
+        "expected_source": source_commit,
+    }
     summary = f"stage={stage}; exit={result.returncode}"
     if isinstance(details, dict):
         status = details.get("status")
-        if isinstance(status, str) and status in {"published", "ready", "paused", "failed"}:
+        if isinstance(status, str) and status in {
+            "published",
+            "ready",
+            "paused",
+            "failed",
+        }:
             summary += f"; status={status}"
             facts["status"] = status
         reason = details.get("reason")
@@ -395,17 +507,43 @@ def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit,
             summary += f"; reason={reason}"
             facts["reason"] = reason
         failure_stage = details.get("stage")
-        if isinstance(failure_stage, str) and failure_stage in {"compose", "inspect", "cohort", "publish", "bootstrap", "rollout"}:
+        if isinstance(failure_stage, str) and failure_stage in {
+            "compose",
+            "inspect",
+            "cohort",
+            "publish",
+            "bootstrap",
+            "rollout",
+        }:
             summary += f"; failed_stage={failure_stage}"
             facts["failed_stage"] = failure_stage
         error_class = details.get("error_class")
-        if isinstance(error_class, str) and error_class in {"ValueError", "TypeError", "KeyError", "AttributeError", "ImportError", "ModuleNotFoundError",
-                           "RuntimeError", "CalledProcessError", "TimeoutExpired", "JSONDecodeError", "ConnectionError"}:
+        if isinstance(error_class, str) and error_class in {
+            "ValueError",
+            "TypeError",
+            "KeyError",
+            "AttributeError",
+            "ImportError",
+            "ModuleNotFoundError",
+            "RuntimeError",
+            "CalledProcessError",
+            "TimeoutExpired",
+            "JSONDecodeError",
+            "ConnectionError",
+        }:
             summary += f"; class={error_class}"
             facts["error_class"] = error_class
-        for field in ("container_count", "api_processes", "exit_code", "collections_count", "expires_in_seconds"):
+        for field in (
+            "container_count",
+            "api_processes",
+            "exit_code",
+            "collections_count",
+            "expires_in_seconds",
+        ):
             value = details.get(field)
-            if type(value) is int and 0 <= value <= (180 if field == "expires_in_seconds" else 128):
+            if type(value) is int and 0 <= value <= (
+                180 if field == "expires_in_seconds" else 128
+            ):
                 summary += f"; {field}={value}"
                 facts["remote_" + field if field == "exit_code" else field] = value
         source = details.get("source_commit")
@@ -415,7 +553,9 @@ def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit,
     record_capacity_startup(diagnostic_path, facts)
     if valid:
         return details
-    raise RuntimeError("Isolated capacity startup is unverified (" + summary + ")") from None
+    raise RuntimeError(
+        "Isolated capacity startup is unverified (" + summary + ")"
+    ) from None
 
 
 CAPACITY_FIXTURE_SETUP = """import asyncio, contextlib, json, os, sys
@@ -482,8 +622,13 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 
 
 def admit_target_capacity(
-    calibration: dict, *, source_commit: str, runner_environment: str,
-    profile: str, available_memory_bytes: int, available_disk_bytes: int,
+    calibration: dict,
+    *,
+    source_commit: str,
+    runner_environment: str,
+    profile: str,
+    available_memory_bytes: int,
+    available_disk_bytes: int,
     job_timeout_seconds: int,
 ) -> dict:
     """Calculate a target gate from same-source, measured aggregate peaks.
@@ -493,76 +638,132 @@ def admit_target_capacity(
     server task intervals on the isolated host.
     """
     if runner_environment != "self-hosted":
-        raise RuntimeError("Full capacity target requires a dedicated self-hosted runner")
+        raise RuntimeError(
+            "Full capacity target requires a dedicated self-hosted runner"
+        )
     if not isinstance(calibration, dict):
         raise RuntimeError("Full capacity calibration must be a JSON object")
-    if (type(calibration.get("schema")) is not int or calibration["schema"] != 2
-            or calibration.get("source_commit") != source_commit
-            or calibration.get("pilot_passed") is not True):
-        raise RuntimeError("Full capacity target needs passing same-source measured calibration v2")
-    if (calibration.get("worker_container_peak_metric") not in
-            {"cgroup_v2_memory_peak", "cgroup_v1_max_usage"}
-            or calibration.get("driver_peak_metric") != "process_rss_peak"
-            or calibration.get("fixed_stack_peak_metric") != "sum_cgroup_memory_peak"
-            or type(calibration.get("observed_worker_slots")) is not int
-            or calibration["observed_worker_slots"] != TARGET_SLOTS_PER_WORKER
-            or type(calibration.get("observed_worker_task_receipts")) is not int
-            or calibration["observed_worker_task_receipts"] < 16
-            or type(calibration.get("driver_sample_threads")) is not int
-            or calibration["driver_sample_threads"] < 2):
-        raise RuntimeError("Full capacity calibration lacks four-slot cgroup and driver sampling provenance")
-    fields = ("worker_container_peak_bytes", "driver_idle_peak_bytes",
-              "driver_sample_peak_bytes", "fixed_stack_peak_bytes",
-              "disk_bytes_per_operation", "measured_operations_per_second")
-    if any(type(calibration.get(field)) not in (int, float)
-           or not 0 < calibration[field] <= 2**63 - 1
-           or not math.isfinite(calibration[field]) for field in fields):
-        raise RuntimeError("Full capacity calibration lacks finite measured resource values")
+    if (
+        type(calibration.get("schema")) is not int
+        or calibration["schema"] != 2
+        or calibration.get("source_commit") != source_commit
+        or calibration.get("pilot_passed") is not True
+    ):
+        raise RuntimeError(
+            "Full capacity target needs passing same-source measured calibration v2"
+        )
+    if (
+        calibration.get("worker_container_peak_metric")
+        not in {"cgroup_v2_memory_peak", "cgroup_v1_max_usage"}
+        or calibration.get("driver_peak_metric") != "process_rss_peak"
+        or calibration.get("fixed_stack_peak_metric") != "sum_cgroup_memory_peak"
+        or type(calibration.get("observed_worker_slots")) is not int
+        or calibration["observed_worker_slots"] != TARGET_SLOTS_PER_WORKER
+        or type(calibration.get("observed_worker_task_receipts")) is not int
+        or calibration["observed_worker_task_receipts"] < 16
+        or type(calibration.get("driver_sample_threads")) is not int
+        or calibration["driver_sample_threads"] < 2
+    ):
+        raise RuntimeError(
+            "Full capacity calibration lacks four-slot cgroup and driver sampling provenance"
+        )
+    fields = (
+        "worker_container_peak_bytes",
+        "driver_idle_peak_bytes",
+        "driver_sample_peak_bytes",
+        "fixed_stack_peak_bytes",
+        "disk_bytes_per_operation",
+        "measured_operations_per_second",
+    )
+    if any(
+        type(calibration.get(field)) not in (int, float)
+        or not 0 < calibration[field] <= 2**63 - 1
+        or not math.isfinite(calibration[field])
+        for field in fields
+    ):
+        raise RuntimeError(
+            "Full capacity calibration lacks finite measured resource values"
+        )
     if calibration["driver_sample_peak_bytes"] <= calibration["driver_idle_peak_bytes"]:
-        raise RuntimeError("Full capacity driver sample must exceed its measured idle baseline")
-    if any(type(value) is not int or value <= 0 for value in
-           (available_memory_bytes, available_disk_bytes, job_timeout_seconds)):
-        raise RuntimeError("Full capacity target resource measurements must be positive integers")
+        raise RuntimeError(
+            "Full capacity driver sample must exceed its measured idle baseline"
+        )
+    if any(
+        type(value) is not int or value <= 0
+        for value in (available_memory_bytes, available_disk_bytes, job_timeout_seconds)
+    ):
+        raise RuntimeError(
+            "Full capacity target resource measurements must be positive integers"
+        )
     worker_limit = 1536 * MIB  # A ceiling for each replica, not a RAM reservation.
     replicas = TARGET_SLOTS // TARGET_SLOTS_PER_WORKER
     worker_peak = calibration["worker_container_peak_bytes"]
     headroom = 1.5
     if worker_peak * headroom > worker_limit:
-        raise RuntimeError("Measured four-slot worker cannot fit its container ceiling with headroom")
-    driver_increment_per_thread = ((calibration["driver_sample_peak_bytes"] -
-                                    calibration["driver_idle_peak_bytes"]) /
-                                   calibration["driver_sample_threads"])
-    projected_driver_peak = calibration["driver_idle_peak_bytes"] + TARGET_SLOTS * driver_increment_per_thread
-    memory_required = math.ceil(headroom * (
-        replicas * worker_peak + projected_driver_peak + calibration["fixed_stack_peak_bytes"]
-    ))
-    disk_required = math.ceil(max(20 * GIB, 2 * TARGET_OPERATIONS * calibration["disk_bytes_per_operation"]))
+        raise RuntimeError(
+            "Measured four-slot worker cannot fit its container ceiling with headroom"
+        )
+    driver_increment_per_thread = (
+        calibration["driver_sample_peak_bytes"] - calibration["driver_idle_peak_bytes"]
+    ) / calibration["driver_sample_threads"]
+    projected_driver_peak = (
+        calibration["driver_idle_peak_bytes"]
+        + TARGET_SLOTS * driver_increment_per_thread
+    )
+    memory_required = math.ceil(
+        headroom
+        * (
+            replicas * worker_peak
+            + projected_driver_peak
+            + calibration["fixed_stack_peak_bytes"]
+        )
+    )
+    disk_required = math.ceil(
+        max(20 * GIB, 2 * TARGET_OPERATIONS * calibration["disk_bytes_per_operation"])
+    )
     # Pilot rate is only a planning bound; actual target throughput is measured.
-    time_required = max(7200, math.ceil(2 * TARGET_OPERATIONS /
-        calibration["measured_operations_per_second"]))
+    time_required = max(
+        7200,
+        math.ceil(
+            2 * TARGET_OPERATIONS / calibration["measured_operations_per_second"]
+        ),
+    )
     if profile not in {"accelerated", "burst", "sustained"}:
         raise RuntimeError("Unsupported target rate profile")
     if available_memory_bytes < memory_required:
-        raise RuntimeError("Full capacity target has insufficient measured available memory")
+        raise RuntimeError(
+            "Full capacity target has insufficient measured available memory"
+        )
     if available_disk_bytes < disk_required:
         raise RuntimeError("Full capacity target has insufficient measured free disk")
     if job_timeout_seconds < time_required:
-        raise RuntimeError("Full capacity target job timeout is shorter than measured workload allowance")
-    return {"worker_slots": TARGET_SLOTS, "worker_replicas": replicas,
-            "memory_required_bytes": memory_required, "disk_required_bytes": disk_required,
-            "job_timeout_required_seconds": time_required, "profile": profile,
-            "source_commit": source_commit, "worker_container_peak_bytes": worker_peak,
-            "worker_container_peak_metric": calibration["worker_container_peak_metric"]}
+        raise RuntimeError(
+            "Full capacity target job timeout is shorter than measured workload allowance"
+        )
+    return {
+        "worker_slots": TARGET_SLOTS,
+        "worker_replicas": replicas,
+        "memory_required_bytes": memory_required,
+        "disk_required_bytes": disk_required,
+        "job_timeout_required_seconds": time_required,
+        "profile": profile,
+        "source_commit": source_commit,
+        "worker_container_peak_bytes": worker_peak,
+        "worker_container_peak_metric": calibration["worker_container_peak_metric"],
+    }
 
 
 def _available_target_memory_bytes() -> int:
     try:
         available = next(
-            int(line.split()[1]) * 1024 for line in Path("/proc/meminfo").read_text().splitlines()
+            int(line.split()[1]) * 1024
+            for line in Path("/proc/meminfo").read_text().splitlines()
             if line.startswith("MemAvailable:")
         )
     except (OSError, ValueError, StopIteration) as exc:
-        raise RuntimeError("Cannot measure available host memory for target admission") from exc
+        raise RuntimeError(
+            "Cannot measure available host memory for target admission"
+        ) from exc
     cgroup = Path("/sys/fs/cgroup")
     v2_limit = cgroup / "memory.max"
     v1_limit = cgroup / "memory/memory.limit_in_bytes"
@@ -570,12 +771,16 @@ def _available_target_memory_bytes() -> int:
         if v2_limit.exists():
             limit_text = v2_limit.read_text().strip()
             if limit_text != "max":
-                remaining = int(limit_text) - int((cgroup / "memory.current").read_text().strip())
+                remaining = int(limit_text) - int(
+                    (cgroup / "memory.current").read_text().strip()
+                )
                 available = min(available, max(0, remaining))
         elif v1_limit.exists():
             limit = int(v1_limit.read_text().strip())
             if limit < 2**60:  # v1's enormous sentinel denotes no memory limit.
-                remaining = limit - int((cgroup / "memory/memory.usage_in_bytes").read_text().strip())
+                remaining = limit - int(
+                    (cgroup / "memory/memory.usage_in_bytes").read_text().strip()
+                )
                 available = min(available, max(0, remaining))
         else:
             raise RuntimeError("Cannot identify memory cgroup for target admission")
@@ -588,76 +793,124 @@ def require_target_admission(source_commit: str) -> dict:
     # A dedicated workflow stages the prior isolated calibration job's three
     # exact artifacts privately. The normal 60-minute runner cannot opt in.
     private = Path(SOURCE) / "test-results/ci-private"
-    names = ("capacity-target-calibration.json", "capacity-target-pilot-report.json",
-             "capacity-target-ci-environment.json")
+    names = (
+        "capacity-target-calibration.json",
+        "capacity-target-pilot-report.json",
+        "capacity-target-ci-environment.json",
+    )
     raw = {}
     try:
         for name in names:
             path = private / name
-            if (path.is_symlink() or not path.is_file()
-                    or path.stat().st_mode & 0o077 or path.stat().st_size > 1_000_000):
-                raise RuntimeError("Full capacity target needs three private calibration artifacts")
+            if (
+                path.is_symlink()
+                or not path.is_file()
+                or path.stat().st_mode & 0o077
+                or path.stat().st_size > 1_000_000
+            ):
+                raise RuntimeError(
+                    "Full capacity target needs three private calibration artifacts"
+                )
             raw[name] = path.read_bytes()
         calibration, pilot, pilot_environment = (
             json.loads(raw[name]) for name in names
         )
         timeout = int(os.environ["CI_STORAGE_CAPACITY_JOB_TIMEOUT_SECONDS"])
     except (OSError, ValueError, KeyError, UnicodeError, TypeError) as exc:
-        raise RuntimeError("Full capacity target lacks measured calibration or declared dedicated timeout") from exc
-    if any(not isinstance(value, dict) for value in (calibration, pilot, pilot_environment)):
-        raise RuntimeError("Full capacity target calibration artifacts must be JSON objects")
+        raise RuntimeError(
+            "Full capacity target lacks measured calibration or declared dedicated timeout"
+        ) from exc
+    if any(
+        not isinstance(value, dict) for value in (calibration, pilot, pilot_environment)
+    ):
+        raise RuntimeError(
+            "Full capacity target calibration artifacts must be JSON objects"
+        )
     run_id = os.environ.get("CI_STORAGE_CAPACITY_CALIBRATION_RUN_ID", "")
     harness = os.environ.get("CI_HARNESS_COMMIT", "")
-    if (not run_id.isdecimal() or int(run_id) <= 0
-            or not re.fullmatch(r"[a-f0-9]{40}", harness)
-            or any(entry.get("source_commit") != source_commit for entry in
-                   (calibration, pilot_environment))
-            or any(entry.get("harness_commit") != harness for entry in
-                   (calibration, pilot_environment))
-            or any(str(entry.get("run_id")) != run_id for entry in
-                   (calibration, pilot_environment))
-            or calibration.get("pilot_report_sha256") !=
-            hashlib.sha256(raw[names[1]]).hexdigest()
-            or calibration.get("ci_environment_sha256") !=
-            hashlib.sha256(raw[names[2]]).hexdigest()):
-        raise RuntimeError("Full capacity calibration source, harness, run or report digest differs")
+    if (
+        not run_id.isdecimal()
+        or int(run_id) <= 0
+        or not re.fullmatch(r"[a-f0-9]{40}", harness)
+        or any(
+            entry.get("source_commit") != source_commit
+            for entry in (calibration, pilot_environment)
+        )
+        or any(
+            entry.get("harness_commit") != harness
+            for entry in (calibration, pilot_environment)
+        )
+        or any(
+            str(entry.get("run_id")) != run_id
+            for entry in (calibration, pilot_environment)
+        )
+        or calibration.get("pilot_report_sha256")
+        != hashlib.sha256(raw[names[1]]).hexdigest()
+        or calibration.get("ci_environment_sha256")
+        != hashlib.sha256(raw[names[2]]).hexdigest()
+    ):
+        raise RuntimeError(
+            "Full capacity calibration source, harness, run or report digest differs"
+        )
     capacity = pilot_environment.get("storage_capacity") or {}
     counts = pilot.get("counts") or {}
     provider = pilot.get("provider") or {}
     hardware = pilot.get("hardware") or {}
-    if (not all(isinstance(value, dict) for value in (capacity, counts, provider, hardware))
-            or pilot.get("passed") is not True
-            or pilot.get("validation_level") != "pilot"
-            or counts != {"round": 240, "embed": 32, "version": 32}
-            or type(pilot.get("server_task_peak_concurrency")) is not int
-            or pilot["server_task_peak_concurrency"] < 4
-            or type(pilot.get("task_receipt_count")) is not int
-            or pilot["task_receipt_count"] < 16
-            or capacity.get("provider_credentials") != "absent"
-            or capacity.get("provider_network") != "internal"
-            or capacity.get("observed_worker_processes") != 4
-            or capacity.get("worker_replicas") != 1
-            or any(provider.get(name) != 0 for name in (
-                "real_provider_calls", "blocked_provider_calls", "cache_misses"))
-            or type(provider.get("cache_hits")) is not int
-            or provider["cache_hits"] <= 0
-            or hardware.get("worker_threads") != 4
-            or hardware.get("driver_idle_peak_bytes") != calibration.get("driver_idle_peak_bytes")
-            or hardware.get("driver_sample_peak_bytes") != calibration.get("driver_sample_peak_bytes")
-            or hardware.get("driver_peak_metric") != calibration.get("driver_peak_metric")
-            or pilot.get("task_receipt_count") != calibration.get("observed_worker_task_receipts")):
-        raise RuntimeError("Full capacity target lacks a verified zero-provider four-slot calibration pilot")
+    if (
+        not all(
+            isinstance(value, dict) for value in (capacity, counts, provider, hardware)
+        )
+        or pilot.get("passed") is not True
+        or pilot.get("validation_level") != "pilot"
+        or counts != {"round": 240, "embed": 32, "version": 32}
+        or type(pilot.get("server_task_peak_concurrency")) is not int
+        or pilot["server_task_peak_concurrency"] < 4
+        or type(pilot.get("task_receipt_count")) is not int
+        or pilot["task_receipt_count"] < 16
+        or capacity.get("provider_credentials") != "absent"
+        or capacity.get("provider_network") != "internal"
+        or capacity.get("observed_worker_processes") != 4
+        or capacity.get("worker_replicas") != 1
+        or any(
+            provider.get(name) != 0
+            for name in (
+                "real_provider_calls",
+                "blocked_provider_calls",
+                "cache_misses",
+            )
+        )
+        or type(provider.get("cache_hits")) is not int
+        or provider["cache_hits"] <= 0
+        or hardware.get("worker_threads") != 4
+        or hardware.get("driver_idle_peak_bytes")
+        != calibration.get("driver_idle_peak_bytes")
+        or hardware.get("driver_sample_peak_bytes")
+        != calibration.get("driver_sample_peak_bytes")
+        or hardware.get("driver_peak_metric") != calibration.get("driver_peak_metric")
+        or pilot.get("task_receipt_count")
+        != calibration.get("observed_worker_task_receipts")
+    ):
+        raise RuntimeError(
+            "Full capacity target lacks a verified zero-provider four-slot calibration pilot"
+        )
     try:
         docker_root = subprocess.check_output(
-            ["docker", "info", "--format", "{{.DockerRootDir}}"], text=True, timeout=10,
+            ["docker", "info", "--format", "{{.DockerRootDir}}"],
+            text=True,
+            timeout=10,
         ).strip()
         if not docker_root or not Path(docker_root).is_dir():
             raise RuntimeError("Cannot measure Docker volume disk for target admission")
-        available_disk = min(shutil.disk_usage(SOURCE).free, shutil.disk_usage(docker_root).free)
+        available_disk = min(
+            shutil.disk_usage(SOURCE).free, shutil.disk_usage(docker_root).free
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise RuntimeError("Cannot measure Docker volume disk for target admission") from exc
+        raise RuntimeError(
+            "Cannot measure Docker volume disk for target admission"
+        ) from exc
     return admit_target_capacity(
-        calibration, source_commit=source_commit,
+        calibration,
+        source_commit=source_commit,
         runner_environment=os.environ.get("RUNNER_ENVIRONMENT", ""),
         profile=os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated"),
         available_memory_bytes=_available_target_memory_bytes(),
@@ -668,7 +921,9 @@ def require_target_admission(source_commit: str) -> dict:
 
 def has_team_storage_billing_schema(source_root: str | Path) -> bool:
     """Select Team fixture capability from the verified frozen subject source."""
-    return (Path(source_root) / "backend/core/directus/schemas/team_storage_billing.yml").is_file()
+    return (
+        Path(source_root) / "backend/core/directus/schemas/team_storage_billing.yml"
+    ).is_file()
 
 
 def web_read_fixture_selected(specs: list[str]) -> bool:
@@ -705,6 +960,7 @@ def compose_profile(
     telemetry_proxy: bool = False,
     private_backend: bool = False,
     web_read_fixture: bool = False,
+    rust_owned_send_gate: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     if web_read_fixture and public_provider:
@@ -713,26 +969,80 @@ def compose_profile(
         raise ValueError("Unknown isolated storage billing profile")
     storage_capacity = storage_capacity or billing_profile is not None
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
+    if rust_owned_send_gate and not ai_fixtures:
+        raise ValueError(
+            "Owned-send replay gate requires the existing isolated AI fixture profile"
+        )
+    if rust_owned_send_gate and (
+        public_provider
+        or storage_capacity
+        or workflows
+        or workflow_runtime
+        or voice_camera
+    ):
+        raise ValueError(
+            "Owned-send gate requires the saved-session isolated replay profile"
+        )
     object_storage = object_storage or uploads or storage_capacity
     if voice_camera and not (ai_fixtures and uploads):
-        raise ValueError("Voice camera fixture requires isolated AI fixtures and real uploads")
-    if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows or workflow_runtime):
-        raise ValueError("Storage accountability requires its standalone zero-provider profile")
-    if storage_accountability and (not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000):
-        raise ValueError("Storage accountability requires a nonroot isolated runner owner")
+        raise ValueError(
+            "Voice camera fixture requires isolated AI fixtures and real uploads"
+        )
+    if storage_accountability and (
+        ai_fixtures
+        or object_storage
+        or uploads
+        or public_provider
+        or workflows
+        or workflow_runtime
+    ):
+        raise ValueError(
+            "Storage accountability requires its standalone zero-provider profile"
+        )
+    if storage_accountability and (
+        not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000
+    ):
+        raise ValueError(
+            "Storage accountability requires a nonroot isolated runner owner"
+        )
     if storage_capacity and public_provider:
         raise ValueError("Storage capacity cannot enable public-provider proxy")
     if detached_docs and not storage_capacity:
-        raise ValueError("Detached Docs worker requires isolated storage capacity profile")
+        raise ValueError(
+            "Detached Docs worker requires isolated storage capacity profile"
+        )
     if storage_capacity and not 1 <= capacity_concurrency <= 500:
         raise ValueError("Capacity worker concurrency must be 1..500")
-    if capacity_target and (not storage_capacity or capacity_concurrency != TARGET_SLOTS):
+    if capacity_target and (
+        not storage_capacity or capacity_concurrency != TARGET_SLOTS
+    ):
         raise ValueError("Target profile requires exactly 500 isolated worker slots")
-    if workflow_runtime and (workflows or ai_fixtures or object_storage or offline_preview or storage_accountability or detached_docs):
-        raise ValueError("Internal Workflow runtime cannot mix with weather or provider/storage profiles")
-    isolate_backend = web_read_fixture or private_backend or ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
+    if workflow_runtime and (
+        workflows
+        or ai_fixtures
+        or object_storage
+        or offline_preview
+        or storage_accountability
+        or detached_docs
+    ):
+        raise ValueError(
+            "Internal Workflow runtime cannot mix with weather or provider/storage profiles"
+        )
+    isolate_backend = (
+        web_read_fixture
+        or private_backend
+        or ai_fixtures
+        or object_storage
+        or offline_preview
+        or mail_capture
+        or storage_accountability
+        or workflow_runtime
+        or telemetry_proxy
+    )
     if workflows and isolate_backend:
-        raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
+        raise ValueError(
+            "Credential-free weather workflows require a separate batch from offline replay/storage"
+        )
     credentials = {
         name: secrets.token_hex(24)
         for name in (
@@ -750,10 +1060,18 @@ def compose_profile(
     }
     credentials.update(credential_overrides or {})
     fresh_emails = account_emails or []
-    if len(set(fresh_emails)) != len(fresh_emails) or any(not email.endswith("@example.com") or not email.startswith("ci-") for email in fresh_emails):
-        raise ValueError("CI account allowlist requires unique generated example.com identities")
+    if len(set(fresh_emails)) != len(fresh_emails) or any(
+        not email.endswith("@example.com") or not email.startswith("ci-")
+        for email in fresh_emails
+    ):
+        raise ValueError(
+            "CI account allowlist requires unique generated example.com identities"
+        )
     common = {
-        **{f"OPENMATES_TEST_ACCOUNT_CI_{index}_EMAIL": email for index, email in enumerate(fresh_emails)},
+        **{
+            f"OPENMATES_TEST_ACCOUNT_CI_{index}_EMAIL": email
+            for index, email in enumerate(fresh_emails)
+        },
         "PYTHONPATH": "/app",
         "BACKEND_CONFIG_FILE": "/app/backend/config/backend_config.dev.yml",
         "BUILD_COMMIT_SHA": source_hash,
@@ -788,20 +1106,28 @@ def compose_profile(
         common.update(CI="true", OPENMATES_CI_ISOLATED="1")
     if mail_capture:
         common.update(
-            CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1",
+            CI="true",
+            OPENMATES_CI_ISOLATED="1",
+            OPENMATES_CI_MAIL_CAPTURE="1",
             OPENMATES_TEST_ACCOUNT_API_KEY=credentials["signup_cleanup"],
             SELF_HOST_SIGNUP_MODE="invite_and_domain",
         )
     if public_website_newsletter:
         if not mail_capture:
-            raise ValueError("Public website newsletter verification requires isolated mail capture")
+            raise ValueError(
+                "Public website newsletter verification requires isolated mail capture"
+            )
         common["NEWSLETTER_PUBLIC_WEBSITE_ORIGIN"] = "http://127.0.0.1:5180"
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
     if storage_capacity:
-        common.update(OPENMATES_CI_ISOLATED="1", OPENMATES_STORAGE_CAPACITY_FIXTURES="true",
-                      OPENMATES_CAPACITY_RECEIPT_ROOT="/app/capacity-receipts",
-                      CHAT_MESSAGE_ARCHIVE_COPY_ENABLED="1", CHAT_MESSAGE_ARCHIVE_READS_ENABLED="1")
+        common.update(
+            OPENMATES_CI_ISOLATED="1",
+            OPENMATES_STORAGE_CAPACITY_FIXTURES="true",
+            OPENMATES_CAPACITY_RECEIPT_ROOT="/app/capacity-receipts",
+            CHAT_MESSAGE_ARCHIVE_COPY_ENABLED="1",
+            CHAT_MESSAGE_ARCHIVE_READS_ENABLED="1",
+        )
         if capacity_run_id is not None:
             if not re.fullmatch(r"[1-9][0-9]{0,19}:[1-9][0-9]{0,5}", capacity_run_id):
                 raise ValueError("Capacity run identity invalid")
@@ -832,10 +1158,16 @@ def compose_profile(
         "apps-recommendations-data:/app/data/apps-recommendations",
     ]
     if storage_capacity:
-        source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
-        source_mounts.append(f"{SOURCE}/test-results/ci-private/storage-isolation:/app/ci-storage-isolation:ro")
+        source_mounts.append(
+            f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts"
+        )
+        source_mounts.append(
+            f"{SOURCE}/test-results/ci-private/storage-isolation:/app/ci-storage-isolation:ro"
+        )
     if storage_accountability:
-        source_mounts.append(f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability")
+        source_mounts.append(
+            f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability"
+        )
     api = {
         "build": {"context": SOURCE, "dockerfile": "backend/core/api/Dockerfile"},
         "image": "openmates-ci-api:local",
@@ -860,7 +1192,9 @@ def compose_profile(
     if billing_profile is not None:
         api["environment"] = {
             **api["environment"],
-            "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1" if billing_profile == "logical" else "0",
+            "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1"
+            if billing_profile == "logical"
+            else "0",
         }
         api["volumes"].append(
             f"{SOURCE}/test-results/ci-private/storage-billing:/app/ci-storage-billing"
@@ -944,10 +1278,16 @@ def compose_profile(
                 "DB_USER": "openmates",
                 "DB_PASSWORD": credentials["database"],
                 "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
-                **({"TEAM_STORAGE_BILLING_ENABLED": team_billing_flag}
-                   if team_billing_flag is not None else {}),
-                **({"OPENMATES_DEPLOYMENT_MODE": "official_cloud"}
-                   if team_legacy_cms_guard else {}),
+                **(
+                    {"TEAM_STORAGE_BILLING_ENABLED": team_billing_flag}
+                    if team_billing_flag is not None
+                    else {}
+                ),
+                **(
+                    {"OPENMATES_DEPLOYMENT_MODE": "official_cloud"}
+                    if team_legacy_cms_guard
+                    else {}
+                ),
                 "PUBLIC_URL": "http://localhost:8055",
                 "CACHE_ENABLED": "false",
                 "TELEMETRY": "false",
@@ -1030,16 +1370,33 @@ def compose_profile(
         services["object-storage"] = {
             "image": "chrislusf/seaweedfs@sha256:0a94aac557ead0a6b3350df86b2d4fea0a5793590e1fbf5f35d41cac0dc22b40",
             "command": ["mini", "-dir=/data", "-s3.port=9000"],
-            "environment": {"AWS_ACCESS_KEY_ID": credentials["storage_key"], "AWS_SECRET_ACCESS_KEY": credentials["storage_secret"], "S3_BUCKET": "ci-probe"},
+            "environment": {
+                "AWS_ACCESS_KEY_ID": credentials["storage_key"],
+                "AWS_SECRET_ACCESS_KEY": credentials["storage_secret"],
+                "S3_BUCKET": "ci-probe",
+            },
             "volumes": ["object-storage:/data"],
             "ports": ["127.0.0.1:9000:9000"],
             "networks": {"default": {"aliases": ["storage.ci.test"]}},
             "mem_limit": 512 * MIB,
-            "healthcheck": {"test": ["CMD-SHELL", "curl -sS -o /dev/null -w '%{http_code}' http://localhost:9000/ | grep -q '^403$'"], "interval": "3s", "timeout": "3s", "retries": 30},
+            "healthcheck": {
+                "test": [
+                    "CMD-SHELL",
+                    "curl -sS -o /dev/null -w '%{http_code}' http://localhost:9000/ | grep -q '^403$'",
+                ],
+                "interval": "3s",
+                "timeout": "3s",
+                "retries": 30,
+            },
         }
         for name in ("api", "core-worker"):
-            services[name]["depends_on"]["object-storage"] = {"condition": "service_healthy"}
-        services["vault-init"]["environment"].update(CI_STORAGE_ACCESS_KEY=credentials["storage_key"], CI_STORAGE_SECRET_KEY=credentials["storage_secret"])
+            services[name]["depends_on"]["object-storage"] = {
+                "condition": "service_healthy"
+            }
+        services["vault-init"]["environment"].update(
+            CI_STORAGE_ACCESS_KEY=credentials["storage_key"],
+            CI_STORAGE_SECRET_KEY=credentials["storage_secret"],
+        )
     if uploads:
         services["vault-init"]["environment"]["CI_UPLOADS"] = "1"
         # The API image may be reused when only upload code changes. The init
@@ -1048,14 +1405,34 @@ def compose_profile(
         services["vault-init"]["volumes"].append("upload-vault-token:/app/app-data")
         services["clamav"] = {
             "image": "clamav/clamav-debian@sha256:5037bae34bf7566052d18f30be1e351155bfce845a583f0c08027f9fcaa44b5d",
-            "environment": {"CLAMAV_NO_FRESHCLAMD": "false", "CLAMAV_NO_CLAMD": "false", "CLAMAV_NO_MILTERD": "true"},
-            "volumes": ["clamav-db:/var/lib/clamav"], "mem_limit": 2048 * MIB,
-            "healthcheck": {"test": ["CMD", "/usr/local/bin/clamdcheck.sh"], "interval": "10s", "timeout": "10s", "retries": 30, "start_period": "120s"},
+            "environment": {
+                "CLAMAV_NO_FRESHCLAMD": "false",
+                "CLAMAV_NO_CLAMD": "false",
+                "CLAMAV_NO_MILTERD": "true",
+            },
+            "volumes": ["clamav-db:/var/lib/clamav"],
+            "mem_limit": 2048 * MIB,
+            "healthcheck": {
+                "test": ["CMD", "/usr/local/bin/clamdcheck.sh"],
+                "interval": "10s",
+                "timeout": "10s",
+                "retries": 30,
+                "start_period": "120s",
+            },
         }
         services["uploads"] = {
             "image": "openmates-ci-upload:local",
             "build": {"context": SOURCE, "dockerfile": "backend/upload/Dockerfile"},
-            "environment": {**common, "CLAMAV_HOST": "clamav", "CLAMAV_PORT": "3310", "UPLOADS_APP_INTERNAL_PORT": "8000", "DEV_CORE_API_URL": "http://api:8000", "PROD_CORE_API_URL": "http://api:8000", "DEV_INTERNAL_API_SHARED_TOKEN": credentials["internal"], "PROD_INTERNAL_API_SHARED_TOKEN": credentials["internal"]},
+            "environment": {
+                **common,
+                "CLAMAV_HOST": "clamav",
+                "CLAMAV_PORT": "3310",
+                "UPLOADS_APP_INTERNAL_PORT": "8000",
+                "DEV_CORE_API_URL": "http://api:8000",
+                "PROD_CORE_API_URL": "http://api:8000",
+                "DEV_INTERNAL_API_SHARED_TOKEN": credentials["internal"],
+                "PROD_INTERNAL_API_SHARED_TOKEN": credentials["internal"],
+            },
             "volumes": [
                 f"{SOURCE}/backend:/app/backend:ro",
                 f"{SOURCE}/backend/apps/base_app.py:/app/apps/base_app.py:ro",
@@ -1064,17 +1441,37 @@ def compose_profile(
                 f"{SOURCE}/backend/shared/python_utils:/app/backend_shared/python_utils:ro",
                 f"{SOURCE}/config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro",
                 f"{SOURCE}/backend/upload/vault/wait-for-vault.sh:/app/wait-for-vault.sh:ro",
-                {"type": "volume", "source": "upload-vault-token", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}},
+                {
+                    "type": "volume",
+                    "source": "upload-vault-token",
+                    "target": "/vault-data",
+                    "read_only": True,
+                    "volume": {"nocopy": True},
+                },
             ],
-            "ports": ["127.0.0.1:8001:8000"], "mem_limit": 1024 * MIB,
-            "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},
-            "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
+            "ports": ["127.0.0.1:8001:8000"],
+            "mem_limit": 1024 * MIB,
+            "depends_on": {
+                "clamav": {"condition": "service_healthy"},
+                "object-storage": {"condition": "service_healthy"},
+                "vault-init": {"condition": "service_completed_successfully"},
+                "api": {"condition": "service_healthy"},
+            },
+            "healthcheck": {
+                "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
+                "interval": "5s",
+                "timeout": "5s",
+                "retries": 30,
+            },
         }
     if storage_accountability:
         api["environment"].update(
-            CI="true", OPENMATES_CI_ISOLATED="1",
+            CI="true",
+            OPENMATES_CI_ISOLATED="1",
             OPENMATES_CI_STORAGE_ACCOUNTABILITY="1",
-            DB_HOST="cms-database", DB_DATABASE="openmates", DB_USER="openmates",
+            DB_HOST="cms-database",
+            DB_DATABASE="openmates",
+            DB_USER="openmates",
             OPENMATES_CI_PRIVATE_HOST_UID=str(os.getuid()),
             OPENMATES_CI_PRIVATE_HOST_GID=str(os.getgid()),
         )
@@ -1091,21 +1488,36 @@ def compose_profile(
         # worker below so audio can begin while the single AI slot is streaming.
         ai_queues = "app_ai,app_ai_routing" + (",app_videos" if voice_camera else "")
         ai_worker["environment"].update(
-            CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
+            CI="true",
+            OPENMATES_CI_ISOLATED="1",
+            OPENMATES_CI_AI_FIXTURES="1",
             CELERY_QUEUES=ai_queues,
         )
-        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={ai_queues}") for part in worker["command"]]
+        if rust_owned_send_gate:
+            # Runner-private Redis controls only; no public route or provider access.
+            ai_worker["environment"]["OPENMATES_CI_RUST_OWNED_SEND_GATE"] = "1"
+        ai_worker["command"] = [
+            part.replace(f"--queues={QUEUES}", f"--queues={ai_queues}")
+            for part in worker["command"]
+        ]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
         if voice_camera:
             speech_worker = deepcopy(ai_worker)
             speech_worker["environment"]["CELERY_QUEUES"] = "app_music"
-            speech_worker["command"] = [part.replace(f"--queues={ai_queues}", "--queues=app_music")
-                                        for part in ai_worker["command"]]
+            speech_worker["command"] = [
+                part.replace(f"--queues={ai_queues}", "--queues=app_music")
+                for part in ai_worker["command"]
+            ]
             services["speech-worker"] = speech_worker
         if storage_capacity:
-            ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={TARGET_SLOTS_PER_WORKER if capacity_target else capacity_concurrency}")
-                                    for part in ai_worker["command"]]
+            ai_worker["command"] = [
+                part.replace(
+                    "--concurrency=1",
+                    f"--concurrency={TARGET_SLOTS_PER_WORKER if capacity_target else capacity_concurrency}",
+                )
+                for part in ai_worker["command"]
+            ]
             if capacity_target:
                 for index in range(1, TARGET_SLOTS // TARGET_SLOTS_PER_WORKER):
                     services[f"ai-worker-{index:03d}"] = deepcopy(ai_worker)
@@ -1125,7 +1537,10 @@ def compose_profile(
             "image": "openmates-ci-api:local",
             "command": ["python", "/ci_tcp_gateway.py"],
             "environment": {"OPENMATES_CI_GATEWAY": "github-isolated"},
-            "volumes": [str(Path(__file__).with_name("ci_tcp_gateway.py").resolve()) + ":/ci_tcp_gateway.py:ro"],
+            "volumes": [
+                str(Path(__file__).with_name("ci_tcp_gateway.py").resolve())
+                + ":/ci_tcp_gateway.py:ro"
+            ],
             "ports": ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"],
             "networks": ["default", "ingress"],
             "mem_limit": 64 * MIB,
@@ -1135,7 +1550,9 @@ def compose_profile(
             services["runner-gateway"]["environment"]["OPENMATES_CI_MAIL_CAPTURE"] = "1"
 
     if public_provider:
-        services["runner-gateway"]["environment"]["OPENMATES_CI_PUBLIC_PROVIDER_PROXY"] = "1"
+        services["runner-gateway"]["environment"][
+            "OPENMATES_CI_PUBLIC_PROVIDER_PROXY"
+        ] = "1"
         for service in (api, worker, services["ai-worker"]):
             service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
         # Port3128 is internal only. All other provider authorities are denied;
@@ -1144,7 +1561,10 @@ def compose_profile(
     if workflows or workflow_runtime:
         workflow_queues = QUEUES + ",workflow"
         worker["environment"]["CELERY_QUEUES"] = workflow_queues
-        worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={workflow_queues}") for part in worker["command"]]
+        worker["command"] = [
+            part.replace(f"--queues={QUEUES}", f"--queues={workflow_queues}")
+            for part in worker["command"]
+        ]
         scheduler = deepcopy(worker)
         scheduler["command"] = ["python", "-c", WORKFLOW_SCHEDULER]
         scheduler["mem_limit"] = 128 * MIB
@@ -1199,7 +1619,9 @@ def compose_profile(
                 mounts.append(mount)
         if mounts:
             service["volumes"] = mounts
-    volumes["apps-recommendations-data"]["labels"] = {"openmates.backup.exclude": "true"}
+    volumes["apps-recommendations-data"]["labels"] = {
+        "openmates.backup.exclude": "true"
+    }
     if telemetry_proxy:
         # Only the telemetry boundary spec needs to reach the proxy body read.
         # The absent collector stays inside the disposable network; no operator
@@ -1226,7 +1648,8 @@ def compose_profile(
             from ci_web_read_fixture import ADDRESS, HOSTNAME, SUBNET
         fixture_dir = str(Path(SOURCE) / "test-results/ci-private/web-read-tls")
         profile["networks"]["web-read-fixture"] = {
-            "internal": True, "ipam": {"config": [{"subnet": SUBNET}]},
+            "internal": True,
+            "ipam": {"config": [{"subnet": SUBNET}]},
         }
         api["networks"] = ["default", "web-read-fixture"]
         api["extra_hosts"][HOSTNAME] = ADDRESS
@@ -1237,15 +1660,27 @@ def compose_profile(
             "image": "openmates-ci-api:local",
             "command": ["python", "/ci_web_read_fixture.py", "serve", "/tls"],
             "environment": {"OPENMATES_CI_WEB_READ_FIXTURE": "github-isolated"},
-            "volumes": [f"{Path(__file__).with_name('ci_web_read_fixture.py').resolve()}:/ci_web_read_fixture.py:ro",
-                        f"{fixture_dir}:/tls:ro"],
+            "volumes": [
+                f"{Path(__file__).with_name('ci_web_read_fixture.py').resolve()}:/ci_web_read_fixture.py:ro",
+                f"{fixture_dir}:/tls:ro",
+            ],
             "networks": {"web-read-fixture": {"ipv4_address": ADDRESS}},
             "ports": ["127.0.0.1:8443:443"],
-            "mem_limit": 96 * MIB, "pids_limit": 64, "restart": "no",
-            "healthcheck": {"test": ["CMD", "python", "-c",
-                "import ssl,urllib.request; c=ssl.create_default_context(cafile='/tls/ca.pem'); "
-                "r=urllib.request.urlopen('https://read-page.ci.test/__health',context=c,timeout=3); assert r.status==200"],
-                "interval": "2s", "timeout": "5s", "retries": 20},
+            "mem_limit": 96 * MIB,
+            "pids_limit": 64,
+            "restart": "no",
+            "healthcheck": {
+                "test": [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import ssl,urllib.request; c=ssl.create_default_context(cafile='/tls/ca.pem'); "
+                    "r=urllib.request.urlopen('https://read-page.ci.test/__health',context=c,timeout=3); assert r.status==200",
+                ],
+                "interval": "2s",
+                "timeout": "5s",
+                "retries": 20,
+            },
             "extra_hosts": {HOSTNAME: ADDRESS},
             "labels": {"org.openmates.source": source_hash},
         }
@@ -1259,13 +1694,16 @@ def require_runner():
     dedicated_capacity = (
         os.environ.get("RUNNER_ENVIRONMENT") == "self-hosted"
         and os.environ.get("OPENMATES_CI_CAPACITY_DEDICATED") == "1"
-        and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) == ["storage-capacity-target.spec.ts"]
+        and json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        == ["storage-capacity-target.spec.ts"]
     )
-    if (
-        os.environ.get("GITHUB_ACTIONS") != "true"
-        or (os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted" and not dedicated_capacity)
+    if os.environ.get("GITHUB_ACTIONS") != "true" or (
+        os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
+        and not dedicated_capacity
     ):
-        raise RuntimeError("Isolated stacks require GitHub-hosted or dedicated capacity runners")
+        raise RuntimeError(
+            "Isolated stacks require GitHub-hosted or dedicated capacity runners"
+        )
 
 
 def compose(*args, capture=False, timeout=90):
@@ -1304,7 +1742,9 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
             if stderr:
                 sys.stderr.write(stderr)
             combined = stdout + "\n" + stderr
-            if attempt >= len(STACK_START_RETRY_DELAYS) or not TRANSIENT_REGISTRY_FAILURE.search(combined):
+            if attempt >= len(
+                STACK_START_RETRY_DELAYS
+            ) or not TRANSIENT_REGISTRY_FAILURE.search(combined):
                 raise
             delay = STACK_START_RETRY_DELAYS[attempt]
             print(
@@ -1366,15 +1806,19 @@ def startup_service_timings(started_at: float) -> list[dict]:
     containers = compose("ps", "-aq", capture=True, timeout=20).stdout.split()
     if not containers:
         return []
-    if len(containers) > 256 or any(not re.fullmatch(r"[0-9a-f]{12,64}", item)
-                                    for item in containers):
+    if len(containers) > 256 or any(
+        not re.fullmatch(r"[0-9a-f]{12,64}", item) for item in containers
+    ):
         raise RuntimeError("Unexpected isolated container inventory")
-    template = ('{"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
-                '"started":{{json .State.StartedAt}},"finished":{{json .State.FinishedAt}},'
-                '"status":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},'
-                '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}}}')
-    output = subprocess.check_output(["docker", "inspect", "--format", template,
-                                      *containers], text=True, timeout=20)
+    template = (
+        '{"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
+        '"started":{{json .State.StartedAt}},"finished":{{json .State.FinishedAt}},'
+        '"status":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},'
+        '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}}}'
+    )
+    output = subprocess.check_output(
+        ["docker", "inspect", "--format", template, *containers], text=True, timeout=20
+    )
     allowed = set(json.loads(COMPOSE_PATH.read_text())["services"])
     result = []
     for line in output.splitlines():
@@ -1384,12 +1828,16 @@ def startup_service_timings(started_at: float) -> list[dict]:
         item = {key: state[key] for key in ("service", "status", "exit_code", "health")}
         timestamps = {}
         for field in ("started", "finished"):
-            value = datetime.fromisoformat(state[field].replace("Z", "+00:00")).timestamp()
+            value = datetime.fromisoformat(
+                state[field].replace("Z", "+00:00")
+            ).timestamp()
             if value >= started_at:
                 timestamps[field] = value
                 item[field + "_after_stack_seconds"] = round(value - started_at, 3)
         if "started" in timestamps and "finished" in timestamps:
-            item["execution_seconds"] = round(timestamps["finished"] - timestamps["started"], 3)
+            item["execution_seconds"] = round(
+                timestamps["finished"] - timestamps["started"], 3
+            )
         result.append(item)
     return sorted(result, key=lambda item: item["service"])
 
@@ -1399,10 +1847,14 @@ def start_with_evidence():
     begin = time.time()
     selected = select_runtime_profile()
     selected_at = time.time()
-    report = {"format_version": 1, "schema_mode": "prepared" if selected else "cold",
-              "profile_selection_seconds": round(selected_at - begin, 3),
-              "run_id": os.environ.get("GITHUB_RUN_ID"),
-              "harness_commit": os.environ.get("CI_HARNESS_COMMIT"), "outcome": "failed"}
+    report = {
+        "format_version": 1,
+        "schema_mode": "prepared" if selected else "cold",
+        "profile_selection_seconds": round(selected_at - begin, 3),
+        "run_id": os.environ.get("GITHUB_RUN_ID"),
+        "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+        "outcome": "failed",
+    }
     try:
         result = start_stack()
         report["outcome"] = "ready"
@@ -1419,8 +1871,11 @@ def start_with_evidence():
         destination.write_text(json.dumps(report, indent=2))
 
 
-def validate_ai_worker_queues(command: list[str], environment_queues: str, *, voice_camera: bool) -> list[str]:
+def validate_ai_worker_queues(
+    command: list[str], environment_queues: str, *, voice_camera: bool
+) -> list[str]:
     """Compare actual worker inputs, retaining only validated queue names."""
+
     def parse(value: str) -> set[str]:
         if not isinstance(value, str) or not value or len(value) > 1024:
             raise RuntimeError("Isolated AI worker queues are invalid")
@@ -1429,7 +1884,9 @@ def validate_ai_worker_queues(command: list[str], environment_queues: str, *, vo
             raise RuntimeError("Isolated AI worker queues are invalid")
         return set(values)
 
-    if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+    if not isinstance(command, list) or not all(
+        isinstance(part, str) for part in command
+    ):
         raise RuntimeError("Isolated AI worker command is invalid")
     declared = []
     for index, part in enumerate(command):
@@ -1443,16 +1900,22 @@ def validate_ai_worker_queues(command: list[str], environment_queues: str, *, vo
     if actual != parse(environment_queues):
         raise RuntimeError("Isolated AI worker command and CELERY_QUEUES disagree")
     if voice_camera and not {"app_ai", "app_ai_routing", "app_videos"}.issubset(actual):
-        raise RuntimeError("Voice camera fixture worker lacks required AI and video queues")
+        raise RuntimeError(
+            "Voice camera fixture worker lacks required AI and video queues"
+        )
     return sorted(actual)
 
 
 def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]:
     """Read only the command and named queue variable, never emit environment."""
-    template = ('{{json .Config.Cmd}}\n{{range .Config.Env}}'
-                '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}')
+    template = (
+        "{{json .Config.Cmd}}\n{{range .Config.Env}}"
+        '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}'
+    )
     raw = subprocess.check_output(
-        ["docker", "inspect", "--format", template, container], text=True, timeout=10,
+        ["docker", "inspect", "--format", template, container],
+        text=True,
+        timeout=10,
     )
     output = [line for line in raw.splitlines() if line]
     if len(output) != 2 or not output[1].startswith("CELERY_QUEUES="):
@@ -1461,14 +1924,18 @@ def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]
         command = json.loads(output[0])
     except ValueError:
         raise RuntimeError("Isolated AI worker command is invalid") from None
-    return validate_ai_worker_queues(command, output[1].partition("=")[2], voice_camera=voice_camera)
+    return validate_ai_worker_queues(
+        command, output[1].partition("=")[2], voice_camera=voice_camera
+    )
 
 
 def inspect_speech_worker_queues(container: str) -> list[str]:
     """Prove speech has an independent consumer without the busy AI queue."""
     queues = inspect_ai_worker_queues(container, voice_camera=False)
     if queues != ["app_music"]:
-        raise RuntimeError("Voice fixture requires an independent shared-speech queue consumer")
+        raise RuntimeError(
+            "Voice fixture requires an independent shared-speech queue consumer"
+        )
     return queues
 
 
@@ -1479,61 +1946,131 @@ def main():
         source = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
-        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        manifest = json.loads(
+            Path(__file__).with_name("ci_coverage_manifest.json").read_text()
+        )
         fixture_specs = ai_fixture_specs(manifest, Path(SOURCE))
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
-        billing_selected = [BILLING_STORAGE_PROFILES[spec] for spec in selected
-                            if spec in BILLING_STORAGE_PROFILES]
+        billing_selected = [
+            BILLING_STORAGE_PROFILES[spec]
+            for spec in selected
+            if spec in BILLING_STORAGE_PROFILES
+        ]
         if len(billing_selected) > 1 or (billing_selected and len(selected) != 1):
-            raise RuntimeError("Storage billing profiles require separate exact-selector batches")
+            raise RuntimeError(
+                "Storage billing profiles require separate exact-selector batches"
+            )
         billing_profile = billing_selected[0] if billing_selected else None
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
-            raise RuntimeError("Candidate lacks committed development feature configuration")
+            raise RuntimeError(
+                "Candidate lacks committed development feature configuration"
+            )
         offline_preview = os.environ.get("CI_TEST_MODE") == "visual-smoke"
         if offline_preview:
             from ci_visual_smoke import validate_targets
+
             validate_targets(selected)
-        storage_capacity = bool(STORAGE_CAPACITY_SPECS.intersection(selected)) or billing_profile is not None
+        storage_capacity = (
+            bool(STORAGE_CAPACITY_SPECS.intersection(selected))
+            or billing_profile is not None
+        )
         storage_accountability = ACCOUNTABILITY_SPEC in selected
         if storage_accountability and selected != [ACCOUNTABILITY_SPEC]:
-            raise RuntimeError("Storage accountability requires its exact standalone selector")
+            raise RuntimeError(
+                "Storage accountability requires its exact standalone selector"
+            )
         capacity_target = "storage-capacity-target.spec.ts" in selected
         target_smoke = "storage-capacity-target-smoke.spec.ts" in selected
         full_target = capacity_target
         capacity_calibration = "storage-capacity-calibration.spec.ts" in selected
-        if capacity_calibration and selected != ["storage-capacity-calibration.spec.ts"]:
-            raise RuntimeError("Capacity calibration requires its exact standalone selector")
+        if capacity_calibration and selected != [
+            "storage-capacity-calibration.spec.ts"
+        ]:
+            raise RuntimeError(
+                "Capacity calibration requires its exact standalone selector"
+            )
         if (capacity_target or target_smoke) and (len(selected) != 1):
-            raise RuntimeError("Capacity target and target smoke require separate isolated batches")
+            raise RuntimeError(
+                "Capacity target and target smoke require separate isolated batches"
+            )
         if capacity_target and "storage-capacity-replay.spec.ts" in selected:
-            raise RuntimeError("Capacity pilot and target require separate isolated batches")
+            raise RuntimeError(
+                "Capacity pilot and target require separate isolated batches"
+            )
         target_admission = require_target_admission(source) if full_target else None
-        requested_capacity_slots = int(os.environ.get(
-            "CI_STORAGE_CAPACITY_TARGET_SMOKE_CONCURRENCY", "2")) if target_smoke else int(os.environ.get(
-                "CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full_target else "4" if capacity_calibration else "2"))
+        requested_capacity_slots = (
+            int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_CONCURRENCY", "2"))
+            if target_smoke
+            else int(
+                os.environ.get(
+                    "CI_STORAGE_CAPACITY_CONCURRENCY",
+                    "500" if full_target else "4" if capacity_calibration else "2",
+                )
+            )
+        )
         if capacity_calibration and requested_capacity_slots != 4:
-            raise RuntimeError("Capacity calibration requires exactly four worker slots")
+            raise RuntimeError(
+                "Capacity calibration requires exactly four worker slots"
+            )
         if full_target and requested_capacity_slots != TARGET_SLOTS:
-            raise RuntimeError("Full capacity target must request exactly 500 worker slots")
-        if not full_target and storage_capacity and not 1 <= requested_capacity_slots <= 4:
-            raise RuntimeError("Pilot/recovery capacity profile supports only 1..4 worker slots")
+            raise RuntimeError(
+                "Full capacity target must request exactly 500 worker slots"
+            )
+        if (
+            not full_target
+            and storage_capacity
+            and not 1 <= requested_capacity_slots <= 4
+        ):
+            raise RuntimeError(
+                "Pilot/recovery capacity profile supports only 1..4 worker slots"
+            )
         capacity_workload = bool(CAPACITY_WORKLOAD_SPECS.intersection(selected))
-        capacity_users = (int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_USERS", "2")) if target_smoke
-                          else int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full_target else "8" if capacity_calibration else "2"))) if capacity_workload else 0
+        capacity_users = (
+            (
+                int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_USERS", "2"))
+                if target_smoke
+                else int(
+                    os.environ.get(
+                        "CI_STORAGE_CAPACITY_USERS",
+                        "1000" if full_target else "8" if capacity_calibration else "2",
+                    )
+                )
+            )
+            if capacity_workload
+            else 0
+        )
         if target_smoke and not 1 <= capacity_users <= 8:
             raise RuntimeError("Target-path smoke supports only 1..8 disposable users")
         if target_smoke and requested_capacity_slots > capacity_users:
             raise RuntimeError("Target-path smoke slots exceed disposable users")
         if capacity_calibration and capacity_users != 8:
-            raise RuntimeError("Capacity calibration requires exactly eight disposable users")
+            raise RuntimeError(
+                "Capacity calibration requires exactly eight disposable users"
+            )
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")
-        account_count = 0 if storage_accountability else capacity_users if target_smoke else browser_account_count(selected) + capacity_users
-        account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
-        storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
+        account_count = (
+            0
+            if storage_accountability
+            else capacity_users
+            if target_smoke
+            else browser_account_count(selected) + capacity_users
+        )
+        account_emails = (
+            []
+            if offline_preview
+            else [
+                f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)
+            ]
+        )
+        storage_specs = set(
+            manifest["groups"].get("object_storage", {}).get("specs", [])
+        )
         declared_upload_specs = upload_specs(manifest, Path(SOURCE))
         needs_uploads = bool(declared_upload_specs.intersection(selected))
-        public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
+        public_specs = set(
+            manifest["groups"].get("ai_cached_public_provider", {}).get("specs", [])
+        )
         mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))
         declared_workflow_specs = workflow_specs(manifest, Path(SOURCE))
@@ -1541,17 +2078,61 @@ def main():
         needs_workflows = bool(declared_workflow_specs.intersection(selected))
         needs_workflow_core = bool(declared_workflow_core_specs.intersection(selected))
         if needs_workflows and not set(selected).issubset(declared_workflow_specs):
-            raise RuntimeError("Credential-free weather workflows require their own batch")
-        if needs_workflow_core and not set(selected).issubset(declared_workflow_core_specs):
+            raise RuntimeError(
+                "Credential-free weather workflows require their own batch"
+            )
+        if needs_workflow_core and not set(selected).issubset(
+            declared_workflow_core_specs
+        ):
             raise RuntimeError("Internal Workflow runtime requires its own batch")
-        needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads or storage_capacity
+        needs_storage = (
+            bool(storage_specs.intersection(selected))
+            or needs_uploads
+            or storage_capacity
+        )
         if needs_storage:
-            for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
+            for relative in (
+                "backend/core/api/app/services/s3/service.py",
+                "backend/upload/services/s3_upload.py",
+            ):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
-                    raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
-                           if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)), web_read_fixture=web_read_fixture_selected(selected))
+                    raise RuntimeError(
+                        "Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing"
+                    )
+        capacity_run_id = (
+            f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+            if capacity_target or target_smoke
+            else None
+        )
+        data = compose_profile(
+            source,
+            ai_fixtures=bool(fixture_specs.intersection(selected)),
+            voice_camera="voice-call.spec.ts" in selected,
+            object_storage=needs_storage,
+            uploads=needs_uploads,
+            public_provider=needs_public_provider,
+            workflows=needs_workflows,
+            workflow_runtime=needs_workflow_core,
+            account_emails=account_emails,
+            offline_preview=offline_preview,
+            mail_capture=bool(mail_specs.intersection(selected)),
+            public_website_newsletter="website-newsletter-delivery.spec.ts" in selected,
+            storage_capacity=storage_capacity,
+            detached_docs="storage-detached-producer.spec.ts" in selected,
+            storage_accountability=storage_accountability,
+            capacity_concurrency=requested_capacity_slots,
+            capacity_target=full_target,
+            capacity_run_id=capacity_run_id,
+            billing_profile=billing_profile,
+            telemetry_proxy="telemetry-proxy-api.spec.ts" in selected,
+            private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)),
+            web_read_fixture=web_read_fixture_selected(selected),
+            rust_owned_send_gate=(
+                "rust-core-production-saved-session.spec.ts" in selected
+                or selected == ["rust-core-activechat-send.spec.ts"]
+                or selected == ["rust-core-new-chat-send.spec.ts"]
+            ),
+        )
         configure_formula_sheet_worker(data, selected)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
@@ -1562,7 +2143,9 @@ def main():
             (Path(SOURCE) / relative).mkdir(parents=True, exist_ok=True)
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if storage_capacity:
-            (COMPOSE_PATH.parent / "capacity-receipts").mkdir(parents=True, exist_ok=True, mode=0o700)
+            (COMPOSE_PATH.parent / "capacity-receipts").mkdir(
+                parents=True, exist_ok=True, mode=0o700
+            )
             isolation_private = COMPOSE_PATH.parent / "storage-isolation"
             isolation_private.mkdir(parents=True, exist_ok=True, mode=0o700)
             if isolation_private.is_symlink():
@@ -1572,7 +2155,9 @@ def main():
             private = COMPOSE_PATH.parent / "accountability"
             private.mkdir(parents=True, exist_ok=True, mode=0o700)
             if private.is_symlink():
-                raise RuntimeError("Accountability fixture directory must not be a symlink")
+                raise RuntimeError(
+                    "Accountability fixture directory must not be a symlink"
+                )
             private.chmod(0o700)
         if billing_profile is not None:
             billing_private = COMPOSE_PATH.parent / "storage-billing"
@@ -1633,68 +2218,169 @@ def main():
                 raise RuntimeError("Runner-local API is not healthy")
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
-        voice_camera = "voice-call.spec.ts" in json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
-        if voice_camera and not {"ai-worker", "speech-worker"}.issubset(profile["services"]):
-            raise RuntimeError("Voice camera fixture requires independent AI and speech workers")
+        voice_camera = "voice-call.spec.ts" in json.loads(
+            os.environ.get("CI_SPECS_JSON", "[]")
+        )
+        if voice_camera and not {"ai-worker", "speech-worker"}.issubset(
+            profile["services"]
+        ):
+            raise RuntimeError(
+                "Voice camera fixture requires independent AI and speech workers"
+            )
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
         if "formula-worker" in profile["services"]:
             required.append("formula-worker")
             formula = profile["services"]["formula-worker"]
-            if (any(formula.get(field) for field in ("environment", "env_file", "volumes", "ports"))
-                    or formula.get("read_only") is not True
-                    or formula.get("cap_drop") != ["ALL"]
-                    or formula.get("networks") != ["formula-calculation"]):
-                raise RuntimeError("Formula worker lost its isolated secret-free runtime")
-            network = json.loads(subprocess.check_output(
-                ["docker", "network", "inspect", "openmates-ci_formula-calculation"], text=True))[0]
+            if (
+                any(
+                    formula.get(field)
+                    for field in ("environment", "env_file", "volumes", "ports")
+                )
+                or formula.get("read_only") is not True
+                or formula.get("cap_drop") != ["ALL"]
+                or formula.get("networks") != ["formula-calculation"]
+            ):
+                raise RuntimeError(
+                    "Formula worker lost its isolated secret-free runtime"
+                )
+            network = json.loads(
+                subprocess.check_output(
+                    [
+                        "docker",
+                        "network",
+                        "inspect",
+                        "openmates-ci_formula-calculation",
+                    ],
+                    text=True,
+                )
+            )[0]
             if network.get("Internal") is not True:
                 raise RuntimeError("Formula worker requires an internal network")
-            evidence["formula_calculation"] = {"engine": "ironcalc==0.9.1",
-                "execution": "real-restricted-worker", "provider_credentials": "absent",
-                "ai_authoring": "signed-fixture-only", "execution_credits": 0}
+            evidence["formula_calculation"] = {
+                "engine": "ironcalc==0.9.1",
+                "execution": "real-restricted-worker",
+                "provider_credentials": "absent",
+                "ai_authoring": "signed-fixture-only",
+                "execution_credits": 0,
+            }
         if voice_camera:
             required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
-            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "JobTech"], "paid_provider_credentials": "absent"}
+            evidence["workflow_scheduler"] = {
+                "task": "workflows.scan_due_triggers",
+                "other_periodic_tasks": "excluded",
+                "providers": ["Bright Sky / DWD", "Open-Meteo", "JobTech"],
+                "paid_provider_credentials": "absent",
+            }
         if "uploads" in profile["services"]:
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
             required.append("object-storage")
         if "mailpit" in profile["services"]:
             required.append("mailpit")
-            network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
+            network = json.loads(
+                subprocess.check_output(
+                    ["docker", "network", "inspect", "openmates-ci_default"], text=True
+                )
+            )[0]
             if network.get("Internal") is not True:
-                raise RuntimeError("Runner-local mail capture requires an internal network")
-            with urllib.request.urlopen("http://127.0.0.1:8025/api/v1/messages", timeout=10) as response:
-                if response.status != 200 or not isinstance(json.load(response).get("messages"), list):
+                raise RuntimeError(
+                    "Runner-local mail capture requires an internal network"
+                )
+            with urllib.request.urlopen(
+                "http://127.0.0.1:8025/api/v1/messages", timeout=10
+            ) as response:
+                if response.status != 200 or not isinstance(
+                    json.load(response).get("messages"), list
+                ):
                     raise RuntimeError("Runner-local mail capture is not ready")
-            if profile["services"]["api"]["environment"].get("OPENMATES_CI_MAIL_CAPTURE") != "1":
-                raise RuntimeError("Mail capture profile must bind the API to local delivery")
-            evidence["email_capture"] = {"provider": "mailpit", "api": "runner-local", "external_delivery": False}
+            if (
+                profile["services"]["api"]["environment"].get(
+                    "OPENMATES_CI_MAIL_CAPTURE"
+                )
+                != "1"
+            ):
+                raise RuntimeError(
+                    "Mail capture profile must bind the API to local delivery"
+                )
+            evidence["email_capture"] = {
+                "provider": "mailpit",
+                "api": "runner-local",
+                "external_delivery": False,
+            }
         if "ai-worker" in profile["services"]:
             required.extend(["ai-worker", "runner-gateway"])
-            required.extend(sorted(name for name in profile["services"] if name.startswith("ai-worker-")))
-            network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
+            required.extend(
+                sorted(
+                    name
+                    for name in profile["services"]
+                    if name.startswith("ai-worker-")
+                )
+            )
+            network = json.loads(
+                subprocess.check_output(
+                    ["docker", "network", "inspect", "openmates-ci_default"], text=True
+                )
+            )[0]
             if network.get("Internal") is not True:
-                raise RuntimeError("Fixture AI profile must reject external network access")
+                raise RuntimeError(
+                    "Fixture AI profile must reject external network access"
+                )
             evidence["provider_egress"] = "rejected-internal-network"
-        if profile["services"]["api"]["environment"].get("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true":
-            forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
+        if (
+            profile["services"]["api"]["environment"].get(
+                "OPENMATES_STORAGE_CAPACITY_FIXTURES"
+            )
+            == "true"
+        ):
+            forbidden = {
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "GOOGLE_API_KEY",
+                "GEMINI_API_KEY",
+                "OPENROUTER_API_KEY",
+                "GROQ_API_KEY",
+                "CEREBRAS_API_KEY",
+                "TOGETHER_API_KEY",
+            }
             for name in ("api", "core-worker", "ai-worker"):
                 if forbidden.intersection(profile["services"][name]["environment"]):
                     raise RuntimeError("Capacity profile contains provider credentials")
             if evidence.get("provider_egress") != "rejected-internal-network":
-                raise RuntimeError("Capacity profile has no independent provider network block")
-            worker_names = [name for name in profile["services"] if name == "ai-worker" or name.startswith("ai-worker-")]
-            worker_slots = sum(int(next(part.split("=", 1)[1] for part in profile["services"][name]["command"]
-                                        if part.startswith("--concurrency="))) for name in worker_names)
+                raise RuntimeError(
+                    "Capacity profile has no independent provider network block"
+                )
+            worker_names = [
+                name
+                for name in profile["services"]
+                if name == "ai-worker" or name.startswith("ai-worker-")
+            ]
+            worker_slots = sum(
+                int(
+                    next(
+                        part.split("=", 1)[1]
+                        for part in profile["services"][name]["command"]
+                        if part.startswith("--concurrency=")
+                    )
+                )
+                for name in worker_names
+            )
             admission = evidence.get("target_capacity_admission")
-            if admission and (worker_slots != TARGET_SLOTS or len(worker_names) != TARGET_SLOTS // TARGET_SLOTS_PER_WORKER):
-                raise RuntimeError("Full capacity target configured worker slots differ from admission")
-            evidence["storage_capacity"] = {"provider_credentials": "absent", "provider_network": "internal",
-                                            "fixture_mode": "replay-only", "worker_slots": worker_slots,
-                                            "worker_replicas": len(worker_names)}
+            if admission and (
+                worker_slots != TARGET_SLOTS
+                or len(worker_names) != TARGET_SLOTS // TARGET_SLOTS_PER_WORKER
+            ):
+                raise RuntimeError(
+                    "Full capacity target configured worker slots differ from admission"
+                )
+            evidence["storage_capacity"] = {
+                "provider_credentials": "absent",
+                "provider_network": "internal",
+                "fixture_mode": "replay-only",
+                "worker_slots": worker_slots,
+                "worker_replicas": len(worker_names),
+            }
         calibration_active = json.loads(os.environ.get("CI_SPECS_JSON", "[]")) == [
             "storage-capacity-calibration.spec.ts"
         ]
@@ -1705,18 +2391,55 @@ def main():
                 raise RuntimeError("Required private service is missing: " + service)
             raw = subprocess.check_output(["docker", "inspect", container], text=True)
             info = json.loads(raw)[0]
-            if evidence.get("storage_capacity") and (service in {"api", "core-worker"} or service.startswith("ai-worker")):
-                runtime_names = {entry.split("=", 1)[0] for entry in info["Config"].get("Env", [])}
-                forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
-                runtime_source = next((entry.partition("=")[2] for entry in info["Config"].get("Env", [])
-                                       if entry.startswith("BUILD_COMMIT_SHA=")), "")
+            if evidence.get("storage_capacity") and (
+                service in {"api", "core-worker"} or service.startswith("ai-worker")
+            ):
+                runtime_names = {
+                    entry.split("=", 1)[0] for entry in info["Config"].get("Env", [])
+                }
+                forbidden = {
+                    "OPENAI_API_KEY",
+                    "ANTHROPIC_API_KEY",
+                    "GOOGLE_API_KEY",
+                    "GEMINI_API_KEY",
+                    "OPENROUTER_API_KEY",
+                    "GROQ_API_KEY",
+                    "CEREBRAS_API_KEY",
+                    "TOGETHER_API_KEY",
+                }
+                runtime_source = next(
+                    (
+                        entry.partition("=")[2]
+                        for entry in info["Config"].get("Env", [])
+                        if entry.startswith("BUILD_COMMIT_SHA=")
+                    ),
+                    "",
+                )
                 if runtime_source != evidence["source_commit"]:
-                    raise RuntimeError("Mounted candidate runtime source differs from verified source")
-                if (runtime_names.intersection(forbidden) or any(
-                        name.startswith("SECRET__") and any(provider in name.upper() for provider in (
-                            "OPENAI", "ANTHROPIC", "GOOGLE", "GEMINI", "OPENROUTER", "GROQ", "CEREBRAS", "TOGETHER", "MISTRAL",
-                        )) for name in runtime_names)):
-                    raise RuntimeError("Capacity container has live inference credentials")
+                    raise RuntimeError(
+                        "Mounted candidate runtime source differs from verified source"
+                    )
+                if runtime_names.intersection(forbidden) or any(
+                    name.startswith("SECRET__")
+                    and any(
+                        provider in name.upper()
+                        for provider in (
+                            "OPENAI",
+                            "ANTHROPIC",
+                            "GOOGLE",
+                            "GEMINI",
+                            "OPENROUTER",
+                            "GROQ",
+                            "CEREBRAS",
+                            "TOGETHER",
+                            "MISTRAL",
+                        )
+                    )
+                    for name in runtime_names
+                ):
+                    raise RuntimeError(
+                        "Capacity container has live inference credentials"
+                    )
             if (
                 info["Config"]["Labels"].get("org.openmates.source")
                 != evidence["source_commit"]
@@ -1732,21 +2455,43 @@ def main():
             if service == "speech-worker":
                 identities[service]["queues"] = inspect_speech_worker_queues(container)
             if service == "ai-worker" or service.startswith("ai-worker-"):
-                identities[service]["queues"] = inspect_ai_worker_queues(container, voice_camera=voice_camera)
+                identities[service]["queues"] = inspect_ai_worker_queues(
+                    container, voice_camera=voice_camera
+                )
             if (evidence.get("target_capacity_admission") or calibration_active) and (
-                    service == "ai-worker" or service.startswith("ai-worker-")):
+                service == "ai-worker" or service.startswith("ai-worker-")
+            ):
                 configured = profile["services"][service]["command"]
-                if "--concurrency=4" not in configured or "--concurrency=4" not in info["Config"].get("Cmd", []):
-                    raise RuntimeError("Target worker command differs from admitted four-slot profile")
+                if "--concurrency=4" not in configured or "--concurrency=4" not in info[
+                    "Config"
+                ].get("Cmd", []):
+                    raise RuntimeError(
+                        "Target worker command differs from admitted four-slot profile"
+                    )
                 children = subprocess.check_output(
-                    ["docker", "exec", container, "python", "-c",
-                     "from pathlib import Path; print(len(Path('/proc/1/task/1/children').read_text().split()))"],
-                    text=True, timeout=10,
+                    [
+                        "docker",
+                        "exec",
+                        container,
+                        "python",
+                        "-c",
+                        "from pathlib import Path; print(len(Path('/proc/1/task/1/children').read_text().split()))",
+                    ],
+                    text=True,
+                    timeout=10,
                 ).strip()
                 if not children.isdecimal() or int(children) < TARGET_SLOTS_PER_WORKER:
-                    raise RuntimeError("Target worker has fewer live prefork processes than admitted")
+                    raise RuntimeError(
+                        "Target worker has fewer live prefork processes than admitted"
+                    )
                 observed_worker_slots += TARGET_SLOTS_PER_WORKER
-            if (service in ("api", "core-worker", "speech-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
+            if service in (
+                "api",
+                "core-worker",
+                "speech-worker",
+                "uploads",
+                "workflow-scheduler",
+            ) or service.startswith("ai-worker"):
                 mounts = [
                     mount
                     for mount in info["Mounts"]
@@ -1765,16 +2510,54 @@ def main():
         if evidence.get("target_capacity_admission") or calibration_active:
             expected_slots = 4 if calibration_active else TARGET_SLOTS
             if observed_worker_slots != expected_slots:
-                raise RuntimeError("Capacity profile lacks its expected live prefork worker slots")
-            evidence["storage_capacity"]["observed_worker_processes"] = observed_worker_slots
-        if profile["services"].get("runner-gateway", {}).get("environment", {}).get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
-            compose("exec", "-T", "api", "python", "-c", "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()", capture=True, timeout=10)
-            evidence["public_provider_proxy"] = {"allowed_https_hosts": [], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
+                raise RuntimeError(
+                    "Capacity profile lacks its expected live prefork worker slots"
+                )
+            evidence["storage_capacity"]["observed_worker_processes"] = (
+                observed_worker_slots
+            )
+        if (
+            profile["services"]
+            .get("runner-gateway", {})
+            .get("environment", {})
+            .get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY")
+            == "1"
+        ):
+            compose(
+                "exec",
+                "-T",
+                "api",
+                "python",
+                "-c",
+                "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()",
+                capture=True,
+                timeout=10,
+            )
+            evidence["public_provider_proxy"] = {
+                "allowed_https_hosts": [],
+                "paid_provider_authority": "rejected before upstream connection",
+                "direct_backend_egress": "internal Docker network",
+                "tls": "end-to-end, no interception",
+            }
         if "object-storage" in profile["services"]:
             if socket.gethostbyname("storage.ci.test") != "127.0.0.1":
                 raise RuntimeError("Object storage must resolve on this runner")
-            compose("exec", "-T", "api", "python", "-c", STORAGE_VERIFY, capture=True, timeout=60)
-            evidence["object_storage"] = {"endpoint": "http://storage.ci.test:9000", "provider": "SeaweedFS", "protocol_probe": "authenticated-roundtrip-cors-presigned-and-private-access-passed", "region_scope": "single disposable region; Hetzner failover not covered"}
+            compose(
+                "exec",
+                "-T",
+                "api",
+                "python",
+                "-c",
+                STORAGE_VERIFY,
+                capture=True,
+                timeout=60,
+            )
+            evidence["object_storage"] = {
+                "endpoint": "http://storage.ci.test:9000",
+                "provider": "SeaweedFS",
+                "protocol_probe": "authenticated-roundtrip-cors-presigned-and-private-access-passed",
+                "region_scope": "single disposable region; Hetzner failover not covered",
+            }
         evidence.update(
             services=identities,
             api_url="http://localhost:8000",
@@ -1790,36 +2573,64 @@ def main():
             # scope. No production/API policy is broadened for this inspection.
             verify_isolated_vault_provider_namespace()
             proof = {
-                "schema": "agentic-storage-ci-isolation-v1", "source_commit": evidence["source_commit"],
-                "harness_commit": evidence["harness_commit"], "run_id": str(evidence["run_id"]),
-                "environment": "github-isolated", "observed_at": int(time.time()),
+                "schema": "agentic-storage-ci-isolation-v1",
+                "source_commit": evidence["source_commit"],
+                "harness_commit": evidence["harness_commit"],
+                "run_id": str(evidence["run_id"]),
+                "environment": "github-isolated",
+                "observed_at": int(time.time()),
                 "expires_at": int(time.time()) + 90000,
-                "provider_network": "internal", "provider_credentials": "absent",
+                "provider_network": "internal",
+                "provider_credentials": "absent",
                 "vault_provider_keys": ["core_server", "hetzner", "vapid"],
                 "vapid_credentials": "generated_disposable_fixture",
-                "source_mount": "read_only_exact_candidate", "shared_dev_dns": "rejected",
-                "shared_dev_https": "rejected", "object_storage": "authenticated_disposable_roundtrip",
+                "source_mount": "read_only_exact_candidate",
+                "shared_dev_dns": "rejected",
+                "shared_dev_https": "rejected",
+                "object_storage": "authenticated_disposable_roundtrip",
             }
             proof_path = COMPOSE_PATH.parent / "storage-isolation/proof.json"
             temporary_proof = proof_path.with_suffix(".tmp")
-            temporary_proof.write_text(json.dumps(proof, sort_keys=True), encoding="utf-8")
+            temporary_proof.write_text(
+                json.dumps(proof, sort_keys=True), encoding="utf-8"
+            )
             temporary_proof.chmod(0o444)
             temporary_proof.replace(proof_path)
             run_capacity_startup_guard(
                 "inventory_refresh",
-                lambda: subprocess.run([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
-                                        "refresh", "--compose-file", str(COMPOSE_PATH)],
-                                       capture_output=True, text=True, timeout=90),
-                expected_status="published", source_commit=evidence["source_commit"],
+                lambda: subprocess.run(
+                    [
+                        sys.executable,
+                        str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
+                        "refresh",
+                        "--compose-file",
+                        str(COMPOSE_PATH),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=90,
+                ),
+                expected_status="published",
+                source_commit=evidence["source_commit"],
                 diagnostic_path=Path(SOURCE) / "test-results/ci-capacity-startup.json",
             )
             # CI does not install host systemd services. Its disposable runner
             # refreshes the same actual-process inventory throughout the job.
             inventory_log = COMPOSE_PATH.parent / "storage-inventory.log"
             with inventory_log.open("ab") as output:
-                inventory_process = subprocess.Popen([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
-                                                      "refresh", "--compose-file", str(COMPOSE_PATH), "--loop"],
-                                                     stdout=output, stderr=output, start_new_session=True)
+                inventory_process = subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
+                        "refresh",
+                        "--compose-file",
+                        str(COMPOSE_PATH),
+                        "--loop",
+                    ],
+                    stdout=output,
+                    stderr=output,
+                    start_new_session=True,
+                )
             inventory_pid = COMPOSE_PATH.parent / "storage-inventory.pid"
             inventory_pid.write_text(str(inventory_process.pid), encoding="ascii")
             inventory_pid.chmod(0o600)
@@ -1827,12 +2638,25 @@ def main():
             # independent isolation proof and real API runtime guard are live.
             run_capacity_startup_guard(
                 "fixture_setup",
-                lambda: compose("exec", "-T", "api", "python", "-c", CAPACITY_FIXTURE_SETUP,
-                                capture=True, timeout=60),
-                expected_status="ready", source_commit=evidence["source_commit"],
+                lambda: compose(
+                    "exec",
+                    "-T",
+                    "api",
+                    "python",
+                    "-c",
+                    CAPACITY_FIXTURE_SETUP,
+                    capture=True,
+                    timeout=60,
+                ),
+                expected_status="ready",
+                source_commit=evidence["source_commit"],
                 diagnostic_path=Path(SOURCE) / "test-results/ci-capacity-startup.json",
             )
-            evidence["storage_isolation_proof"] = {"source_bound": True, "read_only_bind": True, "vault_provider_namespace": "disposable_only"}
+            evidence["storage_isolation_proof"] = {
+                "source_bound": True,
+                "read_only_bind": True,
+                "vault_provider_namespace": "disposable_only",
+            }
         evidence_path.write_text(json.dumps(evidence, indent=2))
     elif action == "stop":
         if COMPOSE_PATH.exists():
@@ -1840,32 +2664,59 @@ def main():
             if inventory_pid.is_file():
                 try:
                     pid = int(inventory_pid.read_text())
-                    args = Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")
-                    if (str(Path(SOURCE) / "scripts/storage_runtime_inventory.py") in args
-                            and str(COMPOSE_PATH) in args and "--loop" in args):
+                    args = (
+                        Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")
+                    )
+                    if (
+                        str(Path(SOURCE) / "scripts/storage_runtime_inventory.py")
+                        in args
+                        and str(COMPOSE_PATH) in args
+                        and "--loop" in args
+                    ):
                         os.kill(pid, signal.SIGTERM)
                 except (OSError, ValueError, UnicodeError):
                     pass
             compose("down", "--volumes", "--remove-orphans", "--timeout", "20")
-            for kind, command in (("containers", ["docker", "ps", "-aq"]), ("volumes", ["docker", "volume", "ls", "-q"])):
-                remaining = subprocess.check_output([*command, "--filter", "label=com.docker.compose.project=openmates-ci"], text=True).strip()
+            for kind, command in (
+                ("containers", ["docker", "ps", "-aq"]),
+                ("volumes", ["docker", "volume", "ls", "-q"]),
+            ):
+                remaining = subprocess.check_output(
+                    [
+                        *command,
+                        "--filter",
+                        "label=com.docker.compose.project=openmates-ci",
+                    ],
+                    text=True,
+                ).strip()
                 if remaining:
                     raise RuntimeError("Disposable runtime cleanup left " + kind)
             private = COMPOSE_PATH.parent.resolve()
             expected = (Path(SOURCE) / "test-results/ci-private").resolve()
             if private != expected or private == Path(SOURCE).resolve():
-                raise RuntimeError("Refusing cleanup outside the runner-private account directory")
+                raise RuntimeError(
+                    "Refusing cleanup outside the runner-private account directory"
+                )
             profile = json.loads(COMPOSE_PATH.read_text())
             allowed_accounts = sum(
                 bool(re.fullmatch(r"OPENMATES_TEST_ACCOUNT_CI_[0-9]+_EMAIL", key))
-                for key in profile.get("services", {}).get("api", {}).get("environment", {})
+                for key in profile.get("services", {})
+                .get("api", {})
+                .get("environment", {})
             )
             shutil.rmtree(private)
-            (Path(SOURCE) / "test-results/ci-cleanup.json").write_text(json.dumps({
-                "run_id": os.environ["GITHUB_RUN_ID"], "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
-                "containers_remaining": 0, "volumes_remaining": 0, "private_account_files_removed": True,
-                "account_allowlist_identities_removed": allowed_accounts,
-            }))
+            (Path(SOURCE) / "test-results/ci-cleanup.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": os.environ["GITHUB_RUN_ID"],
+                        "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+                        "containers_remaining": 0,
+                        "volumes_remaining": 0,
+                        "private_account_files_removed": True,
+                        "account_allowlist_identities_removed": allowed_accounts,
+                    }
+                )
+            )
     elif action == "logs":
         if COMPOSE_PATH.exists():
             result = compose("logs", "--no-color", "--tail", "150", capture=True)
@@ -1876,7 +2727,8 @@ def main():
             for container in containers:
                 state = subprocess.check_output(
                     ["docker", "inspect", "--format", "{{json .State}}", container],
-                    text=True, timeout=20,
+                    text=True,
+                    timeout=20,
                 )
                 output += "\nContainer " + container + " state: " + state
             for service in profile["services"].values():

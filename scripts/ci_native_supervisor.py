@@ -36,8 +36,9 @@ STAGES = (
     "cli-package-list",
     "sdk-package-list",
     "native-build",
+    "renderer-build",
 )
-LIMITS = (30, 30, 300, 300, 120, 120, 2100)
+LIMITS = (30, 30, 300, 300, 120, 120, 2100, 300)
 RESERVE = 2 * 1024**3
 MAX_LOG = 32 * 1024**2
 MAX_BINARY = 128 * 1024**2
@@ -258,6 +259,21 @@ def commands(sandbox):
             TRIPLE,
             "--bin",
             "openmates",
+            "--jobs",
+            "2",
+        ],
+        [
+            cargo,
+            "build",
+            "--locked",
+            "--release",
+            "--offline",
+            "--manifest-path",
+            CLI + "/Cargo.toml",
+            "--target",
+            TRIPLE,
+            "--example",
+            "tui-benchmark",
             "--jobs",
             "2",
         ],
@@ -557,22 +573,12 @@ def run_stage(sandbox, stage):
     require(passed, failure or "stage-failed")
 
 
-def finish(sandbox):
-    value = state(sandbox)
-    cleanup = stop_uid(value["uid"])
-    require_no_escape(cleanup)
-    require(
-        [row["stage"] for row in value["stages"]] == list(STAGES)
-        and all(row["passed"] for row in value["stages"]),
-        "stages-incomplete",
-    )
-    require(protected_snapshot(sandbox) == value["protected"], "immutable-held")
-    # Open every component without following links. No build-UID process remains.
+def export_artifact(sandbox, value, components, name):
     descriptors = []
     try:
         descriptor = os.open(sandbox, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         descriptors.append(descriptor)
-        for component in ("target", TRIPLE, "release"):
+        for component in components:
             descriptor = os.open(
                 component,
                 os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
@@ -580,7 +586,7 @@ def finish(sandbox):
             )
             descriptors.append(descriptor)
         fd = os.open(
-            "openmates", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
+            name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
         )
         with os.fdopen(fd, "rb") as handle:
             before = os.fstat(handle.fileno())
@@ -601,7 +607,7 @@ def finish(sandbox):
             )
         require(not owned_processes(value["uid"]), "uid-not-empty")
         # The independent inode is created only after UID-wide emptiness proof.
-        destination = sandbox / "export/openmates"
+        destination = sandbox / "export" / name
         with destination.open("xb") as output:
             os.fchmod(output.fileno(), 0o444)
             output.write(data)
@@ -612,27 +618,47 @@ def finish(sandbox):
                 exported.st_nlink == 1 and exported.st_ino != sealed.st_ino,
                 "export-inode",
             )
-        proof = {
-            "schemaVersion": 2,
-            "uidEmptyBeforeExport": True,
-            "unexpectedDescendants": False,
-            "sourceRootReadonly": True,
-            "toolchainRootReadonly": True,
-            "compilerIdentityHeld": True,
-            "noNewPrivileges": True,
-            "capabilitiesDropped": True,
-            "buildUid": value["uid"],
-            "binarySha256": sha(data),
-            "binaryBytes": len(data),
-            "stages": value["stages"],
-            "tools": value["tools"],
-        }
-        write(sandbox / "proof/final.json", proof)
-        value["finished"] = True
-        write(sandbox / "state.json", value, 0o600)
     finally:
         for fd in descriptors:
             os.close(fd)
+    return {"sha256": sha(data), "bytes": len(data)}
+
+
+def finish(sandbox):
+    value = state(sandbox)
+    cleanup = stop_uid(value["uid"])
+    require_no_escape(cleanup)
+    require(
+        [row["stage"] for row in value["stages"]] == list(STAGES)
+        and all(row["passed"] for row in value["stages"]),
+        "stages-incomplete",
+    )
+    require(protected_snapshot(sandbox) == value["protected"], "immutable-held")
+    application = export_artifact(
+        sandbox, value, ("target", TRIPLE, "release"), "openmates"
+    )
+    renderer = export_artifact(
+        sandbox, value, ("target", TRIPLE, "release", "examples"), "tui-benchmark"
+    )
+    proof = {
+        "schemaVersion": 2,
+        "uidEmptyBeforeExport": True,
+        "unexpectedDescendants": False,
+        "sourceRootReadonly": True,
+        "toolchainRootReadonly": True,
+        "compilerIdentityHeld": True,
+        "noNewPrivileges": True,
+        "capabilitiesDropped": True,
+        "buildUid": value["uid"],
+        "binarySha256": application["sha256"],
+        "binaryBytes": application["bytes"],
+        "rendererArtifact": renderer,
+        "stages": value["stages"],
+        "tools": value["tools"],
+    }
+    write(sandbox / "proof/final.json", proof)
+    value["finished"] = True
+    write(sandbox / "state.json", value, 0o600)
 
 
 def remove(sandbox):

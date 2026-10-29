@@ -95,6 +95,15 @@ def load_trust():
     return json.loads(regular(Path(__file__).with_name("ci_sdk_conformance_trust.json"), 2 * 1024**2))
 
 
+def load_trust_for_source(root, source, *, checkout=False, harness=None):
+    try:
+        from ci_sdk_candidate_authority import select_trust
+    except ModuleNotFoundError:
+        from scripts.ci_sdk_candidate_authority import select_trust
+    return select_trust(root, source, load_default=load_trust, regular=regular,
+                        require=require, checkout=checkout, harness=harness)
+
+
 def verify_programs(root, trust):
     for name, digest in trust["programs"].items():
         require(sha(regular(root / name)) == digest, "reviewed_program_changed")
@@ -789,7 +798,7 @@ def run(root, results, node, *, verify_node, environ=None):
         start, deadline = float(ambient["CI_SDK_STARTED_MONOTONIC"]), float(ambient["CI_SDK_DEADLINE_MONOTONIC"])
         require(math.isfinite(start) and math.isfinite(deadline) and abs(deadline - start - BUDGET) < 0.000001
                 and start <= time.monotonic() < deadline, "deadline_identity")
-        trust = load_trust()
+        trust = load_trust_for_source(root, source, checkout=True, harness=ambient.get("CI_HARNESS_COMMIT"))
         verify_programs(root, trust)
         before = snapshot(root)
         require(before == source_inputs_from_git(root, source), "source_checkout_changed")
