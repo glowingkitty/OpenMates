@@ -71,6 +71,48 @@ def green_e2e_source_and_egress_verified(
     ):
         return False
     selected = sorted(json.loads(job["specs"]))
+    if job.get("mode") == "e2e" and selected == ["cli-memory-readiness.spec.ts"]:
+        # Exact harmless Node-only lane: real private services, no web renderer.
+        # Complete fixture assertions and run-bound cleanup remain required below.
+        services = environment.get("services")
+        harness = expected_harness_commit or job.get("preparation_harness_commit")
+        expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault"}
+        if (
+            environment.get("frontend") is not None
+            or environment.get("environment") != "github-isolated"
+            or environment.get("shared_dev_dns") != "rejected"
+            or environment.get("runner_environment") != "github-hosted"
+            or job.get("run_id") is None
+            or str(environment.get("run_id")) != str(job["run_id"])
+            or not harness
+            or environment.get("harness_commit") != harness
+            or not isinstance(services, dict)
+            or set(services) != expected
+            or any(
+                not isinstance(service, dict)
+                or service.get("running") is not True
+                or not isinstance(service.get("container"), str)
+                or re.fullmatch(r"[a-f0-9]{64}", service["container"]) is None
+                or not isinstance(service.get("image"), str)
+                or re.fullmatch(r"sha256:[a-f0-9]{64}", service["image"]) is None
+                for service in services.values()
+            )
+        ):
+            return False
+        if len({service["container"] for service in services.values()}) != len(expected):
+            return False
+        mounts = [services[name].get("backend_source") for name in ("api", "core-worker")]
+        return (
+            all(
+                isinstance(source, str)
+                and Path(source).is_absolute()
+                and ".." not in Path(source).parts
+                and Path(source).parts[-2:] == ("subject", "backend")
+                for source in mounts
+            )
+            and len(set(mounts)) == 1
+            and services["api"]["image"] == services["core-worker"]["image"]
+        )
     if job.get("mode") == "e2e" and selected == [
         "storage-accountability-integration.spec.ts"
     ]:

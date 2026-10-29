@@ -591,3 +591,118 @@ def test_extract_refuses_unsafe_parent_without_touching_existing_directory(tmp_p
         ci_results.extract(archive, parent / "out")
     assert stat.S_IMODE(directory.stat().st_mode) == original_mode
     assert not (directory / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "",
+        "source",
+        "https",
+        "dns",
+        "runner",
+        "environment",
+        "run",
+        "harness",
+        "frontend",
+        "extra_service",
+        "missing_service",
+        "stopped",
+        "short_id",
+        "duplicate_id",
+        "missing_image",
+        "mixed_api_image",
+        "relative_mount",
+        "wrong_mount",
+        "mixed_mount",
+        "traversal_mount",
+        "unknown_spec",
+        "mixed_spec",
+        "wrong_mode",
+        "missing_expected_harness",
+    ],
+)
+def test_memory_readiness_node_only_requires_real_source_services_and_egress(fault):
+    import json
+
+    source, harness = "a" * 40, "b" * 40
+    services = {
+        name: {
+            "running": True,
+            "container": f"{index:064x}",
+            "image": "sha256:" + "c" * 64,
+        }
+        for index, name in enumerate(
+            ("api", "core-worker", "cms", "cms-database", "cache", "vault"), 1
+        )
+    }
+    for name in ("api", "core-worker"):
+        services[name]["backend_source"] = "/runner/subject/backend"
+    environment = {
+        "source_commit": source,
+        "run_id": "7",
+        "harness_commit": harness,
+        "environment": "github-isolated",
+        "runner_environment": "github-hosted",
+        "shared_dev_dns": "rejected",
+        "shared_dev_https": "rejected",
+        "services": services,
+    }
+    job = {
+        "source": source,
+        "mode": "e2e",
+        "run_id": 7,
+        "specs": json.dumps(["cli-memory-readiness.spec.ts"]),
+    }
+    if fault == "source":
+        environment["source_commit"] = "d" * 40
+    if fault == "https":
+        environment["shared_dev_https"] = "reachable"
+    if fault == "dns":
+        environment["shared_dev_dns"] = "reachable"
+    if fault == "runner":
+        environment["runner_environment"] = "self-hosted"
+    if fault == "environment":
+        environment["environment"] = "shared-dev"
+    if fault == "run":
+        environment["run_id"] = "8"
+    if fault == "harness":
+        environment["harness_commit"] = "d" * 40
+    if fault == "frontend":
+        environment["frontend"] = {"source_commit": source}
+    if fault == "extra_service":
+        services["unknown"] = dict(services["vault"])
+    if fault == "missing_service":
+        del services["vault"]
+    if fault == "stopped":
+        services["api"]["running"] = False
+    if fault == "short_id":
+        services["api"]["container"] = "a" * 12
+    if fault == "duplicate_id":
+        services["api"]["container"] = services["cache"]["container"]
+    if fault == "missing_image":
+        del services["api"]["image"]
+    if fault == "mixed_api_image":
+        services["api"]["image"] = "sha256:" + "d" * 64
+    if fault == "relative_mount":
+        services["api"]["backend_source"] = "subject/backend"
+    if fault == "wrong_mount":
+        services["api"]["backend_source"] = "/shared/dev/backend"
+    if fault == "mixed_mount":
+        services["api"]["backend_source"] = "/other/subject/backend"
+    if fault == "traversal_mount":
+        services["api"]["backend_source"] = "/runner/../subject/backend"
+    if fault == "unknown_spec":
+        job["specs"] = json.dumps(["unknown.spec.ts"])
+    if fault == "mixed_spec":
+        job["specs"] = json.dumps(["cli-memory-readiness.spec.ts", "unknown.spec.ts"])
+    if fault == "wrong_mode":
+        job["mode"] = "artifact"
+    assert ci_results.green_e2e_source_and_egress_verified(
+        environment,
+        job,
+        expected_harness_commit=None
+        if fault == "missing_expected_harness"
+        else harness,
+    ) is (fault == "")
+
