@@ -1,0 +1,3028 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-28'
+generated_at: '2026-10-29T00:20:41+00:00'
+range:
+  since: '2026-10-28T00:00:00+00:00'
+  until: '2026-10-29T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 45
+  section_counts:
+    features: 4
+    bug_fixes: 29
+    improvements: 0
+    docs: 9
+    tests: 2
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 17
+  dev_only_items: 45
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: enable enhanced personal data protection with privacy controls'
+    section: features
+    commits:
+    - 0c629e21b
+    authored_at: '2026-10-28T19:21:01+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/scripts/pii-runtime-manifest.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/components/privacy-enhanced-pii.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIINetworkBroker.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - frontend/packages/ui/src/components/enter_message/services/webPIINetworkBroker.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIINetworkPolicy.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIRuntimeManifest.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.preview.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalDataPreview.preview.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalDataPreview.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/redactPrivacyCopy.test.ts
+    - frontend/packages/ui/src/services/__tests__/preparedPrivacyForSend.test.ts
+    - frontend/packages/ui/src/services/preparedPrivacyForSend.ts
+    - frontend/packages/ui/src/stores/__tests__/personalDataStore.test.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enforce synchronized Rust client SDK conformance'
+    section: features
+    commits:
+    - 960c2433c
+    authored_at: '2026-10-28T18:13:48+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - config/sdk-capabilities.schema.json
+    - scripts/ci_results.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_exec.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-ancillary-import-hygiene-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-api-key-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-apps-cookie-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-baseline-repair-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-browser-ts-ci105-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-checkpoint28-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-coreclose11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-essential-currentdev-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-fresh-compiler-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-arrival20-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-inventory-dependencies-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native-invocation-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-next-native-sdk-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-packaging15-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-phase1-currentdev-history-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-physical21-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rich45-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rust-foundation75-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-v1-entry-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_packaged_sdk_v1_ci_wiring.py
+    - scripts/tests/test_sdk_packaged_receipt_order.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: verify Browse embeds and expose metered pricing'
+    section: features
+    commits:
+    - 00c1f01cb
+    authored_at: '2026-10-28T12:06:05+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/core/api/app/schemas/app_metadata_schemas.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_web_browse_dispatch.py
+    - backend/tests/test_web_browse_service.py
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/browse-example-domain.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/browse-heading-json.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/web.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/browse_example_domain.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/browse_heading_json.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: persist encrypted Project Specifications'
+    section: features
+    commits:
+    - 7fbec0f34
+    authored_at: '2026-10-28T10:33:23+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_specifications.py
+    - backend/core/api/app/services/account_content_deletion_service.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/user_specification_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/specification-transaction/package.json
+    - backend/core/directus/extensions/specification-transaction/src/index.js
+    - backend/core/directus/extensions/specification-transaction/src/operations.js
+    - backend/core/directus/extensions/specification-transaction/test/operations.test.js
+    - backend/core/directus/schemas/user_specifications.yml
+    - backend/core/directus/setup/migrate_user_specification_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.yml
+    - backend/tests/test_account_export_jobs.py
+    - backend/tests/test_account_personal_content_deletion.py
+    - backend/tests/test_user_specifications.py
+    - frontend/apps/web_app/tests/specifications-api-flow.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/specifications/examples.yml
+    - specifications/features/specifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: register strict shared SDK runtime corrections'
+    section: bug_fixes
+    commits:
+    - 78b250ae3
+    authored_at: '2026-10-28T21:12:47+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-runtime-unit-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose closed WASM dependency refusal diagnostics'
+    section: bug_fixes
+    commits:
+    - 03386334d
+    authored_at: '2026-10-28T20:49:54+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: classify pinned LiteRT startup diagnostics'
+    section: bug_fixes
+    commits:
+    - 28de0f4c9
+    authored_at: '2026-10-28T20:31:59+00:00'
+    changed_paths:
+    - scripts/tests/test_production_webapp_promotion.py
+    - scripts/verify_production_webapp.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize enhanced privacy initialization'
+    section: bug_fixes
+    commits:
+    - 5d72b3325
+    authored_at: '2026-10-28T20:20:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/stores/__tests__/personalDataStore.test.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Rust migration verification aligned with corrected clients'
+    section: bug_fixes
+    commits:
+    - 11339e919
+    authored_at: '2026-10-28T20:11:28+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native-settings-package-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-unit-compile-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify shared Rust recovery WASM module outputs'
+    section: bug_fixes
+    commits:
+    - afeae0649
+    authored_at: '2026-10-28T19:36:28+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind Rust client verification to current source'
+    section: bug_fixes
+    commits:
+    - a81c3318e
+    authored_at: '2026-10-28T18:43:32+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-canonical-preservation-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-wasm-visibility-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release queue priority for paused and approval-blocked disk requests'
+    section: bug_fixes
+    commits:
+    - 1928874ad
+    authored_at: '2026-10-28T18:01:55+00:00'
+    changed_paths:
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator_state.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep disk admission responsive during bounded cleanup'
+    section: bug_fixes
+    commits:
+    - 0238c3b19
+    authored_at: '2026-10-28T17:55:34+00:00'
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/disk_coordinator.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete disk recovery routing and verified workspace inspection'
+    section: bug_fixes
+    commits:
+    - d6eec8a39
+    authored_at: '2026-10-28T17:45:45+00:00'
+    changed_paths:
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator.py
+    - scripts/disk_coordinator_state.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover disk-blocked chats and expire stale workspaces safely'
+    section: bug_fixes
+    commits:
+    - 56a7a6e41
+    authored_at: '2026-10-28T17:35:43+00:00'
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    - scripts/tests/test_disk_task_waits.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recognize legacy managed integration paths during cleanup'
+    section: bug_fixes
+    commits:
+    - d75d0215d
+    authored_at: '2026-10-28T13:00:14+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_path_names.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): recover native diagrams from text sketch output'
+    section: bug_fixes
+    commits:
+    - '338395380'
+    authored_at: '2026-10-28T12:40:12+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/memory_tools.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_memory_tools.py
+    - docs/architecture/apps/diagrams.md
+    - docs/architecture/apps/memories.md
+    - docs/architecture/messaging/embeds.md
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reliably resume assistant Code Run results'
+    section: bug_fixes
+    commits:
+    - 454a24a30
+    authored_at: '2026-10-28T12:12:03+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_code_run_early_completion.py
+    - backend/tests/test_code_run_executor_dispatch.py
+    - backend/tests/test_code_run_start_context.py
+    - backend/tests/test_same_turn_skill_barrier.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enable budget-protected guest audio transcription'
+    section: bug_fixes
+    commits:
+    - ec7fc9797
+    authored_at: '2026-10-28T11:59:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/services/guest_transcription_meter.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/shared/providers/transcript_correction_accounting.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_guest_audio_transcription.py
+    - frontend/apps/web_app/tests/components/guest-audio-transcription.spec.ts
+    - frontend/apps/web_app/tests/guest-audio-transcription-live-provider.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/daily_ai_test_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat): recover follow-up messages after interruption'
+    section: bug_fixes
+    commits:
+    - f216b1bbd
+    authored_at: '2026-10-28T11:40:11+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/chat_interrupt_followup.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/shared/python_utils/ai_task_cancellation.py
+    - backend/tests/test_cancelled_reply_recovery.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/emptyReplyEncryption.test.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Code Run file bundles atomic'
+    section: bug_fixes
+    commits:
+    - 43cf88b8b
+    authored_at: '2026-10-28T11:27:39+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve assistant code execution bundles'
+    section: bug_fixes
+    commits:
+    - 4ed830279
+    authored_at: '2026-10-28T11:26:07+00:00'
+    changed_paths:
+    - backend/tests/test_code_run_executor_dispatch.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): load memories on demand for native diagrams'
+    section: bug_fixes
+    commits:
+    - 7d260a053
+    authored_at: '2026-10-28T11:04:04+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/memory_tools.py
+    - backend/apps/ai/tasks/preprocessing_resume.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_memory_tools.py
+    - backend/tests/test_preprocessing_resume.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/plans/diagram-instruction-reliability/plan.yml
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersReceipts.test.ts
+    - frontend/packages/ui/src/services/__tests__/streamedEmbedRevisionHistory.test.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/streamedEmbedRevisionHistory.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve compatible Python dependencies in Code Run'
+    section: bug_fixes
+    commits:
+    - ac1145c66
+    authored_at: '2026-10-28T10:53:09+00:00'
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_e2b_code_runner.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - frontend/apps/web_app/tests/code-run-dependency-flow.spec.ts
+    - frontend/apps/web_app/tests/components/code-run-dependencies.spec.ts
+    - frontend/apps/web_app/tests/fixtures/code_run_math.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/code_run_real_probe.mjs
+    - scripts/code_run_real_probe.test.mjs
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve credentialed CORS for Browse sessions'
+    section: bug_fixes
+    commits:
+    - c7df34334
+    authored_at: '2026-10-28T10:48:53+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enable Browse controls for private owner chats'
+    section: bug_fixes
+    commits:
+    - f1b780948
+    authored_at: '2026-10-28T10:11:57+00:00'
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/components/embeds/web/browseContent.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent stale URL conversion from corrupting drafts'
+    section: bug_fixes
+    commits:
+    - ddcbc307d
+    authored_at: '2026-10-28T10:07:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-url-conversion.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove load-earlier action from chat timeline'
+    section: bug_fixes
+    commits:
+    - a38a39e20
+    authored_at: '2026-10-28T09:59:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageTimeline.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish disk recovery rollout and verified Task continuation'
+    section: bug_fixes
+    commits:
+    - a9620edbf
+    authored_at: '2026-10-28T09:49:42+00:00'
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/ci_results.py
+    - scripts/codex_task_adapter.py
+    - scripts/project_task_sync_live.mjs
+    - scripts/tests/test_ci_results.py
+    - scripts/tests/test_codex_task_adapter.py
+    - scripts/tests/test_disk_event_adapter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound enhanced input redaction latency'
+    section: bug_fixes
+    commits:
+    - d6f46f56f
+    authored_at: '2026-10-28T09:45:13+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reclaim aged dangling images under disk pressure'
+    section: bug_fixes
+    commits:
+    - 3d231e001
+    authored_at: '2026-10-28T09:27:16+00:00'
+    changed_paths:
+    - scripts/docker-cleanup.sh
+    - scripts/tests/test_disk_cleanup_safety.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden Browse model JSON and missing screenshots'
+    section: bug_fixes
+    commits:
+    - d29e12de1
+    authored_at: '2026-10-28T09:18:59+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: provision Task sync fixture in its isolated CI job'
+    section: bug_fixes
+    commits:
+    - 91e4576c7
+    authored_at: '2026-10-28T09:05:13+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/codex-task-cache.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record verified diagram Memory recovery'
+    section: docs
+    commits:
+    - dae864ee7
+    authored_at: '2026-10-28T13:38:27+00:00'
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/diagram-instruction-reliability/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Browse connection profiling and standalone architecture'
+    section: docs
+    commits:
+    - a06faf0fb
+    authored_at: '2026-10-28T12:57:58+00:00'
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record deployed Browse timings and pricing audit'
+    section: docs
+    commits:
+    - 9c5172a58
+    authored_at: '2026-10-28T12:22:33+00:00'
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: cover queued workflow email retirement during rollout'
+    section: docs
+    commits:
+    - ff04e5b3b
+    authored_at: '2026-10-28T11:27:23+00:00'
+    changed_paths:
+    - docs/plans/workflow-daily-email-design/assessment.md
+    - docs/plans/workflow-daily-email-design/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: plan one useful daily workflow email'
+    section: docs
+    commits:
+    - a5587c057
+    authored_at: '2026-10-28T11:23:33+00:00'
+    changed_paths:
+    - docs/plans/workflow-daily-email-design/assessment.md
+    - docs/plans/workflow-daily-email-design/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: close reminder email gateway verification'
+    section: docs
+    commits:
+    - 59e99b386
+    authored_at: '2026-10-28T10:58:53+00:00'
+    changed_paths:
+    - docs/architecture/reminder-email-redesign.md
+    - docs/plans/reminder-email-redesign/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified Specification storage delivery'
+    section: docs
+    commits:
+    - cade33da8
+    authored_at: '2026-10-28T10:36:51+00:00'
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    - docs/plans/cloud-project-development/specification-storage-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Specification storage and client handoff'
+    section: docs
+    commits:
+    - 9d8d23c32
+    authored_at: '2026-10-28T10:21:04+00:00'
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    - docs/plans/cloud-project-development/specification-storage-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified disk coordination rollout'
+    section: docs
+    commits:
+    - 1573e854b
+    authored_at: '2026-10-28T09:54:48+00:00'
+    changed_paths:
+    - docs/plans/disk-coordination/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: await production anonymous startup status'
+    section: tests
+    commits:
+    - 431f25047
+    authored_at: '2026-10-28T20:38:33+00:00'
+    changed_paths:
+    - scripts/verify_production_webapp.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add isolated formula worker runtime'
+    section: tests
+    commits:
+    - 564e9d9e4
+    authored_at: '2026-10-28T11:44:11+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_formula_sheet_ci_configuration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: measure Browse transport setup and response latency'
+    section: infrastructure
+    commits:
+    - 56005cefa
+    authored_at: '2026-10-28T12:36:18+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: register strict shared SDK runtime corrections'
+    commits:
+    - 78b250ae3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: expose closed WASM dependency refusal diagnostics'
+    commits:
+    - 03386334d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: await production anonymous startup status'
+    commits:
+    - 431f25047
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: classify pinned LiteRT startup diagnostics'
+    commits:
+    - 28de0f4c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize enhanced privacy initialization'
+    commits:
+    - 5d72b3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep Rust migration verification aligned with corrected clients'
+    commits:
+    - 11339e919
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify shared Rust recovery WASM module outputs'
+    commits:
+    - afeae0649
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: enable enhanced personal data protection with privacy controls'
+    commits:
+    - 0c629e21b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bind Rust client verification to current source'
+    commits:
+    - a81c3318e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: enforce synchronized Rust client SDK conformance'
+    commits:
+    - 960c2433c
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: release queue priority for paused and approval-blocked disk requests'
+    commits:
+    - 1928874ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep disk admission responsive during bounded cleanup'
+    commits:
+    - 0238c3b19
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: complete disk recovery routing and verified workspace inspection'
+    commits:
+    - d6eec8a39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover disk-blocked chats and expire stale workspaces safely'
+    commits:
+    - 56a7a6e41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record verified diagram Memory recovery'
+    commits:
+    - dae864ee7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recognize legacy managed integration paths during cleanup'
+    commits:
+    - d75d0215d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Browse connection profiling and standalone architecture'
+    commits:
+    - a06faf0fb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): recover native diagrams from text sketch output'
+    commits:
+    - '338395380'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'chore: measure Browse transport setup and response latency'
+    commits:
+    - 56005cefa
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record deployed Browse timings and pricing audit'
+    commits:
+    - 9c5172a58
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reliably resume assistant Code Run results'
+    commits:
+    - 454a24a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: enable budget-protected guest audio transcription'
+    commits:
+    - ec7fc9797
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add isolated formula worker runtime'
+    commits:
+    - 564e9d9e4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chat): recover follow-up messages after interruption'
+    commits:
+    - f216b1bbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep Code Run file bundles atomic'
+    commits:
+    - 43cf88b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: cover queued workflow email retirement during rollout'
+    commits:
+    - ff04e5b3b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve assistant code execution bundles'
+    commits:
+    - 4ed830279
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: plan one useful daily workflow email'
+    commits:
+    - a5587c057
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): load memories on demand for native diagrams'
+    commits:
+    - 7d260a053
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: close reminder email gateway verification'
+    commits:
+    - 59e99b386
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: preserve credentialed CORS for Browse sessions'
+    commits:
+    - c7df34334
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record verified Specification storage delivery'
+    commits:
+    - cade33da8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: persist encrypted Project Specifications'
+    commits:
+    - 7fbec0f34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Specification storage and client handoff'
+    commits:
+    - 9d8d23c32
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enable Browse controls for private owner chats'
+    commits:
+    - f1b780948
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: prevent stale URL conversion from corrupting drafts'
+    commits:
+    - ddcbc307d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: remove load-earlier action from chat timeline'
+    commits:
+    - a38a39e20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record verified disk coordination rollout'
+    commits:
+    - 1573e854b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: finish disk recovery rollout and verified Task continuation'
+    commits:
+    - a9620edbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound enhanced input redaction latency'
+    commits:
+    - d6f46f56f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reclaim aged dangling images under disk pressure'
+    commits:
+    - 3d231e001
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden Browse model JSON and missing screenshots'
+    commits:
+    - d29e12de1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: provision Task sync fixture in its isolated CI job'
+    commits:
+    - 91e4576c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: stabilize enhanced privacy initialization'
+    commits:
+    - 5d72b3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enable enhanced personal data protection with privacy controls'
+    commits:
+    - 0c629e21b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ai): recover native diagrams from text sketch output'
+    commits:
+    - '338395380'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: reliably resume assistant Code Run results'
+    commits:
+    - 454a24a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: enable budget-protected guest audio transcription'
+    commits:
+    - ec7fc9797
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(chat): recover follow-up messages after interruption'
+    commits:
+    - f216b1bbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep Code Run file bundles atomic'
+    commits:
+    - 43cf88b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): load memories on demand for native diagrams'
+    commits:
+    - 7d260a053
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve credentialed CORS for Browse sessions'
+    commits:
+    - c7df34334
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: persist encrypted Project Specifications'
+    commits:
+    - 7fbec0f34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enable Browse controls for private owner chats'
+    commits:
+    - f1b780948
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: prevent stale URL conversion from corrupting drafts'
+    commits:
+    - ddcbc307d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove load-earlier action from chat timeline'
+    commits:
+    - a38a39e20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound enhanced input redaction latency'
+    commits:
+    - d6f46f56f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden Browse model JSON and missing screenshots'
+    commits:
+    - d29e12de1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 78b250ae3683202dd3f2a76d22252cea5ba20836
+    short_sha: 78b250ae3
+    authored_at: '2026-10-28T21:12:47+00:00'
+    subject: 'fix: register strict shared SDK runtime corrections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-runtime-unit-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 03386334dbeeeb461912b1901a6f05c1fc3309ee
+    short_sha: 03386334d
+    authored_at: '2026-10-28T20:49:54+00:00'
+    subject: 'fix: expose closed WASM dependency refusal diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 431f250476146003661d27ee9ceb5b560ec1aa05
+    short_sha: 431f25047
+    authored_at: '2026-10-28T20:38:33+00:00'
+    subject: 'test: await production anonymous startup status'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/verify_production_webapp.py
+    related_feature_ids: []
+  - sha: 28de0f4c9506bd189315837a5412bd1b2d16352a
+    short_sha: 28de0f4c9
+    authored_at: '2026-10-28T20:31:59+00:00'
+    subject: 'fix: classify pinned LiteRT startup diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_production_webapp_promotion.py
+    - scripts/verify_production_webapp.py
+    related_feature_ids: []
+  - sha: 5d72b33251d213de3dcb285dcde4e8bce7fa1bdd
+    short_sha: 5d72b3325
+    authored_at: '2026-10-28T20:20:44+00:00'
+    subject: 'fix: stabilize enhanced privacy initialization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/stores/__tests__/personalDataStore.test.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 11339e919b786ce1fe88df61b02720df935dfce2
+    short_sha: 11339e919
+    authored_at: '2026-10-28T20:11:28+00:00'
+    subject: 'fix: keep Rust migration verification aligned with corrected clients'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native-settings-package-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-unit-compile-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: afeae0649cc2ac2037a22bf845cf6ba574d41231
+    short_sha: afeae0649
+    authored_at: '2026-10-28T19:36:28+00:00'
+    subject: 'fix: verify shared Rust recovery WASM module outputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 0c629e21b4b4f3dfbb8707170d4b9e515caf3726
+    short_sha: 0c629e21b
+    authored_at: '2026-10-28T19:21:01+00:00'
+    subject: 'feat: enable enhanced personal data protection with privacy controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/architecture/privacy/redact-licensing-privacy-review-2026-10-26.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/scripts/pii-runtime-manifest.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.mjs
+    - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/components/privacy-enhanced-pii.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputPIIPreview.preview.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIINetworkBroker.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetector.worker.js
+    - frontend/packages/ui/src/components/enter_message/services/webPIINetworkBroker.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIINetworkPolicy.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIRuntimeManifest.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.preview.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalData.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalDataPreview.preview.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsHidePersonalDataPreview.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/redactPrivacyCopy.test.ts
+    - frontend/packages/ui/src/services/__tests__/preparedPrivacyForSend.test.ts
+    - frontend/packages/ui/src/services/preparedPrivacyForSend.ts
+    - frontend/packages/ui/src/stores/__tests__/personalDataStore.test.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: a81c3318eef40f81e9a8898640f585da3d6eeaad
+    short_sha: a81c3318e
+    authored_at: '2026-10-28T18:43:32+00:00'
+    subject: 'fix: bind Rust client verification to current source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-canonical-preservation-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-wasm-visibility-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 960c2433cccb343c7464f3c89518fd762b25209c
+    short_sha: 960c2433c
+    authored_at: '2026-10-28T18:13:48+00:00'
+    subject: 'feat: enforce synchronized Rust client SDK conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - config/sdk-capabilities.schema.json
+    - scripts/ci_results.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_exec.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-ancillary-import-hygiene-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-api-key-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-apps-cookie-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-baseline-repair-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-browser-ts-ci105-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-checkpoint28-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-coreclose11-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-essential-currentdev-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-fresh-compiler-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-arrival20-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-full29-inventory-dependencies-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-native-invocation-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-next-native-sdk-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-packaging15-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-phase1-currentdev-history-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-physical21-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rich45-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-rust-foundation75-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-sdk-v1-entry-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    - scripts/tests/test_packaged_sdk_v1_ci_wiring.py
+    - scripts/tests/test_sdk_packaged_receipt_order.py
+    - scripts/tests/test_sdk_session_embed_version_gate.py
+    related_feature_ids: []
+  - sha: 1928874ad06726bc08cc1c92cde1f7940f3d3f8e
+    short_sha: 1928874ad
+    authored_at: '2026-10-28T18:01:55+00:00'
+    subject: 'fix: release queue priority for paused and approval-blocked disk requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator_state.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    related_feature_ids: []
+  - sha: 0238c3b19468138cb1d4e4b67f22e1785c88bfe5
+    short_sha: 0238c3b19
+    authored_at: '2026-10-28T17:55:34+00:00'
+    subject: 'fix: keep disk admission responsive during bounded cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/disk_coordinator.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    related_feature_ids: []
+  - sha: d6eec8a39eb335cabfa291dac6d58f568bb5413f
+    short_sha: d6eec8a39
+    authored_at: '2026-10-28T17:45:45+00:00'
+    subject: 'fix: complete disk recovery routing and verified workspace inspection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator.py
+    - scripts/disk_coordinator_state.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    related_feature_ids: []
+  - sha: 56a7a6e412cb1048c200c087545b6e105b006e1b
+    short_sha: 56a7a6e41
+    authored_at: '2026-10-28T17:35:43+00:00'
+    subject: 'fix: recover disk-blocked chats and expire stale workspaces safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/codex_task_adapter.py
+    - scripts/disk_coordinator.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_coordinator.py
+    - scripts/tests/test_disk_event_adapter.py
+    - scripts/tests/test_disk_task_waits.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    related_feature_ids: []
+  - sha: dae864ee75e101690e9aa9dc918f2d5d7950cc72
+    short_sha: dae864ee7
+    authored_at: '2026-10-28T13:38:27+00:00'
+    subject: 'docs: record verified diagram Memory recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/diagram-instruction-reliability/plan.yml
+    related_feature_ids: []
+  - sha: d75d0215d85dfb74ffc1f9a741a815b86ec16de8
+    short_sha: d75d0215d
+    authored_at: '2026-10-28T13:00:14+00:00'
+    subject: 'fix: recognize legacy managed integration paths during cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_path_names.py
+    related_feature_ids: []
+  - sha: a06faf0fb0be6ae5163f6c07264151b2c96efb56
+    short_sha: a06faf0fb
+    authored_at: '2026-10-28T12:57:58+00:00'
+    subject: 'docs: record Browse connection profiling and standalone architecture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    - docs/plans/web-browse/plan.yml
+    related_feature_ids: []
+  - sha: 33839538087658a74adabf9d5a427ac826d1210f
+    short_sha: '338395380'
+    authored_at: '2026-10-28T12:40:12+00:00'
+    subject: 'fix(ai): recover native diagrams from text sketch output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/memory_tools.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_memory_tools.py
+    - docs/architecture/apps/diagrams.md
+    - docs/architecture/apps/memories.md
+    - docs/architecture/messaging/embeds.md
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 56005cefaa5ffdcdf8f33b0081292e473f5e0ef6
+    short_sha: 56005cefa
+    authored_at: '2026-10-28T12:36:18+00:00'
+    subject: 'chore: measure Browse transport setup and response latency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/e2b_browser.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9c5172a58aae9bb8dbc38197472aeb18e74af3bf
+    short_sha: 9c5172a58
+    authored_at: '2026-10-28T12:22:33+00:00'
+    subject: 'docs: record deployed Browse timings and pricing audit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    related_feature_ids: []
+  - sha: 454a24a30e02ab2cd6731eb092d8df71727c08fc
+    short_sha: 454a24a30
+    authored_at: '2026-10-28T12:12:03+00:00'
+    subject: 'fix: reliably resume assistant Code Run results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_code_run_early_completion.py
+    - backend/tests/test_code_run_executor_dispatch.py
+    - backend/tests/test_code_run_start_context.py
+    - backend/tests/test_same_turn_skill_barrier.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:run
+    - skill:code:run
+  - sha: 00c1f01cbd26f1404e1e1d8fd1c0c4ba0d0974de
+    short_sha: 00c1f01cb
+    authored_at: '2026-10-28T12:06:05+00:00'
+    subject: 'feat: verify Browse embeds and expose metered pricing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/core/api/app/schemas/app_metadata_schemas.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_web_browse_dispatch.py
+    - backend/tests/test_web_browse_service.py
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/web-browse-api.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/browse-example-domain.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/browse-heading-json.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/web.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/browse_example_domain.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/browse_heading_json.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:web
+  - sha: ec7fc9797733ff5ed96597a5f05fbe16f84d1954
+    short_sha: ec7fc9797
+    authored_at: '2026-10-28T11:59:30+00:00'
+    subject: 'fix: enable budget-protected guest audio transcription'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/services/guest_transcription_meter.py
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/shared/providers/transcript_correction.py
+    - backend/shared/providers/transcript_correction_accounting.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_guest_audio_transcription.py
+    - frontend/apps/web_app/tests/components/guest-audio-transcription.spec.ts
+    - frontend/apps/web_app/tests/guest-audio-transcription-live-provider.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/daily_ai_test_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 564e9d9e4ea15796e8147fb63877611a68456692
+    short_sha: 564e9d9e4
+    authored_at: '2026-10-28T11:44:11+00:00'
+    subject: 'test: add isolated formula worker runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_formula_sheet_ci_configuration.py
+    related_feature_ids: []
+  - sha: f216b1bbda012c8a22b8d8cc5f283c55d53925c4
+    short_sha: f216b1bbd
+    authored_at: '2026-10-28T11:40:11+00:00'
+    subject: 'fix(chat): recover follow-up messages after interruption'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/chat_interrupt_followup.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/shared/python_utils/ai_task_cancellation.py
+    - backend/tests/test_cancelled_reply_recovery.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/emptyReplyEncryption.test.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 43cf88b8b8985cba3dbf182f22c57cabcb36ec7e
+    short_sha: 43cf88b8b
+    authored_at: '2026-10-28T11:27:39+00:00'
+    subject: 'fix: keep Code Run file bundles atomic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    related_feature_ids:
+    - app:ai
+  - sha: ff04e5b3bc00916c3c614151d971d1042c91f928
+    short_sha: ff04e5b3b
+    authored_at: '2026-10-28T11:27:23+00:00'
+    subject: 'docs: cover queued workflow email retirement during rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/workflow-daily-email-design/assessment.md
+    - docs/plans/workflow-daily-email-design/plan.yml
+    related_feature_ids: []
+  - sha: 4ed830279d66e2f092be213d1bd1f43b8f4ec5c8
+    short_sha: 4ed830279
+    authored_at: '2026-10-28T11:26:07+00:00'
+    subject: 'fix: preserve assistant code execution bundles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_code_run_executor_dispatch.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a5587c057ef44bd3d0e88ad059c60faa619bcfa5
+    short_sha: a5587c057
+    authored_at: '2026-10-28T11:23:33+00:00'
+    subject: 'docs: plan one useful daily workflow email'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/workflow-daily-email-design/assessment.md
+    - docs/plans/workflow-daily-email-design/plan.yml
+    related_feature_ids: []
+  - sha: 7d260a05312848ea322b0326a3db0739b4b4598f
+    short_sha: 7d260a053
+    authored_at: '2026-10-28T11:04:04+00:00'
+    subject: 'fix(ai): load memories on demand for native diagrams'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/memory_tools.py
+    - backend/apps/ai/tasks/preprocessing_resume.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_memory_tools.py
+    - backend/tests/test_preprocessing_resume.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/plans/diagram-instruction-reliability/plan.yml
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersReceipts.test.ts
+    - frontend/packages/ui/src/services/__tests__/streamedEmbedRevisionHistory.test.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/streamedEmbedRevisionHistory.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 59e99b38684bdf71535214e753447254cd77dbf5
+    short_sha: 59e99b386
+    authored_at: '2026-10-28T10:58:53+00:00'
+    subject: 'docs: close reminder email gateway verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/reminder-email-redesign.md
+    - docs/plans/reminder-email-redesign/plan.yml
+    related_feature_ids: []
+  - sha: ac1145c66b6854d003b7136d1639b3ce3e8c979f
+    short_sha: ac1145c66
+    authored_at: '2026-10-28T10:53:09+00:00'
+    subject: 'fix: resolve compatible Python dependencies in Code Run'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_e2b_code_runner.py
+    - docs/plans/code-run-python-reliability/plan.yml
+    - frontend/apps/web_app/tests/code-run-dependency-flow.spec.ts
+    - frontend/apps/web_app/tests/components/code-run-dependencies.spec.ts
+    - frontend/apps/web_app/tests/fixtures/code_run_math.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/code_run_real_probe.mjs
+    - scripts/code_run_real_probe.test.mjs
+    - scripts/code_run_real_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:code
+  - sha: c7df343349be82c740d55599573cffd046e614f3
+    short_sha: c7df34334
+    authored_at: '2026-10-28T10:48:53+00:00'
+    subject: 'fix: preserve credentialed CORS for Browse sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cade33da8355a92c9316f9091565a68c032ee876
+    short_sha: cade33da8
+    authored_at: '2026-10-28T10:36:51+00:00'
+    subject: 'docs: record verified Specification storage delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    - docs/plans/cloud-project-development/specification-storage-handoff.md
+    related_feature_ids: []
+  - sha: 7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5
+    short_sha: 7fbec0f34
+    authored_at: '2026-10-28T10:33:23+00:00'
+    subject: 'feat: persist encrypted Project Specifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_specifications.py
+    - backend/core/api/app/services/account_content_deletion_service.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/user_specification_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/specification-transaction/package.json
+    - backend/core/directus/extensions/specification-transaction/src/index.js
+    - backend/core/directus/extensions/specification-transaction/src/operations.js
+    - backend/core/directus/extensions/specification-transaction/test/operations.test.js
+    - backend/core/directus/schemas/user_specifications.yml
+    - backend/core/directus/setup/migrate_user_specification_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.yml
+    - backend/tests/test_account_export_jobs.py
+    - backend/tests/test_account_personal_content_deletion.py
+    - backend/tests/test_user_specifications.py
+    - frontend/apps/web_app/tests/specifications-api-flow.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/specifications/examples.yml
+    - specifications/features/specifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 9d8d23c325e7d065a4665a21669a86c793228f57
+    short_sha: 9d8d23c32
+    authored_at: '2026-10-28T10:21:04+00:00'
+    subject: 'docs: record Specification storage and client handoff'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/cloud-project-development/plan.yml
+    - docs/plans/cloud-project-development/specification-storage-handoff.md
+    related_feature_ids: []
+  - sha: f1b780948d0b9b036e726c741f30d6c5e2f8884b
+    short_sha: f1b780948
+    authored_at: '2026-10-28T10:11:57+00:00'
+    subject: 'fix: enable Browse controls for private owner chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/components/embeds/web/browseContent.test.ts
+    - frontend/packages/ui/src/components/embeds/web/browseContent.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:web:browse
+  - sha: ddcbc307d18c5603acb79e0f37614015873ca154
+    short_sha: ddcbc307d
+    authored_at: '2026-10-28T10:07:17+00:00'
+    subject: 'fix: prevent stale URL conversion from corrupting drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-url-conversion.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a38a39e20c238a815b0a46d86d36f86ab6e48d47
+    short_sha: a38a39e20
+    authored_at: '2026-10-28T09:59:17+00:00'
+    subject: 'fix: remove load-earlier action from chat timeline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageTimeline.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1573e854b86ff0641518c7431ac2f214fa157750
+    short_sha: 1573e854b
+    authored_at: '2026-10-28T09:54:48+00:00'
+    subject: 'docs: record verified disk coordination rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/disk-coordination/plan.yml
+    related_feature_ids: []
+  - sha: a9620edbf1396772549234e7edf0087d35818496
+    short_sha: a9620edbf
+    authored_at: '2026-10-28T09:49:42+00:00'
+    subject: 'fix: finish disk recovery rollout and verified Task continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/disk-coordination.md
+    - scripts/ci_results.py
+    - scripts/codex_task_adapter.py
+    - scripts/project_task_sync_live.mjs
+    - scripts/tests/test_ci_results.py
+    - scripts/tests/test_codex_task_adapter.py
+    - scripts/tests/test_disk_event_adapter.py
+    related_feature_ids: []
+  - sha: d6f46f56fea03880a8790eadcd60412e6e6eb389
+    short_sha: d6f46f56f
+    authored_at: '2026-10-28T09:45:13+00:00'
+    subject: 'fix: bound enhanced input redaction latency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/privacy/redact-browser-dev-trial.md
+    - docs/plans/web-redact-dev-trial/plan.yml
+    - frontend/apps/web_app/tests/components/composer-local-pii.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3d231e00119d588c0c551f6ef604f66ad3316e03
+    short_sha: 3d231e001
+    authored_at: '2026-10-28T09:27:16+00:00'
+    subject: 'fix: reclaim aged dangling images under disk pressure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/docker-cleanup.sh
+    - scripts/tests/test_disk_cleanup_safety.py
+    related_feature_ids: []
+  - sha: d29e12de160808528b68cbbeae1419cbdeca156b
+    short_sha: d29e12de1
+    authored_at: '2026-10-28T09:18:59+00:00'
+    subject: 'fix: harden Browse model JSON and missing screenshots'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - docs/architecture/apps/web-browse.md
+    - docs/plans/web-browse/measurements.md
+    - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
+    - frontend/apps/web_app/tests/web-browse-real.spec.ts
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseSessionViewer.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:web:browse
+  - sha: 91e4576c7ccecb6ce81d57ec0cfcbe699155976d
+    short_sha: 91e4576c7
+    authored_at: '2026-10-28T09:05:13+00:00'
+    subject: 'fix: provision Task sync fixture in its isolated CI job'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/codex-task-cache.md
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on privacy-enhancing features, including local PII detection and redaction, alongside significant
+    reliability improvements for AI-driven tasks like code execution and diagram generation. Infrastructure work centered
+    on disk coordination and SDK conformance.
+  released_changes: []
+  bug_fixes:
+  - text: Improved AI reliability by recovering native diagrams from text sketches and loading memories on demand during diagram
+      generation.
+    evidence:
+      commits:
+      - '338395380'
+      - 7d260a053
+    release_status: dev_only
+  - text: Hardened assistant code execution by ensuring atomic file bundles, resolving Python dependency conflicts, and improving
+      result resumption.
+    evidence:
+      commits:
+      - 454a24a30
+      - 43cf88b8b
+      - ac1145c66
+      - 4ed830279
+    release_status: dev_only
+  - text: Refined the messaging experience with budget-protected guest audio transcription, recovery of interrupted follow-up
+      messages, and draft corruption prevention.
+    evidence:
+      commits:
+      - ec7fc9797
+      - f216b1bbd
+      - ddcbc307d
+      - a38a39e20
+    release_status: dev_only
+  - text: Stabilized infrastructure with enhanced disk coordination, automated workspace cleanup, and recovery routing for
+      blocked chats.
+    evidence:
+      commits:
+      - 1928874ad
+      - 0238c3b19
+      - d6eec8a39
+      - 56a7a6e41
+      - a9620edbf
+      - 3d231e001
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development of enhanced personal data protection controls, including local PII detection and redaction within the
+      message input.
+    evidence:
+      commits:
+      - 0c629e21b
+      - 5d72b3325
+      - d6f46f56f
+    release_status: dev_only
+  - text: Improvements to the Web Browse experience, including metered pricing visibility, CORS handling, and private chat
+      controls.
+    evidence:
+      commits:
+      - 00c1f01cb
+      - f1b780948
+      - d29e12de1
+      - c7df34334
+    release_status: dev_only
+  - text: Implementation of encrypted persistence for Project Specifications.
+    evidence:
+      commits:
+      - 7fbec0f34
+    release_status: dev_only
+  - text: Extensive architectural documentation for diagram recovery, browse transport profiling, and workflow email redesigns.
+    evidence:
+      commits:
+      - dae864ee7
+      - a06faf0fb
+      - 9c5172a58
+      - ff04e5b3b
+      - a5587c057
+      - 59e99b386
+      - cade33da8
+      - 9d8d23c32
+      - 1573e854b
+    release_status: dev_only
+  internal_progress:
+  - text: Enforced synchronized Rust client SDK conformance and updated migration verification logic.
+    evidence:
+      commits:
+      - 960c2433c
+      - 78b250ae3
+      - 11339e919
+      - a81c3318e
+    release_status: dev_only
+  - text: Improved WASM module verification and dependency refusal diagnostics.
+    evidence:
+      commits:
+      - 03386334d
+      - afeae0649
+    release_status: dev_only
+  - text: Updated CI workflows with isolated formula worker runtimes and production web app verification scripts.
+    evidence:
+      commits:
+      - 431f25047
+      - 28de0f4c9
+      - 564e9d9e4
+      - 91e4576c7
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Enhanced personal data protection and privacy controls.
+      evidence:
+        commits:
+        - 0c629e21b
+        - 5d72b3325
+        - d6f46f56f
+      reason: Feature is currently dev_only and not reachable from main.
+    - text: Web Browse embed verification and metered pricing.
+      evidence:
+        commits:
+        - 00c1f01cb
+        - f1b780948
+        - d29e12de1
+        - c7df34334
+        - 56005cefa
+      reason: Feature is currently dev_only and related to disabled browse embeds.
+    - text: Encrypted storage for Project Specifications.
+      evidence:
+        commits:
+        - 7fbec0f34
+      reason: Feature is currently dev_only and not reachable from main.
+    rationale: All user-facing changes from this period are currently in dev_only status and have not yet reached the main
+      branch for public release.
+  social_video_recommendations:
+  - idea: A demonstration of the new local privacy controls redacting personal information in real-time within the message
+      composer.
+    priority: high
+    reason: The PII detection and redaction feature provides a strong visual story about user privacy and local-first data
+      protection.
+    evidence:
+      commits:
+      - 0c629e21b
+      - 5d72b3325
+  quality_notes:
+  - Latency bounds were introduced for input redaction to ensure privacy controls do not impact typing performance.
+  - Code execution reliability was improved by ensuring file bundles remain atomic during processing.
+  validation_warnings: []
