@@ -21,6 +21,8 @@ import secrets
 import shutil
 import socket
 import struct
+import stat
+import tempfile
 import subprocess
 import sys
 import time
@@ -467,9 +469,311 @@ def reserved_account_slot(name: str) -> int:
     )
 
 
+# Only this controller's freshly minted disposable CLI fixture may be handed to
+# the explicit-credential SDK. No HOME/profile discovery or crypto downgrade.
+FIXTURE_SESSION_LIMIT = 64 * 1024
+
+
+def fixture_cookie_map(value):
+    return (
+        type(value) is dict
+        and 0 < len(value) <= 16
+        and bool(value.get("auth_refresh_token"))
+        and all(
+            type(k) is str
+            and re.fullmatch(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+", k)
+            and type(v) is str
+            and 0 < len(v) <= 8192
+            and not any(c in v for c in "\r\n\0")
+            for k, v in value.items()
+        )
+    )
+
+
+def fixture_file_email_key(session):
+    # Do not let old SDK loadSession reach a keyring or machine-ID decrypt path.
+    if session.get("emailEncryptionKeyEncrypted") is not None:
+        return False
+    storage = session.get("emailEncryptionKeyStorage")
+    key = session.get("emailEncryptionKeyB64")
+    if storage is None:
+        return key is None
+    if storage != "file" or type(key) is not str:
+        return False
+    try:
+        return len(base64.b64decode(key, validate=True)) == 32
+    except (ValueError, TypeError):
+        return False
+
+
+def fresh_fixture_session(account: dict) -> dict:
+    require_runner()
+    try:
+        return _fresh_fixture_session(account)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        raise RuntimeError("Explicit fresh fixture session is unavailable") from None
+
+
+def _fresh_fixture_session(account: dict) -> dict:
+    root = COMPOSE_PATH.parent
+    email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL")
+    if type(email) is not str or not email or len(email) > 512:
+        raise RuntimeError("Explicit fresh fixture identity is required")
+    expected_owner = base64.b64encode(
+        hashlib.sha256(email.strip().lower().encode()).digest()
+    ).decode()
+    state = Path(account.get("OPENMATES_STATE_DIR", ""))
+    if (
+        not state.is_absolute()
+        or state.parent != root
+        or not re.fullmatch(r"state-[1-9][0-9]{0,5}-[0-9a-f]{16}", state.name)
+        or root.resolve() != root
+        or state.resolve() != state
+    ):
+        raise RuntimeError("Explicit fresh fixture state is required")
+    for directory in (root, state):
+        info = directory.lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or info.st_uid != os.getuid()
+            or stat.S_IMODE(info.st_mode) != 0o700
+        ):
+            raise RuntimeError("Fresh fixture directory ownership is invalid")
+    directory = os.open(state, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        owner = os.fstat(directory)
+        fd = os.open(
+            "session.json",
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+            dir_fd=directory,
+        )
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_nlink != 1
+                or not 0 < info.st_size <= FIXTURE_SESSION_LIMIT
+            ):
+                raise RuntimeError("Fresh fixture session ownership is invalid")
+            raw = stream.read(FIXTURE_SESSION_LIMIT + 1)
+            after = os.fstat(stream.fileno())
+
+            def identity(row):
+                return (
+                    row.st_dev,
+                    row.st_ino,
+                    row.st_size,
+                    row.st_mtime_ns,
+                    row.st_ctime_ns,
+                )
+
+            if identity(info) != identity(after) or len(raw) != info.st_size:
+                raise RuntimeError("Fresh fixture session changed while reading")
+        if (owner.st_dev, owner.st_ino) != (state.lstat().st_dev, state.lstat().st_ino):
+            raise RuntimeError("Fresh fixture state changed while reading")
+    finally:
+        os.close(directory)
+    try:
+        session = json.loads(raw)
+        key = base64.b64decode(session.get("masterKeyExportedB64", ""), validate=True)
+        valid = (
+            type(session) is dict
+            and session.get("apiUrl") == API
+            and session.get("hashedEmail") == expected_owner
+            and session.get("masterKeyStorage") == "file"
+            and session.get("masterKeyEncrypted") is None
+            and fixture_file_email_key(session)
+            and len(key) == 32
+            and session.get("activeTeamId") is None
+            and all(
+                type(session.get(k)) is str and 0 < len(session[k]) <= 512
+                for k in ("sessionId", "hashedEmail", "userEmailSalt")
+            )
+            and type(session.get("createdAt")) is int
+            and session["createdAt"] > 0
+            and fixture_cookie_map(session.get("cookies"))
+        )
+    except (ValueError, TypeError, AttributeError):
+        valid = False
+    if not valid:
+        raise RuntimeError(
+            "Fresh fixture requires its existing owner-only file session"
+        )
+    return {
+        "state": state,
+        "raw": raw,
+        "session": session,
+        "email": email,
+        "directoryIdentity": (owner.st_dev, owner.st_ino),
+    }
+
+
+def persist_fresh_fixture_session(snapshot: dict, update) -> None:
+    try:
+        _persist_fresh_fixture_session(snapshot, update)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        raise RuntimeError(
+            "Fresh fixture session handoff could not be persisted"
+        ) from None
+
+
+def _persist_fresh_fixture_session(snapshot: dict, update) -> None:
+    # Only the caller-owned cookie/ws-token handoff is persisted; original keys,
+    # storage policy and identity remain byte-held as values in this same file.
+    if (
+        type(update) is not dict
+        or set(update) != {"cookies", "wsToken"}
+        or not fixture_cookie_map(update["cookies"])
+        or update["wsToken"] is not None
+        and (
+            type(update["wsToken"]) is not str
+            or not 0 < len(update["wsToken"]) <= 16384
+        )
+    ):
+        raise RuntimeError("Fresh fixture session handoff is invalid")
+    current = fresh_fixture_session(
+        {
+            "OPENMATES_STATE_DIR": str(snapshot["state"]),
+            "OPENMATES_TEST_ACCOUNT_EMAIL": snapshot["email"],
+        }
+    )
+    if (
+        current["raw"] != snapshot["raw"]
+        or current["directoryIdentity"] != snapshot["directoryIdentity"]
+    ):
+        raise RuntimeError("Fresh fixture session owner changed")
+    state = snapshot["state"]
+    directory = os.open(state, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    lock = "session.json.write.lock"  # Original CLI proper-lockfile write lock.
+    temporary = "session.json.fixture-" + secrets.token_hex(8) + ".tmp"
+    locked = False
+    try:
+        owner = os.fstat(directory)
+        if (owner.st_dev, owner.st_ino) != snapshot["directoryIdentity"]:
+            raise RuntimeError("Fresh fixture state owner changed")
+        os.mkdir(lock, mode=0o700, dir_fd=directory)
+        locked = True
+        # Refuse concurrent CLI/fixture changes under the original write lock.
+        held = fresh_fixture_session(
+            {
+                "OPENMATES_STATE_DIR": str(state),
+                "OPENMATES_TEST_ACCOUNT_EMAIL": snapshot["email"],
+            }
+        )
+        if (
+            held["raw"] != snapshot["raw"]
+            or held["directoryIdentity"] != snapshot["directoryIdentity"]
+        ):
+            raise RuntimeError("Fresh fixture session changed before handoff")
+        value = {
+            **snapshot["session"],
+            "cookies": update["cookies"],
+            "wsToken": update["wsToken"],
+        }
+        raw = (json.dumps(value, sort_keys=True) + "\n").encode()
+        if len(raw) > FIXTURE_SESSION_LIMIT:
+            raise RuntimeError("Fresh fixture session handoff exceeded bound")
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory,
+        )
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(
+            temporary, "session.json", src_dir_fd=directory, dst_dir_fd=directory
+        )
+        os.fsync(directory)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory)
+        except FileNotFoundError:
+            pass
+        if locked:
+            os.rmdir(lock, dir_fd=directory)
+        os.close(directory)
+
+
+def run_fresh_fixture_sdk(snapshot, command, *, timeout, sensitive_env=None):
+    """Old SDKs may save only inside a disposable copy; caller CAS stays strict."""
+    require_runner()
+    node = pinned_node()  # Already attested before account provisioning.
+    if not command or command[0] != node or not Path(node).is_absolute():
+        raise RuntimeError("Fresh fixture requires the attested absolute Node runtime")
+    sensitive_env = {} if sensitive_env is None else sensitive_env
+    if type(sensitive_env) is not dict or set(sensitive_env) - {
+        "OPENMATES_CI_SENSITIVE_TOTP_CODE"
+    }:
+        raise RuntimeError("Fresh fixture child environment override is invalid")
+    root = COMPOSE_PATH.parent
+    owner = root.lstat()
+    if (
+        root.resolve() != root
+        or not stat.S_ISDIR(owner.st_mode)
+        or owner.st_uid != os.getuid()
+        or stat.S_IMODE(owner.st_mode) != 0o700
+    ):
+        raise RuntimeError("Fresh fixture private copy root is invalid")
+    with tempfile.TemporaryDirectory(prefix="fixture-sdk-", dir=root) as temporary:
+        private = Path(temporary)
+        state, search = private / "state", private / "empty-path"
+        state.mkdir(mode=0o700)
+        search.mkdir(mode=0o700)
+        for directory in (private, state, search):
+            info = directory.lstat()
+            if (
+                directory.resolve() != directory
+                or not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o700
+            ):
+                raise RuntimeError("Fresh fixture private copy ownership is invalid")
+        fd = os.open(
+            state / "session.json",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+        )
+        with os.fdopen(fd, "wb") as output:
+            output.write(snapshot["raw"])
+            output.flush()
+            os.fsync(output.fileno())
+        # One owned absolute EMPTY search directory, never missing/empty PATH or
+        # an inherited/appended path. Exact reviewed old/new SDKs dispatch their
+        # keychain/ioreg helpers only by lookup name. Existing file fallback is
+        # unchanged; external master/email storage references refused earlier.
+        if (
+            os.pathsep in str(search)
+            or not search.is_absolute()
+            or any(search.iterdir())
+        ):
+            raise RuntimeError(
+                "Fresh fixture requires one empty executable search directory"
+            )
+        env = {
+            **os.environ,
+            **sensitive_env,
+            "OPENMATES_STATE_DIR": str(state),
+            "PATH": str(search),
+        }
+        return subprocess.run(
+            command,
+            env=env,
+            input=json.dumps(snapshot["session"]),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+
 def provision_api_key(account: dict) -> str:
     """Issue an expiring key through the real SDK using the new CLI session."""
     require_runner()
+    snapshot = fresh_fixture_session(account)
     # Signup just enrolled this authenticator. Wait for a fresh time step so
     # the account-wide one-use TOTP guard cannot mistake setup for a replay.
     time.sleep(30 - (time.time() % 30) + 1)
@@ -478,7 +782,9 @@ def provision_api_key(account: dict) -> str:
     program = """
 const { OpenMatesClient, OpenMates } = await import(process.argv[1]);
 const { platform, arch } = await import("node:os");
-const client = new OpenMatesClient({apiUrl: process.argv[2]});
+const { readFileSync } = await import("node:fs");
+const session = JSON.parse(readFileSync(0, "utf8"));
+const client = new OpenMatesClient({apiUrl: process.argv[2], session});
 if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
 await client.verifyTotpForCurrentSession(process.env.OPENMATES_CI_SENSITIVE_TOTP_CODE);
 const FIXTURE_CREDIT_LIMIT = 1000;
@@ -501,26 +807,26 @@ if (!owned[0].approved_at) await client.settingsPost("api-key-devices/" + owned[
 const verified = await client.settingsGet("api-key-devices");
 if (!verified.devices.some(d => d.id === owned[0].id && d.approved_at)) throw new Error("Fresh CLI device approval failed");
 await api.chats.list({limit: 1});
-process.stdout.write(JSON.stringify({api_key: result.api_key}));
+const sessionHandoff = client.getSession();
+process.stdout.write(JSON.stringify({api_key: result.api_key, sessionUpdate: {cookies: sessionHandoff.cookies, wsToken: sessionHandoff.wsToken}}));
 """
-    result = subprocess.run(
+    result = run_fresh_fixture_sdk(
+        snapshot,
         [pinned_node(), "--input-type=module", "-e", program, sdk, API],
-        env={
-            **os.environ,
-            "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
-            "OPENMATES_CI_SENSITIVE_TOTP_CODE": totp_code,
-        },
-        capture_output=True,
-        text=True,
+        sensitive_env={"OPENMATES_CI_SENSITIVE_TOTP_CODE": totp_code},
         timeout=60,
     )
     if result.returncode:
         raise RuntimeError(
             "Fresh-account SDK API key issuance failed; no shared-key fallback"
         )
-    key = json.loads(result.stdout).get("api_key")
+    if len(result.stdout.encode()) > 256 * 1024:
+        raise RuntimeError("Fresh fixture SDK handoff exceeded output bound")
+    response = json.loads(result.stdout)
+    key = response.get("api_key")
     if not isinstance(key, str) or not key.startswith("sk-api-"):
         raise RuntimeError("Fresh-account SDK returned no API key")
+    persist_fresh_fixture_session(snapshot, response.get("sessionUpdate"))
     return key
 
 
@@ -543,13 +849,17 @@ def accept_fixture_credits(account: dict) -> int:
     unchanged. Never patch encrypted balances or bypass the product gift flow.
     """
     require_runner()
+    snapshot = fresh_fixture_session(account)
     sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
     program = """
 const { OpenMatesClient } = await import(process.argv[1]);
-const client = new OpenMatesClient({apiUrl: process.argv[2]});
+const { readFileSync } = await import("node:fs");
+const session = JSON.parse(readFileSync(0, "utf8"));
+const client = new OpenMatesClient({apiUrl: process.argv[2], session});
 if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
 // The first authenticated request may refresh and retire the signup cookie.
-// Use the SDK's session endpoint so any replacement is saved before raw fetch.
+// Use the SDK session endpoint so any replacement is in the explicit caller
+// jar before raw fetch; the controller persists the private handoff on success.
 await client.whoAmI();
 const cookie = Object.entries(client.getSession().cookies).map(([k,v]) => k + '=' + v).join('; ');
 const response = await fetch(process.argv[2] + '/v1/auth/accept-gift', {
@@ -559,9 +869,11 @@ if (!response.ok) throw new Error('Fresh signup gift acceptance failed: ' + resp
 const result = await response.json();
 if (result.success !== true || result.current_credits !== Number(process.argv[3]))
   throw new Error('Fresh signup credit balance differs from the bounded fixture');
-process.stdout.write(JSON.stringify({credits: result.current_credits}));
+const sessionHandoff = client.getSession();
+process.stdout.write(JSON.stringify({credits: result.current_credits, sessionUpdate: {cookies: sessionHandoff.cookies, wsToken: sessionHandoff.wsToken}}));
 """
-    result = subprocess.run(
+    result = run_fresh_fixture_sdk(
+        snapshot,
         [
             pinned_node(),
             "--input-type=module",
@@ -571,18 +883,19 @@ process.stdout.write(JSON.stringify({credits: result.current_credits}));
             API,
             str(FIXTURE_CREDITS),
         ],
-        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
-        capture_output=True,
-        text=True,
         timeout=30,
     )
     if result.returncode:
         raise RuntimeError(
             "Fresh-account signup gift acceptance failed; no balance bypass"
         )
-    credits = json.loads(result.stdout).get("credits")
+    if len(result.stdout.encode()) > 256 * 1024:
+        raise RuntimeError("Fresh fixture SDK handoff exceeded output bound")
+    response = json.loads(result.stdout)
+    credits = response.get("credits")
     if credits != FIXTURE_CREDITS:
         raise RuntimeError("Fresh-account credit fixture balance mismatch")
+    persist_fresh_fixture_session(snapshot, response.get("sessionUpdate"))
     return credits
 
 

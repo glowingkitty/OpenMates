@@ -3,6 +3,7 @@
 # contract-test-file: tooling
 import os
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from scripts import ci_client_memory_probe as probe
@@ -125,6 +126,39 @@ class Probe(unittest.TestCase):
                 probe.run("/unused")
             read.assert_called_once()
             process.assert_not_called()
+
+    def test_actual_gateway_lookup_uses_only_existing_compose_service(self):
+        identity = "a" * 64
+        with patch(
+            "ci_environment.compose",
+            return_value=SimpleNamespace(returncode=0, stdout=identity + "\n"),
+        ) as compose:
+            self.assertEqual(probe.managed_gateway_id(), identity)
+        compose.assert_called_once_with(
+            "ps", "--quiet", "runner-gateway", capture=True, timeout=10
+        )
+
+    def test_gateway_lookup_refuses_missing_short_multiple_or_failed_ids(self):
+        for output, code in (
+            ("", 0), ("a" * 12, 0), ("g" * 64, 0),
+            ("a" * 64 + "\n" + "b" * 64 + "\n", 0),
+            ("a" * 64 + "\n", 1), (None, 0),
+        ):
+            with self.subTest(output=output, code=code), patch(
+                "ci_environment.compose",
+                return_value=SimpleNamespace(returncode=code, stdout=output),
+            ):
+                with self.assertRaises(Refused):
+                    probe.managed_gateway_id()
+
+    def test_gateway_lookup_real_compose_guard_precedes_docker(self):
+        with patch(
+            "ci_environment.require_runner", side_effect=RuntimeError("real guard")
+        ) as guard, patch("ci_environment.subprocess.run") as docker:
+            with self.assertRaisesRegex(RuntimeError, "real guard"):
+                probe.managed_gateway_id()
+            guard.assert_called_once()
+            docker.assert_not_called()
 
 
 if __name__ == "__main__":

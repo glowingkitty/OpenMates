@@ -438,21 +438,44 @@ def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
         runner.reject_inherited_accounts()
 
 
-def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
+def fresh_fixture_for_sdk_transport(tmp_path, runner, monkeypatch):
+    import base64
+    import hashlib
+    root = tmp_path / "ci-private"
+    root.mkdir(mode=0o700)
+    state = root / ("state-14-" + "a" * 16)
+    state.mkdir(mode=0o700)
+    email = "ci-synthetic@example.com"
+    session = {"apiUrl": runner.API, "sessionId": "synthetic-session", "wsToken": None,
+               "cookies": {"auth_refresh_token": "synthetic-cookie"},
+               "masterKeyStorage": "file", "masterKeyExportedB64": base64.b64encode(bytes([7]) * 32).decode(),
+               "hashedEmail": base64.b64encode(hashlib.sha256(email.encode()).digest()).decode(),
+               "userEmailSalt": "synthetic-salt", "createdAt": 12345, "activeTeamId": None}
+    path = state / "session.json"
+    path.write_text(json.dumps(session))
+    path.chmod(0o600)
+    monkeypatch.setattr(runner, "COMPOSE_PATH", root / "compose.json")
+    return {"OPENMATES_STATE_DIR": str(state), "OPENMATES_TEST_ACCOUNT_EMAIL": email}
+
+
+def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENMATES_CI_NODE", "/tmp/openmates-ci-node-Synthetic/node")
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
     import pytest
     monkeypatch.setattr(runner, "require_runner", lambda: None)
+    account = fresh_fixture_for_sdk_transport(tmp_path, runner, monkeypatch)
+    monkeypatch.setattr(runner.time, "sleep", lambda seconds: None)
+
     calls = []
     def run(command, **kwargs):
         calls.append((command, kwargs))
-        return SimpleNamespace(returncode=0, stdout='{"api_key":"sk-api-synthetic"}')
+        return SimpleNamespace(returncode=0, stdout=json.dumps({"api_key":"sk-api-synthetic", "sessionUpdate":{"cookies":{"auth_refresh_token":"synthetic-refreshed"},"wsToken":None}}))
     monkeypatch.setattr(runner.subprocess, "run", run)
-    account = {"OPENMATES_STATE_DIR": "/private/fresh", "OPENMATES_TEST_ACCOUNT_OTP_KEY": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"}
+    account["OPENMATES_TEST_ACCOUNT_OTP_KEY"] = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
     assert runner.provision_api_key(account) == "sk-api-synthetic"
     command, kwargs = calls[0]
-    assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert kwargs["env"]["OPENMATES_STATE_DIR"] != account["OPENMATES_STATE_DIR"]
     assert len(kwargs["env"]["OPENMATES_CI_SENSITIVE_TOTP_CODE"]) == 6
     assert "client.verifyTotpForCurrentSession" in command[3]
     assert "client.createApiKey" in command[3]
@@ -533,21 +556,23 @@ def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path,
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
     monkeypatch.setattr(runner, "require_runner", lambda: None)
+    account = fresh_fixture_for_sdk_transport(tmp_path, runner, monkeypatch)
+
     monkeypatch.setattr(runner, "ROOT", tmp_path)
     calls = []
     def run(command, **kwargs):
         calls.append((command, kwargs))
-        return SimpleNamespace(returncode=0, stdout=json.dumps({"credits": runner.FIXTURE_CREDITS}))
+        return SimpleNamespace(returncode=0, stdout=json.dumps({"credits": runner.FIXTURE_CREDITS, "sessionUpdate":{"cookies":{"auth_refresh_token":"synthetic-refreshed"},"wsToken":None}}))
     monkeypatch.setattr(runner.subprocess, "run", run)
-    assert runner.accept_fixture_credits({"OPENMATES_STATE_DIR": "/private/fresh"}) == 1000
+    assert runner.accept_fixture_credits(account) == 1000
     command, kwargs = calls[0]
     assert "/v1/auth/accept-gift" in command[3]
     assert "client.getSession().cookies" in command[3]
-    assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert kwargs["env"]["OPENMATES_STATE_DIR"] != account["OPENMATES_STATE_DIR"]
     assert kwargs["capture_output"] is True
     monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout='{"credits": 0}'))
     with pytest.raises(RuntimeError, match="balance mismatch"):
-        runner.accept_fixture_credits({"OPENMATES_STATE_DIR": "/private/fresh"})
+        runner.accept_fixture_credits(account)
 
 
 def test_failure_diagnostics_are_separate_and_do_not_run_an_application(tmp_path, monkeypatch):

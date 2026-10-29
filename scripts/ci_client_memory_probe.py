@@ -24,6 +24,21 @@ def verify_fixture(mode, value):
         need(value.get('wholeFixturePeakRssKiB') == root and value.get('rssScope') == 'one-known-thread-group', 'known_single_thread_group_required')
 
 
+
+def managed_gateway_id():
+    """Read the actual private service ID; Launch independently verifies ownership."""
+    from ci_environment import compose
+
+    result = compose("ps", "--quiet", "runner-gateway", capture=True, timeout=10)
+    need(
+        result.returncode == 0
+        and type(result.stdout) is str
+        and re.fullmatch(r"[a-f0-9]{64}\n?", result.stdout) is not None,
+        "single_actual_gateway_id_required",
+    )
+    return result.stdout.rstrip("\n")
+
+
 def run(root):
     from ci_environment import require_runner
     require_runner()  # Before reading context, probing tools, or any Docker operation.
@@ -38,8 +53,8 @@ def run(root):
     need(actual_source == source, 'actual_candidate_source_required')
     need(evidence.get('shared_dev_dns') == 'rejected' and evidence.get('shared_dev_https') == 'rejected', 'normal_isolation_verification_required')
     api = evidence['services']['api']
-    gateway = evidence['services']['runner-gateway']
-    need(api['running'] is True and gateway['running'] is True, 'managed_services_required')
+    need(api['running'] is True, 'managed_services_required')
+    gateway = managed_gateway_id()
     image = api['image']
     key = runtime_key(root, 'api')
     verify_loaded_image(root, 'api', image, key)
@@ -63,7 +78,7 @@ def run(root):
             command = (str(node), str(node_fixture)) if mode == 'node-threads' else (str(fixture), mode)
             readonly = (fixture, node_fixture, node)
             cfg = Config(source_root=root, private_root=private, source=source, image=image,
-                runtime_key=key, gateway=gateway['container'], owner='memory-readiness-' + evidence['run_id'],
+                runtime_key=key, gateway=gateway, owner='memory-readiness-' + evidence['run_id'],
                 arm='rust', pair=index, argv=command, env={'HOME': str(state), 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'},
                 cwd=state, readonly_paths=readonly, state_root=state, conditions=(('image', image),),
                 deadline=deadline, work_deadline=deadline - 12, memory_limit=256 * 1024**2,
