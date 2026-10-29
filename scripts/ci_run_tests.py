@@ -1923,6 +1923,7 @@ def run_e2e(
         artifact or component or visual_smoke
     )
     node_probe_only = accountability_only or specs in (
+        ["cli-memory-readiness.spec.ts"],
         [TEAM_PORTABILITY_SPEC],
         [ARCHIVE_LIFECYCLE_SPEC],
         [TARGET_SMOKE_SPEC],
@@ -1970,9 +1971,9 @@ def run_e2e(
                 "Production Rust browser package requires its closed unfiltered E2E subset"
             )
     if "cli-memory-readiness.spec.ts" in specs and (
-        specs != ["cli-memory-readiness.spec.ts"] or not artifact or component or visual_smoke or case_title
+        specs != ["cli-memory-readiness.spec.ts"] or artifact or component or visual_smoke or case_title
     ):
-        raise ValueError("Memory readiness requires its exact unfiltered artifact selector")
+        raise ValueError("Memory readiness requires its exact unfiltered E2E selector")
     if artifact:
         verify_artifact_profile(specs)
     if component:
@@ -2139,6 +2140,7 @@ def run_e2e(
                     or artifact
                     or name
                     in {
+                        "cli-memory-readiness.spec.ts",
                         ACCOUNTABILITY_SPEC,
                         TEAM_PORTABILITY_SPEC,
                         ARCHIVE_LIFECYCLE_SPEC,

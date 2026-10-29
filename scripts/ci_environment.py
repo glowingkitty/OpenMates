@@ -150,7 +150,9 @@ SOURCE = os.environ.get(
 
 
 def browser_account_slots(spec: str) -> int:
-    """Reserve a third fresh actor only for the participant-isolation DM specs."""
+    """Reserve actors only where the fixed selector provisions accounts."""
+    if spec == "cli-memory-readiness.spec.ts":
+        return 0
     return 3 if spec in DIRECT_CHAT_SPECS else 2
 
 

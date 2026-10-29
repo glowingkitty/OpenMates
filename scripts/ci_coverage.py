@@ -11,6 +11,8 @@ from pathlib import Path
 
 
 CORE_SPECS = frozenset({
+    # Infrastructure-only kernel memory probe; requires the genuine private backend.
+    "cli-memory-readiness.spec.ts",
     # Exact-source paired performance only; private core auth/state, no inference.
     "cli-rust-cli-performance.spec.ts",
     "cli-rust-tui-performance.spec.ts",
@@ -83,7 +85,7 @@ CORE_SPECS = frozenset({
     # Manual approval Workflow run and Tasks projection use core services only.
     "tasks-workflow-run-detail.spec.ts",
 })
-ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts", "cli-memory-readiness.spec.ts"})
+ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
 COMPONENT_MARKER = "// playwright-account: not_required reason=isolated_component_preview"
 
 

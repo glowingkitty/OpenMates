@@ -27,7 +27,7 @@ def verify_fixture(mode, value):
 def run(root):
     from ci_environment import require_runner
     require_runner()  # Before reading context, probing tools, or any Docker operation.
-    need(os.environ.get('CI_TEST_MODE') == 'artifact' and json.loads(os.environ.get('CI_SPECS_JSON', '[]')) == [SPEC], 'exact_artifact_selector_required')
+    need(os.environ.get('CI_TEST_MODE') == 'e2e' and json.loads(os.environ.get('CI_SPECS_JSON', '[]')) == [SPEC], 'exact_e2e_selector_required')
     from ci_runtime_images import runtime_key, verify_loaded_image
     from ci_run_tests import pinned_node, verify_pinned_node_runtime
     root = Path(root).resolve()
