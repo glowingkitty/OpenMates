@@ -12,6 +12,29 @@ from pathlib import Path
 
 
 class System:
+    def __init__(self):
+        self.contained = None
+
+    def prepare_meter(self, cfg, root):
+        # -I startup deliberately has no script-dir import fallback. The existing
+        # CI owner pins and readonly-mounts this exact finite adapter and binary.
+        import hashlib
+        import importlib.util
+        import sys
+        adapter = Path(cfg["meter"]["adapter"])
+        if not adapter.is_absolute() or adapter.is_symlink() or hashlib.sha256(adapter.read_bytes()).hexdigest() != cfg["meter"]["adapterSha256"]:
+            raise ValueError("pinned_contained_adapter")
+        spec = importlib.util.spec_from_file_location("openmates_contained_meter_adapter", adapter)
+        if spec is None or spec.loader is None:
+            raise ValueError("contained_adapter_loader")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        if module.digest(cfg["meter"]["binary"]) != cfg["meter"]["binarySha256"]:
+            raise ValueError("pinned_contained_binary")
+        self.contained = module.Inside(cfg, root)
+        return self.contained
+
     def pid(self):
         return os.getpid()
 
@@ -86,15 +109,20 @@ def supervise(cfg, root, system=None, cancelled=None):
         "childrenDrained": False,
         "cancelled": False,
     }
+    meter = system.prepare_meter(cfg, root) if cfg.get("meter") is not None else None
     system.record(root, row)
+    if meter is not None:
+        meter.admit()
     while not system.requested(root, "go"):
         if cancelled[0] or system.now() >= work_end:
             return 125
         system.sleep()
     if cancelled[0]:
         return 125
-    child = system.launch(cfg)
+    child = meter.fork_meter() if meter is not None else system.launch(cfg)
     while system.now() < deadline:
+        if meter is not None:
+            meter.poll()
         # One terminal-wait owner for both original child and adopted descendants.
         found = system.reap()
         if found is None:
@@ -124,6 +152,8 @@ def supervise(cfg, root, system=None, cancelled=None):
         cancelled=cancelled[0] or term_at is not None,
         reapedChildren=reaped,
     )
+    if meter is not None:
+        row["containedMeter"] = meter.completed()
     system.record(
         root, row
     )  # Allocate/write terminal metadata BEFORE outside peak read.
@@ -154,7 +184,21 @@ def main():
 
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, stop)
-    return supervise(cfg, root, cancelled=cancelled)
+    system = System()
+    try:
+        return supervise(cfg, root, system=system, cancelled=cancelled)
+    except BaseException:
+        if system.contained is not None:
+            try:
+                system.record(root, {"nonce": cfg["nonce"], "state": "failed", "childrenDrained": False,
+                    "containedMeterPartial": {"kernelGate": system.contained.gate, "final": system.contained.final,
+                    "markerCount": system.contained.sequence}})
+            except BaseException:
+                pass
+        raise
+    finally:
+        if system.contained is not None:
+            system.contained.close()
 
 
 if __name__ == "__main__":

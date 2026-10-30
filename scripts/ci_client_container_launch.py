@@ -72,6 +72,7 @@ class Config:
     # Bounded whole-application CLI fixture workload; original TUI/renderer adapters stay separate.
     surface: str = "cli"
     max_application_seconds: int = 30  # Original full-application offline_sample bound.
+    meter: object = None  # Optional contained path; default flow unchanged.
 
 
 def validate(c):
@@ -174,6 +175,14 @@ def validate(c):
         and all(type(k) is str and type(v) is str for k, v in c.env.items()),
         "exact_environment_required",
     )
+    if c.meter is not None:
+        from scripts.ci_client_contained_meter import validate_spec
+        validate_spec(c.meter, root)
+        need(not any(key.startswith("LD_") or key in ("GLIBC_TUNABLES", "GCONV_PATH") for key in c.env), "meter_loader_environment_unsupported")
+        need(not c.meter.binary.is_relative_to(private), "meter_outside_application_state")
+        adapter = root / "scripts/ci_client_contained_meter.py"
+        canonical(adapter)
+        need(adapter.is_file(), "pinned_contained_adapter_required")
     return c
 
 
@@ -201,6 +210,7 @@ class Launch:
         self.last_cleanup_result = False
         self.bridge = None
         self.cleanup_problems = []
+        self.contained = None
 
     def command(self, *args, timeout=10):
         from ci_environment import require_runner
@@ -270,7 +280,10 @@ class Launch:
         ]
         for key, value in labels.items():
             cmd += ["--label", key + "=" + value]
-        for p in c.readonly_paths:
+        paths = list(c.readonly_paths)
+        if c.meter is not None:
+            paths += [c.meter.binary, c.source_root / "scripts/ci_client_contained_meter.py"]
+        for p in dict.fromkeys(paths):
             cmd += ["--mount", f"type=bind,src={p},dst={p},readonly"]
         cmd += [
             "--mount",
@@ -322,6 +335,16 @@ class Launch:
             ),
             "termGraceNs": 3_000_000_000,
         }
+        if self.c.meter is not None:
+            adapter = self.c.source_root / "scripts/ci_client_contained_meter.py"
+            cfg["meter"] = {
+                "binary": str(self.c.meter.binary),
+                "binarySha256": self.c.meter.binary_sha256,
+                "sourceSha256": self.c.meter.source_sha256,
+                "adapter": str(adapter),
+                "adapterSha256": hashlib.sha256(adapter.read_bytes()).hexdigest(),
+                "lifecycle": self.c.meter.lifecycle,
+            }
         fd = os.open(
             self.control / "launch.json",
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
@@ -410,6 +433,9 @@ class Launch:
             self.wait_state("ready")
             need(not self.cancelled, "cancelled_before_go")
             self.reader = memory.Reader(self.owned, deadline=self.c.deadline)
+            if self.c.meter is not None:
+                from scripts.ci_client_contained_meter import Outside
+                self.contained = Outside(self)
             need(not self.cancelled, "cancelled_before_go")
             self.bridge = HeldTerminalBridge(self)
             self.bridge.start()
@@ -443,7 +469,7 @@ class Launch:
         need(pids == [self.reader.pid], "application_descendants_not_drained")
         snap = self.reader.sample("before-exit")
         need(snap.get("status") == "observed", "outside_memory_unavailable")
-        return {
+        result = {
             "status": "observed"
             if row["applicationExit"] == 0 and not row.get("cancelled")
             else "failed",
@@ -455,6 +481,16 @@ class Launch:
             "includesCommonSupervisor": True,
             "fullContainerTeardownPeakClaimed": False,
         }
+        if self.c.meter is not None:
+            need(self.contained is not None, "actual_contained_admission_required")
+            result["containedRss"] = self.contained.completed()
+            result["chargedDiagnosticIncludes"] = "common-pid1-plus-common-meter-plus-application"
+        return result
+
+    def marker(self, phase, sequence):
+        need(self.contained is not None and self.c.meter.lifecycle == "long-lived", "actual_long_lived_contained_session")
+        need((self.status() or {}).get("state") != "held", "application_already_drained")
+        return self.contained.marker(phase, sequence)
 
     def release_once(self):
         path = self.control / "release"
@@ -486,6 +522,9 @@ class Launch:
                 == self.c.supervisor_sha256,
                 "supervisor_changed",
             )
+            if self.c.meter is not None:
+                from scripts.ci_client_contained_meter import validate_spec
+                validate_spec(self.c.meter, self.c.source_root)
             need(
                 self.bridge is not None and self.bridge.join(),
                 "held_collector_not_drained",
@@ -618,6 +657,7 @@ class Launch:
         container_stopped = False
         proxy_reaped = False
         collector_drained = True
+        contained_handles_closed = True
         # Each resource has an independent cleanup path. A failed file/inspect must not
         # gate our known direct Popen child. Foreign/unknown containers remain untouched.
         try:
@@ -666,6 +706,12 @@ class Launch:
                     self.proxyfd = None
             except BaseException:
                 self.cleanup_problems.append("pidfd_close_failed")
+            try:
+                if self.contained is not None:
+                    self.contained.close()
+            except BaseException:
+                contained_handles_closed = False
+                self.cleanup_problems.append("contained_handles_close_failed")
             for sig, handler in self.old.items():
                 try:
                     signal.signal(sig, handler)
@@ -673,7 +719,7 @@ class Launch:
                     self.cleanup_problems.append("signal_restore_failed")
             self.old = {}
         self.last_cleanup_result = (
-            container_stopped and proxy_reaped and collector_drained and self.removed
+            container_stopped and proxy_reaped and collector_drained and self.removed and contained_handles_closed
         )
         return self.last_cleanup_result
 
@@ -856,6 +902,7 @@ def fixed_cohort(configs):
             c.deadline,
             c.work_deadline,
             c.max_application_seconds,
+            c.meter,
         )
 
     need(
