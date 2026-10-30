@@ -1,0 +1,606 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-29'
+generated_at: '2026-10-30T00:20:39+00:00'
+range:
+  since: '2026-10-29T00:00:00+00:00'
+  until: '2026-10-30T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 6
+  section_counts:
+    features: 0
+    bug_fixes: 1
+    improvements: 0
+    docs: 0
+    tests: 5
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 0
+  dev_only_items: 6
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix(ci): validate node-only memory readiness evidence'
+    section: bug_fixes
+    commits:
+    - 8a6dc98e5
+    authored_at: '2026-10-29T23:36:30+00:00'
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: isolate explicit fixture SDK sessions safely'
+    section: tests
+    commits:
+    - 8a6daea2f
+    authored_at: '2026-10-29T22:54:33+00:00'
+    changed_paths:
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_fresh_fixture_session.py
+    - scripts/tests/test_ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register optimized Rust checkpoint authority'
+    section: tests
+    commits:
+    - c5d903d4c
+    authored_at: '2026-10-29T22:45:46+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/a3538a62ce6aa81bac38a13530734c696887819e38e1d5afdf9a9626a25ce590.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use managed E2E lifecycle for memory readiness'
+    section: tests
+    commits:
+    - d0153ed2c
+    authored_at: '2026-10-29T22:21:55+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_coverage.py
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_memory_readiness_e2e.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: repair current Rust checkpoint verification'
+    section: tests
+    commits:
+    - ab460083d
+    authored_at: '2026-10-29T21:33:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memory-readiness.spec.ts
+    - scripts/ci_client_container_launch.py
+    - scripts/ci_client_container_memory.py
+    - scripts/ci_client_memory_fixture.mjs
+    - scripts/ci_client_memory_fixture.py
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_client_memory_supervisor.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_coverage.py
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/context.json
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/generated-root.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/post-header-guard.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/sdk-inline.js
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_coordinator_wait_result_state.py
+    - scripts/tests/test_ci_rust_wasm_generated_checkpoint.py
+    - scripts/tests/test_ci_sdk_unit_progress_diagnostics.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify exact Rust migration checkpoint sources'
+    section: tests
+    commits:
+    - ebb29de09
+    authored_at: '2026-10-29T20:42:43+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_environment.py
+    - scripts/ci_metadata_rust_browser.py
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/ci_production_rust_browser.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/172aaf41267b607f13b42c8e475adc9b3d96ee6f43322ec987492673b22371ce.json
+    - scripts/ci_sdk_candidate_authorities/f88c848c22fca0e2af0c15aba9efc7dd02586bd0fb544db37f971ba1e2946b05.json
+    - scripts/ci_sdk_candidate_authority.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_exec.py
+    - scripts/ci_sdk_share_dispatch.py
+    - scripts/ci_sdk_workflow_dispatch.py
+    - scripts/ci_web_paired_profile.py
+    - scripts/tests/test_ci_activechat_profile.py
+    - scripts/tests/test_ci_code_embed_packaging.py
+    - scripts/tests/test_ci_first_session_keyless.py
+    - scripts/tests/test_ci_first_session_profile.py
+    - scripts/tests/test_ci_metadata_rust_browser.py
+    - scripts/tests/test_ci_native_dev.py
+    - scripts/tests/test_ci_native_recovery_profile.py
+    - scripts/tests/test_ci_new_chat_profile.py
+    - scripts/tests/test_ci_production_rust_browser.py
+    - scripts/tests/test_ci_recovery_current_source_closure.py
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm_dependency_capture.py
+    - scripts/tests/test_ci_sdk_candidate_authority.py
+    - scripts/tests/test_ci_sdk_share_dispatch.py
+    - scripts/tests/test_ci_sdk_workflow_dispatch.py
+    - scripts/tests/test_ci_startup_profile_required_cases.py
+    - scripts/tests/test_ci_web_paired_profile.py
+    - scripts/tests/test_ci_workflow_yaml_packaging.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(ci): validate node-only memory readiness evidence'
+    commits:
+    - 8a6dc98e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate explicit fixture SDK sessions safely'
+    commits:
+    - 8a6daea2f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register optimized Rust checkpoint authority'
+    commits:
+    - c5d903d4c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use managed E2E lifecycle for memory readiness'
+    commits:
+    - d0153ed2c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: repair current Rust checkpoint verification'
+    commits:
+    - ab460083d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify exact Rust migration checkpoint sources'
+    commits:
+    - ebb29de09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'test: verify exact Rust migration checkpoint sources'
+    commits:
+    - ebb29de09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video: []
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 8a6dc98e59d215b1ab47f7e53c3a70893c02e837
+    short_sha: 8a6dc98e5
+    authored_at: '2026-10-29T23:36:30+00:00'
+    subject: 'fix(ci): validate node-only memory readiness evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    related_feature_ids: []
+  - sha: 8a6daea2f55521343e5fc264c80dcd29771878ad
+    short_sha: 8a6daea2f
+    authored_at: '2026-10-29T22:54:33+00:00'
+    subject: 'test: isolate explicit fixture SDK sessions safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_fresh_fixture_session.py
+    - scripts/tests/test_ci_run_tests.py
+    related_feature_ids: []
+  - sha: c5d903d4cdbca0d9f62560052126ebb8eaf5f3e9
+    short_sha: c5d903d4c
+    authored_at: '2026-10-29T22:45:46+00:00'
+    subject: 'test: register optimized Rust checkpoint authority'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/a3538a62ce6aa81bac38a13530734c696887819e38e1d5afdf9a9626a25ce590.json
+    related_feature_ids: []
+  - sha: d0153ed2c439ac2ab0f34ccef4fecae9ead18f08
+    short_sha: d0153ed2c
+    authored_at: '2026-10-29T22:21:55+00:00'
+    subject: 'test: use managed E2E lifecycle for memory readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_coverage.py
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_memory_readiness_e2e.py
+    related_feature_ids: []
+  - sha: ab460083d1bed6e6c6c7e282b84fc68149123124
+    short_sha: ab460083d
+    authored_at: '2026-10-29T21:33:18+00:00'
+    subject: 'test: repair current Rust checkpoint verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memory-readiness.spec.ts
+    - scripts/ci_client_container_launch.py
+    - scripts/ci_client_container_memory.py
+    - scripts/ci_client_memory_fixture.mjs
+    - scripts/ci_client_memory_fixture.py
+    - scripts/ci_client_memory_probe.py
+    - scripts/ci_client_memory_supervisor.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_coverage.py
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/context.json
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/generated-root.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/post-header-guard.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40951833663/sdk-inline.js
+    - scripts/tests/test_ci_client_memory_probe.py
+    - scripts/tests/test_ci_coordinator_wait_result_state.py
+    - scripts/tests/test_ci_rust_wasm_generated_checkpoint.py
+    - scripts/tests/test_ci_sdk_unit_progress_diagnostics.py
+    related_feature_ids: []
+  - sha: ebb29de0936ba94e256a6bdc79c059d92f539850
+    short_sha: ebb29de09
+    authored_at: '2026-10-29T20:42:43+00:00'
+    subject: 'test: verify exact Rust migration checkpoint sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_environment.py
+    - scripts/ci_metadata_rust_browser.py
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/ci_production_rust_browser.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/172aaf41267b607f13b42c8e475adc9b3d96ee6f43322ec987492673b22371ce.json
+    - scripts/ci_sdk_candidate_authorities/f88c848c22fca0e2af0c15aba9efc7dd02586bd0fb544db37f971ba1e2946b05.json
+    - scripts/ci_sdk_candidate_authority.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_exec.py
+    - scripts/ci_sdk_share_dispatch.py
+    - scripts/ci_sdk_workflow_dispatch.py
+    - scripts/ci_web_paired_profile.py
+    - scripts/tests/test_ci_activechat_profile.py
+    - scripts/tests/test_ci_code_embed_packaging.py
+    - scripts/tests/test_ci_first_session_keyless.py
+    - scripts/tests/test_ci_first_session_profile.py
+    - scripts/tests/test_ci_metadata_rust_browser.py
+    - scripts/tests/test_ci_native_dev.py
+    - scripts/tests/test_ci_native_recovery_profile.py
+    - scripts/tests/test_ci_new_chat_profile.py
+    - scripts/tests/test_ci_production_rust_browser.py
+    - scripts/tests/test_ci_recovery_current_source_closure.py
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm_dependency_capture.py
+    - scripts/tests/test_ci_sdk_candidate_authority.py
+    - scripts/tests/test_ci_sdk_share_dispatch.py
+    - scripts/tests/test_ci_sdk_workflow_dispatch.py
+    - scripts/tests/test_ci_startup_profile_required_cases.py
+    - scripts/tests/test_ci_web_paired_profile.py
+    - scripts/tests/test_ci_workflow_yaml_packaging.py
+    related_feature_ids: []
+llm_summary:
+  overview: This update focuses on internal infrastructure improvements, specifically enhancing the continuous integration
+    (CI) pipeline and testing frameworks for memory readiness and Rust-based components.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Work is progressing on memory readiness validation and E2E lifecycle management within the CI environment.
+    evidence:
+      commits:
+      - 8a6dc98e5
+      - d0153ed2c
+    release_status: dev_only
+  - text: Refinements to Rust migration checkpoints and WASM verification authorities are underway.
+    evidence:
+      commits:
+      - c5d903d4c
+      - ab460083d
+      - ebb29de09
+    release_status: dev_only
+  internal_progress:
+  - text: OpenMates enhanced the CI pipeline for memory readiness, adding validation for node-only evidence and implementing
+      a managed E2E lifecycle for memory probes.
+    evidence:
+      commits:
+      - 8a6dc98e5
+      - d0153ed2c
+    release_status: dev_only
+  - text: The project updated Rust WASM checkpoint verification processes, including the registration of optimized checkpoint
+      authorities and verification of migration source closures.
+    evidence:
+      commits:
+      - c5d903d4c
+      - ab460083d
+      - ebb29de09
+    release_status: dev_only
+  - text: Testing infrastructure now supports safer isolation of explicit SDK sessions within fixtures.
+    evidence:
+      commits:
+      - 8a6daea2f
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Internal CI and testing infrastructure updates.
+      evidence:
+        commits:
+        - 8a6dc98e5
+        - 8a6daea2f
+        - c5d903d4c
+        - d0153ed2c
+        - ab460083d
+        - ebb29de09
+      reason: All changes in this period are developer-only updates to CI, testing, and internal Rust/WASM verification tools.
+    rationale: No user-facing features or bug fixes were released to the main branch during this period. All work was focused
+      on internal developer tools and CI stability.
+  social_video_recommendations: []
+  quality_notes:
+  - CI stability for memory readiness probes has been improved through managed E2E lifecycles.
+  - Rust WASM checkpoint verification has been strengthened with new authority registrations and source verification.
+  validation_warnings: []
