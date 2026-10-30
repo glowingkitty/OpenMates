@@ -198,22 +198,93 @@ SDK_FUNCTIONS = frozenset(
 
 # Original-validator run40951833663, source28a/f88: actual wasm-bindgen0.2.129
 # emitted one named SDK import and three namespace headers for the same exact
-# module. This is a literal observed-root admission, not a wider import grammar.
+# module. The closed template below preserves this graph without a wider import grammar.
 OBSERVED_RECOVERY_ROOT_SHA256 = "3311789355075c37c9ed118455c45f86a7c7a1f010772962909d76395dd495a6"
 OBSERVED_RECOVERY_ROOT_BYTES = 164656
 OBSERVED_RECOVERY_INPUTS = {'packages/openmates-browser-bindings/src/browser_crypto.rs': '735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928', 'packages/openmates-rust/src/platform/browser_recovery_port.rs': '1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478', 'packages/openmates-rust/Cargo.toml': '6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6', 'packages/openmates-rust/src/platform/browser_metadata_native.js': '2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4', 'packages/openmates-rust/src/platform/browser_metadata_native.rs': 'ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c'}
 
 
+# Closed wasm-bindgen0.2.129 comment template from original-validator roots
+# run40951833663/source28a and run40985930000/source9d9. Only the seven
+# decimal closure metadata fields at these exact complete comment lines vary.
+# Every other byte, including executable values, strings and imports, is held.
+OBSERVED_RECOVERY_TEMPLATE_SHA256 = (
+    "68a13b10930921eceb33ac81d151def1499a306e5e7a9e38958277fe4e4e64b2"
+)
+OBSERVED_RECOVERY_TEMPLATE_LINES = 4025
+OBSERVED_RECOVERY_TEMPLATE_MIN_BYTES = 164639
+OBSERVED_RECOVERY_TEMPLATE_MAX_BYTES = 164702
+OBSERVED_RECOVERY_SHIM_SLOTS = (
+    (
+        3523,
+        b"            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: ",
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3528,
+        b"            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: ",
+        b", ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3533,
+        b'            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: ',
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3538,
+        b'            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: ',
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3543,
+        b'            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: ',
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3548,
+        b"            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: ",
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+    (
+        3553,
+        b"            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: ",
+        b", ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.\n",
+    ),
+)
+
+
+def observed_recovery_template_sha256(javascript):
+    """Hash only a bounded, seven-slot metadata view; never rewrite emitted JS."""
+    if (
+        type(javascript) is not bytes
+        or not OBSERVED_RECOVERY_TEMPLATE_MIN_BYTES
+        <= len(javascript)
+        <= OBSERVED_RECOVERY_TEMPLATE_MAX_BYTES
+    ):
+        return None
+    lines = javascript.splitlines(keepends=True)
+    if len(lines) != OBSERVED_RECOVERY_TEMPLATE_LINES:
+        return None
+    for index, prefix, suffix in OBSERVED_RECOVERY_SHIM_SLOTS:
+        match = re.fullmatch(
+            re.escape(prefix) + rb"(0|[1-9][0-9]{0,9})" + re.escape(suffix),
+            lines[index],
+        )
+        if match is None or int(match[1]) > 4294967295:
+            return None
+        lines[index] = prefix + b"SHIM_INDEX" + suffix
+    return sdk.sha(b"".join(lines))
+
+
 def observed_recovery_sdk_output(files, inputs, name, javascript, diagnostic):
-    if (len(javascript) != OBSERVED_RECOVERY_ROOT_BYTES
-            or sdk.sha(javascript) != OBSERVED_RECOVERY_ROOT_SHA256
+    if (observed_recovery_template_sha256(javascript) != OBSERVED_RECOVERY_TEMPLATE_SHA256
             or name != "snippets/openmates-sdk-c8cc119936fa2be8/inline0.js"
             or any(inputs.get(path) != digest for path, digest in OBSERVED_RECOVERY_INPUTS.items())):
         return None
     named = ("import { recoveryCancel, recoveryCapture, recoveryInventoryRequest, recoveryListen, recoveryRead, recoveryRequest, recoveryStop } from './" + name + "';\n").encode()
     headers = [named] + [("import * as import" + str(index) + ' from "./' + name + '"\n').encode() for index in (2, 3, 4)]
-    # The independent exact source/body checks precede this path. Full root
-    # byte identity fixes all seven direct calls and three same-module map uses;
+    # The independent exact source/body checks precede this path. Template byte
+    # identity fixes all seven direct calls and three same-module map uses;
     # no alias, computed access, extra module or modified root can reach it.
     if any(javascript.count(header) != 1 for header in headers):
         return None
