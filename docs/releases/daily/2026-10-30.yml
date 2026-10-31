@@ -1,0 +1,386 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-30'
+generated_at: '2026-10-31T00:20:40+00:00'
+range:
+  since: '2026-10-30T00:00:00+00:00'
+  until: '2026-10-31T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 3
+  section_counts:
+    features: 0
+    bug_fixes: 2
+    improvements: 0
+    docs: 0
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 0
+  dev_only_items: 3
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: verify observed WASM shim comment metadata without widening dependency guards'
+    section: bug_fixes
+    commits:
+    - b3c1209fe
+    authored_at: '2026-10-30T02:18:30+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/context.json
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/generated-root.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/post-header-guard.js
+    - scripts/tests/test_ci_rust_wasm_current_checkpoint.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): register verified Rust Core checkpoint for testing'
+    section: bug_fixes
+    commits:
+    - 7541a8d1d
+    authored_at: '2026-10-30T01:20:50+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/44b8b094917217bc273a57fd34deae2f4d8243c7c2d02527a0ea65eb050d74d9.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: verify contained client memory accounting and admit the tested SDK snapshot'
+    section: tests
+    commits:
+    - 1fcce6bbf
+    authored_at: '2026-10-30T02:32:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memory-readiness.spec.ts
+    - scripts/ci_client_contained_fixture.c
+    - scripts/ci_client_contained_meter.py
+    - scripts/ci_client_contained_probe.py
+    - scripts/ci_client_contained_probe_pid1.py
+    - scripts/ci_client_container_launch.py
+    - scripts/ci_client_memory_supervisor.py
+    - scripts/ci_client_owned_lifecycle.py
+    - scripts/ci_client_process_memory_meter.c
+    - scripts/ci_client_process_meter_original.c
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/9c1d061282fd90390fc52df10d73426b99c4bd7a601c428aa6b468e32aad8ffa.json
+    - scripts/tests/test_ci_client_contained_meter.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: verify contained client memory accounting and admit the tested SDK snapshot'
+    commits:
+    - 1fcce6bbf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify observed WASM shim comment metadata without widening dependency guards'
+    commits:
+    - b3c1209fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): register verified Rust Core checkpoint for testing'
+    commits:
+    - 7541a8d1d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video: []
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1fcce6bbf39fee81918caa7b8ce9605978b9db6e
+    short_sha: 1fcce6bbf
+    authored_at: '2026-10-30T02:32:44+00:00'
+    subject: 'test: verify contained client memory accounting and admit the tested SDK snapshot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memory-readiness.spec.ts
+    - scripts/ci_client_contained_fixture.c
+    - scripts/ci_client_contained_meter.py
+    - scripts/ci_client_contained_probe.py
+    - scripts/ci_client_contained_probe_pid1.py
+    - scripts/ci_client_container_launch.py
+    - scripts/ci_client_memory_supervisor.py
+    - scripts/ci_client_owned_lifecycle.py
+    - scripts/ci_client_process_memory_meter.c
+    - scripts/ci_client_process_meter_original.c
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/9c1d061282fd90390fc52df10d73426b99c4bd7a601c428aa6b468e32aad8ffa.json
+    - scripts/tests/test_ci_client_contained_meter.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    related_feature_ids: []
+  - sha: b3c1209fee22c366362918d75596c53eb1653c03
+    short_sha: b3c1209fe
+    authored_at: '2026-10-30T02:18:30+00:00'
+    subject: 'fix: verify observed WASM shim comment metadata without widening dependency guards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/context.json
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/generated-root.js
+    - scripts/tests/fixtures/rust-wasm-checkpoint-40985930000/post-header-guard.js
+    - scripts/tests/test_ci_rust_wasm_current_checkpoint.py
+    related_feature_ids: []
+  - sha: 7541a8d1d15065fe01c9443cdd6b8472fbad5354
+    short_sha: 7541a8d1d
+    authored_at: '2026-10-30T01:20:50+00:00'
+    subject: 'fix(ci): register verified Rust Core checkpoint for testing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/44b8b094917217bc273a57fd34deae2f4d8243c7c2d02527a0ea65eb050d74d9.json
+    related_feature_ids: []
+llm_summary:
+  overview: This update focused on internal infrastructure, specifically enhancing CI reliability and testing for the SDK
+    and WASM components.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Verification for contained client memory accounting was added to the testing suite alongside new SDK snapshots.
+    evidence:
+      commits:
+      - 1fcce6bbf
+    release_status: dev_only
+  - text: CI processes now include updated WASM shim metadata verification and registered Rust Core checkpoints.
+    evidence:
+      commits:
+      - b3c1209fe
+      - 7541a8d1d
+    release_status: dev_only
+  internal_progress:
+  - text: The build pipeline was stabilized through improved dependency guards and checkpoint registration for Rust Core.
+    evidence:
+      commits:
+      - b3c1209fe
+      - 7541a8d1d
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: CI and testing infrastructure updates
+      evidence:
+        commits:
+        - 1fcce6bbf
+        - b3c1209fe
+        - 7541a8d1d
+      reason: Internal CI and testing improvements with no user-facing impact.
+    rationale: This update consisted entirely of internal development and testing improvements that are not yet reachable
+      in the main branch or ready for public communication.
+  social_video_recommendations: []
+  quality_notes:
+  - CI stability improvements for Rust and WASM components.
+  - Enhanced memory accounting verification for client processes.
+  validation_warnings: []
