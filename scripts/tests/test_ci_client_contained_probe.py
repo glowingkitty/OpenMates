@@ -394,6 +394,86 @@ class AttemptIsolation(unittest.TestCase):
             self.assertEqual(list((root / "test-results/ci-private").iterdir()), [])
 
 
+class AttemptLaunchBoundary(unittest.TestCase):
+    # contract-test: tooling
+    def config(self, root, attempt):
+        import hashlib
+        import os
+        import time
+        from scripts.ci_client_container_launch import Config
+
+        private = attempt / "cases"
+        private.mkdir(mode=0o700)
+        state = private / "leaf"
+        state.mkdir(mode=0o700)
+        executable = root / "fixed-supervisor"
+        executable.write_bytes(b"synthetic pinned supervisor")
+        now = time.monotonic()
+        return Config(
+            source_root=root, private_root=private, source="a" * 40,
+            image="sha256:" + "b" * 64, runtime_key="c" * 64,
+            gateway="d" * 64, owner="synthetic-contained-unit", arm="rust", pair=1,
+            argv=(str(executable),), env={"HOME": str(state)}, cwd=state,
+            readonly_paths=(executable,), state_root=state, conditions=(),
+            deadline=now + 30, work_deadline=now + 18, memory_limit=1024,
+            pids_limit=8, cpus="1", uid=os.getuid(), gid=os.getgid(),
+            supervisor=executable,
+            supervisor_sha256=hashlib.sha256(executable.read_bytes()).hexdigest(),
+        )
+
+    # contract-test: tooling
+    def test_each_fresh_retry_passes_actual_unchanged_launch_validator(self):
+        from scripts.ci_client_container_launch import validate
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "test-results").mkdir()
+            first = new_attempt_root(root)
+            second = new_attempt_root(root)
+            self.assertNotEqual(first, second)
+            for attempt in (first, second):
+                cfg = self.config(root, attempt)
+                self.assertIs(validate(cfg), cfg)
+                self.assertEqual(attempt.stat().st_mode & 0o777, 0o700)
+
+    # contract-test: tooling
+    def test_previous_sibling_layout_is_refused_by_actual_validator(self):
+        from scripts.ci_client_container_launch import validate
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old = root / "test-results/ci-private/contained-attempt-old"
+            old.mkdir(parents=True, mode=0o700)
+            cfg = self.config(root, old)
+            with self.assertRaisesRegex(Refused, "disposable_ci_state_required"):
+                validate(cfg)
+
+    # contract-test: tooling
+    def test_symlink_memory_parent_is_refused_before_child_creation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parent = root / "test-results/ci-private"
+            parent.mkdir(parents=True, mode=0o700)
+            target = root / "other"
+            target.mkdir()
+            (parent / "client-memory").symlink_to(target, target_is_directory=True)
+            with self.assertRaises(Refused):
+                new_attempt_root(root)
+            self.assertEqual(list(target.iterdir()), [])
+
+    # contract-test: tooling
+    def test_writable_memory_parent_is_refused_before_child_creation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parent = root / "test-results/ci-private/client-memory"
+            parent.mkdir(parents=True, mode=0o700)
+            parent.parent.chmod(0o700)
+            parent.chmod(0o777)
+            with self.assertRaises(Refused):
+                new_attempt_root(root)
+            self.assertEqual(list(parent.iterdir()), [])
+
+
 class CounterDiagnostics(unittest.TestCase):
     # contract-test: tooling
     def records(self):

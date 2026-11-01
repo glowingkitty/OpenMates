@@ -46,11 +46,15 @@ def verify_compiler_cleanup(attempt):
 
 def new_attempt_root(root):
     """Never reuse a previous attempt's native outputs or private case state."""
-    parent = root / "test-results/ci-private"
-    parent.mkdir(mode=0o700, exist_ok=True)
-    info = parent.lstat()
-    need(stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid()
-         and info.st_mode & 0o022 == 0, "owned_private_attempt_parent_required")
+    private = root / "test-results/ci-private"
+    parent = private / "client-memory"
+    # Retain the launcher's existing disposable-state boundary for every retry.
+    # Check each ancestor before creating any child through it.
+    for directory in (private, parent):
+        directory.mkdir(mode=0o700, exist_ok=True)
+        info = directory.lstat()
+        need(stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid()
+             and info.st_mode & 0o022 == 0, "owned_private_attempt_parent_required")
     # mkdtemp creates an exclusive mode0700 directory; retain it for diagnosis.
     return Path(tempfile.mkdtemp(prefix="contained-attempt-", dir=parent))
 
