@@ -1,27 +1,65 @@
 # contract-test-file: tooling
 """Pure assertions for finite harmless runtime evidence; never run a probe here."""
+
 import copy
 import unittest
 import json
 from pathlib import Path
 import signal
 import tempfile
+import types
 from unittest import mock
-from scripts.ci_client_contained_probe import evaluate, verify_compiler_cleanup, new_attempt_root
+from scripts.ci_client_contained_probe import (
+    evaluate,
+    verify_compiler_cleanup,
+    new_attempt_root,
+    parse_counter_diagnostics,
+    counter_diagnostics,
+    DIAGNOSTIC_PHASES,
+    DIAGNOSTIC_STATUS,
+    DIAGNOSTIC_ROLLUP,
+)
 from scripts import ci_client_owned_lifecycle as lifecycle
 from scripts.ci_client_container_launch import Refused
 
 
 def sample(case="leaf"):
-    final = {"ownedShutdownConfirmed": True, "containedClone3Entries": 0,
-             "containedClone3Events": 0, "processesEver": 1, "threadCreates": 0}
-    measured = {"authority": "authenticated-pid1-private-channel", "acceptanceEligible": False,
-                "currentMigrationAcceptance": False, "multiprocessTotalRss": "unavailable-no-aggregation-or-subtraction",
-                "status": "observed", "wholeApplicationPeakRssBytes": 40 * 1024**2, "final": final}
-    return {"case": case, "cleanupVerified": True, "exitCode": 0,
-            "fixtureOutput": {"fixture": case, "privateFds": 0, "selfRssKiB": 1000, "acceptanceEligible": False},
-            "collection": {"cleanupVerified": True, "cleanupProblems": [], "metric": "kernel-total-container-memory-not-rss",
-                           "memory": {"chargedDiagnosticIncludes": "common-pid1-plus-common-meter-plus-application", "containedRss": measured}}}
+    final = {
+        "ownedShutdownConfirmed": True,
+        "containedClone3Entries": 0,
+        "containedClone3Events": 0,
+        "processesEver": 1,
+        "threadCreates": 0,
+    }
+    measured = {
+        "authority": "authenticated-pid1-private-channel",
+        "acceptanceEligible": False,
+        "currentMigrationAcceptance": False,
+        "multiprocessTotalRss": "unavailable-no-aggregation-or-subtraction",
+        "status": "observed",
+        "wholeApplicationPeakRssBytes": 40 * 1024**2,
+        "final": final,
+    }
+    return {
+        "case": case,
+        "cleanupVerified": True,
+        "exitCode": 0,
+        "fixtureOutput": {
+            "fixture": case,
+            "privateFds": 0,
+            "selfRssKiB": 1000,
+            "acceptanceEligible": False,
+        },
+        "collection": {
+            "cleanupVerified": True,
+            "cleanupProblems": [],
+            "metric": "kernel-total-container-memory-not-rss",
+            "memory": {
+                "chargedDiagnosticIncludes": "common-pid1-plus-common-meter-plus-application",
+                "containedRss": measured,
+            },
+        },
+    }
 
 
 def metric(row):
@@ -56,7 +94,11 @@ class ProbeEvidence(unittest.TestCase):
         row["exitCode"] = 125
         measured = metric(row)
         measured.update(status="unavailable", wholeApplicationPeakRssBytes=None)
-        measured["final"].update(ownedShutdownConfirmed=False, containedClone3Entries=1, memoryStatus="missing-creation-event")
+        measured["final"].update(
+            ownedShutdownConfirmed=False,
+            containedClone3Entries=1,
+            memoryStatus="missing-creation-event",
+        )
         evaluate("clone3-untraced", row)
         self.assertFalse(measured["final"]["ownedShutdownConfirmed"])
         self.assertEqual(row["clone3Outcome"], "kernel-success-missing-event-refused")
@@ -67,7 +109,9 @@ class ProbeEvidence(unittest.TestCase):
         metric(row)["final"]["containedClone3Entries"] = 1
         row["fixtureOutput"]["syscallErrno"] = 38
         evaluate("clone3", row)
-        self.assertEqual(row["clone3Outcome"], "kernel-error-no-success-or-missing-event-proof")
+        self.assertEqual(
+            row["clone3Outcome"], "kernel-error-no-success-or-missing-event-proof"
+        )
 
     # contract-test: tooling
     def test_no_errno_and_no_creation_event_cannot_pass(self):
@@ -107,7 +151,9 @@ class ProbeEvidence(unittest.TestCase):
         original = sample()
         for field in ("cleanupVerified", "cleanupProblems"):
             row = copy.deepcopy(original)
-            row["collection"][field] = False if field == "cleanupVerified" else ["owned_remove_failed"]
+            row["collection"][field] = (
+                False if field == "cleanupVerified" else ["owned_remove_failed"]
+            )
             with self.assertRaises(Refused):
                 evaluate("leaf", row)
 
@@ -138,7 +184,9 @@ class ProbeEvidence(unittest.TestCase):
             evaluate("controller-disconnect", row)
         row["collection"]["memory"] = None
         evaluate("controller-disconnect", row)
-        self.assertEqual(row["accountingUnavailable"], "private-controller-deliberately-disconnected")
+        self.assertEqual(
+            row["accountingUnavailable"], "private-controller-deliberately-disconnected"
+        )
 
 
 class CompilerGroupCleanup(unittest.TestCase):
@@ -178,7 +226,11 @@ class CompilerGroupCleanup(unittest.TestCase):
                 return {"live": [], "zombies": [], "inspectionUnknown": False}
             if kills and kills[-1][1] == signal.SIGKILL:
                 return {"live": [], "zombies": [child.pid], "inspectionUnknown": False}
-            return {"live": [child.pid + 1], "zombies": [child.pid], "inspectionUnknown": False}
+            return {
+                "live": [child.pid + 1],
+                "zombies": [child.pid],
+                "inspectionUnknown": False,
+            }
 
         def launch(argv, **kwargs):
             self.assertTrue(kwargs["start_new_session"])
@@ -186,22 +238,44 @@ class CompilerGroupCleanup(unittest.TestCase):
             kwargs["stdout"].flush()
             return child
 
-        with tempfile.TemporaryDirectory() as temporary, \
-                mock.patch.object(lifecycle.subprocess, "Popen", side_effect=launch), \
-                mock.patch.object(lifecycle.os, "waitid", side_effect=waitid), \
-                mock.patch.object(lifecycle.os, "killpg", side_effect=lambda group, sig: kills.append((group, sig))), \
-                mock.patch.object(lifecycle, "group_state", side_effect=state), \
-                mock.patch.object(lifecycle.time, "monotonic", side_effect=monotonic), \
-                mock.patch.object(lifecycle.time, "sleep"), \
-                mock.patch.object(lifecycle.signal, "signal", return_value=signal.SIG_DFL), \
-                mock.patch.object(lifecycle.signal, "getsignal", return_value=signal.SIG_DFL):
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            mock.patch.object(lifecycle.subprocess, "Popen", side_effect=launch),
+            mock.patch.object(lifecycle.os, "waitid", side_effect=waitid),
+            mock.patch.object(
+                lifecycle.os,
+                "killpg",
+                side_effect=lambda group, sig: kills.append((group, sig)),
+            ),
+            mock.patch.object(lifecycle, "group_state", side_effect=state),
+            mock.patch.object(lifecycle.time, "monotonic", side_effect=monotonic),
+            mock.patch.object(lifecycle.time, "sleep"),
+            mock.patch.object(lifecycle.signal, "signal", return_value=signal.SIG_DFL),
+            mock.patch.object(
+                lifecycle.signal, "getsignal", return_value=signal.SIG_DFL
+            ),
+        ):
             destination = Path(temporary)
-            code = lifecycle.run_owned(["fixed-compiler"], cwd=destination, env={}, out=destination, attempt={}, timeout=30)
+            code = lifecycle.run_owned(
+                ["fixed-compiler"],
+                cwd=destination,
+                env={},
+                out=destination,
+                attempt={},
+                timeout=30,
+            )
             receipt = json.loads((destination / "attempt.json").read_bytes())
-            self.assertEqual((destination / "process.log").read_bytes(), b"retained compiler failure while linker lives\n")
+            self.assertEqual(
+                (destination / "process.log").read_bytes(),
+                b"retained compiler failure while linker lives\n",
+            )
         self.assertEqual(code, 1 if interrupted_wait else 124)
-        self.assertEqual(receipt["reason"], "lifecycle_failed" if interrupted_wait else "timeout")
-        self.assertEqual(kills, [(child.pid, signal.SIGTERM), (child.pid, signal.SIGKILL)])
+        self.assertEqual(
+            receipt["reason"], "lifecycle_failed" if interrupted_wait else "timeout"
+        )
+        self.assertEqual(
+            kills, [(child.pid, signal.SIGTERM), (child.pid, signal.SIGKILL)]
+        )
         self.assertTrue(child.reaped)
         self.assertTrue(receipt["cleanup"]["anchorHeld"])
         self.assertTrue(receipt["cleanup"]["liveMembersDrained"])
@@ -220,10 +294,22 @@ class CompilerGroupCleanup(unittest.TestCase):
 
     # contract-test: tooling
     def test_nonempty_or_unknown_compiler_group_never_admits_elf(self):
-        base = {"cleanupVerified": True, "cleanup": {"anchorHeld": True, "liveMembersDrained": True,
-                "directChildReaped": True, "inspectionUnknown": False, "groupEmpty": True,
-                "remainingZombieMembers": 1}}
-        for changed in ({"groupEmpty": False}, {"inspectionUnknown": True}, {"directChildReaped": False}):
+        base = {
+            "cleanupVerified": True,
+            "cleanup": {
+                "anchorHeld": True,
+                "liveMembersDrained": True,
+                "directChildReaped": True,
+                "inspectionUnknown": False,
+                "groupEmpty": True,
+                "remainingZombieMembers": 1,
+            },
+        }
+        for changed in (
+            {"groupEmpty": False},
+            {"inspectionUnknown": True},
+            {"directChildReaped": False},
+        ):
             value = copy.deepcopy(base)
             value["cleanup"].update(changed)
             original = copy.deepcopy(value)
@@ -249,8 +335,12 @@ class AttemptIsolation(unittest.TestCase):
             self.assertEqual(list(second.iterdir()), [])
             self.assertEqual(first.stat().st_mode & 0o777, 0o700)
             self.assertEqual(second.stat().st_mode & 0o777, 0o700)
-            self.assertEqual((first / "tools/process-memory-meter").read_bytes(), b"old-elf")
-            self.assertEqual((first / "tools/preparation.json").read_text(), "old-preparation")
+            self.assertEqual(
+                (first / "tools/process-memory-meter").read_bytes(), b"old-elf"
+            )
+            self.assertEqual(
+                (first / "tools/preparation.json").read_text(), "old-preparation"
+            )
             self.assertEqual((first / "cases/leaf").read_text(), "old-state")
 
     # contract-test: tooling
@@ -273,7 +363,9 @@ class AttemptIsolation(unittest.TestCase):
             (root / "test-results").mkdir()
             target = root / "other"
             target.mkdir()
-            (root / "test-results/ci-private").symlink_to(target, target_is_directory=True)
+            (root / "test-results/ci-private").symlink_to(
+                target, target_is_directory=True
+            )
             with self.assertRaises(Refused):
                 new_attempt_root(root)
             self.assertEqual(list(target.iterdir()), [])
@@ -294,10 +386,230 @@ class AttemptIsolation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "test-results").mkdir()
-            with mock.patch("scripts.ci_client_contained_probe.os.geteuid", return_value=-1):
+            with mock.patch(
+                "scripts.ci_client_contained_probe.os.geteuid", return_value=-1
+            ):
                 with self.assertRaises(Refused):
                     new_attempt_root(root)
             self.assertEqual(list((root / "test-results/ci-private").iterdir()), [])
+
+
+class CounterDiagnostics(unittest.TestCase):
+    # contract-test: tooling
+    def records(self):
+        return [
+            {
+                "kind": "contained-rss-v1",
+                "phase": phase,
+                "pid": 7,
+                "startTicks": "123",
+                "beginNs": str(1000 + index * 100),
+                "endNs": str(1010 + index * 100),
+                "ruMaxKiB": 19000,
+                "statusKiB": dict.fromkeys(DIAGNOSTIC_STATUS, 18000),
+                "rollupKiB": dict.fromkeys(DIAGNOSTIC_ROLLUP, 18100),
+            }
+            for index, phase in enumerate(DIAGNOSTIC_PHASES)
+        ]
+
+    def encoded(self, records):
+        return b"".join(
+            (json.dumps(row, separators=(",", ":")) + "\n").encode() for row in records
+        )
+
+    # contract-test: tooling
+    def test_complete_observations_never_authorize_or_replace_metrics(self):
+        rows = self.records()
+        result = parse_counter_diagnostics(self.encoded(rows))
+        self.assertEqual(result["status"], "complete-diagnostic")
+        self.assertEqual(result["samples"], rows)
+        self.assertEqual(
+            result["authority"], "none-application-claimed-diagnostic-only"
+        )
+        self.assertFalse(result["acceptanceEligible"])
+        self.assertFalse(result["currentMigrationAcceptance"])
+        self.assertFalse(result["simultaneous"])
+        self.assertFalse(
+            {
+                "memory",
+                "final",
+                "wholeApplicationPeakRssBytes",
+                "steadyRssBytes",
+                "retainedRssBytes",
+            }
+            & result.keys()
+        )
+
+    # contract-test: tooling
+    def test_incomplete_and_missing_kernel_categories_remain_diagnostic_only(self):
+        rows = self.records()[:2]
+        rows[0]["ruMaxKiB"] = None
+        rows[0]["statusKiB"] = dict.fromkeys(DIAGNOSTIC_STATUS)
+        rows[0]["rollupKiB"] = dict.fromkeys(DIAGNOSTIC_ROLLUP)
+        result = parse_counter_diagnostics(self.encoded(rows))
+        self.assertEqual(result["status"], "incomplete-diagnostic")
+        self.assertEqual(result["samples"], rows)
+        self.assertFalse(result["acceptanceEligible"])
+
+    # contract-test: tooling
+    def test_hostile_or_unclosed_frames_never_raise_or_supply_authority(self):
+        mutations = []
+        for field, value in [
+            ("pid", True),
+            ("pid", -1),
+            ("startTicks", "01"),
+            ("beginNs", "18446744073709551616"),
+            ("endNs", "1"),
+            ("phase", "ready"),
+            ("ruMaxKiB", -1),
+            ("ruMaxKiB", 18446744073709551616),
+            ("acceptanceEligible", True),
+        ]:
+            rows = self.records()
+            rows[0][field] = value
+            mutations.append(self.encoded(rows))
+        rows = self.records()
+        rows[1]["pid"] = 8
+        mutations.append(self.encoded(rows))
+        rows = self.records()
+        rows[1]["startTicks"] = "124"
+        mutations.append(self.encoded(rows))
+        rows = self.records()
+        rows[1]["beginNs"] = "999"
+        mutations.append(self.encoded(rows))
+        rows = self.records()
+        rows[0]["statusKiB"]["hostname"] = 1
+        mutations.append(self.encoded(rows))
+        mutations += [
+            b"x" * 3841,
+            self.encoded(self.records() + [self.records()[0]]),
+            b"[" * 1500 + b"]" * 1500,
+            b'{"kind":1,"kind":2}\n',
+            b"\xff",
+            b"[]\n",
+        ]
+        for raw in mutations:
+            with self.subTest(raw_length=len(raw)):
+                result = parse_counter_diagnostics(raw)
+                self.assertEqual(result["status"], "unavailable-diagnostic")
+                self.assertEqual(result["samples"], [])
+                self.assertFalse(result["acceptanceEligible"])
+
+    # contract-test: tooling
+    def test_worst_case_finite_frames_fit_one_linux_pipe_page(self):
+        rows = self.records()
+        for index, row in enumerate(rows):
+            row.update(
+                pid=2147483647,
+                startTicks="18446744073709551615",
+                beginNs="18446744073709551615",
+                endNs="18446744073709551615",
+                ruMaxKiB=9223372036854775807,
+            )
+            row["statusKiB"] = dict.fromkeys(DIAGNOSTIC_STATUS, 18446744073709551615)
+            row["rollupKiB"] = dict.fromkeys(DIAGNOSTIC_ROLLUP, 18446744073709551615)
+        raw = self.encoded(rows)
+        self.assertTrue(all(len(line) < 768 for line in raw.splitlines()))
+        self.assertLessEqual(len(raw), 3840)
+        self.assertEqual(
+            parse_counter_diagnostics(raw)["status"], "complete-diagnostic"
+        )
+
+    # contract-test: tooling
+    def test_context_configuration_omits_hostname_and_remains_non_authorizing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = root / "fixture"
+            fixture.write_bytes(b"synthetic-elf-only")
+            cfg = types.SimpleNamespace(
+                source="a" * 40,
+                private_root=root / "attempt/cases",
+                source_root=root,
+                argv=[str(fixture)],
+            )
+            launch = types.SimpleNamespace(
+                reader=types.SimpleNamespace(fd=40, directory=(1, 2))
+            )
+            values = {
+                "cpu.max": b"100000 100000\n",
+                "cpuset.cpus.effective": b"1-2\n",
+                "cpuset.mems.effective": b"0\n",
+                "memory.max": b"268435456\n",
+                "memory.high": b"max\n",
+                "memory.swap.max": b"0\n",
+            }
+            with (
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.uname",
+                    return_value=types.SimpleNamespace(
+                        release="6.8.0-test",
+                        nodename="NEVER_EMIT_HOSTNAME",
+                        version="NEVER_EMIT_VERSION",
+                    ),
+                ),
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.sysconf",
+                    side_effect=lambda name: {
+                        "SC_PAGESIZE": 4096,
+                        "SC_NPROCESSORS_ONLN": 8,
+                        "SC_NPROCESSORS_CONF": 16,
+                        "SC_CLK_TCK": 100,
+                    }[name],
+                ),
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.sched_getaffinity",
+                    return_value={0, 1},
+                ),
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.fstat",
+                    return_value=types.SimpleNamespace(st_dev=1, st_ino=2),
+                ),
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.open",
+                    side_effect=lambda name, *args, **kwargs: name,
+                ),
+                mock.patch(
+                    "scripts.ci_client_contained_probe.os.read",
+                    side_effect=lambda fd, size: values[fd],
+                ),
+                mock.patch("scripts.ci_client_contained_probe.os.close"),
+            ):
+                value = counter_diagnostics(cfg, launch, self.encoded(self.records()))
+            self.assertEqual(
+                value["environmentDiagnostic"]["kernelRelease"], "6.8.0-test"
+            )
+            self.assertEqual(value["environmentDiagnostic"]["pageSizeBytes"], 4096)
+            self.assertEqual(
+                value["cgroupConfigurationDiagnostic"]["cpu.max"], "100000 100000"
+            )
+            self.assertNotIn("NEVER_EMIT", json.dumps(value))
+            self.assertFalse(value["acceptanceEligible"])
+            self.assertEqual(value["context"]["sourceCommit"], "a" * 40)
+            self.assertEqual(value["context"]["case"], "long-lived")
+
+    # contract-test: tooling
+    def test_optional_unreadable_context_does_not_change_primary_measurement(self):
+        with (
+            mock.patch(
+                "scripts.ci_client_contained_probe.os.uname", side_effect=OSError
+            ),
+            mock.patch(
+                "scripts.ci_client_contained_probe.os.sysconf", side_effect=OSError
+            ),
+            mock.patch(
+                "scripts.ci_client_contained_probe.os.sched_getaffinity",
+                side_effect=OSError,
+            ),
+        ):
+            value = counter_diagnostics(
+                types.SimpleNamespace(), types.SimpleNamespace(), b""
+            )
+        self.assertEqual(value["contextStatus"], "unavailable")
+        self.assertEqual(
+            value["cgroupConfigurationDiagnostic"]["status"], "unavailable"
+        )
+        self.assertEqual(value["status"], "incomplete-diagnostic")
+        self.assertFalse(value["acceptanceEligible"])
 
 
 if __name__ == "__main__":

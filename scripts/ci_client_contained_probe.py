@@ -114,6 +114,121 @@ def native_build(root, directory):
     return spec, directory / "harmless-fixture", receipt
 
 
+# Observational schema only. These values never enter authenticated memory frames.
+DIAGNOSTIC_PHASES = ("before_alloc", "after_touch", "before_free", "after_free", "before_exit")
+DIAGNOSTIC_STATUS = frozenset(("VmHWM", "VmRSS", "RssAnon", "RssFile", "RssShmem"))
+DIAGNOSTIC_ROLLUP = frozenset(("Rss", "Pss", "Anonymous", "Shared_Clean", "Shared_Dirty", "Private_Clean", "Private_Dirty", "Swap"))
+DIAGNOSTIC_BOUND = 3840
+
+
+def parse_counter_diagnostics(raw):
+    """Untrusted ordinary stderr, never a peak/steady/retained authority."""
+    result = {"authority": "none-application-claimed-diagnostic-only", "acceptanceEligible": False,
+              "currentMigrationAcceptance": False, "units": "Linux proc kB and ru_maxrss are 1024-byte KiB",
+              "clock": "application CLOCK_MONOTONIC nanoseconds; decimal strings preserve precision",
+              "readOrder": ["getrusage", "proc-self-status", "proc-self-smaps-rollup"],
+              "simultaneous": False, "samples": []}
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate")
+            value[key] = item
+        return value
+    def number(value):
+        return value is None or type(value) is int and 0 <= value <= 18446744073709551615
+    def decimal(value):
+        return type(value) is str and re.fullmatch(r"0|[1-9][0-9]{0,19}", value) is not None and int(value) <= 18446744073709551615
+    try:
+        if type(raw) is not bytes or len(raw) > DIAGNOSTIC_BOUND:
+            raise ValueError("bound")
+        lines = raw.splitlines()
+        if len(lines) > len(DIAGNOSTIC_PHASES):
+            raise ValueError("count")
+        previous = None
+        for index, line in enumerate(lines):
+            if len(line) >= 768:
+                raise ValueError("line")
+            value = json.loads(line, object_pairs_hook=unique)
+            if (type(value) is not dict or set(value) != {"kind", "phase", "pid", "startTicks", "beginNs", "endNs", "ruMaxKiB", "statusKiB", "rollupKiB"}
+                    or value["kind"] != "contained-rss-v1" or value["phase"] != DIAGNOSTIC_PHASES[index]
+                    or type(value["pid"]) is not int or not 0 < value["pid"] <= 2147483647
+                    or not all(decimal(value[name]) for name in ("startTicks", "beginNs", "endNs"))
+                    or not 0 < int(value["startTicks"]) or int(value["beginNs"]) > int(value["endNs"])
+                    or not number(value["ruMaxKiB"])):
+                raise ValueError("shape")
+            for name, fields in (("statusKiB", DIAGNOSTIC_STATUS), ("rollupKiB", DIAGNOSTIC_ROLLUP)):
+                if type(value[name]) is not dict or set(value[name]) != fields or not all(number(item) for item in value[name].values()):
+                    raise ValueError("fields")
+            if previous is not None and (value["pid"] != previous["pid"] or value["startTicks"] != previous["startTicks"] or int(value["beginNs"]) < int(previous["endNs"])):
+                raise ValueError("identity-timing")
+            result["samples"].append(value)
+            previous = value
+        result["status"] = "complete-diagnostic" if len(lines) == len(DIAGNOSTIC_PHASES) else "incomplete-diagnostic"
+    except (ValueError, TypeError, UnicodeError, OverflowError, RecursionError):
+        result.update(status="unavailable-diagnostic", reason="bounded-diagnostic-schema-refused", samples=[])
+    return result
+
+
+def counter_diagnostics(cfg, launch, raw):
+    """Attach current-context observations; no measurement/admission is changed."""
+    result = parse_counter_diagnostics(raw)
+    result["kernelCause"] = "unknown-not-established-by-these-observations"
+    result["instrumentation"] = "proc reads, stack pages and writes can perturb timing/RSS; not acceptance evidence"
+    try:
+        result["context"] = {"sourceCommit": cfg.source, "runId": os.environ.get("GITHUB_RUN_ID"),
+            "attemptRoot": cfg.private_root.parent.relative_to(cfg.source_root).as_posix(), "case": "long-lived",
+            "fixtureElfSha256": digest(Path(cfg.argv[0]))}
+    except Exception:
+        result["contextStatus"] = "unavailable"
+    environment = {}
+    try:
+        release = os.uname().release  # Deliberately never serialize nodename/version/hostname.
+        if type(release) is str and re.fullmatch(r"[A-Za-z0-9._+\-]{1,256}", release):
+            environment["kernelRelease"] = release
+    except Exception:
+        pass
+    for field, key in (("pageSizeBytes", "SC_PAGESIZE"), ("onlineCpuCount", "SC_NPROCESSORS_ONLN"), ("configuredCpuCount", "SC_NPROCESSORS_CONF"), ("clockTicksPerSecond", "SC_CLK_TCK")):
+        try:
+            value = os.sysconf(key)
+            if type(value) is int and value > 0:
+                environment[field] = value
+        except Exception:
+            pass
+    try:
+        environment["collectorAffinityCpuCount"] = len(os.sched_getaffinity(0))
+    except Exception:
+        pass
+    result["environmentDiagnostic"] = environment
+    cgroup = {"scope": "existing-owned-container-descriptor-common-pid1-meter-and-application", "status": "unavailable"}
+    try:
+        reader = launch.reader
+        actual = os.fstat(reader.fd)
+        if (actual.st_dev, actual.st_ino) != reader.directory:
+            raise ValueError("identity")
+        def read(name):
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=reader.fd)
+            try:
+                data = os.read(fd, 4097)
+                if len(data) > 4096:
+                    raise ValueError("bound")
+                return data.decode("ascii", errors="strict").strip()
+            finally:
+                os.close(fd)
+        for name in ("cpu.max", "cpuset.cpus.effective", "cpuset.mems.effective", "memory.max", "memory.high", "memory.swap.max"):
+            try:
+                value = read(name)
+                if re.fullmatch(r"[0-9, \-]{1,4096}|max(?: [0-9]+)?", value):
+                    cgroup[name] = value
+            except Exception:
+                pass
+        cgroup["status"] = "configuration-observed-diagnostic-only"
+    except Exception:
+        pass
+    result["cgroupConfigurationDiagnostic"] = cgroup
+    return result
+
+
 def terminal_line(proxy, expected, deadline):
     data = bytearray()
     selector = selectors.DefaultSelector()
@@ -245,6 +360,8 @@ def execute_case(cfg, case, row):
             proxy.stdin.close()
         output = drain_complete_output(proxy, cfg.deadline)
         row.update(exitCode=output["exitCode"], complete=output["complete"], stdoutBytes=len(output["stdout"]), stderrBytes=len(output["stderr"]))
+        if case == "long-lived":
+            row["counterDiagnostics"] = counter_diagnostics(cfg, launch, output["stderr"])
         if output["stdout"]:
             row["fixtureOutput"] = json.loads(output["stdout"])
     finally:

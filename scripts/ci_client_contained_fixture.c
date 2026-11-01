@@ -2,6 +2,9 @@
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <time.h>
 #include <linux/sched.h>
 #include <pthread.h>
 #include <signal.h>
@@ -44,6 +47,64 @@ static void *late(void *unused) {
     if(report("late-worker",1,0))_exit(3);
     free((void *)p);return NULL;
 }
+/* Optional ordinary-stderr observations; never private meter frames/authority.
+ * Five records, each <768bytes: total<3840 fits one Linux pipe page before the
+ * existing driver drains stderr. Reads themselves can perturb timing/RSS. */
+struct diagnostic_counter { const char *name; char value[24]; };
+static void diagnostic_fields(const char *path,struct diagnostic_counter *fields,size_t count) {
+    for(size_t i=0;i<count;i++)strcpy(fields[i].value,"null");
+    char buffer[4097];int fd=open(path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(fd<0)return;
+    ssize_t size=read(fd,buffer,sizeof(buffer));close(fd);
+    if(size<=0||(size_t)size>=sizeof(buffer))return;
+    buffer[size]='\0';char *save=NULL;
+    for(char *line=strtok_r(buffer,"\n",&save);line;line=strtok_r(NULL,"\n",&save)){
+        for(size_t i=0;i<count;i++){
+            size_t length=strlen(fields[i].name);
+            if(strncmp(line,fields[i].name,length)||line[length]!=':')continue;
+            const char *start=line+length+1;while(*start==' '||*start=='\t')start++;
+            if(*start<'0'||*start>'9')continue;
+            errno=0;char *end=NULL;unsigned long long value=strtoull(start,&end,10);
+            while(end&&(*end==' '||*end=='\t'))end++;
+            if(errno||!end||strcmp(end,"kB"))continue;
+            snprintf(fields[i].value,sizeof(fields[i].value),"%llu",value);
+        }
+    }
+}
+static unsigned long long diagnostic_start_ticks(void) {
+    char buffer[4097];int fd=open("/proc/self/stat",O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(fd<0)return 0;
+    ssize_t size=read(fd,buffer,sizeof(buffer));close(fd);
+    if(size<=0||(size_t)size>=sizeof(buffer))return 0;
+    buffer[size]='\0';char *end=strrchr(buffer,')');if(!end||end[1]!=' ')return 0;
+    char *save=NULL,*token=strtok_r(end+2," ", &save);
+    for(int field=3;token;field++,token=strtok_r(NULL," ",&save))if(field==22){
+        errno=0;char *tail=NULL;unsigned long long value=strtoull(token,&tail,10);
+        return !errno&&tail&&!*tail?value:0;
+    }
+    return 0;
+}
+static unsigned long long diagnostic_monotonic_ns(void) {
+    struct timespec now;if(clock_gettime(CLOCK_MONOTONIC,&now)||now.tv_sec<0)return 0;
+    if((unsigned long long)now.tv_sec>(ULLONG_MAX-(unsigned long long)now.tv_nsec)/1000000000ULL)return 0;
+    return (unsigned long long)now.tv_sec*1000000000ULL+(unsigned long long)now.tv_nsec;
+}
+static void diagnostic_snapshot(const char *phase) {
+    unsigned long long begin=diagnostic_monotonic_ns(),ticks=diagnostic_start_ticks();
+    struct rusage usage;char hwm[24]="null";
+    if(!getrusage(RUSAGE_SELF,&usage)&&usage.ru_maxrss>=0)snprintf(hwm,sizeof(hwm),"%ld",usage.ru_maxrss);
+    struct diagnostic_counter status[]={{"VmHWM",""},{"VmRSS",""},{"RssAnon",""},{"RssFile",""},{"RssShmem",""}};
+    struct diagnostic_counter rollup[]={{"Rss",""},{"Pss",""},{"Anonymous",""},{"Shared_Clean",""},{"Shared_Dirty",""},{"Private_Clean",""},{"Private_Dirty",""},{"Swap",""}};
+    diagnostic_fields("/proc/self/status",status,sizeof(status)/sizeof(status[0]));
+    diagnostic_fields("/proc/self/smaps_rollup",rollup,sizeof(rollup)/sizeof(rollup[0]));
+    unsigned long long end=diagnostic_monotonic_ns();char output[768];
+    int length=snprintf(output,sizeof(output),
+        "{\"kind\":\"contained-rss-v1\",\"phase\":\"%s\",\"pid\":%ld,\"startTicks\":\"%llu\",\"beginNs\":\"%llu\",\"endNs\":\"%llu\",\"ruMaxKiB\":%s,"
+        "\"statusKiB\":{\"VmHWM\":%s,\"VmRSS\":%s,\"RssAnon\":%s,\"RssFile\":%s,\"RssShmem\":%s},"
+        "\"rollupKiB\":{\"Rss\":%s,\"Pss\":%s,\"Anonymous\":%s,\"Shared_Clean\":%s,\"Shared_Dirty\":%s,\"Private_Clean\":%s,\"Private_Dirty\":%s,\"Swap\":%s}}\n",
+        phase,(long)getpid(),ticks,begin,end,hwm,status[0].value,status[1].value,status[2].value,status[3].value,status[4].value,
+        rollup[0].value,rollup[1].value,rollup[2].value,rollup[3].value,rollup[4].value,rollup[5].value,rollup[6].value,rollup[7].value);
+    if(length>0&&(size_t)length<sizeof(output)){ssize_t written=write(STDERR_FILENO,output,(size_t)length);(void)written;}
+}
+
 int main(int argc,char **argv) {
     entry_private_fds=private_fds();
     if(argc!=2||entry_private_fds!=0)return 2;
@@ -77,11 +138,16 @@ int main(int argc,char **argv) {
     if(!strcmp(mode,"cancel")){if(kill(getppid(),SIGTERM))return 3;sleep(20);return 8;}
     if(!strcmp(mode,"deadline")){sleep(20);return 8;}
     if(!strcmp(mode,"long-lived")){
+        diagnostic_snapshot("before_alloc");
         char command;volatile unsigned char *p=malloc(16*1024*1024);if(!p)return 3;
         for(size_t i=0;i<16*1024*1024;i+=4096)p[i]=1;
+        diagnostic_snapshot("after_touch");
         if(write(1,"steady\n",7)!=7||read(0,&command,1)!=1)return 3;
+        diagnostic_snapshot("before_free");
         free((void *)p);
+        diagnostic_snapshot("after_free");
         if(write(1,"retained\n",9)!=9||read(0,&command,1)!=1)return 3;
+        diagnostic_snapshot("before_exit");
         return report(mode,0,0);
     }
     return 2;
