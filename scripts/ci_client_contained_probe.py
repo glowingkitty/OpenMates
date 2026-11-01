@@ -174,6 +174,104 @@ def parse_counter_diagnostics(raw):
     return result
 
 
+# Optional collector provenance only; never an RSS/acceptance input.
+def diagnostic_read_status(error):
+    import errno
+    if isinstance(error, FileNotFoundError):
+        return "missing"
+    if isinstance(error, PermissionError):
+        return "permission-denied"
+    if isinstance(error, UnicodeError):
+        return "non-ascii"
+    if isinstance(error, OSError):
+        return "unsafe-path" if error.errno in (errno.ELOOP, errno.ENOTDIR) else "io-error"
+    if isinstance(error, ValueError) and str(error) in {"too-large", "unsafe-file", "changed-file"}:
+        return str(error)
+    return "unavailable"
+
+
+def kernel_diagnostic_file(path, limit):
+    """Fixed caller paths, bounded root-owned regular data, no raw output."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode) or before.st_uid != 0 or before.st_mode & 0o022:
+            raise ValueError("unsafe-file")
+        if before.st_size > limit:
+            raise ValueError("too-large")
+        data = bytearray()
+        while len(data) <= limit:
+            part = os.read(fd, min(65536, limit + 1 - len(data)))
+            if not part:
+                break
+            data.extend(part)
+        if len(data) > limit:
+            raise ValueError("too-large")
+        def identity(value):
+            return tuple(getattr(value, name) for name in ("st_dev", "st_ino", "st_mode", "st_uid", "st_size", "st_mtime_ns", "st_ctime_ns"))
+        if identity(before) != identity(os.fstat(fd)) or identity(before) != identity(Path(path).lstat()):
+            raise ValueError("changed-file")
+        return bytes(data)
+    finally:
+        os.close(fd)
+
+
+def runner_kernel_diagnostics(release):
+    """Runner host observations, distinct from the application and its counters."""
+    result = {"scope": "collector-runner-host-not-application-container", "acceptanceEligible": False,
+              "currentMigrationAcceptance": False, "build": {"status": "unavailable"},
+              "package": {"status": "unavailable"}, "config": {"status": "unavailable"}}
+    if type(release) is not str or re.fullmatch(r"[A-Za-z0-9._+\-]{1,256}", release) is None:
+        for name in ("build", "package", "config"):
+            result[name]["status"] = "kernel-release-unavailable"
+        return result
+    try:
+        raw = kernel_diagnostic_file("/proc/version_signature", 1024)
+        value = raw.decode("ascii", errors="strict").strip()
+        # Explicit Ubuntu signature only; never copy uname.version/build hosts.
+        match = re.fullmatch(r"Ubuntu ([0-9][A-Za-z0-9.+~:\-]{0,191}) ([0-9][A-Za-z0-9.+~:\-]{0,63})", value)
+        result["build"] = ({"status": "available", "source": "ubuntu-version-signature",
+                            "distribution": "Ubuntu", "packageBuild": match[1], "upstreamVersion": match[2],
+                            "sha256": hashlib.sha256(raw).hexdigest()} if match else {"status": "unsupported-signature"})
+    except Exception as error:
+        result["build"]["status"] = diagnostic_read_status(error)
+    try:
+        raw = kernel_diagnostic_file("/var/lib/dpkg/status", 16 * 1024**2)
+        packages = {"linux-image-" + release, "linux-image-unsigned-" + release}
+        result["package"]["status"] = "matching-package-not-found"
+        for paragraph in raw.decode("utf-8", errors="strict").split("\n\n"):
+            fields = dict(line.split(": ", 1) for line in paragraph.splitlines() if ": " in line and not line.startswith(" "))
+            if fields.get("Package") in packages:
+                if fields.get("Status") == "install ok installed" and re.fullmatch(r"[0-9][A-Za-z0-9.+~:\-]{0,191}", fields.get("Version", "")):
+                    result["package"] = {"status": "available", "source": "runner-dpkg-status", "name": fields["Package"], "version": fields["Version"]}
+                    break
+                else:
+                    result["package"]["status"] = "matching-package-record-refused"
+    except Exception as error:
+        result["package"]["status"] = diagnostic_read_status(error)
+    attempts = {}
+    for source, path in (("boot-config", "/boot/config-" + release), ("proc-config-gzip", "/proc/config.gz")):
+        try:
+            raw = kernel_diagnostic_file(path, 2 * 1024**2)
+            if source == "proc-config-gzip":
+                import gzip
+                import io
+                with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
+                    raw = stream.read(2 * 1024**2 + 1)
+                if len(raw) > 2 * 1024**2:
+                    raise ValueError("too-large")
+            if not re.search(r"^CONFIG_(?:SMP|MMU)=y$", raw.decode("ascii", errors="strict"), re.MULTILINE):
+                attempts[source] = "config-shape-refused"
+                continue
+            attempts[source] = "available"
+            result["config"] = {"status": "available", "source": source, "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+            break
+        except Exception as error:
+            attempts[source] = diagnostic_read_status(error)
+    result["config"]["attempts"] = attempts
+    return result
+
+
 def counter_diagnostics(cfg, launch, raw):
     """Attach current-context observations; no measurement/admission is changed."""
     result = parse_counter_diagnostics(raw)
@@ -204,31 +302,43 @@ def counter_diagnostics(cfg, launch, raw):
     except Exception:
         pass
     result["environmentDiagnostic"] = environment
-    cgroup = {"scope": "existing-owned-container-descriptor-common-pid1-meter-and-application", "status": "unavailable"}
+    result["runnerKernelDiagnostic"] = runner_kernel_diagnostics(environment.get("kernelRelease"))
+    names = ("cpu.max", "cpuset.cpus.effective", "cpuset.mems.effective", "memory.max", "memory.high", "memory.swap.max")
+    cgroup = {"scope": "existing-owned-container-descriptor-common-pid1-meter-and-application", "status": "unavailable",
+              "fieldStatus": dict.fromkeys(names, "descriptor-unavailable")}
     try:
         reader = launch.reader
+        if reader is None or type(reader.fd) is not int or reader.fd < 0:
+            raise ValueError("descriptor-unavailable")
         actual = os.fstat(reader.fd)
         if (actual.st_dev, actual.st_ino) != reader.directory:
             raise ValueError("identity")
+        cgroup["descriptorStatus"] = "verified"
         def read(name):
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=reader.fd)
             try:
                 data = os.read(fd, 4097)
                 if len(data) > 4096:
-                    raise ValueError("bound")
+                    raise ValueError("too-large")
                 return data.decode("ascii", errors="strict").strip()
             finally:
                 os.close(fd)
-        for name in ("cpu.max", "cpuset.cpus.effective", "cpuset.mems.effective", "memory.max", "memory.high", "memory.swap.max"):
+        for name in names:
             try:
                 value = read(name)
                 if re.fullmatch(r"[0-9, \-]{1,4096}|max(?: [0-9]+)?", value):
                     cgroup[name] = value
-            except Exception:
-                pass
-        cgroup["status"] = "configuration-observed-diagnostic-only"
-    except Exception:
-        pass
+                    cgroup["fieldStatus"][name] = "available"
+                else:
+                    cgroup["fieldStatus"][name] = "invalid-format"
+            except Exception as error:
+                cgroup["fieldStatus"][name] = diagnostic_read_status(error)
+        count = sum(value == "available" for value in cgroup["fieldStatus"].values())
+        if count:
+            cgroup["status"] = "configuration-observed-diagnostic-only" if count == len(names) else "partial-configuration-diagnostic-only"
+    except Exception as error:
+        cgroup["descriptorStatus"] = (str(error) if isinstance(error, ValueError) and str(error) in {"identity", "descriptor-unavailable"}
+                                      else diagnostic_read_status(error))
     result["cgroupConfigurationDiagnostic"] = cgroup
     return result
 

@@ -692,5 +692,151 @@ class CounterDiagnostics(unittest.TestCase):
         self.assertFalse(value["acceptanceEligible"])
 
 
+class DiagnosticProvenance(unittest.TestCase):
+    # contract-test: tooling
+    def cgroup(self, outcomes, reader=None, stat_result=None):
+        from scripts import ci_client_contained_probe as probe
+        def read(fd, size):
+            value = outcomes[fd]
+            if isinstance(value, Exception):
+                raise value
+            return value
+        launch = types.SimpleNamespace(reader=reader if reader is not None else types.SimpleNamespace(fd=40, directory=(1, 2)))
+        with (mock.patch.object(probe.os, "uname", side_effect=OSError),
+              mock.patch.object(probe.os, "sysconf", side_effect=OSError),
+              mock.patch.object(probe.os, "sched_getaffinity", side_effect=OSError),
+              mock.patch.object(probe.os, "fstat", return_value=stat_result or types.SimpleNamespace(st_dev=1, st_ino=2)),
+              mock.patch.object(probe.os, "open", side_effect=lambda name, *args, **kwargs: name),
+              mock.patch.object(probe.os, "read", side_effect=read), mock.patch.object(probe.os, "close")):
+            return probe.counter_diagnostics(types.SimpleNamespace(), launch, b"")
+
+    # contract-test: tooling
+    def test_zero_fields_never_claims_observed_and_enumerates_all_errors(self):
+        import errno
+        names = ("cpu.max", "cpuset.cpus.effective", "cpuset.mems.effective", "memory.max", "memory.high", "memory.swap.max")
+        failures = [PermissionError("SECRET"), FileNotFoundError("SECRET"), OSError(errno.ELOOP, "SECRET"),
+                    b"x" * 4097, b"\xff", b"SECRET"]
+        value = self.cgroup(dict(zip(names, failures)))
+        cgroup = value["cgroupConfigurationDiagnostic"]
+        self.assertEqual(cgroup["status"], "unavailable")
+        self.assertEqual(cgroup["descriptorStatus"], "verified")
+        self.assertEqual(list(cgroup["fieldStatus"].values()),
+                         ["permission-denied", "missing", "unsafe-path", "too-large", "non-ascii", "invalid-format"])
+        self.assertNotIn("SECRET", json.dumps(value))
+        self.assertFalse(value["acceptanceEligible"])
+        self.assertFalse(value["currentMigrationAcceptance"])
+
+    # contract-test: tooling
+    def test_partial_and_complete_counts_describe_only_available_fields(self):
+        names = ("cpu.max", "cpuset.cpus.effective", "cpuset.mems.effective", "memory.max", "memory.high", "memory.swap.max")
+        outcomes = dict.fromkeys(names, b"max\n")
+        complete = self.cgroup(outcomes)["cgroupConfigurationDiagnostic"]
+        self.assertEqual(complete["status"], "configuration-observed-diagnostic-only")
+        self.assertEqual(set(complete["fieldStatus"].values()), {"available"})
+        outcomes["memory.max"] = PermissionError("SECRET")
+        partial = self.cgroup(outcomes)["cgroupConfigurationDiagnostic"]
+        self.assertEqual(partial["status"], "partial-configuration-diagnostic-only")
+        self.assertNotIn("memory.max", partial)
+        self.assertEqual(partial["fieldStatus"]["memory.max"], "permission-denied")
+
+    # contract-test: tooling
+    def test_descriptor_failure_cannot_read_or_claim_field_observation(self):
+        for reader, status in [(types.SimpleNamespace(fd=None), "descriptor-unavailable"),
+                               (types.SimpleNamespace(fd=40, directory=(8, 9)), "identity")]:
+            value = self.cgroup({}, reader)["cgroupConfigurationDiagnostic"]
+            self.assertEqual(value["status"], "unavailable")
+            self.assertEqual(value["descriptorStatus"], status)
+            self.assertEqual(set(value["fieldStatus"].values()), {"descriptor-unavailable"})
+
+    # contract-test: tooling
+    def test_kernel_provenance_uses_exact_matching_package_and_hashed_config_only(self):
+        from scripts import ci_client_contained_probe as probe
+        import hashlib
+        release = "7.0.0-1017-azure"
+        config = b"CONFIG_SMP=y\n# SECRET config body is never emitted\n"
+        values = {"/proc/version_signature": b"Ubuntu 7.0.0-1017.17 7.0.1\n",
+                  "/var/lib/dpkg/status": ("Package: unrelated\nVersion: SECRET\n\nPackage: linux-image-" + release +
+                                           "\nVersion: 7.0.0-1017.17\nStatus: install ok installed\n\n").encode(),
+                  "/boot/config-" + release: config}
+        with mock.patch.object(probe, "kernel_diagnostic_file", side_effect=lambda path, limit: values[path]):
+            value = probe.runner_kernel_diagnostics(release)
+        self.assertEqual(value["build"]["packageBuild"], "7.0.0-1017.17")
+        self.assertEqual(value["package"]["name"], "linux-image-" + release)
+        self.assertEqual(value["config"]["sha256"], hashlib.sha256(config).hexdigest())
+        self.assertNotIn("SECRET", json.dumps(value))
+        self.assertNotIn("/boot", json.dumps(value))
+        self.assertFalse(value["acceptanceEligible"])
+        self.assertFalse(value["currentMigrationAcceptance"])
+
+    # contract-test: tooling
+    def test_kernel_missing_malformed_and_gzip_fallback_are_finite(self):
+        from scripts import ci_client_contained_probe as probe
+        import gzip
+        release = "7.0.0-test"
+        def observed(path, limit):
+            if path == "/proc/version_signature":
+                return b"Linux build SECRET@host"
+            if path == "/var/lib/dpkg/status":
+                raise PermissionError("SECRET path")
+            if path.startswith("/boot/"):
+                raise FileNotFoundError("SECRET path")
+            return gzip.compress(b"CONFIG_MMU=y\n")
+        with mock.patch.object(probe, "kernel_diagnostic_file", side_effect=observed):
+            value = probe.runner_kernel_diagnostics(release)
+        self.assertEqual(value["build"]["status"], "unsupported-signature")
+        self.assertEqual(value["package"]["status"], "permission-denied")
+        self.assertEqual(value["config"]["source"], "proc-config-gzip")
+        self.assertEqual(value["config"]["attempts"], {"boot-config": "missing", "proc-config-gzip": "available"})
+        self.assertNotIn("SECRET", json.dumps(value))
+        with mock.patch.object(probe, "kernel_diagnostic_file", side_effect=FileNotFoundError("SECRET")):
+            value = probe.runner_kernel_diagnostics(release)
+        self.assertEqual(value["config"]["status"], "unavailable")
+        self.assertEqual(set(value["config"]["attempts"].values()), {"missing"})
+
+    # contract-test: tooling
+    def test_bad_release_never_becomes_a_path_and_gzip_is_decoded_bounded(self):
+        from scripts import ci_client_contained_probe as probe
+        import gzip
+        with mock.patch.object(probe, "kernel_diagnostic_file") as read:
+            value = probe.runner_kernel_diagnostics("../SECRET")
+            read.assert_not_called()
+        self.assertEqual(value["config"]["status"], "kernel-release-unavailable")
+        def read(path, limit):
+            if path == "/proc/config.gz":
+                return gzip.compress(b"CONFIG_SMP=y\n" + b"x" * (2 * 1024**2))
+            raise FileNotFoundError()
+        with mock.patch.object(probe, "kernel_diagnostic_file", side_effect=read):
+            value = probe.runner_kernel_diagnostics("7.0.0-test")
+        self.assertEqual(value["config"]["attempts"]["proc-config-gzip"], "too-large")
+        self.assertEqual(value["config"]["status"], "unavailable")
+
+    # contract-test: tooling
+    def test_kernel_file_reader_refuses_symlink_fifo_size_and_permissions(self):
+        from scripts import ci_client_contained_probe as probe
+        import os
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            target.write_bytes(b"synthetic")
+            link = root / "link"
+            link.symlink_to(target)
+            fifo = root / "fifo"
+            os.mkfifo(fifo, 0o600)
+            for path in (link, fifo, target):
+                with self.subTest(path=path.name), self.assertRaises((OSError, ValueError)):
+                    probe.kernel_diagnostic_file(str(path), 1)
+            fd = 50
+            info = types.SimpleNamespace(st_mode=0o100666, st_uid=0, st_size=0)
+            with (mock.patch.object(probe.os, "open", return_value=fd),
+                  mock.patch.object(probe.os, "fstat", return_value=info), mock.patch.object(probe.os, "close")):
+                with self.assertRaisesRegex(ValueError, "unsafe-file"):
+                    probe.kernel_diagnostic_file("/fixed", 1024)
+            info = types.SimpleNamespace(st_mode=0o100644, st_uid=0, st_size=1025)
+            with (mock.patch.object(probe.os, "open", return_value=fd),
+                  mock.patch.object(probe.os, "fstat", return_value=info), mock.patch.object(probe.os, "close")):
+                with self.assertRaisesRegex(ValueError, "too-large"):
+                    probe.kernel_diagnostic_file("/fixed", 1024)
+
+
 if __name__ == "__main__":
     unittest.main()
