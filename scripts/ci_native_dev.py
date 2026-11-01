@@ -253,6 +253,57 @@ def diagnostic(
     return result
 
 
+def fetch_failure_diagnostics(private, sandbox, recipe_stage, error):
+    """Closed observations from the original failed fetch, before normal cleanup.
+
+    Raw parent logs and root-owned stage proofs keep their existing lifetime;
+    no text, package name, path, URL or token is returned or uploaded here.
+    These observations never replace failure status or cleanup verification.
+    """
+    if recipe_stage not in {"native-fetch", "sdk-fetch"}:
+        return {}
+    observed = set()
+    result = {"logAvailable": False}
+    try:
+        data = sdk.regular(private / (recipe_stage + ".log"), sdk.MAX_LOG)
+        text = data[-65536:].decode("utf-8", errors="replace").lower()
+        result["logAvailable"] = True
+        patterns = {
+            "lock_mismatch": r"lock ?file[^\n]{0,2048}(?:needs to be updated|not up.to.date|cannot be updated)",
+            "missing_package_or_version": r"no matching package named|failed to select a version",
+            "checksum": r"checksum[^\n]{0,2048}(?:changed|mismatch|did not match|failed)|failed to verify checksum",
+            "network": r"could not resolve host|failed to connect|connection (?:reset|refused)|network is unreachable|network failure|failed to download",
+            "tls": r"\b(?:ssl|tls)\b[^\n]{0,100}(?:error|certificate|handshake|failed)|certificate (?:verify|verification|has expired|problem)|peer verification",
+            "http_status": r"(?:http[^\n]{0,200}(?:response|status)[^\n]{0,200}|got |status(?: code)?:? )\b[45][0-9]{2}\b",
+            "timeout": r"timed out|timeout was reached|operation too slow",
+        }
+        for category, pattern in patterns.items():
+            if re.search(pattern, text):
+                observed.add(category)
+    except (OSError, ValueError, sdk.Refused):
+        pass
+    if isinstance(error, sdk.Refused) and str(error) in {"deadline", "stage_deadline"}:
+        observed.add("timeout")
+    try:
+        proof = json.loads(root_file(sandbox / "proof" / (recipe_stage + ".json"), 1024**2))
+        if isinstance(proof, dict) and proof.get("stage") == recipe_stage:
+            reason = proof.get("failure")
+            if isinstance(reason, str) and reason in {"child-failed", "deadline", "disk", "process-bound", "escaped-descendant", "compiler-held", "compiler-replaced", "supervisor"}:
+                result["supervisorReason"] = reason
+            if reason == "deadline":
+                observed.add("timeout")
+            for field in ("uidEmpty", "unexpectedDescendants"):
+                if isinstance(proof.get(field), bool):
+                    result["observed" + field[0].upper() + field[1:]] = proof[field]
+            if proof.get("uidEmpty") is False or proof.get("unexpectedDescendants") is True:
+                observed.add("owned_cleanup")
+    except (OSError, ValueError, sdk.Refused, supervisor.Refused):
+        pass
+    order = ("lock_mismatch", "missing_package_or_version", "checksum", "network", "tls", "http_status", "timeout", "owned_cleanup")
+    result["categories"] = [name for name in order if name in observed] or ["unknown"]
+    return result
+
+
 def compile_failure_diagnostics(private, original_source, inputs, recipe_stage):
     """Project the SAME failed parent log before private cleanup; never raw text.
 
@@ -1095,6 +1146,13 @@ def run(root, results, *, environ=None):
                 setup_substage=setup_substage,
             ),
         )
+        if phase == "fetch" and private is not None and sandbox is not None:
+            receipt["diagnostic"]["fetch"] = fetch_failure_diagnostics(
+                private,
+                sandbox,
+                runner.steps[-1].get("stage") if runner and runner.steps else None,
+                error,
+            )
         if phase == "compile" and private is not None and sandbox is not None:
             receipt["diagnostic"]["compiler"] = compile_failure_diagnostics(
                 private,

@@ -1003,10 +1003,12 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                         state["sandbox"] = Path(command[8])
                     if (
                         failure == "package-command" and stage == "cli-package-list"
-                    ) or (failure == "renderer-command" and stage == "renderer-build"):
+                    ) or (failure == "renderer-command" and stage == "renderer-build") or (failure == "fetch-command" and stage == "native-fetch"):
                         self.steps[-1].update(
                             status="failed", returncode=1, terminatedReturncode=1
                         )
+                        if stage == "native-fetch":
+                            (self.private / (stage + ".log")).write_text("error: lock file needs to be updated but --locked was passed\n")
                         raise lane.sdk.Refused("child_failed")
                     text = ""
                     if stage == "rustc-version":
@@ -1141,6 +1143,16 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 self.assertNotIn("inputs", public)
                 self.assertNotIn("binary", public)
             return receipt, uploads
+
+    def test_fetch_failure_projects_closed_category_without_changing_cleanup_or_proof(self):
+        receipt, uploads = self.producer_fixture("fetch-command")
+        self.assertEqual(receipt["code"], "fetch")
+        self.assertEqual(receipt["diagnostic"]["reason"], "fetch_command_failed")
+        self.assertEqual(receipt["diagnostic"]["fetch"]["categories"], ["lock_mismatch"])
+        self.assertTrue(receipt["cleanupVerified"])
+        self.assertTrue(receipt["sourceHeld"])
+        self.assertFalse(receipt["compileProof"])
+        self.assertEqual(uploads, [])
 
     def test_renderer_command_failure_does_not_upload_or_extend_budget(self):
         receipt, uploads = self.producer_fixture("renderer-command")
@@ -1472,6 +1484,74 @@ class NativeCompileFailureProjectionTests(unittest.TestCase):
                 for n in ast.walk(run)
             )
         )
+
+
+class NativeFetchFailureProjectionTests(unittest.TestCase):
+    def observe(self, root, data, proof=None, error=None, stage="native-fetch"):
+        (root / (stage + ".log")).write_bytes(data)
+        with patch.object(lane, "root_file", return_value=json.dumps(proof or {}).encode()):
+            return lane.fetch_failure_diagnostics(root, root, stage, error or lane.sdk.Refused("child_failed"))
+
+    def test_fixed_categories_never_export_raw_error_body(self):
+        cases = [
+            (b"error: lock file /private/path needs to be updated but --locked was passed", "lock_mismatch"),
+            (b"error: no matching package named private-package found", "missing_package_or_version"),
+            (b"error: checksum for private-package changed", "checksum"),
+            (b"error: could not resolve host private.example", "network"),
+            (b"error: SSL certificate private-value", "tls"),
+            (b"error: failed HTTP response from https://private.example/token got 403", "http_status"),
+            (b"error: operation timed out private-value", "timeout"),
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for data, category in cases:
+                with self.subTest(category=category):
+                    observed = self.observe(root, data)
+                    self.assertIn(category, observed["categories"])
+                    self.assertTrue(observed["logAvailable"])
+                    self.assertNotIn("private", json.dumps(observed))
+                    self.assertNotIn("https", json.dumps(observed))
+                    self.assertEqual((root / "native-fetch.log").read_bytes(), data)
+
+    def test_root_owned_proof_only_projects_closed_reason_and_booleans(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            observed = self.observe(Path(temporary), b"private body", {"stage": "native-fetch", "failure": "escaped-descendant", "uidEmpty": False, "unexpectedDescendants": True, "argv": ["private-token"]})
+        self.assertEqual(observed, {"logAvailable": True, "supervisorReason": "escaped-descendant", "observedUidEmpty": False, "observedUnexpectedDescendants": True, "categories": ["owned_cleanup"]})
+
+    def test_timeout_and_unknown_proof_never_replace_original_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            observed = self.observe(root, b"private", {"stage": "native-fetch", "failure": "https://private.example", "uidEmpty": "private"}, lane.sdk.Refused("stage_deadline"))
+            self.assertEqual(observed, {"logAvailable": True, "categories": ["timeout"]})
+            self.assertEqual(self.observe(root, b"private", {"stage": "foreign", "failure": "deadline"})["categories"], ["unknown"])
+            self.assertEqual(self.observe(root, b"Downloaded rustls private-package")["categories"], ["unknown"])
+
+    def test_missing_unsafe_oversized_log_and_unknown_stage_are_nonblocking(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with patch.object(lane, "root_file", side_effect=OSError):
+                self.assertEqual(lane.fetch_failure_diagnostics(root, root, "foreign", None), {})
+                self.assertEqual(lane.fetch_failure_diagnostics(root, root, "native-fetch", None), {"logAvailable": False, "categories": ["unknown"]})
+                target = root / "native-fetch.log"
+                foreign = root / "foreign"
+                foreign.write_bytes(b"private")
+                target.symlink_to(foreign)
+                self.assertFalse(lane.fetch_failure_diagnostics(root, root, "native-fetch", None)["logAvailable"])
+                target.unlink()
+                os.mkfifo(target, 0o600)
+                self.assertFalse(lane.fetch_failure_diagnostics(root, root, "native-fetch", None)["logAvailable"])
+                target.unlink()
+                with target.open("wb") as stream:
+                    stream.truncate(lane.sdk.MAX_LOG + 1)
+                self.assertFalse(lane.fetch_failure_diagnostics(root, root, "native-fetch", None)["logAvailable"])
+
+    def test_fetch_projection_is_before_both_original_cleanup_paths(self):
+        tree = ast.parse(Path(lane.__file__).read_text())
+        run = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run")
+        capture = [n for n in ast.walk(run) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "fetch_failure_diagnostics"]
+        self.assertEqual(len(capture), 1)
+        cleanup = [n for n in ast.walk(run) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "rmtree"]
+        self.assertTrue(all(capture[0].lineno < node.lineno for node in cleanup))
 
 
 if __name__ == "__main__":
