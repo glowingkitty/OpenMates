@@ -24,6 +24,11 @@
       "authoritySha256": "9c1d061282fd90390fc52df10d73426b99c4bd7a601c428aa6b468e32aad8ffa",
       "sourceCommit": "f4d5e06d1c8fd4df9e0b4fb9ea536c548a3381f2",
       "sourceTree": "a21c7dc57a930007ac4f897b4bb8fe4221035b73"
+    },
+    {
+      "authoritySha256": "a0f60bc22ca85c8d48417a5f087ff9973b0913f24cc2c3ffab3a41aa8d109ada",
+      "sourceCommit": "6dadd7bcff0e04951465e9b3cd5ec738382d272e",
+      "sourceTree": "de8b9c47b1ad0b0f318fafb7f54e11e330b1b30b"
     }
   ],
   "schemaVersion": 1
