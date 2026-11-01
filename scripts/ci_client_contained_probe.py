@@ -10,6 +10,7 @@ import selectors
 import shutil
 import socket
 import stat
+import tempfile
 import subprocess
 import time
 
@@ -41,6 +42,17 @@ def verify_compiler_cleanup(attempt):
          and cleanup.get("liveMembersDrained") is True and cleanup.get("directChildReaped") is True
          and cleanup.get("inspectionUnknown") is False and cleanup.get("groupEmpty") is True,
          "compiler_group_cleanup_unverified")
+
+
+def new_attempt_root(root):
+    """Never reuse a previous attempt's native outputs or private case state."""
+    parent = root / "test-results/ci-private"
+    parent.mkdir(mode=0o700, exist_ok=True)
+    info = parent.lstat()
+    need(stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid()
+         and info.st_mode & 0o022 == 0, "owned_private_attempt_parent_required")
+    # mkdtemp creates an exclusive mode0700 directory; retain it for diagnosis.
+    return Path(tempfile.mkdtemp(prefix="contained-attempt-", dir=parent))
 
 
 def native_build(root, directory):
@@ -87,7 +99,7 @@ def native_build(root, directory):
             for suffix, key in (("process.log", "compilerLog"), ("attempt.json", "ownedAttemptReceipt")):
                 path = stage / suffix
                 if path.is_file():
-                    public = root / "test-results" / ("ci-contained-compiler-" + target + "." + suffix)
+                    public = root / "test-results" / ("ci-contained-compiler-" + directory.parent.name + "-" + target + "." + suffix)
                     shutil.copyfile(path, public)
                     item[key] = {"path": public.relative_to(root).as_posix(), "sha256": digest(public), "bytes": public.stat().st_size}
                     if suffix == "attempt.json":
@@ -269,10 +281,13 @@ def run(root):
               "runId": context["run_id"], "acceptanceEligible": False, "currentMigrationAcceptance": False,
               "multiprocessTotalRss": "unavailable", "originalHost13": "preserved-separate-not-rerun-by-contained-probe", "cases": []}
     destination = root / "test-results/ci-client-contained-readiness.json"
+    attempt_root = None
     try:
-        spec, fixture, preparation = native_build(root, root / "test-results/ci-private/contained-tools")
+        attempt_root = new_attempt_root(root)
+        result["attemptRoot"] = attempt_root.relative_to(root).as_posix()
+        spec, fixture, preparation = native_build(root, attempt_root / "tools")
         result["nativeBuild"] = preparation
-        private = root / "test-results/ci-private/client-memory/contained"
+        private = attempt_root / "cases"
         private.mkdir(mode=0o700, exist_ok=False)
         supervisor = root / "scripts/ci_client_contained_probe_pid1.py"
         original = root / "scripts/ci_client_memory_supervisor.py"
@@ -315,8 +330,8 @@ def run(root):
         result["failureCode"] = str(error)[:256]
         raise
     finally:
-        preparation_path = root / "test-results/ci-private/contained-tools/preparation.json"
-        if preparation_path.exists():
+        preparation_path = attempt_root / "tools/preparation.json" if attempt_root is not None else None
+        if preparation_path is not None and preparation_path.exists():
             result["nativeBuild"] = json.loads(preparation_path.read_bytes())
         destination.write_text(json.dumps(result, indent=2))
     return result

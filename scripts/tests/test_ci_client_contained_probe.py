@@ -7,7 +7,7 @@ from pathlib import Path
 import signal
 import tempfile
 from unittest import mock
-from scripts.ci_client_contained_probe import evaluate, verify_compiler_cleanup
+from scripts.ci_client_contained_probe import evaluate, verify_compiler_cleanup, new_attempt_root
 from scripts import ci_client_owned_lifecycle as lifecycle
 from scripts.ci_client_container_launch import Refused
 
@@ -230,6 +230,74 @@ class CompilerGroupCleanup(unittest.TestCase):
             with self.assertRaises(Refused):
                 verify_compiler_cleanup(value)
             self.assertEqual(value, original)
+
+
+class AttemptIsolation(unittest.TestCase):
+    # contract-test: tooling
+    def test_retry_preserves_old_elf_preparation_and_case_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "test-results").mkdir()
+            first = new_attempt_root(root)
+            (first / "tools").mkdir()
+            (first / "tools/process-memory-meter").write_bytes(b"old-elf")
+            (first / "tools/preparation.json").write_text("old-preparation")
+            (first / "cases").mkdir()
+            (first / "cases/leaf").write_text("old-state")
+            second = new_attempt_root(root)
+            self.assertNotEqual(first, second)
+            self.assertEqual(list(second.iterdir()), [])
+            self.assertEqual(first.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(second.stat().st_mode & 0o777, 0o700)
+            self.assertEqual((first / "tools/process-memory-meter").read_bytes(), b"old-elf")
+            self.assertEqual((first / "tools/preparation.json").read_text(), "old-preparation")
+            self.assertEqual((first / "cases/leaf").read_text(), "old-state")
+
+    # contract-test: tooling
+    def test_existing_fixed_directory_is_never_adopted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old = root / "test-results/ci-private/contained-tools"
+            old.mkdir(parents=True)
+            old.parent.chmod(0o700)
+            (old / "process-memory-meter").write_bytes(b"stale")
+            created = new_attempt_root(root)
+            self.assertNotEqual(created, old)
+            self.assertEqual(list(created.iterdir()), [])
+            self.assertEqual((old / "process-memory-meter").read_bytes(), b"stale")
+
+    # contract-test: tooling
+    def test_symlink_parent_cannot_admit_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "test-results").mkdir()
+            target = root / "other"
+            target.mkdir()
+            (root / "test-results/ci-private").symlink_to(target, target_is_directory=True)
+            with self.assertRaises(Refused):
+                new_attempt_root(root)
+            self.assertEqual(list(target.iterdir()), [])
+
+    # contract-test: tooling
+    def test_writable_parent_cannot_admit_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parent = root / "test-results/ci-private"
+            parent.mkdir(parents=True)
+            parent.chmod(0o777)
+            with self.assertRaises(Refused):
+                new_attempt_root(root)
+            self.assertEqual(list(parent.iterdir()), [])
+
+    # contract-test: tooling
+    def test_foreign_owner_cannot_admit_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "test-results").mkdir()
+            with mock.patch("scripts.ci_client_contained_probe.os.geteuid", return_value=-1):
+                with self.assertRaises(Refused):
+                    new_attempt_root(root)
+            self.assertEqual(list((root / "test-results/ci-private").iterdir()), [])
 
 
 if __name__ == "__main__":
