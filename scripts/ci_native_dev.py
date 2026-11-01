@@ -96,6 +96,7 @@ EXTRA = frozenset(
     {
         *assets.FILES.values(),
         "config/cli-command-catalog.json",
+        "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
         "frontend/packages/workflowFile.ts",
         CLI + "/scripts/benchmark.py",
         CLI + "/scripts/prepare-typescript-baseline.mjs",

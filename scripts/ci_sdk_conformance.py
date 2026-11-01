@@ -51,7 +51,7 @@ MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
-          "frontend/packages/openmates-cli", "backend/apps", "tests/sdk-conformance", "config/sdk-capabilities.json",
+          "frontend/packages/openmates-cli", "backend/apps", "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json", "tests/sdk-conformance", "config/sdk-capabilities.json",
           "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py", "scripts/check_packaged_sdk_v1.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
           "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".npmrc", ".pnpmfile.cjs", ".pnpmfile.mjs", ".cargo", "rust-toolchain.toml",
