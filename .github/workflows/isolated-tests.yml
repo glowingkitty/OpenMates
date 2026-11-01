@@ -727,10 +727,21 @@ jobs:
           else
             npx playwright install --with-deps chromium
           fi
-          if ! command -v ffmpeg >/dev/null || ! command -v Xvfb >/dev/null || ! command -v zutty >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg xvfb zutty
+          # Recorder OS dependencies belong to this existing privileged runner
+          # provisioning boundary, never the same-UID native command owner.
+          recorder_missing=false
+          for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
+            if [[ ! -x "/usr/bin/$executable" ]]; then recorder_missing=true; fi
+          done
+          if [[ ! -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf ]]; then recorder_missing=true; fi
+          if [[ "$recorder_missing" == true ]]; then
+            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --yes --no-install-recommends zutty fonts-dejavu-core x11-xserver-utils xdotool ffmpeg xvfb util-linux
           fi
+          for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
+            test -x "/usr/bin/$executable"
+          done
+          test -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
       - name: Provision empty runner-local Codex thread
         if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs start
