@@ -5,7 +5,7 @@ last_verified: 2026-10-25
 
 # Key-free event API output quality
 
-Task: TASK-45. This follow-up tests the practical usefulness of candidates in the [provider research](discovery-provider-research-2026-10-25.md), rather than treating API availability as evidence of adequate coverage.
+Task: TASK-45. This tests the practical usefulness of key-free event feeds, rather than treating API availability as evidence of adequate coverage.
 
 **Recommendation: defer a broad Events integration using the tested feeds.** Kulturdaten Berlin contains useful local activities, but only supports a specifically labelled Berlin neighbourhood/cultural calendar. The sampled Mobilizon instances are too sparse for general discovery. OpenMeet's unauthenticated request could not establish access. Use an existing weather forecast embed for the landing demonstration instead.
 
@@ -45,7 +45,7 @@ There are genuinely useful choices for a request such as free activities for chi
 
 The date window is current and records are published/scheduled, but publication does not independently verify capacity, cancellations or availability. Many records were last edited months earlier; that alone does not prove staleness. Descriptions, dates, tags, venues and a source statement must survive normalization.
 
-**Decision:** keep as a potential explicitly scoped local-calendar source, not the foundation of a general event-search promise. The previous content-licence qualification also remains. Its usefulness does not by itself justify a new broad skill or a flagship event-discovery demonstration.
+**Decision:** keep as a potential explicitly scoped local-calendar source, not the foundation of a general event-search promise. Its usefulness does not by itself justify a new broad skill or a flagship event-discovery demonstration.
 
 ## Mobilizon: small, overlapping Berlin samples
 
@@ -64,7 +64,7 @@ Six event URLs overlap, leaving **10 unique events across both instances for the
 
 These are useful niche community announcements. They do not justify a citywide recommendation product. Different instances may contain different inventory; these results are not a finding that all Mobilizon data is sparse everywhere.
 
-**Decision:** do not integrate these sampled instances for broad discovery. Adding multiple instances did not produce much additional breadth, and content reuse permission remains separate.
+**Decision:** do not integrate these sampled instances for broad discovery. Adding multiple instances did not produce much additional breadth.
 
 ## OpenMeet and OpenAgenda
 
