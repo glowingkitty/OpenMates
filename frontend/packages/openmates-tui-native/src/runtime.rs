@@ -1703,7 +1703,7 @@ impl Actor {
                 Self::emit(
                     replies,
                     epoch,
-                    View::Items(Workspace::Chats, self.client.cached_chat_items()?),
+                    View::Items(Workspace::Chats, self.client.order_chat_list_items_now(self.client.cached_chat_items()?)),
                 )
                 .await?;
             }
@@ -1737,7 +1737,7 @@ impl Actor {
         };
         self.persist().await?;
         if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
-        Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await
+        Self::emit(replies, epoch, View::Items(Workspace::Chats, self.client.order_chat_list_items_now(items))).await
     }
     async fn pair_poll(
         &mut self,
@@ -1806,7 +1806,7 @@ impl Actor {
         self.authorized(replies, epoch).await?;
         let items = self.client.list(Workspace::Chats).await?;
         self.persist().await?;
-        Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await
+        Self::emit(replies, epoch, View::Items(Workspace::Chats, self.client.order_chat_list_items_now(items))).await
     }
     async fn abort_pair(&mut self) -> Result<()> {
         let prepared = self.pair_phase == 4;
@@ -1985,7 +1985,7 @@ impl Actor {
                     self.authorized(replies, epoch).await?;
                     let items = self.client.list(Workspace::Chats).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await
+                    Self::emit(replies, epoch, View::Items(Workspace::Chats, self.client.order_chat_list_items_now(items))).await
                 }),
                 UiCommand::Unlock { passphrase } => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -2016,7 +2016,7 @@ impl Actor {
                     if self.client.session().is_some() {
                         self.authorized(replies, epoch).await?;
                         if let Ok(items) = self.client.cached_chat_items() {
-                            Self::emit(replies, epoch, View::Items(Workspace::Chats, items))
+                            Self::emit(replies, epoch, View::Items(Workspace::Chats, self.client.order_chat_list_items_now(items)))
                                 .await?;
                         }
                     } else {
@@ -2059,7 +2059,7 @@ impl Actor {
                     self.authorized(replies, epoch).await?;
                     let items = self.client.list(Workspace::Chats).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await
+                    Self::emit(replies, epoch, View::Items(Workspace::Chats, self.client.order_chat_list_items_now(items))).await
                 }),
                 UiCommand::Refresh(workspace) => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -2077,7 +2077,7 @@ impl Actor {
                             self.client.set_operation_cancel(cancel.clone());
                             if let Some(items) = self.client.chat_list_from_feed().await? {
                                 self.persist().await?;
-                                return Self::emit(replies, epoch, View::Items(workspace, items)).await;
+                                return Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { self.client.order_chat_list_items_now(items) } else { items })).await;
                             }
                         }
                     }
@@ -2087,7 +2087,7 @@ impl Actor {
                     }
                     let items = self.client.list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, items)).await
+                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { self.client.order_chat_list_items_now(items) } else { items })).await
                 }),
                 UiCommand::Open(workspace, id) => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -2172,7 +2172,7 @@ impl Actor {
                     }
                     let items = self.client.list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, items)).await
+                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { self.client.order_chat_list_items_now(items) } else { items })).await
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
                     let _request_cancel = &cancel;

@@ -3170,7 +3170,7 @@ impl Ui {
             if self.username.is_empty() {
                 "Welcome to OpenMates".to_owned()
             } else {
-                format!("Hello, {}", self.username)
+                format!("Hey {}!", self.username)
             }
         } else {
             self.workspace.label().into()
@@ -3182,7 +3182,7 @@ impl Ui {
             Rect::new(area.x, area.y + u16::from(area.height > 5), area.width, 1),
         );
         let help = match self.workspace {
-            Workspace::Chats => "Your private chats · ←/→ choose · Enter open",
+            Workspace::Chats => "Continue where you left off · ←/→ choose · Enter open",
             Workspace::Apps => "Choose an app · ←/→ choose · Enter explore",
             Workspace::Projects => "Your Projects · n create · Enter open",
             Workspace::Workflows => "Automate with Workflows · n create · Enter open",
@@ -3238,9 +3238,14 @@ impl Ui {
                 area.height.min(10),
             );
             let active = i == selected;
+            let heading = if item.title.trim().is_empty() && self.workspace == Workspace::Chats {
+                "Untitled chat".to_owned()
+            } else {
+                item.title.clone()
+            };
             frame.render_widget(
                 panel(
-                    format!(" {} ", item.title),
+                    format!(" {} ", heading),
                     active && self.focus == Focus::Content,
                 ),
                 rect,
@@ -3248,7 +3253,7 @@ impl Ui {
             let inner = inset(rect, 1, 1);
             let mut lines = vec![
                 Line::from(Span::styled(
-                    markdown::clean(&item.title),
+                    markdown::clean(&heading),
                     Style::default().fg(app_color(&item.category)).bold(),
                 )),
                 Line::default(),
