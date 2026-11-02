@@ -106,6 +106,7 @@ pub use project_task_watch::{
 };
 mod credentials;
 mod cache_policy;
+mod chat_details_cache;
 pub use cache_policy::CachedContentLoader;
 pub mod snapshot_sections;
 mod chat_list_freshness;
@@ -548,6 +549,8 @@ pub struct Client {
     deleted_chats: BTreeMap<String, u64>,
     /// Partially restored native cache content (cache_policy.rs).
     cached_content: cache_policy::CachedContentState,
+    /// Cache-then-delta records for selected rich reads (chat_details_cache.rs).
+    chat_details_cache: BTreeMap<String, chat_details_cache::ChatDetailsCache>,
     /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
     chat_sync_feed: sync_feed::FeedState,
 }
@@ -608,6 +611,7 @@ impl Client {
             recent_validation: None,
             deleted_chats: BTreeMap::new(),
             cached_content: Default::default(),
+            chat_details_cache: BTreeMap::new(),
             chat_sync_feed: Default::default(),
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -890,6 +894,7 @@ impl Client {
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.chat_details_cache.clear();
         self.direct_identity = None;
         self.team_key = None;
         self.team_wrapped_key = None;
@@ -1098,6 +1103,7 @@ impl Client {
         self.embeds.clear();
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.chat_details_cache.clear();
         crate::model::zeroize_json(&mut self.user);
         self.saved_embed_selectors=None;
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;

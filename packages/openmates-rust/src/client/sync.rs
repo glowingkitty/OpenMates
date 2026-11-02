@@ -956,6 +956,9 @@ impl Client {
         if let Some(metadata) = self.chat_list_freshness.snapshot_metadata() {
             snapshot[chat_list_freshness::SNAPSHOT_FIELD] = metadata;
         }
+        if let Some(details) = self.chat_details_snapshot() {
+            snapshot[super::chat_details_cache::SNAPSHOT_FIELD] = details;
+        }
         if let Some(tombstones) = self.deleted_chats_snapshot() {
             snapshot[super::chat_tombstones::SNAPSHOT_FIELD] = tombstones;
         }
@@ -1012,6 +1015,7 @@ impl Client {
         self.chats = chats;
         self.chat_arrival_order = chat_arrival_order;
         self.deleted_chats = super::chat_tombstones::restore(snapshot.get(super::chat_tombstones::SNAPSHOT_FIELD));
+        self.chat_details_cache = super::chat_details_cache::restore(snapshot.get(super::chat_details_cache::SNAPSHOT_FIELD));
         self.restore_chat_sync_feed(snapshot)?;
         self.wrappers = snapshot["wrappers"]
             .as_array()

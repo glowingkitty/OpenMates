@@ -105,6 +105,7 @@ impl Client {
         let history: BTreeMap<String, Vec<Value>> = serde_json::from_value(
             partial.get("history").cloned().unwrap_or_else(|| json!({})),
         )?;
+        let details = super::chat_details_cache::restore(partial.get(super::chat_details_cache::SNAPSHOT_FIELD));
         let embeds: BTreeMap<String, Value> = serde_json::from_value(
             partial.get("embeds").cloned().unwrap_or_else(|| json!({})),
         )?;
@@ -112,7 +113,7 @@ impl Client {
             partial.get("embed_keys").cloned().unwrap_or_else(|| json!([])),
         )?;
         let foreign = |id: &String| chat.is_some_and(|chat| chat != id);
-        if windows.keys().chain(selected.keys()).chain(history.keys()).any(foreign) {
+        if windows.keys().chain(selected.keys()).chain(history.keys()).chain(details.keys()).any(foreign) {
             return Err(Error::Protocol);
         }
         // Sync windows carry globally unique source ranks; a conflicting cached
@@ -130,6 +131,9 @@ impl Client {
                 return Err(Error::Protocol);
             }
             self.sync_message_windows.insert(id, window);
+        }
+        for (id, record) in details {
+            self.chat_details_cache.entry(id).or_insert(record);
         }
         for (id, page) in selected {
             self.selected_first_pages.entry(id).or_insert(page);

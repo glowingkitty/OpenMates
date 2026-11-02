@@ -117,6 +117,14 @@ pub fn command_cache_load(invocation: &crate::cli::Invocation) -> CacheLoad {
         CacheLoad::Deferred { revoke_list_freshness: true }
     } else if path == "chats list" {
         CacheLoad::Index
+    } else if matches!(path.as_str(), "chats show" | "chats messages") {
+        // Cache-first open: index + this chat's record only (see chat_details).
+        match invocation.positionals.first() {
+            Some(id) if uuid::Uuid::parse_str(id).is_ok_and(|u| u.hyphenated().to_string() == *id) => {
+                CacheLoad::Chat(id.clone())
+            }
+            _ => CacheLoad::Full,
+        }
     } else if let Some(id) = (matches!(path.as_str(), "chats show" | "chats messages"))
         .then(|| invocation.positionals.first())
         .flatten()

@@ -33,8 +33,8 @@ pub fn index_fields() -> [&'static str; 7] {
 /// Top-level snapshot field carrying the protected list-freshness receipt.
 pub const CHAT_LIST_FRESHNESS_FIELD: &str = chat_list_freshness::SNAPSHOT_FIELD;
 /// Per-Chat maps keyed by Chat ID; their value moves into that Chat's section.
-fn per_chat_maps() -> [&'static str; 3] {
-    ["history", sync_windows::SNAPSHOT_FIELD, selected_first_page::SNAPSHOT_FIELD]
+fn per_chat_maps() -> [&'static str; 4] {
+    ["history", sync_windows::SNAPSHOT_FIELD, selected_first_page::SNAPSHOT_FIELD, super::chat_details_cache::SNAPSHOT_FIELD]
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

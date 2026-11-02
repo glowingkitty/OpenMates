@@ -479,6 +479,86 @@ fn project_message(row: &Value, decoded: Message, key: &[u8; 32]) -> Result<Chat
     output.pii_mappings = raw_pii.into_inner();
     Ok(output.into_inner())
 }
+/// A cache hit already decoded through the fresh path's per-row validation.
+struct CachedAssembly {
+    decoded: Plain<Vec<ChatDetailsMessage>>,
+    visible_rows: Vec<Value>,
+    all_rows: Vec<Value>,
+    more: bool,
+}
+/// Merge the tail delta into the cached rows, or fail (a cache miss).
+fn assemble_cached(
+    cache: &chat_details_cache::ChatDetailsCache,
+    page: &Value,
+    id: &str,
+    key: &[u8; 32],
+    limit: Option<usize>,
+    server_messages_v: Option<u64>,
+) -> Result<CachedAssembly> {
+    let miss = || Error::Protocol;
+    if page.get("chat_id").filter(|v| !v.is_null()).is_some_and(|v| v.as_str() != Some(id))
+        || page.get("oversized_message") == Some(&Value::Bool(true))
+        || page.get("has_more_after") == Some(&Value::Bool(true))
+    {
+        return Err(miss());
+    }
+    let delta = page.get("messages").and_then(Value::as_array).ok_or_else(miss)?;
+    if delta.len() >= chat_details_cache::TAIL_LIMIT {
+        return Err(miss());
+    }
+    let actual_bytes = delta
+        .iter()
+        .try_fold(0usize, |total, row| {
+            monitor::cached_view::bounded_bytes(row, 256 * 1024)
+                .and_then(|size| total.checked_add(size))
+                .filter(|total| *total <= 256 * 1024)
+        })
+        .ok_or_else(miss)?;
+    if page.get("payload_bytes").and_then(Value::as_u64) != Some(actual_bytes as u64) {
+        return Err(miss());
+    }
+    // A moved version without messages, or a version behind the cache, is stale.
+    let server_v = server_messages_v.ok_or_else(miss)?;
+    if (delta.is_empty() && server_v != cache.messages_v) || server_v < cache.messages_v {
+        return Err(miss());
+    }
+    let mut all_rows = cache.rows.clone();
+    all_rows.extend(delta.iter().cloned());
+    let visible_start = match limit {
+        Some(n) if all_rows.len() >= n => all_rows.len() - n,
+        Some(_) if cache.has_more_before => return Err(miss()),
+        Some(_) => 0,
+        None if cache.has_more_before => return Err(miss()),
+        None => 0,
+    };
+    let more = match limit {
+        Some(_) => visible_start > 0 || cache.has_more_before,
+        None => false,
+    };
+    let visible_rows = all_rows[visible_start..].to_vec();
+    let mut seen = std::collections::HashSet::new();
+    let mut decoded = Plain::new(Vec::new());
+    let mut previous = None;
+    for raw in &visible_rows {
+        let (raw, message) = sync::decode_chat_message_stored(raw, id, key, &mut seen)?;
+        let timestamp = raw
+            .get("created_at")
+            .and_then(Value::as_i64)
+            .filter(|v| *v >= 0)
+            .ok_or_else(miss)?;
+        let position = (timestamp, message.id.clone());
+        if previous.as_ref().is_some_and(|prior| prior >= &position) {
+            return Err(miss());
+        }
+        previous = Some(position);
+        let mut item = project_message(&raw, message, key)?;
+        if item.chat_id.is_empty() {
+            item.chat_id = id.into();
+        }
+        decoded.push(item);
+    }
+    Ok(CachedAssembly { decoded, visible_rows, all_rows, more })
+}
 impl Client {
     pub async fn read_chat_details(
         &mut self,
@@ -515,7 +595,15 @@ impl Client {
         self.require_credentials()?;
         let requested = limit.unwrap_or(100);
         let metadata_path = self.scoped("/v1/chats/metadata/batch")?;
-        let messages_path = self.chat_details_messages_path(id, requested, limit.is_some(), None)?;
+        let bounded = limit.is_some();
+        // Cache-then-delta: a cached read replaces the latest-window request by
+        // a tail delta after the last cached message (same concurrent round).
+        let cached = self.cached_chat_details(id, bounded);
+        let latest_path = self.chat_details_messages_path(id, requested, bounded, None)?;
+        let messages_path = match &cached {
+            Some(cache) => self.chat_details_tail_path(id, &cache.tail, bounded)?,
+            None => latest_path.clone(),
+        };
         let embeds_path = self.chat_details_embeds_path(id, None)?;
         let mut prepared = Vec::with_capacity(3);
         for (method, path, body, not_found) in [
@@ -678,7 +766,39 @@ impl Client {
         let mut cursor = None::<Value>;
         let mut seen = std::collections::HashSet::new();
         let mut more = true;
-        for _ in 0..MAX_PAGES {
+        let server_messages_v = row.get("messages_v").and_then(Value::as_u64);
+        let mut combined_rows = None::<Vec<Value>>;
+        let mut cached_used = false;
+        if let Some(cache) = &cached {
+            let delta = first_messages.take().ok_or(Error::Protocol)?;
+            let hit = match delta {
+                Ok(page) => assemble_cached(cache, &page, id, &key, limit, server_messages_v).ok(),
+                Err(Error::Cancelled) => return Err(Error::Cancelled),
+                Err(_) => None,
+            };
+            admission.check(self)?;
+            scope.check_chat(self, id)?;
+            match hit {
+                Some(hit) => {
+                    pages.push(hit.decoded);
+                    encrypted_pages.push(hit.visible_rows);
+                    more = hit.more;
+                    combined_rows = Some(hit.all_rows);
+                    cached_used = true;
+                }
+                None => {
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.before_request(self, id);
+                    }
+                    let page = self.request(Method::GET, &latest_path, None).await;
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.after_request(self, id);
+                    }
+                    first_messages = Some(page);
+                }
+            }
+        }
+        for _ in 0..(if cached_used { 0 } else { MAX_PAGES }) {
             let page = match first_messages.take() {
                 Some(page) => page?,
                 None => {
@@ -826,9 +946,47 @@ impl Client {
                 message.content = std::mem::take(&mut *text);
             }
         }
-        let embed_ids = self
-            .chat_details_embed_ids(id, &admission, &scope, transaction.as_deref_mut(), first_embeds)
-            .await?;
+        let embeds_sig = first_embeds.as_ref().ok().and_then(chat_details_cache::embeds_signature);
+        let first_embeds_valid = first_embeds.as_ref().is_ok_and(|page| {
+            page.get("chat_id").and_then(Value::as_str) == Some(id)
+                && page.get("oversized_embed_id").is_none_or(Value::is_null)
+        });
+        let embed_ids = match (&cached, cached_used, &embeds_sig) {
+            (Some(cache), true, Some(sig)) if first_embeds_valid && *sig == cache.embeds_sig => {
+                admission.check(self)?;
+                scope.check_chat(self, id)?;
+                cache.embed_ids.clone()
+            }
+            _ => {
+                self.chat_details_embed_ids(id, &admission, &scope, transaction.as_deref_mut(), first_embeds)
+                    .await?
+            }
+        };
+        let record = (|| {
+            let last = result.messages.last()?;
+            let all_rows = match combined_rows.take() {
+                Some(rows) => rows,
+                None => encrypted_pages.iter().rev().flatten().cloned().collect(),
+            };
+            let tail = chat_details_cache::Tail {
+                created_at: last.created_at.as_i64()?,
+                message_id: last.client_message_id.clone(),
+            };
+            Some(chat_details_cache::ChatDetailsCache {
+                version: 1,
+                bounded,
+                messages_v: server_messages_v?,
+                has_more_before: match (&cached, cached_used) {
+                    (Some(cache), true) => cache.has_more_before,
+                    _ => more,
+                },
+                rows: all_rows,
+                tail,
+                embeds_sig: embeds_sig.clone()?,
+                embed_ids: embed_ids.clone(),
+            })
+        })();
+        self.store_chat_details_cache(id, record);
         for message in &mut result.messages {
             if let Some(ids) = embed_ids.get(&sha256(&message.client_message_id)) {
                 message.embed_ids = ids.clone();

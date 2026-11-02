@@ -23,6 +23,7 @@ impl Client {
     }
     pub(super) fn remove_chat_row(&mut self,id:&str)->Option<Value>{
         if let Some(order)=&mut self.chat_arrival_order {order.retain(|entry|entry!=id);}
+        self.chat_details_cache.remove(id);
         self.chats.remove(id)
     }
     pub(super) fn clear_chat_rows(&mut self){self.chats.clear();self.chat_arrival_order=None;}
