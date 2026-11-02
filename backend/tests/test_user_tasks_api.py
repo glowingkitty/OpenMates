@@ -247,6 +247,75 @@ async def test_list_tasks_filters_external_chat_provider_and_blind_index() -> No
     assert {"external_chat_lookup_hash": {"_eq": "c" * 64}} in filter_terms
 
 
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_claude_external_chat_provider_accepted_for_create_patch_and_filter() -> None:
+    request = user_tasks.UserTaskCreateRequest(**task_payload(
+        primary_chat_id=None,
+        external_chat_provider="claude",
+        external_chat_lookup_hash="d" * 64,
+        encrypted_external_chat_id="cipher-claude-session-id",
+    ))
+    assert request.external_chat_provider == "claude"
+    patch_request = user_tasks.UserTaskUpdateRequest(
+        version=1, external_chat_provider="claude", external_chat_lookup_hash="d" * 64,
+        encrypted_external_chat_id="cipher-claude-session-id",
+    )
+    assert patch_request.external_chat_provider == "claude"
+    # Claude Code is an external-chat provider only, never an assignee identity.
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="external_ai", assignee_identity="claude", assignee_hash=None,
+        ))
+
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(return_value=(True, {"id": "row-1", **task_payload(primary_chat_id=None)}))
+    directus.get_items = AsyncMock(return_value=[])
+    methods = UserTaskMethods(with_lock_cache(directus))
+    await methods.create_task("user-1", task_payload(
+        primary_chat_id=None,
+        external_chat_provider="claude",
+        external_chat_lookup_hash="d" * 64,
+        encrypted_external_chat_id="cipher-claude-session-id",
+    ))
+    _collection, record = directus.create_item.await_args.args
+    assert record["external_chat_provider"] == "claude"
+    assert record["encrypted_external_chat_id"] == "cipher-claude-session-id"
+    assert "external_chat_id" not in record
+
+    await methods.list_tasks("user-1", external_chat_provider="claude", external_chat_lookup_hash="d" * 64)
+    filter_terms = directus.get_items.await_args.kwargs["params"]["filter"]["_and"]
+    assert {"external_chat_provider": {"_eq": "claude"}} in filter_terms
+
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            primary_chat_id=None,
+            external_chat_provider="cursor",
+            external_chat_lookup_hash="d" * 64,
+            encrypted_external_chat_id="cipher-session-id",
+        ))
+    with pytest.raises(ValueError, match="provider is not allowed"):
+        await methods.list_tasks("user-1", external_chat_provider="cursor", external_chat_lookup_hash="d" * 64)
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_existing_task_can_be_relinked_to_claude_session() -> None:
+    existing = {"id": "task-row", **task_payload(primary_chat_id=None)}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock(side_effect=lambda _collection, _id, patch, _version, **_scope: {**existing, **patch})
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task_if_version("task-1", "user-1", {
+        "version": 1, "external_chat_provider": "claude", "external_chat_lookup_hash": "d" * 64,
+        "encrypted_external_chat_id": "cipher-claude-session-id",
+    }, 1)
+
+    assert updated["external_chat_provider"] == "claude"
+    assert directus.update_item_if_version.await_args.args[2]["external_chat_provider"] == "claude"
+
+
 # contract-test: supporting surface=rest_api assertions=tasks.external-chat.encrypted-context
 def test_user_task_external_chat_index_is_owner_scoped() -> None:
     migration = Path(__file__).parents[1] / "core/directus/setup/migrate_user_task_indexes.sql"

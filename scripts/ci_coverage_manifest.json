@@ -519,7 +519,8 @@
         "legal-website-navigation.spec.ts",
         "example-chat-removals.spec.ts",
         "components/shopping-product-gallery.spec.ts",
-        "components/assistant-speech-action.spec.ts"
+        "components/assistant-speech-action.spec.ts",
+        "task-detail-fullscreen.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -692,8 +693,7 @@
         "proof-video-cli.spec.ts",
         "shared-chat-embed-assets.spec.ts",
         "task-activity.spec.ts",
-        "task-blocked-reason.spec.ts",
-        "task-detail-fullscreen.spec.ts"
+        "task-blocked-reason.spec.ts"
       ]
     },
     "ai_cached_pipeline": {
@@ -912,7 +912,8 @@
         "multi-tab-session-routing.spec.ts",
         "offline-draft-replay.spec.ts",
         "assistant-speech-availability.spec.ts",
-        "web-read-public-page.spec.ts"
+        "web-read-public-page.spec.ts",
+        "cli-claude-session-tasks.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

@@ -24,6 +24,7 @@
     skipUserTask,
     startUserTaskWithAI,
     taskAssigneeDisplayName,
+    externalChatProviderDisplayName,
     unblockUserTask,
     updateUserTask,
     type UserTaskDependencyViewModel,
@@ -388,7 +389,7 @@
       {#if task.externalChat}
         <div class="linked-card compact external" data-testid="task-detail-external-chat">
           <strong>{task.externalChat.title || task.externalChat.id}</strong>
-          <span>Codex</span>
+          <span data-testid="task-detail-external-chat-provider">{externalChatProviderDisplayName(task.externalChat.provider)}</span>
         </div>
       {:else if resolvedRelated.chat}
         <a class="linked-card compact" href={`/#chat-id=${encodeURIComponent(resolvedRelated.chat.id)}`}><strong>{resolvedRelated.chat.title}</strong></a>

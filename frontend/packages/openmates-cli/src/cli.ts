@@ -13,7 +13,7 @@ import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js"
  */
 
 import {downloadGeneratedFiles, generatedFileOptions, GENERATED_FILE_HELP, fetchGeneratedFile} from "./generatedFiles.js";
-import { codexResumeArguments, assertCodexClaimCaller, readCodexThread, taskOwnerConflict, resumeCodexTask } from "./codexConnection.js";
+import { codexResumeArguments, assertCodexClaimCaller, assertClaudeClaimCaller, currentExternalChatCaller, readCodexThread, taskOwnerConflict, resumeCodexTask } from "./codexConnection.js";
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
@@ -225,6 +225,8 @@ import {
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
   type DecryptedTaskActivityEntry,
+  type ExternalChatContext,
+  type ExternalChatProvider,
   type TaskCreateOptions,
   type TaskLookupScope,
   type TaskUpdateOptions,
@@ -952,7 +954,9 @@ async function handleTasks(
   if (subcommand === "release") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "release");
     if (!task.primaryChatId && !task.externalChat) { printTaskOutput(task, flags); return; }
-    if (process.env.CODEX_THREAD_ID && (task.externalChat?.provider !== "codex" || task.externalChat.id !== process.env.CODEX_THREAD_ID)) {
+    // A Codex thread or Claude Code session may only release its own link.
+    const caller = currentExternalChatCaller();
+    if (caller && (task.externalChat?.provider !== caller.provider || task.externalChat.id !== caller.id)) {
       if (task.primaryChatId) {
         const owner = await client.getChatMetadata(task.primaryChatId, scope);
         throw new Error(taskOwnerConflict({provider: "openmates", id: owner.id, title: owner.title}));
@@ -1358,7 +1362,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: ExternalChatProvider; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
   const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1375,7 +1379,7 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
   };
 }
 
-function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex"; id: string; title?: string } | undefined {
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: ExternalChatProvider; id: string; title?: string } | undefined {
   if (typeof flags["external-chat"] !== "string") return undefined;
   const ref = parseExternalChatRef(flags["external-chat"]);
   return {
@@ -1402,6 +1406,15 @@ async function resolveTaskScope(
   return { ...scope, chatId, projectId, planId };
 }
 
+/**
+ * Claude Code is an external-chat provider only (never an assignee identity),
+ * so linking leaves assignment unchanged and has no runtime title lookup.
+ */
+function claimClaudeExternalChat(context: { id: string; title?: string }): ExternalChatContext {
+  assertClaudeClaimCaller(context.id);
+  return { provider: "claude", id: context.id, title: context.title?.trim() || "Claude Code session" };
+}
+
 async function resolveTaskCreateOptions(
   client: OpenMatesClient,
   masterKey: Uint8Array,
@@ -1412,6 +1425,8 @@ async function resolveTaskCreateOptions(
     assertCodexClaimCaller(input.externalChat.id);
     const connection = await readCodexThread(input.externalChat.id);
     input = { ...input, assign: input.assign ?? "codex", externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  } else if (input.externalChat?.provider === "claude") {
+    input = { ...input, externalChat: claimClaudeExternalChat(input.externalChat) };
   }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds: string[] = [];
@@ -1432,6 +1447,8 @@ async function resolveTaskUpdateOptions(
     assertCodexClaimCaller(input.externalChat.id);
     const connection = await readCodexThread(input.externalChat.id);
     input = { ...input, externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  } else if (input.externalChat?.provider === "claude") {
+    input = { ...input, externalChat: claimClaudeExternalChat(input.externalChat) };
   }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds = input.projectIds
@@ -14991,15 +15008,15 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
-  openmates tasks board [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
@@ -15020,6 +15037,10 @@ function printTasksHelp(): void {
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Context: use --personal or --team <team-id> for Task create, list, show, and delete.
+
+External chats: codex:<thread-uuid> links a Codex thread (CODEX_THREAD_ID); claude:<session-uuid>
+links a Claude Code session and must run inside that session (CLAUDE_CODE_SESSION_ID).
+Claude links do not change assignment; connect, connection and resume support Codex only.
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list

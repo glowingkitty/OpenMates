@@ -78,7 +78,8 @@ API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
 EXTERNAL_CHAT_INDEX_INFO = b"openmates-task-external-chat-index-v1"
-EXTERNAL_CHAT_PROVIDERS = {"codex"}
+EXTERNAL_CHAT_PROVIDERS = {"codex", "claude"}
+CLAUDE_SESSION_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 BLOCKED_REASON_CODES = (
     "needs_user_input",
     "waiting_for_approval",
@@ -2686,7 +2687,9 @@ def _normalize_external_chat_context(value: Any, *, title: Any = None) -> dict[s
     else:
         raise OpenMatesConfigError("external_chat must be provider:id or a mapping")
     if provider not in EXTERNAL_CHAT_PROVIDERS:
-        raise OpenMatesConfigError("Unsupported external chat provider; use codex")
+        raise OpenMatesConfigError("Unsupported external chat provider; use codex or claude")
+    if provider == "claude" and not CLAUDE_SESSION_ID_RE.match(chat_id):
+        raise OpenMatesConfigError("Claude Code external chat ids must be session UUIDs (CLAUDE_CODE_SESSION_ID)")
     return {"provider": provider, "id": chat_id, "title": str(context_title or "")}
 
 

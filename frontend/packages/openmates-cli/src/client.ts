@@ -1101,7 +1101,7 @@ export interface UserTaskRecord {
   assignee_identity?: UserTaskAssigneeIdentity | null;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
-  external_chat_provider?: "codex" | null;
+  external_chat_provider?: "codex" | "claude" | null;
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
@@ -14559,7 +14559,7 @@ export class OpenMatesClient {
     return rows.filter(row => (row as UserTaskRecord & { source?: string }).source !== "workflow_run");
   }
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}, options: { onPage?: (tasks: UserTaskRecord[], complete: boolean) => Promise<void> | void } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "claude"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}, options: { onPage?: (tasks: UserTaskRecord[], complete: boolean) => Promise<void> | void } = {}): Promise<UserTaskRecord[]> {
     const session = this.requireSession();
     const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
       session.createdAt, session.masterKeyExportedB64, session.activeTeamId] as const;

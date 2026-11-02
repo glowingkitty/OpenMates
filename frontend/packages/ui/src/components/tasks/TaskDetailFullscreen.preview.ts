@@ -78,6 +78,21 @@ const activityEntries: UserTaskActivityEntry[] = [{
 export default { task, related, activityEntries, onClose: () => {} };
 
 export const variants = {
+  // Claude Code is an external-chat provider only; the Task stays user-assigned.
+  claudeExternalChat: {
+    task: {
+      ...task,
+      assigneeType: 'user',
+      assigneeIdentity: null,
+      externalChat: { provider: 'claude', id: '0f8e4c2a-1b3d-4e5f-8a9b-0c1d2e3f4a5b', title: 'Claude Code session' },
+      encrypted: {
+        ...task.encrypted,
+        assignee_type: 'user',
+        assignee_identity: null,
+        external_chat_provider: 'claude',
+      },
+    },
+  },
   codeFallback: {
     task: {
       ...task,

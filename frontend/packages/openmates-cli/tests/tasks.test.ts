@@ -323,6 +323,32 @@ describe("OpenMatesClient user tasks", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("encrypts, hashes and round-trips a Claude Code session link", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const session = "0f8e4c2a-1b3d-4e5f-8a9b-0c1d2e3f4a5b";
+    const claude = parseExternalChatRef(`claude:${session}`);
+    assert.deepEqual(claude, { provider: "claude", id: session });
+    const lookupHash = externalChatLookupHash(masterKey, claude);
+    assert.match(lookupHash, /^[0-9a-f]{64}$/);
+    assert.notEqual(lookupHash, externalChatLookupHash(masterKey, { provider: "codex", id: session }), "provider is domain-separated in the blind index");
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: "Claude linked work",
+      externalChat: { ...claude, title: "Claude Code session" },
+    });
+    assert.equal(input.external_chat_provider, "claude");
+    assert.equal(input.external_chat_lookup_hash, lookupHash);
+    assert.equal(input.assignee_identity ?? null, null, "a Claude link never implies an assignee identity");
+    assert.doesNotMatch(JSON.stringify(input), new RegExp(`${session}|Claude Code session`));
+    const decrypted = await decryptUserTask(input, masterKey);
+    assert.deepEqual(decrypted.externalChat, { provider: "claude", id: session, title: "Claude Code session" });
+
+    assert.throws(() => parseExternalChatRef("claude:ses_not_a_uuid"), /session UUIDs/);
+    assert.throws(() => parseExternalChatRef("claude:"), /provider:id/);
+    assert.throws(() => externalChatLookupHash(masterKey, { provider: "claude", id: "not-a-uuid" }), /session UUIDs/);
+    assert.throws(() => parseExternalChatRef("opencode:ses_legacy"), /Use codex or claude/);
+  });
+
   // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
   it("derives the external-chat lookup hash with the shared HKDF info literal", () => {
     const masterKey = Buffer.from([...Array(32).keys()]);

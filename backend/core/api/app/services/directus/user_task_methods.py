@@ -23,7 +23,8 @@ from backend.shared.python_utils.encrypted_slug_metadata import (
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
-EXTERNAL_CHAT_PROVIDERS = {"codex"}
+# External-chat providers are link metadata only; Claude Code is not an assignee identity.
+EXTERNAL_CHAT_PROVIDERS = {"codex", "claude"}
 TASK_ASSIGNEE_IDENTITIES = {"openmates": {"openmates"}, "external_ai": {"codex"}}
 TASK_ASSIGNEE_TYPES = {"user", "openmates", "external_ai", "unassigned"}
 

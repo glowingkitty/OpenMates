@@ -37,41 +37,38 @@ argument-hint: "<feature or existing specification ID>"
    python3 scripts/sessions.py specification approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD
    ```
 
-   Paste the returned Markdown PDF link into the chat before asking for approval.
+   **The review is always a PDF shown in the chat — never pasted YAML.** Show it
+   in the chat in two ways before asking for approval: send the local PDF file
+   with the SendUserFile tool (`display: "render"`, so it opens inline) and also
+   paste the returned private Markdown PDF link. Never paste `specification.yml`,
+   `examples.yml` or any YAML excerpt into the chat as the review, and never
+   substitute `specification_approval_yaml.py` output for the PDF.
    The PDF must contain the complete `specification.yml` and `examples.yml`.
    Inspect representative rendered PDF pages: each requirement must show its
    concrete examples directly beneath it as paragraphs or code blocks, with readable inputs and expected
    results. Flattened field/value tables are not acceptable examples. YAML counts or a detached examples appendix do not prove this.
    The renderer checks coverage for added/changed requirements when generating
    new reviews; do not alter existing approved semantics to satisfy this check.
-   Before asking for approval, verify that the review artifact shows changed text using inline green `+`
+   Before asking for approval, verify that the PDF shows changed text using inline green `+`
    insertions and inline red `-` deletions while unchanged text stays neutral.
-   If the private PDF publisher is unavailable, generate the deterministic YAML fallback instead:
-
-   ```bash
-   python3 scripts/specification_approval_yaml.py <bundle> --baseline-ref HEAD
-   ```
-
-   Paste the command's complete `specification.yml` and examples YAML output into
-   the chat with the printed fingerprint. Do not summarize, truncate, attach only
-   a path, or claim that a PDF was published. The generated `.approval.yml` is the
-   review artifact for the later approval command. Use this fallback only after a
-   real publisher failure or when the publisher is known to be unavailable.
+   If rendering fails because Chromium is missing, install it with
+   `python3 -m playwright install chromium` (pre-approved, ~110 MB) and retry. If
+   the PDF still cannot be rendered or uploaded, report the concrete blocker and
+   stop; do not fall back to showing YAML.
 5. Briefly explain affected assertions, surfaces, and evidence invalidation next
-   to the embedded PDF or complete YAML fallback. Ask for explicit user confirmation of its fingerprint and
-   stop. Do not create/update a Plan or product code before the response.
+   to the PDF. Ask for explicit user confirmation of its fingerprint and stop.
+   Do not create/update a Plan or product code before the response.
 6. After explicit approval, run:
 
    ```bash
    python3 scripts/specifications.py approve <bundle> \
      --session <SESSION_ID> \
-     --review-artifact <PDF_APPROVAL_JSON_OR_YAML_FALLBACK> \
+     --review-artifact <PDF_APPROVAL_JSON> \
      --confirmation explicit_user_confirmation
    ```
 
-7. Any later Specification edit changes the fingerprint. Generate and embed a
-   new PDF or complete YAML fallback, then repeat presentation and approval;
-   never reuse a stale receipt.
+7. Any later Specification edit changes the fingerprint. Generate and show a
+   new PDF, then repeat presentation and approval; never reuse a stale receipt.
 
 ## Rules
 

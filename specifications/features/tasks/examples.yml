@@ -36,9 +36,19 @@ task_blocked_reason:
 
 task_external_chat_context:
   - id: codex-chat-task
+    assertion_ids: [tasks.external-chat.encrypted-context]
     given: A Codex chat creates a Task linked to its external thread and supplies a private thread title.
     when: The Task is stored.
     then: Codex is the provider, the lookup hash is present, and neither the external ID nor title is stored as plaintext.
+  - id: claude-code-session-task
+    assertion_ids: [tasks.external-chat.encrypted-context]
+    given: A Claude Code session creates a Task linked to its own session UUID and supplies a private session title.
+    when: The Task is stored.
+    then: Claude is the provider, the lookup hash is present, the Task keeps its requested assignee rather than gaining a Claude identity, and neither the session ID nor title is stored as plaintext.
+  - id: claude-code-invalid-session-rejected
+    given: A client supplies claude:ses_not_a_uuid as the external chat.
+    when: It tries to create or filter Tasks.
+    then: The input is rejected before any request because Claude Code session IDs must be UUIDs.
   - id: native-and-external-rejected
     given: A client supplies both a native OpenMates chat and a Codex thread for one Task.
     when: It tries to create the Task.
@@ -181,6 +191,16 @@ task_surface_parity:
     expect: {same_encryption_boundary: true, same_tombstone_semantics: true, durable_plaintext_comment: false}
 
 
+task_surface_provider_parity:
+  - id: claude-link-same-on-every-surface
+    given: A Claude Code session creates a Task linked to claude:<session-uuid> through the CLI.
+    when: The same owner reads it through REST, the npm and Python SDKs, and the web app.
+    then: Every surface shows Claude Code as the provider, decrypts the same session title only in client memory, and filters by the same blind-index lookup.
+  - id: codex-link-unchanged-on-every-surface
+    given: A Codex chat creates a Task linked to codex:<thread-uuid>.
+    when: It is read on the same surfaces after Claude Code support exists.
+    then: It still shows Codex as the provider with the same encrypted context, assignment and lifecycle as before.
+
 codex_connection_compatibility:
   - id: codex-verified-creator
     input: {provider: codex, external_chat_id: 00000000-0000-4000-8000-000000000001, cli_actor: assignee, paired_session: true, installed_thread_read: matched}
@@ -195,9 +215,15 @@ task_owner_claim:
     when: The native tool explicitly sets link_to_chat to false; the terminal command omits a chat link. A Codex worker instead passes its own chat ID during creation.
     then: The first two Tasks remain unlinked. The Codex Task is linked to that worker in the same create request; no second claim request is needed.
   - id: competing-chat
+    assertion_ids: [tasks.conversation.single-owner-claim]
     given: The Task "Repair header navigation" belongs to the Codex chat "Landing - Header".
     when: A different chat tries to claim that Task.
     then: The claim is rejected. The error quotes "Landing - Header" and shows its Codex chat ID. Another worker cannot claim the Task until its current link is released.
+  - id: claude-code-claim-requires-own-session
+    assertion_ids: [tasks.conversation.single-owner-claim]
+    given: The Task "Repair footer links" belongs to the Claude Code session "Landing - Footer".
+    when: A Codex chat or a different Claude Code session tries to claim or release it, or a terminal links claude:<session-uuid> outside that session.
+    then: The request is rejected. A competing claim quotes "Landing - Footer" and shows its Claude Code session ID; only the matching CLAUDE_CODE_SESSION_ID can link or release it.
 
 task_chat_deletion:
   - id: confirmed-delete-preserves-work

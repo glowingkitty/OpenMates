@@ -47,7 +47,7 @@ TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
 AssigneeIdentity = Literal["openmates", "codex"]
 KeyWrapperType = Literal["master", "chat", "project", "plan", "team"]
-ExternalChatProvider = Literal["codex"]
+ExternalChatProvider = Literal["codex", "claude"]
 BlockedReasonCode = Literal[
     "needs_user_input",
     "waiting_for_approval",

@@ -53,3 +53,23 @@ an authenticated user declaration, not remote process attestation. It enables
 assignment, not automatic execution. Changing an old assignment does not grant
 eligibility. Existing Codex links remain readable with their original labels;
 resuming an Codex link is rejected. No historical records are rewritten.
+
+## Link a Task to a Claude Code session
+
+Claude Code exports its session UUID as `CLAUDE_CODE_SESSION_ID`. Inside that
+session, link, filter and release Tasks with the `claude` provider:
+
+```bash
+openmates tasks create --title "Fix footer links" \
+  --external-chat "claude:$CLAUDE_CODE_SESSION_ID" --external-chat-title "Landing - Footer"
+openmates tasks list --external-chat "claude:$CLAUDE_CODE_SESSION_ID"
+openmates tasks edit TASK-1234 --external-chat "claude:$CLAUDE_CODE_SESSION_ID"
+openmates tasks release TASK-1234
+```
+
+The session ID must be a UUID and must match `CLAUDE_CODE_SESSION_ID`; the CLI
+rejects links made on behalf of another session. The ID and title (default
+"Claude Code session") are encrypted locally like Codex links. A Claude Code
+link is conversation context only: it does not change the Task's assignee, does
+not declare creator identity, and cannot be used with `--as-assignee`,
+`connect`, `connection` or `resume` (use `claude --resume <session-uuid>`).
