@@ -55651,12 +55651,22 @@
       "flags": [
         "api-key",
         "api-url",
+        "backup-codes-output",
         "email",
+        "force",
+        "gift-card-code",
         "help",
         "invite-code",
         "json",
+        "language",
+        "password",
         "profile",
-        "username"
+        "provider",
+        "recovery-key-output",
+        "skip-2fa",
+        "skip-recovery-key",
+        "username",
+        "yes"
       ],
       "source_locations": [
         {
@@ -55677,12 +55687,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "signup::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/signup.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Real-email signup proof on the dev host is still required (fake-server and npm-vector tests only so far).",
+        "The QR code uses native half-block rendering instead of qrcode-terminal's exact layout; e2e provisioning (autoGenerateTotp) is not part of signup."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61662,8 +61673,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 538,
-    "unsupported": 182,
+    "native_handlers_partial": 539,
+    "unsupported": 181,
     "feature_complete": false
   },
   "maintenance": {

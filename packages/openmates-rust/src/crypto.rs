@@ -21,6 +21,7 @@ pub mod master;
 pub(crate) mod server_fields;
 pub mod web_formats;
 mod password_master;
+pub mod signup;
 pub(crate) use password_master::{LEGACY_PASSWORD_ITERATIONS, password_master_envelope, password_master_from_plaintext};
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod browser_legacy;

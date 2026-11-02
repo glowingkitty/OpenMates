@@ -56,7 +56,7 @@ fn supported(invocation: &Invocation) -> bool {
     record(&invocation.path).is_some_and(|record| record.implementation.handler.is_some())
         || matches!(
             invocation.path.first().map(String::as_str),
-            Some("login" | "server" | "tui")
+            Some("login" | "server" | "signup" | "tui")
         )
 }
 pub fn requirements(invocation: &Invocation) -> Requirements {

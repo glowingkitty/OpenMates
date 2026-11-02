@@ -38,6 +38,7 @@ rand = "0.8"
 zeroize = { version = "1", features = ["derive"] }
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 crypto_box = { version = "0.9", features = ["std"] }
+crypto_secretbox = { version = "0.1", default-features = false, features = ["alloc", "salsa20"] }
 opaque-ke = { version = "=4.0.0", features = ["argon2"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"

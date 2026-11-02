@@ -274,7 +274,11 @@ async fn run_with_list_stages(
     if login && store.storage_mode().await?.is_some() {
         return Err(CliError::Invalid("Log out of this native profile before pairing another session; existing credentials were preserved.".into()));
     }
-    let loaded = if login {
+    let signup = invocation.command_path() == "signup";
+    if signup && store.storage_mode().await?.is_some() {
+        return Err(CliError::Invalid("Log out of this native profile before creating another account; existing credentials were preserved.".into()));
+    }
+    let loaded = if login || signup {
         None
     } else {
         match store.load(None).await {
@@ -347,7 +351,12 @@ async fn run_with_list_stages(
         .await;
     }
     let mut saved_read_admission = None;
-    let result = if login {
+    let result = if signup {
+        if globals.encrypted_vault {
+            passphrase = Some(prompt("New credential vault passphrase: ", cancel.clone()).await?);
+        }
+        cli::signup::execute(&invocation, &mut client, &store, passphrase.clone(), &cancel).await
+    } else if login {
         login_pair(
             &mut client,
             &store,

@@ -5,6 +5,8 @@ pub(super) use session_validation::ActualSessionValidationTransition;
 pub(in crate::client) use session_validation::BeforeSessionValidation;
 #[path = "owned_session_validation.rs"]
 mod owned_session_validation;
+#[path = "signup.rs"]
+mod signup;
 pub(in crate::client) use owned_session_validation::{PreparedOwnedSessionValidation, OwnedSessionValidationHeaders,
     OwnedSessionValidationBody, CompletedOwnedSessionValidation, OwnedSessionValidationReceipt,
     send_owned_session_validation_headers, send_owned_session_validation_headers_with_negative, drive_owned_session_validation_body};
@@ -398,8 +400,7 @@ impl Client {
                 return Err(e);
             }
         };
-        self.clear_account_cache();
-        self.session = Some(Session {
+        let session = Session {
             api_url: self.base.to_string().trim_end_matches('/').to_owned(),
             session_id,
             cookies: self.cookies.clone(),
@@ -414,14 +415,21 @@ impl Client {
             created_at: now_ms(),
             paired_session_expires_at: None,
             active_team_id: None,
-        });
+        };
+        self.install_new_session(session, user.clone());
+        Ok(())
+    }
+    /// Shared by password login and signup: replace every account-scoped
+    /// cache and credential authority with the freshly established session.
+    pub(super) fn install_new_session(&mut self, session: Session, user: Value) {
+        self.clear_account_cache();
+        self.session = Some(session);
         self.generation = self.generation.wrapping_add(1);
-        self.user = user.clone();
+        self.user = user;
         self.clear_chat_rows();
         self.wrappers.clear();
         self.team_key = None;
         self.credentials_changed();
-        Ok(())
     }
 }
 

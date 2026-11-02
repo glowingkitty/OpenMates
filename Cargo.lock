@@ -2286,6 +2286,7 @@ dependencies = [
  "argon2",
  "base64 0.22.1",
  "crypto_box",
+ "crypto_secretbox",
  "futures-channel",
  "futures-util",
  "generic-array",
