@@ -249,6 +249,8 @@ pub struct Ui {
     workspace: Workspace,
     task_order: crate::error::Result<openmates_sdk::task_order::TaskOrder>,
     items: [Vec<Item>; 6],
+    inspirations: Vec<openmates_sdk::client::overview::inspirations::Inspiration>,
+    inspiration_index: usize,
     selected: [usize; 6],
     sidebar: bool,
     focus: Focus,
@@ -346,6 +348,8 @@ impl Ui {
             workspace: Workspace::Chats,
             task_order: crate::task_order::for_host(),
             items: std::array::from_fn(|_| vec![]),
+            inspirations: vec![],
+            inspiration_index: 0,
             selected: [0; 6],
             sidebar: false,
             // TS route("chats","start"): the home cards own focus, so Enter
@@ -852,6 +856,10 @@ impl Ui {
         self.username = markdown::clean(value);
     }
     /// Cached name for the first paint; never replaces an authenticated one.
+    pub fn set_inspirations(&mut self, list: Vec<openmates_sdk::client::overview::inspirations::Inspiration>) {
+        self.inspirations = list;
+        self.inspiration_index = 0;
+    }
     pub fn set_username_hint(&mut self, value: &str) {
         if self.username.is_empty() {
             self.username = markdown::clean(value);
@@ -1353,6 +1361,10 @@ impl Ui {
                     return vec![UiCommand::Quit];
                 }
                 KeyCode::Char('q') => return vec![UiCommand::Quit],
+                KeyCode::Char('o') if !self.inspirations.is_empty() => {
+                    self.inspiration_index = (self.inspiration_index + 1) % self.inspirations.len();
+                    return vec![];
+                }
                 KeyCode::Char('y') => {
                     self.selecting = !self.selecting;
                     self.hits.clear();
@@ -3177,6 +3189,30 @@ impl Ui {
         }
     }
     fn draw_home(&mut self, frame: &mut Frame, area: Rect) {
+        // TS home banner: category-colored band with the day's inspiration.
+        let area = match self.inspirations.get(self.inspiration_index) {
+            Some(inspiration) if self.workspace == Workspace::Chats && area.height >= 30 => {
+                let title = inspiration.feature_title.as_deref().filter(|t| !t.is_empty()).unwrap_or(
+                    if inspiration.title.is_empty() { "Daily inspiration" } else { &inspiration.title },
+                );
+                let band = Rect::new(area.x, area.y, area.width, 6);
+                let text = vec![
+                    Line::from("DAILY INSPIRATION  ‹  Ctrl+O explore  ›"),
+                    Line::default(),
+                    Line::from(markdown::clean(&inspiration.phrase)),
+                    Line::from(Span::styled(markdown::clean(title), Style::default().bold())),
+                ];
+                frame.render_widget(
+                    Paragraph::new(text)
+                        .wrap(Wrap { trim: true })
+                        .alignment(ratatui::layout::Alignment::Center)
+                        .style(Style::default().fg(Color::White).bg(app_color(&inspiration.category))),
+                    band,
+                );
+                Rect::new(area.x, area.y + 7, area.width, area.height - 7)
+            }
+            _ => area,
+        };
         let title = if self.workspace == Workspace::Chats {
             if self.username.is_empty() && !self.authenticated && self.items[0].is_empty() {
                 "Welcome to OpenMates".to_owned()

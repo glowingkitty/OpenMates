@@ -11,6 +11,8 @@
 //! Labels and presentation stay in the UI adapters.
 #[path = "overview_cards.rs"]
 pub mod cards;
+#[path = "inspirations.rs"]
+pub mod inspirations;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;

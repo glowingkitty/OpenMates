@@ -258,6 +258,7 @@ impl ChatFirstPageSink for NativeChatFirstPageSink {
 enum View {
     /// Cached display name for the first paint (before authentication).
     Greeting(String),
+    Inspirations(Vec<openmates_sdk::client::overview::inspirations::Inspiration>),
     AdmittedAuth(NativeAuthPublication),
     #[cfg(test)]
     Auth {
@@ -518,6 +519,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     View::SignedOut=>{close_cached_views(&cached_views);authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
                     View::Unlock=>ui.set_unlock_required(true),
                     View::Greeting(name)=>ui.set_username_hint(&name),
+                    View::Inspirations(list)=>ui.set_inspirations(list),
                     View::Items(workspace,items)=>ui.set_items(workspace,items),
                     View::Chat(chat)=>ui.set_chat(chat),
                     View::CanonicalChat(publication)=>apply_canonical_chat(&mut ui,publication),
@@ -1725,6 +1727,10 @@ impl Actor {
     async fn boot_sync(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         if self.client.session().is_none() {
             return Ok(());
+        }
+        // The home banner is optional: one small read, never fatal.
+        if let Ok(list) = self.client.daily_inspirations("en").await {
+            Self::emit(replies, epoch, View::Inspirations(list)).await?;
         }
         let generation = self.store.generation_guard();
         let cancel = self.live_cancel.clone();
