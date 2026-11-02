@@ -50,14 +50,37 @@ impl tokio::io::AsyncWrite for Replay {
 }
 // contract-test: supporting surface=sdks.rust assertions=auth.session.isolation,auth.session.authoritative-enforcement,sync.client.shared-rust-policy
 #[tokio::test]
-async fn actual_original_socket_close_error_never_mints_terminal_or_refusal_with_or_without_observation_corruption(){
+async fn peer_closed_original_socket_counts_as_returned_and_mints_a_terminal_unless_observation_is_corrupt(){
     for corrupt in [false,true] {
         let server=Server::open().await;let mut client=server.client().await;let peer=OwnedOperationScope::capture(&client,CancellationToken::new()).unwrap();let prepared=client.prepare_owned_saved_send(None,CancellationToken::new()).unwrap();let(updates,_)=mpsc::channel(8);let mut driver=client.start_owned_saved_send(prepared,"synthetic private A",updates).unwrap();
         let OwnedSavedSendStep::Apply(phase)=driver.drive_next().await.unwrap()else{panic!("actual original Prepare")};let resume=tokio::time::timeout(std::time::Duration::from_secs(5),client.apply_owned_saved_send_step(phase)).await.unwrap().unwrap();driver.resume(resume).unwrap();
         assert!(driver.context.socket.get().is_some(),"actual original transport must have registered");
         if corrupt {let observation=client.scoped_send_observation.as_ref().unwrap().clone();let _=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||{let _held=observation.lock().unwrap();panic!("synthetic observation lock failure");}));}
-        assert!(matches!(tokio::time::timeout(std::time::Duration::from_secs(5),driver.drive_next()).await.unwrap(),Err(Error::Cancelled)));
-        assert!(driver.context.transport_resources_tracked.load(std::sync::atomic::Ordering::Acquire));assert!(!driver.context.socket_returned.load(std::sync::atomic::Ordering::Acquire),"actual original close must fail, not a caller flag");
-        assert!(driver.take_returned_refusal().is_none());assert!(client.prepare_owned_saved_send(None,CancellationToken::new()).is_err());peer.check(&client).unwrap();assert!(!client.operation_parent.is_cancelled());assert!(!client.operation_cancel.is_cancelled());
+        let step=tokio::time::timeout(std::time::Duration::from_secs(5),driver.drive_next()).await.unwrap();
+        assert!(driver.context.transport_resources_tracked.load(std::sync::atomic::Ordering::Acquire));
+        // The peer already closed the stream, which releases it (SDK lane fix):
+        // closing reports ConnectionClosed/AlreadyClosed, never a lost resource.
+        assert!(driver.context.socket_returned.load(std::sync::atomic::Ordering::Acquire),"a peer-closed socket is returned");
+        if corrupt {
+            assert!(matches!(step,Err(Error::Cancelled)));assert!(driver.take_returned_refusal().is_some(),"corrupt observation refuses explicitly");
+        } else {
+            let Ok(OwnedSavedSendStep::Terminal(ended))=step else{panic!("returned resources mint the actual terminal")};
+            assert_eq!(ended.outcome(),SavedSendOutcome::Unavailable,"never attempted, not cancelled");
+            client.finish_owned_saved_send(ended).expect("original client consumes its terminal");
+        }
+        peer.check(&client).unwrap();assert!(!client.operation_parent.is_cancelled());assert!(!client.operation_cancel.is_cancelled());
     }
+}
+// contract-test: supporting surface=sdks.rust assertions=auth.session.isolation,sync.client.shared-rust-policy
+#[tokio::test]
+async fn cancelled_before_attempt_is_a_cancellation_and_never_blocks_the_next_send(){
+    let server=Server::open().await;let mut client=server.client().await;let request=CancellationToken::new();
+    let prepared=client.prepare_owned_saved_send(None,request.clone()).unwrap();let(updates,_)=mpsc::channel(8);let mut driver=client.start_owned_saved_send(prepared,"synthetic private A",updates).unwrap();
+    let OwnedSavedSendStep::Apply(phase)=driver.drive_next().await.unwrap()else{panic!("actual original Prepare")};let resume=tokio::time::timeout(std::time::Duration::from_secs(5),client.apply_owned_saved_send_step(phase)).await.unwrap().unwrap();driver.resume(resume).unwrap();
+    // Cancelled while the context snapshot is outstanding; the transport then fails.
+    request.cancel();
+    let Ok(OwnedSavedSendStep::Terminal(ended))=tokio::time::timeout(std::time::Duration::from_secs(5),driver.drive_next()).await.unwrap()else{panic!("actual terminal")};
+    assert_eq!(ended.outcome(),SavedSendOutcome::Cancelled);
+    let disposition=client.finish_owned_saved_send(ended).expect("original terminal");assert!(disposition.original_cancelled_result());drop(disposition);drop(driver);
+    assert!(client.prepare_owned_saved_send(None,CancellationToken::new()).is_ok(),"a cancelled send must not refuse the next one");
 }

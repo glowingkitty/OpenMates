@@ -16,6 +16,12 @@ const MAX_PHASE_BYTES:usize=MAX_SCOPED_SAVED_SEND_QUARANTINE_BYTES;
 // Await local close completion of the SAME original stream. Browser close now
 // waits for its actual onclose/known CLOSED state; neither port claims a remote
 // cancel/admission acknowledgement or saved-turn settlement from local close.
+// A peer that already closed the stream has released it as well.
+#[cfg(not(target_arch="wasm32"))]
+async fn close_original_socket(socket:&mut Socket)->bool {
+    matches!(socket.close(None).await,Ok(())|Err(tungstenite::Error::ConnectionClosed|tungstenite::Error::AlreadyClosed))
+}
+#[cfg(target_arch="wasm32")]
 async fn close_original_socket(socket:&mut Socket)->bool {socket.close(None).await.is_ok()}
 fn bound<T:serde::Serialize+?Sized>(value:&T)->Result<()> {scoped_serialized_size(value,MAX_PHASE_BYTES).map(|_|())}
 fn focus_row_stamp(client:&Client,chat:&str)->Result<Option<String>> {
@@ -441,8 +447,13 @@ impl OwnedSavedSendDriver {
                         Err(Error::Cancelled)=>SavedSendOutcome::Cancelled,
                         Err(Error::Expired|Error::Authentication|Error::Forbidden)=>SavedSendOutcome::SessionExpired,
                         Err(_) if observed.attempted=>SavedSendOutcome::Uncertain,
+                        // A cancelled request that never attempted (e.g. while
+                        // awaiting its context snapshot) is a cancellation, not
+                        // an unavailable gate that refuses every later send.
+                        Err(_) if self.context.admission.request.is_cancelled()=>SavedSendOutcome::Cancelled,
                         Err(_)=>SavedSendOutcome::Unavailable,
                     };
+                    let result=if outcome==SavedSendOutcome::Cancelled{Err(Error::Cancelled)}else{result};
                     let recovery=observed.identity.clone();drop(observed);
                     return Ok(OwnedSavedSendStep::Terminal(OwnedSavedSendTerminal{context:self.context.clone(),result:Some(result),outcome,recovery,consumed:false}));
                 },
