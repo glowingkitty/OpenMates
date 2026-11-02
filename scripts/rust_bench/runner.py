@@ -25,7 +25,9 @@ class Runner:
     def __init__(self, meter: Meter, arms: dict[str, F.Arm], *, samples: int, warmup: int,
                  timeout: float, message: str, followup: str, app_skill: str,
                  chat_ids: dict[str, str | None], create_chat: bool = False,
-                 keep_output: Path | None = None, log=None):
+                 keep_output: Path | None = None, log=None,
+                 arm_messages: dict[str, str] | None = None, arm_followups: dict[str, str] | None = None,
+                 expect_model: str | None = None):
         self.meter = meter
         self.arms = arms
         self.samples = samples
@@ -33,6 +35,11 @@ class Runner:
         self.timeout = timeout
         self.message = message
         self.followup = followup
+        # Per-arm overrides when the CLIs need different input for the same wire request
+        # (e.g. TS resolves `@Gemini-3.8-Flash`; Rust needs `@ai-model:gemini-3.8-flash`).
+        self.arm_messages = {arm: text for arm, text in (arm_messages or {}).items() if text}
+        self.arm_followups = {arm: text for arm, text in (arm_followups or {}).items() if text}
+        self.expect_model = expect_model
         self.app_skill = app_skill
         self.chat_ids = dict(chat_ids)
         self.create_chat = create_chat  # may create chats untimed (inference opt-in only)
@@ -69,9 +76,24 @@ class Runner:
             return "non_json_stdout"
         return F.error_code(parsed)
 
+    def check(self, flow: str, metrics: dict, parsed) -> str | None:
+        """verdict() plus, for inference flows with --expect-model, the answering model."""
+        error = self.verdict(metrics, parsed)
+        if error is None and self.expect_model and flow in ("send", "follow-up"):
+            model = F.answered_model(parsed)
+            if model != self.expect_model:
+                return f"model_mismatch:{model or 'missing'}"
+        return error
+
+    def message_for(self, arm: str) -> str:
+        return self.arm_messages.get(arm, self.message)
+
+    def followup_for(self, arm: str) -> str:
+        return self.arm_followups.get(arm, self.followup)
+
     def args_for(self, flow: str, arm: str) -> list[str]:
-        return F.flow_args(flow, chat_id=self.chat_ids.get(arm), message=self.message,
-                           followup=self.followup, app_skill=self.app_skill)
+        return F.flow_args(flow, chat_id=self.chat_ids.get(arm), message=self.message_for(arm),
+                           followup=self.followup_for(arm), app_skill=self.app_skill)
 
     def prepare_flow(self, flow: str) -> str | None:
         """Untimed setup. Returns a skip reason or None."""
@@ -83,17 +105,18 @@ class Runner:
                 continue
             if flow == "follow-up":
                 # A dedicated chat per arm, created untimed; follow-ups accumulate in it.
-                metrics, parsed = self.invoke(arm, F.flow_args("send", message=self.message), "setup")
-                chat = F.created_chat_id(parsed) if self.verdict(metrics, parsed) is None else None
+                metrics, parsed = self.invoke(arm, F.flow_args("send", message=self.message_for(arm)), "setup")
+                error = self.check("send", metrics, parsed)
+                chat = F.created_chat_id(parsed) if error is None else None
                 if not chat:
-                    return f"{arm}: could not create follow-up chat ({self.verdict(metrics, parsed) or 'no chat id'})"
+                    return f"{arm}: could not create follow-up chat ({error or 'no chat id'})"
                 self.chat_ids.setdefault(f"followup:{arm}", chat)
                 continue
             metrics, parsed = self.invoke(arm, F.flow_args("chats-list"), "setup")
             chat = F.first_chat_id(parsed) if self.verdict(metrics, parsed) is None else None
             if not chat and self.create_chat:
-                metrics, parsed = self.invoke(arm, F.flow_args("send", message=self.message), "setup")
-                chat = F.created_chat_id(parsed) if self.verdict(metrics, parsed) is None else None
+                metrics, parsed = self.invoke(arm, F.flow_args("send", message=self.message_for(arm)), "setup")
+                chat = F.created_chat_id(parsed) if self.check("send", metrics, parsed) is None else None
             if not chat:
                 return f"{arm}: no chat available to show (pass --{arm}-chat-id or run with --inference first)"
             self.chat_ids[arm] = chat
@@ -101,7 +124,7 @@ class Runner:
 
     def flow_argv(self, flow: str, arm: str) -> list[str]:
         if flow == "follow-up":
-            return F.flow_args(flow, chat_id=self.chat_ids[f"followup:{arm}"], followup=self.followup)
+            return F.flow_args(flow, chat_id=self.chat_ids[f"followup:{arm}"], followup=self.followup_for(arm))
         return self.args_for(flow, arm)
 
     def run_flow(self, flow: str) -> dict:
@@ -115,12 +138,12 @@ class Runner:
         for arm in ARMS:
             for _ in range(self.warmup):
                 metrics, parsed = self.invoke(arm, self.flow_argv(flow, arm), f"{flow}-warmup")
-                warmups.append({"arm": arm, "ok": self.verdict(metrics, parsed) is None,
-                                "error": self.verdict(metrics, parsed), "wallMs": metrics["wallMs"]})
+                error = self.check(flow, metrics, parsed)
+                warmups.append({"arm": arm, "ok": error is None, "error": error, "wallMs": metrics["wallMs"]})
         samples = []
         for position, (index, arm) in enumerate(paired_order(self.samples)):
             metrics, parsed = self.invoke(arm, self.flow_argv(flow, arm), flow)
-            error = self.verdict(metrics, parsed)
+            error = self.check(flow, metrics, parsed)
             samples.append({"index": index, "position": position, "arm": arm, "ok": error is None,
                             "error": error, "metrics": metrics})
             self.log(f"[{flow}] #{index:02d} {arm:<10} wall={metrics['wallMs']:9.1f}ms "

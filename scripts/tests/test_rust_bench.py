@@ -148,3 +148,25 @@ def test_inference_flows_require_opt_in(tmp_path):
         selected_flows(parser().parse_args([*base, "--flows", "whoami,send"]))
     with pytest.raises(F.IsolationError):
         selected_flows(parser().parse_args([*base, "--flows", "nope"]))
+
+
+# contract-test: tooling
+def test_per_arm_messages_and_expected_model_gate_inference_samples(tmp_path):
+    from scripts.rust_bench.runner import Runner
+
+    runner = Runner(None, {}, samples=1, warmup=0, timeout=1, message="m", followup="f", app_skill="math x",
+                    chat_ids={"rust": "c", "typescript": "c"},
+                    arm_messages={"rust": "@ai-model:gemini-3.8-flash hi", "typescript": None},
+                    arm_followups={"typescript": "@Gemini-3.8-Flash again"}, expect_model="Gemini 3.8 Flash")
+    try:
+        assert runner.args_for("send", "rust") == ["chats", "new", "@ai-model:gemini-3.8-flash hi", "--json"]
+        assert runner.args_for("send", "typescript") == ["chats", "new", "m", "--json"]
+        runner.chat_ids["followup:typescript"] = "c2"
+        assert runner.flow_argv("follow-up", "typescript")[-2] == "@Gemini-3.8-Flash again"
+        ok = {"timedOut": False, "exitCode": 0}
+        assert runner.check("send", ok, {"chatId": "c", "modelName": "Gemini 3.8 Flash"}) is None
+        assert runner.check("follow-up", ok, {"modelName": "Other"}) == "model_mismatch:Other"
+        assert runner.check("send", ok, {"chatId": "c"}) == "model_mismatch:missing"
+        assert runner.check("whoami", ok, {"user": {}}) is None  # read flows are not model-gated
+    finally:
+        runner.close()

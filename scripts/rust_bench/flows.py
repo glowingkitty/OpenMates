@@ -204,6 +204,16 @@ def first_chat_id(listing) -> str | None:
     return None
 
 
+def answered_model(value) -> str | None:
+    """Assistant model name from `chats new/send --json` (modelName in both CLIs)."""
+    if not isinstance(value, dict):
+        return None
+    for key in ("modelName", "model_name"):
+        if isinstance(value.get(key), str) and value[key]:
+            return value[key]
+    return None
+
+
 def created_chat_id(value) -> str | None:
     """Chat id from `chats new --json` (top-level chat_id/chatId or nested chat.id)."""
     if not isinstance(value, dict):

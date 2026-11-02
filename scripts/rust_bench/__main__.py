@@ -91,7 +91,10 @@ def cmd_run(args) -> int:
     runner = Runner(meter, arms, samples=args.samples, warmup=args.warmup, timeout=args.timeout,
                     message=args.message, followup=args.followup_message, app_skill=args.app_skill,
                     chat_ids={"rust": args.rust_chat_id, "typescript": args.ts_chat_id},
-                    create_chat=args.inference, keep_output=args.keep_output)
+                    create_chat=args.inference, keep_output=args.keep_output,
+                    arm_messages={"rust": args.rust_message, "typescript": args.ts_message},
+                    arm_followups={"rust": args.rust_followup_message, "typescript": args.ts_followup_message},
+                    expect_model=args.expect_model)
     if args.keep_output:
         args.keep_output.mkdir(parents=True, exist_ok=True)
     try:
@@ -107,7 +110,11 @@ def cmd_run(args) -> int:
     config = {"apiUrl": args.api_url, "samples": args.samples, "warmupPerArm": args.warmup,
               "order": "paired, alternating first arm per pair (AB BA AB ...)", "flows": flows,
               "inference": args.inference, "timeoutSeconds": args.timeout,
-              "appSkill": args.app_skill if "app-skill" in flows else None}
+              "appSkill": args.app_skill if "app-skill" in flows else None,
+              "expectModel": args.expect_model,
+              "messages": {"rust": args.rust_message or args.message, "typescript": args.ts_message or args.message},
+              "followups": {"rust": args.rust_followup_message or args.followup_message,
+                            "typescript": args.ts_followup_message or args.followup_message}}
     report = build_report(meter=meter, arms=arms, config=config, flows=results, started=started, versions=versions)
     markdown = args.markdown or args.out.with_suffix(".md")
     print(write_outputs(report, args.out, markdown))
@@ -155,6 +162,12 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float, default=300.0, help="per-invocation timeout seconds")
     run.add_argument("--message", default=F.DEFAULT_MESSAGE)
     run.add_argument("--followup-message", default=F.DEFAULT_FOLLOWUP)
+    for arm in ("rust", "ts"):
+        run.add_argument(f"--{arm}-message", help=f"override --message for the {arm} arm only (same wire request, "
+                                                  "different CLI mention syntax)")
+        run.add_argument(f"--{arm}-followup-message", help=f"override --followup-message for the {arm} arm only")
+    run.add_argument("--expect-model", help='fail send/follow-up samples whose answering modelName differs, '
+                                            'e.g. "Gemini 3.8 Flash"')
     run.add_argument("--app-skill", default=F.DEFAULT_APP_SKILL, help="args after `openmates apps`")
     run.add_argument("--rust-chat-id", help="chat for chats-show in the Rust arm (default: first listed)")
     run.add_argument("--ts-chat-id", help="chat for chats-show in the TS arm (default: first listed)")
