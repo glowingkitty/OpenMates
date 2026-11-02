@@ -10,13 +10,12 @@
 //! overview inputs persist in the cache index section, scoped to the account or
 //! Team context they came from. Reminder prompt previews are never persisted.
 use super::overview::{ChatRank, OverviewEntry, OverviewInputs, ReminderInput, SavedItemInput};
-use super::transport::{receive, send};
 use super::*;
 
 pub(super) const SNAPSHOT_FIELD: &str = "chat_sync_feed_v1";
 /// WebSocket `client_capabilities` entry that opts this socket into the feed.
 pub const CAPABILITY: &str = "chat_sync_feed_v1";
-const PAGE_LIMIT: u64 = 200;
+const PAGE_LIMIT: u32 = 200;
 const MAX_PAGES: usize = 50;
 const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CURSOR_LENGTH: usize = 160;
@@ -208,7 +207,10 @@ impl Client {
     }
 
     /// Replay every committed change after the stored cursor (warm start).
-    /// Transfers no transcript content; opening a chat never waits for this.
+    /// One authenticated HTTPS request per page over the connection the command
+    /// already holds (`GET /v1/chats/changes`): no second session validation and
+    /// no WebSocket handshake. Transfers no transcript content; opening a chat
+    /// never waits for this.
     pub async fn catch_up_chat_sync_feed(&mut self) -> Result<FeedCatchUp> {
         if !self.has_chat_sync_cursor() {
             return Ok(FeedCatchUp::ColdStartRequired);
@@ -216,59 +218,42 @@ impl Client {
         let team = self.team()?.map(str::to_owned);
         let generation = self.generation;
         let cancel = self.operation_cancel.clone();
-        let mut ws = self.passive_chat_monitor_socket().await?;
-        let result = self.drain_feed(&mut ws, team.as_deref(), generation, &cancel).await;
-        let _ = ws.close(None).await;
-        result
-    }
-
-    async fn drain_feed(
-        &mut self,
-        ws: &mut super::transport::Socket,
-        team: Option<&str>,
-        generation: u64,
-        cancel: &CancellationToken,
-    ) -> Result<FeedCatchUp> {
         let (mut pages, mut changes) = (0usize, 0usize);
         while pages < MAX_PAGES {
             let cursor = self.chat_sync_feed.cursor.clone().ok_or(Error::Protocol)?;
-            let epoch = (crate::platform::unix_ms() % 1_000_000_000) as u64 + pages as u64;
-            let mut request = json!({"cursor": cursor, "limit": PAGE_LIMIT, "context_epoch": epoch});
-            if let Some(team) = team {
-                request["team_id"] = json!(team);
-            }
-            send(ws, "chat_sync_delta_request", request).await?;
-            let deadline = crate::platform::time::Instant::now() + PAGE_TIMEOUT;
-            let (kind, payload) = loop {
-                let (kind, payload) = tokio::select! {
-                    biased;
-                    _ = cancel.cancelled() => return Err(Error::Cancelled),
-                    result = crate::platform::time::timeout_at(deadline, receive(ws)) => result.map_err(|_| Error::Offline)??,
-                };
-                if matches!(kind.as_str(), "chat_sync_delta" | "chat_sync_delta_error")
-                    && payload["context_epoch"].as_u64() == Some(epoch)
-                {
-                    break (kind, payload);
+            let mut path = self.scoped("/v1/chats/changes")?;
+            path.push(if path.contains('?') { '&' } else { '?' });
+            path.push_str(&format!(
+                "cursor={}&limit={PAGE_LIMIT}",
+                url::form_urlencoded::byte_serialize(cursor.as_bytes()).collect::<String>()
+            ));
+            let response = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Err(Error::Cancelled),
+                result = crate::platform::time::timeout(PAGE_TIMEOUT, self.request(Method::GET, &path, None)) => {
+                    result.map_err(|_| Error::Offline)?
                 }
             };
-            if cancel.is_cancelled() || self.generation != generation || self.team()? != team {
+            if cancel.is_cancelled() || self.generation != generation || self.team()? != team.as_deref() {
                 return Err(Error::Cancelled);
             }
-            if kind == "chat_sync_delta_error" {
-                return match payload["code"].as_str() {
-                    Some("team_access_revoked") => {
-                        self.forget_revoked_team_context();
-                        Err(Error::Forbidden)
-                    }
-                    _ => Ok(FeedCatchUp::Unavailable),
-                };
-            }
+            let payload = match response {
+                Ok(payload) => payload,
+                Err(Error::Forbidden) if team.is_some() => {
+                    // Lost Team membership: prune only this Team's cached context.
+                    self.forget_revoked_team_context();
+                    return Err(Error::Forbidden);
+                }
+                Err(error @ (Error::Cancelled | Error::Expired)) => return Err(error),
+                // Rate limit, deferral or transport failure: the caller keeps the existing path.
+                Err(_) => return Ok(FeedCatchUp::Unavailable),
+            };
             if payload["reset"] == true {
                 // Never infer deletions from a reset; the cold start decides.
                 self.chat_sync_feed.cursor = None;
                 return Ok(FeedCatchUp::ColdStartRequired);
             }
-            if !context_matches(&payload, team) {
+            if !context_matches(&payload, team.as_deref()) {
                 return Err(Error::Protocol);
             }
             changes += self.apply_chat_sync_page(&payload)?;
@@ -437,9 +422,11 @@ impl Client {
         Ok(Some(self.order_chat_list_items_now(items)))
     }
 
-    /// `order_chat_list_items` at the current time (UTC for zone-less inputs).
+    /// `order_chat_list_items` at the current time and the adapter-provided
+    /// local UTC offset (`overview::set_local_utc_offset_minutes`; zone-less
+    /// times are local, as in the web app).
     pub fn order_chat_list_items_now(&self, items: Vec<Item>) -> Vec<Item> {
-        self.order_chat_list_items(items, crate::platform::unix_ms() as i64, 0)
+        self.order_chat_list_items(items, crate::platform::unix_ms() as i64, super::overview::local_utc_offset_minutes())
     }
 
     /// Encrypted saved-item memory rows of the due-soon set (decrypt with the memories key).

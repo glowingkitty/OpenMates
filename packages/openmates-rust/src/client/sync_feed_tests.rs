@@ -1,7 +1,6 @@
 //! Incremental chat sync feed client (architecture.sync@2): page application,
 //! cold-start adoption, persistence scoping and the WebSocket protocol.
 use super::*;
-use futures_util::{SinkExt, StreamExt};
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -149,66 +148,48 @@ impl Client {
     }
 }
 
-async fn http_request(stream: &mut tokio::net::TcpStream) -> String {
-    let mut data = vec![];
-    loop {
-        let mut buf = [0; 4096];
-        let n = stream.read(&mut buf).await.unwrap();
-        assert!(n > 0);
-        data.extend_from_slice(&buf[..n]);
-        if let Some(end) = data.windows(4).position(|v| v == b"\r\n\r\n") {
-            let headers = String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();
-            let len = headers.lines().find_map(|l| l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap())).unwrap_or(0);
-            if data.len() == end + 4 + len {
-                return String::from_utf8(data).unwrap();
-            }
-        }
-    }
-}
-
-/// Fake server: session auth, then one WebSocket answering delta requests from `replies`.
-async fn feed_peer(replies: Vec<Value>) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+/// Fake HTTP server: records each request line and answers `replies` in order
+/// (`(status, body)`), keeping the connection open between requests.
+async fn feed_peer(replies: Vec<(u16, Value)>) -> (String, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let api = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
     let task = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        assert!(http_request(&mut stream).await.starts_with("POST /v1/auth/session "));
-        let body = json!({"success":true,"ws_token":"synthetic","user":{"id":"synthetic-owner"}}).to_string();
-        stream.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
-        drop(stream);
-        let (stream, _) = listener.accept().await.unwrap();
-        let mut ws = tokio_tungstenite::accept_hdr_async(stream, |req: &tokio_tungstenite::tungstenite::handshake::server::Request, response| {
-            let query = url::form_urlencoded::parse(req.uri().query().unwrap().as_bytes()).collect::<BTreeMap<_, _>>();
-            assert!(query["client_capabilities"].split(',').any(|c| c == CAPABILITY));
-            Ok(response)
-        }).await.unwrap();
         let mut replies = replies.into_iter();
-        while let Some(Ok(frame)) = ws.next().await {
-            let Ok(raw) = frame.to_text() else { continue };
-            let Ok(frame) = serde_json::from_str::<Value>(raw) else { continue };
-            if frame["type"] != "chat_sync_delta_request" {
-                continue;
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            loop {
+                let mut data = vec![];
+                let mut buf = [0; 4096];
+                let ok = loop {
+                    let Ok(n) = stream.read(&mut buf).await else { break false };
+                    if n == 0 { break false }
+                    data.extend_from_slice(&buf[..n]);
+                    if data.windows(4).any(|w| w == b"\r\n\r\n") { break true }
+                };
+                if !ok { break }
+                let request = String::from_utf8(data).unwrap();
+                log.lock().unwrap().push(request.lines().next().unwrap().to_owned());
+                assert!(request.to_ascii_lowercase().contains("cookie:"), "session cookie attached");
+                let Some((status, body)) = replies.next() else { return };
+                let body = body.to_string();
+                stream.write_all(format!("HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
             }
-            log.lock().unwrap().push(frame["payload"].clone());
-            let Some(mut reply) = replies.next() else { break };
-            reply["payload"]["context_epoch"] = frame["payload"]["context_epoch"].clone();
-            // An unrelated frame first: correlation must skip it.
-            ws.send(tokio_tungstenite::tungstenite::Message::Text(json!({"type":"server_capabilities","payload":{}}).to_string().into())).await.unwrap();
-            ws.send(tokio_tungstenite::tungstenite::Message::Text(reply.to_string().into())).await.unwrap();
         }
     });
     (api, seen, task)
 }
 
+fn delta(has_more: bool, next: &str, changes: Value, overview: Value) -> (u16, Value) {
+    (200, json!({"reset":false,"has_more":has_more,"next_cursor":next,"changes":changes,"overview":overview,"team_id":null}))
+}
+
 // contract-test: direct surface=sdks.rust assertions=sync.delta.cursor-gap-free,sync.delta.live-hint
 #[tokio::test]
-async fn catch_up_pages_until_has_more_is_false() {
-    let first = json!({"type":"chat_sync_delta","payload":{"reset":false,"has_more":true,"next_cursor":"e1:7|e2:1","team_id":null,
-        "changes":[{"chat_id":C,"hashed_chat_id":super::hashed(C),"kinds":["metadata"],"chat_details":row(C, 1, 30)}]}});
-    let second = json!({"type":"chat_sync_delta","payload":{"reset":false,"has_more":false,"next_cursor":"e1:8|e2:2","team_id":null,
-        "changes":[{"hashed_chat_id":super::hashed(A),"kinds":["deleted"]}],"overview":{"last_opened_chat_id":B}}});
+async fn catch_up_pages_until_has_more_is_false_over_one_connection() {
+    let first = delta(true, "e1:7|e2:1", json!([{"chat_id":C,"hashed_chat_id":super::hashed(C),"kinds":["metadata"],"chat_details":row(C, 1, 30)}]), Value::Null);
+    let second = delta(false, "e1:8|e2:2", json!([{"hashed_chat_id":super::hashed(A),"kinds":["deleted"]}]), json!({"last_opened_chat_id":B}));
     let (api, seen, task) = feed_peer(vec![first, second]).await;
     let mut client = client_at(&api);
     client.chats.insert(A.into(), row(A, 1, 10));
@@ -217,8 +198,9 @@ async fn catch_up_pages_until_has_more_is_false() {
     let outcome = client.catch_up_chat_sync_feed().await.unwrap();
     assert_eq!(outcome, FeedCatchUp::Applied { pages: 2, changes: 2 });
     let requests = seen.lock().unwrap().clone();
-    assert_eq!(requests.iter().map(|r| r["cursor"].clone()).collect::<Vec<_>>(), [json!("e1:5|e2:1"), json!("e1:7|e2:1")]);
-    assert!(requests.iter().all(|r| r["limit"] == 200 && r.get("team_id").is_none()));
+    assert_eq!(requests.len(), 2, "no session validation or socket handshake in between: {requests:?}");
+    assert!(requests[0].starts_with("GET /v1/chats/changes?cursor=e1%3A5%7Ce2%3A1&limit=200 "), "{}", requests[0]);
+    assert!(requests[1].contains("cursor=e1%3A7%7Ce2%3A1"));
     assert!(client.chats.contains_key(C) && !client.chats.contains_key(A));
     assert_eq!(client.chat_sync_feed.last_opened_chat_id.as_deref(), Some(B));
     assert_eq!(client.chat_sync_feed.cursor.as_deref(), Some("e1:8|e2:2"));
@@ -228,27 +210,60 @@ async fn catch_up_pages_until_has_more_is_false() {
 // contract-test: direct surface=sdks.rust assertions=sync.delta.reset
 #[tokio::test]
 async fn reset_discards_the_cursor_without_pruning() {
-    let reset = json!({"type":"chat_sync_delta","payload":{"reset":true,"has_more":false,"next_cursor":null,"changes":[],"team_id":null}});
+    let reset = (200, json!({"reset":true,"has_more":false,"next_cursor":null,"changes":[],"team_id":null}));
     let (api, _, task) = feed_peer(vec![reset]).await;
     let mut client = client_at(&api);
     client.chats.insert(A.into(), row(A, 1, 10));
     client.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
     assert_eq!(client.catch_up_chat_sync_feed().await.unwrap(), FeedCatchUp::ColdStartRequired);
     assert!(!client.has_chat_sync_cursor() && client.chats.contains_key(A));
-    // Without a cursor no socket is opened at all.
+    // Without a cursor no request is made at all.
     assert_eq!(client.catch_up_chat_sync_feed().await.unwrap(), FeedCatchUp::ColdStartRequired);
     task.abort();
 }
 
 // contract-test: direct surface=sdks.rust assertions=sync.delta.scope-revocation
 #[tokio::test]
-async fn deferred_feed_falls_back_and_keeps_state() {
-    let deferred = json!({"type":"chat_sync_delta_error","payload":{"code":"sync_deferred","team_id":null}});
-    let (api, _, task) = feed_peer(vec![deferred]).await;
+async fn deferral_and_rate_limit_fall_back_and_keep_state() {
+    for status in [429u16, 503] {
+        let (api, _, task) = feed_peer(vec![(status, json!({"detail":"sync_deferred"}))]).await;
+        let mut client = client_at(&api);
+        client.chats.insert(A.into(), row(A, 1, 10));
+        client.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
+        assert_eq!(client.catch_up_chat_sync_feed().await.unwrap(), FeedCatchUp::Unavailable, "{status}");
+        assert!(client.has_chat_sync_cursor() && client.chats.contains_key(A));
+        task.abort();
+    }
+}
+
+// contract-test: direct surface=sdks.rust assertions=sync.delta.scope-revocation
+#[tokio::test]
+async fn revoked_team_prunes_only_that_context_and_keeps_the_error() {
+    let (api, seen, task) = feed_peer(vec![(403, json!({"detail":"team_access_revoked"}))]).await;
+    let team = "44444444-4444-4444-8444-444444444444";
     let mut client = client_at(&api);
-    client.chats.insert(A.into(), row(A, 1, 10));
+    client.set_team(Some(team)).unwrap();
+    for (id, edited) in [(A, 10), (B, 20)] {
+        client.chats.insert(id.into(), row(id, 1, edited));
+    }
+    client.chat_arrival_order = Some(vec![A.into(), B.into()]);
+    client.wrappers.push(json!({"id":"w","hashed_chat_id":super::hashed(A)}));
+    client.chat_sync_feed.team = Some(team.into());
     client.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
-    assert_eq!(client.catch_up_chat_sync_feed().await.unwrap(), FeedCatchUp::Unavailable);
-    assert!(client.has_chat_sync_cursor() && client.chats.contains_key(A));
+    client.chat_sync_feed.last_opened_chat_id = Some(A.into());
+    let error = client.catch_up_chat_sync_feed().await.unwrap_err();
+    assert_eq!(error, Error::Forbidden);
+    assert!(client.chats.is_empty() && client.wrappers.is_empty() && client.chat_arrival_order == Some(vec![]));
+    assert!(!client.has_chat_sync_cursor() && client.chat_sync_feed.last_opened_chat_id.is_none());
+    assert!(seen.lock().unwrap()[0].contains(&format!("team_id={team}")), "Team scoped request");
+    // The personal context is a different cache and is untouched: a personal
+    // client with the same feed shape keeps its rows after a 403 on a Personal call.
+    let (api, _, task2) = feed_peer(vec![(403, json!({"detail":"forbidden"}))]).await;
+    let mut personal = client_at(&api);
+    personal.chats.insert(A.into(), row(A, 1, 10));
+    personal.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
+    assert_eq!(personal.catch_up_chat_sync_feed().await.unwrap(), FeedCatchUp::Unavailable);
+    assert!(personal.chats.contains_key(A) && personal.has_chat_sync_cursor());
     task.abort();
+    task2.abort();
 }

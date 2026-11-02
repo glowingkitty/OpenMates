@@ -166,3 +166,15 @@ fn chat_rank_reads_cached_rows() {
     assert!(!ChatRank::from_row(&json!({"id":"y","encrypted_draft_md":""})).unwrap().has_draft);
     assert!(ChatRank::from_row(&json!({"title":"no id"})).is_none());
 }
+
+// contract-test: direct surface=sdks.rust assertions=sync.overview.priority-order
+#[test]
+fn adapter_local_offset_is_process_wide_and_defaults_to_utc() {
+    assert_eq!(local_utc_offset_minutes(), 0);
+    set_local_utc_offset_minutes(330);
+    assert_eq!(local_utc_offset_minutes(), 330);
+    // A zone-less appointment 09:00 local is 03:30 UTC at +05:30.
+    let value = json!("2027-01-15T09:00:00");
+    assert_eq!(parse_time(Some(&value), local_utc_offset_minutes()), parse_time(Some(&json!("2027-01-15T03:30:00Z")), 0));
+    set_local_utc_offset_minutes(0);
+}

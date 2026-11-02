@@ -16,6 +16,8 @@ pub mod crypto;
 #[cfg(feature = "cli")]
 pub mod error;
 #[cfg(feature = "cli")]
+pub mod local_zone;
+#[cfg(feature = "cli")]
 pub mod model;
 #[cfg(feature = "cli")]
 pub mod native_cache_clock;

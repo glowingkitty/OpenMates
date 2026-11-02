@@ -48,6 +48,19 @@ pub struct DuePriority {
     pub timestamp_ms: i64,
 }
 
+static LOCAL_UTC_OFFSET_MINUTES: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+/// The adapter's local UTC offset (minutes, east positive) for zone-less times.
+/// Process-wide because it is a property of the host, not of an account; the
+/// default is UTC until an adapter that can read the system zone sets it.
+pub fn set_local_utc_offset_minutes(minutes: i32) {
+    LOCAL_UTC_OFFSET_MINUTES.store(minutes, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn local_utc_offset_minutes() -> i32 {
+    LOCAL_UTC_OFFSET_MINUTES.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// One active reminder as returned by the due-soon set (server-decrypted target IDs).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReminderInput {

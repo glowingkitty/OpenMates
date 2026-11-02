@@ -23,6 +23,8 @@ struct Args {
 }
 
 fn main() {
+    // Before any thread exists: the OS refuses the offset afterwards.
+    openmates::local_zone::capture();
     let parsed = cli::parse_from(std::env::args_os()).unwrap_or_else(|error| error.exit());
     if parsed.version_requested {
         // The global flag is the package identity probe; the public `version`
