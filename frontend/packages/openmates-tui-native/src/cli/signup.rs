@@ -358,6 +358,10 @@ pub(crate) async fn run<T: Terminal, S: AsyncFnMut(&mut Client) -> Result<(), Cl
 struct ProcessTerminal {
     cancel: CancellationToken,
 }
+/// The process terminal for other commands that prompt (hidden secrets).
+pub(crate) fn process_terminal(cancel: CancellationToken) -> impl Terminal {
+    ProcessTerminal { cancel }
+}
 impl Terminal for ProcessTerminal {
     fn print(&mut self, text: &str) -> Result<(), CliError> {
         let mut stdout = std::io::stdout();

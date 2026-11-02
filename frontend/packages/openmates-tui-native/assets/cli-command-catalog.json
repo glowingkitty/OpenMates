@@ -32064,7 +32064,10 @@
         "client-id",
         "help",
         "json",
-        "profile"
+        "production",
+        "profile",
+        "redirect-uri",
+        "scope"
       ],
       "source_locations": [
         {
@@ -32075,12 +32078,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.connected_accounts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Pure URL builder; no network or account access.",
+        "Platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32121,9 +32125,13 @@
         "api-url",
         "client-id",
         "code",
+        "dry-run",
         "help",
         "json",
-        "profile"
+        "private-key",
+        "production",
+        "profile",
+        "redirect-uri"
       ],
       "source_locations": [
         {
@@ -32134,12 +32142,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.connected_accounts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Only --dry-run is native; the RS256 client-assertion token exchange fails explicitly as unsupported.",
+        "Platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32223,7 +32232,10 @@
         "client-id",
         "help",
         "json",
-        "profile"
+        "production",
+        "profile",
+        "redirect-uri",
+        "scope"
       ],
       "source_locations": [
         {
@@ -32234,12 +32246,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.connected_accounts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Pure URL builder; no network or account access.",
+        "Platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32263,9 +32276,13 @@
         "api-url",
         "client-id",
         "code",
+        "dry-run",
         "help",
         "json",
-        "profile"
+        "private-key",
+        "production",
+        "profile",
+        "redirect-uri"
       ],
       "source_locations": [
         {
@@ -32276,12 +32293,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.connected_accounts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Only --dry-run is native; the RS256 client-assertion token exchange fails explicitly as unsupported.",
+        "Platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32348,8 +32366,10 @@
         "api-url",
         "help",
         "json",
+        "passcode",
         "payload",
-        "profile"
+        "profile",
+        "team"
       ],
       "source_locations": [
         {
@@ -32360,12 +32380,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.connected_accounts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Passcode and --team are refused with npm messages (hidden prompt only; personal accounts only).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61832,8 +61853,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 596,
-    "unsupported": 124,
+    "native_handlers_partial": 601,
+    "unsupported": 119,
     "feature_complete": false
   },
   "maintenance": {

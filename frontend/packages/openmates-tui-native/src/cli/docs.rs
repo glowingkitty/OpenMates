@@ -16,6 +16,8 @@ pub fn is_public(i: &Invocation) -> bool {
         || super::account::is_info(i)
         // Device-local privacy model controls need no account either.
         || privacy_cmd::supported(i)
+        // Revolut consent-url/exchange --dry-run are pure developer fallbacks.
+        || super::account::connected_accounts::is_public(i)
 }
 #[path = "privacy_cmd.rs"]
 mod privacy_cmd;
@@ -132,6 +134,9 @@ pub async fn execute(
     }
     if privacy_cmd::supported(i) {
         return privacy_cmd::execute(i);
+    }
+    if super::account::connected_accounts::is_public(i) {
+        return super::account::connected_accounts::execute_public(i);
     }
     if let Some(notice) = super::account::web_only(i, &client.application_url()) {
         return notice;

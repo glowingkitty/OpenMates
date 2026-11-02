@@ -14,6 +14,8 @@ mod settings_more;
 mod teams;
 #[path = "ideabucket.rs"]
 mod ideabucket;
+#[path = "connected_accounts.rs"]
+pub(super) mod connected_accounts;
 
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
@@ -44,6 +46,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
         || is_info(invocation)
         || teams::supported(invocation)
         || ideabucket::supported(invocation)
+        || connected_accounts::supported(invocation)
         || matches!(
         path(invocation).as_str(),
         "whoami"
@@ -269,6 +272,9 @@ pub(super) async fn execute(
     }
     if ideabucket::supported(invocation) {
         return ideabucket::execute(invocation, client).await;
+    }
+    if connected_accounts::supported(invocation) {
+        return connected_accounts::execute(invocation, client).await;
     }
     let command = path(invocation);
     if let Some(result) = web_only(invocation, &client.application_url()) {
