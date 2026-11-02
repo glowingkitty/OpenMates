@@ -3,13 +3,13 @@
   "files": [
     {
       "path": "LICENSE",
-      "source": "LICENSE",
-      "sha256": "74971ebe9f8aff6d68fb017906a0c455d2aad56fbd46120fe56b734774724cfe"
+      "source": "frontend/packages/openmates-cli/LICENSE",
+      "sha256": "6c912da49a249b8d942e60da62e4f63c3ce71ab287a60163edf2b343397886d2"
     },
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "c696c7c8496ec2bf3f99ea391dc9e7c92bc81c63eb9cddf4513581f42351d201"
+      "sha256": "d8d4bd05afa2b57743530e41a7d04dcde740ddd1a345777c5c7b73a2a84e1e4d"
     },
     {
       "path": "assets/licenses/legacy-cli-MIT.txt",

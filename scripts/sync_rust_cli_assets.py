@@ -13,7 +13,7 @@ FILES = {
     "assets/cli-command-catalog.json": "config/cli-command-catalog.json",
     "assets/selfhost/core/docker-compose.no-webapp.yml": "backend/core/docker-compose.no-webapp.yml",
     "assets/licenses/legacy-cli-MIT.txt": "frontend/packages/openmates-cli/LICENSE",
-    "LICENSE": "LICENSE",
+    "LICENSE": "frontend/packages/openmates-cli/LICENSE",
     "tests/crypto_fixtures/chat_completion_recovery_vectors.json": "backend/tests/fixtures/chat_completion_recovery_vectors.json",
     "tests/crypto_fixtures/session-saved-chat-read.json": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
     "tests/fixtures/sdk-embed-version-content.json": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",

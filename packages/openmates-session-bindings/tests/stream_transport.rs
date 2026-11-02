@@ -33,13 +33,18 @@ async fn encrypted_admission_stream_events_and_cooperative_cancel_reach_the_sdk(
     timeout(Duration::from_secs(10),async {
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let endpoint=format!("http://{}",listener.local_addr().unwrap());
         let server=tokio::spawn(async move {
+            // The SDK validates twice before the socket: once to learn the owner of
+            // the imported session (prepare_validated_scoped_saved_send) and once
+            // for a fresh WebSocket token immediately before connecting.
+            for _ in 0..2 {
             let (mut http,_)=listener.accept().await.unwrap();let mut data=vec![];
             loop {let mut buffer=[0;8192];let n=http.read(&mut buffer).await.unwrap();assert!(n>0);data.extend_from_slice(&buffer[..n]);if let Some(end)=data.windows(4).position(|b|b==b"\r\n\r\n"){let headers=String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();let length=headers.lines().find_map(|line|line.strip_prefix("content-length:").map(|v|v.trim().parse::<usize>().unwrap())).unwrap_or(0);if data.len()>=end+4+length{break}}}
             let request=String::from_utf8(data).unwrap();assert!(request.starts_with("POST /v1/auth/session HTTP/1.1\r\n"));assert!(request.to_ascii_lowercase().contains("x-openmates-sdk: npm\r\n"));
             let body=r#"{"success":true,"ws_token":"synthetic-ws-token","user":{"id":"synthetic-owner"}}"#;http.write_all(format!("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",body.len(),body).as_bytes()).await.unwrap();drop(http);
+            }
             let (tcp,_)=listener.accept().await.unwrap();let mut socket=tokio_tungstenite::accept_async(tcp).await.unwrap();
             loop {let event=frame(&mut socket).await;match event["type"].as_str().unwrap(){
-                "native_client_lifecycle"=>{assert_eq!(event["payload"]["client_type"],"npm");assert_eq!(event["payload"]["interactive"],false);assert_eq!(event["payload"]["is_foreground"],false);},
+                "native_client_lifecycle"=>{assert_eq!(event["payload"]["client_type"],"npm");assert_eq!(event["payload"]["interactive"],false);assert_eq!(event["payload"]["is_foreground"],true);},
                 "set_active_chat"=>{},
                 "personal_send_context_snapshot"=>{let p=&event["payload"];send(&mut socket,"personal_send_context_snapshot_result",json!({"request_id":p["request_id"],"turn_id":p["turn_id"],"success":true,"unchanged":false,"receipt_id":"synthetic-receipt","privacy_generation":1,"personal_memories":{"memories":[]},"project_candidates":[]})).await;},
                 "chat_turn_admit"=>{

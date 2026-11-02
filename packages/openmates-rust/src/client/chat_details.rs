@@ -12,6 +12,8 @@ use zeroize::{Zeroize, Zeroizing};
 mod json;
 #[path = "chat_details_memory.rs"]
 mod memory;
+#[path = "chat_details_prefetch.rs"]
+mod prefetch;
 pub use json::{ChatDetailsJson, ChatDetailsJsonString, ChatDetailsJsonValue};
 const MAX_PAGES: usize = 100; // Existing strict full-history page bound.
 const MAX_METADATA_BYTES: usize = 256 * 1024;
@@ -504,13 +506,47 @@ impl Client {
         let admission = self.full_chat_read_admission(id)?;
         let scope = AsyncCryptoScope::begin(self)?;
         scope.check_chat(self, id)?;
-        if let Some(t) = transaction.as_deref_mut() {
-            t.before_request(self, id);
+        // The metadata POST, first message window and first embed window are
+        // independent server reads. Prepare them in the original order (each
+        // with its own pre-send fences and transaction step), send them
+        // together, then apply every post-send credential/status/owner fence
+        // in that same order. Decryption still waits for the metadata row key.
+        uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
+        self.require_credentials()?;
+        let requested = limit.unwrap_or(100);
+        let metadata_path = self.scoped("/v1/chats/metadata/batch")?;
+        let messages_path = self.chat_details_messages_path(id, requested, limit.is_some(), None)?;
+        let embeds_path = self.chat_details_embeds_path(id, None)?;
+        let mut prepared = Vec::with_capacity(3);
+        for (method, path, body, not_found) in [
+            (Method::POST, &metadata_path, Some(json!({"chat_ids":[id],"include_read_details":true})), true),
+            (Method::GET, &messages_path, None, false),
+            (Method::GET, &embeds_path, None, false),
+        ] {
+            if let Some(t) = transaction.as_deref_mut() {
+                t.before_request(self, id);
+            }
+            prepared.push(self.prepare_read(method, path, body, not_found)?);
         }
-        let response = self.request_chat_details_metadata(id).await;
-        if let Some(t) = transaction.as_deref_mut() {
-            t.after_request(self, id);
+        let sent = futures_util::future::join_all(prepared.into_iter().map(|read| read.send())).await;
+        let mut finished = Vec::with_capacity(3);
+        for read in sent {
+            finished.push(self.finish_read(read).await);
+            if let Some(t) = transaction.as_deref_mut() {
+                t.after_request(self, id);
+            }
         }
+        let mut finished = finished.into_iter();
+        let (response, first_messages, first_embeds) =
+            match (finished.next(), finished.next(), finished.next()) {
+                (Some(a), Some(b), Some(c)) => (
+                    a,
+                    b.and_then(|v| v.ok_or(Error::Protocol)),
+                    c.and_then(|v| v.ok_or(Error::Protocol)),
+                ),
+                _ => return Err(Error::Protocol),
+            };
+        let mut first_messages = Some(first_messages);
         let response =
             response?.ok_or(Error::Invalid("The selected saved chat is unavailable."))?;
         admission.check(self)?;
@@ -628,40 +664,40 @@ impl Client {
                 }
             })
             .unwrap_or(0);
-        self.insert_chat_row(id.into(), row.clone());
+        // Keep an existing list-equivalent canonical row; a changed server row
+        // replaces it exactly as before (and so invalidates list freshness).
+        let list_neutral = match self.chats.get(id) {
+            Some(cached) => self.selected_row_list_equivalent(cached, row, &key)?,
+            None => false,
+        };
+        if !list_neutral {
+            self.insert_chat_row(id.into(), row.clone());
+        }
         let mut pages: Vec<Plain<Vec<ChatDetailsMessage>>> = Vec::new();
         let mut encrypted_pages = Vec::new();
         let mut cursor = None::<Value>;
         let mut seen = std::collections::HashSet::new();
         let mut more = true;
         for _ in 0..MAX_PAGES {
-            let requested = limit.unwrap_or(100);
-            let mut url = self.url(&format!("/v1/chats/{}/messages/window", segment(id)))?;
-            {
-                let mut q = url.query_pairs_mut();
-                q.append_pair(
-                    "direction",
-                    if cursor.is_some() { "before" } else { "latest" },
-                )
-                .append_pair("limit", &requested.to_string())
-                .append_pair(
-                    "respect_compression_boundary",
-                    if limit.is_some() { "true" } else { "false" },
-                );
-                if let Some(cursor) = &cursor {
-                    q.append_pair("before_timestamp", &cursor["created_at"].to_string())
-                        .append_pair("before_message_id", required(cursor, "message_id")?);
+            let page = match first_messages.take() {
+                Some(page) => page?,
+                None => {
+                    let path = self.chat_details_messages_path(
+                        id,
+                        requested,
+                        limit.is_some(),
+                        cursor.as_ref(),
+                    )?;
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.before_request(self, id);
+                    }
+                    let page = self.request(Method::GET, &path, None).await;
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.after_request(self, id);
+                    }
+                    page?
                 }
-            }
-            let path = self.scoped(&format!("{}?{}", self.request_route_path(&url)?, url.query().unwrap_or("")))?;
-            if let Some(t) = transaction.as_deref_mut() {
-                t.before_request(self, id);
-            }
-            let page = self.request(Method::GET, &path, None).await;
-            if let Some(t) = transaction.as_deref_mut() {
-                t.after_request(self, id);
-            }
-            let page = page?;
+            };
             admission.check(self)?;
             scope.check_chat(self, id)?;
             if page
@@ -791,7 +827,7 @@ impl Client {
             }
         }
         let embed_ids = self
-            .chat_details_embed_ids(id, &admission, &scope, transaction.as_deref_mut())
+            .chat_details_embed_ids(id, &admission, &scope, transaction.as_deref_mut(), first_embeds)
             .await?;
         for message in &mut result.messages {
             if let Some(ids) = embed_ids.get(&sha256(&message.client_message_id)) {
@@ -809,6 +845,7 @@ impl Client {
         memory::coalesce(&mut result.messages)?;
         if let Some(t) = transaction.as_deref_mut() {
             t.terminal = limit.is_none() && !more;
+            t.list_neutral = list_neutral;
         }
         result.has_more_before = limit.map(|_| more);
         admission.check(self)?;
@@ -846,33 +883,27 @@ impl Client {
         admission: &full_chat_read::FullChatReadAdmission,
         scope: &AsyncCryptoScope,
         mut transaction: Option<&mut sync::read_freshness::ReadFreshnessTransaction>,
+        first_page: Result<Value>,
     ) -> Result<BTreeMap<String, Vec<String>>> {
         let mut output = BTreeMap::<String, Vec<String>>::new();
         let mut cursor = None::<Value>;
         let mut seen = std::collections::HashSet::new();
+        let mut first_page = Some(first_page);
         for _ in 0..MAX_PAGES {
-            let mut url = self.url(&format!("/v1/embeds/chats/{}/window", segment(id)))?;
-            if let Some(cursor) = &cursor {
-                url.query_pairs_mut()
-                    .append_pair("before_created_at", &cursor["created_at"].to_string())
-                    .append_pair("before_id", required(cursor, "id")?);
-            }
-            let path = self.scoped(&format!(
-                "{}{}",
-                self.request_route_path(&url)?,
-                url.query()
-                    .filter(|v| !v.is_empty())
-                    .map(|v| format!("?{v}"))
-                    .unwrap_or_default()
-            ))?;
-            if let Some(t) = transaction.as_deref_mut() {
-                t.before_request(self, id);
-            }
-            let page = self.request(Method::GET, &path, None).await;
-            if let Some(t) = transaction.as_deref_mut() {
-                t.after_request(self, id);
-            }
-            let page = page?;
+            let page = match first_page.take() {
+                Some(page) => page?,
+                None => {
+                    let path = self.chat_details_embeds_path(id, cursor.as_ref())?;
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.before_request(self, id);
+                    }
+                    let page = self.request(Method::GET, &path, None).await;
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.after_request(self, id);
+                    }
+                    page?
+                }
+            };
             admission.check(self)?;
             scope.check_chat(self, id)?;
             if page.get("chat_id").and_then(Value::as_str) != Some(id) {
@@ -941,3 +972,6 @@ impl Client {
 #[cfg(test)]
 #[path = "chat_details_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "chat_details_prefetch_tests.rs"]
+mod prefetch_tests;

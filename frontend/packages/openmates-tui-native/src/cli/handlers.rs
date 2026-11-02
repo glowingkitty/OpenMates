@@ -68,8 +68,6 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
             | "chats incognito-clear"
             | "feedback assistant-response"
             | "apps run"
-            | "apps health create_report"
-            | "apps workflows create-or-modify"
     ) || invocation.command_path() == "drafts"
         || super::docs::is_public(invocation)
         || !supported(invocation)
@@ -92,17 +90,6 @@ pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliEr
         return Some(help);
     }
     let path = invocation.command_path();
-    let unavailable = match path.as_str() {
-        "apps health create_report" => Some("SKILL_NOT_AVAILABLE"),
-        "apps workflows create-or-modify" => Some("WORKFLOW_RUNTIME_UNSUPPORTED"),
-        _ => None,
-    };
-    if let Some(reason) = unavailable {
-        return Some(Err(CliError::Client(Error::Unavailable {
-            code: "skill_unavailable",
-            reason,
-        })));
-    }
     if invocation.positionals.is_empty()
         && record(&invocation.path).is_none_or(|record| record.implementation.handler.is_none())
         && catalog().commands.iter().any(|record| {
@@ -872,9 +859,16 @@ async fn execute_recovering_saved_read(
             client.set_team(Some(team))?;
         }
         client.set_operation_cancel(cancel.clone());
-        // A selected strict read does not warm a later global list. Its own
-        // metadata/window operations and durable terminal settlement remain.
-        let request_inventory = invocation.command_path() == "chats list";
+        // Like TypeScript, a selected `chats show --json`/`--all` read runs the
+        // same correlated global inventory discovery as `chats list`. The SDK
+        // proof exists only for a complete, entirely empty recovery batch; the
+        // selected read then rebinds the list receipt only when it left every
+        // list input unchanged, so the next list can skip its sync. Bounded
+        // viewing pages and Team/Direct profiles keep selected discovery.
+        let request_inventory = invocation.command_path() == "chats list"
+            || (invocation.command_path() == "chats show"
+                && !bounded_human_show(invocation)
+                && client.supports_cached_default_chat_list());
         let (admission, fresh_inventory) = Box::pin(recover_saved_read(
             client,
             plan,

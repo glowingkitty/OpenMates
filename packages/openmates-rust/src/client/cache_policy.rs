@@ -108,17 +108,29 @@ impl Client {
                 .filter(|id| !id.is_empty())
                 .or_else(|| self.user["user_id"].as_str().filter(|id| !id.is_empty())),
         };
-        let snapshot = self.ciphertext_snapshot();
+        // Streams only the list inputs; never clones/serializes the full cache.
+        let digest = self.chat_list_inputs_digest();
         let now = self.cache_clock_evidence();
         Ok(self.chat_list_freshness.may_read(
             &scope,
-            &snapshot,
+            digest.as_deref(),
             now.as_ref(),
             CacheReadRequirements {
                 force_refresh: false,
                 own_pending_or_uncertain_recovery,
             },
         ))
+    }
+
+    /// Exact list-rendering inputs only: rows, arrival order, key wrappers and
+    /// the Team wrapped key. Same bytes as the persisted snapshot projection.
+    pub(super) fn chat_list_inputs_digest(&self) -> Option<String> {
+        super::chat_list_freshness::client_list_digest(
+            &self.chats,
+            self.current_chat_arrival_order(),
+            &self.wrappers,
+            &self.team_wrapped_key,
+        )
     }
 
     /// Called exclusively by the checked, consuming V2 inventory boundary.
@@ -130,7 +142,7 @@ impl Client {
         let origin = self.base.as_str().to_owned();
         let owner = session.hashed_email.clone();
         let team = session.active_team_id.clone();
-        let snapshot = self.ciphertext_snapshot();
+        let digest = self.chat_list_inputs_digest();
         let scope = CacheScope {
             canonical_api_origin: &origin,
             hashed_owner: &owner,
@@ -142,7 +154,7 @@ impl Client {
         };
         self.chat_list_freshness.canonical_committed(
             &scope,
-            &snapshot,
+            digest.as_deref(),
             completed,
             completed,
             CanonicalRecoveryState::Settled,

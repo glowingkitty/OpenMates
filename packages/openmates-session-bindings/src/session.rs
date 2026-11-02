@@ -87,7 +87,7 @@ pub struct BindingOptions {
 #[path = "api_key.rs"]
 mod api_key;
 pub use api_key::{ApiKeyBridge, ApiKeyRequest, ApiKeyOutput};
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BindingError {
     pub code: &'static str,
     pub message: &'static str,

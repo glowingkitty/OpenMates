@@ -46,16 +46,15 @@ def validate_metadata(cli: dict, sdk: dict) -> None:
             raise ValueError("Publication remains disabled during migration")
         if not package.get("include") or not package.get("rust-version"):
             raise ValueError("Explicit package inputs and tested Rust version required")
-    if (
-        cli["package"]["license"] != "AGPL-3.0-only"
-        or sdk["package"]["license"] != "MIT"
-    ):
-        raise ValueError("Preserve native AGPL and separate SDK MIT licensing")
+    # One published `openmates` crate (CLI + SDK re-export) and the internal SDK
+    # core are MIT, matching the npm and PyPI packages (server/web stay AGPL).
+    if cli["package"]["license"] != "MIT" or sdk["package"]["license"] != "MIT":
+        raise ValueError("The openmates crate and its SDK core are MIT licensed")
     bins = cli.get("bin", [])
     if (
         cli["package"].get("autobins") is not False
         or len(bins) != 1
-        or bins[0] != {"name": "openmates", "path": "src/main.rs"}
+        or bins[0] != {"name": "openmates", "path": "src/main.rs", "required-features": ["cli"]}
     ):
         raise ValueError("Only the application may be an installable binary")
     dependency = cli["dependencies"]["openmates-sdk"]

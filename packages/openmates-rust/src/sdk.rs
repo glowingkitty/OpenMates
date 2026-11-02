@@ -904,25 +904,9 @@ pub(crate) mod tests {
 #[cfg(test)]
 mod unavailable_tests {
     use super::*;
-    #[tokio::test]
-    #[allow(deprecated)]
-    async fn retired_workflow_binding_returns_typed_unavailable_without_a_network_request() {
-        let client = OpenMates::new(SdkOptions {
-            api_url: "http://127.0.0.1:1".into(),
-            credentials: SdkCredentials::Anonymous {
-                anonymous_id: "fixture".into(),
-            },
-            device_id: "fixture-device".into(),
-            client_options: ClientOptions::default(),
-        })
-        .unwrap();
-        assert!(matches!(
-            client.apps().workflows().create_or_modify(json!({})).await,
-            Err(Error::Unavailable {
-                code: "skill_unavailable",
-                reason: "WORKFLOW_RUNTIME_UNSUPPORTED"
-            })
-        ));
+    #[test]
+    fn retired_skills_are_absent_from_generated_metadata() {
+        assert!(!crate::generated::app_skill_metadata().as_array().unwrap().iter().any(|item|item["app_id"]=="health"&&item["skill_id"]=="create_report"));
         assert!(!crate::generated::app_skill_metadata().as_array().unwrap().iter().any(|item|item["app_id"]=="workflows"&&item["skill_id"]=="create-or-modify"));
     }
 }

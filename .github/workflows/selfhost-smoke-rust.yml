@@ -49,7 +49,7 @@ jobs:
         id: selfhost-rust-cli
         run: |
           rustup toolchain install 1.98.1 --profile minimal
-          cargo +1.98.1 build --release --locked --manifest-path frontend/packages/openmates-tui-native/Cargo.toml --bin openmates
+          cargo +1.98.1 build --release --locked -p openmates --bin openmates --target-dir frontend/packages/openmates-tui-native/target
           mkdir -p "$GITHUB_WORKSPACE/test-results"
           install -d -m 700 "$NATIVE_STATE_DIR"
           sha256sum "$NATIVE_CLI_PATH" > "$GITHUB_WORKSPACE/test-results/native-selfhost-cli-sha256.txt"

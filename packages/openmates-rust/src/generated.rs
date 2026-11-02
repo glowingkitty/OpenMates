@@ -253,13 +253,6 @@ impl HealthSkills<'_> {
             .run_skill("health", "search_appointments", input)
             .await
     }
-    #[deprecated(note = "This retired skill is unavailable; no request is sent.")]
-    pub async fn create_report(&self, _input: Value) -> Result<Value> {
-        Err(crate::Error::Unavailable {
-            code: "skill_unavailable",
-            reason: "SKILL_NOT_AVAILABLE",
-        })
-    }
 }
 #[derive(Clone, Copy)]
 pub struct HomeSkills<'a> {
@@ -538,12 +531,5 @@ pub struct WorkflowsSkills<'a> {
 impl WorkflowsSkills<'_> {
     pub async fn search(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("workflows", "search", input).await
-    }
-    #[deprecated(note = "This retired skill is unavailable; no request is sent.")]
-    pub async fn create_or_modify(&self, _input: Value) -> Result<Value> {
-        Err(crate::Error::Unavailable {
-            code: "skill_unavailable",
-            reason: "WORKFLOW_RUNTIME_UNSUPPORTED",
-        })
     }
 }

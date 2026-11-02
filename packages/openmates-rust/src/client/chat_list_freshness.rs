@@ -1,10 +1,14 @@
 //! Canonical ciphertext freshness policy. No filesystem, auth or network IO.
 //! A receipt describes canonical ciphertext freshness; it grants no authority.
-use serde::{Deserialize, Serialize, ser::SerializeMap};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-const RECEIPT_VERSION: u32 = 1;
+// Version 2 binds only the list-rendering inputs (rows, arrival order, key
+// wrappers and the Team wrapped key). Version 1 receipts bound the whole
+// ciphertext snapshot and are refused, which only loses the optimization.
+const RECEIPT_VERSION: u32 = 2;
 const DEFAULT_TTL_MS: u64 = 300_000;
 const PENDING_TTL_MS: u64 = 60_000;
 pub(super) const SNAPSHOT_FIELD: &str = "chat_list_freshness";
@@ -115,28 +119,68 @@ fn digest(value: &impl Serialize) -> Option<String> {
 // nested Values. Only shallow top-level keys are copied; ciphertext/history
 // values are never recursively cloned. serde_json/preserve_order can implement
 // remove as swap_remove, so filtering input iteration alone is not equivalent.
-struct SnapshotContents<'a>(&'a serde_json::Map<String, Value>);
-impl Serialize for SnapshotContents<'_> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut order = serde_json::Map::new();
-        for key in self.0.keys() {
-            order.insert(key.clone(), Value::Null);
-        }
-        order.remove(SNAPSHOT_FIELD);
-        let mut map = serializer.serialize_map(Some(order.len()))?;
-        for key in order.keys() {
-            let value = self.0.get(key).ok_or_else(|| {
-                <S::Error as serde::ser::Error>::custom("Snapshot projection key is missing.")
-            })?;
-            map.serialize_entry(key, value)?;
-        }
-        map.end()
+struct HashWriter(Sha256);
+impl std::io::Write for HashWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.update(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
-fn snapshot_digest(snapshot: &Value) -> Option<String> {
-    // Every original field remains hashed; only the top-level receipt excludes
-    // itself. The borrowed values retain exact legacy JSON/order/hash bytes.
-    digest(&SnapshotContents(snapshot.as_object()?))
+const LIST_INPUTS_DOMAIN: &[u8] = b"openmates.chat-list-inputs.v2\n";
+/// Streams the exact JSON of every list-rendering input into SHA-256 without
+/// cloning or buffering the cache. History, embeds, selected first pages and
+/// sync windows never influence list output and are deliberately not bound;
+/// every owner/account/Team/principal/clock/recovery guard is unchanged.
+fn list_inputs_digest<C, O, W, T>(chats: &C, order: O, wrappers: &W, team_wrapped_key: &T) -> Option<String>
+where
+    C: Serialize + ?Sized,
+    O: Serialize,
+    W: Serialize + ?Sized,
+    T: Serialize + ?Sized,
+{
+    let mut writer = HashWriter(Sha256::new());
+    writer.0.update(LIST_INPUTS_DOMAIN);
+    serde_json::to_writer(&mut writer, chats).ok()?;
+    writer.0.update(b"\n");
+    serde_json::to_writer(&mut writer, &order).ok()?;
+    writer.0.update(b"\n");
+    serde_json::to_writer(&mut writer, wrappers).ok()?;
+    writer.0.update(b"\n");
+    serde_json::to_writer(&mut writer, team_wrapped_key).ok()?;
+    Some(
+        writer
+            .0
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+    )
+}
+/// Client-side projection; byte-identical to [`snapshot_list_digest`] of the
+/// snapshot the same Client would produce.
+pub(super) fn client_list_digest(
+    chats: &BTreeMap<String, Value>,
+    arrival_order: Option<&Vec<String>>,
+    wrappers: &[Value],
+    team_wrapped_key: &Option<(String, String)>,
+) -> Option<String> {
+    list_inputs_digest(chats, arrival_order.map(|ids| (1u32, ids)), wrappers, team_wrapped_key)
+}
+fn snapshot_list_digest(snapshot: &Value) -> Option<String> {
+    let map = snapshot.as_object()?;
+    let null = Value::Null;
+    let order = map
+        .get(super::chat_arrival_order::SNAPSHOT_FIELD)
+        .map(|order| (order.get("version").unwrap_or(&null), order.get("ids").unwrap_or(&null)));
+    list_inputs_digest(
+        map.get("chats").unwrap_or(&null),
+        order,
+        map.get("wrappers").unwrap_or(&null),
+        map.get("team_wrapped_key").unwrap_or(&null),
+    )
 }
 
 impl ChatListFreshness {
@@ -155,7 +199,7 @@ impl ChatListFreshness {
     pub(super) fn canonical_committed(
         &mut self,
         scope: &CacheScope<'_>,
-        snapshot: &Value,
+        list_digest: Option<&str>,
         started: Option<&CacheClockEvidence>,
         completed: Option<&CacheClockEvidence>,
         recovery: CanonicalRecoveryState,
@@ -167,7 +211,8 @@ impl ChatListFreshness {
         if completed.age_since(started).is_none() {
             return;
         }
-        let Some((scope_sha256, snapshot_sha256)) = digest(scope).zip(snapshot_digest(snapshot))
+        let Some((scope_sha256, snapshot_sha256)) =
+            digest(scope).zip(list_digest.map(str::to_owned))
         else {
             return;
         };
@@ -217,7 +262,7 @@ impl ChatListFreshness {
         };
         if receipt.version != RECEIPT_VERSION
             || digest(scope).as_deref() != Some(receipt.scope_sha256.as_str())
-            || snapshot_digest(snapshot).as_deref() != Some(receipt.snapshot_sha256.as_str())
+            || snapshot_list_digest(snapshot).as_deref() != Some(receipt.snapshot_sha256.as_str())
         {
             return;
         }
@@ -230,7 +275,7 @@ impl ChatListFreshness {
     pub(super) fn may_read(
         &self,
         scope: &CacheScope<'_>,
-        snapshot: &Value,
+        list_digest: Option<&str>,
         now: Option<&CacheClockEvidence>,
         requirements: CacheReadRequirements,
     ) -> bool {
@@ -246,7 +291,7 @@ impl ChatListFreshness {
         receipt.version == RECEIPT_VERSION
             && digest(&principal).as_deref() == Some(receipt.principal_sha256.as_str())
             && digest(scope).as_deref() == Some(receipt.scope_sha256.as_str())
-            && snapshot_digest(snapshot).as_deref() == Some(receipt.snapshot_sha256.as_str())
+            && list_digest == Some(receipt.snapshot_sha256.as_str())
             && now
                 .age_since(&receipt.completed)
                 .is_some_and(|age| age < receipt.recovery.ttl_ms())
@@ -274,55 +319,62 @@ mod tests {
             own_pending_or_uncertain_recovery: false,
         }
     }
+    fn read(
+        policy: &ChatListFreshness,
+        scope: &CacheScope<'_>,
+        snapshot: &Value,
+        now: Option<&CacheClockEvidence>,
+        requirements: CacheReadRequirements,
+    ) -> bool {
+        policy.may_read(scope, snapshot_list_digest(snapshot).as_deref(), now, requirements)
+    }
+    fn at(policy: &ChatListFreshness, snapshot: &Value, tick: u64) -> bool {
+        read(policy, &scope(), snapshot, Some(&clock(tick, tick)), clean())
+    }
     fn policy(recovery: CanonicalRecoveryState) -> (ChatListFreshness, Value) {
         let mut policy = ChatListFreshness::default();
         let snapshot = json!({"chats":{},"wrappers":[],"history":{}});
         policy.canonical_committed(
             &scope(),
-            &snapshot,
+            snapshot_list_digest(&snapshot).as_deref(),
             Some(&clock(900, 900)),
             Some(&clock(1000, 1000)),
             recovery,
         );
         (policy, snapshot)
     }
+    fn restored(snapshot: &Value, trust: SnapshotTrust) -> ChatListFreshness {
+        let mut restored = ChatListFreshness::default();
+        restored.restore(&scope(), snapshot, trust);
+        restored
+    }
     #[test]
     fn same_boot_restart_preserves_original_expiry_and_empty_complete_list() {
         let (policy, mut snapshot) = policy(CanonicalRecoveryState::Settled);
         snapshot[SNAPSHOT_FIELD] = policy.snapshot_metadata().unwrap();
-        let mut restored = ChatListFreshness::default();
-        restored.restore(
-            &scope(),
-            &snapshot,
-            SnapshotTrust::AuthenticatedOwnerEnvelope,
-        );
-        assert!(restored.may_read(&scope(), &snapshot, Some(&clock(300_999, 300_999)), clean()));
-        // A second read, export or restore cannot move the 301000 boundary.
-        assert!(!restored.may_read(&scope(), &snapshot, Some(&clock(301_000, 301_000)), clean()));
-        let mut again = ChatListFreshness::default();
-        again.restore(
-            &scope(),
-            &snapshot,
-            SnapshotTrust::AuthenticatedOwnerEnvelope,
-        );
-        assert!(!again.may_read(&scope(), &snapshot, Some(&clock(301_000, 301_000)), clean()));
+        let restored = restored(&snapshot, SnapshotTrust::AuthenticatedOwnerEnvelope);
+        assert!(at(&restored, &snapshot, 300_999));
+        assert!(!at(&restored, &snapshot, 301_000));
+        let again = self::restored(&snapshot, SnapshotTrust::AuthenticatedOwnerEnvelope);
+        assert!(!at(&again, &snapshot, 301_000));
     }
     #[test]
     fn rollback_future_unknown_clock_and_other_boot_fail_closed() {
         let (policy, snapshot) = policy(CanonicalRecoveryState::Settled);
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(999, 1100)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 999)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(301_000, 1001)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, None, clean()));
+        assert!(!read(&policy, &scope(), &snapshot, Some(&clock(999, 1100)), clean()));
+        assert!(!read(&policy, &scope(), &snapshot, Some(&clock(1100, 999)), clean()));
+        assert!(!read(&policy, &scope(), &snapshot, Some(&clock(301_000, 1001)), clean()));
+        assert!(!read(&policy, &scope(), &snapshot, None, clean()));
         let other = CacheClockEvidence::from_platform("other-boot".into(), 1100, 1100).unwrap();
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&other), clean()));
+        assert!(!read(&policy, &scope(), &snapshot, Some(&other), clean()));
     }
     #[test]
     fn pending_interval_and_own_restart_recovery_are_independent() {
         let (policy, snapshot) = policy(CanonicalRecoveryState::KnownRemotePending);
-        assert!(policy.may_read(&scope(), &snapshot, Some(&clock(60_999, 60_999)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(61_000, 61_000)), clean()));
-        assert!(!policy.may_read(
+        assert!(at(&policy, &snapshot, 60_999));
+        assert!(!at(&policy, &snapshot, 61_000));
+        assert!(!read(
+            &policy,
             &scope(),
             &snapshot,
             Some(&clock(1100, 1100)),
@@ -333,198 +385,139 @@ mod tests {
         ));
     }
     #[test]
-    fn changed_scope_snapshot_legacy_and_untrusted_restore_cannot_promote() {
+    fn changed_scope_list_input_legacy_and_untrusted_restore_cannot_promote() {
         let (mut policy, mut snapshot) = policy(CanonicalRecoveryState::Settled);
         snapshot[SNAPSHOT_FIELD] = policy.snapshot_metadata().unwrap();
         let mut other = scope();
         other.active_team_id = Some("other-team");
-        assert!(!policy.may_read(&other, &snapshot, Some(&clock(1100, 1100)), clean()));
-        snapshot["history"]["different"] = json!([]);
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
-        policy.restore(
-            &scope(),
-            &snapshot,
-            SnapshotTrust::AuthenticatedOwnerEnvelope,
-        );
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
-        policy.restore(
-            &scope(),
-            &json!({"chats":{}}),
-            SnapshotTrust::AuthenticatedOwnerEnvelope,
-        );
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
-        let (mut policy, mut snapshot) = self::policy(CanonicalRecoveryState::Settled);
+        assert!(!read(&policy, &other, &snapshot, Some(&clock(1100, 1100)), clean()));
+        snapshot["chats"]["different"] = json!({"id":"different"});
+        assert!(!at(&policy, &snapshot, 1100));
+        policy.restore(&scope(), &snapshot, SnapshotTrust::AuthenticatedOwnerEnvelope);
+        assert!(!at(&policy, &snapshot, 1100));
+        policy.restore(&scope(), &json!({"chats":{}}), SnapshotTrust::AuthenticatedOwnerEnvelope);
+        assert!(!at(&policy, &snapshot, 1100));
+        let (policy, mut snapshot) = self::policy(CanonicalRecoveryState::Settled);
         snapshot[SNAPSHOT_FIELD] = policy.snapshot_metadata().unwrap();
-        policy.restore(&scope(), &snapshot, SnapshotTrust::Untrusted);
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
+        let untrusted = restored(&snapshot, SnapshotTrust::Untrusted);
+        assert!(!at(&untrusted, &snapshot, 1100));
     }
     #[test]
     fn failed_attempt_and_cancelled_or_mutating_paths_revoke_receipt() {
         let (mut policy, snapshot) = policy(CanonicalRecoveryState::Settled);
         policy.invalidate();
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
+        assert!(!at(&policy, &snapshot, 1100));
         policy.canonical_committed(
             &scope(),
-            &snapshot,
+            snapshot_list_digest(&snapshot).as_deref(),
             Some(&clock(1200, 1200)),
             Some(&clock(1100, 1100)),
             CanonicalRecoveryState::Settled,
         );
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1300, 1300)), clean()));
+        assert!(!at(&policy, &snapshot, 1300));
+        policy.canonical_committed(
+            &scope(),
+            None,
+            Some(&clock(900, 900)),
+            Some(&clock(1000, 1000)),
+            CanonicalRecoveryState::Settled,
+        );
+        assert!(!at(&policy, &snapshot, 1100));
     }
 
-    fn legacy_snapshot_bytes(snapshot: &Value) -> Option<Vec<u8>> {
-        let mut canonical = snapshot.as_object()?.clone();
-        canonical.remove(SNAPSHOT_FIELD);
-        serde_json::to_vec(&canonical).ok()
-    }
-    fn assert_snapshot_digest_compatible(snapshot: &Value) {
-        let original = snapshot.clone();
-        let legacy = legacy_snapshot_bytes(snapshot);
-        let borrowed = snapshot
-            .as_object()
-            .and_then(|map| serde_json::to_vec(&SnapshotContents(map)).ok());
-        assert_eq!(
-            borrowed, legacy,
-            "receipt projection bytes must remain exact"
-        );
-        let expected = legacy.map(|bytes| {
-            Sha256::digest(bytes)
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
-        });
-        assert_eq!(snapshot_digest(snapshot), expected);
-        assert_eq!(
-            snapshot, &original,
-            "hashing may not mutate ciphertext or receipt"
-        );
-    }
-    // contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted,sync.startup.bounded-phases
-    #[test]
-    fn borrowed_projection_matches_legacy_for_nested_values_and_all_receipt_positions() {
-        let values = vec![
-            Value::Null,
-            json!(false),
-            json!(true),
-            json!(i64::MIN),
-            json!(u64::MAX),
-            json!(0),
-            json!(-0.0),
-            json!(1.25),
-            json!("quotes\" and slash\\ newline\n tab\t Unicode界é"),
-            json!([]),
-            json!({}),
-            json!([null, true, -1, 1.5, {"z":[],"a":{"chat_list_freshness":"nested must remain"}}]),
-        ];
-        let receipts = vec![
-            Value::Null,
-            json!(false),
-            json!(17),
-            json!("malformed"),
-            json!([]),
-            json!({"unknown":[null,{"nested":"receipt data"}]}),
-        ];
-        for order in 0..3 {
-            for position in 0..=values.len() + 1 {
-                for receipt in &receipts {
-                    let mut map = serde_json::Map::new();
-                    for step in 0..=values.len() {
-                        if step == position {
-                            map.insert(SNAPSHOT_FIELD.into(), receipt.clone());
-                        }
-                        if step < values.len() {
-                            let index = match order {
-                                0 => step,
-                                1 => values.len() - 1 - step,
-                                _ => (step + 3) % values.len(),
-                            };
-                            map.insert(format!("field-{index:02}"), values[index].clone());
-                        }
-                    }
-                    // position==len+1 is the absent-receipt case.
-                    assert_snapshot_digest_compatible(&Value::Object(map));
-                }
-            }
-        }
-        assert_snapshot_digest_compatible(&json!({}));
-        for receipt in &receipts {
-            assert_snapshot_digest_compatible(&json!({"chat_list_freshness":receipt}));
-        }
-    }
-    #[test]
-    fn borrowed_projection_preserves_every_non_object_failure() {
-        for snapshot in [
-            Value::Null,
-            json!(false),
-            json!(true),
-            json!(0),
-            json!(-1),
-            json!(1.5),
-            json!("not an object"),
-            json!([]),
-            json!([{"chats":{}}]),
-        ] {
-            assert_snapshot_digest_compatible(&snapshot);
-            assert_eq!(snapshot_digest(&snapshot), None);
-        }
-    }
-    #[test]
-    fn borrowed_projection_matches_large_ciphertext_without_losing_unknown_fields() {
-        let mut chats = serde_json::Map::new();
-        for index in 0..256 {
-            chats.insert(format!("chat-{index:03}"),json!({"encrypted_title":"x".repeat(4096),"version":index,"nested":{"chat_list_freshness":[null,false,index]}}));
-        }
-        let snapshot = json!({"chats":chats,"history":{"messages":[{"ciphertext":"y".repeat(4096)}]},"wrappers":[{"unknown":[null,true,1.5]}],"embed_keys":{},"team_wrapped_key":null,"future_top_level":{"retained":"every byte"},"chat_list_freshness":{"malformed":"ignored only at top level"}});
-        assert_snapshot_digest_compatible(&snapshot);
-        let original = snapshot_digest(&snapshot);
-        for field in [
-            "chats",
-            "history",
-            "wrappers",
-            "embed_keys",
-            "team_wrapped_key",
-            "future_top_level",
-        ] {
-            let mut changed = snapshot.clone();
-            changed[field] = json!({"changed":true});
-            assert_ne!(
-                snapshot_digest(&changed),
-                original,
-                "every non-receipt field remains bound"
+    fn rich_inputs() -> (BTreeMap<String, Value>, Vec<String>, Vec<Value>, Option<(String, String)>) {
+        let mut chats = BTreeMap::new();
+        for index in 0..64 {
+            chats.insert(
+                format!("chat-{index:03}"),
+                json!({"id":format!("chat-{index:03}"),"encrypted_title":"x".repeat(512),
+                    "messages_v":index,"last_edited_overall_timestamp":1.5+index as f64,
+                    "nested":{"chat_list_freshness":[null,false,index]},"unicode":"界é\"\\\n"}),
             );
         }
-        let mut changed = snapshot.clone();
-        changed[SNAPSHOT_FIELD] = json!({"different":"receipt"});
-        assert_eq!(snapshot_digest(&changed), original);
-        changed["chats"]["chat-000"]["nested"][SNAPSHOT_FIELD] = json!(["changed nested field"]);
-        assert_ne!(
-            snapshot_digest(&changed),
-            original,
-            "nested same-name fields must remain bound"
+        let order = chats.keys().rev().cloned().collect();
+        let wrappers = vec![json!({"hashed_chat_id":"h","encrypted_chat_key":"k","unknown":[null,true,-0.0]})];
+        (chats, order, wrappers, Some(("team".into(), "wrapped".into())))
+    }
+    fn snapshot_of(
+        chats: &BTreeMap<String, Value>,
+        order: Option<&Vec<String>>,
+        wrappers: &[Value],
+        team: &Option<(String, String)>,
+    ) -> Value {
+        // Same construction as Client::ciphertext_snapshot.
+        let mut snapshot = json!({"chats":chats,"wrappers":wrappers,"history":{"chat-000":[{"ciphertext":"y"}]},"embeds":{},"embed_keys":[],"team_wrapped_key":team});
+        if let Some(order) = order {
+            snapshot[super::super::chat_arrival_order::SNAPSHOT_FIELD] = json!({"version":1,"ids":order});
+        }
+        snapshot
+    }
+    #[test]
+    fn client_projection_matches_snapshot_and_survives_disk_roundtrip() {
+        let (chats, order, wrappers, team) = rich_inputs();
+        for order in [None, Some(&order)] {
+            for team in [None, team.clone()] {
+                let client = client_list_digest(&chats, order, &wrappers, &team);
+                assert!(client.is_some());
+                let snapshot = snapshot_of(&chats, order, &wrappers, &team);
+                assert_eq!(snapshot_list_digest(&snapshot), client);
+                let disk: Value = serde_json::from_slice(&serde_json::to_vec(&snapshot).unwrap()).unwrap();
+                assert_eq!(snapshot_list_digest(&disk), client);
+                let empty = client_list_digest(&BTreeMap::new(), None, &[], &None);
+                assert_eq!(
+                    snapshot_list_digest(&snapshot_of(&BTreeMap::new(), None, &[], &None)),
+                    empty
+                );
+            }
+        }
+    }
+    #[test]
+    fn every_list_input_is_bound_and_non_list_ciphertext_is_not() {
+        let (chats, order, wrappers, team) = rich_inputs();
+        let snapshot = snapshot_of(&chats, Some(&order), &wrappers, &team);
+        let original = snapshot_list_digest(&snapshot);
+        let order_field = super::super::chat_arrival_order::SNAPSHOT_FIELD;
+        let mut changes: Vec<Box<dyn Fn(&mut Value)>> = vec![
+            Box::new(|s| s["chats"]["chat-000"]["messages_v"] = json!(999)),
+            Box::new(|s| s["chats"]["chat-001"]["encrypted_title"] = json!("changed")),
+            Box::new(|s| s["chats"]["chat-002"]["nested"][SNAPSHOT_FIELD] = json!("nested is bound")),
+            Box::new(|s| s["chats"]["chat-003"]["read_details"] = json!({"created_at":1})),
+            Box::new(|s| { s["chats"].as_object_mut().unwrap().remove("chat-004"); }),
+            Box::new(|s| s["wrappers"][0]["encrypted_chat_key"] = json!("other")),
+            Box::new(|s| s["team_wrapped_key"] = Value::Null),
+            Box::new(move |s| { s.as_object_mut().unwrap().remove(order_field); }),
+            Box::new(move |s| s[order_field]["ids"].as_array_mut().unwrap().swap(0, 1)),
+        ];
+        for change in changes.drain(..) {
+            let mut changed = snapshot.clone();
+            change(&mut changed);
+            assert_ne!(snapshot_list_digest(&changed), original);
+        }
+        for field in ["history", "embeds", "embed_keys", "future_top_level", "selected_first_pages_v1", SNAPSHOT_FIELD] {
+            let mut changed = snapshot.clone();
+            changed[field] = json!({"changed":"not a list input"});
+            assert_eq!(snapshot_list_digest(&changed), original, "{field}");
+        }
+        assert_eq!(
+            client_list_digest(&chats, Some(&order), &wrappers, &team),
+            original
         );
     }
     #[test]
-    fn exact_legacy_receipt_restores_but_all_invalid_receipts_and_changed_ciphertext_refuse() {
+    fn non_object_snapshots_have_no_digest() {
+        for snapshot in [Value::Null, json!(false), json!(0), json!("x"), json!([]), json!([{"chats":{}}])] {
+            assert_eq!(snapshot_list_digest(&snapshot), None);
+        }
+    }
+    #[test]
+    fn version_one_and_invalid_receipts_refuse_while_exact_v2_restores() {
         let (policy, mut snapshot) = policy(CanonicalRecoveryState::Settled);
-        let mut receipt: Receipt =
-            serde_json::from_value(policy.snapshot_metadata().unwrap()).unwrap();
-        let legacy = legacy_snapshot_bytes(&snapshot).unwrap();
-        receipt.snapshot_sha256 = Sha256::digest(legacy)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
-        snapshot[SNAPSHOT_FIELD] = serde_json::to_value(receipt).unwrap();
-        let mut restored = ChatListFreshness::default();
-        restored.restore(
-            &scope(),
-            &snapshot,
-            SnapshotTrust::AuthenticatedOwnerEnvelope,
-        );
-        assert!(restored.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
-        let mut changed = snapshot.clone();
-        changed["history"]["changed"] = json!(["new ciphertext"]);
-        assert!(!restored.may_read(&scope(), &changed, Some(&clock(1100, 1100)), clean()));
+        snapshot[SNAPSHOT_FIELD] = policy.snapshot_metadata().unwrap();
+        let restored = restored(&snapshot, SnapshotTrust::AuthenticatedOwnerEnvelope);
+        assert!(at(&restored, &snapshot, 1100));
+        let mut v1 = snapshot.clone();
+        v1[SNAPSHOT_FIELD]["version"] = json!(1);
+        assert!(!at(&self::restored(&v1, SnapshotTrust::AuthenticatedOwnerEnvelope), &v1, 1100));
         for invalid in [
             Value::Null,
             json!(false),
@@ -532,33 +525,25 @@ mod tests {
             json!("invalid"),
             json!([]),
             json!({}),
-            json!({"version":1}),
+            json!({"version":2}),
             json!({"version":999,"scope_sha256":"untrusted"}),
         ] {
             let mut invalid_snapshot = snapshot.clone();
             invalid_snapshot[SNAPSHOT_FIELD] = invalid;
-            restored.restore(
-                &scope(),
-                &invalid_snapshot,
-                SnapshotTrust::AuthenticatedOwnerEnvelope,
-            );
-            assert!(!restored.may_read(
-                &scope(),
-                &invalid_snapshot,
-                Some(&clock(1100, 1100)),
-                clean()
-            ));
+            let restored = self::restored(&invalid_snapshot, SnapshotTrust::AuthenticatedOwnerEnvelope);
+            assert!(!at(&restored, &invalid_snapshot, 1100));
         }
-        restored.restore(&scope(), &snapshot, SnapshotTrust::Untrusted);
-        assert!(!restored.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
+        let mut changed = snapshot.clone();
+        changed["chats"]["new"] = json!({"id":"new"});
+        assert!(!at(&self::restored(&changed, SnapshotTrust::AuthenticatedOwnerEnvelope), &changed, 1100));
     }
     #[test]
-    fn borrowed_projection_cannot_renew_or_bypass_original_invalidation_pending_scope_and_clock_guards()
-     {
+    fn projection_cannot_renew_or_bypass_invalidation_pending_scope_and_clock_guards() {
         let (mut policy, snapshot) = policy(CanonicalRecoveryState::Settled);
-        assert!(policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(301000, 301000)), clean()));
-        assert!(!policy.may_read(&scope(), &snapshot, None, clean()));
+        assert!(at(&policy, &snapshot, 1100));
+        assert!(!at(&policy, &snapshot, 301_000));
+        assert!(!read(&policy, &scope(), &snapshot, None, clean()));
+        assert!(!policy.may_read(&scope(), None, Some(&clock(1100, 1100)), clean()));
         for requirements in [
             CacheReadRequirements {
                 force_refresh: true,
@@ -569,15 +554,15 @@ mod tests {
                 own_pending_or_uncertain_recovery: true,
             },
         ] {
-            assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), requirements));
+            assert!(!read(&policy, &scope(), &snapshot, Some(&clock(1100, 1100)), requirements));
         }
         let mut other = scope();
         other.hashed_owner = "different-owner";
-        assert!(!policy.may_read(&other, &snapshot, Some(&clock(1100, 1100)), clean()));
+        assert!(!read(&policy, &other, &snapshot, Some(&clock(1100, 1100)), clean()));
         let mut other = scope();
         other.authenticated_principal = Some("different-principal");
-        assert!(!policy.may_read(&other, &snapshot, Some(&clock(1100, 1100)), clean()));
+        assert!(!read(&policy, &other, &snapshot, Some(&clock(1100, 1100)), clean()));
         policy.invalidate();
-        assert!(!policy.may_read(&scope(), &snapshot, Some(&clock(1100, 1100)), clean()));
+        assert!(!at(&policy, &snapshot, 1100));
     }
 }

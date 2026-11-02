@@ -11,6 +11,15 @@ members = [
 ]
 exclude = ["packages/third_party"]
 
+# Debug/test builds: optimize only the password KDF crates. Production Argon2
+# parameters (64 MiB, 3 passes) stay unchanged; unoptimized they cost ~3.3 s per
+# encrypted session save and overran test deadlines under parallel load.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
 [profile.release]
 strip = true
 lto = "thin"

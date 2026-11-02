@@ -116,6 +116,6 @@ The in-checkout Rust catalog test retains its repository audit; standalone crate
 tests use the included catalog and fixtures without the legacy source tree.
 A local SDK override is staging proof only, not public registry resolution.
 
-Application licensing follows the root repository AGPL-3.0-only license copied
-verbatim into `LICENSE`. Legacy MIT template attribution is retained in `NOTICE`
-and `assets/licenses/legacy-cli-MIT.txt`; the separate SDK remains MIT.
+The `openmates` crate (CLI/TUI plus the SDK re-exported as `openmates::sdk`) is
+MIT licensed like the npm and PyPI packages; see `LICENSE` and `NOTICE`. The
+OpenMates server and web app remain AGPL-3.0-only.

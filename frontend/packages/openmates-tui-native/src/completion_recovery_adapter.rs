@@ -307,7 +307,10 @@ async fn pump_completion_recovery_discovery(
     }
     // This authenticates current credentials; neither stored data nor monitor
     // hints are authority to claim. Security errors propagate independently.
-    let (discovered, fresh_inventory) = if let Some(id) = options.selected_chat.as_deref().filter(|_| selected_discovery) {
+    // An explicit inventory request (selected `chats show`) uses the global
+    // correlated discovery; eligibility below still limits effects to the
+    // selected Chat, and a proof is issued only for an entirely empty batch.
+    let (discovered, fresh_inventory) = if let Some(id) = options.selected_chat.as_deref().filter(|_| selected_discovery && !inventory) {
         // Selected foreground recovery discovers jobs on its authenticated
         // socket, without downloading unrelated working-set content or granting
         // a complete-list receipt. Durable unrelated checkpoints stay below.

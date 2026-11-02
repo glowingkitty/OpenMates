@@ -15,6 +15,10 @@ pub(in crate::client) struct ReadFreshnessTransaction {
     outside_selected_digest: String,
     eligible: bool,
     pub(in crate::client) terminal: bool,
+    /// A bounded selected read that left every list input byte-identical (the
+    /// server row matched the cached canonical row). Like a terminal read it
+    /// may rebind the inventory's original receipt; history is not a list input.
+    pub(in crate::client) list_neutral: bool,
 }
 impl Drop for ReadFreshnessTransaction {
     fn drop(&mut self) {
@@ -46,6 +50,7 @@ impl ReadFreshnessTransaction {
             outside_selected_digest: Self::outside_selected_digest(client, id)?,
             eligible: true,
             terminal: false,
+            list_neutral: false,
         }))
     }
     fn selected_is_supported(client: &Client, id: &str) -> bool {
@@ -124,7 +129,7 @@ impl ReadFreshnessTransaction {
         self.eligible = self.current(client, id).unwrap_or(false);
     }
     pub(in crate::client) fn commit(self, client: &mut Client, id: &str) -> Result<()> {
-        if self.terminal && self.current(client, id)? {
+        if (self.terminal || self.list_neutral) && self.current(client, id)? {
             // Final hash covers every ciphertext field including selected full
             // history. Never sample a later clock or reuse the pre-read digest.
             client.record_complete_chat_list_at(self.proof.canonical_completed_clock.as_ref());

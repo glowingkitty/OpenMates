@@ -11,6 +11,35 @@ use super::*;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::header::{COOKIE, SET_COOKIE};
 use tungstenite::{self, client::IntoClientRequest, protocol::WebSocketConfig};
+
+/// A read whose pre-send fences already ran; see [`Client::prepare_read`].
+pub(super) struct PreparedRead {
+    request: crate::platform::http::RequestBuilder,
+    path: String,
+    generation: u64,
+    monitor_origin: Option<super::monitor::MonitorReadOrigin>,
+    metadata_not_found: bool,
+}
+/// Response headers received; body and every post-send fence are pending.
+pub(super) struct SentRead {
+    response: Result<crate::platform::http::Response>,
+    path: String,
+    generation: u64,
+    monitor_origin: Option<super::monitor::MonitorReadOrigin>,
+    metadata_not_found: bool,
+}
+impl PreparedRead {
+    pub(super) async fn send(self) -> SentRead {
+        let Self { request, path, generation, monitor_origin, metadata_not_found } = self;
+        SentRead {
+            response: request.send().await.map_err(|_| Error::Offline),
+            path,
+            generation,
+            monitor_origin,
+            metadata_not_found,
+        }
+    }
+}
 pub(super) const USER_AGENT: &str = "OpenMatesSDK/0.1 (Rust)";
 pub(super) const MAX_BODY: usize = 16 * 1024 * 1024;
 // A finite protocol marker, never an arbitrary caller-visible error string.
@@ -473,14 +502,6 @@ impl Client {
         )
         .await
     }
-    /// Opt-in selected rich read. Same fixed route, Cookie/Team ACL and 404
-    /// semantics; old callers' request JSON and server default response stay exact.
-    pub(super) async fn request_chat_details_metadata(&mut self,id:&str)->Result<Option<Value>> {
-        uuid::Uuid::parse_str(id).map_err(|_|Error::Protocol)?;
-        self.require_credentials()?;
-        let path=self.scoped("/v1/chats/metadata/batch")?;
-        self.request_task_headers_inner(Method::POST,&path,Some(RequestBody::Ordinary(json!({"chat_ids":[id],"include_read_details":true}))),None,None,None,None,true,None,None).await
-    }
     /// A fixed Task readback completes an already committed ciphertext write.
     /// It grants no permission to dispatch another mutation after cancellation.
     pub(super) async fn request_committed_task(
@@ -567,8 +588,8 @@ impl Client {
         metadata_not_found: bool,
         http_failure_status: Option<&mut Option<u16>>,
         auth_response_status: Option<&mut Option<u16>>,
-        mut settings_http_error: Option<&mut Option<u16>>,
-        mut settings_root_keys: Option<&mut zeroize::Zeroizing<Vec<String>>>,
+        settings_http_error: Option<&mut Option<u16>>,
+        settings_root_keys: Option<&mut zeroize::Zeroizing<Vec<String>>>,
         history_version: Option<u64>,
         session_budget:Option<SessionRequestBudget>,
         project_result_pending:bool,
@@ -587,6 +608,66 @@ impl Client {
             || metadata_not_found || http_failure_status.is_some() || auth_response_status.is_some() || history_version.is_some()) {
             return Err(Error::Protocol);
         }
+        let (req, generation, monitor_origin) = self.prepare_http_request(
+            method, path, body, pair_secret, idempotency, task, committed_task,
+        )?;
+        let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| Error::Offline);
+        self.finish_http_response(path, response, generation, monitor_origin, metadata_not_found,
+            http_failure_status, auth_response_status, settings_http_error, settings_root_keys,
+            history_version, project_result_pending).await
+    }
+    fn is_metadata_batch_read(&self, path: &str) -> bool {
+        self.url(path)
+            .and_then(|url| self.request_route_path(&url))
+            .is_ok_and(|route| route == "/v1/chats/metadata/batch")
+    }
+    /// Concurrent ordinary reads. Prepare runs every pre-send fence in call
+    /// order with the current credentials; the caller may then await several
+    /// [`PreparedRead::send`] futures together (no Client borrow), and MUST
+    /// finish them in the same order through [`Client::finish_read`] so that
+    /// status, credential-rotation, owner and generation fences still apply
+    /// sequentially. Only plain cookie-authenticated GET/metadata reads.
+    pub(super) fn prepare_read(
+        &mut self,
+        method: Method,
+        path: &str,
+        body: Option<Value>,
+        metadata_not_found: bool,
+    ) -> Result<PreparedRead> {
+        if !(method == Method::GET && body.is_none()
+            || method == Method::POST && body.is_some() && self.is_metadata_batch_read(path))
+        {
+            return Err(Error::Protocol);
+        }
+        let (request, generation, monitor_origin) = self.prepare_http_request(
+            method, path, body.map(RequestBody::Ordinary), None, None, None, None,
+        )?;
+        Ok(PreparedRead {
+            request,
+            path: path.to_owned(),
+            generation,
+            monitor_origin,
+            metadata_not_found,
+        })
+    }
+    pub(super) async fn finish_read(&mut self, sent: SentRead) -> Result<Option<Value>> {
+        let SentRead { response, path, generation, monitor_origin, metadata_not_found } = sent;
+        self.finish_http_response(&path, response, generation, monitor_origin, metadata_not_found,
+            None, None, None, None, None, false).await
+    }
+    /// Pre-send half of the ordinary transport: identical fences, freshness
+    /// invalidation and credential/header construction. Sending needs no Client.
+    #[allow(clippy::too_many_arguments)]
+    fn prepare_http_request(
+        &mut self,
+        method: Method,
+        path: &str,
+        body: Option<RequestBody>,
+        pair_secret: Option<&str>,
+        idempotency: Option<&str>,
+        task: Option<&crate::work::TaskHeaders>,
+        committed_task: Option<&str>,
+    ) -> Result<(crate::platform::http::RequestBuilder, u64, Option<super::monitor::MonitorReadOrigin>)> {
         // Any later transport operation makes a prior inventory proof stale,
         // including failed writes whose server outcome may be uncertain.
         self.check_browser_credential_deadline()?;
@@ -595,7 +676,13 @@ impl Client {
         }
         self.invalidate_chat_inventory_proofs();
         // Session admission rotates credentials without changing canonical cache freshness.
-        if method != Method::GET && !(method == Method::POST && path == "/v1/auth/session") {
+        // The fixed metadata batch is a server read (no effects). Any ciphertext
+        // it later stores remains bound by the list-input digest, and 403 or
+        // redirect responses still revoke freshness below.
+        if method != Method::GET
+            && !(method == Method::POST
+                && (path == "/v1/auth/session" || self.is_metadata_batch_read(path)))
+        {
             self.chat_list_freshness.invalidate();
         }
         // Expected owner is a restricting assertion, never authentication. The
@@ -662,7 +749,27 @@ impl Client {
                 RequestBody::Plaintext(value) => plaintext_request(req, value)?,
             };
         }
-        let mut response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| Error::Offline)?;
+        Ok((req, generation, monitor_origin))
+    }
+    /// Post-send half: the unchanged status, credential-rotation, owner,
+    /// body-limit and generation fences, applied in the caller's order.
+    #[allow(clippy::too_many_arguments)]
+    async fn finish_http_response(
+        &mut self,
+        path: &str,
+        response: Result<crate::platform::http::Response>,
+        generation: u64,
+        monitor_origin: Option<super::monitor::MonitorReadOrigin>,
+        metadata_not_found: bool,
+        http_failure_status: Option<&mut Option<u16>>,
+        auth_response_status: Option<&mut Option<u16>>,
+        mut settings_http_error: Option<&mut Option<u16>>,
+        mut settings_root_keys: Option<&mut zeroize::Zeroizing<Vec<String>>>,
+        history_version: Option<u64>,
+        project_result_pending: bool,
+    ) -> Result<Option<Value>> {
+        let settings_reminders = settings_root_keys.is_some();
+        let mut response = response?;
         let status = response.status();
         if let Some(slot)=auth_response_status{*slot=Some(status.as_u16());}
         // Numeric response evidence is local to this request. Capture before
