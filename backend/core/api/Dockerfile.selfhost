@@ -45,6 +45,8 @@ RUN mkdir -p "$TIKTOKEN_CACHE_DIR" \
     && python -c "import tiktoken.load; tiktoken.load.read_file = lambda _: (_ for _ in ()).throw(RuntimeError('Tokenizer cache miss')); import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]"
 
 COPY backend /app/backend
+# Public docs API (/v1/docs) serves this tree, filtered by docs/.docsignore.
+COPY docs /app/docs
 COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py

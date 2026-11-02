@@ -445,7 +445,7 @@ def test_sdk_chat_response_extracts_model_name_shapes():
 
 @pytest.mark.asyncio
 async def test_sdk_dispatch_docs_search_uses_existing_docs_route(monkeypatch):
-    async def fake_search_docs(query):
+    async def fake_search_docs(request, query):
         return [{"slug": "sdk", "title": query}]
 
     fake_docs_routes = SimpleNamespace(search_docs=fake_search_docs)

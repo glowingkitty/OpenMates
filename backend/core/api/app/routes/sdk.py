@@ -932,14 +932,14 @@ async def _dispatch_sdk_surface(
                 raise HTTPException(status_code=400, detail="Docs search query must be 200 characters or fewer")
             docs_routes = _sdk_route_module("docs_routes")
 
-            return {"results": await _sdk_route_handler(docs_routes.search_docs)(query)}
+            return {"results": await _sdk_route_handler(docs_routes.search_docs)(request, query)}
         docs_routes = _sdk_route_module("docs_routes")
 
         if path == "":
-            return await _sdk_route_handler(docs_routes.list_docs)()
+            return await _sdk_route_handler(docs_routes.list_docs)(request)
         if path.endswith("/download"):
             path = path.removesuffix("/download")
-        response = await _sdk_route_handler(docs_routes.get_doc)(path)
+        response = await _sdk_route_handler(docs_routes.get_doc)(request, path)
         content = response.body.decode("utf-8") if isinstance(response.body, bytes) else str(response.body)
         return {"slug": path, "content": content}
 
