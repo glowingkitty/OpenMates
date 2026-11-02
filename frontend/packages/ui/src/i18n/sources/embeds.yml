@@ -5972,30 +5972,6 @@ view_on_google_hotels:
   sv: Visa på Google Hotels
   he: צפייה ב-Google Hotels
   verified_by_human: [en, de]
-view_on_meetup:
-  context: CTA button text to open an event on Gathering.com
-  en: View on Gathering
-  de: Auf Gathering ansehen
-  zh: 在 Gathering 上查看
-  es: Ver en Gathering
-  fr: Voir sur Gathering
-  pt: Ver no Gathering
-  ru: Смотреть на Gathering
-  ja: Meetupで見る
-  ko: Meetup에서 보기
-  it: Vedi su Gathering
-  tr: Gathering'ta görüntüle
-  vi: Xem trên Gathering
-  id: Lihat di Gathering
-  pl: Zobacz na Gathering
-  nl: Bekijken op Gathering
-  ar: عرض على Gathering
-  hi: Gathering पर देखें
-  th: ดูบน Gathering
-  cs: Zobrazit na Gathering
-  sv: Visa på Gathering
-  he: צפייה ב-Gathering
-  verified_by_human: []
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
   en: Stop

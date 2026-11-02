@@ -456,7 +456,7 @@ def _expanded_cases() -> tuple[Case, ...]:
              }, [_send(refs=('news',))]),)),
         Case('de_backpack_self_correction',
              'Jeden Samstag um 10:40 Berliner Zeit bei Shopping nach roten Wanderrucksäcken suchen, nein, nach blauen. '
-             'Maximal 95 Euro, deutscher Amazon-Marktplatz. Keine gebrauchten oder generalüberholten Angebote; '
+             'Maximal 95 Euro, deutscher Marktplatz. Keine gebrauchten oder generalüberholten Angebote; '
              'diese Anforderungen in den Sucheingaben behalten. Ergebnisse direkt im Chat zeigen, kein Check und kein Ask AI.',
              'Europe/Berlin', ('shopping.search_products',),
              'Saturday 10:40 Berlin, blue hiking backpacks EUR95 DE, excludes used/refurbished in search intent, direct delivery.',
@@ -556,7 +556,7 @@ def _expanded_cases() -> tuple[Case, ...]:
                  {'mode': 'exact', 'op': 'gte', 'source': 'news', 'field': 'result_count', 'right': 3}),), language='de'),
         Case('en_two_product_budgets',
              'Every Wednesday at 07:50 Lisbon time, use one Shopping action containing two search requests: '
-             'a USB-C dock for at most 120 EUR and an HDMI cable for at most 20 EUR, both on the German Amazon marketplace. '
+             'a USB-C dock for at most 120 EUR and an HDMI cable for at most 20 EUR, both on the German marketplace. '
              'Send both result groups in one chat message. No Ask AI, no Check and no additional searches.',
              'Europe/Lisbon', ('shopping.search_products',),
              'Wednesday07:50Lisbon one shopping action with exactly two DE requests and separate EUR120/EUR20 ceilings; one result delivery.',

@@ -109,7 +109,6 @@ The privacy policy is restructured into provider-trigger groups (commit `7b1c22e
 | D | Image generation | FAL (Flux), Recraft |
 | E | Web / search | Brave, Google (Maps, Vision safety) |
 | F | Travel | Flightradar24, Travelpayouts |
-| I | Shopping | Amazon |
 | J | Community | Discord, YouTube metadata |
 
 **Dead code removed** (`OPE-373`): Revolut, Mailjet, Azure OpenAI scaffold, Google Calendar events provider. These were never disclosed precisely because the code path was never live; the source files have been deleted.
