@@ -383,6 +383,7 @@ async fn prepare(
         }
         "tasks release" => {
             input::check_flags(invocation, &["delivery-id"])?;
+            super::codex::guard_release(service, id()?).await?;
             service.prepare_release(id()?, delivery_id).await
         }
         _ => {

@@ -202,6 +202,49 @@ async fn delivery_rejects_other_caller_before_network() {
         Err(Error::Forbidden)
     ));
 }
+// contract-test: supporting surface=sdks.rust assertions=tasks.external-chat.encrypted-context
+#[tokio::test]
+async fn claude_session_links_are_encrypted_context_without_assignee_identity() {
+    const SESSION: &str = "00000000-0000-4000-8000-00000000c1a0";
+    let mut client = client("https://api.example.org");
+    let linked = |id: &str| TaskCreate {
+        title: "Claude linked work".into(),
+        external_chat: Some(ExternalChat {
+            provider: "claude".into(),
+            id: id.into(),
+            title: "Claude Code session".into(),
+        }),
+        ..Default::default()
+    };
+    let prepared = client
+        .tasks()
+        .prepare_create(linked(SESSION), &"a".repeat(64))
+        .await
+        .unwrap();
+    let wire = prepared.input.to_string();
+    assert_eq!(prepared.input["external_chat_provider"], "claude");
+    let hash = prepared.input["external_chat_lookup_hash"].as_str().unwrap();
+    assert!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+    assert!(!wire.contains(SESSION) && !wire.contains("Claude Code session"));
+    assert!(prepared.input["assignee_identity"].is_null());
+    assert!(!prepared.creator && !prepared.actor_assignee);
+    let codex_hash = task_crypto::external_hash(
+        &[7; 32],
+        &ExternalChat {
+            provider: "codex".into(),
+            id: SESSION.into(),
+            title: String::new(),
+        },
+    )
+    .unwrap();
+    assert_ne!(hash, codex_hash, "provider is part of the lookup index");
+    for invalid in ["not-a-uuid", "00000000000040008000000000c1a0"] {
+        assert!(matches!(
+            client.tasks().prepare_create(linked(invalid), &"b".repeat(64)).await,
+            Err(Error::Invalid(_))
+        ));
+    }
+}
 #[test]
 fn reconciliation_requires_exact_commit_and_preserves_conflicts() {
     let raw = raw_task();

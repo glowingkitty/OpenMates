@@ -23,9 +23,162 @@ pub(super) struct Connection {
 pub(super) fn assert_caller(thread_id: &str) -> Result<(), CliError> {
     valid_thread(thread_id)?;
     if std::env::var("CODEX_THREAD_ID").ok().as_deref() != Some(thread_id) {
-        return Err(CliError::Invalid("Only the owning Codex chat can claim a Task. Run the command inside that Codex chat, or omit --external-chat to leave the Task unlinked.".into()));
+        return Err(CliError::Invalid(format!(
+            "Only the owning Codex chat can claim a Task. Run this command inside Codex chat ID: {thread_id}. Ordinary CLI creation can omit --external-chat to leave the Task unlinked."
+        )));
     }
     Ok(())
+}
+const CLAUDE_SESSION_IDS: &str =
+    "Claude Code external chat ids must be session UUIDs (CLAUDE_CODE_SESSION_ID).";
+const CLAUDE_SESSION_TITLE: &str = "Claude Code session";
+fn canonical_uuid(value: &str) -> bool {
+    value.len() == 36 && uuid::Uuid::parse_str(value).is_ok()
+}
+/// Parse `--external-chat provider:id` exactly like the npm CLI: `codex` links
+/// a Codex thread, `claude` links a Claude Code session (link-only context).
+pub(super) fn parse_external(
+    value: &str,
+    title: &str,
+) -> Result<openmates_sdk::work::ExternalChat, CliError> {
+    let (provider, id) = value
+        .split_once(':')
+        .map(|(provider, id)| (provider.trim().to_ascii_lowercase(), id.trim()))
+        .filter(|(_, id)| !id.is_empty() && !value.starts_with(':'))
+        .ok_or_else(|| CliError::Invalid("--external-chat requires provider:id.".into()))?;
+    match provider.as_str() {
+        "codex" if !canonical_uuid(id) => Err(CliError::Invalid(
+            "External chat must be codex:<thread-uuid>.".into(),
+        )),
+        "claude" if !canonical_uuid(id) => Err(CliError::Invalid(CLAUDE_SESSION_IDS.into())),
+        "codex" | "claude" => Ok(openmates_sdk::work::ExternalChat {
+            provider,
+            id: id.into(),
+            title: title.into(),
+        }),
+        _ => Err(CliError::Invalid(format!(
+            "Unsupported external chat provider '{provider}'. Use codex or claude."
+        ))),
+    }
+}
+/// Claude Code exports its session UUID; only that session may link a Task to itself.
+pub(super) fn assert_claude_caller(
+    session_id: &str,
+    current: Option<&str>,
+) -> Result<(), CliError> {
+    if !canonical_uuid(session_id) {
+        return Err(CliError::Invalid(CLAUDE_SESSION_IDS.into()));
+    }
+    if current != Some(session_id) {
+        return Err(CliError::Invalid(format!(
+            "Only the owning Claude Code session can claim a Task. Run this command inside Claude Code session ID: {session_id} (CLAUDE_CODE_SESSION_ID). Ordinary CLI creation can omit --external-chat to leave the Task unlinked."
+        )));
+    }
+    Ok(())
+}
+/// Claude Code is an external-chat provider only (never an assignee identity),
+/// so linking leaves assignment unchanged and has no runtime title lookup.
+fn claim_claude(
+    external: &mut openmates_sdk::work::ExternalChat,
+    current: Option<&str>,
+) -> Result<(), CliError> {
+    assert_claude_caller(&external.id, current)?;
+    let title = external.title.trim();
+    external.title = if title.is_empty() {
+        CLAUDE_SESSION_TITLE.into()
+    } else {
+        title.into()
+    };
+    Ok(())
+}
+/// Verify the caller owns the external chat being linked and fill its title.
+pub(super) async fn claim_external(
+    external: &mut openmates_sdk::work::ExternalChat,
+    cancel: &CancellationToken,
+) -> Result<(), CliError> {
+    if external.provider == "claude" {
+        return claim_claude(
+            external,
+            std::env::var("CLAUDE_CODE_SESSION_ID").ok().as_deref(),
+        );
+    }
+    assert_caller(&external.id)?;
+    external.title = read(&external.id, cancel).await?.title;
+    Ok(())
+}
+/// The external chat actually running this process; Codex keeps precedence.
+fn current_caller(codex: Option<String>, claude: Option<String>) -> Option<(&'static str, String)> {
+    codex
+        .map(|id| ("codex", id))
+        .or_else(|| claude.map(|id| ("claude", id)))
+}
+/// Owner-conflict text shared with the npm CLI's `taskOwnerConflict`.
+fn owner_conflict(provider: &str, id: &str, title: Option<&str>) -> String {
+    let title = serde_json::to_string(title.filter(|t| !t.is_empty()).unwrap_or("Untitled chat"))
+        .unwrap_or_default();
+    let location = match provider {
+        "openmates" => format!("OpenMates chat ID: {id}. View: openmates chats show {id}"),
+        "claude" => format!("Claude Code session ID: {id}"),
+        _ => format!("Codex chat ID: {id}"),
+    };
+    format!(
+        "Task is already linked to {title}. {location}. Release that link before claiming the task in another chat."
+    )
+}
+fn release_conflict(
+    task: &serde_json::Value,
+    caller: Option<(&'static str, String)>,
+) -> Result<(), CliError> {
+    let external = &task["external_chat"];
+    let Some((provider, id)) = caller else {
+        return Ok(());
+    };
+    if (task["primary_chat_id"].is_null() && external.is_null())
+        || (external["provider"] == provider && external["id"] == id.as_str())
+    {
+        return Ok(());
+    }
+    Err(CliError::Invalid(match task["primary_chat_id"].as_str() {
+        Some(chat) => owner_conflict("openmates", chat, None),
+        None => owner_conflict(
+            external["provider"].as_str().unwrap_or("codex"),
+            external["id"].as_str().unwrap_or(""),
+            external["title"].as_str(),
+        ),
+    }))
+}
+/// A Claude Code session may only release its own link. Codex callers are
+/// already enforced by the SDK owner headers, so this only reads the Task when
+/// the process runs inside Claude Code.
+pub(super) async fn guard_release(
+    service: &mut openmates_sdk::work::Tasks<'_>,
+    id: &str,
+) -> Result<(), CliError> {
+    let codex = std::env::var("CODEX_THREAD_ID").ok();
+    let claude = std::env::var("CLAUDE_CODE_SESSION_ID").ok();
+    if codex.is_some() || claude.is_none() {
+        return Ok(());
+    }
+    release_conflict(&service.show(id).await?, current_caller(codex, claude))
+}
+/// Thread for `tasks connection`/`tasks resume`; those stay Codex-only.
+pub(super) fn connection_thread(task: &serde_json::Value) -> Result<&str, CliError> {
+    let external = &task["external_chat"];
+    match external["provider"].as_str() {
+        None => Err(CliError::Invalid(
+            "This Task has no external connection. Use tasks connect first.".into(),
+        )),
+        Some("claude") => Err(CliError::Invalid(format!(
+            "This Task is linked to a Claude Code session. Tasks connect, connection and resume support Codex threads only; resume it in Claude Code with: claude --resume {}",
+            external["id"].as_str().unwrap_or("")
+        ))),
+        Some("codex") => external["id"]
+            .as_str()
+            .ok_or(CliError::Client(Error::Protocol)),
+        Some(_) => Err(CliError::Invalid(
+            "Codex connection requires the codex provider.".into(),
+        )),
+    }
 }
 fn valid_thread(thread_id: &str) -> Result<(), CliError> {
     if uuid::Uuid::parse_str(thread_id).is_err() || thread_id.len() != 36 {
@@ -200,6 +353,119 @@ mod tests {
         assert!(valid_thread("--help").is_err());
         assert!(valid_thread("00112233445566778899aabbccddeeff").is_err());
         assert!(valid_thread("00112233-4455-6677-8899-aabbccddeeff").is_ok());
+    }
+    const SESSION: &str = "00000000-0000-4000-8000-00000000c1a0";
+    fn invalid(result: Result<impl Sized, CliError>) -> String {
+        match result {
+            Err(CliError::Invalid(message)) => message,
+            _ => panic!("expected an invalid-input error"),
+        }
+    }
+    // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
+    #[test]
+    fn external_chat_accepts_codex_and_claude_like_the_npm_cli() {
+        let claude = parse_external(&format!(" Claude :{SESSION}"), "")
+            .ok()
+            .unwrap();
+        assert_eq!(
+            (claude.provider.as_str(), claude.id.as_str()),
+            ("claude", SESSION)
+        );
+        let codex = parse_external("codex:00112233-4455-6677-8899-aabbccddeeff", "T")
+            .ok()
+            .unwrap();
+        assert_eq!(
+            (codex.provider.as_str(), codex.title.as_str()),
+            ("codex", "T")
+        );
+        assert!(invalid(parse_external("claude:not-a-uuid", "")).contains("session UUIDs"));
+        assert!(
+            invalid(parse_external(
+                &format!("claude:{}", SESSION.replace('-', "")),
+                ""
+            ))
+            .contains("session UUIDs")
+        );
+        assert_eq!(
+            invalid(parse_external(&format!("cursor:{SESSION}"), "")),
+            "Unsupported external chat provider 'cursor'. Use codex or claude."
+        );
+        for missing in ["claude", "claude:", ":abc"] {
+            assert_eq!(
+                invalid(parse_external(missing, "")),
+                "--external-chat requires provider:id."
+            );
+        }
+    }
+    // contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim
+    #[test]
+    fn claude_links_require_the_owning_session_and_default_their_title() {
+        let mut external = parse_external(&format!("claude:{SESSION}"), "  ")
+            .ok()
+            .unwrap();
+        assert!(
+            invalid(claim_claude(&mut external.clone(), None))
+                .contains("Only the owning Claude Code session can claim a Task")
+        );
+        let other = "00000000-0000-4000-8000-00000000beef";
+        assert!(invalid(claim_claude(&mut external.clone(), Some(other))).contains(SESSION));
+        assert!(claim_claude(&mut external, Some(SESSION)).is_ok());
+        assert_eq!(external.title, "Claude Code session");
+        let mut titled = parse_external(&format!("claude:{SESSION}"), " Review ")
+            .ok()
+            .unwrap();
+        assert!(claim_claude(&mut titled, Some(SESSION)).is_ok());
+        assert_eq!(titled.title, "Review");
+        assert!(
+            invalid(assert_claude_caller("not-a-uuid", Some("not-a-uuid")))
+                .contains("session UUIDs")
+        );
+    }
+    // contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim
+    #[test]
+    fn claude_sessions_release_only_their_own_links() {
+        use serde_json::json;
+        let caller = || current_caller(None, Some(SESSION.into()));
+        let own = json!({"primary_chat_id":null,"external_chat":{"provider":"claude","id":SESSION,"title":"Mine"}});
+        assert!(release_conflict(&own, caller()).is_ok());
+        let unlinked = json!({"primary_chat_id":null,"external_chat":null});
+        assert!(release_conflict(&unlinked, caller()).is_ok());
+        let codex = json!({"primary_chat_id":null,"external_chat":{"provider":"codex","id":"t","title":"Worker"}});
+        assert_eq!(
+            invalid(release_conflict(&codex, caller())),
+            "Task is already linked to \"Worker\". Codex chat ID: t. Release that link before claiming the task in another chat."
+        );
+        let other = json!({"primary_chat_id":null,"external_chat":{"provider":"claude","id":"x","title":""}});
+        assert!(
+            invalid(release_conflict(&other, caller()))
+                .contains("\"Untitled chat\". Claude Code session ID: x.")
+        );
+        let native = json!({"primary_chat_id":"chat-1","external_chat":null});
+        assert!(
+            invalid(release_conflict(&native, caller()))
+                .contains("OpenMates chat ID: chat-1. View: openmates chats show chat-1")
+        );
+        assert!(release_conflict(&codex, None).is_ok());
+        assert_eq!(
+            current_caller(Some("c".into()), Some("s".into()))
+                .unwrap()
+                .0,
+            "codex"
+        );
+    }
+    #[test]
+    fn connection_and_resume_stay_codex_only() {
+        use serde_json::json;
+        let claude = json!({"external_chat":{"provider":"claude","id":SESSION}});
+        assert!(
+            invalid(connection_thread(&claude)).ends_with(&format!("claude --resume {SESSION}"))
+        );
+        assert_eq!(
+            invalid(connection_thread(&json!({"external_chat":null}))),
+            "This Task has no external connection. Use tasks connect first."
+        );
+        let codex = json!({"external_chat":{"provider":"codex","id":"thread"}});
+        assert_eq!(connection_thread(&codex).ok(), Some("thread"));
     }
     #[cfg(unix)]
     #[tokio::test]

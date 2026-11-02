@@ -269,9 +269,7 @@ pub(super) async fn verify_external(
     cancel: &CancellationToken,
 ) -> Result<(), CliError> {
     if let Some(external) = external {
-        codex::assert_caller(&external.id)?;
-        let connection = codex::read(&external.id, cancel).await?;
-        external.title = connection.title;
+        codex::claim_external(external, cancel).await?;
     }
     Ok(())
 }
@@ -628,7 +626,10 @@ fn execute_command<'a>(
                     "tasks done" => service.done(id()?).await?,
                     "tasks unblock" => service.unblock(id()?).await?,
                     "tasks skip" => service.skip(id()?).await?,
-                    _ => service.release(id()?).await?,
+                    _ => {
+                        codex::guard_release(&mut service, id()?).await?;
+                        service.release(id()?).await?
+                    }
                 };
                 task_result(invocation, task)
             })
@@ -856,15 +857,7 @@ fn execute_command<'a>(
         "tasks connection" | "tasks resume" => Box::pin(async move {
             input::check_flags(invocation, &[])?;
             let task = service.show(id()?).await?;
-            let external = &task["external_chat"];
-            if external["provider"] != "codex" {
-                return Err(CliError::Invalid(
-                    "This Task has no Codex connection. Use tasks connect first.".into(),
-                ));
-            }
-            let thread = external["id"]
-                .as_str()
-                .ok_or(CliError::Client(Error::Protocol))?;
+            let thread = codex::connection_thread(&task)?;
             if path == "tasks resume" {
                 return codex::resume(thread, &cancel).await;
             }

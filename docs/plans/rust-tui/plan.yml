@@ -120,10 +120,7 @@ stages:
     task: TASK-4963
     outcome: Every npm CLI command/flag/output/exit code, signup and self-host setup
       (GitHub CI) work in Rust.
-    known_gaps:
-      - Tasks --external-chat must accept claude:<session-uuid> (link-only, owner
-        check via CLAUDE_CODE_SESSION_ID) like the npm CLI since 3de6434413; Rust
-        cli/codex.rs and work/tasks.rs still accept codex only.
+    known_gaps: []
   - id: sdk-parity
     task: TASK-7993
     outcome: Rust/npm/Python capability matrix complete; conformance runners back

@@ -158,21 +158,11 @@ pub(super) fn external(invocation: &Invocation) -> Result<Option<ExternalChat>, 
         }
         return Ok(None);
     };
-    let (provider, id) = value
-        .split_once(':')
-        .ok_or_else(|| CliError::Invalid("External chat must be codex:<thread-uuid>.".into()))?;
-    if provider != "codex" || id.len() != 36 || uuid::Uuid::parse_str(id).is_err() {
-        return Err(CliError::Invalid(
-            "External chat must be codex:<thread-uuid>.".into(),
-        ));
-    }
-    Ok(Some(ExternalChat {
-        provider: provider.into(),
-        id: id.into(),
-        title: text(invocation, "external-chat-title")?
-            .unwrap_or("")
-            .into(),
-    }))
+    super::codex::parse_external(
+        value,
+        text(invocation, "external-chat-title")?.unwrap_or(""),
+    )
+    .map(Some)
 }
 pub(super) fn filters(
     invocation: &Invocation,

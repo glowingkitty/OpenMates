@@ -31726,7 +31726,7 @@
       "summary": "chats tasks create",
       "usages": [
         "chats <chat-id> tasks create --title <title>",
-        "chats <chat-id> tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]"
+        "chats <chat-id> tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]"
       ],
       "positionals": [
         {
@@ -56154,7 +56154,7 @@
       ],
       "summary": "tasks board",
       "usages": [
-        "tasks board [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]"
+        "tasks board [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]"
       ],
       "positionals": [],
       "flags": [
@@ -56293,7 +56293,7 @@
       ],
       "summary": "tasks create",
       "usages": [
-        "tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]"
+        "tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]"
       ],
       "positionals": [
         {
@@ -56611,7 +56611,7 @@
       ],
       "summary": "tasks edit",
       "usages": [
-        "tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]"
+        "tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]"
       ],
       "positionals": [
         {
@@ -56717,7 +56717,7 @@
       ],
       "summary": "tasks list",
       "usages": [
-        "tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]"
+        "tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]"
       ],
       "positionals": [],
       "flags": [

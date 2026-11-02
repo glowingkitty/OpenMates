@@ -38,9 +38,17 @@ pub(super) fn hmac(key: &[u8; 32], value: &[u8]) -> Result<String> {
         .collect())
 }
 pub(super) fn external_hash(master: &[u8; 32], external: &ExternalChat) -> Result<String> {
-    if external.provider != "codex" || external.id.is_empty() || external.id.len() > 512 {
+    // Codex threads and Claude Code sessions are the supported link providers.
+    // Claude links are conversation context only and must carry the canonical
+    // session UUID exported as CLAUDE_CODE_SESSION_ID (matches the npm SDK).
+    let valid = match external.provider.as_str() {
+        "codex" => !external.id.is_empty() && external.id.len() <= 512,
+        "claude" => external.id.len() == 36 && uuid::Uuid::parse_str(&external.id).is_ok(),
+        _ => false,
+    };
+    if !valid {
         return Err(Error::Invalid(
-            "External chat must identify a Codex thread.",
+            "External chat must identify a Codex thread or Claude Code session.",
         ));
     }
     let index = crypto::hkdf_sha256(master, &[], b"openmates-task-external-chat-index-v1")?;
