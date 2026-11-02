@@ -377,7 +377,7 @@ user_task_activity:
 
     source_surface:
       type: string
-      note: "Authenticated client source: web, apple, cli, sdk_npm, sdk_pip, or system."
+      note: "Authenticated client source: web, apple, cli, sdk_rust, sdk_npm, sdk_pip, or system."
 
     previous_status:
       type: string

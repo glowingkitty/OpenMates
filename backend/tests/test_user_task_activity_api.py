@@ -88,7 +88,7 @@ def test_activity_create_request_rejects_plaintext_and_unknown_private_extras() 
 # contract-test: direct surface=rest_api assertions=tasks.activity.context-attribution
 @pytest.mark.parametrize(
     ("client_surface", "expected_surface"),
-    [("web", "web"), ("cli", "cli"), ("npm", "sdk_npm"), ("pip", "sdk_pip")],
+    [("web", "web"), ("cli", "cli"), ("rust", "sdk_rust"), ("npm", "sdk_npm"), ("pip", "sdk_pip")],
 )
 def test_activity_source_surface_is_derived_only_from_allowlisted_authenticated_client_identity(
     client_surface: str,
@@ -305,7 +305,7 @@ async def test_create_activity_route_rejects_team_viewer_before_persistence(monk
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("client_surface", "expected_surface"),
-    [("web", "web"), ("cli", "cli"), ("npm", "sdk_npm"), ("pip", "sdk_pip")],
+    [("web", "web"), ("cli", "cli"), ("rust", "sdk_rust"), ("npm", "sdk_npm"), ("pip", "sdk_pip")],
 )
 async def test_create_activity_route_derives_source_and_never_accepts_body_attribution(
     monkeypatch,

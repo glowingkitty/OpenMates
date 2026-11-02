@@ -107,8 +107,8 @@ async def create_api_key_device(
         user_id: The user ID
         device_hash: The device hash (SHA256 of IP:user_id or machine_id:user_id)
         client_ip: The client IP address (for anonymization and geo lookup)
-        access_type: Type of access ('rest_api', 'cli', 'pip', 'npm')
-        machine_identifier: Optional machine identifier for CLI/pip/npm access
+        access_type: Type of access ('rest_api', 'cli', 'rust', 'pip', 'npm')
+        machine_identifier: Optional machine identifier for CLI/Rust/pip/npm access
         
     Returns:
         Tuple of (success, device_record, message)

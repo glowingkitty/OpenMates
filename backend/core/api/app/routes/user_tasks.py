@@ -452,7 +452,7 @@ def derive_task_activity_source_surface(request: Request) -> str:
         if _request_header(request, "Authorization").startswith("bearer "):
             raise HTTPException(status_code=403, detail="TASK_ACTIVITY_FIRST_PARTY_CLIENT_REQUIRED")
         return "web"
-    mapped = {"web": "web", "apple": "apple", "cli": "cli", "npm": "sdk_npm", "pip": "sdk_pip"}.get(raw_surface)
+    mapped = {"web": "web", "apple": "apple", "cli": "cli", "rust": "sdk_rust", "npm": "sdk_npm", "pip": "sdk_pip"}.get(raw_surface)
     if mapped is None:
         raise HTTPException(status_code=400, detail="TASK_ACTIVITY_CLIENT_INVALID")
     return mapped

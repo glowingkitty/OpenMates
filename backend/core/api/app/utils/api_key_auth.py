@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 API_KEY_REST_ACCESS_TYPE = "rest_api"
-API_KEY_SDK_ACCESS_TYPES = {"cli", "npm", "pip"}
+API_KEY_SDK_ACCESS_TYPES = {"cli", "rust", "npm", "pip"}
 API_KEY_ACCESS_TYPES = API_KEY_SDK_ACCESS_TYPES | {API_KEY_REST_ACCESS_TYPE}
 
 class ApiKeyNotFoundError(Exception):
@@ -208,7 +208,7 @@ class ApiKeyAuthService:
             # REST clients are IP-scoped. SDK clients can provide a stable local
             # identity so approval survives network/IP changes without trusting it
             # for anything beyond a per-key device hash.
-            device_identity = machine_identifier if machine_identifier and access_type in {"cli", "npm", "pip"} else client_ip
+            device_identity = machine_identifier if machine_identifier and access_type in API_KEY_SDK_ACCESS_TYPES else client_ip
             device_hash_string = f"{access_type}:{device_identity}:{user_id}"
             device_hash = hashlib.sha256(device_hash_string.encode()).hexdigest()
             
