@@ -108,6 +108,7 @@ mod credentials;
 mod cache_policy;
 mod chat_list_freshness;
 mod chat_arrival_order;
+mod chat_tombstones;
 mod mention_context;
 mod search;
 mod send;
@@ -538,6 +539,8 @@ pub struct Client {
     metadata_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
+    /// Chats this client deleted (chat_tombstones.rs); display state only.
+    deleted_chats: BTreeMap<String, u64>,
 }
 impl Client {
     /// Explicit validated application origin selected for this client.
@@ -594,6 +597,7 @@ impl Client {
             credential_revision: 1,
             credential_ack: 0,
             recent_validation: None,
+            deleted_chats: BTreeMap::new(),
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             credential_updates: None,

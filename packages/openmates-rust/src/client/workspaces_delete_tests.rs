@@ -375,7 +375,12 @@ async fn acknowledged_chat_delete_retires_only_its_window_from_serialized_and_re
         for field in ["chats", "history", "sync_message_windows"] {
             expected[field].as_object_mut().unwrap().remove(ID);
         }
-        let snapshot = client.ciphertext_snapshot();
+        let mut snapshot = client.ciphertext_snapshot();
+        // The acknowledged deletion leaves only a local display tombstone.
+        let tombstones = snapshot.as_object_mut().unwrap()
+            .remove(super::super::chat_tombstones::SNAPSHOT_FIELD).unwrap();
+        assert!(tombstones[ID].as_u64().is_some());
+        assert_eq!(tombstones.as_object().unwrap().len(), 1);
         assert_eq!(snapshot, expected);
         assert!(snapshot["sync_message_windows"].get(ID).is_none());
         assert!(client.active_chat.is_none());

@@ -649,6 +649,11 @@ impl Client {
             self.completion_recovery_jobs = main_jobs;
             self.metadata_recovery_jobs = metadata_jobs;
         }
+        let mut chats = chats;
+        let mut chat_arrival_order = chat_arrival_order;
+        let mut sync_message_windows = sync_message_windows;
+        self.drop_deleted_chats(&mut chats, &mut chat_arrival_order);
+        sync_message_windows.retain(|id, _| !self.is_deleted_chat(id));
         self.chats = chats;
         self.chat_arrival_order = Some(chat_arrival_order);
         self.sync_message_windows = sync_message_windows;
@@ -945,6 +950,9 @@ impl Client {
         if let Some(metadata) = self.chat_list_freshness.snapshot_metadata() {
             snapshot[chat_list_freshness::SNAPSHOT_FIELD] = metadata;
         }
+        if let Some(tombstones) = self.deleted_chats_snapshot() {
+            snapshot[super::chat_tombstones::SNAPSHOT_FIELD] = tombstones;
+        }
         snapshot
     }
     pub fn restore_ciphertext_snapshot(&mut self, snapshot: &Value) -> Result<()> {
@@ -993,6 +1001,7 @@ impl Client {
         )?;
         self.chats = chats;
         self.chat_arrival_order = chat_arrival_order;
+        self.deleted_chats = super::chat_tombstones::restore(snapshot.get(super::chat_tombstones::SNAPSHOT_FIELD));
         self.wrappers = snapshot["wrappers"]
             .as_array()
             .ok_or(Error::Protocol)?

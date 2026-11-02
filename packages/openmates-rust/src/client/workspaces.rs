@@ -437,6 +437,7 @@ impl Client {
                         transport::wait(&mut ws, "chat_deleted", "chat_id", &id).await?;
                         scope.check_chat(self,&id)?;
                         self.remove_chat_row(&id);
+                        self.record_deleted_chat(&id);
                         self.history.remove(&id);
                         self.sync_message_windows.remove(&id);
                         self.selected_first_pages.remove(&id);
