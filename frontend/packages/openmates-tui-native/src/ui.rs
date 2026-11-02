@@ -1410,6 +1410,24 @@ impl Ui {
                 _ => {}
             }
         }
+        // TS parity (tuiWorkspaceController): `/` on an empty draft starts a
+        // command from any focus, and typing on the chat home starts a draft
+        // instead of triggering card shortcuts; Enter still opens the card.
+        let plain_char = matches!(event.code, KeyCode::Char(_))
+            && !event.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+        if plain_char && self.settings.is_none() && self.focus != Focus::Composer {
+            let slash = event.code == KeyCode::Char('/') && self.draft.text.is_empty();
+            let chat_home = self.focus == Focus::Content
+                && self.workspace == Workspace::Chats
+                && self.chat.is_none()
+                && self.detail.is_none();
+            if slash || chat_home {
+                self.focus = Focus::Composer;
+                self.hits.clear();
+                self.draft.key(event);
+                return vec![];
+            }
+        }
         if self.focus == Focus::Navigation {
             match event.code {
                 KeyCode::Left => self.navigation_index = (self.navigation_index + 5) % 6,
@@ -6419,3 +6437,7 @@ mod live_tests;
 #[cfg(test)]
 #[path = "ui_cached_chat_tests.rs"]
 mod cached_chat_tests;
+
+#[cfg(test)]
+#[path = "ui_focus_parity_tests.rs"]
+mod focus_parity_tests;
