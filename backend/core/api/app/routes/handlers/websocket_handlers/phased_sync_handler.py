@@ -31,6 +31,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.sync_visibility_fen
     _live_visible_sync_chat_ids,
     _live_visible_sync_chat_metadata,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_sync_cold_start import begin_cold_start
 from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
 logger = logging.getLogger(__name__)
@@ -755,6 +756,12 @@ async def handle_phased_sync_request(
                 f"{len(client_embed_ids)} embed(s) already on device"
             )
         
+            # chat_sync_feed_v1 sockets only: clock read before snapshot reads.
+            cold_start_feed = await begin_cold_start(
+                websocket, manager, cache_service, directus_service, user_id,
+                device_fingerprint_hash, team_id, context_epoch, sync_phase,
+            )
+
             # Track sent embed IDs across all phases to prevent duplicates
             # Embeds can be shared across chats in different phases
             sent_embed_ids: set = set()
@@ -838,6 +845,7 @@ async def handle_phased_sync_request(
                     )
         
             # Send sync completion event
+            await cold_start_feed.finish()
             await manager.send_personal_message(
                 {
                     "type": "phased_sync_complete",
@@ -846,6 +854,7 @@ async def handle_phased_sync_request(
                         "timestamp": int(datetime.now(timezone.utc).timestamp()),
                         "team_id": team_id,
                         "context_epoch": context_epoch,
+                        **cold_start_feed.completion_fields(),
                     }
                 },
                 user_id,
