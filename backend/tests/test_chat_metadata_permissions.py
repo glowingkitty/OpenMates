@@ -15,11 +15,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.services.directus.chat_methods import (
-    CHAT_METADATA_FIELDS,
+    CHAT_METADATA_FIELD_SETS,
     CHAT_METADATA_FIELDS_FALLBACK,
-    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
-    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
-    CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
     ChatMethods,
 )
 
@@ -31,12 +28,7 @@ class PermissionFallbackDirectus:
     async def get_items(self, _collection, params, **_kwargs):
         fields = params["fields"]
         self.requested_fields.append(fields)
-        if fields in {
-            CHAT_METADATA_FIELDS,
-            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
-            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
-        }:
+        if fields in set(CHAT_METADATA_FIELD_SETS) - {CHAT_METADATA_FIELDS_FALLBACK}:
             return None
         if fields == CHAT_METADATA_FIELDS_FALLBACK:
             return [{"id": "d7d558a5-2a8c-4fc4-9b1c-e21868b22bce", "hashed_user_id": "hash"}]
@@ -107,11 +99,7 @@ async def test_chat_metadata_uses_minimal_fallback_after_optional_field_403():
 
     assert metadata == {"id": "d7d558a5-2a8c-4fc4-9b1c-e21868b22bce", "hashed_user_id": "hash"}
     assert directus.requested_fields == [
-        CHAT_METADATA_FIELDS,
-        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
-        CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
-        CHAT_METADATA_FIELDS_FALLBACK,
+        *CHAT_METADATA_FIELD_SETS,
     ]
 
 
@@ -132,14 +120,66 @@ async def test_batch_chat_metadata_uses_json_in_filter():
 
 
 @pytest.mark.anyio
+async def test_batch_chat_metadata_passes_admin_flag_and_reads_chunks_concurrently():
+    import asyncio
+
+    class ConcurrentDirectus:
+        def __init__(self) -> None:
+            self.active = 0
+            self.peak = 0
+            self.kwargs: list[dict] = []
+
+        async def get_items(self, _collection, params, **kwargs):
+            self.kwargs.append(kwargs)
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+            await asyncio.sleep(0.01)
+            self.active -= 1
+            return [{"id": chat_id} for chat_id in reversed(params["filter"]["id"]["_in"])]
+
+    directus = ConcurrentDirectus()
+    chat_ids = [f"{index:08x}-1111-4111-8111-111111111111" for index in range(100)]
+
+    metadata = await ChatMethods(directus).get_chats_metadata_batch(
+        chat_ids, admin_required=True, concurrency=4,
+    )
+
+    assert list(metadata) == chat_ids
+    assert len(directus.kwargs) == 4
+    assert all(kwargs["admin_required"] is True for kwargs in directus.kwargs)
+    assert directus.peak == 4
+
+
+@pytest.mark.anyio
+async def test_batch_chat_metadata_concurrency_is_bounded():
+    import asyncio
+
+    class SlowDirectus:
+        def __init__(self) -> None:
+            self.active = 0
+            self.peak = 0
+
+        async def get_items(self, _collection, params, **kwargs):
+            assert kwargs["admin_required"] is False
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+            await asyncio.sleep(0.005)
+            self.active -= 1
+            return [{"id": chat_id} for chat_id in params["filter"]["id"]["_in"]]
+
+    directus = SlowDirectus()
+    chat_ids = [f"{index:08x}-2222-4222-8222-222222222222" for index in range(250)]
+
+    metadata = await ChatMethods(directus).get_chats_metadata_batch(chat_ids, concurrency=3)
+
+    assert len(metadata) == 250
+    assert directus.peak == 3
+
+
+@pytest.mark.anyio
 async def test_batch_chat_metadata_uses_field_fallback_after_optional_field_403():
     directus = BatchMetadataDirectus(
-        denied_fields={
-            CHAT_METADATA_FIELDS,
-            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
-            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
-        }
+        denied_fields=set(CHAT_METADATA_FIELD_SETS) - {CHAT_METADATA_FIELDS_FALLBACK}
     )
     chat_methods = ChatMethods(directus)
     chat_id = "33333333-3333-4333-8333-333333333333"
@@ -148,11 +188,7 @@ async def test_batch_chat_metadata_uses_field_fallback_after_optional_field_403(
 
     assert metadata == {chat_id: {"id": chat_id, "hashed_user_id": "hash"}}
     assert [request["fields"] for request in directus.requests] == [
-        CHAT_METADATA_FIELDS,
-        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
-        CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
-        CHAT_METADATA_FIELDS_FALLBACK,
+        *CHAT_METADATA_FIELD_SETS,
     ]
 
 

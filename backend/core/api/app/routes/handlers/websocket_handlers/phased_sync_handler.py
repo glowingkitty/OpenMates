@@ -27,6 +27,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydrat
 from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
     load_sync_sidecars_for_chats,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_visibility_fence import (
+    _live_visible_sync_chat_ids,
+    _live_visible_sync_chat_metadata,
+)
 from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
 logger = logging.getLogger(__name__)
@@ -448,8 +452,13 @@ async def _fetch_chat_key_wrappers_for_chats(
     chat_ids: List[str],
     user_id: str,
     team_id: Optional[str] = None,
+    metadata_by_chat_id: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
-    """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
+    """Fetch chat key wrappers for chat IDs already authorized by sync selection.
+
+    ``metadata_by_chat_id`` carries rows the caller already read through the
+    live visibility fence; chats absent from it are read individually.
+    """
     if not chat_ids:
         return [], {}
     wrappers: List[Dict[str, Any]] = []
@@ -457,8 +466,11 @@ async def _fetch_chat_key_wrappers_for_chats(
     principal = {"hashed_team_id": hashlib.sha256(team_id.encode()).hexdigest()} if team_id else {
         "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest()
     }
+    known_metadata = metadata_by_chat_id or {}
     for chat_id in dict.fromkeys(chat_ids):
-        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        metadata = known_metadata.get(chat_id)
+        if metadata is None:
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         if is_direct_chat(metadata):
             try:
                 await require_direct_chat_access(directus_service, metadata, user_id, team_id)
@@ -477,30 +489,6 @@ async def _fetch_chat_key_wrappers_for_chats(
             "oversized_wrapper_id": page["oversized_wrapper_id"],
         }
     return wrappers, windows
-
-
-async def _live_visible_sync_chat_ids(
-    directus_service: DirectusService, chat_ids: List[str], user_id: str,
-    team_id: Optional[str],
-) -> List[str]:
-    """Recheck direct-chat access immediately before encrypted content reads."""
-    visible: List[str] = []
-    for chat_id in chat_ids:
-        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-        if not metadata:
-            continue
-        if team_id:
-            if metadata.get("hashed_team_id") != hashlib.sha256(team_id.encode()).hexdigest():
-                continue
-        elif metadata.get("hashed_team_id") or metadata.get("hashed_user_id") != hashlib.sha256(user_id.encode()).hexdigest():
-            continue
-        if is_direct_chat(metadata):
-            try:
-                await require_direct_chat_access(directus_service, metadata, user_id, team_id)
-            except (PermissionError, ValueError):
-                continue
-        visible.append(chat_id)
-    return visible
 
 
 async def _fetch_direct_sub_chat_ids_for_phase1_parents(
@@ -1077,6 +1065,7 @@ async def _handle_phase1_sync(
     Returns list of chat IDs sent in this phase (used by Phase 1b to fetch content).
     """
     logger.info(f"Processing Phase 1a sync for user {user_id}")
+    phase1a_start = time.perf_counter()
 
     try:
         import asyncio as _asyncio
@@ -1177,9 +1166,22 @@ async def _handle_phase1_sync(
             )
             return []
 
-        phase1_chat_ids = await _live_visible_sync_chat_ids(
+        # The owner/Team-filtered list query above already returned current
+        # metadata for these ids; only ids from the fallback path are re-read.
+        recent_metadata_by_id: Dict[str, Dict[str, Any]] = {
+            str(row.get("id")): row
+            for row in (recent_chat_metadata_rows or [])
+            if isinstance(row, dict) and row.get("id")
+        }
+        visible_phase1_metadata = await _live_visible_sync_chat_metadata(
             directus_service, phase1_chat_ids, user_id, team_id,
+            known_metadata={
+                cid: recent_metadata_by_id[cid]
+                for cid in phase1_chat_ids
+                if cid in recent_metadata_by_id
+            },
         )
+        phase1_chat_ids = list(visible_phase1_metadata)
         if not phase1_chat_ids:
             return []
 
@@ -1204,11 +1206,9 @@ async def _handle_phase1_sync(
             ):
                 directus_needed.append(cid)
 
-        directus_metadata_map: Dict[str, Dict[str, Any]] = {
-            str(row.get("id")): row
-            for row in (recent_chat_metadata_rows or [])
-            if isinstance(row, dict) and row.get("id")
-        }
+        # Fence rows are caller-safe (direct chats are already projected).
+        directus_metadata_map: Dict[str, Dict[str, Any]] = dict(visible_phase1_metadata)
+        directus_needed = [cid for cid in directus_needed if cid not in directus_metadata_map]
         if directus_needed:
             try:
                 fetched = await directus_service.chat.get_chats_metadata_batch(directus_needed)
@@ -1390,7 +1390,8 @@ async def _handle_phase1_sync(
         )
 
         logger.info(
-            f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}...: "
+            f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}... "
+            f"in {time.perf_counter() - phase1a_start:.3f}s: "
             f"last_chat={'yes' if last_chat_details else 'no'}, "
             f"recent_metadata={len(recent_chat_metadata)}, "
             f"{len(new_chat_suggestions)} suggestions, {len(daily_inspirations)} inspirations, "
@@ -1435,9 +1436,12 @@ async def _handle_phase1b_sync(
     if not phase1_chat_ids:
         return
 
-    phase1_chat_ids = await _live_visible_sync_chat_ids(
+    # One live visibility fence at entry; its caller-safe rows feed every
+    # per-chat read below. The pre-send fence re-checks membership once more.
+    visible_metadata = await _live_visible_sync_chat_metadata(
         directus_service, phase1_chat_ids, user_id, team_id,
     )
+    phase1_chat_ids = list(visible_metadata)
     if not phase1_chat_ids:
         return
 
@@ -1451,8 +1455,6 @@ async def _handle_phase1b_sync(
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
         for chat_id in phase1_chat_ids:
-            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
-                continue
             messages_data: List[str] = []
             message_window: Dict[str, Any] = {}
 
@@ -1489,6 +1491,7 @@ async def _handle_phase1b_sync(
                     log_prefix="[PHASE1b]",
                     user_otel_attrs=user_otel_attrs,
                     archive_service=archive_service,
+                    metadata=visible_metadata[chat_id],
                 )
                 messages_data = message_window["messages"]
                 server_message_count = message_window["server_message_count"]
@@ -1525,8 +1528,6 @@ async def _handle_phase1b_sync(
         embed_key_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
 
         for chat_id in phase1_chat_ids:
-            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
-                continue
             hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
 
             try:
@@ -1579,6 +1580,7 @@ async def _handle_phase1b_sync(
             phase1_chat_ids,
             user_id,
             team_id=team_id,
+            metadata_by_chat_id=visible_metadata,
         )
 
         # Send Phase 1b as separate WS message

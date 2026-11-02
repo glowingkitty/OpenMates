@@ -70,11 +70,15 @@ async def load_bounded_sync_message_window(
     before_timestamp: int | None = None,
     before_message_id: str | None = None,
     archive_service: Any | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read a bounded latest ciphertext window and an independent durable count.
 
     Redis sync lists are intentionally not read here: a cache entry may contain
     an entire long transcript and cannot be used as a bounded DB fallback.
+
+    ``metadata`` lets a caller that already ran the live owner/Team visibility
+    fence reuse that row; direct chats still re-check membership here.
     """
 
     _otel_span, _otel_token = _start_ws_span(
@@ -85,7 +89,8 @@ async def load_bounded_sync_message_window(
     )
 
     try:
-        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if metadata is None:
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         if not metadata:
             raise PermissionError("Chat unavailable for message hydration")
         if is_direct_chat(metadata):
