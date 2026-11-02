@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import fcntl
+import hashlib
 import json
 import os
 import subprocess
@@ -600,6 +601,44 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     second_archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
     assert second_archive != archive
     assert archive.exists()
+
+
+def test_hard_expiry_archive_lists_large_ignored_files_without_copying_them(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    path = managed / "agent-old"
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+    (path / ".gitignore").write_text("logs/\ntarget/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=path, check=True)
+    (path / "logs").mkdir()
+    (path / "logs" / "note.md").write_text("small private note\n", encoding="utf-8")
+    (path / "logs" / "source.tar").write_bytes(b"x" * 64)
+    (path / "target").mkdir()
+    (path / "target" / "app.bin").write_bytes(b"build output")
+    (path / "new_large_source.bin").write_bytes(b"y" * 64)
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_OMIT_IGNORED_BYTES", 32)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", path)
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_ARCHIVE_DIR", tmp_path / "recovery")
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: True)
+
+    archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
+
+    with tarfile.open(archive, "r:gz") as saved:
+        names = set(saved.getnames())
+        manifest = json.load(saved.extractfile("manifest.json"))
+    assert "untracked/logs/note.md" in names
+    assert "untracked/new_large_source.bin" in names  # non-ignored files are always kept
+    assert "untracked/logs/source.tar" not in names
+    assert not any(name.startswith("untracked/target") for name in names)
+    omitted = [entry for entry in manifest["untracked"] if entry["kind"] == "omitted"]
+    assert omitted == [{"path": "logs/source.tar", "kind": "omitted",
+                        "sha256": hashlib.sha256(b"").hexdigest(), "size": 0, "omitted_bytes": 64}]
+    sessions._verify_expired_worktree_archive_snapshot({"path": str(path)}, str(archive))
 
 
 def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):

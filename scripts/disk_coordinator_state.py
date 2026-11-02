@@ -32,7 +32,13 @@ GRANT_SECONDS = 300
 CLEANUP_BACKOFF = 300
 RECOVERY_MARGIN = 2 * GIB
 MIN_INODES = 10000
-KINDS = ("managed", "worktrees", "docker", "proof")
+KINDS = ("managed", "worktrees", "docker", "proof", "host")
+# Proactive maintenance by the elected service: every enabled kind runs at least
+# every PROACTIVE_INTERVAL, and every PROACTIVE_PRESSURE_INTERVAL once usage
+# reaches PROACTIVE_PERCENT, so capacity recovers before work has to wait.
+PROACTIVE_INTERVAL = 6 * 3600
+PROACTIVE_PRESSURE_INTERVAL = 1800
+PROACTIVE_PERCENT = 80
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS repositories (
  path TEXT PRIMARY KEY, enabled INTEGER NOT NULL, maintenance TEXT NOT NULL);

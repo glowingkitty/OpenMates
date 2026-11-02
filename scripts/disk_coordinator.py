@@ -40,6 +40,9 @@ try:
         RECOVERY_MARGIN,
         MIN_INODES,
         KINDS,
+        PROACTIVE_INTERVAL,
+        PROACTIVE_PRESSURE_INTERVAL,
+        PROACTIVE_PERCENT,
     )
 except ModuleNotFoundError:
     import resource_budget as budget
@@ -58,6 +61,9 @@ except ModuleNotFoundError:
         RECOVERY_MARGIN,
         MIN_INODES,
         KINDS,
+        PROACTIVE_INTERVAL,
+        PROACTIVE_PRESSURE_INTERVAL,
+        PROACTIVE_PERCENT,
     )
 
 
@@ -153,6 +159,8 @@ class Coordinator(CoordinatorState):
         command = (
             ["bash", str(Path(repository) / "scripts" / script)]
             if script
+            else [sys.executable, str(Path(repository) / "scripts/host_disk_cleanup.py"), "--apply"]
+            if kind == "host"
             else [
                 sys.executable,
                 str(Path(repository) / "scripts/sessions.py"),
@@ -182,7 +190,14 @@ class Coordinator(CoordinatorState):
             timeout=1200,
         )
         report = {"kind": kind, "returncode": result.returncode}
-        if not script:
+        if kind == "host":
+            try:
+                detail = json.loads(result.stdout)
+                report.update(deleted=len(detail["deleted"]), reclaimed_bytes=detail["reclaimed_bytes"],
+                              skipped=detail["skipped"], failures=detail["failures"])
+            except (ValueError, TypeError, KeyError):
+                report["error"] = "Host cleanup did not return a valid structured report"
+        elif not script:
             try:
                 if len(result.stdout) > 2 * 1024 * 1024:
                     raise ValueError("Worktree cleanup report exceeds diagnostic limit")
@@ -254,7 +269,22 @@ class Coordinator(CoordinatorState):
                     raise
             yield dispatch
 
-    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN, cleanup_dispatch=None):
+    def _proactive_jobs(self, enabled, now):
+        """Schedule all enabled kinds on a fixed cadence, sooner under pressure."""
+        last = self.__dict__.setdefault("_proactive_at", {})
+        jobs = []
+        for repository, kinds in enabled.items():
+            usage = self.usage(repository)
+            percent = 100 * usage.used / usage.total if usage.total else 100
+            interval = (PROACTIVE_PRESSURE_INTERVAL if percent >= PROACTIVE_PERCENT
+                        else PROACTIVE_INTERVAL)
+            if now - last.get(repository, float("-inf")) >= interval:
+                last[repository] = now
+                jobs.extend((repository, kind) for kind in kinds)
+        return jobs
+
+    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN, cleanup_dispatch=None,
+             proactive=False):
         self._assert_leader()
         cleaner = cleaner or self._cleanup
         now = self.clock()
@@ -269,6 +299,13 @@ class Coordinator(CoordinatorState):
                 r["path"]: json.loads(r["maintenance"])
                 for r in db.execute("SELECT * FROM repositories WHERE enabled=1")
             }
+            if proactive:
+                for repository, kind in self._proactive_jobs(enabled, now):
+                    cleanup_jobs.append((repository, kind))
+                    db.execute(
+                        "INSERT INTO maintenance VALUES (?,?,'running',?,'') ON CONFLICT(repository,kind) DO UPDATE SET state='running'",
+                        (repository, kind, now),
+                    )
             for row in db.execute(
                 "SELECT * FROM maintenance WHERE state='waiting'"
             ).fetchall():
@@ -562,7 +599,7 @@ def main():
         signal.signal(signal.SIGINT, shutdown)
         with coordinator.leadership(), coordinator.background_cleanup() as dispatch:
             while not stop:
-                coordinator.tick(cleanup_dispatch=dispatch)
+                coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
                 time.sleep(1)
     elif args.action == "owner-check":
         return 0 if owner_check(coordinator) else 1

@@ -4851,11 +4851,19 @@ def _hard_expiry_record_is_live(
     )
 
 
+# Ignored directories that are regenerable build output, caches or disposable
+# run artifacts. They are never copied into an expired worktree's recovery archive.
 WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({
     "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache",
     ".mypy_cache", ".ruff_cache", ".svelte-kit", ".next", ".turbo",
+    "target", "dist", "build", ".runtime", "coverage", "playwright-report",
+    "test-results",
 })
 WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES = 256 * 1024**2
+# Large *ignored* files (source tarballs, videos, binaries) are listed in the
+# archive manifest as omitted instead of copied. Tracked changes and untracked,
+# non-ignored files are always archived in full.
+WORKTREE_EXPIRY_OMIT_IGNORED_BYTES = 8 * 1024**2
 
 
 def _expiry_sha256_stream(stream: Any) -> str:
@@ -4919,6 +4927,7 @@ def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]
         cwd=path, capture_output=True, check=True, timeout=60,
     ).stdout
     names = {os.fsdecode(name) for name in filter(None, untracked.split(b"\0"))}
+    ignored: set[str] = set()
     for root_name in _expiry_ignored_roots(path):
         if not root_name:
             continue
@@ -4933,6 +4942,7 @@ def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]
                 pending.extend(relative / child.name for child in source.iterdir())
             else:
                 names.add(relative.as_posix())
+                ignored.add(relative.as_posix())
     entries: list[dict] = []
     for name in sorted(names):
         relative = Path(name)
@@ -4946,6 +4956,10 @@ def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]
             target = os.readlink(source)
             payload = os.fsencode(target)
             kind = "symlink"
+        elif stat.S_ISREG(mode) and name in ignored and source.stat().st_size >= WORKTREE_EXPIRY_OMIT_IGNORED_BYTES:
+            entries.append({"path": name, "kind": "omitted", "sha256": hashlib.sha256(b"").hexdigest(),
+                            "size": 0, "omitted_bytes": source.stat().st_size})
+            continue
         elif stat.S_ISREG(mode):
             with source.open("rb") as source_stream:
                 file_hash = _expiry_sha256_stream(source_stream)
@@ -5014,6 +5028,8 @@ def _archive_expired_worktree(record: dict) -> str:
                     info.mode = 0o600
                     output.addfile(info, io.BytesIO(payload))
                 for entry in entries:
+                    if entry["kind"] == "omitted":
+                        continue
                     source = path / entry["path"]
                     info = output.gettarinfo(source, arcname=f"untracked/{entry['path']}")
                     if info.islnk():
@@ -5034,7 +5050,8 @@ def _archive_expired_worktree(record: dict) -> str:
                 "staged.patch": manifest["staged_patch_sha256"],
                 "working.patch": manifest["working_patch_sha256"],
             }
-            expected.update({f"untracked/{entry['path']}": entry["sha256"] for entry in entries})
+            expected.update({f"untracked/{entry['path']}": entry["sha256"] for entry in entries
+                             if entry["kind"] != "omitted"})
             actual = {}
             for member in verified:
                 if member.name not in expected or member.name in actual:

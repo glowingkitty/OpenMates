@@ -441,3 +441,30 @@ def test_background_cleanup_worker_failure_is_recorded_and_retried_after_backoff
         now[0] += disk.CLEANUP_BACKOFF + 1
         c.tick(cleaner=lambda *args: calls.append(args))
         assert len(calls) == 1
+
+
+def test_proactive_cleanup_runs_all_kinds_on_cadence_without_waiting_requests(tmp_path):
+    c, root, now, usage = fixture(tmp_path, free=500, used=500, kinds=('managed', 'host'))
+    calls = []
+    def cleaner(repository, kind):
+        calls.append(kind)
+        return {'deleted': []}
+    with c.leadership():
+        c.tick(cleaner=cleaner, recovery_margin=0)
+        assert calls == []  # non-proactive ticks still only react to waiting work
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert sorted(calls) == ['host', 'managed']
+        now[0] += disk.PROACTIVE_PRESSURE_INTERVAL + 1
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 2  # below the pressure threshold the long cadence applies
+        usage[0] = Usage(1000, 850, 150)
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 4  # high usage shortens the cadence
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 4
+    with c.db() as db:
+        assert {row[0] for row in db.execute("SELECT state FROM maintenance")} == {'complete'}
+
+
+def test_host_cleanup_kind_is_registered():
+    assert 'host' in disk.KINDS

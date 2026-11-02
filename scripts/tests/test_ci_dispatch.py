@@ -287,10 +287,39 @@ def test_cold_daily_discovers_actual_inventory_without_legacy_accounts(monkeypat
         if key.startswith(("TEST_ACCOUNT", "OPENMATES_TEST_ACCOUNT_")):
             monkeypatch.delenv(key)
     root = Path(ci_dispatch.__file__).resolve().parents[1]
-    selected = ci_dispatch.select_snapshot_specs(root, SimpleNamespace(spec=[], daily=True))
+    unclassified = {}
+    selected = ci_dispatch.select_snapshot_specs(
+        root, SimpleNamespace(spec=[], daily=True), unclassified)
+    # Unclassified AI specs are held for review rather than aborting discovery.
+    assert not set(unclassified) & set(selected)
+    assert all(reason.startswith("Unclassified AI spec") for reason in unclassified.values())
     admitted, held = partition(selected)
     assert "account-interests-settings.spec.ts" in admitted
     assert "import-account-v1.spec.ts" in admitted
     assert "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts" not in selected
     assert "daily-ai-fixed-canary.spec.ts" in held
     assert "daily-ai-rotating-canary.spec.ts" in held
+
+
+def test_daily_unclassified_ai_spec_is_held_and_the_run_still_queues(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+
+    def select(_root, _args, _source, held=None):
+        held["new-ai.spec.ts"] = "Unclassified AI spec: classify it"
+        return ["ordinary.spec.ts"]
+
+    monkeypatch.setattr(ci_dispatch, "select_specs", select)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
+    ci_dispatch.run(["--worktree", str(root), "--daily", "--expected-commit", source, "--detach"])
+    manifest_path, = (root / "test-results/daily-runs").glob("*.json")
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["status"] == "queued"
+    assert manifest["selection_error"] == ""
+    assert "new-ai.spec.ts" in manifest["held_specs"]
+    assert manifest["held_reasons"]["new-ai.spec.ts"] == "Unclassified AI spec: classify it"
+    assert {job["mode"] for job in Queue(root / "logs/ci-coordinator/queue.sqlite3").status()} >= {"pytest", "vitest"}
