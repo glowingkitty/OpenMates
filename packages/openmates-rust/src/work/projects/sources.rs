@@ -282,6 +282,34 @@ impl Projects<'_> {
         )
     }
 }
+impl Projects<'_> {
+    /// Remove a source link (never files on its host). The legacy route
+    /// requires the exact source ID again as `confirmation_source_id`.
+    pub async fn delete_source(&mut self, selector: &str, id: &str, confirmation: &str) -> Result<Value> {
+        self.source_cookie_only()?;
+        let encoded_id = source_patch_segment(id)?;
+        if confirmation != id {
+            return Err(Error::Invalid(
+                "Project source removal requires --confirm <source-id>.",
+            ));
+        }
+        self.scope()?;
+        let project = self.resolve(selector).await?;
+        let project_id = string(&project.raw, "project_id")?;
+        let route = self.path(
+            &format!("/v1/projects/{project_id}/sources/{encoded_id}"),
+            &[("confirmation_source_id".into(), confirmation.into())],
+        );
+        if self.operation_cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let response = self
+            .backend
+            .request(Method::DELETE, &route, None, None)
+            .await?;
+        Ok(json!({"project_id":project_id,"source_id":id,"deleted":response["deleted"] == true}))
+    }
+}
 #[cfg(test)]
 mod tests;
 

@@ -37,7 +37,7 @@ fn list_uses_existing_parser_and_scope_flags_without_enabling_source_mutation() 
         "--source",
         "source-one",
     ]);
-    assert!(!supported(&remove));
+    assert!(supported(&remove));
 }
 // contract-test: supporting surface=cli assertions=projects.surface.semantic-parity,cli.surface.semantic-parity
 #[test]
@@ -170,4 +170,27 @@ fn malformed_shared_rows_fail_without_raw_output_and_existing_terminal_safety_re
             .stdout,
         "source  Folder\\u001b[31mname  connected\n"
     );
+}
+
+// contract-test: supporting surface=cli assertions=projects.surface.semantic-parity,cli.surface.semantic-parity
+#[tokio::test]
+async fn source_removal_requires_the_exact_source_id_before_any_request() {
+    let mut client = crate::client::Client::new("http://127.0.0.1:1", None).unwrap();
+    for (args, code, message) in [
+        (vec!["openmates", "projects", "sources", "remove", "engineering", "--source", "src-1", "--json"],
+            "confirmation_required", "Project source removal requires --confirm <source-id>."),
+        (vec!["openmates", "projects", "sources", "remove", "engineering", "--source", "src-1", "--confirm", "src-2"],
+            "confirmation_mismatch", "Project source removal confirmation must exactly match 'src-1'."),
+        (vec!["openmates", "projects", "sources", "remove", "engineering", "--confirm", "src-1"],
+            "command_failed", "Missing --source <source-id>."),
+    ] {
+        let i = invocation(&args);
+        let mut service = client.projects();
+        match remove(&i, &mut service, &CancellationToken::new()).await {
+            Err(CliError::Contract { code: actual, message: text }) => {
+                assert_eq!((actual, text.as_str()), (code, message), "{args:?}");
+            }
+            _ => panic!("expected a contract error for {args:?}"),
+        }
+    }
 }

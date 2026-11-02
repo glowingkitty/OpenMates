@@ -48248,12 +48248,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.delete_source",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/sources.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Cookie session only; removes the source link, never host files. Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61720,8 +61720,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 566,
-    "unsupported": 154,
+    "native_handlers_partial": 567,
+    "unsupported": 153,
     "feature_complete": false
   },
   "maintenance": {

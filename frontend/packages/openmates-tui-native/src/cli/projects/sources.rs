@@ -82,3 +82,67 @@ pub(super) async fn execute(
 #[cfg(test)]
 #[path = "sources_tests.rs"]
 mod tests;
+
+/// `projects sources remove <project> --source <id> [--confirm <id>]`, with the
+/// legacy exact-ID confirmation (flag, else an interactive typed ID).
+pub(super) async fn remove(
+    i: &Invocation,
+    service: &mut Projects<'_>,
+    cancel: &CancellationToken,
+) -> Result<CliOutput, CliError> {
+    check(i, &["source", "confirm"])?;
+    let contract = |code: &'static str, message: String| CliError::Contract { code, message };
+    let non_interactive = i.boolean("json") || !std::io::IsTerminal::is_terminal(&std::io::stdin());
+    if non_interactive && i.text("confirm").is_none() {
+        return Err(contract(
+            "confirmation_required",
+            "Project source removal requires --confirm <source-id>.".into(),
+        ));
+    }
+    let selector = i
+        .positionals
+        .first()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| contract("command_failed", "Missing project.".into()))?;
+    let source = i
+        .text("source")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| contract("command_failed", "Missing --source <source-id>.".into()))?;
+    let confirmation = match i.text("confirm") {
+        Some(value) if value == source => value.to_owned(),
+        Some(_) => {
+            return Err(contract(
+                "confirmation_mismatch",
+                format!("Project source removal confirmation must exactly match '{source}'."),
+            ));
+        }
+        None => {
+            use std::io::Write;
+            let mut stdout = std::io::stdout();
+            write!(stdout, "Project source removal. Type {source} to continue: ")
+                .and_then(|()| stdout.flush())
+                .map_err(|_| Error::Io)?;
+            let answer = tokio::task::spawn_blocking(|| {
+                let mut line = String::new();
+                std::io::stdin().read_line(&mut line).map(|_| line)
+            })
+            .await
+            .map_err(|_| Error::Io)?
+            .map_err(|_| Error::Io)?;
+            if answer.trim() != source {
+                return Err(contract(
+                    "confirmation_cancelled",
+                    "Project source removal cancelled.".into(),
+                ));
+            }
+            source.to_owned()
+        }
+    };
+    if cancel.is_cancelled() {
+        return Err(Error::Cancelled.into());
+    }
+    let value = service.delete_source(selector, source, &confirmation).await?;
+    output(i, value, format!("Project source removed: {source}"))
+}

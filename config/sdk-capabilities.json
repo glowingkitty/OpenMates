@@ -3640,6 +3640,7 @@
             "work.projects.sources.ProjectSourceType.RemoteFolder",
             "work.projects.sources.ProjectSourceType.RemoteGitRepository",
             "work.projects.sources.Projects.create_source",
+            "work.projects.sources.Projects.delete_source",
             "work.projects.sources.Projects.update_source_capabilities",
             "work.projects.task_sync.Projects.task_source"
           ],

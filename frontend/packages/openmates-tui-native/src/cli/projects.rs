@@ -53,6 +53,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects items list"
             | "projects items remove"
             | "projects sources list"
+            | "projects sources remove"
     )
 }
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
@@ -363,6 +364,9 @@ async fn execute_service(
     }
     if i.command_path() == "projects sources list" {
         return sources::execute(i, &mut service, &cancel).await;
+    }
+    if i.command_path() == "projects sources remove" {
+        return sources::remove(i, &mut service, &cancel).await;
     }
     if i.command_path() == "projects ask" {
         let (_, value) = ask::run(i, &mut service).await?;
