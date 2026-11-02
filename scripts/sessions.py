@@ -188,7 +188,9 @@ DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-comp
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 4 * 24
-WORKTREE_HARD_MAX_AGE_HOURS = 4 * 24
+# Managed worktrees (including ones created for other agents) are kept a full
+# week before hard expiry.
+WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))

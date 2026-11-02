@@ -28,7 +28,7 @@ when a skill or this file points to it.
    explicit authorization. Shared dev services restart only via
    `sessions.py docker restart --session <id> --service <name>`.
 5. Low disk: deleting unused Docker images, build artifacts, caches and managed
-   worktrees inactive >4 days is pre-approved; preserve active/unfinished work.
+   worktrees inactive >7 days is pre-approved; preserve active/unfinished work.
 6. Wait on processes (`ci_coordinator.py wait`, `sessions.py wait-deploy`), not
    repeated sleep/poll turns. Report outcome, commit and verification.
 

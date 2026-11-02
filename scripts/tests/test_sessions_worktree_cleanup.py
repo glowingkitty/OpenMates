@@ -376,17 +376,18 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert manifest["recovery_archive"] == ""
 
 
-def test_hard_expiry_defaults_to_four_inactive_days_and_protects_recent_merged_work(monkeypatch, tmp_path):
+def test_hard_expiry_defaults_to_seven_inactive_days_and_protects_recent_merged_work(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     now = time.time()
     managed = tmp_path / "worktrees"
     records = []
     session_data = {}
     for session_id, age_hours, status, session_idle, worktree_idle in (
-        ("old", 120, "active", 120, 120),
-        ("recent", 72, "active", 72, 72),
-        ("merged-recent", 120, "merged", 120, 1),
-        ("ended-recent", 120, "ended", 1, 120),
+        ("old", 200, "active", 200, 200),
+        # Five days inactive: retained under the one-week hard lifetime.
+        ("recent", 120, "active", 120, 120),
+        ("merged-recent", 200, "merged", 200, 1),
+        ("ended-recent", 200, "ended", 1, 200),
     ):
         path = managed / f"agent-{session_id}"
         path.mkdir(parents=True)
@@ -419,18 +420,18 @@ def test_hard_expiry_defaults_to_four_inactive_days_and_protects_recent_merged_w
 
     assert removed == ["old"]
     assert report["deleted"] == ["old"]
-    assert report["max_age_hours"] == 96
+    assert report["max_age_hours"] == 168
     assert set(report["retained"]) == {"recent", "merged-recent", "ended-recent"}
     assert set(report["protected_live"]) == {"merged-recent", "ended-recent"}
     assert set(json.loads(sessions_file.read_text())["sessions"]) == {"recent", "merged-recent", "ended-recent"}
 
 
-def test_hard_expiry_rejects_age_below_four_days(monkeypatch):
+def test_hard_expiry_rejects_age_below_seven_days(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: pytest.fail("must reject before discovery"))
 
     with pytest.raises(ValueError, match="below the configured hard lifetime"):
-        sessions.expire_managed_worktrees(max_age_hours=95)
+        sessions.expire_managed_worktrees(max_age_hours=167)
 
 
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):

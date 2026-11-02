@@ -166,8 +166,7 @@ class Coordinator(CoordinatorState):
                 str(Path(repository) / "scripts/sessions.py"),
                 "worktree",
                 "expire",
-                "--max-age-hours",
-                "96",
+                # Default is sessions.WORKTREE_HARD_MAX_AGE_HOURS (7 days).
                 "--format",
                 "json",
             ]
